@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Surveyor.User_Controls.EventsControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Surveyor.User_Controls"
+    xmlns:local2="using:Surveyor.Events"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+
+    <UserControl.Resources>
+        <local:TimeSpanToStringConverter x:Key="TimeSpanToStringConverter"/>
+        <local:EventDataTypeToStringConverter x:Key="EventDataTypeToStringConverter"/>
+        <local:EventDataToStringConverter x:Key="EventDataToStringConverter"/>
+    </UserControl.Resources>
+    
+    <Grid>
+        <ListView x:Name="ListViewEvent" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                   IsItemClickEnabled="True" ItemClick="GoToFrameMenuItem_Click" RightTapped="ViewMenuItem_Click" KeyDown="ListViewEvent_KeyDown">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="local2:Event">
+                    <Grid ColumnDefinitions="16, 150, 150, 200, 1800">
+                        <!--Column 0: Event Type Glyph -->
+                        <TextBlock Grid.Column="0" Text=" " Width="16" TextAlignment="Left"  Margin="0,0,10,0"/>
+
+                        <!-- Column 1: Left Frame -->
+                        <TextBlock Grid.Column="1" Text="{x:Bind TimeSpanTimelineController, Mode=OneWay, Converter={StaticResource TimeSpanToStringConverter}}" Width="150" TextAlignment="Left"  Margin="0,0,10,0"/>
+
+                        <!-- Column 3: Event Type -->
+                        <TextBlock Grid.Column="3" Text="{x:Bind EventDataType, Mode=OneWay, Converter={StaticResource EventDataTypeToStringConverter}}" Width="200" TextAlignment="Left" Margin="0,0,0,0" />
+                        
+                        <!-- Column 4: Event Data -->
+                        <TextBlock Grid.Column="4" Text="{x:Bind Converter={StaticResource EventDataToStringConverter}}" Width="1800" TextAlignment="Left" Margin="0,0,0,0" />
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+
+</UserControl>

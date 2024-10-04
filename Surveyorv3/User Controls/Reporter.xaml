@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Surveyor.User_Controls.Reporter"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Surveyor.User_Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <local:WarningLevelToImageConverter x:Key="WarningLevelToImageConverter" />
+    </UserControl.Resources>
+
+    <Grid>
+        <ListView x:Name="ListViewReporter" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+                  IsItemClickEnabled="True" ItemClick="ViewMenuItem_Click">
+            <ListView.ItemTemplate>
+                <DataTemplate x:DataType="local:ReporterListViewItem">
+                    <Grid ColumnDefinitions="Auto, 150, 20, 1800">
+                        <!--Column 0: WarningLevel Icon-->
+                        <Image Width="16" Height="16" Source="{x:Bind ImageData, Mode=OneTime}"  Margin="0,0,10,0"/>
+
+                        <!-- Column 1: Time -->
+                        <TextBlock Grid.Column="1" Text="{x:Bind Time, Mode=OneWay}" Width="150" TextAlignment="Left"  Margin="0,0,10,0"/>
+
+                        <!-- Column 2: Channel -->
+                        <TextBlock Grid.Column="2" Text="{x:Bind Channel, Mode=OneWay}" Width="20" TextAlignment="Left"  Margin="0,0,10,0"/>
+
+                        <TextBlock Grid.Column="3" Text="{x:Bind Message, Mode=OneWay}" Width="1800" TextAlignment="Left" Margin="0,0,0,0" />
+                    </Grid>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+    </Grid>
+    
+</UserControl>
