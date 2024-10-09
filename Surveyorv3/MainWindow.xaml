@@ -20,30 +20,38 @@
         <!-- Custom Title Bar Area -->
         <Grid x:Name="AppTitleBar" Background="Transparent" Height="40" Grid.Row="0">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition x:Name="LeftPaddingColumn" Width="20"/>
                 <!-- 0 Column -->
-                <ColumnDefinition x:Name="IconColumn" Width="Auto"/>
+                <ColumnDefinition x:Name="LeftPaddingColumn" Width="20"/>
                 <!-- 1 Column -->
+                <ColumnDefinition x:Name="IconColumn" Width="Auto"/>
+                <!-- 2 Column Separator -->
                 <ColumnDefinition x:Name="MenuColumn" Width="Auto"/>
-                <!-- 2 Column -->
-                <ColumnDefinition x:Name="TitleColumn" Width="Auto"/>
                 <!-- 3 Column -->
-                <ColumnDefinition x:Name="LeftDragColumn" Width="*"/>
+                <ColumnDefinition x:Name="SeparatorColumn" Width="1"/>
                 <!-- 4 Column -->
-                <ColumnDefinition x:Name="SearchColumn" Width="4*" MinWidth="220"/>
+                <ColumnDefinition x:Name="TitleColumn" Width="Auto"/>
                 <!-- 5 Column -->
+                <ColumnDefinition x:Name="LeftDragColumn" Width="*"/>
+                <!-- 6 Column -->
+                <ColumnDefinition x:Name="SearchColumn" Width="4*" MinWidth="220"/>
+                <!-- 7 Column -->
                 <ColumnDefinition x:Name="RightDragColumn" Width="*" MinWidth="48"/>
-                <!-- 6 COlumn -->
-                <ColumnDefinition x:Name="LockUnLockColumn" Width="Auto"/>
-                <!-- 7 COlumn -->
-                <ColumnDefinition x:Name="CalibratedColumn" Width="Auto"/>
                 <!-- 8 Column -->
-                <ColumnDefinition x:Name="AccountColumn" Width="Auto"/>
+                <ColumnDefinition x:Name="LockUnLockColumn" Width="Auto"/>
                 <!-- 9 Column -->
-                <ColumnDefinition x:Name="RightPaddingColumn" Width="20"/>
+                <ColumnDefinition x:Name="CalibratedColumn" Width="Auto"/>
                 <!-- 10 Column -->
+                <ColumnDefinition x:Name="AccountColumn" Width="Auto"/>
+                <!-- 11 Column -->
+                <ColumnDefinition x:Name="RightPaddingColumn" Width="20"/>
             </Grid.ColumnDefinitions>
 
+            
+            <!-- App Icon -->
+            <Image x:Name="TitleBarIcon" Source="ms-appx:///Assets/surveyor.png" Grid.Column="1" Width="16" Height="16" Margin="8,0,4,0"/>
+
+            
+            <!-- App Menu -->
             <MenuBar x:Name="AppMenuBar" VerticalAlignment="Top" Grid.Column="2">
                 <MenuBarItem Title="File" >
                     <MenuFlyoutItem Name="MenuSurveyNew" Text="New Survey" Click="FileSurveyNew_Click"/>
@@ -74,20 +82,27 @@
                 </MenuBarItem>
             </MenuBar>
 
-            <Image x:Name="TitleBarIcon" Source="ms-appx:///Assets/surveyor.png" Grid.Column="1" Width="16" Height="16" Margin="8,0,4,0"/>
+            <!-- Add a Border element for the vertical line separator -->
+            <Border Grid.Column="3" 
+                  Width="1" Height="20"
+                  Background="#FFC0C0C0"
+                  VerticalAlignment="Center" />
 
+            
             <!-- App Title or additional content can go here -->
-            <TextBlock x:Name="TitleBarTextBlock"
-                       Text="Surveyor" 
-                       Style="{StaticResource CaptionTextBlockStyle}"
-                       Grid.Column="3"
-                       VerticalAlignment="Center" Margin="16,0,0,0">
-
-            </TextBlock>
-
+            <Border Grid.Column="4" Background="#FF3E3E3E" Padding="8,0,8,0" VerticalAlignment="Center" Margin="16,0,0,0">
+                <!-- Lighter background around title -->
+                <TextBlock x:Name="TitleBarTextBlock"
+                   Text="Surveyor" 
+                   Style="{StaticResource CaptionTextBlockStyle}"
+                   VerticalAlignment="Center"
+                   HorizontalAlignment="Center"/>
+            </Border>
+            
+            
             <!-- Enable Line below if you need a search box on the title bar -->
             <!--<AutoSuggestBox x:Name="TitleBarSearchBox" 
-                            Grid.Column="5" 
+                            Grid.Column="6" 
                             QueryIcon="Find"
                             PlaceholderText="Search"
                             VerticalAlignment="Center"
@@ -102,7 +117,7 @@
                        FontSize="14" 
                        Text="&#xE1F7;"
                        Style="{StaticResource CaptionTextBlockStyle}"
-                       Grid.Column="7"
+                       Grid.Column="8"
                        VerticalAlignment="Top" Margin="16,8,16,0">
             </TextBlock>
 
@@ -115,13 +130,14 @@
                        FontSize="14" 
                        Text="&#x1F4D0;"
                        Style="{StaticResource CaptionTextBlockStyle}"
-                       Grid.Column="8"
+                       Grid.Column="9"
                        VerticalAlignment="Top" Margin="16,8,16,0">
             </TextBlock>
 
+         
             <!-- Enable line below if you need a login indicator on the title bar -->
             <!--<PersonPicture x:Name="PersonPic" 
-                           Grid.Column="9" 
+                           Grid.Column="10" 
                            Height="32" Margin="0,0,16,0"/>-->
         </Grid>
 
@@ -169,16 +185,28 @@
 
 
         <!-- Tab control for results, events etc -->
-        <TabView x:Name="TabView" Grid.Row="2" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"  SelectionChanged="OnTabViewSelectionChanged" IsAddTabButtonVisible="False">
+        <!--<TabView x:Name="TabView" Grid.Row="2" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"  SelectionChanged="OnTabViewSelectionChanged" IsAddTabButtonVisible="False">
             <TabViewItem Header="Events" TabIndex="0" IsClosable="False">
                 <surveyorControls:EventsControl x:Name="EventsControl"/>
             </TabViewItem>
             <TabViewItem Header="Results" TabIndex="1" IsClosable="False">
-                <!--<surveyorControls:Results x:Name="Results"/>-->
+                --><!--<surveyorControls:Results x:Name="Results"/>--><!--
             </TabViewItem>
             <TabViewItem Header="Output" TabIndex="2" IsClosable="False">
                 <surveyorControls:Reporter x:Name="Report"/>
             </TabViewItem>
-        </TabView>
+        </TabView>-->
+
+        <NavigationView x:Name="NavigationView" Grid.Row="2" PaneDisplayMode="Top" SelectionChanged="OnNavigationViewSelectionChanged">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="Events" Icon="Calendar" Tag="EventsPage"/>
+                <NavigationViewItem Content="Results" Icon="Document" Tag="ResultsPage"/>
+                <NavigationViewItem Content="Output" Icon="Print" Tag="OutputPage"/>
+            </NavigationView.MenuItems>
+
+            <!-- Frame to display content based on navigation -->
+            <Frame x:Name="ContentFrame" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+        </NavigationView>
+
     </Grid>
 </Window>

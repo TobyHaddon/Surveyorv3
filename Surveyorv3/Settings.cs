@@ -67,8 +67,7 @@ namespace Surveyor
             get
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                string? mediaFrameFolder = localSettings.Values["MediaFrameFolder"] as string;
-                if (mediaFrameFolder is null)
+                if (localSettings.Values["MediaFrameFolder"] is not string mediaFrameFolder)
                     mediaFrameFolder = ProjectFolder + "\\MediaFrames";
 
                 return mediaFrameFolder;
@@ -77,6 +76,24 @@ namespace Surveyor
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
                 localSettings.Values["MediaFrameFolder"] = value;
+            }
+        }
+
+        // Display Pointer Coordinates on screen
+        public static bool DisplayPointerCoordinates
+        {
+            get
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                if (localSettings.Values["DisplayPointerCoordinates"] is not bool displayPointerCoordinates)
+                    displayPointerCoordinates = false;
+
+                return displayPointerCoordinates;
+            }
+            set
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                localSettings.Values["DisplayPointerCoordinates"] = value;
             }
         }
     }

@@ -213,6 +213,8 @@ namespace Surveyor.User_Controls
         //???private bool canvasFrameContextMenuOpen = false;
         private bool canvasMagContextMenuOpen = false;
 
+        // Display Pointer Coords
+        private bool displayPointerCoords = false;
 
         public MagnifyAndMarkerDisplay()
         {
@@ -229,7 +231,7 @@ namespace Surveyor.User_Controls
             // dimensions then calculate the offset to the centre of the icon and save of later use
             targetIconOriginalWidth = TargetA.Width;
             targetIconOriginalHeight = TargetA.Height;
-
+            
             // Start the three second utility timer
             SetupTimer();
         }
@@ -350,20 +352,15 @@ namespace Surveyor.User_Controls
             RemoveCanvasShapesByTag("Event");
             RemoveCanvasShapesByTag("EpipolarLine");
 
+            // Do coordinate need to be displayed
+            displayPointerCoords = SettingsManager.DisplayPointerCoordinates;
+            displayPointerCoords = true; //??? Force on until Settings User Control is ready
+
             // Set the image loaded flag
             imageLoaded = true;
 
             // Calulate the scale factor between the actual image and the screen image
             GridSizeChanged();
-
-            // Transfer any existing Target A & B to the CanvasFrame
-            //??? DELETE (done in GridSizeChanged)
-            //TransferTargetsBetweenVariableAndCanvasFrame(true/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
-            //TransferTargetsBetweenVariableAndCanvasFrame(false/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
-
-            // Transfer any existing Events
-            //??? DELETE (done in GridSizeChanged)
-            //TransferExistingEvents();
         }
 
 
@@ -609,6 +606,16 @@ namespace Surveyor.User_Controls
 
                 // Remove any existing Event line highlights
                 RemoveAnyLineHightLights();
+
+                // If required display the pointer coordinates
+                if (displayPointerCoords)
+                {
+                    // Get the pointer position relative to the canvas
+                    var position = e.GetCurrentPoint(CanvasFrame).Position;
+
+                    // Update the TextBlock to show the pointer's X and Y coordinates
+                    CoordinateDisplay.Text = $"{position.X:F2}, {position.Y:F2}";
+                }
             }
         }
 
@@ -1302,7 +1309,14 @@ namespace Surveyor.User_Controls
                 TransferTargetsBetweenVariableAndCanvasFrame(true/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
                 TransferTargetsBetweenVariableAndCanvasFrame(false/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);                
             }
+
+            // Move the coordinates display to the bottom right corner
+            // Position the TextBlock in the bottom-right corner of the Canvas
+            // Subtract a margin (e.g., 10 pixels) from the Canvas width and height to keep some padding
+            Canvas.SetLeft(CoordinateDisplay, CanvasFrame.ActualWidth - CoordinateDisplay.ActualWidth - 10);
+            Canvas.SetTop(CoordinateDisplay, CanvasFrame.ActualHeight - CoordinateDisplay.ActualHeight - 10);
         }
+
         private void AdjustCanvasSizeAndScaling()
         {
             // Calculate the X & Y scale factor between the Image control and the

@@ -65,8 +65,8 @@ namespace Surveyor.User_Controls
         private DisplayRequest? appDisplayRequest = null;
 
         // Used to indicate if the control is in Player mode (i.e. using MediaPlayerElement) or in frame mode (i.e. reading and displaying video frame via FFmpeg)
-        public enum emode { modeNone, modePlayer, modeFrame };
-        private emode _mode = emode.modeNone;
+        public enum eMode { modeNone, modePlayer, modeFrame };
+        private eMode _mode = eMode.modeNone;
         private Int64 _frameIndexCurrent = 0;
         private TimeSpan _positionPausedMode = TimeSpan.Zero;
 
@@ -150,7 +150,7 @@ namespace Surveyor.User_Controls
 
                         // Reset
                         _mediaOpen = false;
-                        _mode = emode.modeNone;
+                        _mode = eMode.modeNone;
                         _frameIndexCurrent = 0;
                         _naturalDuration = TimeSpan.Zero;
                         _frameWidth = 0;
@@ -284,7 +284,7 @@ namespace Surveyor.User_Controls
                 // Reset the variables
                 _mediaOpen = false;
                 _mediaUri = "";
-                _mode = emode.modeNone;
+                _mode = eMode.modeNone;
                 _frameIndexCurrent = 0;
                 _naturalDuration = TimeSpan.Zero;
                 _frameWidth = 0;
@@ -431,7 +431,7 @@ namespace Surveyor.User_Controls
         {
             CheckIsUIThread();
 
-            if (IsOpen() && _mode == emode.modePlayer)
+            if (IsOpen() && _mode == eMode.modePlayer)
             {
                 // Can only use this function if the media is not synchronized
                 if (!IsMediaSynchronized())
@@ -468,7 +468,7 @@ namespace Surveyor.User_Controls
                 // Can only use this function if the media is not synchronized
                 if (!IsMediaSynchronized())
                 {
-                    if (_mode == emode.modePlayer)
+                    if (_mode == eMode.modePlayer)
                         MediaPlayerElement.MediaPlayer.Pause();
 
                     // Calculate the new position
@@ -524,7 +524,7 @@ namespace Surveyor.User_Controls
                 // Can only use this function if the media is not synchronized
                 if (!IsMediaSynchronized())
                 {
-                    if (_mode == emode.modePlayer)
+                    if (_mode == eMode.modePlayer)
                        MediaPlayerElement.MediaPlayer.Pause();
 
                     // Check move is in bounds
@@ -642,7 +642,7 @@ namespace Surveyor.User_Controls
         internal async void SaveCurrentFrame(string framesPath)
         {
             // Check if the players if loaded and paused
-            if (IsOpen() && _mode == emode.modeFrame)
+            if (IsOpen() && _mode == eMode.modeFrame)
             {
                 if (_vfar.inputBitmap is not null && Position is not null)
                 {
@@ -713,7 +713,7 @@ namespace Surveyor.User_Controls
                             try
                             {
                                 // Remember we are now in Player mode using the media player to render the video
-                                _mode = emode.modePlayer;
+                                _mode = eMode.modePlayer;
                                 
                                 // Exit Frame Server mode so the Media Player can render the frame
                                 DispatcherQueue.TryEnqueue(DispatcherQueuePriority.High, () =>
@@ -745,7 +745,7 @@ namespace Surveyor.User_Controls
 
                         case MediaPlaybackState.Paused:
                             // Remember we are now in Frame mode where we are responsible for rendering the frame
-                            _mode = emode.modeFrame;
+                            _mode = eMode.modeFrame;
 
                             // Capture the frame dimensions if not already known
                             if (_frameWidth == 0 && playbackSession.NaturalVideoWidth != 0)
@@ -1025,7 +1025,7 @@ namespace Surveyor.User_Controls
         {
             MediaPlayer mediaPlayer = sender as MediaPlayer;
 
-            _mode = emode.modeNone;
+            _mode = eMode.modeNone;
 
             Debug.WriteLine($"{CameraSide}: Info MediaPlayer_MediaFailed: Media playback error: {args.ErrorMessage}, Extended error code: {args.ExtendedErrorCode.HResult}");
         }
@@ -1034,7 +1034,7 @@ namespace Surveyor.User_Controls
         {
             MediaPlayer mediaPlayer = sender as MediaPlayer;
 
-            _mode = emode.modeNone;
+            _mode = eMode.modeNone;
 
             Debug.WriteLine($"{CameraSide}: Info MediaPlayer_MediaEnded");
         }
@@ -1140,7 +1140,7 @@ namespace Surveyor.User_Controls
             // * been set to false, however we still get this event. So we need to check the mode and set  *
             // * the IsVideoFrameServerEnabled to false again and report                                   *
             // *********************************************************************************************
-            if (_mode == emode.modePlayer)
+            if (_mode == eMode.modePlayer)
             {
                 _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
                 {
@@ -1213,7 +1213,7 @@ namespace Surveyor.User_Controls
                         // Note this is relatively slow function and the player mode is checked at the start
                         // but may have changed by the time we get here.
                         // If we are now in player mode then we mustn't make the ImageFrame visible and collapse the player
-                        if (_mode != emode.modePlayer && ImageFrame.Visibility == Visibility.Collapsed)
+                        if (_mode != eMode.modePlayer && ImageFrame.Visibility == Visibility.Collapsed)
                         {
                             ImageFrame.Visibility = Visibility.Visible;
                             MediaPlayerElement.Visibility = Visibility.Collapsed;
@@ -1636,7 +1636,7 @@ namespace Surveyor.User_Controls
     /// </summary>
     public class MediaPlayerEventData
     {
-        public MediaPlayerEventData(eMediaPlayerEvent e, SurveyorMediaPlayer.eCameraSide cameraSide, SurveyorMediaPlayer.emode mode)
+        public MediaPlayerEventData(eMediaPlayerEvent e, SurveyorMediaPlayer.eCameraSide cameraSide, SurveyorMediaPlayer.eMode mode)
         {
             mediaPlayerEvent = e;
             this.cameraSide = cameraSide;
@@ -1674,7 +1674,7 @@ namespace Surveyor.User_Controls
 
         // Used for all
         public readonly SurveyorMediaPlayer.eCameraSide cameraSide;
-        public readonly SurveyorMediaPlayer.emode mode;
+        public readonly SurveyorMediaPlayer.eMode mode;
 
         // Only used for eMediaPlayerAction.Opened and eMediaPlayerAction.SavedFrame
         public string? mediaFileSpec;

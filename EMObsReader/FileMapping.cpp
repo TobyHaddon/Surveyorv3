@@ -7,16 +7,31 @@
 #include <sstream>
 #include <algorithm>
 #include <cwctype>  // for towupper
+#include <filesystem>
 
 #include "FileMapping.h"
 
 // Implementation
 
 FileMapping::FileMapping(const std::string& filePath) {
-    std::wifstream file(filePath);
+
+	std::filesystem::path relativePath = std::filesystem::path(filePath);
+    std::filesystem::path absolutePath = std::filesystem::absolute(relativePath);
+
+    std::wifstream file(absolutePath);
 
     if (!file.is_open()) {
-        std::cerr << "Error opening file: " << filePath << std::endl;
+        std::cerr << "Error opening file mapping file: " << filePath << std::endl;
+		std::cerr << "  The File Mapping file can be used to adjust file name found in the EMObs to a new file name." << std::endl;
+        std::cerr << "  This can be useful if a movie file was renamed after the .EMObs was created and the file names no longer correspond." << std::endl;
+        std::cerr << "  The File Mapping file format is a simple tab delimitered list of file name from and file name to." << std::endl;
+        std::cerr << "  Example of the format:" << std::endl;
+        std::cerr << "AD_10_1_2017_07_14_Left.avi\tAD_10_1_2017_07_14_Left.MP4" << std::endl;
+        std::cerr << "AD_10_1_2017_07_14_Right.avi\tAD_10_1_2017_07_14_Right.MP4" << std::endl;
+        std::cout << "Press Enter to continue...\n";
+        // Wait for Enter to be pressed
+        std::string input;
+        std::getline(std::cin, input);
         return;
     }
 

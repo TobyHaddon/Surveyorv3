@@ -13,6 +13,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Data;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
@@ -40,9 +41,33 @@ namespace Surveyor
 
         public class DataClass
         {
+            /// <summary>
+            /// Clear the DataClass
+            /// </summary>
+            public void Clear()
+            {
+                this.Info.Clear();
+                this.Media.Clear();
+                this.Sync.Clear();
+                this.Events.Clear();
+                this.Calibration.Clear();
+            }
+
+
             public class InfoClass : INotifyPropertyChanged
             {                
                 public event PropertyChangedEventHandler? PropertyChanged;
+
+                /// <summary>
+                /// Clear down the InfoClass
+                /// </summary>
+                public void Clear()
+                {
+                    _projectFileName = null;
+                    _projectPath = null;
+                    _isDirty = false;
+                }
+
 
                 // Info class version
                 public float Version { get; set; } = 1.0f;
@@ -115,6 +140,18 @@ namespace Surveyor
                     _leftMediaFileNames.CollectionChanged += CollectionChangedHandler;
                     _rightMediaFileNames.CollectionChanged += CollectionChangedHandler;
                 }
+
+                /// <summary>
+                /// Clear down the MediaClass
+                /// </summary>
+                public void Clear()
+                {
+                    _mediaPath = null;
+                    _leftMediaFileNames.Clear();
+                    _rightMediaFileNames.Clear();
+                    _isDirty = false;
+                }
+
 
                 // Media class version
                 public float Version { get; set; } = 1.0f;
@@ -199,6 +236,7 @@ namespace Surveyor
                         }
                     }
                 }
+               
 
                 /// 
                 /// EVENTS
@@ -213,6 +251,20 @@ namespace Surveyor
             public class SyncClass : INotifyPropertyChanged
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
+
+
+                /// <summary>
+                /// Clear down the SyncClass
+                /// </summary>
+                public void Clear()
+                {
+                    _isSynchronized = false;
+                    _timeSpanOffset = TimeSpan.Zero;
+                    _actualTimeSpanOffsetLeft = TimeSpan.Zero;
+                    _actualTimeSpanOffsetRight = TimeSpan.Zero;
+                    _isDirty = false;
+                }
+
 
                 // Sync class version
                 public float Version { get; set; } = 1.3f;
@@ -324,26 +376,22 @@ namespace Surveyor
                     
                 }
 
+
+                /// <summary>
+                /// Clear down the EventsClass
+                /// </summary>
+                public void Clear()
+                {
+                    _eventList.Clear();
+                    _isDirty = false;
+                }
+
                 // Events class version
                 public float Version { get; set; } = 1.0f;
 
                 [JsonIgnore]
-                //???private ObservableCollection<Event> _eventList = new();
                 private SortedEventCollection _eventList = new();
 
-                //???public ObservableCollection<Event> EventList
-                //{
-                //    get => _eventList;
-                //    set
-                //    {
-                //        if (_eventList != value)
-                //        {
-                //            _eventList = value;
-
-                //            IsDirty = true;
-                //        }
-                //    }
-                //}
                 public SortedEventCollection EventList
                 {
                     get => _eventList;
@@ -407,6 +455,16 @@ namespace Surveyor
 
                 }
 
+                /// <summary>
+                /// Clear down the CalibrationClass
+                /// </summary>
+                public void Clear()
+                {
+                    _allowMultipleCalibrationData = false;
+                    _preferredCalibrationDataIndex = -1;
+                    _calibrationDataList.Clear();
+                    _isDirty = false;
+                }
 
                 // Calibration class version
                 public float Version { get; set; } = 1.0f;
@@ -583,68 +641,99 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Clear down the Project class
+        /// </summary>
+        public void Clear()
+        {
+            Data.Clear();
+        }
+
+
+        /// <summary>
         /// Load a project from a json file
         /// </summary>
         /// <param name="projectFileSpec"></param>
         /// <returns></returns>
-        public int ProjectLoad(string projectFileSpec)
+        public async Task<int> ProjectLoad(string projectFileSpec)
         {
             int ret = -1;
             string? json = null;
 
-            try
+            if (Path.GetExtension(projectFileSpec).Equals(".Survey", StringComparison.OrdinalIgnoreCase))
             {
-                json = File.ReadAllText(projectFileSpec);
-            }
-            catch (FileNotFoundException e)
-            {
-                ret = -2;
-                Report?.Warning("", $"Load project failed because the project file couldn't be found, project file:{projectFileSpec}. {e.Message}");
-            }
-            catch (UnauthorizedAccessException e)
-            {
-                ret = -3;
-                Report?.Warning("", $"Load project failed because you do not have permission to read this file, project file:{projectFileSpec}. {e.Message}");
-            }
-            catch (DirectoryNotFoundException e)
-            {
-                ret = -4;
-                Report?.Warning("", $"Load project failed because the specified directory could not be found, project file:{projectFileSpec}. {e.Message}");
-            }
-            catch (PathTooLongException e)
-            {
-                ret = -5;
-                Report?.Warning("", $"Load project failed because the file name is too long, project file:{projectFileSpec}. The specified path, file name, or both exceed the system-defined maximum length. {e.Message}");
-            }
-            catch (IOException e)
-            {
-                ret = -6;
-                Report?.Warning("", $"Load project failed because an I/O error occurred, project file:{projectFileSpec}. {e.Message}");
-            }
-            catch (Exception e)
-            {
-                ret = -7;
-                Report?.Warning("", $"Load project failed because an unexpected error occurred, project file:{projectFileSpec}. {e.Message}");
-            }
 
-            if (json != null)
-            {
-                var settings = new JsonSerializerSettings();
-                settings.Converters.Add(new EventJsonConverter());
-
-                DataClass? data = JsonConvert.DeserializeObject<DataClass>(json, settings);
-
-                if (data != null)
+                try
                 {
-                    Data = data;
-                    ret = SetProjectNameAndPath(projectFileSpec);
-
-                    IsDirty = false;
-                    IsLoaded = true;
-
-                    // Start the autosave task in background
-                    Task.Run(() => AutosaveWorkAsync());
+                    json = File.ReadAllText(projectFileSpec);
                 }
+                catch (FileNotFoundException e)
+                {
+                    ret = -2;
+                    Report?.Warning("", $"Load project failed because the project file couldn't be found, project file:{projectFileSpec}. {e.Message}");
+                }
+                catch (UnauthorizedAccessException e)
+                {
+                    ret = -3;
+                    Report?.Warning("", $"Load project failed because you do not have permission to read this file, project file:{projectFileSpec}. {e.Message}");
+                }
+                catch (DirectoryNotFoundException e)
+                {
+                    ret = -4;
+                    Report?.Warning("", $"Load project failed because the specified directory could not be found, project file:{projectFileSpec}. {e.Message}");
+                }
+                catch (PathTooLongException e)
+                {
+                    ret = -5;
+                    Report?.Warning("", $"Load project failed because the file name is too long, project file:{projectFileSpec}. The specified path, file name, or both exceed the system-defined maximum length. {e.Message}");
+                }
+                catch (IOException e)
+                {
+                    ret = -6;
+                    Report?.Warning("", $"Load project failed because an I/O error occurred, project file:{projectFileSpec}. {e.Message}");
+                }
+                catch (Exception e)
+                {
+                    ret = -7;
+                    Report?.Warning("", $"Load project failed because an unexpected error occurred, project file:{projectFileSpec}. {e.Message}");
+                }
+
+                if (json != null)
+                {
+                    var settings = new JsonSerializerSettings();
+                    settings.Converters.Add(new EventJsonConverter());
+
+                    DataClass? data = JsonConvert.DeserializeObject<DataClass>(json, settings);
+
+                    if (data != null)
+                    {
+                        Data = data;
+                        ret = SetProjectNameAndPath(projectFileSpec);
+
+                        IsDirty = false;
+                        IsLoaded = true;
+
+                        // Start the autosave task in background
+                        _ = Task.Run(() => AutosaveWorkAsync());
+                    }
+                }
+            }
+            else if (Path.GetExtension(projectFileSpec).Equals(".EMObs", StringComparison.OrdinalIgnoreCase))
+            {
+
+                var (result, errorMessage) = await ProjectLoadEMObs(projectFileSpec);
+
+                if (result != 0)
+                {
+                    ret = result;
+                    Report?.Warning("", $"Load project failed, project file:{projectFileSpec}. {errorMessage}");
+                }
+                else
+                    ret = 0;
+            }
+            else
+            {
+                ret = -8;
+                Report?.Warning("", $"Load project failed because the survey has an unsupported extension type, project file:{projectFileSpec}.");
             }
 
             return ret;
@@ -753,11 +842,9 @@ namespace Surveyor
         {
             StopAutosave();
 
-            Data.Info.ProjectFileName = null;
-            Data.Info.ProjectPath = null;
+            Clear();
 
             IsLoaded = false;
-            IsDirty = false;
 
             return 0;
         }

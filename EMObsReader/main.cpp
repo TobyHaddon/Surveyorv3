@@ -62,15 +62,16 @@ int HexDumpEMObsFile(const std::string foundFile, std::wofstream& outputFileStre
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cerr << "Usage: <program> <filespec> [/s] [/o:<outputfile>] [/a] [/t] [/th] [/h] [/nd]" << std::endl;
-        std::cerr << "                            /s                 search sub-directories" << std::endl;
-        std::cerr << "                            /o                 output to EMObsReader.txt" << std::endl;
-        std::cerr << "                            /o:<outputfile>]   output to outputfile" << std::endl;
-        std::cerr << "                            /a                 append to output file" << std::endl;
-        std::cerr << "                            /t                 additionally export the TLC (three letter codes)" << std::endl;
-        std::cerr << "                            /th                additionally export the TLCs in their hierarchy" << std::endl;
-        std::cerr << "                            /h                 additionally dump file to hex in the output file" << std::endl;
-		std::cerr << "                            /no                don't export the data" << std::endl;
+        std::cout << "Usage: <program> <filespec> [/s] [/o:<outputfile>] [/a] [/t] [/th] [/h] [/nd]" << std::endl;
+        std::cout << "                            /s                 search sub-directories" << std::endl;
+        std::cout << "                            /o                 output to EMObsReader.txt" << std::endl;
+        std::cout << "                            /o:<outputfile>]   output to outputfile" << std::endl;
+        std::cout << "                            /a                 append to output file" << std::endl;
+        std::cout << "                            /t                 additionally export the TLC (three letter codes)" << std::endl;
+        std::cout << "                            /th                additionally export the TLCs in their hierarchy" << std::endl;
+        std::cout << "                            /h                 additionally dump file to hex in the output file" << std::endl;
+		std::cout << "                            /no                don't export the data" << std::endl;
+        std::cout << "                            /f:<filemapping>]  two column tab delimited text file to map EMObs video file name to new file name" << std::endl; 
         return 1;
     }
 
@@ -88,7 +89,6 @@ int main(int argc, char* argv[]) {
     if (config->outputFileData.empty())
     {
         std::cout << "Use /O:<filespec> to output a tab delimited file." << std::endl;
-
     }
 
     if (config->tlcMode == true) {
@@ -174,6 +174,11 @@ struct _Config* parseArguments(int argc, char* argv[]) {
             if (arg.find("/o:") == 0 || arg.find("/O:") == 0) {
                 config->outputFileData = arg.substr(3);  // Extract the file name after "/O:"
             }
+
+            // /F:<filespec> switch for file mapping file
+            if (arg.find("/f:") == 0 || arg.find("/F:") == 0) {
+                config->fileMappingFileSpec = arg.substr(3);  // Extract the file name after "/F:"
+            }
         }
     }
 
@@ -225,7 +230,10 @@ struct _Config* parseArguments(int argc, char* argv[]) {
         config->outputFileData = baseFileSpec.string() + "_Data.txt";        
     }
 
-	config->fileMappingFileSpec = baseFileSpec.string() + "_FileMapping.txt";
+	// If no file mapping file is specified, use the default
+    if (config->fileMappingFileSpec.empty()) {
+        config->fileMappingFileSpec = baseFileSpec.string() + "_FileMapping.txt";
+    }
 
 	return config;
 }

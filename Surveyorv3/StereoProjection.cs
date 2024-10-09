@@ -503,7 +503,7 @@ namespace Surveyor
             {
                 string newCalibationDataUniqueString = MakeCalibationDataUniqueString();
 
-                if (calibationDataUniqueString != newCalibationDataUniqueString)
+                if (!string.IsNullOrEmpty(calibationDataUniqueString) && calibationDataUniqueString != newCalibationDataUniqueString)
                 {
 
                     CalibrationData? cdp;

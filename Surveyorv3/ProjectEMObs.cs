@@ -253,6 +253,10 @@ namespace Surveyor
                 this.Data.Media.RightMediaFileNames = new ObservableCollection<string>(rightMediaFiles.Select(item => item.Filename));
                 this.Data.Sync.TimeSpanOffset = mediaOffsetDuration;
 
+                // Flag the left and right movie as synchronzied
+                if (mediaOffsetDuration != TimeSpan.Zero)
+                    this.Data.Sync.IsSynchronized = true;
+
                 Event? eventItem;
 
                 foreach (var item in outputRows)

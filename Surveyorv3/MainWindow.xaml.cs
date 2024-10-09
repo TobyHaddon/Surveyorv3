@@ -12,17 +12,13 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.ComponentModel.Design;
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Windows.Foundation;
-using Windows.Media;
-using Windows.Media.Playback;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Provider;
@@ -31,7 +27,6 @@ using WinRT.Interop;
 using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.Project.DataClass;
 #if !No_MagnifyAndMarkerDisplay
-using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
 #endif
 
 namespace Surveyor
@@ -66,7 +61,11 @@ namespace Surveyor
         private Project? projectClass = null;
 
         // Measurement class
-        StereoProjection stereoProjection = new();
+        private readonly StereoProjection stereoProjection = new();
+
+        // Hidden controls to be shown dynamically
+        private readonly EventsControl eventsControl = new();
+        private readonly Reporter report = new();
 
 
         public MainWindow()
@@ -80,14 +79,10 @@ namespace Surveyor
             this.Closed += MainWindow_Closed;
 
             // Inform the Reporter of the DispatcherQueue
-            Report.SetDispatcherQueue(DispatcherQueue);
+            report.SetDispatcherQueue(DispatcherQueue);
 
             // Inform the Events Control of the DispatcherQueue
-            EventsControl.SetDispatcherQueue(DispatcherQueue);
-
-            // Retrieve the window handle
-            IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            var windowId = Win32Interop.GetWindowIdFromWindow(hWnd);
+            eventsControl.SetDispatcherQueue(DispatcherQueue);
 
             // Restore the saved window state
             //???Disabled as it need more work.  I think the multiple monitor setting and switching between monitors is causing the issue
@@ -98,18 +93,18 @@ namespace Surveyor
             mainWindowHandler = new MainWindowHandler(mediator, this);
 
             // Create the MediaStereoController and pass it the Mediator
-            mediaStereoController = new MediaStereoController(this, Report,
-                mediator,
-                MediaPlayerLeft, MediaPlayerRight,
-                MediaControlPrimary, MediaControlSecondary,
+            mediaStereoController = new MediaStereoController(this, report,
+                                                            mediator,
+                                                            MediaPlayerLeft, MediaPlayerRight,
+                                                            MediaControlPrimary, MediaControlSecondary,
 #if !No_MagnifyAndMarkerDisplay
-                MagnifyAndMarkerDisplayLeft, MagnifyAndMarkerDisplayRight,
+                                                            MagnifyAndMarkerDisplayLeft, MagnifyAndMarkerDisplayRight,
 #endif
-                stereoProjection/*, 
-                MediaInfoLeft, MediaInfoRight*/);
+                                                            stereoProjection/*, 
+                                                            MediaInfoLeft, MediaInfoRight */);
 
             // Inform the Events Control of the MediaStereoController
-            EventsControl.SetMediaStereoController(mediaStereoController);
+            eventsControl.SetMediaStereoController(mediaStereoController);
 
             // Setup and magnify and marker controls by linking that to the each media players ImageFrame
 #if !No_MagnifyAndMarkerDisplay
@@ -135,12 +130,13 @@ namespace Surveyor
             TitleBarIcon.Source = bitmapImage;
 
             // Set the default tab view visibility
-            UpdateTabViewVisibility();
+            UpdateNavigationViewVisibility();
 
             // Show calibration status (i.e. not calibrated)
             SetCalibratedIndicator(null, null);
 
-            Report.Info("", $"App Loaded Ok");
+            report.Info("", $"App Loaded Ok");
+
         }
 
 
@@ -344,7 +340,7 @@ namespace Surveyor
             if (await CheckForOpenProjectAndClose() == true)
             {
                 // Create a new empty project
-                projectClass = new Project(Report);
+                projectClass = new Project(report);
                 projectClass.PropertyChanged += Project_PropertyChanged;
 
                 // Inform the MediaStereoController of the Events list so edits to the
@@ -356,7 +352,7 @@ namespace Surveyor
                 MagnifyAndMarkerDisplayRight.SetEvents(projectClass.Data.Events.EventList);
 #endif
 
-                EventsControl.SetEvents(projectClass.Data.Events.EventList);
+                eventsControl.SetEvents(projectClass.Data.Events.EventList);
 
                 SetMenuStatusBasedOnProjectState();
 
@@ -1148,7 +1144,7 @@ namespace Surveyor
 
             if (projectClass is null)
             {
-                projectClass ??= new Project(Report);
+                projectClass ??= new Project(report);
                 projectClass.PropertyChanged += Project_PropertyChanged;
             }
             else
@@ -1160,7 +1156,9 @@ namespace Surveyor
                 projectClass.ProjectClose();
             }
 
-            if (projectClass.ProjectLoad(projectFileName) == 0 &&
+            ret = await projectClass.ProjectLoad(projectFileName);
+
+            if (ret == 0 &&
                 projectClass.Data is not null && projectClass.Data.Media is not null && projectClass.Data.Media.MediaPath is not null)
             {
                 // Inform the MediaStereoController & MagnifyAndMarkerDisplay of the Events list so edits to the
@@ -1171,7 +1169,7 @@ namespace Surveyor
                 MagnifyAndMarkerDisplayLeft.SetEvents(projectClass.Data.Events.EventList);
                 MagnifyAndMarkerDisplayRight.SetEvents(projectClass.Data.Events.EventList);
 #endif
-                EventsControl.SetEvents(projectClass.Data.Events.EventList);
+                eventsControl.SetEvents(projectClass.Data.Events.EventList);
 
 
                 // Check if the left media file(s) exist
@@ -1198,7 +1196,7 @@ namespace Surveyor
                         if (fileinfo != null && fileinfo.Directory != null && SettingsManager.ProjectFolder != fileinfo.DirectoryName)
                         {
                             SettingsManager.ProjectFolder = fileinfo.DirectoryName;
-                            //???Properties.Settings.Default.Save();  //???Old methed of save - do we need to do something equivalent to this?
+                            //???Properties.Settings.Default.Save();  //???Old methed of save last used folder - do we need to do something equivalent to this?
                         }
 
 
@@ -1223,7 +1221,7 @@ namespace Surveyor
                         else
                             eventsStatus = $"{projectClass.Data.Events.EventList.Count} Events";
 
-                        Report.Info("", $"Survey Loaded: '{projectClass.GetProjectTitle()}', {calibrationStatus}, {eventsStatus}");
+                        report.Info("", $"Survey Loaded: '{projectClass.GetProjectTitle()}', {calibrationStatus}, {eventsStatus}");
 
 
 
@@ -1249,7 +1247,7 @@ namespace Surveyor
             }
             else
             {
-                Report.Warning("", $"Failed to project file open {projectFileName}");
+                report.Warning("", $"Failed to open survey file:{projectFileName}, error = {ret}");
                 projectClass = null;
             }
 
@@ -2115,24 +2113,43 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void OnTabViewSelectionChanged(object sender, SelectionChangedEventArgs e)
+
+        private void OnNavigationViewSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
         {
-            UpdateTabViewVisibility();
+            UpdateNavigationViewVisibility();
         }
 
-        private void UpdateTabViewVisibility()
+        private void UpdateNavigationViewVisibility()
         {
-            // Output (Reporter)
-            if (TabView.SelectedIndex == 2)
+            var selectedItem = (NavigationViewItem)NavigationView.SelectedItem;
+
+            // Check if no view is selected
+            if (selectedItem is null)
             {
-                Report.Visibility = Visibility.Visible;
-                //ImageB.Visibility = Visibility.Collapsed;
+                selectedItem = (NavigationViewItem)NavigationView.MenuItems[0];  // Assuming Events is the first item
+
+                // Set the initial selected item to the "EventsPage"
+                NavigationView.SelectedItem = selectedItem; 
+                ContentFrame.Content = eventsControl;  // Load EventsControl into the Frame
             }
-            // Events
-            else if (TabView.SelectedIndex == 0)
+
+            var tag = selectedItem.Tag.ToString();
+
+            switch (tag)
             {
-                Report.Visibility = Visibility.Collapsed;
-                //ImageB.Visibility = Visibility.Visible;
+                case "EventsPage":
+                    ContentFrame.Content = eventsControl;  // Assuming EventsControl is already defined
+                    break;
+                case "ResultsPage":
+                   //??? ContentFrame.Content = new Results(); // Replace with your Results control
+                    break;
+                case "OutputPage":
+                    ContentFrame.Content = report;  // Assuming Report is already defined
+                    report.Visibility = Visibility.Visible;
+                    break;
+                case "Settings":
+                    //??? Invoke the settings users control
+                    break;
             }
         }
 

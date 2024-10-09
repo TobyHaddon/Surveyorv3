@@ -828,7 +828,7 @@ namespace Surveyor
                 {
                     for (int j = 0; j < cols; j++)
                     {
-                        matrix[i, j] = (double)array[i][j];
+                        matrix[i, j] = (double)array[i][j]!;
                     }
                 }
                 return matrix;
@@ -840,7 +840,7 @@ namespace Surveyor
                 {
                     for (int j = 0; j < cols; j++)
                     {
-                        matrix[i, j] = (int)array[i][j];
+                        matrix[i, j] = (int)array[i][j]!;
                     }
                 }
                 return matrix;
