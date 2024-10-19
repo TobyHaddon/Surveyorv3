@@ -64,7 +64,7 @@ int main(int argc, char* argv[]) {
     if (argc < 2) {
         std::cout << "Usage: <program> <filespec> [/s] [/o:<outputfile>] [/a] [/t] [/th] [/h] [/nd]" << std::endl;
         std::cout << "                            /s                 search sub-directories" << std::endl;
-        std::cout << "                            /o                 output to EMObsReader.txt" << std::endl;
+        std::cout << "                            /o                 output to EMObs_TLCList.txt" << std::endl;
         std::cout << "                            /o:<outputfile>]   output to outputfile" << std::endl;
         std::cout << "                            /a                 append to output file" << std::endl;
         std::cout << "                            /t                 additionally export the TLC (three letter codes)" << std::endl;
@@ -441,9 +441,9 @@ void searchFiles(const std::string& fileSpec, struct _Config* Config, FileMappin
             std::wstring searchFileL;
             std::wstring searchFileR;
 
-            // std::wstring test = L"AD_10_1_2017_07_14_Left.avi";
-            // if (_wcsicmp(item->FileL.c_str(), test.c_str()) == 0)
-			//	test = L"";
+            //???std::wstring test = L"AD_10_1_2017_07_14_Left.avi";
+            //???if (_wcsicmp(item->FileL.c_str(), test.c_str()) == 0)
+            //???    test = L"";
 
             // Check of the file needed to be remapping to a different name
 			searchFileL = fileMapping.findNewFile(item->FileL);
@@ -462,6 +462,7 @@ void searchFiles(const std::string& fileSpec, struct _Config* Config, FileMappin
             switch (item->rowType) {
 
             case RowType::MeasurementPoint3D:
+			case RowType::Point3D:
                 // This is the simple case. Check there is only one left and right file found 
                 if (itemsLeft.size() == 1 && itemsRight.size() == 1) {
                     fs::path pathLeft(itemsLeft[0].fileSpec);
@@ -522,7 +523,6 @@ void searchFiles(const std::string& fileSpec, struct _Config* Config, FileMappin
                 }            
                 break;
 
-            case RowType::Point3DLeftCamera:
             case RowType::Point2DLeftCamera:
                 if (itemsLeft.size() == 1) {
                     fs::path pathLeft(itemsLeft[0].fileSpec);
@@ -552,7 +552,6 @@ void searchFiles(const std::string& fileSpec, struct _Config* Config, FileMappin
                 }
                 break;
 
-            case RowType::Point3DRightCamera:
             case RowType::Point2DRightCamera:
                 if (itemsRight.size() == 1) {
                     fs::path pathRight(itemsRight[0].fileSpec);
@@ -673,10 +672,8 @@ std::wstring RowTypeToString(RowType type) {
     switch (type) {
     case RowType::MeasurementPoint3D:
         return L"3D Measurement";
-    case RowType::Point3DLeftCamera:
-        return L"3DPoint Left";
-    case RowType::Point3DRightCamera:
-        return L"3DPoint Right";
+    case RowType::Point3D:
+        return L"3DPoint";
     case RowType::Point2DLeftCamera:
         return L"2DPoint Left";
     case RowType::Point2DRightCamera:

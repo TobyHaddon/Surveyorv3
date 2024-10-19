@@ -185,8 +185,7 @@ namespace Surveyor
                     RowTypeManaged rowType = item.rowType;
 
                     if (rowType == RowTypeManaged.RowTypeMeasurementPoint3D ||
-                    rowType == RowTypeManaged.RowTypePoint3DLeftCamera ||
-                    rowType == RowTypeManaged.RowTypePoint3DRightCamera)
+                        rowType == RowTypeManaged.RowTypePoint3D)
                     {
                         MediaItemInfo? mediaItemInfoL = leftMediaFiles.Find(i => i.Filename == item.FileL);
                         MediaItemInfo? mediaItemInfoR = rightMediaFiles.Find(i => i.Filename == item.FileR);
@@ -280,8 +279,7 @@ namespace Surveyor
                             surveyMeasurement.RightYB = item.PointRY2;
                             LoadSpeciesInfo(item, surveyMeasurement.SpeciesInfo);
                             break;
-                        case RowTypeManaged.RowTypePoint3DLeftCamera:
-                        case RowTypeManaged.RowTypePoint3DRightCamera:
+                        case RowTypeManaged.RowTypePoint3D:
                             eventItem = new Event();
                             eventItem.SetData(DataType.SurveyStereoPoint);
                             SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)eventItem.EventData!;

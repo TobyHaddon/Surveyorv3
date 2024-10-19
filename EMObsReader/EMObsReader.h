@@ -6,8 +6,7 @@
 enum RowType {
     None,
     MeasurementPoint3D,
-    Point3DLeftCamera,
-    Point3DRightCamera,
+    Point3D,
     Point2DLeftCamera,
     Point2DRightCamera
 };

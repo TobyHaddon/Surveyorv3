@@ -12,10 +12,9 @@ namespace EMObsReaderNameSpace
     {
         RowTypeNone = 0,
         RowTypeMeasurementPoint3D = 1,
-        RowTypePoint3DLeftCamera = 2,
-        RowTypePoint3DRightCamera = 3,
-        RowTypePoint2DLeftCamera = 4,
-        RowTypePoint2DRightCamera = 5
+        RowTypePoint3D = 2,
+        RowTypePoint2DLeftCamera = 3,
+        RowTypePoint2DRightCamera = 4
     };
 
     public ref class OutputRow
@@ -150,11 +149,8 @@ namespace EMObsReaderNameSpace
                 case RowType::MeasurementPoint3D:
                     managedRowType = RowTypeManaged::RowTypeMeasurementPoint3D;
                     break;
-                case RowType::Point3DLeftCamera:
-                    managedRowType = RowTypeManaged::RowTypePoint3DLeftCamera;
-                    break;
-                case RowType::Point3DRightCamera:
-                    managedRowType = RowTypeManaged::RowTypePoint3DRightCamera;
+                case RowType::Point3D:
+                    managedRowType = RowTypeManaged::RowTypePoint3D;
                     break;
                 case RowType::Point2DLeftCamera:
                     managedRowType = RowTypeManaged::RowTypePoint2DLeftCamera;

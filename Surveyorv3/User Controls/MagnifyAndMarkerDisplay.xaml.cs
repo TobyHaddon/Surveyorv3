@@ -2058,8 +2058,10 @@ namespace Surveyor.User_Controls
                 // Remove the target icon from the CanvasMag          
                 ResetTargetIconOnCanvas(rectangle);
 
-                // Transfer Target to the target variable (i.e reset it)
-                TransferTargetsBetweenVariableAndCanvasFrame((bool)TrueAOnlyFalseBOnly, false/*TrueToCanvasFalseFromCanvas*/);
+                if ((bool)TrueAOnlyFalseBOnly)
+                    pointTargetA = null;
+                else
+                    pointTargetB = null;
             }            
         }
 

@@ -32,7 +32,6 @@ FileMapping::FileMapping(const std::string& filePath) {
         // Wait for Enter to be pressed
         std::string input;
         std::getline(std::cin, input);
-        return;
     }
 
     std::wstring line;
@@ -55,8 +54,22 @@ std::pair<std::wstring, std::wstring> FileMapping::parseLine(const std::wstring&
     std::wistringstream iss(line);
     std::wstring oldFile, newFile;
 
-    if (std::getline(iss, oldFile, L'\t') && std::getline(iss, newFile, L'\t')) {
-        return { oldFile, newFile };
+    // Debug: Output the line being parsed
+    std::wcout << L"Parsing line: \"" << line << L"\"" << std::endl;
+
+    if (std::getline(iss, oldFile, L'\t')) {
+        std::wcout << L"First part: \"" << oldFile << L"\"" << std::endl;
+
+        if (std::getline(iss, newFile, L'\t')) {
+            std::wcout << L"Second part: \"" << newFile << L"\"" << std::endl;
+            return { oldFile, newFile };
+        }
+        else {
+            std::wcout << L"Failed to get second part." << std::endl;
+        }
+    }
+    else {
+        std::wcout << L"Failed to get first part." << std::endl;
     }
 
     return { L"", L"" };  // Return empty pair if parsing fails

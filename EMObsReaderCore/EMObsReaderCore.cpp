@@ -1,5 +1,6 @@
 // EMObsReaderCore.cpp : Defines the functions for the static library.
 //
+// Verion 1.1 10 Sep 2024  Fixed bug with PD3 putting the right camera data in the left camera fields X2,Y2 fields
 
 #include "pch.h"
 #include "framework.h"
@@ -441,23 +442,17 @@ int EMObsReader::Process(std::list<struct _OutputRow*>& outputRowsAdd) {
                     outputRow->Period = itemIDA->wsPeriodName;
                     outputRow->opCode = pCIN->matValue[0][0];
                     outputRow->Path = pEBS->wsPictureDirectory;
-                    if (pFRA->iCameraZeroLeftOneRight == 0) {// Left Camera
-                        outputRow->rowType = Point3DLeftCamera;
+                    if (pFRA->iCameraZeroLeftOneRight == 0 && itemPD3->pFRA->iCameraZeroLeftOneRight == 1) {// should always be the case
+                        outputRow->rowType = Point3D;
                         outputRow->FileL = pFRA->wsMediaFile;
                         outputRow->FrameL = pFRA->iFrameIndex;
                         outputRow->PointLX1 = itemPD3->pCPT1->X;
-                        outputRow->PointLY1 = itemPD3->pCPT1->Y;
-                        outputRow->PointLX2 = itemPD3->pCPT2->X;
-                        outputRow->PointLY2 = itemPD3->pCPT2->Y;
-                    }
-                    else if (pFRA->iCameraZeroLeftOneRight == 1) {// Right Camera
-                        outputRow->rowType = Point3DRightCamera;
+                        outputRow->PointLY1 = itemPD3->pCPT1->Y;                        
+
                         outputRow->FileR = itemPD3->pFRA->wsMediaFile;
                         outputRow->FrameR = itemPD3->pFRA->iFrameIndex;
-                        outputRow->PointRX1 = itemPD3->pCPT1->X;
-                        outputRow->PointRY1 = itemPD3->pCPT1->Y;
-                        outputRow->PointRX2 = itemPD3->pCPT2->X;
-                        outputRow->PointRY2 = itemPD3->pCPT2->Y;
+                        outputRow->PointRX1 = itemPD3->pCPT2->X;
+                        outputRow->PointRY1 = itemPD3->pCPT2->Y;
                     }
                     else
                         assert(false);
