@@ -184,7 +184,7 @@
         </Grid>
 
 
-        <!-- Tab control for results, events etc -->
+        <!-- Tab control for results, events etc TO DELETE -->
         <!--<TabView x:Name="TabView" Grid.Row="2" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"  SelectionChanged="OnTabViewSelectionChanged" IsAddTabButtonVisible="False">
             <TabViewItem Header="Events" TabIndex="0" IsClosable="False">
                 <surveyorControls:EventsControl x:Name="EventsControl"/>

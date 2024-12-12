@@ -80,75 +80,91 @@
                                PointerMoved="Target_PointerMoved" />
                 </Canvas>
 
+
                 <StackPanel x:Name="ButtonsMag" Orientation="Horizontal" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,2,2,0">
                     <!-- Ok Symbol 2714 or E001 or F78C -->
                     <Button Name="ButtonMagOK" Content="&#xF78C;" Click="ButtonMagOK_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"                             
-                        Style="{StaticResource ButtonMagStyle}">
+                        Style="{StaticResource ButtonMagStyle}" VerticalAlignment="Top">
                         <Button.KeyboardAccelerators>
                             <KeyboardAccelerator Key="Enter" />
                         </Button.KeyboardAccelerators>
-                        <Button.Background>
+                        <!--<Button.Background>
                             <SolidColorBrush x:Name="ButtonZoomOKBackground" Color="White" Opacity="0.5"/>
-                        </Button.Background>
-                        <!--<Button.Resources>
-                            <Storyboard x:Name="FlashButtonMagOK">
-                                <ColorAnimation Storyboard.TargetName="ButtonZoomOKBackground"
-                        Storyboard.TargetProperty="Color"
-                        From="Green" To="Transparent" AutoReverse="True"
-                        Duration="0:0:0.5" RepeatBehavior="Forever"/>
-                            </Storyboard>
-                        </Button.Resources>-->
+                        </Button.Background>-->
                     </Button>
-                    <!-- Delete symbol xE74D Height="20" Width="18" -->
+                    <!-- Delete symbol xE74D -->
                     <Button Name="ButtonMagDelete" Content="&#xE74D;" Click="ButtonMagDelete_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"
-                        Style="{StaticResource ButtonMagStyle}"
+                        Style="{StaticResource ButtonMagStyle}" VerticalAlignment="Top"
                         IsEnabled="False">
                         <Button.KeyboardAccelerators>
                             <KeyboardAccelerator Key="Delete" />
                         </Button.KeyboardAccelerators>
                     </Button>
-                    <!-- Left symbol xE973 Height="20" Width="18" -->
+                    <!-- Left symbol xE973 -->
                     <Button Name="ButtonMagLeft" Content="&#xE973;" Click="ButtonMagLeft_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"
-                        Style="{StaticResource ButtonMagStyle}"
+                        Style="{StaticResource ButtonMagStyle}" VerticalAlignment="Top"
                         IsEnabled="True">
                         <Button.KeyboardAccelerators>
                             <KeyboardAccelerator Key="Left" />
                         </Button.KeyboardAccelerators>
                     </Button>
-                    <!-- Up symbol xE971 Height="20" Width="18" -->
+                    <!-- Up symbol xE971 -->
                     <Button Name="ButtonMagUp" Content="&#xE971;" Click="ButtonMagUp_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"
-                        Style="{StaticResource ButtonMagStyle}"
+                        Style="{StaticResource ButtonMagStyle}" VerticalAlignment="Top"
                         IsEnabled="True">
                         <Button.KeyboardAccelerators>
                             <KeyboardAccelerator Key="Up" />
                         </Button.KeyboardAccelerators>
                     </Button>
-                    <!-- Down symbol xE972 Height="20" Width="18" -->
+                    <!-- Down symbol xE972 -->
                     <Button Name="ButtonMagDown" Content="&#xE972;" Click="ButtonMagDown_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"
-                        Style="{StaticResource ButtonMagStyle}"
+                        Style="{StaticResource ButtonMagStyle}" VerticalAlignment="Top"
                         IsEnabled="True">
                         <Button.KeyboardAccelerators>
                             <KeyboardAccelerator Key="Down" />
                         </Button.KeyboardAccelerators>
                     </Button>
-                    <!-- Right symbol xE974 Height="20" Width="18" -->
+                    <!-- Right symbol xE974 -->
                     <Button Name="ButtonMagRight" Content="&#xE974;" Click="ButtonMagRight_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"
-                        Style="{StaticResource ButtonMagStyle}"
+                        Style="{StaticResource ButtonMagStyle}" VerticalAlignment="Top"
                         IsEnabled="True">
                         <Button.KeyboardAccelerators>
                             <KeyboardAccelerator Key="Right" />
                         </Button.KeyboardAccelerators>
                     </Button>
-                    <!-- Back symbol xE72B Height="20" Width="18" -->
-                    <Button Name="ButtonMagBack" Content="&#xE72B;" Click="ButtonMagBack_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"  
-                        Style="{StaticResource ButtonMagStyle}"
-                        IsEnabled="True">
-                        <Button.KeyboardAccelerators>
-                            <KeyboardAccelerator Key="Escape" />
-                        </Button.KeyboardAccelerators>
-                    </Button>
-                </StackPanel>
 
+                    <StackPanel x:Name="ButtonsMagVertical" Orientation="Vertical" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,0,0">
+
+                        <!-- Back symbol xE72B -->
+                        <Button Name="ButtonMagBack" Content="&#xE72B;" Click="ButtonMagBack_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"  
+                            Style="{StaticResource ButtonMagStyle}"
+                            IsEnabled="True">
+                            <Button.KeyboardAccelerators>
+                                <KeyboardAccelerator Key="Escape" />
+                            </Button.KeyboardAccelerators>
+                        </Button>
+                        <!-- MagWindow enlarge symbol xECC8 -->
+                        <Button Name="ButtonMagEnlarge" Content="&#xECC8;" Click="ButtonMagEnlarge_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"  
+                            Style="{StaticResource ButtonMagStyle}"
+                            IsEnabled="True">
+                        </Button>
+                        <!-- MagWindow reduce symbol xECC9 -->
+                        <Button Name="ButtonMagReduce" Content="&#xECC9;" Click="ButtonMagReduce_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"  
+                            Style="{StaticResource ButtonMagStyle}"
+                            IsEnabled="True">
+                        </Button>
+                        <!-- MagWindow zoom in symbol xECCB -->
+                        <Button Name="ButtonMagZoomIn" Content="&#xE12E;" Click="ButtonMagZoomIn_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"  
+                            Style="{StaticResource ButtonMagStyle}"
+                            IsEnabled="True">
+                        </Button>
+                        <!-- MagWindow zoom out symbol xECC9 -->
+                        <Button Name="ButtonMagZoomOut" Content="&#xE1A4;" Click="ButtonMagZoomOut_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"  
+                            Style="{StaticResource ButtonMagStyle}"
+                            IsEnabled="True">
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
             </Grid>
         </Border>
     </Grid>

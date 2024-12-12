@@ -3,7 +3,6 @@
 // Version 1.0
 // Created
 
-using EMObsReaderNameSpace;
 using Surveyor.Events;
 using System;
 using System.Collections.Generic;
@@ -13,6 +12,7 @@ using System.Threading.Tasks;
 using Windows.Media.Editing;
 using Windows.Media.MediaProperties;
 using Windows.Storage;
+using EMObsReaderNameSpace;
 
 
 

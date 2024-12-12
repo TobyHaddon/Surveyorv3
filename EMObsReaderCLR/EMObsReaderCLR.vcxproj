@@ -24,9 +24,9 @@
     <ProjectGuid>{C55760FD-229D-4157-8694-47C284BDD6AE}</ProjectGuid>
     <Keyword>NetCoreCProj</Keyword>
     <RootNamespace>EMObsReaderCLR</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.22621.0</WindowsTargetPlatformVersion>
     <TargetFramework>net8.0</TargetFramework>
-    <WindowsTargetPlatformMinVersion>10.0.26100.0</WindowsTargetPlatformMinVersion>
+    <WindowsTargetPlatformMinVersion>10.0.17763.0</WindowsTargetPlatformMinVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

@@ -17,7 +17,7 @@
   <Properties>
     <DisplayName>Surveyorv3</DisplayName>
     <PublisherDisplayName>tobyh</PublisherDisplayName>
-    <Logo>Assets\StoreLogo.png</Logo>
+    <Logo>Assets\surveyor-dark.png</Logo>
   </Properties>
 
   <Dependencies>
@@ -34,12 +34,17 @@
       Executable="$targetnametoken$.exe"
       EntryPoint="$targetentrypoint$">
       <uap:VisualElements
-        DisplayName="Surveyorv3"
-        Description="Surveyorv3"
+        DisplayName="Surveyorv"
+        Description="Fish measurement survey software.  This software is used to process videos from a sterographic camera rig."
         BackgroundColor="transparent"
-        Square150x150Logo="Assets\Square150x150Logo.png"
-        Square44x44Logo="Assets\Square44x44Logo.png">
-        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
+        Square150x150Logo="Assets\surveyor-dark.png"
+        Square44x44Logo="Assets\surveyor-dark.png">
+        <uap:DefaultTile  Wide310x150Logo="Assets\surveyor-dark.png">
+          <uap:ShowNameOnTiles>
+            <uap:ShowOn Tile="square150x150Logo"/>
+            <uap:ShowOn Tile="wide310x150Logo"/>
+          </uap:ShowNameOnTiles>
+        </uap:DefaultTile >
         <uap:SplashScreen Image="Assets\SplashScreen.png" />
       </uap:VisualElements>
     </Application>

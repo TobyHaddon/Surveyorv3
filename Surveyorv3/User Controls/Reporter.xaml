@@ -15,6 +15,7 @@
     <Grid>
         <ListView x:Name="ListViewReporter" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
               IsItemClickEnabled="True" ItemClick="ViewMenuItem_Click">
+            
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                     <!-- Set minimum height to reduce vertical gap -->

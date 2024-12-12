@@ -34,16 +34,16 @@ struct _Config
 {
 	std::string searchPath;
 	std::string fileSpec;
-	bool searchSubdirs;
+	bool searchSubdirs = false;
 	fs::path outputFileData;
     fs::path outputFileTLCList;
     fs::path outputFileTLCHierarchy;
     fs::path outputFileHexDump;
-    bool dataMode;
-	bool appendMode;
-	bool tlcMode;
-	bool tlcHierarchyMode;
-	bool hexDumpMode;
+    bool dataMode = true;
+	bool appendMode = false;
+	bool tlcMode = false;
+	bool tlcHierarchyMode = false;
+	bool hexDumpMode = false;
     fs::path fileMappingFileSpec;
 };
 

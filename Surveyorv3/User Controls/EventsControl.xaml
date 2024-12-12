@@ -19,6 +19,7 @@
     <Grid>
         <ListView x:Name="ListViewEvent" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                    IsItemClickEnabled="True" ItemClick="GoToFrameMenuItem_Click" RightTapped="ViewMenuItem_Click" KeyDown="ListViewEvent_KeyDown">
+                        
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="local2:Event">
                     <Grid ColumnDefinitions="16, 150, 150, 200, 1800">

@@ -65,6 +65,8 @@ using Windows.Storage.Streams;
 
 
 
+
+
 namespace Surveyor.User_Controls
 {
     public sealed partial class MagnifyAndMarkerDisplay : UserControl
@@ -96,7 +98,7 @@ namespace Surveyor.User_Controls
         private uint imageSourceWidth = 0;
         private uint imageSourceHeight = 0;
 
-        // Image poistion (which frame in the video as a TimeSpace
+        // Image poistion (which frame in the video as a TimeSpace)
         private TimeSpan? position = null;
 
         // The scale factor between the actual image in the Image frame and the size of the
@@ -117,6 +119,7 @@ namespace Surveyor.User_Controls
         // Set to true if the Magnifier Window is locked (i.e. the user has clicked the mouse and the Mag Window
         // no longer follows the pointer (mouse))
         private bool isMagLocked = false;
+        private Point magLockedCentre = new Point(0, 0);
 
         // Dragging support
         private bool isDragging = false;
@@ -594,7 +597,7 @@ namespace Surveyor.User_Controls
                         // Get the pointer point relative to the sender (Image control)
                         PointerPoint pointerPoint = e.GetCurrentPoint(CanvasFrame);
 
-                        // Create a zindow window at the current pointer (mouse) location
+                        // Create a mag window at the current pointer (mouse) location
                         MagWindow(pointerPoint.Position);
                     }
                     else
@@ -645,7 +648,7 @@ namespace Surveyor.User_Controls
                     else
                     {
                         if (!isMagLocked)
-                            MagLockInCurrentPoisition(pointerPoint);
+                            MagLockInCurrentPoisition(pointerPoint.Position, pointerPoint.PointerDeviceType);
                     }
                 }
                 // Display the context menu if the right pointer button is pressed 
@@ -945,7 +948,7 @@ namespace Surveyor.User_Controls
                         // Get the pointer point relative to the sender (Image control)
                         PointerPoint pointerPoint = e.GetCurrentPoint(CanvasFrame);
 
-                        MagLockInCurrentPoisition(pointerPoint);
+                        MagLockInCurrentPoisition(pointerPoint.Position, pointerPoint.PointerDeviceType);
                     }
                     else
                     {
@@ -1137,6 +1140,50 @@ namespace Surveyor.User_Controls
         {
             MagUnlock();
             Debug.WriteLine("ButtonMagBack_Click");
+        }
+
+
+        /// <summary>
+        /// Plus button in the Mag Window to increase the size of the MagWindow
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ButtonMagEnlarge_Click(object sender, RoutedEventArgs e)
+        {
+            MagWindowSizeEnlargeOrReduce(true/*TrueEnargeFalseReduce*/);
+        }
+
+
+        /// <summary>
+        /// Minus button in the Mag Window to reduce the size of the MagWindow
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ButtonMagReduce_Click(object sender, RoutedEventArgs e)
+        {
+            MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/);
+        }
+
+
+        /// <summary>
+        /// Mag plus magnifier button in the Mag Window to zoom in
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ButtonMagZoomIn_Click(object sender, RoutedEventArgs e)
+        {
+            MagWindowZoomFactorEnlargeOrReduce(true/*TrueZoomInFalseZoomOut*/);
+        }
+
+
+        /// <summary>
+        /// Mag minus magnifier button in the Mag Window to zoom in
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ButtonMagZoomOut_Click(object sender, RoutedEventArgs e)
+        {
+            MagWindowZoomFactorEnlargeOrReduce(false/*TrueZoomInFalseZoomOut*/);
         }
 
 
@@ -1405,6 +1452,11 @@ namespace Surveyor.User_Controls
                 ButtonMagDown.IsEnabled = false;
                 ButtonMagRight.IsEnabled = false;
             }
+
+            // Enable Mag Enlarge/Reduce Button
+            ButtonMagEnlarge.IsEnabled = true;
+            ButtonMagReduce.IsEnabled = true;
+
         }
 
 
@@ -1412,43 +1464,40 @@ namespace Surveyor.User_Controls
         /// Display and lock the Mag Window at its current position indicated
         /// </summary>
         /// <param name="pointerPoint"></param>
-        public void MagLockInCurrentPoisition(PointerPoint pointerPoint)
+        public void MagLockInCurrentPoisition(Point pointerPosition, PointerDeviceType pointerDeviceType)
         {
             // Check if the event was a mouse event
-            if (pointerPoint.PointerDeviceType == PointerDeviceType.Mouse)
+            if (pointerDeviceType == PointerDeviceType.Mouse)
             {
-// Check which mouse button was pressed
-//???CHECKED ELSEWHERE                PointerPointProperties properties = pointerPoint.Properties;
-//???                if (properties.IsLeftButtonPressed)
-//???                {
                 // Remove any existing target that are outside of the MagWindow
                 // We are assuming the user locked the MagWindow to select targets
                 // and therefore they don't want any existing targets outside of
                 // newly locked MagWindow area                    
                 if (pointTargetA is not null)
-                    {
-                        // Check if Target A is in the scope of the Mag Window                        
-                        if (!rectMagWindowSource.Contains((Point)pointTargetA))
-                            ResetTargetOnCanvasFrame(TargetA);     // Fully removes target
-                    }
-                    if (pointTargetB is not null)
-                    {
-                        // Check if Target B is in the scope of the Mag Window
-                        if (!rectMagWindowSource.Contains((Point)pointTargetB))
-                            ResetTargetOnCanvasFrame(TargetB);     // Fully removes target
-                    }
-
-                    // Update the MagWindow on screen
-                    MagWindow(pointerPoint.Position);
-
-                    // Cheange the border colour to indicate it is locked
-                    BorderMag.BorderBrush = magColourLocked;
-                    isMagLocked = true;
-
-                    // Show the Mag Window buttons 
-                    ButtonsMag.Visibility = Visibility.Visible;
+                {
+                    // Check if Target A is in the scope of the Mag Window                        
+                    if (!rectMagWindowSource.Contains((Point)pointTargetA))
+                        ResetTargetOnCanvasFrame(TargetA);     // Fully removes target
                 }
-//???            }
+                if (pointTargetB is not null)
+                {
+                    // Check if Target B is in the scope of the Mag Window
+                    if (!rectMagWindowSource.Contains((Point)pointTargetB))
+                        ResetTargetOnCanvasFrame(TargetB);     // Fully removes target
+                }
+
+                // Update the MagWindow on screen
+                MagWindow(pointerPosition);
+
+                // Change the border colour to indicate it is locked
+                BorderMag.BorderBrush = magColourLocked;
+                isMagLocked = true;
+                magLockedCentre = pointerPosition;
+
+                // Show the Mag Window buttons 
+                ButtonsMag.Visibility = Visibility.Visible;
+                ButtonsMagVertical.Visibility = Visibility.Visible;
+            }
         }
 
 
@@ -1675,6 +1724,7 @@ namespace Surveyor.User_Controls
 
             // Hide the Mag Window button controls
             ButtonsMag.Visibility = Visibility.Collapsed;
+            ButtonsMagVertical.Visibility = Visibility.Collapsed;
         }
 
 
@@ -2469,6 +2519,105 @@ namespace Surveyor.User_Controls
         }
 
 
+        internal void MagWindowSizeEnlargeOrReduce(bool TrueEnargeFalseReduce)
+        {
+            string magWindowSize;
+
+            if (magWidth == magWidthDefaultSmall)
+                magWindowSize = "Small";
+            else if (magWidth == magWidthDefaultMedium)
+                magWindowSize = "Medium";
+            else if (magWidth == magWidthDefaultLarge)
+                magWindowSize = "Large";
+            else
+                magWindowSize = "";
+
+            if (TrueEnargeFalseReduce)
+            {
+                if (magWindowSize == "Medium")
+                    MagWindowSizeSelect("Large");
+                else if (magWindowSize == "Small")
+                    MagWindowSizeSelect("Medium");
+            }
+            else
+            {
+                if (magWindowSize == "Large")
+                    MagWindowSizeSelect("Medium");
+                else if (magWindowSize == "Medium")
+                    MagWindowSizeSelect("Small");
+            }
+
+            // Next remove and re-display the mag window at the new size
+            if (isMagLocked)
+            {
+                //??? TO DO get the original mag window centre point (if any)
+
+                //??? TO DO Remember any selected targets (see what gets reset inside MagHide, remember and restore)
+
+                // Hide the existing Mag Window
+                MagHide();
+
+                // Show the Mag Window as it new size
+                MagLockInCurrentPoisition(magLockedCentre, PointerDeviceType.Mouse);
+
+                //??? TO DO Restore any previously selected targets
+
+            }
+        }
+
+
+        /// <summary>
+        /// Used to increase of decrease the zoom factor from inside the MagWindow
+        /// </summary>
+        /// <param name="TrueZoomInFalseZoomOut"></param>
+        internal void MagWindowZoomFactorEnlargeOrReduce(bool TrueZoomInFalseZoomOut)
+        {
+            // Zoom levels 5,3,2,1,0.5
+            // The logic in this function needs to align with the MediaControl zoom factor menu options
+            // see MediaControl.xaml
+
+            if (TrueZoomInFalseZoomOut)
+            {
+                if (canvasZoomFactor == 0.5)
+                    MagWindowZoomFactor(1.0);
+                else if (canvasZoomFactor == 1.0)
+                    MagWindowZoomFactor(2.0);
+                else if (canvasZoomFactor == 2.0)
+                    MagWindowZoomFactor(3.0);
+                else if (canvasZoomFactor == 3.0)
+                    MagWindowZoomFactor(5.0);
+            }
+            else
+            {
+                if (canvasZoomFactor == 5.0)
+                    MagWindowZoomFactor(3.0);
+                else if (canvasZoomFactor == 3.0)
+                    MagWindowZoomFactor(2.0);
+                else if (canvasZoomFactor == 2.0)
+                    MagWindowZoomFactor(1.0);
+                else if (canvasZoomFactor == 1.0)
+                    MagWindowZoomFactor(0.5);
+            }
+
+            // Next remove and re-display the mag window at the new size
+            if (isMagLocked)
+            {
+                //??? TO DO get the original mag window centre point (if any)
+
+                //??? TO DO Remember any selected targets (see what gets reset inside MagHide, remember and restore)
+
+                // Hide the existing Mag Window
+                MagHide();
+
+                // Show the Mag Window as it new size
+                MagLockInCurrentPoisition(magLockedCentre, PointerDeviceType.Mouse);
+
+                //??? TO DO Restore any previously selected targets
+
+            }
+        }
+
+
         /// <summary>
         /// Check if this MagnifyAndMarkerDisplay control should process the message
         /// </summary>
@@ -2501,6 +2650,8 @@ namespace Surveyor.User_Controls
             else
                 return false;
         }
+
+
 
         // ***END OF MagnifyAndMarkerControl***
     }
