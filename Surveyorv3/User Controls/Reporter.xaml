@@ -14,20 +14,21 @@
 
     <Grid>
         <ListView x:Name="ListViewReporter" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-              IsItemClickEnabled="True" ItemClick="ViewMenuItem_Click">
-            
+          IsItemClickEnabled="True" ItemClick="ViewMenuItem_Click">
+
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
-                    <!-- Set minimum height to reduce vertical gap -->
-                    <Setter Property="MinHeight" Value="20" />
+                    <!-- Reduce default padding and margin -->
                     <Setter Property="Padding" Value="0" />
                     <Setter Property="Margin" Value="0" />
+                    <Setter Property="MinHeight" Value="20" />
+                    <!-- Adjust as necessary -->
                 </Style>
             </ListView.ItemContainerStyle>
 
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="local:ReporterListViewItem">
-                    <Grid ColumnDefinitions="Auto, 150, 20, 1800">
+                    <Grid ColumnDefinitions="Auto, 150, 20, 1800" VerticalAlignment="Center">
                         <!-- Column 0: WarningLevel Icon -->
                         <Image Width="16" Height="16" Source="{x:Bind ImageData, Mode=OneTime}" Margin="0,0,10,0"/>
 

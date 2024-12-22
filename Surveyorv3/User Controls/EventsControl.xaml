@@ -19,21 +19,34 @@
     <Grid>
         <ListView x:Name="ListViewEvent" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
                    IsItemClickEnabled="True" ItemClick="GoToFrameMenuItem_Click" RightTapped="ViewMenuItem_Click" KeyDown="ListViewEvent_KeyDown">
-                        
+
+            <ListView.ItemContainerStyle>
+                <Style TargetType="ListViewItem">
+                    <!-- Reduce padding and margin -->
+                    <Setter Property="Padding" Value="0" />
+                    <Setter Property="Margin" Value="0" />
+                    <Setter Property="MinHeight" Value="20" />
+                    <!-- Adjust as needed -->
+                </Style>
+            </ListView.ItemContainerStyle>
+
             <ListView.ItemTemplate>
                 <DataTemplate x:DataType="local2:Event">
-                    <Grid ColumnDefinitions="16, 150, 150, 200, 1800">
-                        <!--Column 0: Event Type Glyph -->
-                        <TextBlock Grid.Column="0" Text=" " Width="16" TextAlignment="Left"  Margin="0,0,10,0"/>
+                    <Grid ColumnDefinitions="16, 150, 150, 200, 1800" VerticalAlignment="Center">
+                        <!-- Column 0: Event Type Glyph -->
+                        <TextBlock Grid.Column="0" Text=" " Width="16" TextAlignment="Left" Margin="0,0,10,0"/>
 
                         <!-- Column 1: Left Frame -->
-                        <TextBlock Grid.Column="1" Text="{x:Bind TimeSpanTimelineController, Mode=OneWay, Converter={StaticResource TimeSpanToStringConverter}}" Width="150" TextAlignment="Left"  Margin="0,0,10,0"/>
+                        <TextBlock Grid.Column="1" Text="{x:Bind TimeSpanTimelineController, Mode=OneWay, Converter={StaticResource TimeSpanToStringConverter}}" 
+                                   Width="150" TextAlignment="Left" Margin="0,0,10,0"/>
 
                         <!-- Column 3: Event Type -->
-                        <TextBlock Grid.Column="3" Text="{x:Bind EventDataType, Mode=OneWay, Converter={StaticResource EventDataTypeToStringConverter}}" Width="200" TextAlignment="Left" Margin="0,0,0,0" />
-                        
+                        <TextBlock Grid.Column="3" Text="{x:Bind EventDataType, Mode=OneWay, Converter={StaticResource EventDataTypeToStringConverter}}" 
+                                   Width="200" TextAlignment="Left" Margin="0,0,0,0" />
+
                         <!-- Column 4: Event Data -->
-                        <TextBlock Grid.Column="4" Text="{x:Bind Converter={StaticResource EventDataToStringConverter}}" Width="1800" TextAlignment="Left" Margin="0,0,0,0" />
+                        <TextBlock Grid.Column="4" Text="{x:Bind Converter={StaticResource EventDataToStringConverter}}" 
+                                   Width="1800" TextAlignment="Left" Margin="0,0,0,0" />
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>

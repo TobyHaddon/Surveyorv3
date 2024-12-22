@@ -16,6 +16,7 @@ using System.ComponentModel;
 using System.Data;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Surveyor
@@ -27,9 +28,10 @@ namespace Surveyor
 
 
         // Auto Save variables
+        private SemaphoreSlim _autoSaveSemaphore = new(0, 1); // Semaphore to signal stop
         private bool _isAutoSaveRunning = true;
         private bool _autoSaveStopped = false;
-        private TimeSpan _autosaveInterval = TimeSpan.FromMinutes(5); // Example: save every 5 minutes
+        private TimeSpan _autosaveInterval = TimeSpan.FromSeconds(20); 
 
         // Lock object for thread safety
         // Use to stop the auto save and save methods from being called at the same time
@@ -713,7 +715,7 @@ namespace Surveyor
                         IsLoaded = true;
 
                         // Start the autosave task in background
-                        _ = Task.Run(() => AutosaveWorkAsync());
+                        _ = Task.Run(() => AutosaveWork());
                     }
                 }
             }
@@ -838,9 +840,9 @@ namespace Surveyor
         /// Close a project 
         /// </summary>
         /// <returns></returns>
-        public int ProjectClose()
+        public async Task<int> ProjectClose()
         {
-            StopAutosave();
+            await StopAutosave();
 
             Clear();
 
@@ -1015,55 +1017,65 @@ namespace Surveyor
         /// Start the auto save task
         /// </summary>
         /// <returns></returns>
-        public async Task AutosaveWorkAsync()
+        public async Task AutosaveWork()
         {
             _isAutoSaveRunning = true;
             _autoSaveStopped = false;
 
-            while (_isAutoSaveRunning)
+            try
             {
-                try
+                Report?.Info("", $"Auto save threaded started");
+                while (_isAutoSaveRunning)
                 {
-                    if (IsDirty)
+                    try
                     {
-                        // Your logic to save the current work state
-                        ProjectSave();
-                        Report?.Out(Reporter.WarningLevel.Debug, "", $"Autosave completed");
+                        if (IsDirty)
+                        {
+                            // Your logic to save the current work state
+                            ProjectSave();
+                            Report?.Out(Reporter.WarningLevel.Debug, "", $"Autosave completed");
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    // Log the exception using your preferred logging approach
-                    Report?.Warning("", $"Error during autosave: {ex.Message}");
-                }
-                await Task.Delay(_autosaveInterval);
-            }
+                    catch (Exception ex)
+                    {
+                        // Log the exception using your preferred logging approach
+                        Report?.Warning("", $"Error during autosave: {ex.Message}");
+                    }
 
-            _autoSaveStopped = true;
+                    // Wait for either the autosave interval or a signal to stop
+                    await Task.WhenAny(Task.Delay(_autosaveInterval), _autoSaveSemaphore.WaitAsync());
+                }
+            }
+            finally
+            {
+                Report?.Info("", $"Auto save threaded stopped on request");
+                _autoSaveStopped = true;
+            }
         }
 
 
         /// <summary>
         /// Request the autosave task to stop
         /// </summary>
-        public void StopAutosave()
+        public async Task StopAutosave()
         {
             if (_isAutoSaveRunning)
             {
                 _isAutoSaveRunning = false;
 
-                int maxTryCount = 100*5; // 5 seconds
+                // Signal the semaphore to allow the autosave loop to exit
+                _autoSaveSemaphore.Release();
 
                 // Wait for the autosave task to stop
+                int maxTryCount = 50; // Maximum 5 seconds (50 * 100ms)
                 while (!_autoSaveStopped && maxTryCount > 0)
                 {
-                    Task.Delay(100);
+                    await Task.Delay(100);
                     maxTryCount--;
                 }
 
                 if (!_autoSaveStopped)
                     Report?.Warning("", "Autosave task failed to stop.");
-
             }
         }
 

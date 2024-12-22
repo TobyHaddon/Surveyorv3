@@ -53,7 +53,7 @@
             
             <!-- App Menu -->
             <MenuBar x:Name="AppMenuBar" VerticalAlignment="Top" Grid.Column="2">
-                <MenuBarItem Title="File" >
+                <MenuBarItem Title="File">
                     <MenuFlyoutItem Name="MenuSurveyNew" Text="New Survey" Click="FileSurveyNew_Click"/>
                     <MenuFlyoutItem Name="MenuSurveyOpen" Text="Open Survey..." Click="FileSurveyOpen_Click">
                         <MenuFlyoutItem.KeyboardAccelerators>
@@ -67,6 +67,7 @@
                     </MenuFlyoutItem>
                     <MenuFlyoutItem Name="MenuSurveySaveAs" Text="Save As Survey..." IsEnabled="False" Click="FileSurveySaveAs_Click"/>
                     <MenuFlyoutItem Name="MenuSurveyClose" Text="Close Survey" IsEnabled="False" Click="FileSurveyClose_Click"/>
+                    <MenuFlyoutSubItem Name="MenuRecentSurveys" Text="Recent Surveys" />
                     <MenuFlyoutSeparator/>
                     <MenuFlyoutItem Name="MenuMediaOpen" Text="Media Open" IsEnabled="False" Click="FileSVSMediaOpen_Click"/>
                     <MenuFlyoutItem Name="MenuMediaClose" Text="Media Close" IsEnabled="False" Click="FileMediaSVSClose_Click"/>
@@ -198,6 +199,7 @@
         </TabView>-->
 
         <NavigationView x:Name="NavigationView" Grid.Row="2" PaneDisplayMode="Top" SelectionChanged="OnNavigationViewSelectionChanged">
+            
             <NavigationView.MenuItems>
                 <NavigationViewItem Content="Events" Icon="Calendar" Tag="EventsPage"/>
                 <NavigationViewItem Content="Results" Icon="Document" Tag="ResultsPage"/>

@@ -1,20 +1,9 @@
 ﻿using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using Microsoft.UI.Xaml.Shapes;
 using System;
-using System.Collections.Generic;
-using System.IO;
+using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.ApplicationModel;
-using Windows.ApplicationModel.Activation;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
+//???using WASDK = Microsoft.WindowsAppSDK;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -63,5 +52,44 @@ namespace Surveyor
         }
 
         private Window m_window;
+
+
+        public static string WinAppSdkDetails
+        {
+            get
+            {
+                var version = Package.Current.Id.Version;
+                return string.Format("Windows App SDK {0}.{1}.{2}.{3}",
+                    version.Major, version.Minor, version.Build, version.Revision);
+            }
+        }
+
+        public static string WinAppSdkRuntimeDetails
+        {
+            get
+            {
+                try
+                {
+                    // Retrieve Windows App Runtime version info dynamically
+                    var runtimeVersion =
+                        (from module in Process.GetCurrentProcess().Modules.OfType<ProcessModule>()
+                         where module.FileName.EndsWith("Microsoft.WindowsAppRuntime.Insights.Resource.dll")
+                         select FileVersionInfo.GetVersionInfo(module.FileName)).FirstOrDefault();
+
+                    if (runtimeVersion != null)
+                    {
+                        return WinAppSdkDetails + ", Windows App Runtime " + runtimeVersion.FileVersion;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Failed to retrieve Windows App Runtime details: {ex.Message}");
+                }
+
+                // Fallback
+                return WinAppSdkDetails + ", Windows App Runtime Unknown";
+            }
+        }
+
     }
 }

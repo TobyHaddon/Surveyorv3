@@ -329,8 +329,10 @@ namespace Surveyor.User_Controls
 
             // Reset the Mag Window
             isMagLocked = false;
-            ImageMag.Source = null;
-            BorderMag.BorderBrush = magColourUnlocked;
+            if (ImageMag is not null) 
+                ImageMag.Source = null;
+            if (BorderMag is not null)
+                BorderMag.BorderBrush = magColourUnlocked;
 
             // Check if mag buttons need to be enabled/disabled
             EnableButtonMag();

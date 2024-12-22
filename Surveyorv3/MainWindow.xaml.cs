@@ -3,6 +3,7 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -22,6 +23,7 @@ using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Provider;
+using Windows.UI.ApplicationSettings;
 using Windows.UI.ViewManagement;
 using WinRT.Interop;
 using static Surveyor.MediaStereoControllerEventData;
@@ -55,7 +57,7 @@ namespace Surveyor
         private string titlebarSaveStatus = "";
 
         // Settings class
-        private readonly SettingsManager settings = new();
+        private readonly SettingsManager settingsManager = new();
 
         // Project Class
         private Project? projectClass = null;
@@ -66,7 +68,11 @@ namespace Surveyor
         // Hidden controls to be shown dynamically
         private readonly EventsControl eventsControl = new();
         private readonly Reporter report = new();
+        //???private readonly Settings settings = new();
 
+        private const string RECENT_SURVEYS_KEY = "RecentSurveys";
+        private int maxRecentSurveysDisplayed = 4;      // Will be controlled from Settings TO DO
+        private const int MAX_RECENT_SURVEYS_SAVED = 10;
 
         public MainWindow()
         {
@@ -134,6 +140,9 @@ namespace Surveyor
 
             // Show calibration status (i.e. not calibrated)
             SetCalibratedIndicator(null, null);
+
+            // Update the Recent open surveys sub menu
+            UpdateRecentSurveysMenu();
 
             report.Info("", $"App Loaded Ok");
 
@@ -373,9 +382,9 @@ namespace Surveyor
             if (await CheckForOpenProjectAndClose() == true)
             {
                 // Show dialog to find the project file to open
-                //???string projectFolder = SettingsManager.ProjectFolder is null ? "" : SettingsManager.ProjectFolder;
-                //if (string.IsNullOrEmpty(projectFolder) == true)
-                //    projectFolder = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                string projectFolder = SettingsManager.ProjectFolder is null ? "" : SettingsManager.ProjectFolder;
+                if (string.IsNullOrEmpty(projectFolder) == true)
+                    projectFolder = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
 
                 // Create the file picker object
@@ -399,6 +408,10 @@ namespace Surveyor
                 if (file is not null)
                 {
                     await OpenProject(file.Path);
+
+                    // Add to Recent Surveys
+                    AddToRecentSurveys(file.Path);
+                    UpdateRecentSurveysMenu();
 
                     // Check if the preferred calibration data is the one being using for
                     // the current event measurements calculations
@@ -450,35 +463,63 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FileSurveyClose_Click(object sender, RoutedEventArgs e)
+        private async void FileSurveyClose_Click(object sender, RoutedEventArgs e)
         {
-            mediaStereoController.MediaClose();
+            await CheckForOpenProjectAndClose();
 
-#if !No_MagnifyAndMarkerDisplay
-            MagnifyAndMarkerDisplayLeft.Close();
-            MagnifyAndMarkerDisplayRight.Close();
-#endif
+//???            mediaStereoController.MediaClose();
 
-            projectClass?.ProjectClose();
+//#if !No_MagnifyAndMarkerDisplay
+//            MagnifyAndMarkerDisplayLeft.Close();
+//            MagnifyAndMarkerDisplayRight.Close();
+//#endif
 
-            SetTitle("");
-            SetLockUnlockIndicator(null, null);
-            MenuSurveyOpen.IsEnabled = true;
-            MenuSurveyClose.IsEnabled = false;
-            MenuFileLockUnlockMediaPlayers.IsEnabled = false;
-            MenuSurveySave.IsEnabled = false;
+//            projectClass?.ProjectClose();
 
-            // Clear the measurement class by loaded an empty calibration class
-            stereoProjection.SetCalibrationData(new Project.DataClass.CalibrationClass());
-            SetCalibratedIndicator(null, null);
+//            SetTitle("");
+//            SetLockUnlockIndicator(null, null);
+//            MenuSurveyOpen.IsEnabled = true;
+//            MenuSurveyClose.IsEnabled = false;
+//            MenuFileLockUnlockMediaPlayers.IsEnabled = false;
+//            MenuSurveySave.IsEnabled = false;
 
-            // Display both media controls
-            MediaControlsDisplayMode(false);
+//            // Clear the measurement class by loaded an empty calibration class
+//            stereoProjection.SetCalibrationData(new Project.DataClass.CalibrationClass());
+//            SetCalibratedIndicator(null, null);
 
-            // Clear title
-            titlebarTitle = "";
-            titlebarCameraSide = "";
-            titlebarSaveStatus = "";
+//            // Display both media controls
+//            MediaControlsDisplayMode(false);
+
+//            // Clear title
+//            titlebarTitle = "";
+//            titlebarCameraSide = "";
+//            titlebarSaveStatus = "";
+        }
+
+
+        /// <summary>
+        /// Used to open a selected recent survey file from the 'Recent Surveys' sub menu
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void RecentSurvey_Click(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuFlyoutItem;
+            if (menuItem is not null)
+            {
+                if (menuItem.Tag is string filePath)
+                {
+                    // Open survey in the regular way
+                    await OpenProject(filePath);
+
+                    // Check if the preferred calibration data is the one being using for
+                    // the current event measurements calculations
+                    await CheckIfEventMeasurementsAreUpToDate();
+                }
+
+                SetMenuStatusBasedOnProjectState();
+
+            }
         }
 
 
@@ -1153,7 +1194,7 @@ namespace Surveyor
                 MagnifyAndMarkerDisplayLeft.Close();
                 MagnifyAndMarkerDisplayRight.Close();
 #endif
-                projectClass.ProjectClose();
+                await projectClass.ProjectClose();
             }
 
             ret = await projectClass.ProjectLoad(projectFileName);
@@ -1390,8 +1431,9 @@ namespace Surveyor
                     MagnifyAndMarkerDisplayRight.Close();
 #endif
                     CloseSVSMediaFiles();
-                    this.projectClass.ProjectClose();
-                    this.projectClass = null;
+                    await projectClass.ProjectClose();
+
+                    projectClass = null;
                     MenuFileLockUnlockMediaPlayers.IsChecked = false;
                     ret = true;
                 }
@@ -1689,7 +1731,7 @@ namespace Surveyor
             CalibrationClass? calibrationClass = projectClass?.Data?.Calibration;
             CalibrationData? calibrationDataPreferred = calibrationClass?.GetPreferredCalibationData(frameWidth, frameHeight);
 
-            if (calibrationClass is not null)
+            if (calibrationClass is not null && (frameWidth is not null || frameHeight is not null))
             {
                 if (calibrationDataPreferred is not null)
                 {
@@ -2116,12 +2158,24 @@ namespace Surveyor
 
         private void OnNavigationViewSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
         {
-            UpdateNavigationViewVisibility();
+            if (args.IsSettingsSelected)
+            {
+                // Navigate to the Settings page
+                if (ContentFrame != null && ContentFrame.CurrentSourcePageType != typeof(SettingsPage))
+                {
+                    ContentFrame.Navigate(typeof(SettingsPage));
+                }
+            }
+            else
+            {
+                UpdateNavigationViewVisibility();
+            }
         }
 
         private void UpdateNavigationViewVisibility()
         {
             var selectedItem = (NavigationViewItem)NavigationView.SelectedItem;
+
 
             // Check if no view is selected
             if (selectedItem is null)
@@ -2153,6 +2207,76 @@ namespace Surveyor
             }
         }
 
+
+        /// <summary>
+        /// Add the selected survey to the recent surveys list
+        /// </summary>
+        /// <param name="filePath"></param>
+        private void AddToRecentSurveys(string filePath)
+        {
+            var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
+            var recentSurveys = (localSettings.Values[RECENT_SURVEYS_KEY] as string[]) ?? new string[0];
+
+            // Remove if already exists
+            var list = new List<string>(recentSurveys);
+            list.Remove(filePath);
+
+            // Add to beginning
+            list.Insert(0, filePath);
+
+            // Keep only MAX_RECENT_SURVEYS items
+            if (list.Count > MAX_RECENT_SURVEYS_SAVED)
+                list.RemoveRange(MAX_RECENT_SURVEYS_SAVED, list.Count - MAX_RECENT_SURVEYS_SAVED);
+
+            // Save back to settings
+            localSettings.Values[RECENT_SURVEYS_KEY] = list.ToArray();
+
+            UpdateRecentSurveysMenu();
+        }
+
+
+
+        private void UpdateRecentSurveysMenu()
+        {
+            var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
+            string[]? recentSurveys = localSettings.Values[RECENT_SURVEYS_KEY] as string[];
+
+            // Clear existing items in the MenuFlyoutSubItem
+            MenuRecentSurveys.Items.Clear();
+
+            if (recentSurveys == null || recentSurveys.Length == 0)
+            {
+                // Add a single "Empty" menu item if no recent surveys exist
+                var emptyItem = new MenuFlyoutItem
+                {
+                    Text = "(Empty)",
+                    IsEnabled = false
+                };
+                MenuRecentSurveys.Items.Add(emptyItem);
+                return;
+            }
+
+            // Add new items from the recentSurveys array
+            foreach (var surveyPath in recentSurveys)
+            {
+                if (MenuRecentSurveys.Items.Count >= maxRecentSurveysDisplayed)
+                    break;
+
+                if (!string.IsNullOrEmpty(surveyPath))
+                {
+                    var menuItem = new MenuFlyoutItem
+                    {
+                        Text = System.IO.Path.GetFileName(surveyPath), // Use the file name as the menu item text
+                        Tag = surveyPath // Store the full path in the Tag property
+                    };
+
+                    // Optionally add a click event handler for the menu item
+                    menuItem.Click += RecentSurvey_Click;
+
+                    MenuRecentSurveys.Items.Add(menuItem);
+                }
+            }
+        }
     }
 
 
