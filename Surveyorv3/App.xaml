@@ -8,9 +8,33 @@
         <ResourceDictionary>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
-                <!-- Other merged dictionaries here -->
             </ResourceDictionary.MergedDictionaries>
-            <!-- Other app resources here -->
+            
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#FFC0C0C0" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#FF3E3E3E" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <!--  Application-specific resources  -->
+            <x:String x:Key="AppTitleName">Surveyor</x:String>
+
+
+            <!--  Breakpoints  -->
+            <x:Double x:Key="Breakpoint640Plus">641</x:Double>
+
+            <!-- Spacing between cards -->
+            <x:Double x:Key="SettingsCardSpacing">4</x:Double>
+
+            <!-- Style (inc. the correct spacing) of a section header -->
+            <Style x:Key="SettingsSectionHeaderTextBlockStyle"
+       TargetType="TextBlock">
+                <Setter Property="Margin" Value="1,30,0,6" />
+                <Setter Property="FontWeight" Value="Bold" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

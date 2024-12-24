@@ -359,7 +359,7 @@ namespace Surveyor.User_Controls
 
             // Do coordinate need to be displayed
             displayPointerCoords = SettingsManager.DisplayPointerCoordinates;
-            displayPointerCoords = true; //??? Force on until Settings User Control is ready
+ 
 
             // Set the image loaded flag
             imageLoaded = true;

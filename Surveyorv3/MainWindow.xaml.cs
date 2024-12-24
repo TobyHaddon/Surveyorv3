@@ -1,4 +1,4 @@
-using Microsoft.UI;
+﻿using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -23,11 +23,13 @@ using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Provider;
-using Windows.UI.ApplicationSettings;
 using Windows.UI.ViewManagement;
 using WinRT.Interop;
 using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.Project.DataClass;
+using Surveyor.Helper;
+//using MathNet.Numerics;
+using Surveyor.DesktopWap.Helper;
 #if !No_MagnifyAndMarkerDisplay
 #endif
 
@@ -39,8 +41,6 @@ namespace Surveyor
     public sealed partial class MainWindow : Window
     {
         private AppWindow appWindow;
-        private bool isDarkTheme;
-        private string applicationTheme;
 
         // Create the Mediator
         private readonly SurveyorMediator mediator = new();
@@ -68,7 +68,7 @@ namespace Surveyor
         // Hidden controls to be shown dynamically
         private readonly EventsControl eventsControl = new();
         private readonly Reporter report = new();
-        //???private readonly Settings settings = new();
+
 
         private const string RECENT_SURVEYS_KEY = "RecentSurveys";
         private int maxRecentSurveysDisplayed = 4;      // Will be controlled from Settings TO DO
@@ -76,11 +76,6 @@ namespace Surveyor
 
         public MainWindow()
         {
-            // Get current Windows theme
-            isDarkTheme = (new UISettings().GetColorValue(UIColorType.Background) == Colors.Black);
-            applicationTheme = isDarkTheme ? "dark" : "light";
-
-
             this.InitializeComponent();
             this.Closed += MainWindow_Closed;
 
@@ -89,6 +84,16 @@ namespace Surveyor
 
             // Inform the Events Control of the DispatcherQueue
             eventsControl.SetDispatcherQueue(DispatcherQueue);
+
+            // This is used to get/adjust the theme is necessary
+            ThemeHelper.Initialize();
+
+            // Set theme
+            SetTheme(SettingsManager.ApplicationTheme);
+
+            // Add listener for theme changes
+            var rootElement = (FrameworkElement)Content;
+            rootElement.ActualThemeChanged += OnActualThemeChanged;
 
             // Restore the saved window state
             //???Disabled as it need more work.  I think the multiple monitor setting and switching between monitors is causing the issue
@@ -131,10 +136,6 @@ namespace Surveyor
             // so the regions could be calculated correctly
             SetLockUnlockIndicator(null, null);
 
-            // Load the correct titlebar icon according to the Windows theme
-            var bitmapImage = new BitmapImage(new Uri($"ms-appx:///Assets/Surveyor-{applicationTheme}.png"));
-            TitleBarIcon.Source = bitmapImage;
-
             // Set the default tab view visibility
             UpdateNavigationViewVisibility();
 
@@ -166,6 +167,56 @@ namespace Surveyor
                 GridColumnRightMedia.Width = new GridLength(50, GridUnitType.Star);
             }
             GridColumnMediaSeparator.Width = new GridLength(0);
+        }
+
+        /// <summary>
+        /// Set the theme of the application
+        /// </summary>
+        /// <param name="theme">Dark or Light</param>
+        public void SetTheme(ElementTheme theme)
+        {
+            
+            var rootElement = (FrameworkElement)(Content);
+
+            if (theme == ElementTheme.Dark)
+            {
+                // Set the RequestedTheme of the root element to Dark
+                rootElement.RequestedTheme = ElementTheme.Dark;     
+
+                // Use a dark theme icon
+                var bitmapImage = new BitmapImage(new Uri($"ms-appx:///Assets/Surveyor-Dark.png"));
+                TitleBarIcon.Source = bitmapImage;
+
+                TitleBarHelper.SetCaptionButtonColors(this, Colors.White);                
+            }
+            else if (theme == ElementTheme.Light)
+            {
+                // Set the RequestedTheme of the root element to Light
+                rootElement.RequestedTheme = ElementTheme.Light;
+
+                // Use a light theme icon
+                var bitmapImage = new BitmapImage(new Uri($"ms-appx:///Assets/Surveyor-Light.png"));
+                TitleBarIcon.Source = bitmapImage;
+
+                TitleBarHelper.SetCaptionButtonColors(this, Colors.Black);                
+            }
+            else
+            {
+                // Use the default system theme
+                rootElement.RequestedTheme = ElementTheme.Default;
+
+                // Get the background colour used by that theme
+                var color = TitleBarHelper.ApplySystemThemeToCaptionButtons(this) == Colors.White ? "Dark" : "Light";
+
+                // Based on the background colour select a suitable application icon 
+                if (color == "Dark")
+                    TitleBarIcon.Source = new BitmapImage(new Uri($"ms-appx:///Assets/Surveyor-Dark.png"));
+                else
+                    TitleBarIcon.Source = new BitmapImage(new Uri($"ms-appx:///Assets/Surveyor-Light.png"));
+            }
+
+            // If the theme has changed, announce the change to the user
+            UIHelper.AnnounceActionForAccessibility(rootElement, "Theme changed", "ThemeChangedNotificationActivityId");
         }
 
 
@@ -293,6 +344,23 @@ namespace Surveyor
                 // Update interactive regions if the size of the window changes.
                 SetRegionsForCustomTitleBar();
             }
+        }
+
+
+        /// <summary>
+        /// Event raised when the theme is changed in Windows
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void OnActualThemeChanged(FrameworkElement sender, object args)
+        {
+            // Handle the theme change
+            var newTheme = sender.ActualTheme;
+            Debug.WriteLine($"Theme changed to {newTheme}");
+
+            // Optionally, apply additional changes
+            SetTheme(newTheme);
+            SettingsManager.ApplicationTheme = ElementTheme.Default;
         }
 
 
@@ -2159,12 +2227,9 @@ namespace Surveyor
         private void OnNavigationViewSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
         {
             if (args.IsSettingsSelected)
-            {
-                // Navigate to the Settings page
-                if (ContentFrame != null && ContentFrame.CurrentSourcePageType != typeof(SettingsPage))
-                {
-                    ContentFrame.Navigate(typeof(SettingsPage));
-                }
+            {              
+                ShowSettingsWindow();
+                NavigationView.SelectedItem = (NavigationViewItem)NavigationView.MenuItems[0];  // Assuming Events is the first item
             }
             else
             {
@@ -2172,6 +2237,47 @@ namespace Surveyor
             }
         }
 
+
+
+        /// <summary>
+        /// Display the settings window
+        /// </summary>
+        private void ShowSettingsWindow()
+        {
+            var settingsWindow = new SettingsWindow(this);
+
+
+            // Set the secondary window as modal
+            settingsWindow.Activate();
+
+            // Use P/Invoke to force the window on top
+            IntPtr settingsWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(settingsWindow);
+            WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
+        
+
+            // Disable interaction with the main window
+            var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(
+                Microsoft.UI.Win32Interop.GetWindowIdFromWindow(
+                    WinRT.Interop.WindowNative.GetWindowHandle(this)
+                )
+            );
+
+            // Handle the SettingsWindow Closed event
+            settingsWindow.Closed += (sender, args) =>
+            {
+                // Re-activate the main window once the secondary window is closed
+                //???appWindow.Show();
+            };
+
+            // Optionally, ensure the main window is not interactable while the modal window is open
+            //???appWindow.Hide();
+        }
+
+
+
+        /// <summary>
+        /// Used to swap between the Events/Results/Output pages
+        /// </summary>
         private void UpdateNavigationViewVisibility()
         {
             var selectedItem = (NavigationViewItem)NavigationView.SelectedItem;

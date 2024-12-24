@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.UI.Xaml;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -94,6 +95,40 @@ namespace Surveyor
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
                 localSettings.Values["DisplayPointerCoordinates"] = value;
+            }
+        }
+
+        // Application theme Light, Dark or Default
+        public static ElementTheme ApplicationTheme
+        {
+            get 
+            {
+                ElementTheme applicationTheme = ElementTheme.Default;
+
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                if (localSettings.Values["ApplicationTheme"] is string)
+                {
+                    string applicationThemeName = (string)localSettings.Values["ApplicationTheme"];
+
+                    if (applicationThemeName == "Dark")
+                        applicationTheme = ElementTheme.Dark;
+                    else if (applicationThemeName == "Light")
+                        applicationTheme = ElementTheme.Light;
+                }
+
+                return applicationTheme;
+            }
+            set
+            {
+                string applicationThemeName = "Default";
+
+                if (value == ElementTheme.Dark)
+                    applicationThemeName = "Dark";
+                else if (value == ElementTheme.Light)
+                    applicationThemeName = "Light";
+
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                localSettings.Values["ApplicationTheme"] = applicationThemeName;
             }
         }
     }

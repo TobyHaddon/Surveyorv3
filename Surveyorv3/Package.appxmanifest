@@ -10,13 +10,13 @@
   <Identity
     Name="8c0e24ec-57ee-4dad-b96b-fdbe9463de8e"
     Publisher="CN=tobyh"
-    Version="1.0.0.0" />
+    Version="3.1.102.0" />
 
   <mp:PhoneIdentity PhoneProductId="8c0e24ec-57ee-4dad-b96b-fdbe9463de8e" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
     <DisplayName>Surveyorv3</DisplayName>
-    <PublisherDisplayName>tobyh</PublisherDisplayName>
+    <PublisherDisplayName>Toby Haddon</PublisherDisplayName>
     <Logo>Assets\surveyor-dark.png</Logo>
   </Properties>
 
@@ -34,7 +34,7 @@
       Executable="$targetnametoken$.exe"
       EntryPoint="$targetentrypoint$">
       <uap:VisualElements
-        DisplayName="Surveyorv"
+        DisplayName="Surveyor"
         Description="Fish measurement survey software.  This software is used to process videos from a sterographic camera rig."
         BackgroundColor="transparent"
         Square150x150Logo="Assets\surveyor-dark.png"

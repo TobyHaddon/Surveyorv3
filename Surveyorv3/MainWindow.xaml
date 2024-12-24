@@ -9,7 +9,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid>
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <!-- The top level grid only contains the menubar and everything else in two separate cells in 1x2 grid  -->
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
@@ -91,7 +91,7 @@
 
             
             <!-- App Title or additional content can go here -->
-            <Border Grid.Column="4" Background="#FF3E3E3E" Padding="8,0,8,0" VerticalAlignment="Center" Margin="16,0,0,0">
+            <Border Grid.Column="4" Background="{ThemeResource TitleBarBackgroundBrush}" Padding="8,0,8,0" VerticalAlignment="Center" Margin="16,0,0,0">
                 <!-- Lighter background around title -->
                 <TextBlock x:Name="TitleBarTextBlock"
                    Text="Surveyor" 
@@ -161,7 +161,7 @@
             <!-- Left player and it's media controls, each in a grid to allow 
             erWheelChanged event      -->
             <!-- to be added while still allowing RowSpanning for Full Screen and Primary MediaControls only -->
-            <Grid Grid.Column="0" Grid.Row="0" PointerWheelChanged="LeftSubGrid_MouseWheel">
+            <Grid Grid.Column="0" Grid.Row="0"  Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" PointerWheelChanged="LeftSubGrid_MouseWheel">
                 <surveyorControls:SurveyorMediaPlayer x:Name="MediaPlayerLeft"/>
                 <surveyorControls:MagnifyAndMarkerDisplay x:Name="MagnifyAndMarkerDisplayLeft"/>
             </Grid>
@@ -175,7 +175,7 @@
             </Grid>
 
             <!-- Right player and it's media controls-->
-            <Grid Grid.Column="2" Grid.Row="0" PointerWheelChanged="RightSubGrid_MouseWheel">
+            <Grid Grid.Column="2" Grid.Row="0" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" PointerWheelChanged="RightSubGrid_MouseWheel">
                 <surveyorControls:SurveyorMediaPlayer x:Name="MediaPlayerRight"/>
                 <surveyorControls:MagnifyAndMarkerDisplay x:Name="MagnifyAndMarkerDisplayRight"/>
             </Grid>
@@ -184,19 +184,6 @@
             </Grid>
         </Grid>
 
-
-        <!-- Tab control for results, events etc TO DELETE -->
-        <!--<TabView x:Name="TabView" Grid.Row="2" VerticalAlignment="Stretch" HorizontalAlignment="Stretch"  SelectionChanged="OnTabViewSelectionChanged" IsAddTabButtonVisible="False">
-            <TabViewItem Header="Events" TabIndex="0" IsClosable="False">
-                <surveyorControls:EventsControl x:Name="EventsControl"/>
-            </TabViewItem>
-            <TabViewItem Header="Results" TabIndex="1" IsClosable="False">
-                --><!--<surveyorControls:Results x:Name="Results"/>--><!--
-            </TabViewItem>
-            <TabViewItem Header="Output" TabIndex="2" IsClosable="False">
-                <surveyorControls:Reporter x:Name="Report"/>
-            </TabViewItem>
-        </TabView>-->
 
         <NavigationView x:Name="NavigationView" Grid.Row="2" PaneDisplayMode="Top" SelectionChanged="OnNavigationViewSelectionChanged">
             
@@ -209,6 +196,6 @@
             <!-- Frame to display content based on navigation -->
             <Frame x:Name="ContentFrame" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
         </NavigationView>
-
+       
     </Grid>
 </Window>

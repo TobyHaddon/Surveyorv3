@@ -1,7 +1,9 @@
 ﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Diagnostics;
 using System.Linq;
+using System.Reflection;
 using Windows.ApplicationModel;
 //???using WASDK = Microsoft.WindowsAppSDK;
 
@@ -91,5 +93,13 @@ namespace Surveyor
             }
         }
 
+        public static TEnum GetEnum<TEnum>(string text) where TEnum : struct
+        {
+            if (!typeof(TEnum).GetTypeInfo().IsEnum)
+            {
+                throw new InvalidOperationException("Generic parameter 'TEnum' must be an enum.");
+            }
+            return (TEnum)Enum.Parse(typeof(TEnum), text);
+        }       
     }
 }
