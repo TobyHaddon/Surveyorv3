@@ -1498,11 +1498,23 @@ namespace Surveyor
                     MagnifyAndMarkerDisplayLeft.Close();
                     MagnifyAndMarkerDisplayRight.Close();
 #endif
-                    CloseSVSMediaFiles();
-                    await projectClass.ProjectClose();
 
+                    // Closes the StereoMediaController, clears the title and the sync indicator
+                    CloseSVSMediaFiles();
+
+                    // Close and clear the Project class (holds the survey data)
+                    await projectClass.ProjectClose();
                     projectClass = null;
-                    MenuFileLockUnlockMediaPlayers.IsChecked = false;
+
+                                        
+                    // Clear the measurement class by loaded an empty calibration class
+                    stereoProjection.SetCalibrationData(new Project.DataClass.CalibrationClass());
+                    SetCalibratedIndicator(null, null);
+
+                    // Display both media controls
+                    MediaControlsDisplayMode(false);
+
+
                     ret = true;
                 }
             }
@@ -1689,6 +1701,9 @@ namespace Surveyor
                 mediaStereoController.MediaClose();
 
                 SetTitle("");
+                SetTitleSaveStatus("");
+                SetTitleCameraSide("");
+
                 SetLockUnlockIndicator(null, null);
                 MenuMediaOpen.IsEnabled = true;
                 MenuMediaClose.IsEnabled = false;
@@ -1819,7 +1834,7 @@ namespace Surveyor
 
                     // If there is other calibration data available then add it to the tooltip
                     if (calibrationClass.CalibrationDataList.Count > 1)
-                        tooltip += "\n\nAvailable Calibration:" + _MakeCalibrationDescriptionListTooltip(calibrationClass);
+                        tooltip += "\n\nAvailable Calibration:" + MakeCalibrationDescriptionListTooltip(calibrationClass);
 
 
                     // Show the calibration icon
@@ -1831,13 +1846,13 @@ namespace Surveyor
                 {
                     if (frameWidth is not null)
                     {
-                        tooltip = $"Failed to return Preferred Calibration Data for frame size ({frameWidth},{frameHeight})!\nAvailable calibration sets:\n" + _MakeCalibrationDescriptionListTooltip(calibrationClass);
+                        tooltip = $"Failed to return Preferred Calibration Data for frame size ({frameWidth},{frameHeight})!\nAvailable calibration sets:\n" + MakeCalibrationDescriptionListTooltip(calibrationClass);
                         // Show the calibration icon
                         CalibratedIndicator.Text = calibratedIndictor + "!";
                     }
                     else
                     {
-                        tooltip = $"Failed to return Preferred Calibration Data!\nAvailable calibration sets:\n" + _MakeCalibrationDescriptionListTooltip(calibrationClass);
+                        tooltip = $"Failed to return Preferred Calibration Data!\nAvailable calibration sets:\n" + MakeCalibrationDescriptionListTooltip(calibrationClass);
                         // Show the calibration icon
                         CalibratedIndicator.Text = calibratedIndictor;
                     }
@@ -1857,11 +1872,11 @@ namespace Surveyor
         }
 
         /// <summary>
-        /// Make a list of calibration descriptions for the tooltip. This includes  the description (if present) and the frame size (if present)
+        /// Make a list of calibration descriptions for the tooltip. This includes the description (if present) and the frame size (if present)
         /// </summary>
         /// <param name=""></param>
         /// <returns></returns>
-        private string _MakeCalibrationDescriptionListTooltip(CalibrationClass calibrationClass)
+        private static string MakeCalibrationDescriptionListTooltip(CalibrationClass calibrationClass)
         {
             StringBuilder sb = new();
 
@@ -1891,7 +1906,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Get the Calidbration ID from the preferred calibration data and check if was used for
+        /// Get the Calibration ID from the preferred calibration data and check if was used for
         /// all the event EventMeasurements.  If not then ask the user if they want to update the
         /// calculation.
         /// The Mediaplayer must be open so the frame width and height is known
@@ -1973,7 +1988,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Pupulate the SurveyMeasurement with the measurement calculates from the stereo projection
+        /// Populate the SurveyMeasurement with the measurement calculates from the stereo projection
         /// Note the LeftX, LeftY, RightX, RightY should have already been loaded in 
         /// SurveyMeasurement surveyMeasurement
         /// </summary>
@@ -1988,10 +2003,10 @@ namespace Surveyor
                 new Point(surveyMeasurement.RightXB, surveyMeasurement.RightYB)) == true)
             {
 
-                // Calculate length
+                // Calculate fish length
                 surveyMeasurement.Distance = stereoProjection.Measurement();
 
-                // Calcuate range (distance from origin)
+                // Calculate range (distance from origin)
                 surveyMeasurement.Range = stereoProjection.RangeFromCameraSystemCentrePointToMeasurementCentrePoint();
 
                 // Calculate the X & Y offset between the camera system mid-point and the measurement point mid-point
@@ -2244,8 +2259,9 @@ namespace Surveyor
         /// </summary>
         private void ShowSettingsWindow()
         {
-            var settingsWindow = new SettingsWindow(this);
+            SettingsWindow settingsWindow = new();
 
+            settingsWindow.InitializeMediator(mediator, this);
 
             // Set the secondary window as modal
             settingsWindow.Activate();
@@ -2255,22 +2271,12 @@ namespace Surveyor
             WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
         
 
-            // Disable interaction with the main window
+            // Disable interaction with the main window (not sure this is working)
             var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(
                 Microsoft.UI.Win32Interop.GetWindowIdFromWindow(
                     WinRT.Interop.WindowNative.GetWindowHandle(this)
                 )
             );
-
-            // Handle the SettingsWindow Closed event
-            settingsWindow.Closed += (sender, args) =>
-            {
-                // Re-activate the main window once the secondary window is closed
-                //???appWindow.Show();
-            };
-
-            // Optionally, ensure the main window is not interactable while the modal window is open
-            //???appWindow.Hide();
         }
 
 
@@ -2306,9 +2312,6 @@ namespace Surveyor
                 case "OutputPage":
                     ContentFrame.Content = report;  // Assuming Report is already defined
                     report.Visibility = Visibility.Visible;
-                    break;
-                case "Settings":
-                    //??? Invoke the settings users control
                     break;
             }
         }

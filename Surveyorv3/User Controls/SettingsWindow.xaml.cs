@@ -14,6 +14,9 @@ using Surveyor.DesktopWap.Helper;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.UI.ViewManagement;
+using Microsoft.Graphics.Canvas;
+using static Surveyor.User_Controls.MediaControlEventData;
+using static Surveyor.User_Controls.SettingsWindowEventData;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -27,16 +30,23 @@ namespace Surveyor.User_Controls
     /// </summary>
     public sealed partial class SettingsWindow : Window
     {
-        private readonly MainWindow? mainWindow = null;
+        // Copy of MainWindow
+        private MainWindow? _mainWindow = null;
+
+        // Copy of the mediator 
+        private SurveyorMediator? _mediator;
+
+        // Declare the mediator handler for MediaPlayer
+        private SettingsWindowHandler? _settingsWindowHandler;
+
+
         private readonly ElementTheme? rootThemeOriginal = null;
 
         public string WinAppSdkRuntimeDetails => App.WinAppSdkRuntimeDetails;
 
 
-        public SettingsWindow(MainWindow _mainWindow)
-        {
-            mainWindow = _mainWindow;
-
+        public SettingsWindow()
+        {     
             this.InitializeComponent();
             this.Closed += SettingsWindow_Closed;
 
@@ -56,14 +66,29 @@ namespace Surveyor.User_Controls
                 (workArea.Height - 600) / 2
             ));
 
-            // Remember the theme as the SettingWindow opens
-            //???var rootElement = (FrameworkElement)(mainWindow.Content);
-            //???rootThemeOriginal = rootElement.RequestedTheme;
+
+            // Set the current saved theme
             SetSettingsTheme(SettingsManager.ApplicationTheme);
 
+            // Setup the Setting page
             OnSettingsPageLoaded(SettingsManager.ApplicationTheme);
         }
 
+
+        /// <summary>
+        /// Initialize mediator handler for SurveyorMediaControl
+        /// </summary>
+        /// <param name="mediator"></param>
+        /// <returns></returns>
+        public TListener InitializeMediator(SurveyorMediator mediator, MainWindow mainWindow)
+        {
+            _mediator = mediator;
+            _mainWindow = mainWindow;
+
+            _settingsWindowHandler = new SettingsWindowHandler(_mediator, this, mainWindow);
+
+            return _settingsWindowHandler;
+        }
 
 
         /// <summary>
@@ -75,11 +100,14 @@ namespace Surveyor.User_Controls
         {
             // Check if the theme has changed
             var rootElement = (FrameworkElement)(this.Content);
-            if (rootThemeOriginal != rootElement.RequestedTheme && mainWindow is not null)
-                mainWindow.SetTheme(rootElement.RequestedTheme);                
+            if (rootThemeOriginal != rootElement.RequestedTheme && _mainWindow is not null)
+                _mainWindow.SetTheme(rootElement.RequestedTheme);                
 
             // Set the save theme
             SettingsManager.ApplicationTheme = rootElement.RequestedTheme;
+
+            // Unregister the mediator handler
+            _settingsWindowHandler!.Cleanup();
         }
 
 
@@ -117,8 +145,9 @@ namespace Surveyor.User_Controls
         /// <param name="theme"></param>
         private void OnSettingsPageLoaded(ElementTheme theme)
         {
-            if (mainWindow is not null)
+            if (_mainWindow is not null)
             {
+                // Load the current theme
                 switch (theme)
                 {
                     case ElementTheme.Light:
@@ -131,6 +160,9 @@ namespace Surveyor.User_Controls
                         themeMode.SelectedIndex = 2;
                         break;
                 }
+
+                // Load the current isAutoMagnify state
+                magnifierWindowAutomatic.IsOn = SettingsManager.MagnifierWindowAutomatic;
             }
         }
 
@@ -228,6 +260,76 @@ namespace Surveyor.User_Controls
             }
             
         }
+
+        private void magnifierWindowAutomatic_Toggled(object sender, RoutedEventArgs e)
+        {
+            bool settingValue;
+
+            if (magnifierWindowAutomatic.IsOn)
+            {
+                // Enable automatic magnifier window
+                settingValue = true;
+                
+            }
+            else
+            {
+                // Disable automatic magnifier window
+                settingValue = false;
+            }
+
+            // Remember the new state
+            SettingsManager.MagnifierWindowAutomatic = settingValue;
+
+            // Inform everyone of the state change
+            _settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.MagnifierWindow)
+            {
+                magnifierWindowAutomatic = settingValue
+            });
+        }
+
+        // ***END OF SettingsWindow***
     }
+
+
+    /// <summary>
+    /// Used by the SettingsWindow User Control to inform other components of settings changes
+    /// </summary>
+    public class SettingsWindowEventData
+    {
+        public SettingsWindowEventData(eSettingsWindowEvent e)
+        {
+            settingsWindowEvent = e;
+        }
+
+        public enum eSettingsWindowEvent
+        {
+            MagnifierWindow     // The Magnifier Window has been toggled
+        }
+
+        public readonly eSettingsWindowEvent settingsWindowEvent;
+
+        // Only used for eSettingsWindowEvent.settingsWindowEvent
+        public bool? magnifierWindowAutomatic;
+
+    }
+
+
+
+    public class SettingsWindowHandler : TListener
+    {
+        private readonly SettingsWindow _settingsWindow;
+
+        public SettingsWindowHandler(IMediator mediator, SettingsWindow settingsWindow, MainWindow mainWindow) : base(mediator, mainWindow)
+        {
+            _settingsWindow = settingsWindow;
+        }
+
+        public override void Receive(TListener listenerFrom, object message)
+        {
+            // In case we need later
+        }
+
+    }
+
 }
 

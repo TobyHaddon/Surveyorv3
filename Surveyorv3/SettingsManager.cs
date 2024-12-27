@@ -131,5 +131,25 @@ namespace Surveyor
                 localSettings.Values["ApplicationTheme"] = applicationThemeName;
             }
         }
+
+        // Display Magnifier Window automatically
+        public static bool MagnifierWindowAutomatic
+        {
+            get
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                if (localSettings.Values["MagnifierWindowAutomatic"] is not bool magnifierWindowAutomatic)
+                    magnifierWindowAutomatic = false;
+
+                return magnifierWindowAutomatic;
+            }
+            set
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                localSettings.Values["MagnifierWindowAutomatic"] = value;
+            }
+        }
+
+
     }
 }

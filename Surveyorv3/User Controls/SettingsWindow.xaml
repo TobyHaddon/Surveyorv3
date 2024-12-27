@@ -33,23 +33,81 @@
                     <RepositionThemeTransition IsStaggeringEnabled="False" />
                 </StackPanel.ChildrenTransitions>
                 <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="General Settings" />
-                <toolkit:SettingsCard Description="Select which app theme to display" Header="App theme">
-                    <toolkit:SettingsCard.HeaderIcon>
-                        <FontIcon Glyph="&#xE790;" />
-                    </toolkit:SettingsCard.HeaderIcon>
-                    <ComboBox x:Name="themeMode" AutomationProperties.AutomationId="themeModeComboBox" SelectionChanged="themeMode_SelectionChanged">
-                        <ComboBoxItem Content="Light" Tag="Light" />
-                        <ComboBoxItem Content="Dark" Tag="Dark" />
-                        <ComboBoxItem Content="Use system setting" Tag="Default" />
-                    </ComboBox>
-                </toolkit:SettingsCard>
 
-                <toolkit:SettingsCard Header="Diagnostic Information">
-                    <toolkit:SettingsCard.HeaderIcon>
-                        <FontIcon Glyph="&#xF594;" />
-                    </toolkit:SettingsCard.HeaderIcon>
-                    <ToggleSwitch x:Name="diagnosticInformation" Toggled="diagnosticInformation_Toggled" />
-                </toolkit:SettingsCard>
+                
+                <!--SURVEY SETTINGS-->
+                <toolkit:SettingsExpander Header="Survey Settings">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE160;" />
+                    </toolkit:SettingsExpander.HeaderIcon>
+
+                    <toolkit:SettingsExpander.Items>
+                        <toolkit:SettingsCard Description="Survey setup information and survey media" Header="Survey Info &amp; Media">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE768;" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <ComboBox x:Name="themeModeXXX" SelectionChanged="themeMode_SelectionChanged">
+                                <ComboBoxItem Content="Light" Tag="Light" />
+                                <ComboBoxItem Content="Dark" Tag="Dark" />
+                                <ComboBoxItem Content="Use system setting" Tag="Default" />
+                            </ComboBox>
+                        </toolkit:SettingsCard>
+
+                        <toolkit:SettingsCard Header="Calibration"
+                                          ToolTipService.ToolTip="Calibration information for the stereo camera rig.">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE768;" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="magnifierWindowAutomatic_Toggled" />
+                        </toolkit:SettingsCard>
+
+                        <toolkit:SettingsCard Header="Survey Rules">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE73E;" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <ToggleSwitch x:Name="diagnosticInformationXXX" Toggled="diagnosticInformation_Toggled" />
+                        </toolkit:SettingsCard>
+
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
+
+
+                <!--GENERAL SETTINGS-->
+                <toolkit:SettingsExpander Header="General Settings">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE116;" />
+                    </toolkit:SettingsExpander.HeaderIcon>
+
+                    <toolkit:SettingsExpander.Items>
+                        <toolkit:SettingsCard Description="Select which app theme to display" Header="App theme">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE790;" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <ComboBox x:Name="themeMode" AutomationProperties.AutomationId="themeModeComboBox" SelectionChanged="themeMode_SelectionChanged">
+                                <ComboBoxItem Content="Light" Tag="Light" />
+                                <ComboBoxItem Content="Dark" Tag="Dark" />
+                                <ComboBoxItem Content="Use system setting" Tag="Default" />
+                            </ComboBox>
+                        </toolkit:SettingsCard>
+
+                        <toolkit:SettingsCard Header="Magnifier Window Automatic"
+                                          ToolTipService.ToolTip="This automatically shows the magnifier window when you hover over either the left or right survey video. If it is switched off you need to left-click the area of the video frame when you want the magnifier window to appear.">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE71E;" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <ToggleSwitch x:Name="magnifierWindowAutomatic" Toggled="magnifierWindowAutomatic_Toggled" />
+                        </toolkit:SettingsCard>
+
+                        <toolkit:SettingsCard Header="Diagnostic Information">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xF594;" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <ToggleSwitch x:Name="diagnosticInformation" Toggled="diagnosticInformation_Toggled" />
+                        </toolkit:SettingsCard>
+
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
+
 
                 <!--<toolkit:SettingsExpander Description="Controls provide audible feedback" Header="Sound">
                     <toolkit:SettingsExpander.HeaderIcon>

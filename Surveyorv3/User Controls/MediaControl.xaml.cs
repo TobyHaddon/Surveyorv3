@@ -19,6 +19,7 @@ using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
 #endif
 using static Surveyor.User_Controls.MediaControlEventData;
+using static Surveyor.User_Controls.SettingsWindowEventData;
 using static Surveyor.User_Controls.SurveyorMediaPlayer;
 
 
@@ -43,7 +44,7 @@ namespace Surveyor.User_Controls
         private float _speed = 1.0f;
 
         // Set to true if the Magnifier Window is automatically displayed as the pointer(mouse) moves
-        private bool isAutoMagnify = true;    // Must be set to the same initial value as 'isAutoMagnify' in MagnifyAndMarkerDisplay.xaml.cs
+        private bool isAutoMagnify = SettingsManager.MagnifierWindowAutomatic;    // Must be set to the same initial value as 'isAutoMagnify' in MagnifyAndMarkerDisplay.xaml.cs
         private Microsoft.UI.Xaml.Media.SolidColorBrush? appButtonAutoMagnifyOn = null;
         private Microsoft.UI.Xaml.Media.SolidColorBrush? appButtonAutoMagnifyOff = null;
         private string? appButtonAutoMagnifyTooltip = null;
@@ -1260,6 +1261,18 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Used to change the status of auto magnify. Used by the SettingsWindow to inform the MagnifyAndMarkerDisplay
+        /// that the user has changed the auto magnify setting
+        /// </summary>
+        /// <param name="isAutoMagnify"></param>
+        internal void SetIsAutoMagnify(bool isAutoMagnify)
+        {
+            this.isAutoMagnify = isAutoMagnify;
+        }
+
+
+
+        /// <summary>
         /// Replaces any existing keyboard shortcut on the given AppBarButton with the new one
         /// </summary>
         /// <param name="appBarButton"></param>
@@ -1481,6 +1494,19 @@ namespace Surveyor.User_Controls
                     }
                 }
             }
+            else if (message is SettingsWindowEventData)
+            {
+                SettingsWindowEventData data = (SettingsWindowEventData)message;
+
+                switch (data.settingsWindowEvent)
+                {
+                    // The user has changed the auto magnify setting
+                    case eSettingsWindowEvent.MagnifierWindow:
+                        SafeUICall(() => _mediaControl.SetIsAutoMagnify((bool)data!.magnifierWindowAutomatic!));
+                        break;
+                }
+            }
+
         }
 
     }

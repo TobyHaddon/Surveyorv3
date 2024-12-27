@@ -205,6 +205,51 @@ namespace Surveyor.User_Controls
         }
     }
 
+
+    /// <summary>
+    /// Suitable 
+    /// </summary>
+    public class EventTypeToGlyphConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, string language)
+        {
+            if (value is Surveyor.Events.DataType eventType)
+            {
+                switch (eventType)
+                {
+                    case Surveyor.Events.DataType.MonoLeftPoint:
+                        return "L";
+                    case Surveyor.Events.DataType.MonoRightPoint:
+                        return "R";
+                    case Surveyor.Events.DataType.StereoPoint:
+                        return "SP";
+                    case Surveyor.Events.DataType.StereoPairPoints:
+                        return "SPP";
+                    case Surveyor.Events.DataType.SurveyPoint:
+                        return "\uE139";
+                    case Surveyor.Events.DataType.SurveyStereoPoint:
+                        return "\uECAF";
+                    case Surveyor.Events.DataType.SurveyMeasurementPoints:
+                        return "\uE1D9";
+                    case Surveyor.Events.DataType.StereoCalibrationPoints:
+                        return "\uEB3C";
+                    case Surveyor.Events.DataType.StereoSyncPoint:
+                        return "\uE754";
+                    default:
+                        return "Unknown";
+                }
+            }
+            return "Unknown";
+
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, string language)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+
     /// <summary>
     /// Make the Event description string
     /// </summary>

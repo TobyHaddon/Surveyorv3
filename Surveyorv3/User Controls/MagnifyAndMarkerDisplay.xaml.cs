@@ -62,6 +62,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;               // Point class
 using Windows.Graphics.Imaging;         // BitmapTransform
 using Windows.Storage.Streams;
+using static Surveyor.User_Controls.SettingsWindowEventData;
 
 
 
@@ -114,12 +115,12 @@ namespace Surveyor.User_Controls
         private bool isPointerOnUs = false;
 
         // Set to true if the Magnifier Window is display as the pointer(mouse) moves
-        private bool isAutoMagnify = true;    // Must be set to the same initial value as 'isAutoMagnify' in MediaControl.xaml.cs
+        private bool isAutoMagnify = SettingsManager.MagnifierWindowAutomatic;    // Must be set to the same initial value as 'isAutoMagnify' in MediaControl.xaml.cs
 
         // Set to true if the Magnifier Window is locked (i.e. the user has clicked the mouse and the Mag Window
         // no longer follows the pointer (mouse))
         private bool isMagLocked = false;
-        private Point magLockedCentre = new Point(0, 0);
+        private Point magLockedCentre = new(0, 0);
 
         // Dragging support
         private bool isDragging = false;
@@ -2654,6 +2655,15 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// Used to change the status of auto magnify. Used by the SettingsWindow to inform the MagnifyAndMarkerDisplay
+        /// that the user has changed the auto magnify setting
+        /// </summary>
+        /// <param name="isAutoMagnify"></param>
+        internal void SetIsAutoMagnify(bool isAutoMagnify)
+        {
+            this.isAutoMagnify = isAutoMagnify;
+        }
 
         // ***END OF MagnifyAndMarkerControl***
     }
@@ -2884,6 +2894,18 @@ namespace Surveyor.User_Controls
                                 SafeUICall(() => _magnifyAndMarkerControl.NewImageFrame(data.canvasBitmap, (TimeSpan)data.position));
                             break;
                     }
+                }
+            }
+            else if (message is SettingsWindowEventData)
+            {
+                SettingsWindowEventData data = (SettingsWindowEventData)message;
+
+                switch (data.settingsWindowEvent)
+                {
+                    // The user has changed the auto magnify setting
+                    case eSettingsWindowEvent.MagnifierWindow:
+                        SafeUICall(() => _magnifyAndMarkerControl.SetIsAutoMagnify((bool)data!.magnifierWindowAutomatic!));
+                        break;
                 }
             }
         }
