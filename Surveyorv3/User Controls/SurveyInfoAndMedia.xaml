@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Surveyor.User_Controls.SurveyInfoAndMedia"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Surveyor.User_Controls"    
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid>
+        <StackPanel>
+            <TextBox x:Name="SurveyFileName" Width="350" PlaceholderText="[ReefCode]-[Depth]-[TransetNo]-[YYYY-MM-DD]" HorizontalAlignment="Left"/>
+            <TextBox x:Name="SurveyDepth" Width="32" PlaceholderText="Depth" TextChanging="SurveyDepth_BeforeTextChanging" InputScope="Number" HorizontalAlignment="Left"/>
+            <TextBox x:Name="SurveyAnalystName" Width="200" PlaceholderText="Your Name" HorizontalAlignment="Left"/>
+            <TextBlock x:Name="ContextText" Foreground="Gray" Margin="0,10,0,0" />
+            <StackPanel Orientation="Horizontal">
+
+                <ListView x:Name="LeftMediaFileNames"
+                         Height="300" MinWidth="300"
+                         BorderThickness="1" BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}" Margin="0,0,10,0"/>
+
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <Button Click="MoveItemUp_Click" Margin="0,0,0,10">
+                        <Button.Content>
+                            <FontIcon Glyph="&#xE96D;" FontSize="14" FontFamily="Segoe MDL2 Assets" />
+                        </Button.Content>
+                    </Button>
+                    <Button Click="MoveItemDown_Click" Margin="0,0,0,10">
+                        <Button.Content>
+                            <FontIcon Glyph="&#xE96E;" FontSize="14" FontFamily="Segoe MDL2 Assets" />
+                        </Button.Content>
+                    </Button>
+                    <Button Click="MoveItemAcrossLeft_Click" Margin="0,0,0,10">
+                        <Button.Content>
+                            <FontIcon Glyph="&#xE96F;" FontSize="14" FontFamily="Segoe MDL2 Assets" />
+                        </Button.Content>
+                    </Button>
+                    <Button Click="MoveItemAcrossRight_Click" Margin="0,0,0,10">
+                        <Button.Content>
+                            <FontIcon Glyph="&#xE970;" FontSize="14" FontFamily="Segoe MDL2 Assets" />
+                        </Button.Content>
+                    </Button>
+                    <Button Click="DeleteItem_Click" Margin="0,0,0,10">
+                        <Button.Content>
+                            <FontIcon Glyph="&#xE74D;" FontSize="14" FontFamily="Segoe MDL2 Assets" />
+                        </Button.Content>
+                    </Button>
+                    <Button Click="AddItem_Click">
+                        <Button.Content>
+                            <FontIcon Glyph="&#xED25;" FontSize="14" FontFamily="Segoe MDL2 Assets" />
+                        </Button.Content>
+                    </Button>
+                </StackPanel>
+                
+                <ListView x:Name="RightMediaFileNames"
+                         Height="300" MinWidth="300"
+                         BorderThickness="1" BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}"/>
+
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</UserControl>

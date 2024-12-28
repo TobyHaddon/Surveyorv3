@@ -56,14 +56,14 @@ namespace Surveyor.User_Controls
             var appWindow = GetAppWindowForCurrentWindow();
 
             // Set the size of the window
-            appWindow.Resize(new SizeInt32(800, 600));
+            appWindow.Resize(new SizeInt32(1000, 800));
 
             // Center the window on the screen
             var displayArea = DisplayArea.GetFromWindowId(appWindow.Id, DisplayAreaFallback.Primary);
             var workArea = displayArea.WorkArea;
             appWindow.Move(new PointInt32(
-                (workArea.Width - 800) / 2,
-                (workArea.Height - 600) / 2
+                (workArea.Width - 1000) / 2,
+                (workArea.Height - 800) / 2
             ));
 
 

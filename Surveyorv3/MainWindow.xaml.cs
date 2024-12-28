@@ -26,7 +26,7 @@ using Windows.Storage.Provider;
 using Windows.UI.ViewManagement;
 using WinRT.Interop;
 using static Surveyor.MediaStereoControllerEventData;
-using static Surveyor.Project.DataClass;
+using static Surveyor.Survey.DataClass;
 using Surveyor.Helper;
 //using MathNet.Numerics;
 using Surveyor.DesktopWap.Helper;
@@ -59,8 +59,8 @@ namespace Surveyor
         // Settings class
         private readonly SettingsManager settingsManager = new();
 
-        // Project Class
-        private Project? projectClass = null;
+        // Current Survey Class
+        private Survey? surveyClass = null;
 
         // Measurement class
         private readonly StereoProjection stereoProjection = new();
@@ -237,9 +237,9 @@ namespace Surveyor
         /// <param name="controlType"></param>
         public async void SaveCurrentFrame(SurveyorMediaControl.eControlType controlType)
         {
-            if (projectClass is null ||
-                projectClass.IsLoaded == false ||
-                string.IsNullOrEmpty(projectClass.Data.Info.ProjectPath))
+            if (surveyClass is null ||
+                surveyClass.IsLoaded == false ||
+                string.IsNullOrEmpty(surveyClass.Data.Info.ProjectPath))
             {
 
                 // Survey needs to be saved before a frame can be saved
@@ -274,7 +274,7 @@ namespace Surveyor
                 if (result == ContentDialogResult.Primary)
                 {
                     // Allow the user to save the survey
-                    await SaveAsProject();
+                    await SaveAsSurvey();
                 }
                 else if (result == ContentDialogResult.Secondary)
                     return;
@@ -283,11 +283,11 @@ namespace Surveyor
             // Recheck of the projectClass is null
 
 
-            if (projectClass is not null &&
-                projectClass.IsLoaded &&
-                !string.IsNullOrEmpty(projectClass.Data.Info.ProjectPath))
+            if (surveyClass is not null &&
+                surveyClass.IsLoaded &&
+                !string.IsNullOrEmpty(surveyClass.Data.Info.ProjectPath))
             {
-                string framesPath = projectClass.Data.Info.ProjectPath + @"\Frames";
+                string framesPath = surveyClass.Data.Info.ProjectPath + @"\Frames";
 
                 // Create the folder if it does not exist
                 if (!Directory.Exists(framesPath))
@@ -393,11 +393,11 @@ namespace Surveyor
         /// <param name="e"></param>
         private void Project_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
-            if (e.PropertyName == nameof(Project.IsDirty))
+            if (e.PropertyName == nameof(Survey.IsDirty))
             {
-                if (projectClass is not null)
+                if (surveyClass is not null)
                 {
-                    if (projectClass.IsDirty)
+                    if (surveyClass.IsDirty)
                         SetTitleSaveStatus("Unsaved");
                     else
                         SetTitleSaveStatus("");
@@ -407,33 +407,33 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Create a new survey project
+        /// Create a new survey 
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private async void FileSurveyNew_Click(object sender, RoutedEventArgs e)
         {
-            // First check if an existing project is already open
-            if (await CheckForOpenProjectAndClose() == true)
+            // First check if an existing survey is already open
+            if (await CheckForOpenSurveyAndClose() == true)
             {
-                // Create a new empty project
-                projectClass = new Project(report);
-                projectClass.PropertyChanged += Project_PropertyChanged;
+                // Create a new empty survey
+                surveyClass = new Survey(report);
+                surveyClass.PropertyChanged += Project_PropertyChanged;
 
                 // Inform the MediaStereoController of the Events list so edits to the
                 // list can be actioned by MediaStereoController
-                mediaStereoController.SetEvents((ObservableCollection<Event>)projectClass.Data.Events.EventList);
+                mediaStereoController.SetEvents((ObservableCollection<Event>)surveyClass.Data.Events.EventList);
 
 #if !No_MagnifyAndMarkerDisplay
-                MagnifyAndMarkerDisplayLeft.SetEvents(projectClass.Data.Events.EventList);
-                MagnifyAndMarkerDisplayRight.SetEvents(projectClass.Data.Events.EventList);
+                MagnifyAndMarkerDisplayLeft.SetEvents(surveyClass.Data.Events.EventList);
+                MagnifyAndMarkerDisplayRight.SetEvents(surveyClass.Data.Events.EventList);
 #endif
 
-                eventsControl.SetEvents(projectClass.Data.Events.EventList);
+                eventsControl.SetEvents(surveyClass.Data.Events.EventList);
 
                 SetMenuStatusBasedOnProjectState();
 
-                // Select Media Files to be used in this new project
+                // Select Media Files to be used in this new survey
                 FileSVSMediaOpen_Click(null!, null!);   // move this to separate function
             }
         }
@@ -446,13 +446,13 @@ namespace Surveyor
         /// <param name="e"></param>
         private async void FileSurveyOpen_Click(object sender, RoutedEventArgs e)
         {
-            // First check if an existing project is already open
-            if (await CheckForOpenProjectAndClose() == true)
+            // First check if an existing survey is already open
+            if (await CheckForOpenSurveyAndClose() == true)
             {
-                // Show dialog to find the project file to open
-                string projectFolder = SettingsManager.ProjectFolder is null ? "" : SettingsManager.ProjectFolder;
-                if (string.IsNullOrEmpty(projectFolder) == true)
-                    projectFolder = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                // Show dialog to find the survey file to open
+                string surveyFolder = SettingsManager.SurveyFolder is null ? "" : SettingsManager.SurveyFolder;
+                if (string.IsNullOrEmpty(surveyFolder) == true)
+                    surveyFolder = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
 
                 // Create the file picker object
@@ -475,7 +475,7 @@ namespace Surveyor
                 // If a file was picked, handle it
                 if (file is not null)
                 {
-                    await OpenProject(file.Path);
+                    await OpenSurvey(file.Path);
 
                     // Add to Recent Surveys
                     AddToRecentSurveys(file.Path);
@@ -498,16 +498,16 @@ namespace Surveyor
         /// <param name="e"></param>
         private void FileSurveySave_Click(object sender, RoutedEventArgs e)
         {
-            if (projectClass is not null)
+            if (surveyClass is not null)
             {
-                if (projectClass.Data.Info.ProjectPath == null || projectClass.Data.Info.ProjectFileName == null)
+                if (surveyClass.Data.Info.ProjectPath == null || surveyClass.Data.Info.SurveyFileName == null)
                 {
                     FileSurveySaveAs_Click(sender, e);
                 }
                 else
                 {
                     // Save
-                    projectClass.ProjectSave();
+                    surveyClass.SurveySave();
                 }
             }
 
@@ -521,7 +521,7 @@ namespace Surveyor
         /// <param name="e"></param>
         private async void FileSurveySaveAs_Click(object sender, RoutedEventArgs e)
         {
-            await SaveAsProject();
+            await SaveAsSurvey();
             SetMenuStatusBasedOnProjectState();
         }
 
@@ -533,7 +533,7 @@ namespace Surveyor
         /// <param name="e"></param>
         private async void FileSurveyClose_Click(object sender, RoutedEventArgs e)
         {
-            await CheckForOpenProjectAndClose();
+            await CheckForOpenSurveyAndClose();
 
 //???            mediaStereoController.MediaClose();
 
@@ -578,7 +578,7 @@ namespace Surveyor
                 if (menuItem.Tag is string filePath)
                 {
                     // Open survey in the regular way
-                    await OpenProject(filePath);
+                    await OpenSurvey(filePath);
 
                     // Check if the preferred calibration data is the one being using for
                     // the current event measurements calculations
@@ -619,7 +619,7 @@ namespace Surveyor
             IReadOnlyList<StorageFile> files = await openPicker.PickMultipleFilesAsync();
 
             // Check if files were picked and handle them
-            if (files.Count > 0 && this.projectClass is not null)
+            if (files.Count > 0 && this.surveyClass is not null)
             {
 
                 if (files.Count == 1)
@@ -668,11 +668,11 @@ namespace Surveyor
                     {
                         if (leftFile is not null)
                         {
-                            projectClass.AddMediaFile(leftFile, false/*FalseLeftTrueRight*/);
+                            surveyClass.AddMediaFile(leftFile, false/*FalseLeftTrueRight*/);
                         }
                         else if (rightFile is not null)
                         {
-                            projectClass.AddMediaFile(rightFile, true/*FalseLeftTrueRight*/);
+                            surveyClass.AddMediaFile(rightFile, true/*FalseLeftTrueRight*/);
                         }
                     }
                 }
@@ -714,14 +714,14 @@ namespace Surveyor
                     if (ret)
                     {
                         // Clear the current media file names
-                        projectClass.Data.Media.LeftMediaFileNames.Clear();
-                        projectClass.Data.Media.RightMediaFileNames.Clear();
+                        surveyClass.Data.Media.LeftMediaFileNames.Clear();
+                        surveyClass.Data.Media.RightMediaFileNames.Clear();
 
                         if (leftFile is not null)
-                            projectClass.AddMediaFile(leftFile, false/*FalseLeftTrueRight*/);
+                            surveyClass.AddMediaFile(leftFile, false/*FalseLeftTrueRight*/);
 
                         if (rightFile is not null)
-                            projectClass.AddMediaFile(rightFile, true/*FalseLeftTrueRight*/);
+                            surveyClass.AddMediaFile(rightFile, true/*FalseLeftTrueRight*/);
                     }
                 }
 
@@ -804,13 +804,13 @@ namespace Surveyor
                 if (MenuFileLockUnlockMediaPlayers.IsChecked)
                 {
                     // Lock the left and right media controlers
-                    if (projectClass is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
+                    if (surveyClass is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
                         MediaPlayerLeft.Position is not null && MediaPlayerRight.Position is not null)
                     {
-                        projectClass.Data.Sync.IsSynchronized = true;
-                        projectClass.Data.Sync.TimeSpanOffset = (TimeSpan)MediaPlayerRight.Position - (TimeSpan)MediaPlayerLeft.Position;
-                        projectClass.Data.Sync.ActualTimeSpanOffsetLeft = (TimeSpan)MediaPlayerLeft.Position;
-                        projectClass.Data.Sync.ActualTimeSpanOffsetRight = (TimeSpan)MediaPlayerRight.Position;
+                        surveyClass.Data.Sync.IsSynchronized = true;
+                        surveyClass.Data.Sync.TimeSpanOffset = (TimeSpan)MediaPlayerRight.Position - (TimeSpan)MediaPlayerLeft.Position;
+                        surveyClass.Data.Sync.ActualTimeSpanOffsetLeft = (TimeSpan)MediaPlayerLeft.Position;
+                        surveyClass.Data.Sync.ActualTimeSpanOffsetRight = (TimeSpan)MediaPlayerRight.Position;
                     }
 
                     mediaStereoController.MediaLockMediaPlayers();
@@ -821,10 +821,10 @@ namespace Surveyor
 
 
                     // Lock the left and right media controlers
-                    if (projectClass is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
+                    if (surveyClass is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
                         MediaPlayerLeft.Position is not null && MediaPlayerRight.Position is not null)
                     {
-                        projectClass.Data.Sync.IsSynchronized = false;
+                        surveyClass.Data.Sync.IsSynchronized = false;
 
                         // Don't remove the TimeSpanOffset, ActualTimeSpanOffsetLeft & ActualTimeSpanOffsetRight
                         // in case the user wants to sync again
@@ -865,7 +865,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Import calibration data into the project
+        /// Import calibration data into the survey
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -891,7 +891,7 @@ namespace Surveyor
             StorageFile file = await openPicker.PickSingleFileAsync();
 
             // Check if files were picked and handle them
-            if (file is not null && this.projectClass is not null)
+            if (file is not null && this.surveyClass is not null)
             {
                 string? calibrationFileSpec = file.Path;
 
@@ -909,27 +909,27 @@ namespace Surveyor
                     string? secondaryButtonText = null;
                     string message = "";
 
-                    // Check if we are already storing this calibration date in the project file                        
-                    var result = projectClass.IsInCalibrationDataList(calibrationData, out int index);
-                    if (result == Project.CalibrationDataListResult.Found)
+                    // Check if we are already storing this calibration date in the survey file                        
+                    var result = surveyClass.IsInCalibrationDataList(calibrationData, out int index);
+                    if (result == Survey.CalibrationDataListResult.Found)
                     {
-                        if (projectClass.Data.Calibration.AllowMultipleCalibrationData == false)
+                        if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == false)
                         {
                             // We are only storing one calib and we already have this one so inform user we will ignore
                             // Cancel Only
-                            message = $"The calibration data '{calibrationData.Description}' is already in the project file. No action will be taken.";
+                            message = $"The calibration data '{calibrationData.Description}' is already in the survey file. No action will be taken.";
                         }
-                        else if (projectClass.Data.Calibration.AllowMultipleCalibrationData == true && projectClass.Data.Calibration.PreferredCalibrationDataIndex == index)
+                        else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true && surveyClass.Data.Calibration.PreferredCalibrationDataIndex == index)
                         {
                             // We are storing multiple calibs and this is the preferred one so inform user we will ignore
                             // Cancel Only
-                            message = $"The calibration data '{calibrationData.Description}' is already in the project file and it is the preferred calibration so no action will be taken.";
+                            message = $"The calibration data '{calibrationData.Description}' is already in the survey file and it is the preferred calibration so no action will be taken.";
                         }
-                        else if (projectClass.Data.Calibration.AllowMultipleCalibrationData == true && projectClass.Data.Calibration.PreferredCalibrationDataIndex != index)
+                        else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true && surveyClass.Data.Calibration.PreferredCalibrationDataIndex != index)
                         {
                             // We are storing multiple calibs and this is not the preferred one so ask user if they want this to be the preferred calibration
                             // Ok/Cancel
-                            message = $"The calibration data '{calibrationData.Description}' is already in the project file but it is not the preferred calibration. Do you would like to make it the preferred calibration?";
+                            message = $"The calibration data '{calibrationData.Description}' is already in the survey file but it is not the preferred calibration. Do you would like to make it the preferred calibration?";
                             primaryButtonText = "Ok";
                         }
 
@@ -955,24 +955,24 @@ namespace Surveyor
                             makeThisCalibPreferred = index;
                         }
                     }
-                    else if (result == Project.CalibrationDataListResult.FoundButDescriptionDiffer)
+                    else if (result == Survey.CalibrationDataListResult.FoundButDescriptionDiffer)
                     {
-                        if (projectClass.Data.Calibration.AllowMultipleCalibrationData == false)
+                        if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == false)
                         {
                             // We are only storing one calib and we already have this one but under a different Description so ask the user if the Description should be updated
-                            message = $"The calibration data '{calibrationData.Description}' is already in the project file but with a different Description. Do you you want to update the Description?";
+                            message = $"The calibration data '{calibrationData.Description}' is already in the survey file but with a different Description. Do you you want to update the Description?";
                             primaryButtonText = "Ok";
                         }
-                        else if (projectClass.Data.Calibration.AllowMultipleCalibrationData == true && projectClass.Data.Calibration.PreferredCalibrationDataIndex == index)
+                        else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true && surveyClass.Data.Calibration.PreferredCalibrationDataIndex == index)
                         {
                             // We are storing multiple calibs and this is the preferred one so info user we will ignore
-                            message = $"The calibration data '{calibrationData.Description}' is already in the project file but with a different Description. Do you want to update the Description?";
+                            message = $"The calibration data '{calibrationData.Description}' is already in the survey file but with a different Description. Do you want to update the Description?";
                             primaryButtonText = "Ok";
                         }
-                        else if (projectClass.Data.Calibration.AllowMultipleCalibrationData == true && projectClass.Data.Calibration.PreferredCalibrationDataIndex != index)
+                        else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true && surveyClass.Data.Calibration.PreferredCalibrationDataIndex != index)
                         {
                             // We are storing multiple calibs and this is not the preferred one so ask user if they want this to be the preferred calibration
-                            message = $"The calibration data '{calibrationData.Description}' is already in the project file but with a different Description and is not the preferred calibration. Press 'Yes' to update the Description and make it the preferred calibration or 'No' to just update the Description?";
+                            message = $"The calibration data '{calibrationData.Description}' is already in the survey file but with a different Description and is not the preferred calibration. Press 'Yes' to update the Description and make it the preferred calibration or 'No' to just update the Description?";
                             primaryButtonText = "Yes";
                             secondaryButtonText = "No";
                         }
@@ -1001,28 +1001,28 @@ namespace Surveyor
                         else if (secondaryButtonText is not null && resultDlg == ContentDialogResult.Primary)
                         {
                             // Update Description and make preferred calibration
-                            projectClass.Data.Calibration.CalibrationDataList[(int)projectClass.Data.Calibration.PreferredCalibrationDataIndex].Description = calibrationData.Description;
+                            surveyClass.Data.Calibration.CalibrationDataList[(int)surveyClass.Data.Calibration.PreferredCalibrationDataIndex].Description = calibrationData.Description;
                             makeThisCalibPreferred = index;
                         }
                         else if (secondaryButtonText is not null && resultDlg == ContentDialogResult.Secondary)
                         {
                             // Update Description only
-                            projectClass.Data.Calibration.CalibrationDataList[(int)projectClass.Data.Calibration.PreferredCalibrationDataIndex].Description = calibrationData.Description;
+                            surveyClass.Data.Calibration.CalibrationDataList[(int)surveyClass.Data.Calibration.PreferredCalibrationDataIndex].Description = calibrationData.Description;
                         }
                     }
-                    else if (result == Project.CalibrationDataListResult.NotFound)
+                    else if (result == Survey.CalibrationDataListResult.NotFound)
                     {
-                        if (projectClass.Data.Calibration.AllowMultipleCalibrationData == false)
+                        if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == false)
                         {
-                            if (projectClass.Data.Calibration.CalibrationDataList.Count == 0)
+                            if (surveyClass.Data.Calibration.CalibrationDataList.Count == 0)
                             {
                                 makeThisCalibPreferred = int.MaxValue;      // Basically if we are added a new calib any non -1 value will make it the preferred calib
                                 addNewCalib = true;
                             }
-                            else if (projectClass.Data.Calibration.PreferredCalibrationDataIndex == 0 && projectClass.Data.Calibration.CalibrationDataList.Count == 1)
+                            else if (surveyClass.Data.Calibration.PreferredCalibrationDataIndex == 0 && surveyClass.Data.Calibration.CalibrationDataList.Count == 1)
                             {
                                 // We are only storing one calib and we don't have this one so ask the user if they want to remove the existing one and add this one
-                                message = $"Are you sure you want to replace '{projectClass.Data.Calibration.CalibrationDataList[0].Description}' with '{calibrationData.Description}'?";
+                                message = $"Are you sure you want to replace '{surveyClass.Data.Calibration.CalibrationDataList[0].Description}' with '{calibrationData.Description}'?";
                                 primaryButtonText = "OK";
 
                                 // Ask the user
@@ -1050,7 +1050,7 @@ namespace Surveyor
                                 }
                             }
                         }
-                        else if (projectClass.Data.Calibration.AllowMultipleCalibrationData == true)
+                        else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true)
                         {
                             // We are storing multiple calibs and already have at less one storage. Ask the user if they want this new one to be the preferred calibration
                             message = $"Do you want this new calibration data '{calibrationData.Description}' to be the preferred calibration?";
@@ -1090,37 +1090,37 @@ namespace Surveyor
                     if (removeAllCalibs == true)
                     {
                         // Remove all calibrations
-                        projectClass.Data.Calibration.CalibrationDataList?.Clear();
-                        projectClass.Data.Calibration.PreferredCalibrationDataIndex = -1;
+                        surveyClass.Data.Calibration.CalibrationDataList?.Clear();
+                        surveyClass.Data.Calibration.PreferredCalibrationDataIndex = -1;
                     }
                     else if (removeThisCalibIndex >= 0)
                     {
                         // Remove this calibration
-                        projectClass.Data.Calibration.CalibrationDataList!.RemoveAt(removeThisCalibIndex);
-                        if (projectClass.Data.Calibration.PreferredCalibrationDataIndex == removeThisCalibIndex)
-                            projectClass.Data.Calibration.PreferredCalibrationDataIndex = -1;
+                        surveyClass.Data.Calibration.CalibrationDataList!.RemoveAt(removeThisCalibIndex);
+                        if (surveyClass.Data.Calibration.PreferredCalibrationDataIndex == removeThisCalibIndex)
+                            surveyClass.Data.Calibration.PreferredCalibrationDataIndex = -1;
                     }
 
                     if (addNewCalib == true)
                     {
-                        if (projectClass.Data.Calibration.CalibrationDataList is not null && calibrationData is not null)
+                        if (surveyClass.Data.Calibration.CalibrationDataList is not null && calibrationData is not null)
                         {
                             // Add the new calibration
-                            projectClass.Data.Calibration.CalibrationDataList.Add(calibrationData);
+                            surveyClass.Data.Calibration.CalibrationDataList.Add(calibrationData);
                             if (makeThisCalibPreferred != -1)
                                 // Make this the preferred calibration
-                                projectClass.Data.Calibration.PreferredCalibrationDataIndex = projectClass.Data.Calibration.CalibrationDataList.Count - 1;
+                                surveyClass.Data.Calibration.PreferredCalibrationDataIndex = surveyClass.Data.Calibration.CalibrationDataList.Count - 1;
                         }
                     }
                     else if (makeThisCalibPreferred != -1)
                     {
                         // Make this the preferred calibration
-                        projectClass.Data.Calibration.PreferredCalibrationDataIndex = makeThisCalibPreferred;
+                        surveyClass.Data.Calibration.PreferredCalibrationDataIndex = makeThisCalibPreferred;
                     }
                 }
 
                 // Load the calibation data to the Stereo Projection class 
-                stereoProjection.SetCalibrationData(projectClass.Data.Calibration);
+                stereoProjection.SetCalibrationData(surveyClass.Data.Calibration);
 
                 // Using the left player get the current frame size (if any)
                 SetCalibratedIndicator(MediaPlayerLeft.FrameWidth, MediaPlayerLeft.FrameHeight);
@@ -1149,9 +1149,9 @@ namespace Surveyor
         {
             bool ready = false;
 
-            if (projectClass is not null)
+            if (surveyClass is not null)
             {
-                CalibrationClass calibrationClass = projectClass.Data.Calibration;
+                CalibrationClass calibrationClass = surveyClass.Data.Calibration;
                 if (calibrationClass is not null)
                 {
                     int frameWidth = MediaPlayerLeft.FrameWidth;
@@ -1200,7 +1200,7 @@ namespace Surveyor
                                 if (result == ContentDialogResult.Primary)
                                 {
                                     // Make this the preferred calibration
-                                    projectClass.Data.Calibration.PreferredCalibrationDataIndex = i;
+                                    surveyClass.Data.Calibration.PreferredCalibrationDataIndex = i;
                                     ready = true;
                                     SetCalibratedIndicator(frameWidth, frameHeight);
                                 }
@@ -1243,18 +1243,18 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Open the project files
+        /// Open the survey files
         /// </summary>
-        /// <param name="projectFileName"></param>
+        /// <param name="surveyFileName"></param>
         /// <returns></returns>
-        private async Task<int> OpenProject(string projectFileName)
+        private async Task<int> OpenSurvey(string projectFileName)
         {
             int ret = 0;
 
-            if (projectClass is null)
+            if (surveyClass is null)
             {
-                projectClass ??= new Project(report);
-                projectClass.PropertyChanged += Project_PropertyChanged;
+                surveyClass ??= new Survey(report);
+                surveyClass.PropertyChanged += Project_PropertyChanged;
             }
             else
             {
@@ -1262,49 +1262,49 @@ namespace Surveyor
                 MagnifyAndMarkerDisplayLeft.Close();
                 MagnifyAndMarkerDisplayRight.Close();
 #endif
-                await projectClass.ProjectClose();
+                await surveyClass.SurveyClose();
             }
 
-            ret = await projectClass.ProjectLoad(projectFileName);
+            ret = await surveyClass.SurveyLoad(projectFileName);
 
             if (ret == 0 &&
-                projectClass.Data is not null && projectClass.Data.Media is not null && projectClass.Data.Media.MediaPath is not null)
+                surveyClass.Data is not null && surveyClass.Data.Media is not null && surveyClass.Data.Media.MediaPath is not null)
             {
                 // Inform the MediaStereoController & MagnifyAndMarkerDisplay of the Events list so edits to the
                 // list can be actioned by MediaStereoController
-                mediaStereoController.SetEvents((ObservableCollection<Event>)projectClass.Data.Events.EventList);
+                mediaStereoController.SetEvents((ObservableCollection<Event>)surveyClass.Data.Events.EventList);
 
 #if !No_MagnifyAndMarkerDisplay
-                MagnifyAndMarkerDisplayLeft.SetEvents(projectClass.Data.Events.EventList);
-                MagnifyAndMarkerDisplayRight.SetEvents(projectClass.Data.Events.EventList);
+                MagnifyAndMarkerDisplayLeft.SetEvents(surveyClass.Data.Events.EventList);
+                MagnifyAndMarkerDisplayRight.SetEvents(surveyClass.Data.Events.EventList);
 #endif
-                eventsControl.SetEvents(projectClass.Data.Events.EventList);
+                eventsControl.SetEvents(surveyClass.Data.Events.EventList);
 
 
                 // Check if the left media file(s) exist
-                ret = await CheckIfMediaFileExists("L", projectClass.Data.Media.MediaPath, projectClass.Data.Media.LeftMediaFileNames);
+                ret = await CheckIfMediaFileExists("L", surveyClass.Data.Media.MediaPath, surveyClass.Data.Media.LeftMediaFileNames);
                 if (ret == 0)
-                    ret = await CheckIfMediaFileExists("R", projectClass.Data.Media.MediaPath, projectClass.Data.Media.RightMediaFileNames);
+                    ret = await CheckIfMediaFileExists("R", surveyClass.Data.Media.MediaPath, surveyClass.Data.Media.RightMediaFileNames);
 
                 if (ret == 0)
                 {
                     // Create a MeasurementPointControl instance that allows the user to add measurement points to the media
                     // Do this before opening the media so the calibration data is available when the media is opened and the frame size established
-                    stereoProjection.SetCalibrationData(projectClass.Data.Calibration);
+                    stereoProjection.SetCalibrationData(surveyClass.Data.Calibration);
 
                     // Open Media Files and bind the MediaPlayers if IsSynchronized is true
                     if (await OpenSVSMediaFiles() == true)
                     {
                         // Set the lock/unlock media files 
-                        if (projectClass.Data.Sync.IsSynchronized == true)
+                        if (surveyClass.Data.Sync.IsSynchronized == true)
                             MenuFileLockUnlockMediaPlayers.IsChecked = true;
 
 
-                        // Remember the project folder
+                        // Remember the survey folder
                         System.IO.FileInfo fileinfo = new(projectFileName);
-                        if (fileinfo != null && fileinfo.Directory != null && SettingsManager.ProjectFolder != fileinfo.DirectoryName)
+                        if (fileinfo != null && fileinfo.Directory != null && SettingsManager.SurveyFolder != fileinfo.DirectoryName)
                         {
-                            SettingsManager.ProjectFolder = fileinfo.DirectoryName;
+                            SettingsManager.SurveyFolder = fileinfo.DirectoryName;
                             //???Properties.Settings.Default.Save();  //???Old methed of save last used folder - do we need to do something equivalent to this?
                         }
 
@@ -1315,22 +1315,22 @@ namespace Surveyor
 
                         // Report Project details
                         string calibrationStatus;
-                        if (projectClass.Data.Calibration.CalibrationDataList.Count == 0)
+                        if (surveyClass.Data.Calibration.CalibrationDataList.Count == 0)
                             calibrationStatus = "No Calibration Data";
-                        else if (projectClass.Data.Calibration.CalibrationDataList.Count == 1)
+                        else if (surveyClass.Data.Calibration.CalibrationDataList.Count == 1)
                             calibrationStatus = "Calibrated";
                         else
                             calibrationStatus = "Multiple Calibrations";
 
                         string eventsStatus;
-                        if (projectClass.Data.Events.EventList.Count == 0)
+                        if (surveyClass.Data.Events.EventList.Count == 0)
                             eventsStatus = "No Events";
-                        else if (projectClass.Data.Events.EventList.Count == 1)
+                        else if (surveyClass.Data.Events.EventList.Count == 1)
                             eventsStatus = "1 Event";
                         else
-                            eventsStatus = $"{projectClass.Data.Events.EventList.Count} Events";
+                            eventsStatus = $"{surveyClass.Data.Events.EventList.Count} Events";
 
-                        report.Info("", $"Survey Loaded: '{projectClass.GetProjectTitle()}', {calibrationStatus}, {eventsStatus}");
+                        report.Info("", $"Survey Loaded: '{surveyClass.GetSurveyTitle()}', {calibrationStatus}, {eventsStatus}");
 
 
 
@@ -1348,16 +1348,16 @@ namespace Surveyor
                     }
                     else
                         // Failed to open media files
-                        projectClass = null;
+                        surveyClass = null;
                 }
                 else
                     // Failed to open media files
-                    projectClass = null;
+                    surveyClass = null;
             }
             else
             {
                 report.Warning("", $"Failed to open survey file:{projectFileName}, error = {ret}");
-                projectClass = null;
+                surveyClass = null;
             }
 
             return ret;
@@ -1365,18 +1365,18 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Save the current project to a new file
+        /// Save the current survey to a new file
         /// </summary>
         /// <returns></returns>
-        private async Task<int> SaveAsProject()
+        private async Task<int> SaveAsSurvey()
         {
             int ret = 0;
 
-            if (this.projectClass != null)
+            if (this.surveyClass != null)
             {
-                //???string? projectFolder = SettingsManager.ProjectFolder;
-                //if (string.IsNullOrEmpty(projectFolder) == true)
-                //    projectFolder = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                //???string? surveyFolder = SettingsManager.ProjectFolder;
+                //if (string.IsNullOrEmpty(surveyFolder) == true)
+                //    surveyFolder = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
                 FileSavePicker savePicker = new FileSavePicker();
                 IntPtr hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this); // 'this' should be your window or page
@@ -1397,7 +1397,7 @@ namespace Surveyor
 
                     // Write data to the file
                     // Save As
-                    projectClass.ProjectSaveAs(file.Path);
+                    surveyClass.SurveySaveAs(file.Path);
 
 
                     // Let Windows know that we're finished changing the file so the other app can update the remote version of the file.
@@ -1406,7 +1406,7 @@ namespace Surveyor
                     {
                         Debug.WriteLine($"File {file.Path} saved successfully.");
 
-                        //??// Remember the project folder
+                        //??// Remember the survey folder
                         //System.IO.FileInfo fileinfo = new(saveFileDialog.FileNames[0]);
                         //if (fileinfo != null && fileinfo.Directory != null)
                         //{
@@ -1427,18 +1427,18 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Check if there is an existing project open and if so check if it has unsaved changes
+        /// Check if there is an existing survey open and if so check if it has unsaved changes
         /// </summary>
-        /// <returns>true is ok to proceed (i.e. no project now open)</returns>
-        private async Task<bool> CheckForOpenProjectAndClose()
+        /// <returns>true is ok to proceed (i.e. no survey now open)</returns>
+        private async Task<bool> CheckForOpenSurveyAndClose()
         {
             bool ret = false;
 
-            if (this.projectClass is not null)
+            if (this.surveyClass is not null)
             {
                 bool closeProject = false;
 
-                if (this.projectClass.IsDirty == true)
+                if (this.surveyClass.IsDirty == true)
                 {
                     // Create a FontIcon using the Segoe MDL2 Assets font
                     var warningIcon = new FontIcon
@@ -1478,7 +1478,7 @@ namespace Surveyor
                     if (result == ContentDialogResult.Primary)
                     {
                         // "Yes" button clicked
-                        if (await SaveAsProject() == 0)
+                        if (await SaveAsSurvey() == 0)
                             closeProject = true;
 
                     }
@@ -1503,12 +1503,12 @@ namespace Surveyor
                     CloseSVSMediaFiles();
 
                     // Close and clear the Project class (holds the survey data)
-                    await projectClass.ProjectClose();
-                    projectClass = null;
+                    await surveyClass.SurveyClose();
+                    surveyClass = null;
 
                                         
                     // Clear the measurement class by loaded an empty calibration class
-                    stereoProjection.SetCalibrationData(new Project.DataClass.CalibrationClass());
+                    stereoProjection.SetCalibrationData(new Survey.DataClass.CalibrationClass());
                     SetCalibratedIndicator(null, null);
 
                     // Display both media controls
@@ -1530,7 +1530,7 @@ namespace Surveyor
 
         /// <summary>
         /// Check that media files list exist incase they have been renamed, moved or deleted.
-        /// Allow the user to try to find the missing media file(s) or cancel loading the project
+        /// Allow the user to try to find the missing media file(s) or cancel loading the survey
         /// </summary>
         /// <param name="channel"></param>
         /// <param name="mediaPath"></param>
@@ -1550,7 +1550,7 @@ namespace Surveyor
                     // Media file is missing. Report to the user and ask if they would like to try to find the file
                     string cameraSide = channel == "L" ? "Left" : "Right";
                     string fileNumber = mediaFileNames.Count > 1 ? $"number {index + 1} " : "";
-                    string message = $"The {cameraSide.ToLower()} media file {fileNumber}'{fileSpec}' does not exist. Press 'Ok' to try to find the file. Press 'Cancel' to stop loading the project";
+                    string message = $"The {cameraSide.ToLower()} media file {fileNumber}'{fileSpec}' does not exist. Press 'Ok' to try to find the file. Press 'Cancel' to stop loading the survey";
 
                     // Create a SymbolIcon with an exclamation mark
                     var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
@@ -1630,7 +1630,7 @@ namespace Surveyor
             bool ret = true;
             int retOpen;
 
-            if (projectClass != null && projectClass.Data.Media.MediaPath != null)
+            if (surveyClass != null && surveyClass.Data.Media.MediaPath != null)
             {
                 // Check if already Open and close if necessary
                 if (mediaStereoController.MediaIsOpen())
@@ -1645,10 +1645,10 @@ namespace Surveyor
                 string mediaFileLeft = "";
                 string mediaFileRight = "";
 
-                if (projectClass.Data.Media.LeftMediaFileNames.Count > 0)
-                    mediaFileLeft = Path.Combine(projectClass.Data.Media.MediaPath, projectClass.Data.Media.LeftMediaFileNames[0]);
-                if (projectClass.Data.Media.RightMediaFileNames.Count > 0)
-                    mediaFileRight = Path.Combine(projectClass.Data.Media.MediaPath, projectClass.Data.Media.RightMediaFileNames[0]);
+                if (surveyClass.Data.Media.LeftMediaFileNames.Count > 0)
+                    mediaFileLeft = Path.Combine(surveyClass.Data.Media.MediaPath, surveyClass.Data.Media.LeftMediaFileNames[0]);
+                if (surveyClass.Data.Media.RightMediaFileNames.Count > 0)
+                    mediaFileRight = Path.Combine(surveyClass.Data.Media.MediaPath, surveyClass.Data.Media.RightMediaFileNames[0]);
 
 
                 // Open left camera media
@@ -1657,12 +1657,12 @@ namespace Surveyor
                     // Open the new media
                     retOpen = await mediaStereoController.MediaOpen(mediaFileLeft,
                         mediaFileRight,
-                        projectClass.Data.Sync.IsSynchronized == true ? projectClass.Data.Sync.TimeSpanOffset : null);
+                        surveyClass.Data.Sync.IsSynchronized == true ? surveyClass.Data.Sync.TimeSpanOffset : null);
 
                     if (retOpen == 0)
                     {
-                        if (projectClass.Data.Info.ProjectFileName is not null)
-                            SetTitle(projectClass.Data.Info.ProjectFileName);
+                        if (surveyClass.Data.Info.SurveyFileName is not null)
+                            SetTitle(surveyClass.Data.Info.SurveyFileName);
 
                         MenuMediaOpen.IsEnabled = false;
                         MenuMediaClose.IsEnabled = true;
@@ -1715,11 +1715,11 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Used to set the status of the menu options based on the state of the project
+        /// Used to set the status of the menu options based on the state of the survey
         /// </summary>
         private void SetMenuStatusBasedOnProjectState()
         {
-            if (projectClass is not null /*&& this.projectClass.IsLoaded == true*/)
+            if (surveyClass is not null /*&& this.projectClass.IsLoaded == true*/)
             {
                 // Survey
                 MenuSurveySave.IsEnabled = true;
@@ -1811,7 +1811,7 @@ namespace Surveyor
             // Remember the 'Calibrated' symbol so we can reuse it later
             calibratedIndictor ??= CalibratedIndicator.Text;
 
-            CalibrationClass? calibrationClass = projectClass?.Data?.Calibration;
+            CalibrationClass? calibrationClass = surveyClass?.Data?.Calibration;
             CalibrationData? calibrationDataPreferred = calibrationClass?.GetPreferredCalibationData(frameWidth, frameHeight);
 
             if (calibrationClass is not null && (frameWidth is not null || frameHeight is not null))
@@ -1915,9 +1915,9 @@ namespace Surveyor
         {
 
             // Get the Calibration ID from the preferred calibration data
-            if (projectClass is not null && MediaPlayerLeft.IsOpen())
+            if (surveyClass is not null && MediaPlayerLeft.IsOpen())
             {
-                CalibrationData? calibrationData = projectClass!.Data.Calibration.GetPreferredCalibationData(MediaPlayerLeft.FrameWidth, MediaPlayerLeft.FrameHeight);
+                CalibrationData? calibrationData = surveyClass!.Data.Calibration.GetPreferredCalibationData(MediaPlayerLeft.FrameWidth, MediaPlayerLeft.FrameHeight);
 
                 if (calibrationData is not null)
                 {
@@ -1928,7 +1928,7 @@ namespace Surveyor
                         // Check if the preferred calibration data is the one being using for
                         // the current event measurements calculations
                         bool upToDate = true;
-                        foreach (Event evt in projectClass.Data.Events.EventList)
+                        foreach (Event evt in surveyClass.Data.Events.EventList)
                         {
                             if (evt.EventDataType == DataType.SurveyMeasurementPoints && evt.EventData is not null)
                             {
@@ -1968,7 +1968,7 @@ namespace Surveyor
                             if (result == ContentDialogResult.Primary)
                             {
                                 // Update the event measurements
-                                foreach (Event evt in projectClass.Data.Events.EventList)
+                                foreach (Event evt in surveyClass.Data.Events.EventList)
                                 {
                                     if (evt.EventDataType == DataType.SurveyMeasurementPoints && evt.EventData is not null)
                                     {

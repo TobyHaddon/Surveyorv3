@@ -4,6 +4,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:toolkit="using:CommunityToolkit.WinUI.Controls" 
     xmlns:surveyor="using:Surveyor" 
+    xmlns:surveyorControls="using:Surveyor.User_Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     Title="Settings">
 
@@ -32,7 +33,7 @@
                     <EntranceThemeTransition FromVerticalOffset="50" />
                     <RepositionThemeTransition IsStaggeringEnabled="False" />
                 </StackPanel.ChildrenTransitions>
-                <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="General Settings" />
+                <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Settings" />
 
                 
                 <!--SURVEY SETTINGS-->
@@ -42,21 +43,21 @@
                     </toolkit:SettingsExpander.HeaderIcon>
 
                     <toolkit:SettingsExpander.Items>
-                        <toolkit:SettingsCard Description="Survey setup information and survey media" Header="Survey Info &amp; Media">
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE768;" />
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <ComboBox x:Name="themeModeXXX" SelectionChanged="themeMode_SelectionChanged">
-                                <ComboBoxItem Content="Light" Tag="Light" />
-                                <ComboBoxItem Content="Dark" Tag="Dark" />
-                                <ComboBoxItem Content="Use system setting" Tag="Default" />
-                            </ComboBox>
-                        </toolkit:SettingsCard>
-
+                        <toolkit:SettingsExpander Header="Survey Info &amp; Media">
+                            <toolkit:SettingsExpander.HeaderIcon>
+                                <FontIcon Glyph="&#xE768;" ToolTipService.ToolTip="Survey setup information and survey media"/>
+                            </toolkit:SettingsExpander.HeaderIcon>
+                            <toolkit:SettingsExpander.Items>
+                                <toolkit:SettingsCard>
+                                    <surveyorControls:SurveyInfoAndMedia />
+                                </toolkit:SettingsCard>
+                            </toolkit:SettingsExpander.Items>
+                        </toolkit:SettingsExpander>
+                       
                         <toolkit:SettingsCard Header="Calibration"
                                           ToolTipService.ToolTip="Calibration information for the stereo camera rig.">
                             <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE768;" />
+                                <FontIcon Glyph="&#xEB3C;" />
                             </toolkit:SettingsCard.HeaderIcon>
                             <ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="magnifierWindowAutomatic_Toggled" />
                         </toolkit:SettingsCard>
@@ -75,7 +76,7 @@
                 <!--GENERAL SETTINGS-->
                 <toolkit:SettingsExpander Header="General Settings">
                     <toolkit:SettingsExpander.HeaderIcon>
-                        <FontIcon Glyph="&#xE116;" />
+                        <FontIcon Glyph="&#xE115;" />
                     </toolkit:SettingsExpander.HeaderIcon>
 
                     <toolkit:SettingsExpander.Items>
@@ -100,7 +101,7 @@
 
                         <toolkit:SettingsCard Header="Diagnostic Information">
                             <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xF594;" />
+                                <FontIcon Glyph="&#xEBE8;" />
                             </toolkit:SettingsCard.HeaderIcon>
                             <ToggleSwitch x:Name="diagnosticInformation" Toggled="diagnosticInformation_Toggled" />
                         </toolkit:SettingsCard>

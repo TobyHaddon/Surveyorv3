@@ -22,7 +22,7 @@ namespace Surveyor
     public class StereoProjection
     {
         private Reporter? report;
-        private Project.DataClass.CalibrationClass? calibrationClass;
+        private Survey.DataClass.CalibrationClass? calibrationClass;
 
         // This string is used to check if calibrationClass has changed 
         private string calibationDataUniqueString = "";
@@ -76,7 +76,7 @@ namespace Surveyor
         /// Can't to called and re-called multiple times.
         /// </summary>
         /// <param name="_calibrationClass"></param>
-        public void SetCalibrationData(Project.DataClass.CalibrationClass _calibrationClass)
+        public void SetCalibrationData(Survey.DataClass.CalibrationClass _calibrationClass)
         {
             // Remember the calibrtation data
             calibrationClass = _calibrationClass;

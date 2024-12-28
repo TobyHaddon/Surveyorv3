@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Media;
 using static Surveyor.MediaStereoControllerEventData;
-using static Surveyor.Project.DataClass;
+using static Surveyor.Survey.DataClass;
 
 #if !No_MagnifyAndMarkerDisplay
 using static Surveyor.User_Controls.MagnifyAndMarkerControlEventData;

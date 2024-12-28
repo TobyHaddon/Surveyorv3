@@ -21,7 +21,7 @@ using System.Threading.Tasks;
 
 namespace Surveyor
 {
-    public partial class Project : INotifyPropertyChanged
+    public partial class Survey : INotifyPropertyChanged
     {
         // Used to report info, warnings and errors to the user
         private Reporter? Report { get; set; } = null;
@@ -41,7 +41,7 @@ namespace Surveyor
         public event PropertyChangedEventHandler? PropertyChanged;
 
 
-        public class DataClass
+        public partial class DataClass
         {
             /// <summary>
             /// Clear the DataClass
@@ -56,7 +56,7 @@ namespace Surveyor
             }
 
 
-            public class InfoClass : INotifyPropertyChanged
+            public partial class InfoClass : INotifyPropertyChanged
             {                
                 public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -65,8 +65,8 @@ namespace Surveyor
                 /// </summary>
                 public void Clear()
                 {
-                    _projectFileName = null;
-                    _projectPath = null;
+                    _surveyFileName = null;
+                    _surveyPath = null;
                     _isDirty = false;
                 }
 
@@ -75,35 +75,86 @@ namespace Surveyor
                 public float Version { get; set; } = 1.0f;
 
                 // Values
-                private string? _projectFileName = null;
-                private string? _projectPath = null;
+                private string? _surveyFileName = null;
+                private string? _surveyPath = null;
+                private string? _surveyCode = null;
+                private string? _surveyAnalystName = null;
+                private double? _surveyDepth = 0.0;
 
                 // Setters and getters
-                public string? ProjectFileName
+                public string? SurveyFileName
                 {
-                    get => _projectFileName;
+                    get => _surveyFileName;
                     set
                     {
-                        if (_projectFileName != value)
+                        if (_surveyFileName != value)
                         {
-                            _projectFileName = value;
-                            IsDirty = true;
-                        }
-                    }
-                }
-                public string? ProjectPath 
-                {
-                    get => _projectPath;
-                    set
-                    {
-                        if (_projectPath != value)
-                        {
-                            _projectPath = value;
+                            _surveyFileName = value;
                             IsDirty = true;
                         }
                     }
                 }
 
+                public string? ProjectPath 
+                {
+                    get => _surveyPath;
+                    set
+                    {
+                        if (_surveyPath != value)
+                        {
+                            _surveyPath = value;
+                            IsDirty = true;
+                        }
+                    }
+                }
+
+                /// <summary>
+                /// This is used for a string that IDs the survey i.e. [ReefCode]-[Depth]-[TransetNo]-[YYYY-MM-DD]  e.g. CVW-10-1-2024-07-28 for Coral View , 10m depth, transect 1 on the 28th July 2024
+                /// </summary>
+                public string? ProjectCode
+                {
+                    get => _surveyCode;
+                    set
+                    {
+                        if (_surveyCode != value)
+                        {
+                            _surveyCode = value;
+                            IsDirty = true;
+                        }
+                    }
+                }
+
+                /// <summary>
+                /// This is the name of the persion who analysed the survey (not the person who collected the data)
+                /// </summary>
+                public string? ProjectAnalystName
+                {
+                    get => _surveyAnalystName;
+                    set
+                    {
+                        if (_surveyAnalystName != value)
+                        {
+                            _surveyAnalystName = value;
+                            IsDirty = true;
+                        }
+                    }
+                }
+
+                /// <summary>
+                /// This is the depth of the survey in metres as a number e.g. 10
+                /// </summary>
+                public double? ProjectDepth
+                {
+                    get => _surveyDepth;
+                    set
+                    {
+                        if (_surveyDepth != value)
+                        {
+                            _surveyDepth = value;
+                            IsDirty = true;
+                        }
+                    }
+                }
 
                 [JsonIgnore]
                 private bool _isDirty;
@@ -132,7 +183,7 @@ namespace Surveyor
             }
             public InfoClass Info { get; set; } = new InfoClass();
 
-            public class MediaClass : INotifyPropertyChanged
+            public partial class MediaClass : INotifyPropertyChanged
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -250,7 +301,7 @@ namespace Surveyor
             }
             public MediaClass Media { get; set; } = new MediaClass();
 
-            public class SyncClass : INotifyPropertyChanged
+            public partial class SyncClass : INotifyPropertyChanged
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -367,7 +418,7 @@ namespace Surveyor
             public SyncClass Sync { get; set; } = new SyncClass();
 
 
-            public class EventsClass : INotifyPropertyChanged
+            public partial class EventsClass : INotifyPropertyChanged
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -446,7 +497,7 @@ namespace Surveyor
             public EventsClass Events { get; set; } = new EventsClass();
 
 
-            public class CalibrationClass : INotifyPropertyChanged
+            public partial class CalibrationClass : INotifyPropertyChanged
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -595,16 +646,16 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Returns the project title for the main window title bar
+        /// Returns the survey title for the main window title bar
         /// </summary>
         /// <returns></returns>
-        public string GetProjectTitle()
+        public string GetSurveyTitle()
         {
-            string title = "Untitled Project";
+            string title = "Untitled Survey";
 
-            if (this.Data.Info.ProjectFileName != null)
+            if (this.Data.Info.SurveyFileName != null)
             {
-                title = Path.GetFileNameWithoutExtension(this.Data.Info.ProjectFileName);
+                title = Path.GetFileNameWithoutExtension(this.Data.Info.SurveyFileName);
 
                 if (this.IsDirty)
                     title += " *";
@@ -636,14 +687,14 @@ namespace Surveyor
         public bool IsLoaded { get; private set; } = false;
 
 
-        public Project(Reporter _report)
+        public Survey(Reporter _report)
         {
             Report = _report;                                            
         }
 
 
         /// <summary>
-        /// Clear down the Project class
+        /// Clear down the survey class
         /// </summary>
         public void Clear()
         {
@@ -652,51 +703,51 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Load a project from a json file
+        /// Load a survey from a json file
         /// </summary>
-        /// <param name="projectFileSpec"></param>
+        /// <param name="SurveyFileSpec"></param>
         /// <returns></returns>
-        public async Task<int> ProjectLoad(string projectFileSpec)
+        public async Task<int> SurveyLoad(string SurveyFileSpec)
         {
             int ret = -1;
             string? json = null;
 
-            if (Path.GetExtension(projectFileSpec).Equals(".Survey", StringComparison.OrdinalIgnoreCase))
+            if (Path.GetExtension(SurveyFileSpec).Equals(".Survey", StringComparison.OrdinalIgnoreCase))
             {
 
                 try
                 {
-                    json = File.ReadAllText(projectFileSpec);
+                    json = File.ReadAllText(SurveyFileSpec);
                 }
                 catch (FileNotFoundException e)
                 {
                     ret = -2;
-                    Report?.Warning("", $"Load project failed because the project file couldn't be found, project file:{projectFileSpec}. {e.Message}");
+                    Report?.Warning("", $"Load survey failed because the survey file couldn't be found, file:{SurveyFileSpec}. {e.Message}");
                 }
                 catch (UnauthorizedAccessException e)
                 {
                     ret = -3;
-                    Report?.Warning("", $"Load project failed because you do not have permission to read this file, project file:{projectFileSpec}. {e.Message}");
+                    Report?.Warning("", $"Load survey failed because you do not have permission to read this file, file:{SurveyFileSpec}. {e.Message}");
                 }
                 catch (DirectoryNotFoundException e)
                 {
                     ret = -4;
-                    Report?.Warning("", $"Load project failed because the specified directory could not be found, project file:{projectFileSpec}. {e.Message}");
+                    Report?.Warning("", $"Load survey failed because the specified directory could not be found, file:{SurveyFileSpec}. {e.Message}");
                 }
                 catch (PathTooLongException e)
                 {
                     ret = -5;
-                    Report?.Warning("", $"Load project failed because the file name is too long, project file:{projectFileSpec}. The specified path, file name, or both exceed the system-defined maximum length. {e.Message}");
+                    Report?.Warning("", $"Load survey failed because the file name is too long, file:{SurveyFileSpec}. The specified path, file name, or both exceed the system-defined maximum length. {e.Message}");
                 }
                 catch (IOException e)
                 {
                     ret = -6;
-                    Report?.Warning("", $"Load project failed because an I/O error occurred, project file:{projectFileSpec}. {e.Message}");
+                    Report?.Warning("", $"Load survey failed because an I/O error occurred, file:{SurveyFileSpec}. {e.Message}");
                 }
                 catch (Exception e)
                 {
                     ret = -7;
-                    Report?.Warning("", $"Load project failed because an unexpected error occurred, project file:{projectFileSpec}. {e.Message}");
+                    Report?.Warning("", $"Load survey failed because an unexpected error occurred, file:{SurveyFileSpec}. {e.Message}");
                 }
 
                 if (json != null)
@@ -709,7 +760,7 @@ namespace Surveyor
                     if (data != null)
                     {
                         Data = data;
-                        ret = SetProjectNameAndPath(projectFileSpec);
+                        ret = SetSurveyNameAndPath(SurveyFileSpec);
 
                         IsDirty = false;
                         IsLoaded = true;
@@ -719,15 +770,15 @@ namespace Surveyor
                     }
                 }
             }
-            else if (Path.GetExtension(projectFileSpec).Equals(".EMObs", StringComparison.OrdinalIgnoreCase))
+            else if (Path.GetExtension(SurveyFileSpec).Equals(".EMObs", StringComparison.OrdinalIgnoreCase))
             {
 
-                var (result, errorMessage) = await ProjectLoadEMObs(projectFileSpec);
+                var (result, errorMessage) = await ProjectLoadEMObs(SurveyFileSpec);
 
                 if (result != 0)
                 {
                     ret = result;
-                    Report?.Warning("", $"Load project failed, project file:{projectFileSpec}. {errorMessage}");
+                    Report?.Warning("", $"Load survey failed, file:{SurveyFileSpec}. {errorMessage}");
                 }
                 else
                     ret = 0;
@@ -735,7 +786,7 @@ namespace Surveyor
             else
             {
                 ret = -8;
-                Report?.Warning("", $"Load project failed because the survey has an unsupported extension type, project file:{projectFileSpec}.");
+                Report?.Warning("", $"Load survey failed because the survey has an unsupported extension type, file:{SurveyFileSpec}.");
             }
 
             return ret;
@@ -743,17 +794,17 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Save a project to a json file using the project current name and path
+        /// Save a survey to a json file using the survey current name and path
         /// </summary>
         /// <returns></returns>
-        public int ProjectSave()
+        public int SurveySave()
         {
             int ret = -1;
 
             // Stop any reentry
             lock (_lockObject)
             {
-                if (Data.Info.ProjectPath != null && Data.Info.ProjectFileName != null)
+                if (Data.Info.ProjectPath != null && Data.Info.SurveyFileName != null)
                 {
                     var settings = new JsonSerializerSettings
                     {
@@ -764,7 +815,7 @@ namespace Surveyor
                     string json = JsonConvert.SerializeObject(Data, settings);
 
 
-                    string filePath = Path.Combine(Data.Info.ProjectPath, Data.Info.ProjectFileName);
+                    string filePath = Path.Combine(Data.Info.ProjectPath, Data.Info.SurveyFileName);
 
                     try
                     {
@@ -776,27 +827,27 @@ namespace Surveyor
                     catch (UnauthorizedAccessException e)
                     {
                         ret = -1;
-                        Report?.Warning("", $"Save project failed due to an unauthorized access request, project file:{filePath}. You do not have permission to write to this file. {e.Message}");
+                        Report?.Warning("", $"Save survey failed due to an unauthorized access request, file:{filePath}. You do not have permission to write to this file. {e.Message}");
                     }
                     catch (DirectoryNotFoundException e)
                     {
                         ret = -2;
-                        Report?.Warning("", $"Save project failed due to a bad directory, project file:{filePath}. The specified directory could not be found. {e.Message}");
+                        Report?.Warning("", $"Save survey failed due to a bad directory, file:{filePath}. The specified directory could not be found. {e.Message}");
                     }
                     catch (PathTooLongException e)
                     {
                         ret = -3;
-                        Report?.Warning("", $"Save project failed due to the file name too long, project file:{filePath}. The specified path, file name, or both exceed the system-defined maximum length. {e.Message}");
+                        Report?.Warning("", $"Save survey failed due to the file name too long, file:{filePath}. The specified path, file name, or both exceed the system-defined maximum length. {e.Message}");
                     }
                     catch (IOException e)
                     {
                         ret = -4;
-                        Report?.Warning("", $"Save project failed due to an I/O error, project file:{filePath}. {e.Message}");
+                        Report?.Warning("", $"Save survey failed due to an I/O error, file:{filePath}. {e.Message}");
                     }
                     catch (Exception e)
                     {
                         ret = -5;
-                        Report?.Warning("", $"Save project failed due to an unexpected error, project file:{filePath}. {e.Message}");
+                        Report?.Warning("", $"Save survey failed due to an unexpected error, file:{filePath}. {e.Message}");
                     }
                 }
             }
@@ -806,28 +857,28 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Save a project to a json file using passed file spec
+        /// Save a survey to a json file using passed file spec
         /// </summary>
-        /// <param name="projectFileSpec"></param>
+        /// <param name="surveyFileSpec"></param>
         /// <returns></returns>
-        public int ProjectSaveAs(string projectFileSpec)
+        public int SurveySaveAs(string surveyFileSpec)
         {
             int ret = -1;
 
-            // Set the project name using the stem of the file name and extract the project path
-            ret = SetProjectNameAndPath(projectFileSpec);
+            // Set the survey name using the stem of the file name and extract the survey path
+            ret = SetSurveyNameAndPath(surveyFileSpec);
 
             if (ret == 0)
             {
-                // Save the project to a json file
-                ret = ProjectSave();
+                // Save the survey to a json file
+                ret = SurveySave();
 
                 if (ret == 0)
                 {
                     // Reset the dirty flag
                     IsDirty = false;
 
-                    // A Save As could be the first save of a new project to set IsLoaded to true
+                    // A Save As could be the first save of a new survey to set IsLoaded to true
                     IsLoaded = true;
                 }
             }
@@ -837,10 +888,10 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Close a project 
+        /// Close a survey 
         /// </summary>
         /// <returns></returns>
-        public async Task<int> ProjectClose()
+        public async Task<int> SurveyClose()
         {
             await StopAutosave();
 
@@ -853,9 +904,9 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Extract the project name and path from the passed file spec
+        /// Extract the survey name and path from the passed file spec
         /// </summary>
-        private int SetProjectNameAndPath(string projectFileSpec)
+        private int SetSurveyNameAndPath(string surveyFileSpec)
         {
             int ret = 0;
             string? directoryPath = null;
@@ -864,31 +915,31 @@ namespace Surveyor
             // Extract the path
             try
             {
-                directoryPath = Path.GetDirectoryName(projectFileSpec);
+                directoryPath = Path.GetDirectoryName(surveyFileSpec);
             }
             catch (ArgumentNullException e)
             {
                 ret = -1;
-                Report?.Warning("", $"SetProjectNameAndPath() trying to set project path base on:{projectFileSpec}, however were a null argument. {e.Message}");
+                Report?.Warning("", $"SetSurveyNameAndPath() trying to set survey path base on:{surveyFileSpec}, however were a null argument. {e.Message}");
             }
             catch (ArgumentException e)
             {
                 ret = -2;
-                Report?.Warning("", $"SetProjectNameAndPath() trying to set project path base on:{projectFileSpec}, however were was an error. {e.Message}");
+                Report?.Warning("", $"SetSurveyNameAndPath() trying to set survey path base on:{surveyFileSpec}, however were was an error. {e.Message}");
             }
 
             // Extract the file name
             try
             {
-                fileName = Path.GetFileName(projectFileSpec);
+                fileName = Path.GetFileName(surveyFileSpec);
             }
             catch (ArgumentException e)
             {
                 ret = -3;
-                Report?.Warning("", $"SetProjectNameAndPath() trying to set project name base on:{projectFileSpec}, however were was an error. {e.Message}");
+                Report?.Warning("", $"SetSurveyNameAndPath() trying to set survey name base on:{surveyFileSpec}, however were was an error. {e.Message}");
             }
 
-            Data.Info.ProjectFileName = fileName;
+            Data.Info.SurveyFileName = fileName;
             Data.Info.ProjectPath = directoryPath;
 
             return ret;
@@ -1032,7 +1083,7 @@ namespace Surveyor
                         if (IsDirty)
                         {
                             // Your logic to save the current work state
-                            ProjectSave();
+                            SurveySave();
                             Report?.Out(Reporter.WarningLevel.Debug, "", $"Autosave completed");
                         }
                     }

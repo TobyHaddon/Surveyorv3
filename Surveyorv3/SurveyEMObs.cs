@@ -18,7 +18,7 @@ using EMObsReaderNameSpace;
 
 namespace Surveyor
 {
-    public partial class Project
+    public partial class Survey
     {
         private class MediaItemInfo
         {
@@ -245,7 +245,7 @@ namespace Surveyor
 
                 // Load the Project class
                 // Info instance
-                this.Data.Info.ProjectFileName = System.IO.Path.GetFileName(projectFileSpec);
+                this.Data.Info.SurveyFileName = System.IO.Path.GetFileName(projectFileSpec);
                 this.Data.Info.ProjectPath = System.IO.Path.GetDirectoryName(projectFileSpec);
                 this.Data.Media.MediaPath = mediaPath;
                 this.Data.Media.LeftMediaFileNames = new ObservableCollection<string>(leftMediaFiles.Select(item => item.Filename));

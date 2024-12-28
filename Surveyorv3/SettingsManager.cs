@@ -42,8 +42,8 @@ namespace Surveyor
         }
 
 
-        // Retrieve or set the project folder path.  This is where the Survey files and the media files are stored.
-        public static string? ProjectFolder
+        // Retrieve or set the survey folder path.  This is where the Survey files and the media files are stored.
+        public static string? SurveyFolder
         {
             get
             {
@@ -51,14 +51,14 @@ namespace Surveyor
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
 
                 // Retrieve the setting, or provide a default value if not present
-                return localSettings.Values["ProjectFolder"] as string;
+                return localSettings.Values["SurveyFolder"] as string;
             }
             set
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
 
                 // Save the value in the settings container
-                localSettings.Values["ProjectFolder"] = value;
+                localSettings.Values["SurveyFolder"] = value;
             }
         }
 
@@ -69,7 +69,7 @@ namespace Surveyor
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
                 if (localSettings.Values["MediaFrameFolder"] is not string mediaFrameFolder)
-                    mediaFrameFolder = ProjectFolder + "\\MediaFrames";
+                    mediaFrameFolder = SurveyFolder + "\\MediaFrames";
 
                 return mediaFrameFolder;
             }
