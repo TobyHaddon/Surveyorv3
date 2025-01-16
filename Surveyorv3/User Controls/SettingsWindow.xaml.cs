@@ -1,29 +1,25 @@
-using System;
+// SettingsWindow
+// This is a user control is used to adjust general, survey and (later) Field Trip settings
+// 
+// Version 1.0
+// 
+
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Navigation;
+using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
+using System;
 using Windows.ApplicationModel;
 using Windows.Graphics;
-using Windows.Storage;
-using Windows.Storage.Pickers;
-using Windows.System;
-using Surveyor.DesktopWap.Helper;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Media.Imaging;
-using Windows.UI.ViewManagement;
-using Microsoft.Graphics.Canvas;
-using static Surveyor.User_Controls.MediaControlEventData;
 using static Surveyor.User_Controls.SettingsWindowEventData;
 
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+
 
 namespace Surveyor.User_Controls
 {
-    
+
 
     /// <summary>
     /// A page that displays the app's settings.
@@ -46,9 +42,12 @@ namespace Surveyor.User_Controls
 
 
         public SettingsWindow()
-        {     
+        {
             this.InitializeComponent();
             this.Closed += SettingsWindow_Closed;
+
+            // SettingsCardSurveyInfoAndMedia called from a SettingWindow (not a ContentDialog)
+            SurveyInfoAndMedia.ParentSettings = SettingsCardSurveyInfoAndMedia;
 
             ExtendsContentIntoTitleBar = true;
 
@@ -56,13 +55,13 @@ namespace Surveyor.User_Controls
             var appWindow = GetAppWindowForCurrentWindow();
 
             // Set the size of the window
-            appWindow.Resize(new SizeInt32(1000, 800));
+            appWindow.Resize(new SizeInt32(1230, 800));
 
             // Center the window on the screen
             var displayArea = DisplayArea.GetFromWindowId(appWindow.Id, DisplayAreaFallback.Primary);
             var workArea = displayArea.WorkArea;
             appWindow.Move(new PointInt32(
-                (workArea.Width - 1000) / 2,
+                (workArea.Width - 1230) / 2,
                 (workArea.Height - 800) / 2
             ));
 
@@ -285,6 +284,16 @@ namespace Surveyor.User_Controls
             {
                 magnifierWindowAutomatic = settingValue
             });
+        }
+
+
+        /// <summary>
+        /// String that appears in the Settings Expander Info Text
+        /// </summary>        
+        private string SettingsExpanderInfoText
+        {
+            ///??? TO DO: survey .MP4 files
+            get => "TO DO [*] survey .MP4 files";
         }
 
         // ***END OF SettingsWindow***

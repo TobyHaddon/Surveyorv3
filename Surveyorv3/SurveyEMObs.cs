@@ -246,7 +246,7 @@ namespace Surveyor
                 // Load the Project class
                 // Info instance
                 this.Data.Info.SurveyFileName = System.IO.Path.GetFileName(projectFileSpec);
-                this.Data.Info.ProjectPath = System.IO.Path.GetDirectoryName(projectFileSpec);
+                this.Data.Info.SurveyPath = System.IO.Path.GetDirectoryName(projectFileSpec);
                 this.Data.Media.MediaPath = mediaPath;
                 this.Data.Media.LeftMediaFileNames = new ObservableCollection<string>(leftMediaFiles.Select(item => item.Filename));
                 this.Data.Media.RightMediaFileNames = new ObservableCollection<string>(rightMediaFiles.Select(item => item.Filename));

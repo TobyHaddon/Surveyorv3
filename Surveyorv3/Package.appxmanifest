@@ -52,5 +52,7 @@
 
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
+    <uap:Capability Name="userAccountInformation"/>
+    <DeviceCapability Name="bluetooth"/>
   </Capabilities>
 </Package>

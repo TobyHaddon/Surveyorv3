@@ -1,13 +1,15 @@
-﻿using Microsoft.UI;
+﻿using CommunityToolkit.WinUI;
+using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Surveyor.DesktopWap.Helper;
 using Surveyor.Events;
+using Surveyor.Helper;
 using Surveyor.User_Controls;
 using System;
 using System.Collections.Generic;
@@ -23,13 +25,9 @@ using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Provider;
-using Windows.UI.ViewManagement;
 using WinRT.Interop;
 using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.Survey.DataClass;
-using Surveyor.Helper;
-//using MathNet.Numerics;
-using Surveyor.DesktopWap.Helper;
 #if !No_MagnifyAndMarkerDisplay
 #endif
 
@@ -55,9 +53,6 @@ namespace Surveyor
         private string titlebarTitle = "";
         private string titlebarCameraSide = "";
         private string titlebarSaveStatus = "";
-
-        // Settings class
-        private readonly SettingsManager settingsManager = new();
 
         // Current Survey Class
         private Survey? surveyClass = null;
@@ -239,7 +234,7 @@ namespace Surveyor
         {
             if (surveyClass is null ||
                 surveyClass.IsLoaded == false ||
-                string.IsNullOrEmpty(surveyClass.Data.Info.ProjectPath))
+                string.IsNullOrEmpty(surveyClass.Data.Info.SurveyPath))
             {
 
                 // Survey needs to be saved before a frame can be saved
@@ -285,9 +280,9 @@ namespace Surveyor
 
             if (surveyClass is not null &&
                 surveyClass.IsLoaded &&
-                !string.IsNullOrEmpty(surveyClass.Data.Info.ProjectPath))
+                !string.IsNullOrEmpty(surveyClass.Data.Info.SurveyPath))
             {
-                string framesPath = surveyClass.Data.Info.ProjectPath + @"\Frames";
+                string framesPath = surveyClass.Data.Info.SurveyPath + @"\Frames";
 
                 // Create the folder if it does not exist
                 if (!Directory.Exists(framesPath))
@@ -433,9 +428,61 @@ namespace Surveyor
 
                 SetMenuStatusBasedOnProjectState();
 
-                // Select Media Files to be used in this new survey
-                FileSVSMediaOpen_Click(null!, null!);   // move this to separate function
+                // Get to use to select media files for the survey
+                FileOpenPicker openPicker = new()
+                {
+                    ViewMode = PickerViewMode.Thumbnail,
+                    SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+                };
+
+                // Add file type filters
+                openPicker.FileTypeFilter.Add(".mp4");
+
+                // Associate the file picker with the current window
+                IntPtr hWnd = WindowNative.GetWindowHandle(this/*App.MainWindow*/);
+                InitializeWithWindow.Initialize(openPicker, hWnd);
+
+                // Show the picker and allow multiple file selection            
+                // The DispatcherQueue is used to ensure the file picker returned objects are created on the UI thread (ChapGPT)
+                IReadOnlyList<StorageFile> mediaFilesSelected = await DispatcherQueue.EnqueueAsync(async () =>
+                {
+                    return await openPicker.PickMultipleFilesAsync();
+                });
+
+                // Load the Info and Media user control to setup the survey
+
+                SurveyInfoAndMediaUserControl.SetMediaFiles(SurveyInfoAndMediaContentDialog, mediaFilesSelected);
+                //???TODO SurveyInfoAndMediaUserControl.SetReporter(report);
+
+                try
+                {
+                    // ** Important notes **
+                    // The UserControl SurveyInfoAndMedia is displayed within a ContentDialog for 
+                    // the purpose of setting up a new survey (also using from a SettingsCard)
+                    // I stuggled to get the ContentDialog to show width necessary to fully display
+                    // the UserControl.  The solution was to:
+                    // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
+                    // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
+                    // This took a lot of trail and error. It seems to effect the title bar is left in
+                    // default row zero.
+                    ContentDialogResult result = await SurveyInfoAndMediaContentDialog.ShowAsync();
+                    if (result == ContentDialogResult.Primary)
+                    {
+                        SurveyInfoAndMediaUserControl.Save(surveyClass);
+
+                        // Open Media Files
+                        await OpenSVSMediaFiles();
+
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Log or handle the exception as needed
+                    report.Error("", $"Error showing SurveyInfoAndMediaContentDialog: {ex.Message}");
+                }
             }
+
+            SetMenuStatusBasedOnProjectState();
         }
 
 
@@ -500,7 +547,7 @@ namespace Surveyor
         {
             if (surveyClass is not null)
             {
-                if (surveyClass.Data.Info.ProjectPath == null || surveyClass.Data.Info.SurveyFileName == null)
+                if (surveyClass.Data.Info.SurveyPath == null || surveyClass.Data.Info.SurveyFileName == null)
                 {
                     FileSurveySaveAs_Click(sender, e);
                 }
@@ -783,12 +830,13 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FileMediaSVSClose_Click(object sender, RoutedEventArgs e)
-        {
-            // Close Media Files
-            CloseSVSMediaFiles();
-            SetMenuStatusBasedOnProjectState();
-        }
+        //??? TO BE DELETED
+        //private void FileMediaSVSClose_Click(object sender, RoutedEventArgs e)
+        //{
+        //    // Close Media Files
+        //    CloseSVSMediaFiles();
+        //    SetMenuStatusBasedOnProjectState();
+        //}
 
 
         /// <summary>
@@ -1664,8 +1712,8 @@ namespace Surveyor
                         if (surveyClass.Data.Info.SurveyFileName is not null)
                             SetTitle(surveyClass.Data.Info.SurveyFileName);
 
-                        MenuMediaOpen.IsEnabled = false;
-                        MenuMediaClose.IsEnabled = true;
+                        //??? MenuMediaOpen.IsEnabled = false;
+                        //??? MenuMediaClose.IsEnabled = true;
                         MenuFileLockUnlockMediaPlayers.IsEnabled = true;
                         //???                        MenuSurFileSave.IsEnabled = true;
                     }
@@ -1673,8 +1721,8 @@ namespace Surveyor
                     {
                         SetTitle("");
                         SetLockUnlockIndicator(null, null);
-                        MenuMediaOpen.IsEnabled = true;
-                        MenuMediaClose.IsEnabled = false;
+                        //??? MenuMediaOpen.IsEnabled = true;
+                        //??? MenuMediaClose.IsEnabled = false;
                         MenuFileLockUnlockMediaPlayers.IsEnabled = false;
                         //???                        MenuFileSave.IsEnabled = false;
 
@@ -1705,8 +1753,8 @@ namespace Surveyor
                 SetTitleCameraSide("");
 
                 SetLockUnlockIndicator(null, null);
-                MenuMediaOpen.IsEnabled = true;
-                MenuMediaClose.IsEnabled = false;
+                //??? MenuMediaOpen.IsEnabled = true;
+                //??? MenuMediaClose.IsEnabled = false;
                 MenuFileLockUnlockMediaPlayers.IsEnabled = false;
 
             }
@@ -1725,12 +1773,14 @@ namespace Surveyor
                 MenuSurveySave.IsEnabled = true;
                 MenuSurveySaveAs.IsEnabled = true;
                 MenuSurveyClose.IsEnabled = true;
+
                 // Media
-                MenuMediaOpen.IsEnabled = true;
-                if (mediaStereoController.MediaIsOpen() == true)
-                    MenuMediaClose.IsEnabled = true;
-                else
-                    MenuMediaClose.IsEnabled = false;
+                //??? MenuMediaOpen.IsEnabled = true;
+                //??? if (mediaStereoController.MediaIsOpen() == true)
+                //??? MenuMediaClose.IsEnabled = true;
+                //??? else
+                //??? MenuMediaClose.IsEnabled = false;
+
                 // Import calibration
                 MenuImportCalibration.IsEnabled = true;
                 // Media Lock
@@ -1744,8 +1794,8 @@ namespace Surveyor
                 MenuSurveySaveAs.IsEnabled = false;
                 MenuSurveyClose.IsEnabled = false;
                 // Media
-                MenuMediaOpen.IsEnabled = false;
-                MenuMediaClose.IsEnabled = false;
+                //??? MenuMediaOpen.IsEnabled = false;
+                //??? MenuMediaClose.IsEnabled = false;
                 // Import calibration
                 MenuImportCalibration.IsEnabled = false;
                 // Media lock

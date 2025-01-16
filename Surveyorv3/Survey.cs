@@ -68,18 +68,21 @@ namespace Surveyor
                     _surveyFileName = null;
                     _surveyPath = null;
                     _isDirty = false;
-                }
+                    _surveyCode = null;
+                    _surveyAnalystName = null;
+                    _surveyDepth = null;
+            }
 
 
-                // Info class version
-                public float Version { get; set; } = 1.0f;
+            // Info class version
+            public float Version { get; set; } = 1.0f;
 
                 // Values
                 private string? _surveyFileName = null;
                 private string? _surveyPath = null;
                 private string? _surveyCode = null;
                 private string? _surveyAnalystName = null;
-                private double? _surveyDepth = 0.0;
+                private string? _surveyDepth = null;  // Normally 5,8,10,13,15 or Flat, Crest or Slope 
 
                 // Setters and getters
                 public string? SurveyFileName
@@ -95,7 +98,7 @@ namespace Surveyor
                     }
                 }
 
-                public string? ProjectPath 
+                public string? SurveyPath 
                 {
                     get => _surveyPath;
                     set
@@ -111,7 +114,7 @@ namespace Surveyor
                 /// <summary>
                 /// This is used for a string that IDs the survey i.e. [ReefCode]-[Depth]-[TransetNo]-[YYYY-MM-DD]  e.g. CVW-10-1-2024-07-28 for Coral View , 10m depth, transect 1 on the 28th July 2024
                 /// </summary>
-                public string? ProjectCode
+                public string? SurveyCode
                 {
                     get => _surveyCode;
                     set
@@ -127,7 +130,7 @@ namespace Surveyor
                 /// <summary>
                 /// This is the name of the persion who analysed the survey (not the person who collected the data)
                 /// </summary>
-                public string? ProjectAnalystName
+                public string? SurveyAnalystName
                 {
                     get => _surveyAnalystName;
                     set
@@ -143,7 +146,7 @@ namespace Surveyor
                 /// <summary>
                 /// This is the depth of the survey in metres as a number e.g. 10
                 /// </summary>
-                public double? ProjectDepth
+                public string? SurveyDepth
                 {
                     get => _surveyDepth;
                     set
@@ -804,7 +807,7 @@ namespace Surveyor
             // Stop any reentry
             lock (_lockObject)
             {
-                if (Data.Info.ProjectPath != null && Data.Info.SurveyFileName != null)
+                if (Data.Info.SurveyPath != null && Data.Info.SurveyFileName != null)
                 {
                     var settings = new JsonSerializerSettings
                     {
@@ -815,7 +818,7 @@ namespace Surveyor
                     string json = JsonConvert.SerializeObject(Data, settings);
 
 
-                    string filePath = Path.Combine(Data.Info.ProjectPath, Data.Info.SurveyFileName);
+                    string filePath = Path.Combine(Data.Info.SurveyPath, Data.Info.SurveyFileName);
 
                     try
                     {
@@ -940,14 +943,14 @@ namespace Surveyor
             }
 
             Data.Info.SurveyFileName = fileName;
-            Data.Info.ProjectPath = directoryPath;
+            Data.Info.SurveyPath = directoryPath;
 
             return ret;
         }
 
 
         /// <summary>
-        /// Add the media file to the list of eith left or right media files
+        /// Add the media file to the list of either left or right media files
         /// Only add the file name and not the path but check if the path is the same as the media file path
         /// </summary>
         /// <param name="mediaFileSpec"></param>

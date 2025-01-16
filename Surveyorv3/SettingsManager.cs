@@ -151,5 +151,24 @@ namespace Surveyor
         }
 
 
+        // User name 
+        public static string? UserName
+        {
+            get
+            {
+                // Accessing the local settings storage
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+
+                // Retrieve the setting, or provide a default value if not present
+                return localSettings.Values["UserName"] as string;
+            }
+            set
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+
+                // Save the value in the settings container
+                localSettings.Values["UserName"] = value;
+            }
+        }
     }
 }

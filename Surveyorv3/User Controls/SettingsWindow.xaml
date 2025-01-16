@@ -41,19 +41,25 @@
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE160;" />
                     </toolkit:SettingsExpander.HeaderIcon>
-
+                    
                     <toolkit:SettingsExpander.Items>
+                        <!--Survey Info and Media-->
                         <toolkit:SettingsExpander Header="Survey Info &amp; Media">
                             <toolkit:SettingsExpander.HeaderIcon>
                                 <FontIcon Glyph="&#xE768;" ToolTipService.ToolTip="Survey setup information and survey media"/>
                             </toolkit:SettingsExpander.HeaderIcon>
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                IsTextSelectionEnabled="True"
+                                Text="{x:Bind SettingsExpanderInfoText}" />
                             <toolkit:SettingsExpander.Items>
-                                <toolkit:SettingsCard>
-                                    <surveyorControls:SurveyInfoAndMedia />
+                                <toolkit:SettingsCard x:Name="SettingsCardSurveyInfoAndMedia">
+                                    <surveyorControls:SurveyInfoAndMedia x:Name="SurveyInfoAndMedia"/>
                                 </toolkit:SettingsCard>
                             </toolkit:SettingsExpander.Items>
                         </toolkit:SettingsExpander>
                        
+                        <!--Calibration-->
                         <toolkit:SettingsCard Header="Calibration"
                                           ToolTipService.ToolTip="Calibration information for the stereo camera rig.">
                             <toolkit:SettingsCard.HeaderIcon>
@@ -62,6 +68,7 @@
                             <ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="magnifierWindowAutomatic_Toggled" />
                         </toolkit:SettingsCard>
 
+                        <!--Survey Rules-->
                         <toolkit:SettingsCard Header="Survey Rules">
                             <toolkit:SettingsCard.HeaderIcon>
                                 <FontIcon Glyph="&#xE73E;" />
@@ -109,40 +116,6 @@
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
 
-
-                <!--<toolkit:SettingsExpander Description="Controls provide audible feedback" Header="Sound">
-                    <toolkit:SettingsExpander.HeaderIcon>
-                        <FontIcon Glyph="&#xEC4F;" />
-                    </toolkit:SettingsExpander.HeaderIcon>
-                    <ToggleSwitch x:Name="soundToggle" Toggled="soundToggle_Toggled" />
-                    <toolkit:SettingsExpander.Items>
-                        <toolkit:SettingsCard
-                            x:Name="SpatialAudioCard"
-                            Header="Enable Spatial Audio"
-                            IsEnabled="False">
-                            <toolkit:SettingsCard.Description>
-                                <HyperlinkButton Click="soundPageHyperlink_Click" Content="Learn more about enabling sounds in your app" />
-                            </toolkit:SettingsCard.Description>
-                            <ToggleSwitch x:Name="spatialSoundBox" Toggled="spatialSoundBox_Toggled" />
-                        </toolkit:SettingsCard>
-                    </toolkit:SettingsExpander.Items>
-                </toolkit:SettingsExpander>-->
-
-                <!--<toolkit:SettingsExpander x:Name="ScreenshotCard" Header="Screenshot mode" Visibility="Collapsed">
-                    <toolkit:SettingsExpander.HeaderIcon>
-                        <FontIcon Glyph="&#xEC4F;" />
-                    </toolkit:SettingsExpander.HeaderIcon>
-                    <ToggleSwitch x:Name="screenshotModeToggle" Toggled="screenshotModeToggle_Toggled" />
-                    <toolkit:SettingsExpander.Items>
-                        <toolkit:SettingsCard x:Name="ScreenshotFolderCard" Header="Screenshot folder">
-                            <toolkit:SettingsCard.Description>
-                                <HyperlinkButton x:Name="screenshotFolderLink" Click="screenshotFolderLink_Click" />
-                            </toolkit:SettingsCard.Description>
-                            <Button Click="FolderButton_Click" Content="Browse" />
-                        </toolkit:SettingsCard>
-                    </toolkit:SettingsExpander.Items>
-                </toolkit:SettingsExpander>-->
-
                 <!--  About  -->
                 <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="About" />
                 <toolkit:SettingsExpander Description="© 2024 All rights reserved." Header="{StaticResource AppTitleName}">
@@ -168,6 +141,8 @@
                                 <HyperlinkButton Content="Math.NET Numerics MIT License" NavigateUri="https://numerics.mathdotnet.com" />
                                 <HyperlinkButton Content="Json.NET MIT License" NavigateUri="https://www.newtonsoft.com/json" />
                                 <HyperlinkButton Content="Snorkeling mask icon from Noun Project CC BY 3.0" NavigateUri="https://thenounproject.com/icon/snorkeling-mask-1541410/" />
+                                <HyperlinkButton Content="Media icon by Thea Graph from Noun Project CC BY 3.0" NavigateUri="https://thenounproject.com/browse/icons/term/media/" />
+                                
                             </StackPanel>
                         </toolkit:SettingsCard>
                        

@@ -62,6 +62,12 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <Content Update="Assets\mediaDefault-dark.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Update="Assets\mediaDefault-light.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Update="Assets\surveyor-dark.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

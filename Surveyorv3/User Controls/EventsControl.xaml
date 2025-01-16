@@ -11,7 +11,7 @@
 
 
     <UserControl.Resources>
-        <local:TimeSpanToStringConverter x:Key="TimeSpanToStringConverter"/>
+        <local:EventTimeSpanToStringConverter x:Key="TimeSpanToStringConverter"/>
         <local:EventDataTypeToStringConverter x:Key="EventDataTypeToStringConverter"/>
         <local:EventDataToStringConverter x:Key="EventDataToStringConverter"/>
         <local:EventTypeToGlyphConverter x:Key="EventTypeToGlyphConverter" />

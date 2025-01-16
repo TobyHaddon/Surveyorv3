@@ -145,7 +145,7 @@ namespace Surveyor.User_Controls
     /// <summary>
     /// Convert TimeSpanToStringConverter to 2DP
     /// </summary>
-    public class TimeSpanToStringConverter : IValueConverter
+    public class EventTimeSpanToStringConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {

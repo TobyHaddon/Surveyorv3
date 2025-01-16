@@ -69,8 +69,9 @@
                     <MenuFlyoutItem Name="MenuSurveyClose" Text="Close Survey" IsEnabled="False" Click="FileSurveyClose_Click"/>
                     <MenuFlyoutSubItem Name="MenuRecentSurveys" Text="Recent Surveys" />
                     <MenuFlyoutSeparator/>
+                    <!--TO BE DELETED 
                     <MenuFlyoutItem Name="MenuMediaOpen" Text="Media Open" IsEnabled="False" Click="FileSVSMediaOpen_Click"/>
-                    <MenuFlyoutItem Name="MenuMediaClose" Text="Media Close" IsEnabled="False" Click="FileMediaSVSClose_Click"/>
+                    <MenuFlyoutItem Name="MenuMediaClose" Text="Media Close" IsEnabled="False" Click="FileMediaSVSClose_Click"/>-->
                     <MenuFlyoutItem Name="MenuImportCalibration" Text="Import Calibration" IsEnabled="False" Click="FileImportCalibration_Click"/>
                     <MenuFlyoutSeparator/>
                     <ToggleMenuFlyoutItem Name="MenuFileLockUnlockMediaPlayers" Text="Lock Media Players" IsEnabled="False" Click="FileLockUnlockMediaPlayers_Click"/>
@@ -196,6 +197,23 @@
             <!-- Frame to display content based on navigation -->
             <Frame x:Name="ContentFrame" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
         </NavigationView>
-       
+        
+        <!--New Survey Dialog-->
+        <Grid x:Name="SurveyInfoAndMediaContentDialogGrid" Grid.Row="2">
+            <ContentDialog x:Name="SurveyInfoAndMediaContentDialog"
+            Title="New Survey Setup"
+            PrimaryButtonText="OK"
+            SecondaryButtonText="Cancel"
+            DefaultButton="Primary"
+            MinWidth="300"
+            MaxWidth="800"
+            MinHeight="200"
+            MaxHeight="400"
+            IsPrimaryButtonEnabled="True"
+            RequestedTheme="Default">
+                <surveyorControls:SurveyInfoAndMedia x:Name="SurveyInfoAndMediaUserControl" />
+            </ContentDialog>
+        </Grid>
     </Grid>
+
 </Window>
