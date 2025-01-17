@@ -451,8 +451,8 @@ namespace Surveyor
 
                 // Load the Info and Media user control to setup the survey
 
-                SurveyInfoAndMediaUserControl.SetMediaFiles(SurveyInfoAndMediaContentDialog, mediaFilesSelected);
-                //???TODO SurveyInfoAndMediaUserControl.SetReporter(report);
+                SurveyInfoAndMediaUserControl.SetupForContentDialog(SurveyInfoAndMediaContentDialog, mediaFilesSelected);
+                SurveyInfoAndMediaUserControl.SetReporter(report);
 
                 try
                 {
@@ -468,7 +468,7 @@ namespace Surveyor
                     ContentDialogResult result = await SurveyInfoAndMediaContentDialog.ShowAsync();
                     if (result == ContentDialogResult.Primary)
                     {
-                        SurveyInfoAndMediaUserControl.Save(surveyClass);
+                        SurveyInfoAndMediaUserControl.SaveForContentDialog(surveyClass);
 
                         // Open Media Files
                         await OpenSVSMediaFiles();
@@ -2309,24 +2309,27 @@ namespace Surveyor
         /// </summary>
         private void ShowSettingsWindow()
         {
-            SettingsWindow settingsWindow = new();
+            if (surveyClass is not null)
+            {
+                SettingsWindow settingsWindow = new((Survey)surveyClass);
 
-            settingsWindow.InitializeMediator(mediator, this);
+                settingsWindow.InitializeMediator(mediator, this);
 
-            // Set the secondary window as modal
-            settingsWindow.Activate();
+                // Set the secondary window as modal
+                settingsWindow.Activate();
 
-            // Use P/Invoke to force the window on top
-            IntPtr settingsWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(settingsWindow);
-            WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
-        
+                // Use P/Invoke to force the window on top
+                IntPtr settingsWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(settingsWindow);
+                WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
 
-            // Disable interaction with the main window (not sure this is working)
-            var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(
-                Microsoft.UI.Win32Interop.GetWindowIdFromWindow(
-                    WinRT.Interop.WindowNative.GetWindowHandle(this)
-                )
-            );
+
+                // Disable interaction with the main window (not sure this is working)
+                var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(
+                    Microsoft.UI.Win32Interop.GetWindowIdFromWindow(
+                        WinRT.Interop.WindowNative.GetWindowHandle(this)
+                    )
+                );
+            }
         }
 
 

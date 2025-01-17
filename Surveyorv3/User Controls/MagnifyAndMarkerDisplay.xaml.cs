@@ -330,8 +330,9 @@ namespace Surveyor.User_Controls
 
             // Reset the Mag Window
             isMagLocked = false;
-            if (ImageMag is not null) 
-                ImageMag.Source = null;
+            //??? line below can cause a GP
+            //???if (ImageMag is not null) 
+            //???    ImageMag.Source = null;
             if (BorderMag is not null)
                 BorderMag.BorderBrush = magColourUnlocked;
 

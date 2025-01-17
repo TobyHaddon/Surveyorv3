@@ -10,76 +10,61 @@
 
 
     <UserControl.Resources>
+
+        <local:SurveyDateTimeToStringConverter x:Key="SurveyDateTimeToStringConverter"/>
+        <local:EmptyStringToVisibilityConverter x:Key="EmptyStringToVisibilityConverter"/>
+        <local:SurveyTimeSpanToStringConverter x:Key="SurveyTimeSpanToStringConverter"/>
+
         <DataTemplate x:Key="MediaFileTemplate" x:DataType="local:MediaFileItem">
-            <Grid Padding="10">
+            <Grid Padding="5">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                
+                <Grid.RowDefinitions>
+                    <RowDefinition/>
+                    <RowDefinition/>
+                </Grid.RowDefinitions>
+
+                <!-- File Name FontSize="16" FontWeight="Bold" -->
+                <TextBlock Text="{x:Bind MediaFileName}" Grid.Row="0" Grid.ColumnSpan="2" TextTrimming="CharacterEllipsis" Style="{ThemeResource BaseTextBlockStyle}" />
+
                 <!-- Thumbnail -->
-                <!--<Image Source="{x:Bind MediaFileThumbnail}" Grid.Column="0" Width="100" Height="100" Margin="0,0,10,0" />-->
+                <Image Source="{x:Bind MediaFileThumbnail}" Grid.Row="1" Grid.Column="0" Width="100" Margin="0,5,10,0" />
 
                 <!-- Text Details -->
-                <StackPanel Grid.Column="1">
-                    <!-- File Name FontSize="16" FontWeight="Bold" -->
-                    <TextBlock Text="{x:Bind MediaFileName}" TextTrimming="CharacterEllipsis"  Style="{ThemeResource BaseTextBlockStyle}" />
-
+                <StackPanel Grid.Row="1" Grid.Column="1" VerticalAlignment="Center">
                     <!-- Creation Date -->
-                    <!--<StackPanel Orientation="Horizontal">
-                        <TextBlock Text="Created: " FontSize="14" />
-                        <TextBlock Text="{x:Bind MediaFileCreateDateTime, Converter={StaticResource SurveyDateTimeToStringConverter}, ConverterParameter='dd MMM yyyy HH:mm:ss'}" FontSize="14" />
-                    </StackPanel>-->
-                    
-                    <!-- Duration -->
-                    <!--<StackPanel Orientation="Horizontal"  Visibility="{x:Bind MediaFileDuration, Converter={StaticResource NullToVisibilityConverter}}">
-                        <TextBlock Text="Duration: " FontSize="14" />
-                        <TextBlock Text="{x:Bind MediaFileDuration, Converter={StaticResource SurveyTimeSpanToStringConverter}, ConverterParameter='hh:mm:ss'}" FontSize="14" />
-                    </StackPanel>-->
-                    
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Created:" FontSize="12" Padding="0,0,4,0"/>
+                        <TextBlock Text="{x:Bind MediaFileCreateDateTime, Converter={StaticResource SurveyDateTimeToStringConverter}, ConverterParameter='dd MMM yyyy HH:mm:ss'}" FontSize="12" />
+                    </StackPanel>
+
+                    <!-- Duration and Frame -->
+                    <StackPanel Orientation="Horizontal"  >
+                        <TextBlock Text="Duration:" FontSize="12" Padding="0,0,4,0"/>
+                        <TextBlock Text="{x:Bind MediaFileDuration, Converter={StaticResource SurveyTimeSpanToStringConverter}}" FontSize="12" />
+                        <TextBlock Text="Frame:" FontSize="12" Padding="10,0,4,0"/>
+                        <TextBlock Text="{x:Bind MediaFrameWidth}" FontSize="12" Padding="0,0,4,0"/>
+                        <TextBlock Text="x" FontSize="12" Padding="0,0,4,0"/>
+                        <TextBlock Text="{x:Bind MediaFrameHeight}" FontSize="12" />
+                    </StackPanel>
+
                     <!--GoPro Serial Number-->
-                    <!--<StackPanel Orientation="Horizontal">
-                        <TextBlock Text="GoPro S/N: " FontSize="14" />
-                        <TextBlock Text="{x:Bind GoProSerialNumber}" FontSize="14" Style="{ThemeResource CaptionTextBlockStyle}"/>
-                    </StackPanel>-->
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="GoPro S/N:" FontSize="12" Padding="0,0,4,0"/>
+                        <TextBlock Text="{x:Bind GoProSerialNumber}" FontSize="12" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                    </StackPanel>
                 </StackPanel>
             </Grid>
         </DataTemplate>
-
-        <!--<local:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />-->
-        
     </UserControl.Resources>
-
-    <!--<DataTemplate x:DataType="local1:CustomDataObject">
-        <Grid Margin="0,12,0,12" AutomationProperties.Name="{x:Bind Title}">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" MinWidth="150"/>
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
-            <Image Source="{x:Bind ImageLocation}" MaxHeight="100" Stretch="Fill"/>
-
-            <StackPanel Margin="12,0,0,0" Grid.Column="1" >
-                <TextBlock Text="{x:Bind Title}" FontSize="14" FontWeight="SemiBold" Style="{ThemeResource BaseTextBlockStyle}"
-                        HorizontalAlignment="Left" Margin="0,0,0,6" LineHeight="20"/>
-                <TextBlock Text="{x:Bind Description}" FontFamily="Segoe UI" FontWeight="Normal" Style="{ThemeResource BodyTextBlockStyle}"
-                        TextTrimming="CharacterEllipsis" Width="350" MaxLines="1"/>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="{x:Bind Views}" HorizontalAlignment="Left" Style="{ThemeResource CaptionTextBlockStyle}" Margin="0,0,0,0"/>
-                    <TextBlock Text=" Views " HorizontalAlignment="Left" Style="{ThemeResource CaptionTextBlockStyle}"/>
-                    <TextBlock Text=" ⋅ " Style="{ThemeResource CaptionTextBlockStyle}"
-                            HorizontalAlignment="Left"/>
-                    <TextBlock Text="{x:Bind Likes}" HorizontalAlignment="Left" Style="{ThemeResource CaptionTextBlockStyle}" Margin="5,0,0,0"/>
-                    <TextBlock Text=" Likes" HorizontalAlignment="Left" Style="{ThemeResource CaptionTextBlockStyle}"/>
-                </StackPanel>
-            </StackPanel>
-        </Grid>
-    </DataTemplate>-->
-
+    
     <Grid>
         <StackPanel>
             <!--Survey code-->
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,8,0,0">
-                <TextBox x:Name="SurveyCode" Width="350" PlaceholderText="[ReefCode]-[Depth]-[TransetNo]-[YYYY-MM-DD]" HorizontalAlignment="Left" TextChanged="SurveyCode_TextChanged"/>
+                <TextBox x:Name="SurveyCode" Width="480" PlaceholderText="[ReefCode]-[Depth]-[TransetNo]-[YYYY-MM-DD]" HorizontalAlignment="Left" TextChanged="SurveyCode_TextChanged" ToolTipService.ToolTip="[ReefCode]-[Depth]-[TransetNo]-[YYYY-MM-DD]"/>
                 <FontIcon x:Name="SurveyCodeValidationGlyph" FontSize="16" VerticalAlignment="Center" Margin="8,0,0,0"/>
                 <TextBlock x:Name="SurveyCodeValidationText"  VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
@@ -87,20 +72,23 @@
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,8,0,0">
                 <ComboBox x:Name="SurveyDepth" Width="250" IsEditable="True" PlaceholderText="Survey depth"             
                         SelectionChanged="SurveyDepth_SelectionChanged">
-                    <ComboBoxItem Content="5" />
-                    <ComboBoxItem Content="6" />
-                    <ComboBoxItem Content="7" />
-                    <ComboBoxItem Content="8" />
-                    <ComboBoxItem Content="9" />
-                    <ComboBoxItem Content="10" />
-                    <ComboBoxItem Content="11" />
-                    <ComboBoxItem Content="12" />
-                    <ComboBoxItem Content="13" />
-                    <ComboBoxItem Content="14" />
-                    <ComboBoxItem Content="15" />
-                    <ComboBoxItem Content="Flat" />
-                    <ComboBoxItem Content="Crest" />
-                    <ComboBoxItem Content="Slope" />
+                        <ComboBoxItem Content="5" />
+                        <ComboBoxItem Content="6" />
+                        <ComboBoxItem Content="7" />
+                        <ComboBoxItem Content="8" />
+                        <ComboBoxItem Content="9" />
+                        <ComboBoxItem Content="10" />
+                        <ComboBoxItem Content="11" />
+                        <ComboBoxItem Content="12" />
+                        <ComboBoxItem Content="13" />
+                        <ComboBoxItem Content="14" />
+                        <ComboBoxItem Content="15" />
+                        <ComboBoxItem Content="16" />
+                        <ComboBoxItem Content="17" />
+                        <ComboBoxItem Content="18" />
+                        <ComboBoxItem Content="Flat" />
+                        <ComboBoxItem Content="Crest" />
+                        <ComboBoxItem Content="Slope" />
                 </ComboBox>
                 <FontIcon x:Name="SurveyDepthValidationGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
                 <TextBlock x:Name="SurveyDepthValidationText"  VerticalAlignment="Center" Margin="8,0,0,0"/>
@@ -113,14 +101,20 @@
             </StackPanel>
 
 
-            <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+            <Grid x:Name="SurveyMediaGrid" Margin="0,8,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="500" />
+                    <ColumnDefinition Width="50" />
+                    <ColumnDefinition Width="500" />
+                </Grid.ColumnDefinitions>
+                
                 <!--Left Camera Media Files-->
-                <ListView x:Name="LeftMediaFileNames" ItemsSource="{x:Bind LeftMediaFileItemList}" ItemTemplate="{StaticResource MediaFileTemplate}"
-                         Height="300" MinWidth="300" MaxHeight="300"
+                <ListView x:Name="LeftMediaFileNames" Grid.Column="0" ItemsSource="{x:Bind LeftMediaFileItemList}" ItemTemplate="{StaticResource MediaFileTemplate}"
+                         Height="300" MinWidth="400" MaxHeight="400"
                          BorderThickness="1" BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}" Margin="0,0,10,0"/>
-
+                
                 <!--Media Left/Right Swap and Order Controls-->
-                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,10,0">
+                <StackPanel  Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,10,0">
                     <Button Click="MoveItemUp_Click" Margin="0,0,0,10">
                         <Button.Content>
                             <FontIcon Glyph="&#xE96D;" FontSize="12" FontFamily="Segoe MDL2 Assets" />
@@ -146,7 +140,7 @@
                             <FontIcon Glyph="&#xE74D;" FontSize="12" FontFamily="Segoe MDL2 Assets" />
                         </Button.Content>
                     </Button>
-                    <Button Click="AddItem_Click">
+                    <Button Click="AddItem_Click" Visibility="Collapsed">
                         <Button.Content>
                             <FontIcon Glyph="&#xED25;" FontSize="12" FontFamily="Segoe MDL2 Assets" />
                         </Button.Content>
@@ -154,29 +148,44 @@
                 </StackPanel>
 
                 <!--Right Camera Media Files-->
-                <ListView x:Name="RightMediaFileNames" ItemsSource="{x:Bind RightMediaFileItemList}" ItemTemplate="{StaticResource MediaFileTemplate}"
-                         Height="300" MinWidth="300" MaxHeight="300" 
+                <ListView x:Name="RightMediaFileNames"  Grid.Column="2" ItemsSource="{x:Bind RightMediaFileItemList}" ItemTemplate="{StaticResource MediaFileTemplate}"
+                         Height="300" MinWidth="400" MaxHeight="400" 
                          BorderThickness="1" BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}"/>
 
-            </StackPanel>
+            </Grid>
 
             <!--Survey Media Files Same Path-->
-            <StackPanel x:Name="SurveyMediaPathPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  Margin="0,8,0,0">
+            <StackPanel x:Name="SurveyMediaPathPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center" 
+                        Margin="0,8,0,0"
+                        Visibility="{Binding ElementName=SurveyMediaDateValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
                 <FontIcon x:Name="SurveyMediaPathGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
                 <TextBlock x:Name="SurveyMediaPathValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
             <!--Survey Media Same Date-->
-            <StackPanel x:Name="SurveyMediaDatePanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  Margin="0,8,0,0">
+            <StackPanel x:Name="SurveyMediaDatePanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
+                        Margin="0,8,0,0"
+                        Visibility="{Binding ElementName=SurveyMediaDateValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
                 <FontIcon x:Name="SurveyMediaDateGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
                 <TextBlock x:Name="SurveyMediaDateValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
+            <!--Survey Media Files Resultion Matches-->
+            <StackPanel x:Name="SurveyResolutionMatchPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
+                        Margin="0,8,0,0" 
+                        Visibility="{Binding ElementName=SurveyResolutionMatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
+                <FontIcon x:Name="SurveyResolutionMatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
+                <TextBlock x:Name="SurveyResolutionMatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </StackPanel>
             <!--Survey Media Files From Same GoPro-->
-            <StackPanel x:Name="SurveyGoProMatchPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  Margin="0,8,0,0">
+            <StackPanel x:Name="SurveyGoProMatchPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
+                        Margin="0,8,0,0" 
+                        Visibility="{Binding ElementName=SurveyGoProMatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
                 <FontIcon x:Name="SurveyGoProMatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
                 <TextBlock x:Name="SurveyGoProMatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
             <!--Survey Media Contiguous-->
-            <StackPanel  x:Name="SurveyMediaContiguousPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  Margin="0,8,0,0">
+            <StackPanel x:Name="SurveyMediaContiguousPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
+                        Margin="0,8,0,0"
+                        Visibility="{Binding ElementName=SurveyMediaContiguousValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
                 <FontIcon x:Name="SurveyMediaContiguousGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
                 <TextBlock x:Name="SurveyMediaContiguousValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>

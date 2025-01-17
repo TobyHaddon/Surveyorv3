@@ -3,6 +3,8 @@
 // 
 // Version 1.0
 // 
+// Version 1.1
+// 2025-01-17 Intregrated with new SurveyInfoAndMedia user control
 
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
@@ -11,6 +13,8 @@ using Microsoft.UI.Xaml.Controls;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
 using System;
+using System.Diagnostics;
+using System.Runtime.InteropServices;
 using Windows.ApplicationModel;
 using Windows.Graphics;
 using static Surveyor.User_Controls.SettingsWindowEventData;
@@ -41,30 +45,41 @@ namespace Surveyor.User_Controls
         public string WinAppSdkRuntimeDetails => App.WinAppSdkRuntimeDetails;
 
 
-        public SettingsWindow()
+        public SettingsWindow(Survey surveyClass)
         {
             this.InitializeComponent();
             this.Closed += SettingsWindow_Closed;
 
-            // SettingsCardSurveyInfoAndMedia called from a SettingWindow (not a ContentDialog)
-            SurveyInfoAndMedia.ParentSettings = SettingsCardSurveyInfoAndMedia;
 
+            // Inform the SurveyInfoAndMedia user control that is is being used in the SettingsWindow
+            SurveyInfoAndMedia.SetupForSettingWindow(SettingsCardSurveyInfoAndMedia, surveyClass);
+
+            // Remove the separate title bar from the window
             ExtendsContentIntoTitleBar = true;
 
             // Get the AppWindow associated with this Window
             var appWindow = GetAppWindowForCurrentWindow();
+            Debug.WriteLine($"SettingsWindow() Initial Size:({appWindow.ClientSize.Width},{appWindow.ClientSize.Height})");
+
+            // Get the scaling factor for the current display
+            double scalingFactor = GetScalingFactorForWindow();
+            Debug.WriteLine($"Scaling Factor: {scalingFactor}");
+
+            // Adjust the width and height based on the scaling factor
+            int adjustedWidth = (int)(1230 * scalingFactor);
+            int adjustedHeight = (int)(800 * scalingFactor);
 
             // Set the size of the window
-            appWindow.Resize(new SizeInt32(1230, 800));
+            appWindow.Resize(new SizeInt32(adjustedWidth, adjustedHeight));
+            Debug.WriteLine($"SettingsWindow() Post resize Size:({appWindow.ClientSize.Width},{appWindow.ClientSize.Height})");
 
             // Center the window on the screen
             var displayArea = DisplayArea.GetFromWindowId(appWindow.Id, DisplayAreaFallback.Primary);
             var workArea = displayArea.WorkArea;
             appWindow.Move(new PointInt32(
-                (workArea.Width - 1230) / 2,
-                (workArea.Height - 800) / 2
+                (workArea.Width - adjustedWidth) / 2,
+                (workArea.Height - adjustedHeight) / 2
             ));
-
 
             // Set the current saved theme
             SetSettingsTheme(SettingsManager.ApplicationTheme);
@@ -91,38 +106,6 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Apply the theme change to the main window when the settings window is closed
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void SettingsWindow_Closed(object sender, WindowEventArgs e)
-        {
-            // Check if the theme has changed
-            var rootElement = (FrameworkElement)(this.Content);
-            if (rootThemeOriginal != rootElement.RequestedTheme && _mainWindow is not null)
-                _mainWindow.SetTheme(rootElement.RequestedTheme);                
-
-            // Set the save theme
-            SettingsManager.ApplicationTheme = rootElement.RequestedTheme;
-
-            // Unregister the mediator handler
-            _settingsWindowHandler!.Cleanup();
-        }
-
-
-        /// <summary>
-        /// Get the AppWindow associated with the current window
-        /// </summary>
-        /// <returns></returns>
-        private AppWindow GetAppWindowForCurrentWindow()
-        {
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
-            return AppWindow.GetFromWindowId(windowId);
-        }
-
-
-        /// <summary>
         /// Get the version of the Application from the Package
         /// </summary>
         public string Version
@@ -136,6 +119,58 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// Set the theme of the application
+        /// </summary>
+        /// <param name="theme">Dark or Light</param>
+        public void SetSettingsTheme(ElementTheme theme)
+        {
+            var rootElement = (FrameworkElement)(Content);
+
+            if (theme == ElementTheme.Dark)
+            {
+                // Set the RequestedTheme of the root element to Dark
+                rootElement.RequestedTheme = ElementTheme.Dark;
+
+                AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Dark.png");
+
+                TitleBarHelper.SetCaptionButtonColors(this, Colors.White);
+
+            }
+            else if (theme == ElementTheme.Light)
+            {
+                // Set the RequestedTheme of the root element to Dark
+                rootElement.RequestedTheme = ElementTheme.Light;
+
+                AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Light.png");
+
+                TitleBarHelper.SetCaptionButtonColors(this, Colors.Black);
+            }
+            else
+            {
+                // Use the default system theme
+                rootElement.RequestedTheme = ElementTheme.Default;
+
+                // Get the background colour used by that theme
+                var color = TitleBarHelper.ApplySystemThemeToCaptionButtons(this) == Colors.White ? "Dark" : "Light";
+
+                // Based on the background colour select a suitable application icon 
+                if (color == "Dark")
+                    AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Dark.png");
+
+                else
+                    AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Light.png");
+            }
+
+            // If the theme has changed, announce the change to the user
+            UIHelper.AnnounceActionForAccessibility(rootElement, "Theme changed", "ThemeChangedNotificationActivityId");
+
+        }
+
+
+        ///
+        /// EVENTS
+        /// 
 
 
         /// <summary>
@@ -167,6 +202,26 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Apply the theme change to the main window when the settings window is closed
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void SettingsWindow_Closed(object sender, WindowEventArgs e)
+        {
+            // Check if the theme has changed
+            var rootElement = (FrameworkElement)(this.Content);
+            if (rootThemeOriginal != rootElement.RequestedTheme && _mainWindow is not null)
+                _mainWindow.SetTheme(rootElement.RequestedTheme);
+
+            // Set the save theme
+            SettingsManager.ApplicationTheme = rootElement.RequestedTheme;
+
+            // Unregister the mediator handler
+            _settingsWindowHandler!.Cleanup();
+        }
+
+
+        /// <summary>
         /// Theme selection changed by user.  Apply the new theme to the application
         /// </summary>
         /// <param name="sender"></param>
@@ -193,55 +248,6 @@ namespace Surveyor.User_Controls
                 else
                     SetSettingsTheme(ElementTheme.Default);
             }
-        }
-
-
-        /// <summary>
-        /// Set the theme of the application
-        /// </summary>
-        /// <param name="theme">Dark or Light</param>
-        public void SetSettingsTheme(ElementTheme theme)
-        {
-            var rootElement = (FrameworkElement)(Content);
-
-            if (theme == ElementTheme.Dark)
-            {
-                // Set the RequestedTheme of the root element to Dark
-                rootElement.RequestedTheme = ElementTheme.Dark;   
-                
-                AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Dark.png");
-
-                TitleBarHelper.SetCaptionButtonColors(this, Colors.White);
-            
-            }
-            else if (theme == ElementTheme.Light)
-            {
-                // Set the RequestedTheme of the root element to Dark
-                rootElement.RequestedTheme = ElementTheme.Light;     
-
-                AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Light.png");
-
-                TitleBarHelper.SetCaptionButtonColors(this, Colors.Black);                
-            }
-            else
-            {
-                // Use the default system theme
-                rootElement.RequestedTheme = ElementTheme.Default;
-
-                // Get the background colour used by that theme
-                var color = TitleBarHelper.ApplySystemThemeToCaptionButtons(this) == Colors.White ? "Dark" : "Light";
-
-                // Based on the background colour select a suitable application icon 
-                if (color == "Dark")
-                    AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Dark.png");
-                
-                else
-                    AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Light.png");
-            }
-
-            // If the theme has changed, announce the change to the user
-            UIHelper.AnnounceActionForAccessibility(rootElement, "Theme changed", "ThemeChangedNotificationActivityId");
-
         }
 
 
@@ -287,6 +293,24 @@ namespace Surveyor.User_Controls
         }
 
 
+
+        ///
+        /// PRIVATE
+        ///
+
+
+        /// <summary>
+        /// Get the AppWindow associated with the current window
+        /// </summary>
+        /// <returns></returns>
+        private AppWindow GetAppWindowForCurrentWindow()
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+            var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
+            return AppWindow.GetFromWindowId(windowId);
+        }
+
+
         /// <summary>
         /// String that appears in the Settings Expander Info Text
         /// </summary>        
@@ -296,6 +320,20 @@ namespace Surveyor.User_Controls
             get => "TO DO [*] survey .MP4 files";
         }
 
+
+        /// <summary>
+        /// Get the scaling factor for the display
+        /// </summary>
+        /// <returns></returns>
+        private double GetScalingFactorForWindow()
+        {
+            IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this); // Get the native window handle
+            uint dpi = GetDpiForWindow(hWnd); // Get DPI for the current window
+            return dpi / 96.0; // Calculate scaling factor (96 DPI = 100%)
+        }
+
+        [DllImport("User32.dll")]
+        private static extern uint GetDpiForWindow(IntPtr hWnd);
         // ***END OF SettingsWindow***
     }
 
