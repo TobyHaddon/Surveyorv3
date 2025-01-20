@@ -772,7 +772,10 @@ namespace Surveyor.User_Controls
                                 if (_frameRate == -1)
                                 {
                                     _frameRate = GetCurrentFrameRate(MediaPlayerElement.MediaPlayer);
-                                    _frameRateTimeSpan = TimeSpan.FromMilliseconds(1000.0 / _frameRate);
+                                    //???Old_frameRateTimeSpan = TimeSpan.FromMilliseconds(1000.0 / _frameRate);
+                                    double ticksPerFrameDouble = TimeSpan.TicksPerSecond / _frameRate;
+                                    long ticksPerFrame = (long)Math.Round(ticksPerFrameDouble, MidpointRounding.AwayFromZero);
+                                    _frameRateTimeSpan = TimeSpan.FromTicks(ticksPerFrame);
                                 }
 
                                 MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled = true;
@@ -1404,7 +1407,11 @@ namespace Surveyor.User_Controls
             Int64 frameIndex = -1;
 
             if (_frameRate != -1)
-                frameIndex = Convert.ToInt64(ts.TotalMilliseconds * _frameRate / 1000);
+            {
+                double frameIndexDouble = ts.Ticks * _frameRate / TimeSpan.TicksPerSecond;
+                frameIndex = (long)Math.Round(frameIndexDouble, MidpointRounding.AwayFromZero);
+                //???OldframeIndex = Convert.ToInt64(ts.TotalMilliseconds * _frameRate / 1000);
+            }
             else
                 Debug.WriteLine($"{CameraSide}: Error GetFrameIndexFromPosition: Can't calculate frame index, _frameRate == -1");
 

@@ -71,11 +71,11 @@ namespace Surveyor
                     _surveyCode = null;
                     _surveyAnalystName = null;
                     _surveyDepth = null;
-            }
+                }
 
 
-            // Info class version
-            public float Version { get; set; } = 1.0f;
+                // Info class version
+                public float Version { get; set; } = 1.0f;
 
                 // Values
                 private string? _surveyFileName = null;
@@ -644,6 +644,124 @@ namespace Surveyor
             }
             public CalibrationClass Calibration { get; set; } = new CalibrationClass();
 
+
+            public partial class SurveyRulesClass : INotifyPropertyChanged
+            {
+                public event PropertyChangedEventHandler? PropertyChanged;
+
+                public SurveyRulesClass()
+                {
+                }
+
+                /// <summary>
+                /// Clear down the SurveyRulesClass
+                /// </summary>
+                public void Clear()
+                {
+                    _surveyRulesActive = false;
+                    _surveyRulesData.Clear();
+                    _isDirty = false;
+                }
+
+                // SurveyRulesClass version
+                public float Version { get; set; } = 1.1f;
+
+                // Values
+                [JsonIgnore]
+                private bool? _surveyRulesActive = false;
+
+                [JsonIgnore]
+                private string? _surveyRulesInherited = null;
+
+                [JsonIgnore]
+                private SurveyRulesData _surveyRulesData = new();
+
+
+                // Setters and getters
+                [JsonProperty(nameof(SurveyRulesActive))]
+                public bool? SurveyRulesActive
+                {
+                    get => _surveyRulesActive;
+                    set
+                    {
+                        if (_surveyRulesActive != value)
+                        {
+                            _surveyRulesActive = value;
+                            IsDirty = true;
+                        }
+                    }
+                }
+
+
+                [JsonProperty(nameof(SurveyRulesInherited))]
+                public string? SurveyRulesInherited
+                {
+                    get => _surveyRulesInherited;
+                    set
+                    {
+                        if (_surveyRulesInherited != value)
+                        {
+                            _surveyRulesInherited = value;
+                            IsDirty = true;
+                        }
+                    }
+                }
+
+
+                [JsonProperty(nameof(SurveyRulesData))]
+                public SurveyRulesData SurveyRulesData
+                {
+                    get => _surveyRulesData;
+                    set
+                    {
+                        if (_surveyRulesData != value)
+                        {
+                            _surveyRulesData = value;
+                            IsDirty = true;
+                        }
+                    }
+                }
+
+
+                /// <summary>
+                /// This method will be called whenever the LeftMediaFileNames or RightMediaFileNames ObservableCollection<string> collection changes
+                /// </summary>
+                /// <param name="sender"></param>
+                /// <param name="e"></param>
+                //private void CollectionChangedHandler(object? sender, NotifyCollectionChangedEventArgs e)
+                //{
+                //    // This code will be executed when the collection is changed
+                //    IsDirty = true;
+                //}
+
+
+                [JsonIgnore]
+                private bool _isDirty;
+                [JsonIgnore]
+                public bool IsDirty
+                {
+                    get => _isDirty;
+                    set
+                    {
+                        if (_isDirty != value)
+                        {
+                            _isDirty = value;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                /// 
+                /// EVENTS
+                /// 
+                private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+                {
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                }
+
+            }
+
+            public SurveyRulesClass SurveyRules { get; set; } = new SurveyRulesClass();
         }
         public DataClass Data { get; set; } = new DataClass();
 

@@ -268,7 +268,7 @@ namespace Surveyor
                 // Handle the dialog result
                 if (result == ContentDialogResult.Primary)
                 {
-                    // Allow the user to save the survey
+                    // Allow the user to save the survey                    
                     await SaveAsSurvey();
                 }
                 else if (result == ContentDialogResult.Secondary)
@@ -543,7 +543,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FileSurveySave_Click(object sender, RoutedEventArgs e)
+        private void FileSurveySave_Click(object? sender, RoutedEventArgs? e)
         {
             if (surveyClass is not null)
             {
@@ -566,7 +566,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void FileSurveySaveAs_Click(object sender, RoutedEventArgs e)
+        private async void FileSurveySaveAs_Click(object? sender, RoutedEventArgs? e)
         {
             await SaveAsSurvey();
             SetMenuStatusBasedOnProjectState();
@@ -1507,10 +1507,10 @@ namespace Surveyor
                             Children =
                             {
                                 warningIcon, // Add the warning icon to the dialog content
-                                new TextBlock { Text = "Please proceed with caution!" }
+                                new TextBlock { Text = "Before you close this survey do you want to save the changes you have made?\n\nPress 'Yes' to save the existing survey, 'No' to close without saving" }
                             }
                         },
-                        CloseButtonText = "OK",
+                        CloseButtonText = "Cancel",
                         PrimaryButtonText = "Yes",
                         SecondaryButtonText = "No",
                         DefaultButton = ContentDialogButton.Primary, // Set the default focused button to "Yes"
@@ -1526,7 +1526,7 @@ namespace Surveyor
                     if (result == ContentDialogResult.Primary)
                     {
                         // "Yes" button clicked
-                        if (await SaveAsSurvey() == 0)
+                        FileSurveySave_Click(null, null);
                             closeProject = true;
 
                     }
@@ -1535,6 +1535,7 @@ namespace Surveyor
                         // "No" button clicked
                         closeProject = true;
                     }
+                    // If the select Cancel the Close Survey request is cancelled
                 }
                 else
                     closeProject = true;

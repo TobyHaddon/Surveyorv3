@@ -341,13 +341,22 @@ namespace Surveyor
 
                         mediaPlayerLeft.SetTimelineController(mediaTimelineController, leftOffset);
                         mediaPlayerRight.SetTimelineController(mediaTimelineController, rightOffset);
-                        Debug.WriteLine($"MediaLockMediaPlayers: Lock PositionOffset: (Left:{(((TimeSpan)leftPosition).TotalMilliseconds / 1000.0):F3},Right:{(((TimeSpan)rightPosition).TotalMilliseconds / 1000.0):F3})");
+                        Debug.WriteLine($"MediaLockMediaPlayers: Lock PositionOffset: (Left:{(((TimeSpan)leftPosition).TotalMilliseconds / 1000.0):F3},Right:{(((TimeSpan)rightPosition).TotalMilliseconds / 1000.0):F6})");
 
-                        // Engaging MedaTimelineController will cause the media players to jump to the position
+                        // Engaging MedaTimelineController will cause the media players to jump to the new start position
                         // of the MediaTimelineController. We want to lock the players but stay at the original point
                         // However once the MediaTimelineController is engaged, the Position can only be move using 
                         // MediaPlayer.TimelineController.Position. 
-                        mediaTimelineController.Position = (TimeSpan)leftPosition + (TimeSpan)mediaSynchronizedFrameOffset;
+                        if (mediaSynchronizedFrameOffset >= TimeSpan.Zero)
+                            mediaTimelineController.Position = (TimeSpan)leftPosition;
+                        else
+                            mediaTimelineController.Position = (TimeSpan)rightPosition;
+
+                        // Save the sync point as an event so the user can return to this point
+                        if (mediaSynchronizedFrameOffset >= TimeSpan.Zero)
+                            SurveyStereoSyncPointSelected((TimeSpan)leftPosition/*MediaTimelineController*/, (TimeSpan)leftPosition, (TimeSpan)rightPosition);
+                        else
+                            SurveyStereoSyncPointSelected((TimeSpan)rightPosition/*MediaTimelineController*/, (TimeSpan)leftPosition, (TimeSpan)rightPosition);
                     }
                 }
                 else
@@ -363,7 +372,7 @@ namespace Surveyor
 
                     mediaPlayerLeft.SetTimelineController(mediaTimelineController, leftOffset);
                     mediaPlayerRight.SetTimelineController(mediaTimelineController, rightOffset);
-                    Debug.WriteLine($"MediaLockMediaPlayers: PositionOffset: (Left:{(leftOffset.TotalMilliseconds / 1000.0):F3},Right:{(rightOffset.TotalMilliseconds / 1000.0):F3})");
+                    Debug.WriteLine($"MediaLockMediaPlayers: PositionOffset: (Left:{(leftOffset.TotalMilliseconds / 1000.0):F6},Right:{(rightOffset.TotalMilliseconds / 1000.0):F3})");
                 }
 
                 // Indicate we have locked the media players
@@ -1389,6 +1398,44 @@ namespace Surveyor
                         }
                         break;
                     }
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Create a Event record for a StereoSyncPoint at the current locked media position
+        /// 
+        /// </summary>
+        internal void SurveyStereoSyncPointSelected(TimeSpan timelineConntrollerPoistion, TimeSpan leftPosition, TimeSpan rightPosition)
+        {
+            // Check if the Events list is not null 
+            if (events is not null)
+            {
+                if (mediaTimelineController is not null)
+                {
+                    // Remove any existing StereoSyncPoint events
+                    // Use a reverse loop to avoid issues with changing collection indices when removing items
+                    for (int i = events.Count - 1; i >= 0; i--)
+                    {
+                        if (events[i].EventDataType == DataType.StereoSyncPoint)
+                        {
+                            events.RemoveAt(i);
+                        }
+                    }
+
+                    // Create the StereoSyncPoint event
+                    Event evt = new(DataType.StereoSyncPoint)
+                    {
+                        EventData = null
+                    };
+
+                    evt.TimeSpanTimelineController = timelineConntrollerPoistion;
+                    evt.TimeSpanLeftFrame = leftPosition;
+                    evt.TimeSpanRightFrame = rightPosition;
+
+                    // Add the species info to the Events list
+                    events!.Add(evt);
                 }
             }
         }
