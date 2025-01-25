@@ -213,8 +213,7 @@ namespace Surveyor.User_Controls
         private bool otherInstanceTargetASet = false;
         private bool otherInstanceTargetBSet = false;
 
-        // Context Menu status
-        //???private bool canvasFrameContextMenuOpen = false;
+        // Context Menu status        
         private bool canvasMagContextMenuOpen = false;
 
         // Display Pointer Coords
@@ -621,6 +620,7 @@ namespace Surveyor.User_Controls
                     var position = e.GetCurrentPoint(CanvasFrame).Position;
 
                     // Update the TextBlock to show the pointer's X and Y coordinates
+                    // Change to display in the title bar area
                     CoordinateDisplay.Text = $"{position.X:F2}, {position.Y:F2}";
                 }
             }

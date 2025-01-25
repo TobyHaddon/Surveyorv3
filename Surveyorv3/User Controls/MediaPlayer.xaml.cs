@@ -874,9 +874,10 @@ namespace Surveyor.User_Controls
                     // Signel the media duration event via mediator if known
                     if (playbackSession.NaturalDuration != TimeSpan.Zero)
                     {
-                        MediaPlayerEventData data = new(MediaPlayerEventData.eMediaPlayerEvent.Duration, CameraSide, _mode)
+                        MediaPlayerEventData data = new(MediaPlayerEventData.eMediaPlayerEvent.DurationAndFrameRate, CameraSide, _mode)
                         {
-                            duration = playbackSession.NaturalDuration
+                            duration = playbackSession.NaturalDuration,
+                            frameRate = _frameRate
                         };
                         _mediaPlayerHandler?.Send(data);
                     }
@@ -1007,9 +1008,10 @@ namespace Surveyor.User_Controls
                     // Signel the media duration event via mediator if known
                     if (_naturalDuration != TimeSpan.Zero)
                     {
-                        data = new(MediaPlayerEventData.eMediaPlayerEvent.Duration, CameraSide, _mode)
+                        data = new(MediaPlayerEventData.eMediaPlayerEvent.DurationAndFrameRate, CameraSide, _mode)
                         {
-                            duration = _naturalDuration
+                            duration = _naturalDuration,
+                            frameRate = _frameRate
                         };
                         _mediaPlayerHandler?.Send(data);
                     }
@@ -1653,8 +1655,8 @@ namespace Surveyor.User_Controls
         public enum eMediaPlayerEvent { 
             Opened, 
             Closed, 
-            Buffering, 
-            Duration, 
+            Buffering,
+            DurationAndFrameRate, 
             Playing, 
             Paused, 
             Stopped, 
@@ -1686,8 +1688,9 @@ namespace Surveyor.User_Controls
         // Only used for eMediaPlayerAction.Opened and eMediaPlayerAction.SavedFrame
         public string? mediaFileSpec;
 
-        // Only used for Duration
+        // Only used for eMediaPlayerAction.DurationAndFrameRate
         public TimeSpan? duration;
+        public double? frameRate;
 
         // Only used for Position, Mediasynchronized & FrameRendered
         public TimeSpan? position;

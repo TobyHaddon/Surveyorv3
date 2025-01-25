@@ -13,6 +13,8 @@ using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Threading.Tasks;
 using Windows.System;
 using static Surveyor.MediaStereoControllerEventData;
 #if !No_MagnifyAndMarkerDisplay
@@ -70,11 +72,15 @@ namespace Surveyor.User_Controls
         private bool _TrueYouAreFullFalseYouAreRestored = false;        
         private eCameraSide? _fullScreenCameraSide = null;
 
-        // Duration of the media (last received from the MediaPlayer)
+        // Duration and frame rate of the media (last received from the MediaPlayer)
         private TimeSpan _duration = TimeSpan.Zero;
+        private double _frameRate = 0;
 
         // Used to detect if the user is dragging the media position slider
         private bool _userIsInteractingWithSlider = false;
+
+        // Used to remember the previous focus control when the ControlFrameEdit is in use
+        private object? controlFrameTextPreviousFocus = null;
 
         // Mousewheel calibration and debounce/accumulation 
         private int _lowestMouseWheelDeltaSeen = Int32.MaxValue;
@@ -171,6 +177,7 @@ namespace Surveyor.User_Controls
                 ControlEvent.IsEnabled = true;
                 ControlSaveFrame.IsEnabled = true;
                 ControlCast.IsEnabled = true;
+                ControlPositionSeparatorText.Visibility = Visibility.Visible;
             }
             else
             {
@@ -192,6 +199,7 @@ namespace Surveyor.User_Controls
                 ControlEvent.IsEnabled = false;
                 ControlSaveFrame.IsEnabled = false;
                 ControlCast.IsEnabled = false;
+                ControlPositionSeparatorText.Visibility = Visibility.Collapsed;
 
                 // Turn off and on the event handler to prevent the slider from sending a message to
                 // the MediaSteroController as though the user has moved the slider
@@ -284,10 +292,10 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Update the duration under the slider on the right side
+        /// Update the duration under the slider on the right side and remembers the frame rate
         /// </summary>
         /// <param name="message"></param>
-        internal void UpdateDuration(MediaPlayerEventData message)
+        internal void UpdateDurationAndFrameRate(MediaPlayerEventData message)
         {
             if (message is not null && message.duration is not null)
             {
@@ -295,6 +303,12 @@ namespace Surveyor.User_Controls
                 string durationText = $"{_duration:hh\\:mm\\:ss}";
 
                 ControlDurationText.Text = durationText;
+            }
+
+            if (message is not null && message.frameRate is not null)
+            { 
+                // Remember the media frame rate
+                _frameRate = (double)message.frameRate;
             }
         }
 
@@ -309,26 +323,13 @@ namespace Surveyor.User_Controls
             {
                 // Update the position text time
                 string positionText;
+                string frameText = "";
                 positionText = $"{message.position:hh\\:mm\\:ss\\.ff}";
 
                 // Update the frame index
                 if (message.frameIndex != -1)
-                    positionText += $" / {message.frameIndex}";
+                    frameText = $"{message.frameIndex}";
 
-                //??? Temp debug
-                //switch (ControlType)
-                //{
-                //    case eControlType.Primary:
-                //        positionText += $" P";
-                //        break;
-                //    case eControlType.Secondary:
-                //        positionText += $" S";
-                //        break;
-                //    case eControlType.Both:
-                //        positionText += $" B";
-                //        break;
-                //}
-                //???
 
                 // If the user isn't currently dragging the slider we are going to
                 // update the slider position
@@ -351,12 +352,14 @@ namespace Surveyor.User_Controls
                 if (ControlType == eControlType.Primary || ControlType == eControlType.Secondary)
                 {
                     ControlPositionText.Text = positionText;
+                    ControlFrameText.Text = frameText;
                 }
                 else if (ControlType == eControlType.Both)
                 {
                     if (message.cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
                     {
                         ControlPositionText.Text = positionText;
+                        ControlFrameText.Text = frameText;
                     }
                     else if (message.cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
 
@@ -419,7 +422,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void ControlSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
         {            
-            double newValue = e.NewValue;
+            double newValue = e.NewValue;            
             TimeSpan position = TimeSpan.FromSeconds(newValue / 100 * _duration.TotalSeconds);
 
             // Signal eMediaControlEvent.UserReqFrameJump with position
@@ -913,7 +916,6 @@ namespace Surveyor.User_Controls
         }
 
 
-
         /// <summary>
         /// User requested a change to the layers displayed
         /// </summary>
@@ -1045,6 +1047,96 @@ namespace Surveyor.User_Controls
                     });
                 }
             }
+        }
+
+
+        /// <summary>
+        /// This used to allow the user to manual go to a frame
+        /// The user clicked on the frame number text box. 
+        /// Make the frame edit box visible and the frame text box invisible        
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ControlFrameText_Tapped(object sender, TappedRoutedEventArgs e)
+        {
+            // Get and remember where the current focus is
+            controlFrameTextPreviousFocus = FocusManager.GetFocusedElement(this.Content.XamlRoot);
+
+            // Make the frame edit box visible and the frame text box invisible
+            ControlFrameText.Visibility = Visibility.Collapsed;
+            ControlFrameEdit.Visibility = Visibility.Visible;
+            ControlSpeedText.Visibility = Visibility.Collapsed;
+
+            // Load the edit box with the same frame number as the text block
+            ControlFrameEdit.Text = ControlFrameText.Text;
+
+            // Set focus to the edit box and select all the text
+            ControlFrameEdit.Focus(FocusState.Programmatic);
+            ControlFrameEdit.SelectAll();
+        }
+
+
+        /// <summary>
+        /// This used to allow the user to manual go to a frame
+        /// The method detect ESC to cancel the operation and ENTER to accept the new frame number
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>        
+        private async void ControlFrameEdit_KeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Escape)
+            {
+                // Handle ESC key press
+                ControlFrameEdit.Visibility = Visibility.Collapsed;
+                e.Handled = true;
+
+                await ControlFrameEditCollapsedAndReturnFocus();
+            }
+            else if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                // Handle ENTER key press
+                e.Handled = true;
+
+                // Get the new frame number from the TextBox and request a jump to that frame
+                ProcessControlFrameEdit();
+
+                // Hide the ControlFrameEdit control and restore the original focus
+                await ControlFrameEditCollapsedAndReturnFocus();
+            }
+        }
+
+        /// <summary>
+        /// This used to allow the user to manual go to a frame
+        /// If the user clicks away from the ControlFrameEdit control then the frame is accepted 
+        /// (like pressing ENTER)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void ControlFrameEdit_LostFocus(object sender, RoutedEventArgs e)
+        {
+            // Check if the focus was lost progammically or by the user clicking away
+            if (ControlFrameText.Visibility == Visibility.Collapsed)
+            {
+                // Get the new frame number from the TextBox and request a jump to that frame
+                ProcessControlFrameEdit();
+
+                // Hide the ControlFrameEdit control and restore the original focus
+                await ControlFrameEditCollapsedAndReturnFocus();
+            }
+        }
+
+
+        /// <summary>
+        /// This used to allow the user to manual go to a frame
+        /// This method ensure only numbers are entered into the frame edit box
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        //???NEW
+        private void ControlFrameEdit_BeforeTextChanging(TextBox sender, TextBoxBeforeTextChangingEventArgs args)
+        {
+            // Validate the input and allow only numeric characters
+            args.Cancel = !args.NewText.All(char.IsDigit);
         }
 
 
@@ -1318,6 +1410,47 @@ namespace Surveyor.User_Controls
             appBarButton.KeyboardAccelerators.Add(newAccelerator2);
         }
 
+
+        /// <summary>
+        /// Used to get any frame number from the ControlFrameEdit TextBox and process it and 
+        /// request the MediaSteroController to jump to that frame
+        /// </summary>
+        private void ProcessControlFrameEdit()
+        {
+            if (long.TryParse(ControlFrameEdit.Text, out long frameIndex) == true)
+            {
+
+                double ticksPerFrameDouble = TimeSpan.TicksPerSecond / _frameRate;
+                TimeSpan position = TimeSpan.FromTicks((long)Math.Round(ticksPerFrameDouble * frameIndex, MidpointRounding.AwayFromZero));
+
+                // Signal eMediaControlEvent.UserReqFrameJump with position
+                mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameJump, ControlType) { positionJump = position });
+
+                string controls = ControlType.ToString();
+                Debug.WriteLine($"{controls}: User requested to jump to position {position}");
+
+            }
+        }
+
+
+        /// <summary>
+        /// Called to collapsed the ControlFrameEdit TextBox and return the focus to
+        /// whereever it was before
+        /// </summary>
+        private async Task ControlFrameEditCollapsedAndReturnFocus()
+        {
+            ControlFrameText.Visibility = Visibility.Visible;
+            ControlFrameEdit.Visibility = Visibility.Collapsed;
+            ControlSpeedText.Visibility = Visibility.Visible;
+
+            if (controlFrameTextPreviousFocus is not null)
+            {
+                await FocusManager.TryFocusAsync((DependencyObject)controlFrameTextPreviousFocus, FocusState.Programmatic);
+            }
+        }
+
+
+        // ***END OF MediaControl***
     }
 
 
@@ -1457,8 +1590,8 @@ namespace Surveyor.User_Controls
                         case MediaPlayerEventData.eMediaPlayerEvent.EndOfMedia:
                             break;
 
-                        case MediaPlayerEventData.eMediaPlayerEvent.Duration:
-                            SafeUICall(() => _mediaControl.UpdateDuration(mpData));
+                        case MediaPlayerEventData.eMediaPlayerEvent.DurationAndFrameRate:
+                            SafeUICall(() => _mediaControl.UpdateDurationAndFrameRate(mpData));
                             break;
 
                         case MediaPlayerEventData.eMediaPlayerEvent.Position:

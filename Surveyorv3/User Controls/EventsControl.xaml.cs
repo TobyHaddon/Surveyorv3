@@ -104,7 +104,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// CHeck for user requests via the keyboard in the event list
+        /// Check for user requests via the keyboard in the event list
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>

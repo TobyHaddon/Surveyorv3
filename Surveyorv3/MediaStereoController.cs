@@ -1532,7 +1532,7 @@ namespace Surveyor
                             _mediaStereoController.SetFrameSize(eCameraSide.Right, -1, -1);
                             break;
 
-                        case MediaPlayerEventData.eMediaPlayerEvent.Duration:
+                        case MediaPlayerEventData.eMediaPlayerEvent.DurationAndFrameRate:
                             if (data.duration is not null)
                                 _mediaStereoController.ReceiveSetNaturalDuration(data.cameraSide, (TimeSpan)data.duration);
                             break;

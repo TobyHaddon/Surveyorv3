@@ -31,8 +31,8 @@ namespace GoProMP4MetadataExtraction
                 }
 
                 // Retrieve VideoProperties for additional details
-                var videoProperties = await videoFile.Properties.GetVideoPropertiesAsync();
-
+                VideoProperties videoProperties = await videoFile.Properties.GetVideoPropertiesAsync();
+                
                 metadata["Video.Title"] = videoProperties.Title ?? "N/A";
                 metadata["Video.Duration"] = videoProperties.Duration.ToString();
                 metadata["Video.Bitrate"] = videoProperties.Bitrate.ToString();
