@@ -16,6 +16,7 @@ using System.Diagnostics;
 using System.Linq;
 
 using System.Text;
+using Windows.Web.Http;
 
 
 namespace Surveyor
@@ -139,6 +140,99 @@ namespace Surveyor
             VerticalRangeRuleActive = false;
             VerticalRangeTop = 0.0;
             VerticalRangeBottom = 0.0;
+        }
+    }
+
+    public class SurveyRulesCalc
+    {
+        public bool? SurveyRules { get; set; } = null;          // null = no survey rules, false = measurement failed the rules, true = measurement passed the rules
+        public string SurveyRulesText { get; set; } = "";    // Info on blocken rules
+
+        public double? Range { get; set; } = null;                // Distance from the left camera to the centre of the two points
+        public double? XOffset { get; set; } = null;            // X Distance between the camera system mid-point and the measurement mid-point
+        public double? YOffset { get; set; } = null;            // Y Distance between the camera system mid-point and the measurement mid-point
+        
+        public double? RMS { get; set; } = null;                // RMS error in mm
+
+        public void Clear()
+        {
+            SurveyRules = null;
+            SurveyRulesText = "";
+            Range = null;
+            XOffset = null;
+            YOffset = null;
+        }
+
+
+        /// <summary>
+        /// Apply the rules based on the stereo projection calculations
+        /// This function should only be called if survey rules are active
+        /// </summary>
+        /// <param name="surveyRulesData"></param>
+        /// <param name="stereoProjection"></param>
+        public void ApplyRules(SurveyRulesData surveyRulesData,StereoProjection stereoProjection)
+        {
+            // Start by assuming the survey passes the rules and prove otherwise
+            SurveyRules = true;
+            SurveyRulesText = "";
+
+            // Calculate range (distance from origin)
+            Range = stereoProjection.RangeFromCameraSystemCentrePointToMeasurementCentrePoint();
+
+            // Calculate the X & Y offset between the camera system mid-point and the measurement point mid-point
+            XOffset = stereoProjection.XOffsetFromCameraSystemCentrePointToMeasurementCentrePoint();
+            YOffset = stereoProjection.YOffsetFromCameraSystemCentrePointToMeasurementCentrePoint();
+
+            // Calculate RMS
+            RMS = stereoProjection.RMS(null/*TruePointAFalsePointBNullWorstCase*/);
+
+            // Check the range rule
+            if (surveyRulesData.RangeRuleActive == true)
+            {
+                if (Range < surveyRulesData.RangeMin || Range > surveyRulesData.RangeMax)
+                {
+                    SurveyRules = false;
+                    if (SurveyRulesText != "")
+                        SurveyRulesText += "\n";
+                    SurveyRulesText += "Range: " + Range + "m (" + surveyRulesData.RangeMin + "m - " + surveyRulesData.RangeMax + "m) ";
+                }
+            }   
+
+            // Check the RMS rule
+            if (surveyRulesData.RMSRuleActive == true)
+            {
+                if (RMS > surveyRulesData.RMSMax)
+                {
+                    SurveyRules = false;
+                    if (SurveyRulesText != "")
+                        SurveyRulesText += "\n";
+                    SurveyRulesText += "RMS: " + RMS + "mm (" + surveyRulesData.RMSMax + "mm) ";
+                }
+            }
+
+            // Check the horizontal range rule
+            if (surveyRulesData.HorizontalRangeRuleActive == true)
+            {
+                if (XOffset < -surveyRulesData.HorizontalRangeLeft || XOffset > surveyRulesData.HorizontalRangeRight)
+                {
+                    SurveyRules = false;
+                    if (SurveyRulesText != "")
+                        SurveyRulesText += "\n";
+                    SurveyRulesText += "Horizontal Range: " + XOffset + "m (" + -surveyRulesData.HorizontalRangeLeft + "m - " + surveyRulesData.HorizontalRangeRight + "m) ";
+                }
+            }
+
+            // Check the vertical range rule
+            if (surveyRulesData.VerticalRangeRuleActive == true)
+            {
+                if (YOffset < -surveyRulesData.VerticalRangeBottom || YOffset > surveyRulesData.VerticalRangeTop)
+                {
+                    SurveyRules = false;
+                    if (SurveyRulesText != "")
+                        SurveyRulesText += "\n";
+                    SurveyRulesText += "Vertical Range: " + YOffset + "m (" + -surveyRulesData.VerticalRangeBottom + "m - " + surveyRulesData.VerticalRangeTop + "m) ";
+                }
+            }
         }
     }
 }

@@ -194,6 +194,20 @@
                 <NavigationViewItem Content="Output" Icon="Print" Tag="OutputPage"/>
             </NavigationView.MenuItems>
 
+            <!-- TextBlock in the PaneFooter -->
+            <NavigationView.PaneFooter>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="PointerCoordinatesIndicator"
+                           Visibility="Collapsed"
+                           FontFamily="Segoe MDL2 Assets"
+                           FontSize="12" 
+                           Text="&#xE65A;"
+                           VerticalAlignment="Center">
+                    </TextBlock>
+                    <TextBlock x:Name="PointerCoordinates" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                </StackPanel>
+            </NavigationView.PaneFooter>
+            
             <!-- Frame to display content based on navigation -->
             <Frame x:Name="ContentFrame" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
         </NavigationView>

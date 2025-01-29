@@ -1189,7 +1189,7 @@ namespace Surveyor
             // stereoProject is not null if we have calibration data)
             if (events is not null && stereoProjection is not null)
             {
-                bool fullSetOfMeasurementPoint = false;
+                bool fullSetOfMeasurementPoints = false;
                 SurveyMeasurement surveyMeasurement = new();
 
                 // Check if we have a complete set of measurement points from both cameras
@@ -1209,7 +1209,7 @@ namespace Surveyor
                         surveyMeasurement.RightYA = TargetARight!.Value.Y;
                         surveyMeasurement.RightXB = TargetBRight!.Value.X;
                         surveyMeasurement.RightYB = TargetBRight!.Value.Y;
-                        fullSetOfMeasurementPoint = true;
+                        fullSetOfMeasurementPoints = true;
                     }
                 }
                 else if (cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
@@ -1228,11 +1228,11 @@ namespace Surveyor
                         surveyMeasurement.RightYA = pointA.Y;
                         surveyMeasurement.RightXB = pointB.X;
                         surveyMeasurement.RightYB = pointB.Y;
-                        fullSetOfMeasurementPoint = true;
+                        fullSetOfMeasurementPoints = true;
                     }
                 }
 
-                if (fullSetOfMeasurementPoint && mediaTimelineController is not null)
+                if (fullSetOfMeasurementPoints)
                 {
                     // Assigned the species info via a user dialog box
                     SpeciesInfo specifiesInfo = new();
@@ -1251,13 +1251,13 @@ namespace Surveyor
                         {
 
                             // This call calculates the distance, range, X & Y offset between the camera system mid-point and the measurement point mid-point
-                            if (mainWindow.DoMeasurementCalculations(surveyMeasurement) == true)
+                            if (mediaTimelineController is not null && mainWindow.DoMeasurementAndRulesCalculations(surveyMeasurement) == true)
                             {
                                 TimeSpan? timelineConntrollerPoistion = mediaTimelineController.Position;
                                 TimeSpan? leftPosition = mediaPlayerLeft.Position;
                                 TimeSpan? rightPosition = mediaPlayerRight.Position;
 
-                                if (surveyMeasurement.Distance != 0 && leftPosition is not null && rightPosition is not null)
+                                if (surveyMeasurement.Measurment != 0 && leftPosition is not null && rightPosition is not null)
                                 {
                                     evt.TimeSpanTimelineController = (TimeSpan)timelineConntrollerPoistion;
                                     evt.TimeSpanLeftFrame = (TimeSpan)leftPosition;
@@ -1296,68 +1296,109 @@ namespace Surveyor
         /// <returns></returns>
         internal async Task SurveyPointSelected(SurveyorMediaPlayer.eCameraSide cameraSide, bool TruePointAFalsePointB, Point? pointA, Point? pointB)
         {
-            SpeciesInfo specifiesInfo = new();
-
-            if (events is not null)
+            if (events is not null && stereoProjection is not null)
             {
-                // Assigned the species info via a user dialog box
-                if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo) == true)
+                DataType eventDataType = DataType.SurveyPoint;
+                if (cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
                 {
-                    DataType eventDataType = DataType.SurveyPoint;
+                    if (TruePointAFalsePointB == true && TargetARight is not null)
+                        eventDataType = DataType.SurveyStereoPoint;
+                    else if (TruePointAFalsePointB == false && TargetBRight is not null)
+                        eventDataType = DataType.SurveyStereoPoint;
+                }
+                else if (cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
+                {
+                    if (TruePointAFalsePointB == true && TargetALeft is not null)
+                        eventDataType = DataType.SurveyStereoPoint;
+                    else if (TruePointAFalsePointB == false && TargetBLeft is not null)
+                        eventDataType = DataType.SurveyStereoPoint;
+                }
+
+                // Declare a new event with the right event data type
+                Event evt = new();
+                evt.SetData(eventDataType);
+
+                // Setup the coord of a Survey Stereo Point (corresponding point on the left and right camera)
+                if (eventDataType == DataType.SurveyStereoPoint && evt.EventData is not null)
+                {
+                    SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
+
                     if (cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
                     {
-                        if (TruePointAFalsePointB == true && TargetARight is not null)
-                            eventDataType = DataType.SurveyStereoPoint;
-                        else if (TruePointAFalsePointB == false && TargetBRight is not null)
-                            eventDataType = DataType.SurveyStereoPoint;
+                        surveyStereoPoint.LeftX = TruePointAFalsePointB ? pointA!.Value.X : pointB!.Value.X;
+                        surveyStereoPoint.LeftY = TruePointAFalsePointB ? pointA!.Value.Y : pointB!.Value.Y;
+                        surveyStereoPoint.RightX = TruePointAFalsePointB ? TargetARight!.Value.X : TargetBRight!.Value.X;
+                        surveyStereoPoint.RightY = TruePointAFalsePointB ? TargetARight!.Value.Y : TargetBRight!.Value.Y;
                     }
-                    else if (cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
+                    else
                     {
-                        if (TruePointAFalsePointB == true && TargetALeft is not null)
-                            eventDataType = DataType.SurveyStereoPoint;
-                        else if (TruePointAFalsePointB == false && TargetBLeft is not null)
-                            eventDataType = DataType.SurveyStereoPoint;
-                    }
+                        surveyStereoPoint.LeftX = TruePointAFalsePointB ? TargetARight!.Value.X : TargetBRight!.Value.X;
+                        surveyStereoPoint.LeftY = TruePointAFalsePointB ? TargetARight!.Value.Y : TargetBRight!.Value.Y;
+                        surveyStereoPoint.RightX = TruePointAFalsePointB ? pointA!.Value.X : pointB!.Value.X;
+                        surveyStereoPoint.RightY = TruePointAFalsePointB ? pointA!.Value.Y : pointB!.Value.Y;
+                    }                    
+                }
+                // Setup the coord of a Survey Point (point on left camera only)
+                else if (eventDataType == DataType.SurveyPoint && evt.EventData is not null)
+                {
+                    SurveyPoint surveyPoint = (SurveyPoint)evt.EventData;
 
-                    // Declare a new event
-                    Event evt = new();
-                    evt.SetData(eventDataType);
+                    surveyPoint.X = TruePointAFalsePointB ? pointA!.Value.X : pointB!.Value.X;
+                    surveyPoint.Y = TruePointAFalsePointB ? pointA!.Value.Y : pointB!.Value.Y;                    
+                }
 
-                    // Setup the coord of a Survey Stereo Point (corresponding point on the left and right camera)
-                    if (eventDataType == DataType.SurveyStereoPoint && evt.EventData is SurveyStereoPoint surveyStereoPoint)
+
+                // Assigned the species info via a user dialog box
+                SpeciesInfo specifiesInfo = new();
+                if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo) == true)
+                {
+                    if (eventDataType == DataType.SurveyStereoPoint && evt.EventData is not null)
                     {
-                        if (cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
-                        {
-                            surveyStereoPoint.LeftX = TruePointAFalsePointB ? pointA!.Value.X : pointB!.Value.X;
-                            surveyStereoPoint.LeftY = TruePointAFalsePointB ? pointA!.Value.Y : pointB!.Value.Y;
-                            surveyStereoPoint.RightX = TruePointAFalsePointB ? TargetARight!.Value.X : TargetBRight!.Value.X;
-                            surveyStereoPoint.RightY = TruePointAFalsePointB ? TargetARight!.Value.Y : TargetBRight!.Value.Y;
-                        }
-                        else
-                        {
-                            surveyStereoPoint.LeftX = TruePointAFalsePointB ? TargetARight!.Value.X : TargetBRight!.Value.X;
-                            surveyStereoPoint.LeftY = TruePointAFalsePointB ? TargetARight!.Value.Y : TargetBRight!.Value.Y;
-                            surveyStereoPoint.RightX = TruePointAFalsePointB ? pointA!.Value.X : pointB!.Value.X;
-                            surveyStereoPoint.RightY = TruePointAFalsePointB ? pointA!.Value.Y : pointB!.Value.Y;
-                        }
+                        SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
                         surveyStereoPoint.SpeciesInfo = specifiesInfo;
-                    }
-                    // Setup the coord of a Survey Point (point on left camera only)
-                    else if (eventDataType == DataType.SurveyPoint && evt.EventData is SurveyPoint surveyPoint)
-                    {
-                        surveyPoint.X = TruePointAFalsePointB ? pointA!.Value.X : pointB!.Value.X;
-                        surveyPoint.Y = TruePointAFalsePointB ? pointA!.Value.Y : pointB!.Value.Y;
 
+                        // Check if suitable calibration data is available for this frame size
+                        bool isReady = await mainWindow.CheckIfMeasurementSetupIsReady();
+                        if (isReady)
+                        {
+
+                            // This call calculates the distance, range, X & Y offset between the camera system mid-point and the measurement point mid-point
+                            if (mediaTimelineController is not null && mainWindow.DoRulesCalculations(surveyStereoPoint) == true)
+                            {
+
+                                TimeSpan? timelineConntrollerPoistion = mediaTimelineController.Position;
+                                TimeSpan? leftPosition = mediaPlayerLeft.Position;
+                                TimeSpan? rightPosition = mediaPlayerRight.Position;
+
+                                if (leftPosition is not null && rightPosition is not null)
+                                {
+                                    evt.TimeSpanTimelineController = (TimeSpan)timelineConntrollerPoistion;
+                                    evt.TimeSpanLeftFrame = (TimeSpan)leftPosition;
+                                    evt.TimeSpanRightFrame = (TimeSpan)rightPosition;
+
+                                    // Add the species info to the Events list
+                                    events!.Add(evt);
+
+                                    // Remove targets
+                                    ClearCachedTargets();
+#if !No_MagnifyAndMarkerDisplay
+                                    magnifyAndMarkerDisplayLeft.SetTargets(null, null);
+                                    magnifyAndMarkerDisplayRight.SetTargets(null, null);
+#endif
+                                }
+
+                                stereoProjection.PointsClear();
+                            }
+                        }
+
+                    }
+                    else if (eventDataType == DataType.SurveyPoint && evt.EventData is not null)
+                    {
+                        SurveyPoint surveyPoint = (SurveyPoint)evt.EventData;
                         surveyPoint.SpeciesInfo = specifiesInfo;
                     }
 
-
-                    // Add the species info to the Events list
-                    events.Add(evt);
-
-                    // Remove targets
-                    ClearCachedTargets();
-                }
+                }                
             }
         }
 

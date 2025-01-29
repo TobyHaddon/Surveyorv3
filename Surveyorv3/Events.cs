@@ -87,22 +87,29 @@ namespace Surveyor.Events
     public class SurveyStereoPoint : StereoPoint
     {
         public SpeciesInfo SpeciesInfo { get; set; } = new();
+
+        // Survey rules results
+        public SurveyRulesCalc SurveyRulesCalc { get; set; } = new();
+
+        // Calibration ID used to calculate the measurement
+        public Guid? CalibrationID { get; set; } = null;
     }
 
     // Used if pairs of points in both the left and right image are set and a
     // measurement is sucessfully calulated
     public class SurveyMeasurement : StereoPairPoints
     {
+        // Fish species info
         public SpeciesInfo SpeciesInfo { get; set; } = new();
 
-        public double? Distance { get; set; } = -1; // Distance between the two points
-        public double? Range { get; set; } = -1;   // Distance from the left camera to the centre of the two points
+        // Fish measurement
+        public double? Measurment { get; set; } = -1; 
 
-        public double? XOffset { get; set; } = null; // X Distance between the camera system mid-point and the measurement mid-point
+        // Survey rules result used to calculate the rules
+        public SurveyRulesCalc SurveyRulesCalc { get; set; } = new();
 
-        public double? YOffset { get; set; } = null; // Y Distance between the camera system mid-point and the measurement mid-point
-
-        public Guid? CalibrationID { get; set; } = null; // The ID of the calibration event used to calculate the measurement
+        // Calibration ID used to calculate the measurement
+        public Guid? CalibrationID { get; set; } = null;
     }
 
     public class SpeciesInfo

@@ -60,12 +60,13 @@
                                 <TextBlock x:Name="ControlPositionSeparatorText" Text="/" FontSize="12" Foreground="{ThemeResource TextFillColorPrimary}" 
                                            Margin="5,0,0,0"/>
                                 <!-- Media frame number and frame edit -->
-                                <TextBlock x:Name="ControlFrameText" Text="0" FontSize="12" Foreground="{ThemeResource TextFillColorPrimary}" 
-                                           Padding="0,0,0,0" Margin="5,0,0,0" 
+                                <TextBlock x:Name="ControlFrameText" FontSize="12" Foreground="{ThemeResource TextFillColorPrimary}" 
+                                           Padding="0,0,0,0" Margin="3,0,0,0" 
                                            Tapped="ControlFrameText_Tapped"/>
                                 <TextBox x:Name="ControlFrameEdit" Visibility="Collapsed" FontSize="12"  Height="18"
-                                         VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorPrimary}" 
-                                         MinWidth="50" Padding="0,0,0,0" Margin="5,0,0,0" 
+                                         VerticalAlignment="Center"
+                                         Foreground="{ThemeResource TextFillColorPrimary}" 
+                                         MinWidth="50" Padding="0,0,0,0" Margin="5,0,0,0"
                                          BeforeTextChanging="ControlFrameEdit_BeforeTextChanging"
                                          KeyDown="ControlFrameEdit_KeyDown"
                                          LostFocus="ControlFrameEdit_LostFocus"/>
@@ -76,7 +77,7 @@
                                        HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             <!-- Media frame Text -->
                             <TextBlock Grid.Row="1" Grid.Column="2" x:Name="ControlDurationText" Text="000000" FontSize="12" Foreground="{ThemeResource TextFillColorPrimary}" 
-                                       HorizontalAlignment="Right" Padding="10,0,10,10"/>
+                                       HorizontalAlignment="Right" Padding="10,0,10,0"/>
                         </Grid>
 
                         <!-- Step Back 10 Seconds Media Control Button, ED3C -->

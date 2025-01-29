@@ -81,12 +81,12 @@ namespace Surveyor
         }
 
         // Display Pointer Coordinates on screen
-        public static bool DisplayPointerCoordinates
+        public static bool DiagnosticInformation
         {
             get
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                if (localSettings.Values["DisplayPointerCoordinates"] is not bool displayPointerCoordinates)
+                if (localSettings.Values["DiagnosticInformation"] is not bool displayPointerCoordinates)
                     displayPointerCoordinates = false;
 
                 return displayPointerCoordinates;
@@ -94,7 +94,7 @@ namespace Surveyor
             set
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                localSettings.Values["DisplayPointerCoordinates"] = value;
+                localSettings.Values["DiagnosticInformation"] = value;
             }
         }
 

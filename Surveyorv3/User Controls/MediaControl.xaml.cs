@@ -1639,8 +1639,6 @@ namespace Surveyor.User_Controls
                         break;
                 }
             }
-
         }
-
     }
 }

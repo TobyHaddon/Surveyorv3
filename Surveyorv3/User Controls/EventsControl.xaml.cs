@@ -253,71 +253,98 @@ namespace Surveyor.User_Controls
     /// <summary>
     /// Make the Event description string
     /// </summary>
-    public class EventDataToStringConverter : IValueConverter
+    public partial class EventDataToStringConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {
             if (value is Surveyor.Events.Event eventItem)
             {
-                StringBuilder sb = new StringBuilder();
+                StringBuilder sb = new();
+
                 // Combine various properties into a readable string
-                if (eventItem.EventData is Surveyor.Events.SurveyMeasurement surveyMeasurement)
+                if (eventItem.EventData is Surveyor.Events.SurveyMeasurement ||
+                    eventItem.EventData is Surveyor.Events.SurveyStereoPoint)
                 {
+                    // Get the species info/Measurement/Survey rules calcs
+                    SpeciesInfo? speciesInfo = null;
+                    double? measurment = null;
+                    SurveyRulesCalc? surveyRulesCalc = null;
+
+                    if (eventItem.EventData is Surveyor.Events.SurveyMeasurement surveyMeasurement)
+                    {
+                        speciesInfo = surveyMeasurement.SpeciesInfo;
+                        measurment = surveyMeasurement.Measurment;
+                        surveyRulesCalc = surveyMeasurement.SurveyRulesCalc;
+                    }
+                    else if (eventItem.EventData is Surveyor.Events.SurveyStereoPoint surveyStereoPoint)
+                    {
+                        speciesInfo = surveyStereoPoint.SpeciesInfo;
+                        surveyRulesCalc = surveyStereoPoint.SurveyRulesCalc;
+                    }
+
+                    
+
+
                     // Species/Genus/Family
-                    if (!string.IsNullOrEmpty(surveyMeasurement.SpeciesInfo.Species))
-                        sb.Append($"{surveyMeasurement.SpeciesInfo.Species}");
-                    else if (!string.IsNullOrEmpty(surveyMeasurement.SpeciesInfo.Genus))
-                        sb.Append($"{surveyMeasurement.SpeciesInfo.Genus}");
-                    else if (!string.IsNullOrEmpty(surveyMeasurement.SpeciesInfo.Family))
-                        sb.Append($"{surveyMeasurement.SpeciesInfo.Family}");
+                    if (speciesInfo is not null)
+                    {
+                        if (!string.IsNullOrEmpty(speciesInfo.Species))
+                            sb.Append($"{speciesInfo.Species}");
+                        else if (!string.IsNullOrEmpty(speciesInfo.Genus))
+                            sb.Append($"{speciesInfo.Genus}");
+                        else if (!string.IsNullOrEmpty(speciesInfo.Family))
+                            sb.Append($"{speciesInfo.Family}");
+                    }
 
                     // Length of the fish
-                    if (surveyMeasurement.Distance is not null  &&surveyMeasurement.Distance != 0)
+                    if (measurment is not null && measurment != 0)
                     {
                         if (sb.Length > 0)
                             sb.Append(", ");
-                        sb.Append($"{surveyMeasurement.Distance * 1000:F0}mm long");
+                        sb.Append($"{measurment * 1000:F0}mm long");
                     }
 
                     // Range from the camera 
-                    if (surveyMeasurement.Range is not null && surveyMeasurement.Range > 0)
+                    if (surveyRulesCalc is not null && surveyRulesCalc.Range is not null && surveyRulesCalc.Range > 0)
                     {
                         if (sb.Length > 0)
                             sb.Append(", ");
-                        sb.Append($"{surveyMeasurement.Range:F2}m away");
+                        sb.Append($"{surveyRulesCalc.Range:F2}m away");
                     }
 
                     // XOffset
-                    if (surveyMeasurement.XOffset is not null && surveyMeasurement.XOffset != 0)
+                    if (surveyRulesCalc is not null && surveyRulesCalc.XOffset is not null && surveyRulesCalc.XOffset != 0)
                     {
                         if (sb.Length > 0)
                             sb.Append(", ");
-                        if (surveyMeasurement.XOffset == 0)
+                        if (surveyRulesCalc.XOffset == 0)
                             sb.Append($"Horzontially central");
-                        else if (surveyMeasurement.XOffset > 0)
-                            sb.Append($"{surveyMeasurement.XOffset:F2}m to the right");
-                        else if (surveyMeasurement.XOffset < 0)
-                            sb.Append($"{-surveyMeasurement.XOffset:F2}m to the left");
+                        else if (surveyRulesCalc.XOffset > 0)
+                            sb.Append($"{surveyRulesCalc.XOffset:F2}m to the right");
+                        else if (surveyRulesCalc.XOffset < 0)
+                            sb.Append($"{-surveyRulesCalc.XOffset:F2}m to the left");
                     }
 
                     // YOffset
-                    if (surveyMeasurement.YOffset is not null && surveyMeasurement.YOffset != 0)
+                    if (surveyRulesCalc is not null && surveyRulesCalc.YOffset is not null && surveyRulesCalc.YOffset != 0)
                     {
                         if (sb.Length > 0)
                             sb.Append(", ");
-                        if (surveyMeasurement.YOffset == 0)
+                        if (surveyRulesCalc.YOffset == 0)
                             sb.Append($"Horzontially central");
-                        else if (surveyMeasurement.YOffset > 0)
-                            sb.Append($"{surveyMeasurement.YOffset:F2}m below");
-                        else if (surveyMeasurement.YOffset < 0)
-                            sb.Append($"{-surveyMeasurement.YOffset:F2}m above");
+                        else if (surveyRulesCalc.YOffset > 0)
+                            sb.Append($"{surveyRulesCalc.YOffset:F2}m below");
+                        else if (surveyRulesCalc.YOffset < 0)
+                            sb.Append($"{-surveyRulesCalc.YOffset:F2}m above");
                     }
                 }
                 else if (eventItem.EventData is Surveyor.Events.SurveyPoint surveyPoint)
                 {
                     sb.AppendLine($"Species: {surveyPoint.SpeciesInfo.Species}");
                 }
+
                 // Add other conditions as necessary
+
                 return sb.ToString();
             }
             return string.Empty;

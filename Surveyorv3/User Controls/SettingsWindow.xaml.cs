@@ -5,6 +5,8 @@
 // 
 // Version 1.1
 // 2025-01-17 Intregrated with new SurveyInfoAndMedia user control
+// Version 1.2
+// 2025-01-25 Stop the flashing on load between themes
 
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
@@ -50,6 +52,8 @@ namespace Surveyor.User_Controls
             this.InitializeComponent();
             this.Closed += SettingsWindow_Closed;
 
+            // Set the current saved theme
+            SetSettingsTheme(SettingsManager.ApplicationTheme);
 
             // Inform the SurveyInfoAndMedia user control that is is being used in the SettingsWindow
             SurveyInfoAndMedia.SetupForSettingWindow(SettingsCardSurveyInfoAndMedia, surveyClass);
@@ -80,9 +84,6 @@ namespace Surveyor.User_Controls
                 (workArea.Width - adjustedWidth) / 2,
                 (workArea.Height - adjustedHeight) / 2
             ));
-
-            // Set the current saved theme
-            SetSettingsTheme(SettingsManager.ApplicationTheme);
 
             // Setup the Setting page
             OnSettingsPageLoaded(SettingsManager.ApplicationTheme);
@@ -256,14 +257,19 @@ namespace Surveyor.User_Controls
             if (diagnosticInformation.IsOn)
             {
                 // Enable diagnostic information
-                SettingsManager.DisplayPointerCoordinates = true;
+                SettingsManager.DiagnosticInformation = true;
             }
             else
             {
                 // Disable diagnostic information
-                SettingsManager.DisplayPointerCoordinates = false;
+                SettingsManager.DiagnosticInformation = false;
             }
-            
+
+            // Inform everyone of the state change
+            _settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.DiagnosticInformation)
+            {
+                diagnosticInformation = diagnosticInformation.IsOn
+            });
         }
 
         private void magnifierWindowAutomatic_Toggled(object sender, RoutedEventArgs e)
@@ -350,13 +356,17 @@ namespace Surveyor.User_Controls
 
         public enum eSettingsWindowEvent
         {
-            MagnifierWindow     // The Magnifier Window has been toggled
+            MagnifierWindow,        // The Magnifier Window has been toggled
+            DiagnosticInformation   // Diagnostic Information has changed
         }
 
         public readonly eSettingsWindowEvent settingsWindowEvent;
 
-        // Only used for eSettingsWindowEvent.settingsWindowEvent
+        // Only used for settingsWindowEvent.MagnifierWindow
         public bool? magnifierWindowAutomatic;
+
+        // Only used for settingsWindowEvent.DiagnosticInformation
+        public bool? diagnosticInformation;
 
     }
 
@@ -375,8 +385,6 @@ namespace Surveyor.User_Controls
         {
             // In case we need later
         }
-
     }
-
 }
 

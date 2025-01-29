@@ -52,14 +52,6 @@
                        PointerMoved="Target_PointerMoved" />
             <Rectangle Name="TargetB" Width="31" Height="31" Fill="Transparent" Visibility="Collapsed"                       
                        PointerMoved="Target_PointerMoved" />
-
-            <TextBlock x:Name="CoordinateDisplay"
-                       FontFamily="Consolas"
-                       FontSize="14"        
-                       Foreground="Black"
-                       HorizontalAlignment="Right"
-                       VerticalAlignment="Bottom"
-                       Text="X: 0, Y: 0"/>
         </Canvas>
 
         <!-- CanvasMag is the magnified portion of the Image we are serving. The border    -->

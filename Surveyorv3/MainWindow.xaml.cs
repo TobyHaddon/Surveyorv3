@@ -302,6 +302,26 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// Display the passed pointer coordicates in a textbox on the navigation panel
+        /// Pass x=-1 to clear the display
+        /// </summary>
+        /// <param name="x"></param>
+        /// <param name="y"></param>
+        public void DisplayPointerCoordinates(double x, double y)
+        {
+            if (x != -1)
+            {
+                PointerCoordinates.Text = $"{x:F2}, {y:F2}";
+                PointerCoordinatesIndicator.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                PointerCoordinates.Text = "";
+                PointerCoordinatesIndicator.Visibility = Visibility.Collapsed;
+            }
+        }
+
 
         ///
         /// EVENTS
@@ -582,33 +602,6 @@ namespace Surveyor
         {
             await CheckForOpenSurveyAndClose();
 
-//???            mediaStereoController.MediaClose();
-
-//#if !No_MagnifyAndMarkerDisplay
-//            MagnifyAndMarkerDisplayLeft.Close();
-//            MagnifyAndMarkerDisplayRight.Close();
-//#endif
-
-//            projectClass?.ProjectClose();
-
-//            SetTitle("");
-//            SetLockUnlockIndicator(null, null);
-//            MenuSurveyOpen.IsEnabled = true;
-//            MenuSurveyClose.IsEnabled = false;
-//            MenuFileLockUnlockMediaPlayers.IsEnabled = false;
-//            MenuSurveySave.IsEnabled = false;
-
-//            // Clear the measurement class by loaded an empty calibration class
-//            stereoProjection.SetCalibrationData(new Project.DataClass.CalibrationClass());
-//            SetCalibratedIndicator(null, null);
-
-//            // Display both media controls
-//            MediaControlsDisplayMode(false);
-
-//            // Clear title
-//            titlebarTitle = "";
-//            titlebarCameraSide = "";
-//            titlebarSaveStatus = "";
         }
 
 
@@ -2018,7 +2011,8 @@ namespace Surveyor
 
                             if (result == ContentDialogResult.Primary)
                             {
-                                // Update the event measurements
+                                // Update the event measurements if the Calibration ID is different
+                                // there has been a recalibration
                                 foreach (Event evt in surveyClass.Data.Events.EventList)
                                 {
                                     if (evt.EventDataType == DataType.SurveyMeasurementPoints && evt.EventData is not null)
@@ -2026,7 +2020,17 @@ namespace Surveyor
                                         SurveyMeasurement surveyMeasurement = (SurveyMeasurement)evt.EventData;
                                         if (surveyMeasurement.CalibrationID != calibrationID)
                                         {
-                                            DoMeasurementCalculations(surveyMeasurement);
+                                            // Recalculate for a measurement
+                                            DoMeasurementAndRulesCalculations(surveyMeasurement);
+                                        }
+                                    }
+                                    else if (evt.EventDataType == DataType.SurveyStereoPoint && evt.EventData is not null)
+                                    {
+                                        SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
+                                        if (surveyStereoPoint.CalibrationID != calibrationID)
+                                        {
+                                            // Recalculate for a stero point
+                                            DoRulesCalculations(surveyStereoPoint);
                                         }
                                     }
                                 }
@@ -2042,10 +2046,11 @@ namespace Surveyor
         /// Populate the SurveyMeasurement with the measurement calculates from the stereo projection
         /// Note the LeftX, LeftY, RightX, RightY should have already been loaded in 
         /// SurveyMeasurement surveyMeasurement
+        /// Survey rules are also calculated
         /// </summary>
         /// <param name="surveyMeasurement"></param>
         /// <returns></returns>
-        public bool DoMeasurementCalculations(SurveyMeasurement surveyMeasurement)
+        public bool DoMeasurementAndRulesCalculations(SurveyMeasurement surveyMeasurement)
         {
             if (stereoProjection.PointsLoad(
                 new Point(surveyMeasurement.LeftXA, surveyMeasurement.LeftYA),
@@ -2055,14 +2060,21 @@ namespace Surveyor
             {
 
                 // Calculate fish length
-                surveyMeasurement.Distance = stereoProjection.Measurement();
+                surveyMeasurement.Measurment = stereoProjection.Measurement();
 
-                // Calculate range (distance from origin)
-                surveyMeasurement.Range = stereoProjection.RangeFromCameraSystemCentrePointToMeasurementCentrePoint();
 
-                // Calculate the X & Y offset between the camera system mid-point and the measurement point mid-point
-                surveyMeasurement.XOffset = stereoProjection.XOffsetFromCameraSystemCentrePointToMeasurementCentrePoint();
-                surveyMeasurement.YOffset = stereoProjection.YOffsetFromCameraSystemCentrePointToMeasurementCentrePoint();
+                // Apply the survey rules
+                if (surveyClass is not null && 
+                    surveyClass.Data.SurveyRules.SurveyRulesActive is not null && 
+                    surveyClass.Data.SurveyRules.SurveyRulesActive == true)
+                {
+                    surveyMeasurement.SurveyRulesCalc.ApplyRules(surveyClass.Data.SurveyRules.SurveyRulesData, stereoProjection);
+                }
+                else
+                {
+                    // No rules applied
+                    surveyMeasurement.SurveyRulesCalc.Clear();
+                }
 
                 // Record the calidation data Guid used to calculate the measurement
                 // This is used to enable recalulation of the measurement if the calibration data is changed
@@ -2074,6 +2086,45 @@ namespace Surveyor
             return false;
         }
 
+
+        /// <summary>
+        /// Populate the SurveyMeasurement with the measurement calculates from the stereo projection
+        /// Note the LeftX, LeftY, RightX, RightY should have already been loaded in 
+        /// SurveyMeasurement surveyMeasurement
+        /// Survey rules are also calculated
+        /// </summary>
+        /// <param name="surveyMeasurement"></param>
+        /// <returns></returns>
+        public bool DoRulesCalculations(SurveyStereoPoint surveyStereoPoint)
+        {
+            if (stereoProjection.PointsLoad(
+                new Point(surveyStereoPoint.LeftX, surveyStereoPoint.LeftY),
+                null/*Left Point B*/,
+                new Point(surveyStereoPoint.RightX, surveyStereoPoint.RightY),
+                null/*Right Point B*/) == true)
+            {
+                // Apply the survey rules
+                if (surveyClass is not null &&
+                    surveyClass.Data.SurveyRules.SurveyRulesActive is not null &&
+                    surveyClass.Data.SurveyRules.SurveyRulesActive == true)
+                {
+                    surveyStereoPoint.SurveyRulesCalc.ApplyRules(surveyClass.Data.SurveyRules.SurveyRulesData, stereoProjection);
+                }
+                else
+                {
+                    // No rules applied
+                    surveyStereoPoint.SurveyRulesCalc.Clear();
+                }
+
+                // Record the calidation data Guid used to calculate the measurement
+                // This is used to enable recalulation of the measurement if the calibration data is changed
+                surveyStereoPoint.CalibrationID = stereoProjection.GetCalibrationID();
+
+                return true;
+            }
+
+            return false;
+        }
 
         /// <summary>
         /// Set the title text elements of the titlebar title text

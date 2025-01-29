@@ -61,6 +61,7 @@ using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using Windows.Foundation;               // Point class
 using Windows.Graphics.Imaging;         // BitmapTransform
+using Windows.Media;
 using Windows.Storage.Streams;
 using static Surveyor.User_Controls.SettingsWindowEventData;
 
@@ -217,7 +218,7 @@ namespace Surveyor.User_Controls
         private bool canvasMagContextMenuOpen = false;
 
         // Display Pointer Coords
-        private bool displayPointerCoords = false;
+        public bool DisplayPointerCoords { get; set; } = false;
 
         public MagnifyAndMarkerDisplay()
         {
@@ -359,7 +360,7 @@ namespace Surveyor.User_Controls
             RemoveCanvasShapesByTag("EpipolarLine");
 
             // Do coordinate need to be displayed
-            displayPointerCoords = SettingsManager.DisplayPointerCoordinates;
+            DisplayPointerCoords = SettingsManager.DiagnosticInformation;
  
 
             // Set the image loaded flag
@@ -614,14 +615,14 @@ namespace Surveyor.User_Controls
                 RemoveAnyLineHightLights();
 
                 // If required display the pointer coordinates
-                if (displayPointerCoords)
+                if (DisplayPointerCoords)
                 {
                     // Get the pointer position relative to the canvas
                     var position = e.GetCurrentPoint(CanvasFrame).Position;
 
                     // Update the TextBlock to show the pointer's X and Y coordinates
                     // Change to display in the title bar area
-                    CoordinateDisplay.Text = $"{position.X:F2}, {position.Y:F2}";
+                    _mainWindow?.DisplayPointerCoordinates(position.X, position.Y);
                 }
             }
         }
@@ -658,8 +659,7 @@ namespace Surveyor.User_Controls
                 // Display the context menu if the right pointer button is pressed 
                 else if (pointerPoint.Properties.PointerUpdateKind == PointerUpdateKind.RightButtonPressed)
                 {
-                    // Show the canvas context menu
-                    //???canvasFrameContextMenuOpen = true;
+                    // Show the canvas context menu                  
                     DisplayCanvasContextMenu(sender, e);
                 }
             }
@@ -812,15 +812,6 @@ namespace Surveyor.User_Controls
                         SetTargetOnCanvasMag(rectangle, pointerRelativeToCanvasMag.Position.X, pointerRelativeToCanvasMag.Position.Y, TargetIconType.Moved);
                         Debug.WriteLine($"CanvasMag_PointerMoved Dragging target...   Image Coords:({pointerRelativeToImageMag.Position.X + rectMagWindowScreen.X:F1}, {pointerRelativeToImageMag.Position.Y + rectMagWindowScreen.Y:F1}),  ImageMag Screen Coords:({pointerRelativeToImageMag.Position.X:F1}, {pointerRelativeToImageMag.Position.Y:F1})");
                     }
-                    //??? Don't think this is needed
-                    //else
-                    //{
-                    //    Debug.Assert(false, "CanvasMag_PointerMoved: This code should never be reach now");
-                    //    // ???
-                    //    // Grey the target icon to indicate we are out of bounds
-                    //    SetTargetIconOnCanvas(rectangle, pointerRelativeToCanvasMag.Position.X, pointerRelativeToCanvasMag.Position.Y, TargetIconType.Moved, false/*TrueCanvasFalseMagCanvas*/);
-                    //    Debug.WriteLine($"CanvasMag_PointerMoved *Dragging out of bounds*   Image Coords:({pointerRelativeToImageMag.Position.X + rectMagWindowScreen.X:F1}, {pointerRelativeToImageMag.Position.Y + rectMagWindowScreen.Y:F1}),  ImageMag Screen Coords:({pointerRelativeToImageMag.Position.X:F1}, {pointerRelativeToImageMag.Position.Y:F1})");
-                    //}
                 }
 
                 // If we got this message then we are not hovering over either Canvas Frame target A or B
@@ -828,6 +819,17 @@ namespace Surveyor.User_Controls
                 {
                     hoveringOverTargetTrueAFalseB = null;
                     Debug.WriteLine($"CanvasMag_PointerMoved: Set hoveringOverTargetTrueAFalseB = null");
+                }
+
+                // If required display the pointer coordinates
+                if (DisplayPointerCoords)
+                {
+                    // Get the pointer position relative to the canvas
+                    var position = e.GetCurrentPoint(CanvasFrame).Position;
+
+                    // Update the TextBlock to show the pointer's X and Y coordinates
+                    // Change to display in the title bar area
+                    _mainWindow?.DisplayPointerCoordinates(position.X, position.Y);
                 }
 
                 // Stop this event bubbling up to CanvasFrame
@@ -1360,12 +1362,6 @@ namespace Surveyor.User_Controls
                 TransferTargetsBetweenVariableAndCanvasFrame(true/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
                 TransferTargetsBetweenVariableAndCanvasFrame(false/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);                
             }
-
-            // Move the coordinates display to the bottom right corner
-            // Position the TextBlock in the bottom-right corner of the Canvas
-            // Subtract a margin (e.g., 10 pixels) from the Canvas width and height to keep some padding
-            Canvas.SetLeft(CoordinateDisplay, CanvasFrame.ActualWidth - CoordinateDisplay.ActualWidth - 10);
-            Canvas.SetTop(CoordinateDisplay, CanvasFrame.ActualHeight - CoordinateDisplay.ActualHeight - 10);
         }
 
         private void AdjustCanvasSizeAndScaling()
@@ -1966,8 +1962,8 @@ namespace Surveyor.User_Controls
                                 }
 
 
-                                if (surveyMeasurement is not null && surveyMeasurement.Distance is not null)
-                                    DrawEventStereoMeasurementPoints(evt.Guid, pointA, pointB, surveyMeasurement.SpeciesInfo, (double)surveyMeasurement.Distance);
+                                if (surveyMeasurement is not null && surveyMeasurement.Measurment is not null)
+                                    DrawEventStereoMeasurementPoints(evt.Guid, pointA, pointB, surveyMeasurement.SpeciesInfo, (double)surveyMeasurement.Measurment);
                             }
                             // Draw the SurveyStereoPoint
                             else if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
@@ -2666,7 +2662,21 @@ namespace Surveyor.User_Controls
             this.isAutoMagnify = isAutoMagnify;
         }
 
-        // ***END OF MagnifyAndMarkerControl***
+
+        /// <summary>
+        /// The user changes the Diagnostic Information setting
+        /// </summary>
+        /// <param name="diagnosticInformation"></param>
+        internal void SetDiagnosticInformation(bool diagnosticInformation)
+        {
+            DisplayPointerCoords = diagnosticInformation;
+            if (diagnosticInformation)
+               
+                // Hide pointer coords
+                _mainWindow?.DisplayPointerCoordinates(-1, -1);
+        }
+
+    // ***END OF MagnifyAndMarkerControl***
     }
 
 
@@ -2906,6 +2916,14 @@ namespace Surveyor.User_Controls
                     // The user has changed the auto magnify setting
                     case eSettingsWindowEvent.MagnifierWindow:
                         SafeUICall(() => _magnifyAndMarkerControl.SetIsAutoMagnify((bool)data!.magnifierWindowAutomatic!));
+                        break;
+
+                    // The user has changed the Diagnostic Information settings
+                    case eSettingsWindowEvent.DiagnosticInformation:
+                        if (data.diagnosticInformation is not null)
+                        {
+                            _magnifyAndMarkerControl.SetDiagnosticInformation((bool)data!.diagnosticInformation);
+                        }
                         break;
                 }
             }

@@ -9,14 +9,13 @@ using Windows.Foundation;
 
 
 
-
 namespace Surveyor
 {
     /// <summary>
     /// StereoProjection Version 1.3
     /// This class is used to calculate the distance between a pair of corresponding 2D points in the left and right images
     /// It intentionally uses a mixture of Emgu.CV and MathNET.Numerics types and also System.Drawing (where the System.Windows.Point and System.Drawing.Point types are not compatible)
-    /// Modiifed for WinUI3
+    /// Modifed for WinUI3
     /// </summary>
 
     public class StereoProjection
@@ -33,15 +32,19 @@ namespace Surveyor
         private Matrix<double>?[]? fundamentalMatrixArray = null;
         private MCvPoint3D64f?[]? cameraSystemCentreArray = null;
 
-        //// Remembered 2D measurement points
+        // Remembered 2D measurement points
         private Point? LPointA = null;
         private Point? LPointB = null;
         private Point? RPointA = null;
         private Point? RPointB = null;
 
-        //// Calculated 3D versions of the 2D measurement points
+        // Calculated 3D versions of the 2D measurement points
         private MCvPoint3D64f?[]? vecAUndistortedArray = null;
         private MCvPoint3D64f?[]? vecBUndistortedArray = null;
+
+        // RMS errors
+        private double? RMSErrorA = null;
+        private double? RMSErrorB = null;
 
         // Calculated mid-point of the 3D measurement points 
         private MCvPoint3D64f?[]? vecABMidArray = null;
@@ -192,6 +195,10 @@ namespace Surveyor
             vecAUndistortedArray = null;
             vecBUndistortedArray = null;
             vecABMidArray = null;
+
+            // Reset RMS errors
+            RMSErrorA = null;
+            RMSErrorB = null;
         }
 
 
@@ -398,6 +405,45 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Return the calculated RMS real world error for the measurement points
+        /// Called can request either the RMS for a PointA set, PointB set or the worst case of both
+        /// </summary>
+        /// <param name="TruePointAFalsePointBNullWorstCase"></param>
+        /// <returns></returns>
+        public double? RMS(bool? TruePointAFalsePointBNullWorstCase)
+        {
+            double? ret = null;
+
+            if (TruePointAFalsePointBNullWorstCase == true)
+            {
+                ret = RMSErrorA;
+            }
+            else if (TruePointAFalsePointBNullWorstCase == false)
+            {
+                ret = RMSErrorB;
+            }
+            else
+            {
+                // WorstCase
+                if (RMSErrorA is not null && RMSErrorB is not null)
+                {
+                    ret = Math.Max((double)RMSErrorA, (double)RMSErrorB);
+                }
+                else if (RMSErrorA is not null)
+                {
+                    ret = RMSErrorA;
+                }
+                else if (RMSErrorB is not null)
+                {
+                    ret = RMSErrorB;
+                }
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
         /// Calulcate the epipolar line for a given point (distorted point) in the left or right image
         /// </summary>
         /// <param name="TrueLeftFalseRight"></param>
@@ -563,8 +609,10 @@ namespace Surveyor
 
 
         /// <summary>
-        /// This method is used to prepare an undistorted 3D point from a 2D points set in PointsLoad()
-        /// It includes a called to IsReadyCalibrationData() so no need to call that again
+        /// This method is used to prepare an undistorted 3D point from a 2D points set in PointsLoad().
+        /// It includes a called to IsReadyCalibrationData() so no need to call that again.
+        /// It works on the stereo pair of points A and B ([LPointA, RPointA] and [LPointB, RPointB]) 
+        /// or a single stero point [LPointA, RPointA].
         /// </summary>
         /// <returns></returns>
         private bool IsReadyUndistortedPoints()
@@ -575,8 +623,8 @@ namespace Surveyor
             {
                 if (LPointA is not null && RPointA is not null && LPointB is not null && RPointB is not null)
                 {
-                   if (vecAUndistortedArray is null)
-                   {
+                    if (vecAUndistortedArray is null)
+                    {
                         vecAUndistortedArray = new MCvPoint3D64f?[calibrationClass!.CalibrationDataList.Count];
                         vecBUndistortedArray = new MCvPoint3D64f?[calibrationClass!.CalibrationDataList.Count];
                         vecABMidArray = new MCvPoint3D64f?[calibrationClass!.CalibrationDataList.Count];
@@ -591,8 +639,8 @@ namespace Surveyor
                                 if (cdp is not null &&
                                     cdp.FrameSizeCompare(frameWidth, frameHeight))
                                 {
-                                    MCvPoint3D64f? vecAUndistorted = Convert2DTo3D(cdp, (Point)LPointA, (Point)RPointA, true/*TrueUndistort*/);
-                                    MCvPoint3D64f? vecBUndistorted = Convert2DTo3D(cdp, (Point)LPointB, (Point)RPointB, true/*TrueUndistort*/);
+                                    MCvPoint3D64f? vecAUndistorted = Convert2DTo3D(cdp, (Point)LPointA, (Point)RPointA, true/*TrueUndistort*/, out RMSErrorA);
+                                    MCvPoint3D64f? vecBUndistorted = Convert2DTo3D(cdp, (Point)LPointB, (Point)RPointB, true/*TrueUndistort*/, out RMSErrorB);
 
                                     if (vecAUndistorted is not null && vecBUndistorted is not null)
                                     {
@@ -611,6 +659,8 @@ namespace Surveyor
                                         vecAUndistortedArray[i] = null;
                                         vecBUndistortedArray[i] = null;
                                         vecABMidArray[i] = null;
+                                        RMSErrorA = null;
+                                        RMSErrorB = null;
                                     }
                                 }
                             }
@@ -618,7 +668,52 @@ namespace Surveyor
                             ret = true;
                         }
                     }
-                }                
+                }
+                else if (LPointA is not null && RPointA is not null)
+                {
+                    if (vecAUndistortedArray is null)
+                    {
+                        vecAUndistortedArray = new MCvPoint3D64f?[calibrationClass!.CalibrationDataList.Count];
+                        vecBUndistortedArray = null;
+                        vecABMidArray = new MCvPoint3D64f?[calibrationClass!.CalibrationDataList.Count];
+
+                        if (vecAUndistortedArray is not null && vecABMidArray is not null)
+                        {
+                            // Calculate the undistorted 3D points
+                            for (int i = 0; i < calibrationClass!.CalibrationDataList.Count; i++)
+                            {
+                                CalibrationData? cdp = calibrationClass.CalibrationDataList[i];
+
+                                if (cdp is not null &&
+                                    cdp.FrameSizeCompare(frameWidth, frameHeight))
+                                {
+                                    MCvPoint3D64f? vecAUndistorted = Convert2DTo3D(cdp, (Point)LPointA, (Point)RPointA, true/*TrueUndistort*/, out RMSErrorA);
+
+                                    if (vecAUndistorted is not null)
+                                    {
+                                        vecAUndistortedArray[i] = vecAUndistorted;
+
+                                        // Single stero point so vecABMidArray[] is same as vecAUndistortedArray
+                                        double midX = vecAUndistorted.Value.X;
+                                        double midY = vecAUndistorted.Value.Y;
+                                        double midZ = vecAUndistorted.Value.Z;
+
+                                        vecABMidArray[i] = new MCvPoint3D64f(midX, midY, midZ);
+                                    }
+                                    else
+                                    {
+                                        vecAUndistortedArray[i] = null;
+                                        vecABMidArray[i] = null;
+                                        RMSErrorA = null;
+                                    }
+                                }
+                            }
+
+                            ret = true;
+                        }
+                    }
+                }
+
             }
 
             return ret;
@@ -718,124 +813,6 @@ namespace Surveyor
         }
 
 
-        /// <summary>
-        /// *** THIS IS LEGACY CODE ***
-        /// Calculate the distance between a pair of corresponding 2D points in the left and right images
-        /// If there are no calibrartion data instance available, then return -1
-        /// If there are multiple calibrartion data instances available then only return calculations based of the preferred calbration data instance, 
-        /// the calculations from any other calibration data instance will be returned in the output window.
-        /// </summary>
-        /// <param name="LPointA"></param>
-        /// <param name="LPointB"></param>
-        /// <param name="RPointA"></param>
-        /// <param name="RPointB"></param>
-        /// <returns></returns>
-        //public double Distance(Point? LPointA, Point? LPointB, Point? RPointA, Point? RPointB, bool ReportDepth)
-        //{
-        //    double distance = 0;
-
-        //    if (calibrationClass is not null)
-        //    {
-        //        if (LPointA is not null && RPointA is not null && LPointB is not null && RPointB is not null)
-        //        {
-        //            // Calculate the distance between the two 3D points using the preferred calibration data instance
-        //            CalibrationData? calibrationDataPreferred = calibrationClass.GetPreferredCalibationData();
-        //            if (calibrationDataPreferred is not null)
-        //            {
-        //                MCvPoint3D64f? vecA = Convert2DTo3D(calibrationDataPreferred, (Point)LPointA, (Point)RPointA, true/*TrueUndistort*/);
-        //                MCvPoint3D64f? vecB = Convert2DTo3D(calibrationDataPreferred, (Point)LPointB, (Point)RPointB, true/*TrueUndistort*/);
-
-        //                if (vecA is not null && vecB is not null)
-        //                {
-        //                    distance = DistanceBetween3DPoints((MCvPoint3D64f)vecA, (MCvPoint3D64f)vecB);
-        //                }
-        //            }
-
-        //            // Calculate the distance and report only using the non-preferred calibration data instance (if any)
-        //            if (calibrationClass.CalibrationDataList.Count > 1)
-        //            {
-        //                foreach (CalibrationData calibrationData in calibrationClass.CalibrationDataList)
-        //                {
-        //                    // Ignore the preferred calibration data instance
-        //                    if (calibrationData != calibrationDataPreferred)
-        //                    {
-        //                        MCvPoint3D64f? vecA2 = Convert2DTo3D(calibrationData, (Point)LPointA, (Point)RPointA, true/*TrueUndistort*/);
-        //                        MCvPoint3D64f? vecB2 = Convert2DTo3D(calibrationData, (Point)LPointB, (Point)RPointB, true/*TrueUndistort*/);
-
-        //                        if (vecA2 is not null && vecB2 is not null)
-        //                        {
-        //                            double distance2 = DistanceBetween3DPoints((MCvPoint3D64f)vecA2, (MCvPoint3D64f)vecB2);
-        //                            double depthA = CalculateDistanceFromOrigin((MCvPoint3D64f)vecA2);
-        //                            double depthB = CalculateDistanceFromOrigin((MCvPoint3D64f)vecB2);
-
-        //                            report!.Out(Reporter.WarningLevel.Info, "", $"---Length using non-preferred Calibration Data[{calibrationData.Description}] Length = {distance2:F1}mm, Distance from camera red point:{depthA / 1000:F2}m, green point:{depthB / 1000:F2}m");
-
-        //                        }
-        //                    }
-        //                }
-        //            }
-        //        }
-        //    }
-
-        //    return distance;
-        //}
-
-
-        /// <summary>
-        /// *** THIS IS LEGACY CODE ***
-        /// Calculate the distance from the cameras to corresponding 2D points in the left and right images
-        /// </summary>
-        /// <param name="LPoint"></param>
-        /// <param name="LPoint"></param>
-        /// <returns></returns>
-        //public double Depth(Point? LPoint, Point? RPoint)
-        //{
-        //    double depth = 0;
-        //    if (calibrationClass is not null && calibrationClass.CalibrationDataList is not null)
-        //    {
-        //        if (LPoint is not null && RPoint is not null)
-        //        {
-        //            // Calculate the distance between the two 3D points using the preferred calibration data instance
-        //            CalibrationData? calibrationDataPreferred = calibrationClass.CalibrationDataList[calibrationClass.PreferredCalibrationDataIndex];
-        //            if (calibrationDataPreferred is not null)
-        //            {
-        //                MCvPoint3D64f? vec = Convert2DTo3D(calibrationDataPreferred, (Point)LPoint, (Point)RPoint, true/*TrueUndistort*/);
-
-        //                if (vec is not null)
-        //                {
-        //                    depth = CalculateDistanceFromOrigin((MCvPoint3D64f)vec);
-        //                    report!.Info("", $"*Depth calcs using preferred Calibration Data[{calibrationDataPreferred.Description}] Depth = {depth / 1000:F2}m");
-        //                }
-
-
-        //                // Calculate the distance and report only using the non-preferred calibration data instance (if any)
-        //                if (calibrationClass.CalibrationDataList.Count > 1)
-        //                {
-        //                    foreach (CalibrationData calibrationData in calibrationClass.CalibrationDataList)
-        //                    {
-        //                        // Ignore the preferred calibration data instance
-        //                        if (calibrationData != calibrationDataPreferred)
-        //                        {
-        //                            MCvPoint3D64f? vec2 = Convert2DTo3D(calibrationData, (Point)LPoint, (Point)RPoint, true/*TrueUndistort*/);
-
-        //                            if (vec2 is not null)
-        //                            {
-        //                                double depth2 = CalculateDistanceFromOrigin((MCvPoint3D64f)vec2);
-
-        //                                report!.Info("", $"Depth calcs using non-preferred Calibration Data[{calibrationData.Description}] Depth = {depth2 / 1000:F2}m");
-        //                            }
-        //                        }
-        //                    }
-        //                }
-
-        //            }
-        //        }
-        //    }
-
-        //    return depth;
-        //}
-
-
 
 
 
@@ -846,10 +823,11 @@ namespace Surveyor
         /// <param name="pL2D"></param>
         /// <param name="pR2D"></param>
         /// <returns></returns>
-        public static MCvPoint3D64f? Convert2DTo3D(CalibrationData cd, Point PointL2D, Point PointR2D, bool TrueUndistortedFalseDistorted)
+        public static MCvPoint3D64f? Convert2DTo3D(CalibrationData cd, Point PointL2D, Point PointR2D, bool TrueUndistortedFalseDistorted, out double? RMSRealWorld)
         {
-            //MCvPoint2D64f L2D = new MCvPoint2D64f((double)pL2D.X, (double)pL2D.Y);
-            //MCvPoint2D64f R2D = new MCvPoint2D64f((double)pR2D.X, (double)pR2D.Y);
+            // Reset
+            RMSRealWorld = 0; // Initialize RMS
+
             MathNet.Numerics.LinearAlgebra.Vector<double> L2D;
             MathNet.Numerics.LinearAlgebra.Vector<double> R2D;
 
@@ -859,24 +837,102 @@ namespace Surveyor
                 Point _pointL2D = UndistortPoint(cd.LeftCalibrationCameraData, PointL2D);
                 Point _pointR2D = UndistortPoint(cd.RightCalibrationCameraData, PointR2D);
 
-                L2D = new MathNet.Numerics.LinearAlgebra.Double.DenseVector(new double[] { _pointL2D.X, _pointL2D.Y });
-                R2D = new MathNet.Numerics.LinearAlgebra.Double.DenseVector(new double[] { _pointR2D.X, _pointR2D.Y });
+                L2D = new MathNet.Numerics.LinearAlgebra.Double.DenseVector([_pointL2D.X, _pointL2D.Y]);
+                R2D = new MathNet.Numerics.LinearAlgebra.Double.DenseVector([_pointR2D.X, _pointR2D.Y]);
             }
             else
             {
-                L2D = new MathNet.Numerics.LinearAlgebra.Double.DenseVector(new double[] { PointL2D.X, PointL2D.Y });
-                R2D = new MathNet.Numerics.LinearAlgebra.Double.DenseVector(new double[] { PointR2D.X, PointR2D.Y });
+                L2D = new MathNet.Numerics.LinearAlgebra.Double.DenseVector([PointL2D.X, PointL2D.Y]);
+                R2D = new MathNet.Numerics.LinearAlgebra.Double.DenseVector([PointR2D.X, PointR2D.Y]);
             }
 
 
-            MathNet.Numerics.LinearAlgebra.Vector<double>? vector = Convert2DTo3D(cd, L2D, R2D);
+            MathNet.Numerics.LinearAlgebra.Vector<double>? vector3D = Convert2DTo3D(cd, L2D, R2D);
 
-            if (vector is not null)
-                return new MCvPoint3D64f(vector[0], vector[1], vector[2]);
-            else
-                return null;
+            if (vector3D is not null)
+            {
+                MCvPoint3D64f point3D = new MCvPoint3D64f(vector3D[0], vector3D[1], vector3D[2]);
+
+                if (cd.CalibrationStereoCameraData.Translation is not null)
+                {
+                    // Get Camera Centers
+                    MCvPoint3D64f cameraLeft = new MCvPoint3D64f(0, 0, 0);
+                    MCvPoint3D64f cameraRight = new MCvPoint3D64f(cd.CalibrationStereoCameraData.Translation[0, 0],
+                                                                  cd.CalibrationStereoCameraData.Translation[1, 0],
+                                                                  cd.CalibrationStereoCameraData.Translation[2, 0]);
+
+                    // Compute Ray Directions
+                    var rayLeft = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([vector3D[0], vector3D[1], vector3D[2]]).Normalize(2);
+                    var rayRight = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([vector3D[0] - cameraRight.X,
+                                                                            vector3D[1] - cameraRight.Y,
+                                                                            vector3D[2] - cameraRight.Z]).Normalize(2);
+
+                    // Compute real-world RMS
+                    RMSRealWorld = ComputeRealWorldRMSError(cameraLeft, rayLeft, cameraRight, rayRight);
+                }
+                else
+                {
+                    // RMS could not be calculated
+                    RMSRealWorld = null;
+                }
+
+                return point3D;
+            }
+
+            return null;
         }
 
+
+        /// <summary>
+        /// This function calculates the real-world RMS error by computing the 
+        /// shortest distance between two 3D rays.
+        /// </summary>
+        /// <param name="cameraCenterLeft"></param>
+        /// <param name="rayDirectionLeft"></param>
+        /// <param name="cameraCenterRight"></param>
+        /// <param name="rayDirectionRight"></param>
+        /// <returns></returns>
+        private static double ComputeRealWorldRMSError(
+                MCvPoint3D64f cameraCenterLeft, MathNet.Numerics.LinearAlgebra.Vector<double> rayDirectionLeft,
+                MCvPoint3D64f cameraCenterRight, MathNet.Numerics.LinearAlgebra.Vector<double> rayDirectionRight)
+        {
+            // Convert 3D points to Math.NET vectors for easier calculations
+            var P1 = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray(new double[] { cameraCenterLeft.X, cameraCenterLeft.Y, cameraCenterLeft.Z });
+            var P2 = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray(new double[] { cameraCenterRight.X, cameraCenterRight.Y, cameraCenterRight.Z });
+
+            var d1 = rayDirectionLeft.Normalize(2);
+            var d2 = rayDirectionRight.Normalize(2);
+
+            // Compute vector between the two camera centers
+            var w0 = P1 - P2;
+
+            // Compute coefficients for the closest points on each ray
+            double a = d1.DotProduct(d1);
+            double b = d1.DotProduct(d2);
+            double c = d2.DotProduct(d2);
+            double d = d1.DotProduct(w0);
+            double e = d2.DotProduct(w0);
+
+            // Solve for the two closest points on the rays
+            double denominator = a * c - b * b;
+            if (Math.Abs(denominator) < 1e-6)
+            {
+                // If the denominator is very small, the rays are almost parallel, return a large error
+                return double.MaxValue;
+            }
+
+            double s = (b * e - c * d) / denominator;
+            double t = (a * e - b * d) / denominator;
+
+            // Compute the closest points on each ray
+            var closestPointOnRay1 = P1 + s * d1;
+            var closestPointOnRay2 = P2 + t * d2;
+
+            // Compute the Euclidean distance between these closest points
+            double rmsError = (closestPointOnRay1 - closestPointOnRay2).L2Norm();
+
+            return rmsError;
+        }
 
 
         /// <summary>
