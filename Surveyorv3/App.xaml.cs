@@ -43,6 +43,9 @@ namespace Surveyor
                 // Subscribe to the Closed event
                 m_window.Closed += MainWindow_Closed;
             }                                                   // TH:Added
+
+            // Attempt to force DirectX Force Hardware Rendering
+            var manager = Microsoft.Graphics.Canvas.CanvasDevice.GetSharedDevice();
         }
         private void MainWindow_Closed(object sender, WindowEventArgs e)
         {

@@ -18,6 +18,8 @@ using Windows.Foundation;
 using Windows.Foundation.Collections;
 using Surveyor.Events;
 using System.Text;
+using System.Runtime.CompilerServices;
+using MathNet.Numerics.LinearAlgebra.Factorization;
 
 
 namespace Surveyor.User_Controls
@@ -54,42 +56,147 @@ namespace Surveyor.User_Controls
         internal ListView GetListView() => ListViewEvent;
 
   
-        public async void Display(Event item)
+        public async void Display(Event evt)
         {
-            var display = $"Level: {item.EventDataType.ToString()}:\r\nCreated: {item.DateTimeCreate}\r\n\r\n";
+            //??? Support full display of all values in all event types
+            //??? Display created date as dd MMM yyyy
+            //??? Add a 'Copy' button using the standard copy gypth and format as tab delimited
+            StringBuilder sb = new StringBuilder();
+            sb.Append($"{evt.EventDataType}:\r\nCreated: {evt.DateTimeCreate:dd MMM yyyy hh:mm:ss}\r\n\r\n");
 
-            var dataPackage = new DataPackage();
-            dataPackage.SetText(display);  //??? Change this to be useful pastable data like the coordincated and distance in tabulated form
-            Clipboard.SetContent(dataPackage);
-
-            var messageDialog = new ContentDialog
+            if (evt.EventData is not null)
             {
-                Title = "Event",
-                Content = display,
-                CloseButtonText = "OK",
+                switch (evt.EventDataType)
+                {
+                    case DataType.StereoSyncPoint:  // No EventData for this type 
 
-                // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
-                XamlRoot = this.Content.XamlRoot
-            };
+                        sb.Append($"Sync media position: {evt.TimeSpanTimelineController}\r\n");
+                        sb.Append($"Left media position: {evt.TimeSpanLeftFrame}\r\n");
+                        sb.Append($"Right media position: {evt.TimeSpanRightFrame}\r\n");
+                        break;
 
-            await messageDialog.ShowAsync();
+                    case DataType.SurveyMeasurementPoints:
+                    case DataType.SurveyStereoPoint:
+                        SurveyRulesCalc? surveyRulesCalc = null;
+                        if (evt.EventData is SurveyMeasurement surveyMeasurement)
+                        {
+                            sb.Append($"Species: {surveyMeasurement.SpeciesInfo.Species}\r\n");
+                            sb.Append($"Measurement: {surveyMeasurement.Measurment}m\r\n");
+                            sb.Append($"Survey Rules: {surveyMeasurement.SurveyRulesCalc.SurveyRulesText}\r\n");
+                            sb.Append($"\r\n");
+                            sb.Append($"2D Points:\r\n");
+                            sb.Append($"Set A\r\n");
+                            sb.Append("Left Camera: ({Math.Round(surveyMeasurement.LeftXA,1)}, {Math.Round(surveyMeasurement.LeftYA,1)})\r\n");
+                            sb.Append($"Right Camera: ({Math.Round(surveyMeasurement.RightXA, 1)}, {Math.Round(surveyMeasurement.RightYA, 1)})\r\n");
+                            sb.Append($"Set B\r\n");
+                            sb.Append($"Left Camera: ({Math.Round(surveyMeasurement.LeftXB, 1)}, {Math.Round(surveyMeasurement.LeftYB, 1)})\r\n");
+                            sb.Append($"Right Camera: ({Math.Round(surveyMeasurement.RightXB, 1)}, {Math.Round(surveyMeasurement.RightYB, 1)})\r\n");
+                            sb.Append($"\r\n");
+                            surveyRulesCalc = surveyMeasurement.SurveyRulesCalc;
+                        }
+                        else if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
+                        {
+                            sb.Append($"Species: {surveyStereoPoint.SpeciesInfo.Species}\r\n");
+                            sb.Append($"Survey Rules: {surveyStereoPoint.SurveyRulesCalc.SurveyRulesText}\r\n");
+                            sb.Append($"\r\n");
+                            sb.Append($"2D Points:\r\n");
+                            sb.Append($"Left Camera: ({Math.Round(surveyStereoPoint.LeftX, 1)}, {Math.Round(surveyStereoPoint.LeftY, 1)})\r\n");
+                            sb.Append($"Right Camera: ({Math.Round(surveyStereoPoint.RightX, 1)}, {Math.Round(surveyStereoPoint.RightY, 1)})\r\n");
+                            sb.Append($"\r\n");
+                            surveyRulesCalc = surveyStereoPoint.SurveyRulesCalc;
+                        }
+
+                        if (surveyRulesCalc is not null)
+                        {
+                            if (surveyRulesCalc.RMS is not null)
+                            {
+                                sb.Append($"RMS Distance Error: {Math.Round((double)surveyRulesCalc.RMS * 1000, 0)}mm\r\n");
+                                sb.Append($"When a point is selected in the left camera and the corresponding point selected in the right camaera, the 3D point is computed by intersecting the resulting rays in 3D space.\r\n");
+                                sb.Append($"RMS Distance is the distance of the shortest line, between the intersecting rays. In practice, the intersection is unlikely to ever be perfect (RMS = 0mm). \r\n");
+                                sb.Append($"\r\n");
+                            }
+                            if (surveyRulesCalc.Range is not null)
+                            {
+                                sb.Append($"Range: {Math.Round((double)surveyRulesCalc.Range, 2)}m\r\n");
+                                if (evt.EventData is SurveyMeasurement)
+                                    sb.Append($"This is the calculated distance from centre of the camera system to the centre of the measurement points.\r\n");
+                                else
+                                    sb.Append($"This is the calculated distance from centre of the camera system to the 3D point.\r\n");
+                                sb.Append($"\r\n");
+                            }
+                            if (surveyRulesCalc.XOffset is not null)
+                            {
+                                sb.Append($"X Offset: {Math.Round((double)surveyRulesCalc.XOffset, 2)}m");
+                                if (surveyRulesCalc.XOffset < 0)
+                                    sb.Append($" (to the left of the camera system)\r\n");
+                                if (surveyRulesCalc.XOffset > 0)
+                                    sb.Append($" (to the right of the camera system)\r\n");
+                                else
+                                    sb.Append($"\r\n");
+                            }
+                            if (surveyRulesCalc.YOffset is not null)
+                            {
+                                sb.Append($"Y Offset: {Math.Round((double)surveyRulesCalc.YOffset, 2)}m");
+                                if (surveyRulesCalc.YOffset < 0)
+                                    sb.Append($" (below the camera system)\r\n");
+                                if (surveyRulesCalc.YOffset > 0)
+                                    sb.Append($" (above the camera system)\r\n");
+                                else
+                                    sb.Append($"\r\n");
+                            }
+                        }
+                        break;
+                    
+                    case DataType.SurveyPoint:
+                        if (evt.EventData is SurveyPoint surveyPoint)
+                        {
+                            sb.Append($"Species: {surveyPoint.SpeciesInfo.Species}\r\n");
+                            sb.Append($"\r\n");
+                            sb.Append($"2D Point:\r\n");
+                            string camera = surveyPoint.trueLeftfalseRight ? "Left" : "Right";
+                            sb.Append($"{camera} Camera: ({Math.Round(surveyPoint.X, 1)}, {Math.Round(surveyPoint.Y, 1)})\r\n");
+                            sb.Append($"\r\n");
+                        }
+                        break;
+                }
+            }
+
+            // Set the content of the TextBlock inside the dialog
+            EventDialogContent.Text = sb.ToString();
+
+            // Show the dialog
+            var result = await EventDialog.ShowAsync();
+
+
+            if (result == ContentDialogResult.Secondary)
+            {
+                // Copy the event data to the clipboard
+                var dataPackage = new DataPackage();
+                dataPackage.SetText(sb.ToString());
+                Clipboard.SetContent(dataPackage);
+            }
         }
 
-        private void ViewMenuItem_Click(object sender, ItemClickEventArgs e)
+        private void ViewMenuItem_Click(object sender, RoutedEventArgs e)
         {
-            //??? Never receive this message - investigate
             if (ListViewEvent.SelectedItem is Event selectedItem)
             {
                 Display(selectedItem);
             }
         }
 
-        private void GoToFrameMenuItem_Click(object sender, ItemClickEventArgs e)
+
+        /// <summary>
+        /// Go to Frame selected via item selection inthe list view 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void GoToFrameMenuItem_Click(object? sender, ItemClickEventArgs? e)
         {
             if (ListViewEvent.SelectedItem is Event selectedItem)
             {
                 // Attempt to go to the left frame
-                if (selectedItem.TimeSpanTimelineController != TimeSpan.Zero && mediaStereoController is not null)
+                if (mediaStereoController is not null)
                 {
                     // Jump to frame of this event
                     mediaStereoController.UserReqFrameJump(SurveyorMediaControl.eControlType.Primary, selectedItem.TimeSpanTimelineController);
@@ -97,9 +204,54 @@ namespace Surveyor.User_Controls
             }
         }
 
-        private void ViewMenuItem_Click(object sender, RightTappedRoutedEventArgs e)
-        {
 
+        /// <summary>
+        /// Delete the selected event
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void ListViewEvent_Delete(object? sender, RoutedEventArgs? e)
+        {
+            if (ListViewEvent.SelectedItem is Event selectedItem)
+            {
+                if (ListViewEvent.ItemsSource is ObservableCollection<Event> eventItems)
+                {
+                    var dialog = new ContentDialog
+                    {
+                        Title = "Delete Event",
+                        Content = "Are you sure you want to delete the selected event?",
+                        PrimaryButtonText = "OK",
+                        SecondaryButtonText = "Cancel",
+                        DefaultButton = ContentDialogButton.Primary,
+                        XamlRoot = this.Content.XamlRoot
+                    };
+
+                    var result = await dialog.ShowAsync();
+                    if (result == ContentDialogResult.Primary)
+                    {
+                        eventItems.Remove(selectedItem);
+                    }
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Right click on the list view to select the item. Select the item and a Context will be displayed
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ListViewEvent_RightTapped(object sender, RightTappedRoutedEventArgs e)
+        {
+            var listView = sender as ListView;
+            if (listView != null)
+            {
+                var element = e.OriginalSource as FrameworkElement;
+                if (element?.DataContext is Event selectedItem)
+                {
+                    ListViewEvent.SelectedItem = selectedItem;
+                }
+            }
         }
 
 
@@ -108,50 +260,38 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void ListViewEvent_KeyDown(object sender, KeyRoutedEventArgs e)
+        private void ListViewEvent_KeyDown(object sender, KeyRoutedEventArgs e)
         {
             if (e.Key == Windows.System.VirtualKey.Delete)
             {
-                if (ListViewEvent.SelectedItem is Event selectedItem)
-                {
-                    if (ListViewEvent.ItemsSource is ObservableCollection<Event> eventItems)
-                    {
-                        // Create the ContentDialog instance
-                        var dialog = new ContentDialog
-                        {
-                            Title = $"Delete Event",
-                            Content = "Are you sure you want to delete the selecged event?",
-                            PrimaryButtonText = "OK",
-                            SecondaryButtonText = "Cancel",
-                            DefaultButton = ContentDialogButton.Primary, // Set "OK" as the default button
-
-                            // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
-                            XamlRoot = this.Content.XamlRoot
-                        };
-
-                        // Show the dialog and await the result
-                        var result = await dialog.ShowAsync();
-
-                        // Handle the dialog result
-                        if (result == ContentDialogResult.Primary)
-                            eventItems.Remove(selectedItem);
-                    }
-                }
+                ListViewEvent_Delete(null, null);
             }
         }
+
+
+        /// <summary>
+        /// Go to Frame selected in the context menu
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void GoToFrameMenuItem_Click(object sender, RoutedEventArgs e)
+        {
+            GoToFrameMenuItem_Click(null, (ItemClickEventArgs?)null);
+        }
+
     }
 
 
     /// <summary>
     /// Convert TimeSpanToStringConverter to 2DP
     /// </summary>
-    public class EventTimeSpanToStringConverter : IValueConverter
+    public partial class EventTimeSpanToStringConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {
             if (value is TimeSpan timeSpan)
             {
-                return $"{timeSpan.TotalSeconds:F2} seconds";
+                return $"{Math.Round(timeSpan.TotalSeconds, 2)} seconds";
             }
             return "0.00 seconds";
         }
@@ -166,7 +306,7 @@ namespace Surveyor.User_Controls
     /// <summary>
     /// Convert the EventDataType to a string for display
     /// </summary>
-    public class EventDataTypeToStringConverter : IValueConverter
+    public partial class EventDataTypeToStringConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {
@@ -209,7 +349,7 @@ namespace Surveyor.User_Controls
     /// <summary>
     /// Suitable 
     /// </summary>
-    public class EventTypeToGlyphConverter : IValueConverter
+    public partial class EventTypeToGlyphConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {
@@ -301,41 +441,22 @@ namespace Surveyor.User_Controls
                     {
                         if (sb.Length > 0)
                             sb.Append(", ");
-                        sb.Append($"{measurment * 1000:F0}mm long");
+                        sb.Append($"{Math.Round((double)measurment * 1000, 0)}mm long"); // Round up to the nearest whole number
                     }
 
-                    // Range from the camera 
-                    if (surveyRulesCalc is not null && surveyRulesCalc.Range is not null && surveyRulesCalc.Range > 0)
+                    // Survey rules passed or failed
+                    if (surveyRulesCalc is not null)
                     {
-                        if (sb.Length > 0)
+                        //if (sb.Length > 0)
+                        //    sb.Append(", ");
+                        //if (surveyRulesCalc.SurveyRules == true)
+                        //    sb.Append("Passed survey rules");
+                        //else if (surveyRulesCalc.SurveyRules == false)
+                        //{
+                        //    sb.Append("Failed survey rules");
                             sb.Append(", ");
-                        sb.Append($"{surveyRulesCalc.Range:F2}m away");
-                    }
-
-                    // XOffset
-                    if (surveyRulesCalc is not null && surveyRulesCalc.XOffset is not null && surveyRulesCalc.XOffset != 0)
-                    {
-                        if (sb.Length > 0)
-                            sb.Append(", ");
-                        if (surveyRulesCalc.XOffset == 0)
-                            sb.Append($"Horzontially central");
-                        else if (surveyRulesCalc.XOffset > 0)
-                            sb.Append($"{surveyRulesCalc.XOffset:F2}m to the right");
-                        else if (surveyRulesCalc.XOffset < 0)
-                            sb.Append($"{-surveyRulesCalc.XOffset:F2}m to the left");
-                    }
-
-                    // YOffset
-                    if (surveyRulesCalc is not null && surveyRulesCalc.YOffset is not null && surveyRulesCalc.YOffset != 0)
-                    {
-                        if (sb.Length > 0)
-                            sb.Append(", ");
-                        if (surveyRulesCalc.YOffset == 0)
-                            sb.Append($"Horzontially central");
-                        else if (surveyRulesCalc.YOffset > 0)
-                            sb.Append($"{surveyRulesCalc.YOffset:F2}m below");
-                        else if (surveyRulesCalc.YOffset < 0)
-                            sb.Append($"{-surveyRulesCalc.YOffset:F2}m above");
+                            sb.Append(surveyRulesCalc.SurveyRulesText);
+                        //}
                     }
                 }
                 else if (eventItem.EventData is Surveyor.Events.SurveyPoint surveyPoint)

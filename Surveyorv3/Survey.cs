@@ -13,11 +13,13 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.ComponentModel.Design;
 using System.Data;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+
 
 namespace Surveyor
 {
@@ -28,10 +30,10 @@ namespace Surveyor
 
 
         // Auto Save variables
-        private SemaphoreSlim _autoSaveSemaphore = new(0, 1); // Semaphore to signal stop
+        private readonly SemaphoreSlim _autoSaveSemaphore = new(0, 1); // Semaphore to signal stop
         private bool _isAutoSaveRunning = true;
         private bool _autoSaveStopped = false;
-        private TimeSpan _autosaveInterval = TimeSpan.FromSeconds(20); 
+        private readonly TimeSpan _autosaveInterval = TimeSpan.FromSeconds(20); 
 
         // Lock object for thread safety
         // Use to stop the auto save and save methods from being called at the same time
@@ -564,7 +566,7 @@ namespace Surveyor
                 }
 
                 [JsonConverter(typeof(CalibrationDataListJsonConverter))]
-                [JsonProperty("CalibrationDataList")]
+                [JsonProperty(nameof(CalibrationDataList))]
                 public ObservableCollection<CalibrationData> CalibrationDataList
                 {
                     get => _calibrationDataList;
@@ -668,7 +670,7 @@ namespace Surveyor
 
                 // Values
                 [JsonIgnore]
-                private bool? _surveyRulesActive = false;
+                private bool _surveyRulesActive = false;
 
                 [JsonIgnore]
                 private string? _surveyRulesInherited = null;
@@ -679,7 +681,7 @@ namespace Surveyor
 
                 // Setters and getters
                 [JsonProperty(nameof(SurveyRulesActive))]
-                public bool? SurveyRulesActive
+                public bool SurveyRulesActive
                 {
                     get => _surveyRulesActive;
                     set
@@ -722,32 +724,35 @@ namespace Surveyor
                     }
                 }
 
-
-                /// <summary>
-                /// This method will be called whenever the LeftMediaFileNames or RightMediaFileNames ObservableCollection<string> collection changes
-                /// </summary>
-                /// <param name="sender"></param>
-                /// <param name="e"></param>
-                //private void CollectionChangedHandler(object? sender, NotifyCollectionChangedEventArgs e)
-                //{
-                //    // This code will be executed when the collection is changed
-                //    IsDirty = true;
-                //}
-
-
-                [JsonIgnore]
+               
                 private bool _isDirty;
                 [JsonIgnore]
                 public bool IsDirty
                 {
-                    get => _isDirty;
+                    get
+                    {
+                        if (_isDirty || _surveyRulesData.IsDirty)
+                            return true;
+                        
+                        return false;
+                    }
                     set
                     {
+                        bool anyChanged = false;
+
                         if (_isDirty != value)
                         {
                             _isDirty = value;
-                            OnPropertyChanged();
+                            anyChanged = true;
                         }
+                        if (_surveyRulesData.IsDirty != value)
+                        {
+                            _surveyRulesData.IsDirty = value;
+                            anyChanged = true;
+                        }
+                        if (anyChanged)
+                            OnPropertyChanged();
+                        
                     }
                 }
 
@@ -789,7 +794,7 @@ namespace Surveyor
         public bool IsDirty 
         {   get
             {
-                if (Data.Info.IsDirty || Data.Media.IsDirty || Data.Sync.IsDirty || Data.Events.IsDirty || Data.Calibration.IsDirty)
+                if (Data.Info.IsDirty || Data.Media.IsDirty || Data.Sync.IsDirty || Data.Events.IsDirty || Data.Calibration.IsDirty || Data.SurveyRules.IsDirty)
                 {
                     return  true;
                 }
@@ -802,6 +807,7 @@ namespace Surveyor
                 Data.Sync.IsDirty = value;
                 Data.Events.IsDirty = value;
                 Data.Calibration.IsDirty = value;
+                Data.SurveyRules.IsDirty = value;
                 OnPropertyChanged();
             }
         }
@@ -835,9 +841,8 @@ namespace Surveyor
 
             if (Path.GetExtension(SurveyFileSpec).Equals(".Survey", StringComparison.OrdinalIgnoreCase))
             {
-
                 try
-                {
+                {                   
                     json = File.ReadAllText(SurveyFileSpec);
                 }
                 catch (FileNotFoundException e)
@@ -873,15 +878,30 @@ namespace Surveyor
 
                 if (json != null)
                 {
-                    var settings = new JsonSerializerSettings();
-                    settings.Converters.Add(new EventJsonConverter());
+                    var settings = new JsonSerializerSettings
+                    {
+                        Converters =
+                        [
+                            new EventJsonConverter(),
+                            new CalibrationDataListJsonConverter() // Explicitly add the converter  
+                        ]
+                    };
 
-                    DataClass? data = JsonConvert.DeserializeObject<DataClass>(json, settings);
+                    DataClass? data = null;
+                    try
+                    {
+                        data = JsonConvert.DeserializeObject<DataClass>(json, settings);
+                    }
+                    catch (Exception e)
+                    {
+                        Report?.Info("", $"Exception JsonConvert.DeserializeObject({e.Message})");
+                        ret = -1;
+                    }
 
                     if (data != null)
                     {
                         Data = data;
-                        ret = SetSurveyNameAndPath(SurveyFileSpec);
+                        ret = SetSurveyNameAndPath(SurveyFileSpec);                     
 
                         IsDirty = false;
                         IsLoaded = true;
@@ -930,7 +950,7 @@ namespace Surveyor
                     var settings = new JsonSerializerSettings
                     {
                         Formatting = Formatting.Indented,  // For pretty-printing the JSON
-                        Converters = new List<JsonConverter> { new EventJsonConverter() }
+                        Converters = [new EventJsonConverter()]
                     };
 
                     string json = JsonConvert.SerializeObject(Data, settings);
@@ -1264,6 +1284,8 @@ namespace Surveyor
 
     public class CalibrationDataListJsonConverter : JsonConverter
     {
+        public CalibrationDataListJsonConverter() { } // Ensure parameterless constructor exists
+
         public override bool CanConvert(Type objectType)
         {
             return objectType == typeof(ObservableCollection<CalibrationData>);
@@ -1271,11 +1293,11 @@ namespace Surveyor
 
         public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
         {
-            ObservableCollection<CalibrationData>? calibrationDataList = new ObservableCollection<CalibrationData>();
+            ObservableCollection<CalibrationData>? calibrationDataList = [];
 
             if (reader.TokenType != JsonToken.Null)
             {
-                calibrationDataList = new();
+                calibrationDataList = [];
 
                 var array = JArray.Load(reader);
 

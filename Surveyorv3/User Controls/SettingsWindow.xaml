@@ -37,7 +37,7 @@
 
                 
                 <!--SURVEY SETTINGS-->
-                <toolkit:SettingsExpander Header="Survey Settings">
+                <toolkit:SettingsExpander Header="Survey Settings" MaxWidth="1200">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE160;" />
                     </toolkit:SettingsExpander.HeaderIcon>
@@ -48,10 +48,15 @@
                             <toolkit:SettingsExpander.HeaderIcon>
                                 <FontIcon Glyph="&#xE768;" ToolTipService.ToolTip="Survey setup information and survey media"/>
                             </toolkit:SettingsExpander.HeaderIcon>
-                            <TextBlock
-                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                IsTextSelectionEnabled="True"
-                                Text="{x:Bind SettingsExpanderInfoText}" />
+
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="ReCalculate" Content="Re-Calculate" Click="ReCalculate_Click" Margin="0,0,10,0"/>
+                                <TextBlock
+                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                    IsTextSelectionEnabled="True"
+                                    Text="{x:Bind SettingsExpanderInfoText}" />
+                            </StackPanel>
+                            
                             <toolkit:SettingsExpander.Items>
                                 <toolkit:SettingsCard x:Name="SettingsCardSurveyInfoAndMedia">
                                     <surveyorControls:SurveyInfoAndMedia x:Name="SurveyInfoAndMedia"/>
@@ -69,19 +74,23 @@
                         </toolkit:SettingsCard>
 
                         <!--Survey Rules-->
-                        <toolkit:SettingsCard Header="Survey Rules">
-                            <toolkit:SettingsCard.HeaderIcon>
+                        <toolkit:SettingsExpander Header="Survey Rules" x:Name="SettingsExpanderSurveyRules">
+                            <toolkit:SettingsExpander.HeaderIcon>
                                 <FontIcon Glyph="&#xE73E;" />
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <ToggleSwitch x:Name="diagnosticInformationXXX" Toggled="diagnosticInformation_Toggled" />
-                        </toolkit:SettingsCard>
+                            </toolkit:SettingsExpander.HeaderIcon>
+                            
+                            <ToggleSwitch x:Name="surveyRulesActive" IsOn="{x:Bind survey.Data.SurveyRules.SurveyRulesActive, Mode=TwoWay}" Toggled="surveyRulesActive_Toggled" />
+                            <toolkit:SettingsExpander.Items>
+                                <surveyorControls:SettingsSurveyRules x:Name="SettingsSurveyRules"/>
+                            </toolkit:SettingsExpander.Items>
+                        </toolkit:SettingsExpander>
 
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
 
 
                 <!--GENERAL SETTINGS-->
-                <toolkit:SettingsExpander Header="General Settings">
+                <toolkit:SettingsExpander Header="General Settings" MaxWidth="1200">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE115;" />
                     </toolkit:SettingsExpander.HeaderIcon>
@@ -118,7 +127,7 @@
 
                 <!--  About  -->
                 <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="About" />
-                <toolkit:SettingsExpander Description="© 2024 All rights reserved." Header="{StaticResource AppTitleName}">
+                <toolkit:SettingsExpander Description="© 2025 All rights reserved." Header="{StaticResource AppTitleName}" MaxWidth="1200">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <BitmapIcon x:Name="AboutAppIcon" ShowAsMonochrome="False" UriSource="/Assets/surveyor-dark.png" />
                     </toolkit:SettingsExpander.HeaderIcon>

@@ -8,6 +8,8 @@ using System.Threading.Tasks;
 using Windows.Media.Core;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
+using Windows.Media.MediaProperties;
+
 
 using static GoProMP4MetadataExtraction.GetMP4FileProperities;
 
@@ -15,6 +17,8 @@ namespace GoProMP4MetadataExtraction
 {
     public static class GetMP4FileProperities
     {
+        // ...
+
         public static async Task<Dictionary<string, string>> ExtractPropertiesAsync(StorageFile videoFile)
         {
             ArgumentNullException.ThrowIfNull(videoFile);
@@ -32,7 +36,7 @@ namespace GoProMP4MetadataExtraction
 
                 // Retrieve VideoProperties for additional details
                 VideoProperties videoProperties = await videoFile.Properties.GetVideoPropertiesAsync();
-                
+
                 metadata["Video.Title"] = videoProperties.Title ?? "N/A";
                 metadata["Video.Duration"] = videoProperties.Duration.ToString();
                 metadata["Video.Bitrate"] = videoProperties.Bitrate.ToString();
@@ -43,6 +47,17 @@ namespace GoProMP4MetadataExtraction
                 if (videoProperties.Keywords != null && videoProperties.Keywords.Count > 0)
                 {
                     metadata["Keywords"] = string.Join(", ", videoProperties.Keywords);
+                }
+
+                // Retrieve Frame Rate using extended properties
+                var propertiesExtended = await videoFile.Properties.RetrievePropertiesAsync(new string[]
+                {
+                    "System.Video.FrameRate" // Frame rate is stored in 100-nanosecond units
+                });
+
+                if (propertiesExtended.TryGetValue("System.Video.FrameRate", out object? frameRateObj) && frameRateObj is uint frameRate)
+                {
+                    metadata["Video.FrameRate"] = (frameRate / 1000.0).ToString("0.00"); // Convert to FPS
                 }
             }
             catch (Exception ex)

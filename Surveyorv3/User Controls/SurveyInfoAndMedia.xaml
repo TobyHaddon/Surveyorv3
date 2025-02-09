@@ -111,36 +111,37 @@
                 <!--Left Camera Media Files-->
                 <ListView x:Name="LeftMediaFileNames" Grid.Column="0" ItemsSource="{x:Bind LeftMediaFileItemList}" ItemTemplate="{StaticResource MediaFileTemplate}"
                          Height="300" MinWidth="400" MaxHeight="400"
-                         BorderThickness="1" BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}" Margin="0,0,10,0"/>
+                         BorderThickness="1" BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}" Margin="0,0,10,0"
+                         SelectionChanged="LeftMediaFileNames_SelectionChanged"/>
                 
                 <!--Media Left/Right Swap and Order Controls-->
-                <StackPanel  Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,10,0">
-                    <Button Click="MoveItemUp_Click" Margin="0,0,0,10">
+                <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,10,0">
+                    <Button x:Name="MoveItemUp" Click="MoveItemUp_Click" Margin="0,0,0,10">
                         <Button.Content>
                             <FontIcon Glyph="&#xE96D;" FontSize="12" FontFamily="Segoe MDL2 Assets" />
                         </Button.Content>
                     </Button>
-                    <Button Click="MoveItemDown_Click" Margin="0,0,0,10">
+                    <Button x:Name="MoveItemDown" Click="MoveItemDown_Click" Margin="0,0,0,10">
                         <Button.Content>
                             <FontIcon Glyph="&#xE96E;" FontSize="12" FontFamily="Segoe MDL2 Assets" />
                         </Button.Content>
                     </Button>
-                    <Button Click="MoveItemAcrossLeft_Click" Margin="0,0,0,10">
+                    <Button x:Name="MoveItemAcrossLeft" Click="MoveItemAcrossLeft_Click" Margin="0,0,0,10">
                         <Button.Content>
                             <FontIcon Glyph="&#xE96F;" FontSize="12" FontFamily="Segoe MDL2 Assets" />
                         </Button.Content>
                     </Button>
-                    <Button Click="MoveItemAcrossRight_Click" Margin="0,0,0,10">
+                    <Button x:Name="MoveItemAcrossRight" Click="MoveItemAcrossRight_Click" Margin="0,0,0,10">
                         <Button.Content>
                             <FontIcon Glyph="&#xE970;" FontSize="12" FontFamily="Segoe MDL2 Assets" />
                         </Button.Content>
                     </Button>
-                    <Button Click="DeleteItem_Click" Margin="0,0,0,10">
+                    <Button x:Name="DeleteItem" Click="DeleteItem_Click" Margin="0,0,0,10">
                         <Button.Content>
                             <FontIcon Glyph="&#xE74D;" FontSize="12" FontFamily="Segoe MDL2 Assets" />
                         </Button.Content>
                     </Button>
-                    <Button Click="AddItem_Click" Visibility="Collapsed">
+                    <Button x:Name="AddItem" Click="AddItem_Click" Visibility="Collapsed">
                         <Button.Content>
                             <FontIcon Glyph="&#xED25;" FontSize="12" FontFamily="Segoe MDL2 Assets" />
                         </Button.Content>
@@ -150,7 +151,8 @@
                 <!--Right Camera Media Files-->
                 <ListView x:Name="RightMediaFileNames"  Grid.Column="2" ItemsSource="{x:Bind RightMediaFileItemList}" ItemTemplate="{StaticResource MediaFileTemplate}"
                          Height="300" MinWidth="400" MaxHeight="400" 
-                         BorderThickness="1" BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}"/>
+                         BorderThickness="1" BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}"
+                         SelectionChanged="RightMediaFileNames_SelectionChanged"/>
 
             </Grid>
 
@@ -168,12 +170,19 @@
                 <FontIcon x:Name="SurveyMediaDateGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
                 <TextBlock x:Name="SurveyMediaDateValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
-            <!--Survey Media Files Resultion Matches-->
+            <!--Survey Media Files Resolution Matches-->
             <StackPanel x:Name="SurveyResolutionMatchPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
                         Margin="0,8,0,0" 
                         Visibility="{Binding ElementName=SurveyResolutionMatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
                 <FontIcon x:Name="SurveyResolutionMatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
                 <TextBlock x:Name="SurveyResolutionMatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </StackPanel>
+            <!--Survey Media Files Frame Rate Matches-->
+            <StackPanel x:Name="SurveyFrameRateMatchPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
+                        Margin="0,8,0,0" 
+                        Visibility="{Binding ElementName=SurveyFrameRateMatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
+                <FontIcon x:Name="SurveyFrameRateMatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
+                <TextBlock x:Name="SurveyFrameRateMatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
             <!--Survey Media Files From Same GoPro-->
             <StackPanel x:Name="SurveyGoProMatchPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  

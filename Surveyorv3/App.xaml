@@ -17,6 +17,9 @@
                 <ResourceDictionary x:Key="Dark">
                     <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#FF3E3E3E" />
                 </ResourceDictionary>
+                <ResourceDictionary x:Key="Default">
+                    <SolidColorBrush x:Key="TitleBarBackgroundBrush" Color="#FFC0C0C0" />
+                </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
 
             <!--  Application-specific resources  -->
@@ -33,7 +36,8 @@
 
             <!-- Style (inc. the correct spacing) of a section header -->
             <Style x:Key="SettingsSectionHeaderTextBlockStyle" TargetType="TextBlock">
-                <Setter Property="Margin" Value="1,30,0,6" />
+                <!--<Setter Property="Margin" Value="1,30,0,6" />Changed to below --> 
+                <Setter Property="Margin" Value="0,24,0,8" />
                 <Setter Property="FontWeight" Value="Bold" />
             </Style>
         </ResourceDictionary>

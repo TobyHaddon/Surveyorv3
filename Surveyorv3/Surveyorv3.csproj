@@ -13,8 +13,10 @@
     <ApplicationIcon>Assets\surveyor-dark.ico</ApplicationIcon>
     <Nullable>enable</Nullable>
     <SupportedOSPlatformVersion>10.0.22621.0</SupportedOSPlatformVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="User Controls\SettingsSurveyRules.xaml" />
     <None Remove="User Controls\SurveyInfoAndMedia.xaml" />
   </ItemGroup>
 
@@ -104,6 +106,9 @@
     <None Update="Species.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <Page Update="User Controls\SettingsSurveyRules.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="User Controls\SurveyInfoAndMedia.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

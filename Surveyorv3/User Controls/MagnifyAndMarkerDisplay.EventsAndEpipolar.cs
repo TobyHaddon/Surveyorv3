@@ -300,8 +300,10 @@ namespace Surveyor.User_Controls
             };
 
             // Create and configure the Run
-            Run run = new();
-            run.Text = $"{(distance * 1000):F0}mm";
+            Run run = new()
+            {
+                Text = $"{Math.Round(distance * 1000, 0)}mm"
+            };
 
             if (specifies != "")
             {
@@ -309,7 +311,7 @@ namespace Surveyor.User_Controls
                 LineBreak lineBreak = new();
 
                 // Create and configure the Span
-                Span span = new Span();
+                Span span = new();
                 span.Inlines.Add(new Italic { Inlines = { new Run { Text = specifies } } });
 
                 // Add inlines to TextBlock

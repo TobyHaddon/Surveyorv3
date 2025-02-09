@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.WinUI;
 using Microsoft.UI;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -41,7 +42,7 @@ namespace Surveyor
         private AppWindow appWindow;
 
         // Create the Mediator
-        private readonly SurveyorMediator mediator = new();
+        private readonly SurveyorMediator mediator;
 
         // Declare the mediator handler for MainWindow
         private readonly MainWindowHandler mainWindowHandler;
@@ -66,7 +67,7 @@ namespace Surveyor
 
 
         private const string RECENT_SURVEYS_KEY = "RecentSurveys";
-        private int maxRecentSurveysDisplayed = 4;      // Will be controlled from Settings TO DO
+        private int maxRecentSurveysDisplayed = 4;      // Will be controlled from SettingsWindow TO DO
         private const int MAX_RECENT_SURVEYS_SAVED = 10;
 
         public MainWindow()
@@ -89,6 +90,10 @@ namespace Surveyor
             // Add listener for theme changes
             var rootElement = (FrameworkElement)Content;
             rootElement.ActualThemeChanged += OnActualThemeChanged;
+
+            // Set setup Mediator
+            mediator = new();
+            mediator.SetReporter(report);
 
             // Restore the saved window state
             //???Disabled as it need more work.  I think the multiple monitor setting and switching between monitors is causing the issue
@@ -312,7 +317,7 @@ namespace Surveyor
         {
             if (x != -1)
             {
-                PointerCoordinates.Text = $"{x:F2}, {y:F2}";
+                PointerCoordinates.Text = $"{Math.Round(x, 2)}, {Math.Round(y, 2)}";
                 PointerCoordinatesIndicator.Visibility = Visibility.Visible;
             }
             else
@@ -406,7 +411,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void Project_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        private void Survey_PropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             if (e.PropertyName == nameof(Survey.IsDirty))
             {
@@ -433,7 +438,7 @@ namespace Surveyor
             {
                 // Create a new empty survey
                 surveyClass = new Survey(report);
-                surveyClass.PropertyChanged += Project_PropertyChanged;
+                surveyClass.PropertyChanged += Survey_PropertyChanged;
 
                 // Inform the MediaStereoController of the Events list so edits to the
                 // list can be actioned by MediaStereoController
@@ -550,7 +555,7 @@ namespace Surveyor
 
                     // Check if the preferred calibration data is the one being using for
                     // the current event measurements calculations
-                    await CheckIfEventMeasurementsAreUpToDate();
+                    await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
                 }
 
                 SetMenuStatusBasedOnProjectState();
@@ -622,7 +627,7 @@ namespace Surveyor
 
                     // Check if the preferred calibration data is the one being using for
                     // the current event measurements calculations
-                    await CheckIfEventMeasurementsAreUpToDate();
+                    await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
                 }
 
                 SetMenuStatusBasedOnProjectState();
@@ -816,20 +821,6 @@ namespace Surveyor
             // Default case if unable to distinguish
             return (LeftFile: file1, RightFile: file2);
         }
-
-
-        /// <summary>
-        /// CLose the media files
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        //??? TO BE DELETED
-        //private void FileMediaSVSClose_Click(object sender, RoutedEventArgs e)
-        //{
-        //    // Close Media Files
-        //    CloseSVSMediaFiles();
-        //    SetMenuStatusBasedOnProjectState();
-        //}
 
 
         /// <summary>
@@ -1169,7 +1160,7 @@ namespace Surveyor
 
                 // Check if the preferred calibration data is the one being using for
                 // the current event measurements calculations
-                await CheckIfEventMeasurementsAreUpToDate();
+                await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
 
 
                 //// Inform the two media players of the MeasurementPointControl instances that allow the user to add measurement points to the media
@@ -1250,7 +1241,7 @@ namespace Surveyor
 
                         // Check if the preferred calibration data is the one being using for
                         // the current event measurements calculations
-                        await CheckIfEventMeasurementsAreUpToDate();
+                        await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
 
                     }
                 }
@@ -1295,7 +1286,7 @@ namespace Surveyor
             if (surveyClass is null)
             {
                 surveyClass ??= new Survey(report);
-                surveyClass.PropertyChanged += Project_PropertyChanged;
+                surveyClass.PropertyChanged += Survey_PropertyChanged;
             }
             else
             {
@@ -1305,6 +1296,7 @@ namespace Surveyor
 #endif
                 await surveyClass.SurveyClose();
             }
+
 
             ret = await surveyClass.SurveyLoad(projectFileName);
 
@@ -1342,12 +1334,7 @@ namespace Surveyor
 
 
                         // Remember the survey folder
-                        System.IO.FileInfo fileinfo = new(projectFileName);
-                        if (fileinfo != null && fileinfo.Directory != null && SettingsManager.SurveyFolder != fileinfo.DirectoryName)
-                        {
-                            SettingsManager.SurveyFolder = fileinfo.DirectoryName;
-                            //???Properties.Settings.Default.Save();  //???Old methed of save last used folder - do we need to do something equivalent to this?
-                        }
+                        SettingsManager.SurveyFolder = Path.GetDirectoryName(projectFileName);
 
 
                         //// Inform the two media players of the MeasurementPointControl instances that allow the user to add measurement points to the media
@@ -1415,17 +1402,19 @@ namespace Surveyor
 
             if (this.surveyClass != null)
             {
+                // WinUI3 only allows 'savePicker.SuggestedStartLocation' to be one of the standard folders
                 //???string? surveyFolder = SettingsManager.ProjectFolder;
                 //if (string.IsNullOrEmpty(surveyFolder) == true)
                 //    surveyFolder = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
-                FileSavePicker savePicker = new FileSavePicker();
+                FileSavePicker savePicker = new();
                 IntPtr hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this); // 'this' should be your window or page
                 WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hwnd); // Link the picker with the window handle
 
                 savePicker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
-                savePicker.FileTypeChoices.Add("Survey", new List<string>() { ".survey" });
-                savePicker.SuggestedFileName = "New Document";
+                savePicker.FileTypeChoices.Add("Survey", [".survey"]);
+                savePicker.SuggestedFileName = string.IsNullOrWhiteSpace(surveyClass.Data.Info.SurveyCode) ? "New Document" : surveyClass.Data.Info.SurveyCode;
+        
 
                 StorageFile file = await savePicker.PickSaveFileAsync();
                 if (file != null)
@@ -1447,14 +1436,13 @@ namespace Surveyor
                     {
                         Debug.WriteLine($"File {file.Path} saved successfully.");
 
-                        //??// Remember the survey folder
-                        //System.IO.FileInfo fileinfo = new(saveFileDialog.FileNames[0]);
-                        //if (fileinfo != null && fileinfo.Directory != null)
-                        //{
-                        //    SettingsManager.ProjectFolder = fileinfo.DirectoryName;
-                        //    //???Properties.Settings.Default.Save();
-                        //}
-                    }
+                        // Add to Recent Surveys
+                        AddToRecentSurveys(file.Path);
+                        UpdateRecentSurveysMenu();
+
+                        // Remember the survey folder                        
+                        SettingsManager.SurveyFolder = Path.GetDirectoryName(file.Path);
+                    }                   
                     else
                     {
                         ret = -1;
@@ -1541,6 +1529,9 @@ namespace Surveyor
                     MagnifyAndMarkerDisplayRight.Close();
 #endif
 
+                    // Wait for things to settle
+                    await Task.Delay(500);
+
                     // Closes the StereoMediaController, clears the title and the sync indicator
                     CloseSVSMediaFiles();
 
@@ -1556,6 +1547,8 @@ namespace Surveyor
                     // Display both media controls
                     MediaControlsDisplayMode(false);
 
+                    // Clear the reporter
+                    report.Clear();
 
                     ret = true;
                 }
@@ -1625,7 +1618,8 @@ namespace Surveyor
                     // Handle the dialog result
                     if (result == ContentDialogResult.Primary)
                     {
-                        //???// "OK" button clicked
+                        // "OK" button clicked
+                        // WinUI3 only allows 'openPicker.SuggestedStartLocation' to be one of the standard folders
                         //string? mediaFolder = SettingsManager.MediaImportFolder;
                         //if (string.IsNullOrEmpty(mediaFolder) == true)
                         //    mediaFolder = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
@@ -1706,19 +1700,13 @@ namespace Surveyor
                         if (surveyClass.Data.Info.SurveyFileName is not null)
                             SetTitle(surveyClass.Data.Info.SurveyFileName);
 
-                        //??? MenuMediaOpen.IsEnabled = false;
-                        //??? MenuMediaClose.IsEnabled = true;
                         MenuFileLockUnlockMediaPlayers.IsEnabled = true;
-                        //???                        MenuSurFileSave.IsEnabled = true;
                     }
                     else
                     {
                         SetTitle("");
                         SetLockUnlockIndicator(null, null);
-                        //??? MenuMediaOpen.IsEnabled = true;
-                        //??? MenuMediaClose.IsEnabled = false;
                         MenuFileLockUnlockMediaPlayers.IsEnabled = false;
-                        //???                        MenuFileSave.IsEnabled = false;
 
                         // Display both media controls
                         MediaControlsDisplayMode(false);
@@ -1747,10 +1735,8 @@ namespace Surveyor
                 SetTitleCameraSide("");
 
                 SetLockUnlockIndicator(null, null);
-                //??? MenuMediaOpen.IsEnabled = true;
-                //??? MenuMediaClose.IsEnabled = false;
-                MenuFileLockUnlockMediaPlayers.IsEnabled = false;
 
+                MenuFileLockUnlockMediaPlayers.IsEnabled = false;
             }
         }
 
@@ -1768,13 +1754,6 @@ namespace Surveyor
                 MenuSurveySaveAs.IsEnabled = true;
                 MenuSurveyClose.IsEnabled = true;
 
-                // Media
-                //??? MenuMediaOpen.IsEnabled = true;
-                //??? if (mediaStereoController.MediaIsOpen() == true)
-                //??? MenuMediaClose.IsEnabled = true;
-                //??? else
-                //??? MenuMediaClose.IsEnabled = false;
-
                 // Import calibration
                 MenuImportCalibration.IsEnabled = true;
                 // Media Lock
@@ -1787,9 +1766,6 @@ namespace Surveyor
                 MenuSurveySave.IsEnabled = false;
                 MenuSurveySaveAs.IsEnabled = false;
                 MenuSurveyClose.IsEnabled = false;
-                // Media
-                //??? MenuMediaOpen.IsEnabled = false;
-                //??? MenuMediaClose.IsEnabled = false;
                 // Import calibration
                 MenuImportCalibration.IsEnabled = false;
                 // Media lock
@@ -1955,8 +1931,10 @@ namespace Surveyor
         /// calculation.
         /// The Mediaplayer must be open so the frame width and height is known
         /// </summary>
-        private async Task CheckIfEventMeasurementsAreUpToDate()
+        /// <returns>true if anything changed</returns>
+        public async Task<bool> CheckIfEventMeasurementsAreUpToDate(bool forceReCalc)
         {
+            bool ret = false;
 
             // Get the Calibration ID from the preferred calibration data
             if (surveyClass is not null && MediaPlayerLeft.IsOpen())
@@ -1977,7 +1955,16 @@ namespace Surveyor
                             if (evt.EventDataType == DataType.SurveyMeasurementPoints && evt.EventData is not null)
                             {
                                 SurveyMeasurement surveyMeasurement = (SurveyMeasurement)evt.EventData;
-                                if (surveyMeasurement.CalibrationID != calibrationID)
+                                if (surveyMeasurement.CalibrationID != calibrationID || surveyMeasurement.Measurment == -1)
+                                {
+                                    upToDate = false;
+                                    break;
+                                }
+                            }
+                            else if (evt.EventDataType == DataType.SurveyStereoPoint && evt.EventData is not null)
+                            {
+                                SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
+                                if (surveyStereoPoint.CalibrationID != calibrationID)
                                 {
                                     upToDate = false;
                                     break;
@@ -1986,7 +1973,7 @@ namespace Surveyor
                         }
 
 
-                        if (!upToDate)
+                        if (!upToDate && !forceReCalc)
                         {
                             // Ask the user if they want to update the event measurements
                             string message = $"The current event measurements are not up to date with the preferred calibration data. Do you want to update the event measurements?";
@@ -2011,34 +1998,61 @@ namespace Surveyor
 
                             if (result == ContentDialogResult.Primary)
                             {
-                                // Update the event measurements if the Calibration ID is different
-                                // there has been a recalibration
-                                foreach (Event evt in surveyClass.Data.Events.EventList)
+                                upToDate = false;
+                            } 
+                            else if (result == ContentDialogResult.Secondary)
+                            {
+                                upToDate = true;
+                            }
+                        }
+
+                        if (!upToDate || forceReCalc)
+                        { 
+                            // Update the event measurements if the Calibration ID is different
+                            // there has been a recalibration
+                            foreach (Event evt in surveyClass.Data.Events.EventList)
+                            {
+                                if (evt.EventData is not null)
                                 {
-                                    if (evt.EventDataType == DataType.SurveyMeasurementPoints && evt.EventData is not null)
+                                    if (evt.EventDataType == DataType.SurveyMeasurementPoints)
                                     {
                                         SurveyMeasurement surveyMeasurement = (SurveyMeasurement)evt.EventData;
-                                        if (surveyMeasurement.CalibrationID != calibrationID)
+                                        if (surveyMeasurement.CalibrationID != calibrationID || surveyMeasurement.Measurment == -1 || forceReCalc)
                                         {
                                             // Recalculate for a measurement
                                             DoMeasurementAndRulesCalculations(surveyMeasurement);
+                                            ret = true;
                                         }
                                     }
-                                    else if (evt.EventDataType == DataType.SurveyStereoPoint && evt.EventData is not null)
+                                    else if (evt.EventDataType == DataType.SurveyStereoPoint || forceReCalc)
                                     {
                                         SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
                                         if (surveyStereoPoint.CalibrationID != calibrationID)
                                         {
                                             // Recalculate for a stero point
                                             DoRulesCalculations(surveyStereoPoint);
+                                            ret = true;
                                         }
                                     }
                                 }
+                            }
+                            
+                            if (ret == true && surveyClass is not null)
+                            {
+                                // Reset the event list
+                                eventsControl.SetEvents([]);
+                                // Need to wait for the events to be updated otherwise the reset is missed
+                                await Task.Delay(500);
+                                // Refresh the event list (it will not automatic detect changes within existing events)
+                                eventsControl.SetEvents(surveyClass.Data.Events.EventList);
+
                             }
                         }
                     }
                 }
             }
+
+            return ret;
         }
 
 
@@ -2064,14 +2078,19 @@ namespace Surveyor
 
 
                 // Apply the survey rules
-                if (surveyClass is not null && 
-                    surveyClass.Data.SurveyRules.SurveyRulesActive is not null && 
+                if (surveyClass is not null &&                     
                     surveyClass.Data.SurveyRules.SurveyRulesActive == true)
                 {
                     surveyMeasurement.SurveyRulesCalc.ApplyRules(surveyClass.Data.SurveyRules.SurveyRulesData, stereoProjection);
+
+                    // Report the measurement and any rules that were applied
+
                 }
                 else
                 {
+                    // Report the measurement 
+
+
                     // No rules applied
                     surveyMeasurement.SurveyRulesCalc.Clear();
                 }
@@ -2099,13 +2118,10 @@ namespace Surveyor
         {
             if (stereoProjection.PointsLoad(
                 new Point(surveyStereoPoint.LeftX, surveyStereoPoint.LeftY),
-                null/*Left Point B*/,
-                new Point(surveyStereoPoint.RightX, surveyStereoPoint.RightY),
-                null/*Right Point B*/) == true)
+                new Point(surveyStereoPoint.RightX, surveyStereoPoint.RightY)) == true)
             {
                 // Apply the survey rules
-                if (surveyClass is not null &&
-                    surveyClass.Data.SurveyRules.SurveyRulesActive is not null &&
+                if (surveyClass is not null &&                  
                     surveyClass.Data.SurveyRules.SurveyRulesActive == true)
                 {
                     surveyStereoPoint.SurveyRulesCalc.ApplyRules(surveyClass.Data.SurveyRules.SurveyRulesData, stereoProjection);
@@ -2134,7 +2150,10 @@ namespace Surveyor
         {
             titlebarTitle = titleText;
 
-            TitleBarTextBlock.Text = BuildTitleFromElements();
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+            {
+                TitleBarTextBlock.Text = BuildTitleFromElements();
+            });
         }
 
 
@@ -2146,7 +2165,10 @@ namespace Surveyor
         {
             titlebarSaveStatus = saveStatus;
 
-            TitleBarTextBlock.Text = BuildTitleFromElements();
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+            {
+                TitleBarTextBlock.Text = BuildTitleFromElements();
+            });
         }
 
 
@@ -2158,7 +2180,10 @@ namespace Surveyor
         {
             titlebarCameraSide = cameraSide;
 
-            TitleBarTextBlock.Text = BuildTitleFromElements();
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+            {
+                TitleBarTextBlock.Text = BuildTitleFromElements();
+            });
         }
 
 
@@ -2281,6 +2306,7 @@ namespace Surveyor
             }
         }
 
+
         /// <summary>
         /// Updates the main window to show that the media is synchronized
         /// </summary>
@@ -2296,6 +2322,7 @@ namespace Surveyor
             // Adjust the File menu item text 
             MenuFileLockUnlockMediaPlayers.Text = "Unlock Media Players";
         }
+
 
         /// <summary>
         /// Updates the main window to show that the media is unsynchronized
@@ -2359,32 +2386,73 @@ namespace Surveyor
         /// <summary>
         /// Display the settings window
         /// </summary>
-        private void ShowSettingsWindow()
+        private async void ShowSettingsWindow()
         {
             if (surveyClass is not null)
             {
                 SettingsWindow settingsWindow = new((Survey)surveyClass);
-
                 settingsWindow.InitializeMediator(mediator, this);
 
-                // Set the secondary window as modal
-                settingsWindow.Activate();
+                // Get the HWND (window handle) for both windows
+                IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
+                IntPtr settingsWindowHandle = WindowNative.GetWindowHandle(settingsWindow);
 
-                // Use P/Invoke to force the window on top
-                IntPtr settingsWindowHandle = WinRT.Interop.WindowNative.GetWindowHandle(settingsWindow);
+                // Get the AppWindow instances for both windows
+                AppWindow mainAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(mainWindowHandle));
+                AppWindow settingsAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(settingsWindowHandle));
+
+                // Disable the main window by setting it inactive
+                SetWindowEnabled(mainWindowHandle, false);
+
+                // Ensure settings window stays on top
                 WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
 
+                // Activate settings window
+                settingsWindow.Activate();
 
-                // Disable interaction with the main window (not sure this is working)
-                var appWindow = Microsoft.UI.Windowing.AppWindow.GetFromWindowId(
-                    Microsoft.UI.Win32Interop.GetWindowIdFromWindow(
-                        WinRT.Interop.WindowNative.GetWindowHandle(this)
-                    )
-                );
+                // Wait for settings window to close
+                await Task.Run(() =>
+                {
+                    while (settingsAppWindow != null && settingsAppWindow.IsVisible)
+                    {
+                        System.Threading.Thread.Sleep(100);
+                    }
+                });
+
+                // Re-enable the main window after closing settings
+                SetWindowEnabled(mainWindowHandle, true);
             }
         }
 
 
+        /// <summary>
+        /// Disables or enables a window in WinUI 3 using native Win32 API.
+        /// </summary>
+        private static void SetWindowEnabled(IntPtr hWnd, bool enabled)
+        {
+            const int GWL_STYLE = -16;
+            const int WS_DISABLED = 0x08000000;
+
+            int style = GetWindowLong(hWnd, GWL_STYLE);
+            if (enabled)
+            {
+                style &= ~WS_DISABLED; // Remove the disabled flag
+            }
+            else
+            {
+                style |= WS_DISABLED; // Add the disabled flag
+            }
+            SetWindowLong(hWnd, GWL_STYLE, style);
+        }
+
+        /// <summary>
+        /// Native Win32 API methods
+        /// </summary>
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+        [DllImport("user32.dll")]
+        private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
         /// <summary>
         /// Used to swap between the Events/Results/Output pages

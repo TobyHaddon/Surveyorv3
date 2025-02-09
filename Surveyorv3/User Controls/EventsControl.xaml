@@ -19,8 +19,15 @@
     
     <Grid>
         <ListView x:Name="ListViewEvent" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
-                   IsItemClickEnabled="True" ItemClick="GoToFrameMenuItem_Click" RightTapped="ViewMenuItem_Click" KeyDown="ListViewEvent_KeyDown">
+                   IsItemClickEnabled="True" ItemClick="GoToFrameMenuItem_Click" RightTapped="ListViewEvent_RightTapped" KeyDown="ListViewEvent_KeyDown">
 
+            <!-- Enable UI Virtualization -->
+            <ListView.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <ItemsStackPanel/>
+                </ItemsPanelTemplate>
+            </ListView.ItemsPanel>
+                        
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                     <!-- Reduce padding and margin -->
@@ -39,7 +46,7 @@
                             <ColumnDefinition Width="100"/>
                             <ColumnDefinition Width="0"/>
                             <ColumnDefinition Width="200"/>
-                            <ColumnDefinition Width="1800"/>
+                            <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <!-- Column 0: Event Type Glyph -->
                         <TextBlock Grid.Column="0" Text="{x:Bind EventDataType, Mode=OneWay, Converter={StaticResource EventTypeToGlyphConverter}}" Width="16" TextAlignment="Left" Margin="0,0,10,0" FontFamily="Segoe MDL2 Assets"/>
@@ -58,7 +65,32 @@
                     </Grid>
                 </DataTemplate>
             </ListView.ItemTemplate>
+
+            <ListView.ContextFlyout>
+                <MenuFlyout>
+                    <MenuFlyoutItem Text="Display Frame" Click="GoToFrameMenuItem_Click" />
+                    <MenuFlyoutItem Text="Delete Event" Click="ListViewEvent_Delete" />
+                    <MenuFlyoutSeparator />
+                    <MenuFlyoutItem Text="Properties" Click="ViewMenuItem_Click" />
+                </MenuFlyout>
+            </ListView.ContextFlyout>
         </ListView>
+
+        <!-- ContentDialog Definition -->
+        <ContentDialog x:Name="EventDialog"
+                       Title="Event"
+                       CloseButtonText="OK"
+                       SecondaryButtonText="&#xE8C8;">
+            <ContentDialog.SecondaryButtonStyle>
+                <Style TargetType="Button">
+                    <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+                </Style>
+            </ContentDialog.SecondaryButtonStyle>
+            <StackPanel Orientation="Vertical" Spacing="10">
+                <!-- Placeholder for dynamic content -->
+                <TextBlock x:Name="EventDialogContent" TextWrapping="Wrap" />
+            </StackPanel>
+        </ContentDialog>
     </Grid>
 
 </UserControl>

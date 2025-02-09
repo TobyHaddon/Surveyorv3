@@ -8,13 +8,15 @@
 
 //using Emgu.CV;
 //using Emgu.CV.Structure;
+using MathNet.Numerics.Optimization;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
-
+using System.Runtime.CompilerServices;
 using System.Text;
 using Windows.Web.Http;
 
@@ -22,43 +24,182 @@ using Windows.Web.Http;
 namespace Surveyor
 {
 
-    public class SurveyRulesData
+    public partial class SurveyRulesData : INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        // SurveyRulesData class version
+        public float Version { get; set; } = 1.0f;
+
+
+        // Values
+        private bool _rangeRuleActive = false;
+        private double _rangeMin = 0.0;
+        private double _rangeMax = 10.0;
+        private bool _rmsRuleActive = false;
+        private double _rmsMax = 0.0;
+        private bool _horizontalRangeRuleActive = false;
+        private double _horizontalRangeLeft = 0.0;
+        private double _horizontalRangeRight = 0.0;
+        private bool _verticalRangeRuleActive = false;
+        private double _verticalRangeTop = 0.0;
+        private double _verticalRangeBottom = 0.0;
+
+
         [JsonProperty(nameof(RangeRuleActive))]
-        public bool RangeRuleActive { get; set; }   // True if the range restriction rule is being used
+        public bool RangeRuleActive // True if the range restriction rule is being used
+        {
+            get => _rangeRuleActive;
+            set
+            {
+                if (_rangeRuleActive != value)
+                {
+                    _rangeRuleActive = value;
+                    IsDirty = true;
+                }
+            }
+        }
 
         [JsonProperty(nameof(RangeMin))]
-        public double RangeMin { get; set; }        // The minimum range a fish can be recorded at in metres e.g. 0.5m
+        public double RangeMin // The minimum range a fish can be recorded at in metres e.g. 0.5m
+        {
+            get => _rangeMin;
+            set
+            {
+                if (_rangeMin != value)
+                {
+                    _rangeMin = value;
+                    IsDirty = true;
+                }
+            }
+        }
 
         [JsonProperty(nameof(RangeMax))]
-        public double RangeMax { get; set; }        // The maximum range a fish can be recorded at in metres e.g. 10.0m
-
+        public double RangeMax  // The maximum range a fish can be recorded at in metres e.g. 10.0m
+        {
+            get => _rangeMax;
+            set
+            {
+                if (_rangeMax != value)
+                {
+                    _rangeMax = value;
+                    IsDirty = true;
+                }
+}
+        }
 
         [JsonProperty(nameof(RMSRuleActive))]        
-        public bool RMSRuleActive { get; set; }     // True if the RMS restriction rule is being used
+        public bool RMSRuleActive  // True if the RMS restriction rule is being used
+        {
+            get => _rmsRuleActive;
+            set
+            {
+                if (_rmsRuleActive != value)
+                {
+                    _rmsRuleActive = value;
+                    IsDirty = true;
+                }
+            }
+        }
 
         [JsonProperty(nameof(RMSMax))]
-        public double RMSMax { get; set; }          // The maximum RMS error that is allowed in mm e.g. 20mm
+        public double RMSMax  // The maximum RMS error that is allowed in mm e.g. 20mm
+        {
+            get => _rmsMax;
+            set
+            {
+                if (_rmsMax != value)
+                {
+                    _rmsMax = value;
+                    IsDirty = true;
+                }
+            }
+        }
 
 
         [JsonProperty(nameof(HorizontalRangeRuleActive))]
-        public bool HorizontalRangeRuleActive { get; set; } // True if the horizontal range restriction rule is being used
+        public bool HorizontalRangeRuleActive  // True if the horizontal range restriction rule is being used
+        {
+            get => _horizontalRangeRuleActive;
+            set
+            {
+                if (_horizontalRangeRuleActive != value)
+                {
+                    _horizontalRangeRuleActive = value;
+                    IsDirty = true;
+                }
+            }
+        }
 
         [JsonProperty(nameof(HorizontalRangeLeft))]
-        public double HorizontalRangeLeft { get; set; }     // The size of the survey box in metres to the left of the camera centre point e.g. 2.5m
+        public double HorizontalRangeLeft  // The size of the survey box in metres to the left of the camera centre point e.g. 2.5m
+        {
+            get => _horizontalRangeLeft;
+            set
+            {
+                if (_horizontalRangeLeft != value)
+                {
+                    _horizontalRangeLeft = value;
+                    IsDirty = true;
+                }
+            }
+        }
 
         [JsonProperty(nameof(HorizontalRangeRight))]
-        public double HorizontalRangeRight { get; set; }    // The size of the survey box in metres to the right of the camera centre point e.g. 2.5m
-
+        public double HorizontalRangeRight  // The size of the survey box in metres to the right of the camera centre point e.g. 2.5m
+        {
+            get => _horizontalRangeRight;
+            set
+            {
+                if (_horizontalRangeRight != value)
+                {
+                    _horizontalRangeRight = value;
+                    IsDirty = true;
+                }
+            }
+        }
 
         [JsonProperty(nameof(VerticalRangeRuleActive))]
-        public bool VerticalRangeRuleActive { get; set; }   // True if the vertical range restriction rule is being used
+        public bool VerticalRangeRuleActive  // True if the vertical range restriction rule is being used
+        {
+            get => _verticalRangeRuleActive;
+            set
+            {
+                if (_verticalRangeRuleActive != value)
+                {
+                    _verticalRangeRuleActive = value;
+                    IsDirty = true;
+                }
+            }
+        }
 
         [JsonProperty(nameof(VerticalRangeTop))]
-        public double VerticalRangeTop { get; set; }        // The size of the survey box in metres above the camera centre point e.g. 2.5m
+        public double VerticalRangeTop  // The size of the survey box in metres above the camera centre point e.g. 2.5m
+        {
+            get => _verticalRangeTop;
+            set
+            {
+                if (_verticalRangeTop != value)
+                {
+                    _verticalRangeTop = value;
+                    IsDirty = true;
+                }
+            }
+        }
 
         [JsonProperty(nameof(VerticalRangeBottom))]
-        public double VerticalRangeBottom { get; set; }    // The size of the survey box in metres below the camera centre point e.g. 2.5m
+        public double VerticalRangeBottom  // The size of the survey box in metres below the camera centre point e.g. 2.5m
+        {
+            get => _verticalRangeBottom;
+            set
+                    {
+                if (_verticalRangeBottom != value)
+                {
+                    _verticalRangeBottom = value;
+                    IsDirty = true;
+                }
+            }
+        }
 
 
         public override int GetHashCode()
@@ -131,7 +272,7 @@ namespace Surveyor
         {
             RangeRuleActive = false;
             RangeMin = 0.0;
-            RangeMax = 0.0;
+            RangeMax = 10.0;
             RMSRuleActive = false;
             RMSMax = 0.0;
             HorizontalRangeRuleActive = false;
@@ -141,6 +282,32 @@ namespace Surveyor
             VerticalRangeTop = 0.0;
             VerticalRangeBottom = 0.0;
         }
+
+
+        private bool _isDirty;
+        [JsonIgnore]
+        public bool IsDirty
+        {
+            get => _isDirty;
+            set
+            {
+                if (_isDirty != value)
+                {
+                    _isDirty = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
+
+        /// 
+        /// EVENTS
+        /// 
+        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
     }
 
     public class SurveyRulesCalc
@@ -172,9 +339,15 @@ namespace Surveyor
         /// <param name="stereoProjection"></param>
         public void ApplyRules(SurveyRulesData surveyRulesData,StereoProjection stereoProjection)
         {
+            // Reset
+            Clear();
+
             // Start by assuming the survey passes the rules and prove otherwise
             SurveyRules = true;
             SurveyRulesText = "";
+            StringBuilder surveyRulesFailedText = new();
+            StringBuilder surveyRulesPassedText = new();
+            string ruleText = "";
 
             // Calculate range (distance from origin)
             Range = stereoProjection.RangeFromCameraSystemCentrePointToMeasurementCentrePoint();
@@ -189,50 +362,106 @@ namespace Surveyor
             // Check the range rule
             if (surveyRulesData.RangeRuleActive == true)
             {
-                if (Range < surveyRulesData.RangeMin || Range > surveyRulesData.RangeMax)
+                if (Range is not null)
                 {
-                    SurveyRules = false;
-                    if (SurveyRulesText != "")
-                        SurveyRulesText += "\n";
-                    SurveyRulesText += "Range: " + Range + "m (" + surveyRulesData.RangeMin + "m - " + surveyRulesData.RangeMax + "m) ";
+                    ruleText = $"Range: {Math.Round((double)Range, 2)}m (Range allowed from {surveyRulesData.RangeMin}m to {surveyRulesData.RangeMax}m) ";
+                    if (Range < surveyRulesData.RangeMin || Range > surveyRulesData.RangeMax)
+                    {
+                        SurveyRules = false;
+                        if (surveyRulesFailedText.Length > 0)
+                            surveyRulesFailedText.Append(", ");
+                        surveyRulesFailedText.Append(ruleText);
+                    }
+                    else
+                        SurveyRulesCalc.AppendRulesText(surveyRulesPassedText, ruleText);
                 }
-            }   
+            }
+            else
+                SurveyRulesCalc.AppendRulesText(surveyRulesPassedText, "Range Rule Off");
 
             // Check the RMS rule
             if (surveyRulesData.RMSRuleActive == true)
             {
-                if (RMS > surveyRulesData.RMSMax)
+                if (RMS is not null)
                 {
-                    SurveyRules = false;
-                    if (SurveyRulesText != "")
-                        SurveyRulesText += "\n";
-                    SurveyRulesText += "RMS: " + RMS + "mm (" + surveyRulesData.RMSMax + "mm) ";
+                    ruleText = $"RMS: {Math.Round((double)RMS, 2)}mm (Max allowed: {surveyRulesData.RMSMax}mm) ";
+                    if (RMS > surveyRulesData.RMSMax)
+                    {
+                        SurveyRules = false;
+                        if (surveyRulesFailedText.Length > 0)
+                            surveyRulesFailedText.Append(", ");
+                        surveyRulesFailedText.Append(ruleText);
+                    }
+                    else
+                        SurveyRulesCalc.AppendRulesText(surveyRulesPassedText, ruleText);
                 }
             }
+            else
+                SurveyRulesCalc.AppendRulesText(surveyRulesPassedText, "RMS Rule Off");
 
             // Check the horizontal range rule
             if (surveyRulesData.HorizontalRangeRuleActive == true)
             {
-                if (XOffset < -surveyRulesData.HorizontalRangeLeft || XOffset > surveyRulesData.HorizontalRangeRight)
+                if (XOffset is not null)
                 {
-                    SurveyRules = false;
-                    if (SurveyRulesText != "")
-                        SurveyRulesText += "\n";
-                    SurveyRulesText += "Horizontal Range: " + XOffset + "m (" + -surveyRulesData.HorizontalRangeLeft + "m - " + surveyRulesData.HorizontalRangeRight + "m) ";
+                    ruleText = $"Horizontal Range: {Math.Round((double)XOffset, 2)}m (Allowed between: left {surveyRulesData.HorizontalRangeLeft}m and right {surveyRulesData.HorizontalRangeRight}m) ";
+                    if (XOffset < -surveyRulesData.HorizontalRangeLeft || XOffset > surveyRulesData.HorizontalRangeRight)
+                    {
+                        SurveyRules = false;
+                        SurveyRulesCalc.AppendRulesText(surveyRulesFailedText, ruleText);
+                    }
+                    else
+                        SurveyRulesCalc.AppendRulesText(surveyRulesPassedText, ruleText);
                 }
             }
+            else
+                SurveyRulesCalc.AppendRulesText(surveyRulesPassedText, "Horizontal Range Rule Off");
 
             // Check the vertical range rule
             if (surveyRulesData.VerticalRangeRuleActive == true)
             {
-                if (YOffset < -surveyRulesData.VerticalRangeBottom || YOffset > surveyRulesData.VerticalRangeTop)
+                if (YOffset is not null)
                 {
-                    SurveyRules = false;
-                    if (SurveyRulesText != "")
-                        SurveyRulesText += "\n";
-                    SurveyRulesText += "Vertical Range: " + YOffset + "m (" + -surveyRulesData.VerticalRangeBottom + "m - " + surveyRulesData.VerticalRangeTop + "m) ";
+                    ruleText = $"Vertical Range: {Math.Round((double)YOffset, 2)}m (Allowed between: top {-surveyRulesData.VerticalRangeBottom}m and bottom {surveyRulesData.VerticalRangeTop}m) ";
+                    if (YOffset < -surveyRulesData.VerticalRangeBottom || YOffset > surveyRulesData.VerticalRangeTop)
+                    {
+                        SurveyRules = false;
+                        if (surveyRulesFailedText.Length > 0)
+                            surveyRulesFailedText.Append(", ");
+
+                        surveyRulesFailedText.Append(ruleText);
+                    }
+                    else
+                        SurveyRulesCalc.AppendRulesText(surveyRulesPassedText, ruleText);
                 }
             }
+            else
+                SurveyRulesCalc.AppendRulesText(surveyRulesPassedText, "Vertical Range Rule Off");
+
+            // Combine the passed and failed rules text            
+            if (surveyRulesFailedText.Length > 0 )
+                SurveyRulesText = $"FAILED {surveyRulesFailedText}";
+
+            if (surveyRulesPassedText.Length > 0)
+            {
+                if (SurveyRulesText.Length > 0)
+                    SurveyRulesText += ", ";
+                SurveyRulesText += $"PASSED {surveyRulesPassedText}";
+            }
+            
+        }
+
+
+        /// <summary>
+        /// Append the rules text to a string builder string adding commas if necessary
+        /// </summary>
+        /// <param name="sb"></param>
+        /// <param name="ruleText"></param>
+        private static void AppendRulesText(StringBuilder sb, string ruleText)
+        {
+            if (sb.Length > 0)
+                sb.Append(", ");
+            sb.Append(ruleText);
         }
     }
 }

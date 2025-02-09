@@ -141,6 +141,8 @@ namespace Surveyor.User_Controls
         public void Clear()
         {
             ControlPositionText.Text = "";
+            ControlFrameText.Text = "";
+            ControlFrameEdit.Text = "";
             ControlDurationText.Text = "";
             ControlSpeedText.Text = "";
             ControlSpeedText.Text = "";
@@ -162,7 +164,7 @@ namespace Surveyor.User_Controls
         {
             if (trueEnableFalseDisable == true)
             {
-                ControlSpeedText.Text = $"x{_speed:F1}";
+                ControlSpeedText.Text = $"x{Math.Round(_speed, 1)}";
                 ControlFrameBack.IsEnabled = true;
                 ControlFrameForward.IsEnabled = true;
                 ControlPlayPause.IsEnabled = true;                
@@ -297,18 +299,21 @@ namespace Surveyor.User_Controls
         /// <param name="message"></param>
         internal void UpdateDurationAndFrameRate(MediaPlayerEventData message)
         {
-            if (message is not null && message.duration is not null)
+            if (message is not null)
             {
-                _duration = (TimeSpan)message.duration;
-                string durationText = $"{_duration:hh\\:mm\\:ss}";
+                if (message.duration is not null)
+                {
+                    _duration = (TimeSpan)message.duration;
+                    string durationText = $"{_duration:hh\\:mm\\:ss}";
 
-                ControlDurationText.Text = durationText;
-            }
+                    ControlDurationText.Text = durationText;
+                }
 
-            if (message is not null && message.frameRate is not null)
-            { 
-                // Remember the media frame rate
-                _frameRate = (double)message.frameRate;
+                if (message.frameRate is not null)
+                {
+                    // Remember the media frame rate
+                    _frameRate = (double)message.frameRate;
+                }
             }
         }
 
@@ -327,8 +332,8 @@ namespace Surveyor.User_Controls
                 positionText = $"{message.position:hh\\:mm\\:ss\\.ff}";
 
                 // Update the frame index
-                if (message.frameIndex != -1)
-                    frameText = $"{message.frameIndex}";
+                if (_frameRate > 0.0)
+                    frameText = $"{SurveyorMediaPlayer.GetFrameIndexFromPosition((TimeSpan)message.position, _frameRate)}";
 
 
                 // If the user isn't currently dragging the slider we are going to
@@ -356,15 +361,10 @@ namespace Surveyor.User_Controls
                 }
                 else if (ControlType == eControlType.Both)
                 {
-                    if (message.cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
+                    if (message.cameraSide == SurveyorMediaPlayer.eCameraSide.None)
                     {
                         ControlPositionText.Text = positionText;
                         ControlFrameText.Text = frameText;
-                    }
-                    else if (message.cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
-
-                    {
-                        //???TextBoxFrame1.Text = $"{message.frameIndex}";
                     }
                 }
             }
@@ -502,7 +502,7 @@ namespace Surveyor.User_Controls
             // Calculate the new increased speed
             _speed = CalcSpeed(_speed, false/*TrueIncreaseFalseDecrease*/);
 
-            ControlSpeedText.Text = $"x{_speed:F2}";
+            ControlSpeedText.Text = $"x{Math.Round(_speed, 2)}";
 
             // Signal eMediaControlEvent.UserReqSpeedSelect with _speed
             mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqSpeedSelect, ControlType) { speed = _speed });
@@ -543,7 +543,7 @@ namespace Surveyor.User_Controls
             // Calculate the new increased speed
             _speed = CalcSpeed(_speed, true/*TrueIncreaseFalseDecrease*/);
 
-            ControlSpeedText.Text = $"x{_speed:F2}";
+            ControlSpeedText.Text = $"x{Math.Round(_speed, 2)}";
 
             // Signal eMediaControlEvent.UserReqSpeedSelect with _speed
             mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqSpeedSelect, ControlType) { speed = _speed });
@@ -625,7 +625,7 @@ namespace Surveyor.User_Controls
                 if (speed != _speed)
                 {
                     _speed = speed;
-                    ControlSpeedText.Text = $"x{_speed:F2}";
+                    ControlSpeedText.Text = $"x{Math.Round(_speed, 2)}";
 
                     // Send the new speed to the MediaSteroController
                     mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqSpeedSelect, ControlType) { speed = _speed });
@@ -1466,7 +1466,7 @@ namespace Surveyor.User_Controls
             this.controlType = controlType;
         }
 
-        public enum eMediaControlAction { FrameIndex, Duration, Position }
+        public enum eMediaControlAction { FrameIndex, /*Duration,*/ Position }
         public eMediaControlAction mediaControlAction;
 
         public readonly SurveyorMediaControl.eControlType controlType;
@@ -1474,8 +1474,8 @@ namespace Surveyor.User_Controls
         // Used only for eMediaControlAction.FrameIndex to inform MediaControls of a change to the Frame Index (i.e. we have moved position in the media)
         public Int64 frameIndex;
 
-        // Used only for eMediaControlAction.Duration to inform MediaControls of the natural diuration of the media
-        public TimeSpan duration;
+//???        // Used only for eMediaControlAction.Duration to inform MediaControls of the natural diuration of the media
+//???        public TimeSpan duration;*/
 
         // Used only for eMediaControlAction.Position to indicate what position of media with the playback
         public TimeSpan position;

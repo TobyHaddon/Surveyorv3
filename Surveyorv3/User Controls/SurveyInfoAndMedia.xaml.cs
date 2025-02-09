@@ -48,7 +48,7 @@ namespace Surveyor.User_Controls
 
         private ContentDialog? ParentDialog { get; set; } = null;
         private SettingsCard? ParentSettings { get; set; } = null;        
-        private Survey? survey = null;
+
         private ObservableCollection<MediaFileItem> LeftMediaFileItemList { get; set; }
         private ObservableCollection<MediaFileItem> RightMediaFileItemList { get; set; }
 
@@ -61,7 +61,7 @@ namespace Surveyor.User_Controls
             LeftMediaFileItemList = [];
             RightMediaFileItemList = [];
 
-            Debug.WriteLine($"SurveyInfoAndMedia() complete");
+
         }
 
 
@@ -149,9 +149,6 @@ namespace Surveyor.User_Controls
 
             // Reset Fields
             ResetDialogFields();
-
-            // Remember the survey
-            this.survey = survey;
 
             // Disable UI elements not used by the SettingsCard
             SurveyCode.IsEnabled = false;       // Survey code is the name of the survey e.g. CVW-10-5-2024-07-12.
@@ -419,6 +416,40 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// Users changed the selected item in the left media file list view. Now adjust the control 
+        /// button accordingly
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void LeftMediaFileNames_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Remove any existing seleced item in the other (right list view)
+            if (e.AddedItems.Count > 0)
+                RightMediaFileNames.SelectedIndex = -1;
+            
+            // Setup the buttons
+            EnableDisableControlButtons();
+        }
+
+
+        /// <summary>
+        /// Users changed the selected item in the right media file list view. Now adjust the control 
+        /// button accordingly
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void RightMediaFileNames_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Remove any existing seleced item in the other (left list view)
+            if (e.AddedItems.Count > 0)
+                LeftMediaFileNames.SelectedIndex = -1;
+
+            // Setup the buttons
+            EnableDisableControlButtons();
+        }
+
+
         ///
         /// PRIVATE
         /// 
@@ -486,9 +517,17 @@ namespace Surveyor.User_Controls
             ObservableCollection<MediaFileItem> leftFiles = [];
             ObservableCollection<MediaFileItem> rightFiles = [];
 
-            // Regex to identify left and right
-            Regex leftRegex = new("(?i)(left|l[^a-z])");
-            Regex rightRegex = new("(?i)(right|r[^a-z])");
+            // Regex to identify and isolcate 'L' or 'R'
+            // Regex pattern explanation:
+            // (?<![a-zA-Z]) - Ensures there is NO letter before 'L'
+            // L             - Matches uppercase 'L'
+            // (?![a-zA-Z])  - Ensures there is NO letter after 'L'
+            Regex leftIsolatedRegex = new(@"(?<![a-zA-Z])L(?![a-zA-Z])");
+            Regex rightIsolatedRegex = new(@"(?<![a-zA-Z])R(?![a-zA-Z])");
+
+            // Regex to identify left and right or l or r
+            Regex leftSimpleRegex = new("(?i)(left|l[^a-z])");
+            Regex rightSimpleRegex = new("(?i)(right|r[^a-z])");
 
             foreach (MediaFileItem file in mediaFiles)
             {
@@ -497,10 +536,15 @@ namespace Surveyor.User_Controls
 
                 string fileName = file.MediaFileName ?? "";
 
-                // Look for certain matches
-                if (leftRegex.IsMatch(fileName))
+                // Look for isolated L or R matches
+                if (leftIsolatedRegex.IsMatch(fileName))
                     leftFiles.Add(file);
-                else if (rightRegex.IsMatch(fileName))
+                else if (rightIsolatedRegex.IsMatch(fileName))
+                    rightFiles.Add(file);
+                // Look for simple matches
+                else if (leftSimpleRegex.IsMatch(fileName))
+                    leftFiles.Add(file);
+                else if (rightSimpleRegex.IsMatch(fileName))
                     rightFiles.Add(file);
                 else
                 {
@@ -548,6 +592,7 @@ namespace Surveyor.User_Controls
             bool mediaValid = true;
             bool mediaGoProSNMatch = true;
             bool mediaSameResolution;   // Set later
+            bool mediaSameFrameRate;   // Set later
             bool mediaDatesMatch = true;
             bool mediaContigious = true;
 
@@ -640,26 +685,30 @@ namespace Surveyor.User_Controls
                     SetValidationText(true/*valid*/, SurveyMediaDatePanel, SurveyMediaDateGlyph, SurveyMediaDateValidationText, "The media files are all from the same date", "");
                 }
             }
-            else if (sameDateLeftMedia is null && sameDateRightMedia is not null)
+            else if ((sameDateLeftMedia is null && LeftMediaFileItemList.Count > 0) && sameDateRightMedia is not null)
             {
                 SetValidationText(false/*invalid*/, SurveyMediaDatePanel, SurveyMediaDateGlyph, SurveyMediaDateValidationText, "Not all the media on the left side has the same date", "You would expect all the dates on the media to be the same.");
 
                 if (reportIssues)
                     report?.Warning("Left", $"The media files for survey {surveyCode} on the left side don't have the same date");
             }
-            else if (sameDateLeftMedia is not null && sameDateRightMedia is null)
+            else if (sameDateLeftMedia is not null && (sameDateRightMedia is null && RightMediaFileItemList.Count > 0))
             {
                 SetValidationText(false/*invalid*/, SurveyMediaDatePanel, SurveyMediaDateGlyph, SurveyMediaDateValidationText, "Not all the media on the right side has the same date", "You would expect all the dates on the media to be the same.");
 
                 if (reportIssues)
                     report?.Warning("Right", $"The media files for survey {surveyCode} on the right side don't have the same date");
             }
-            else // (sameDateLeftMedia is null && sameDateRightMedia is null)
+            else if ((sameDateLeftMedia is null && LeftMediaFileItemList.Count > 0) && (sameDateRightMedia is null && RightMediaFileItemList.Count > 0))
             {
                 SetValidationText(false/*invalid*/, SurveyMediaDatePanel, SurveyMediaDateGlyph, SurveyMediaDateValidationText, "Not all the media on the left side and on the right side has the same date", "You would expect all the dates on the media to be the same.");
 
                 if (reportIssues)
                     report?.Warning("", $"The media files for survey {surveyCode} on the left side and the right side don't have the same date");
+            }
+            else
+            {
+                SetValidationText(null/*hide*/, SurveyMediaDatePanel, SurveyMediaDateGlyph, SurveyMediaDateValidationText, "", "");
             }
 
 
@@ -714,6 +763,10 @@ namespace Surveyor.User_Controls
                 {
                     SetValidationText(true/*valid*/, SurveyGoProMatchPanel, SurveyGoProMatchGlyph, SurveyGoProMatchValidationText, "GoPro serial numbers match", "");
                 }
+                else
+                {
+                    SetValidationText(null/*hide*/, SurveyGoProMatchPanel, SurveyGoProMatchGlyph, SurveyGoProMatchValidationText, "", "");
+                }
             }
 
 
@@ -756,6 +809,10 @@ namespace Surveyor.User_Controls
                 {
                     SetValidationText(true/*valid*/, SurveyMediaContiguousPanel, SurveyMediaContiguousGlyph, SurveyMediaContiguousValidationText, "All media is contingious", "");
                 }
+                else
+                {
+                    SetValidationText(null/*hdie*/, SurveyMediaContiguousPanel, SurveyMediaContiguousGlyph, SurveyMediaContiguousValidationText, "", "");
+                }
             }
 
 
@@ -774,12 +831,27 @@ namespace Surveyor.User_Controls
             }
 
 
+            // Check if all the media has the same frame rate
+            mediaSameFrameRate = CheckAllMediaFrameRateaAreTheSame();
+            if (!mediaSameFrameRate)
+            {
+                SetValidationText(false/*invalid*/, SurveyFrameRateMatchPanel, SurveyFrameRateMatchGlyph, SurveyFrameRateMatchValidationText, "All media files need have the same frame rate", "");
+
+                if (reportIssues)
+                    report?.Warning("", $"The media files for survey {surveyCode} are not all of the same frame rate");
+            }
+            else
+            {
+                SetValidationText(true/*valid*/, SurveyFrameRateMatchPanel, SurveyFrameRateMatchGlyph, SurveyFrameRateMatchValidationText, "All media files have the same frame rate", "");
+            }
+
+
             // Check for warning
             if (!mediaDatesMatch || !mediaContigious)
                 ret = EntryFieldsValidReturn.Warning;
 
             // Return Invalid if any invalid data
-            if (!infoValid || !mediaValid || !mediaGoProSNMatch || !mediaSameResolution)
+            if (!infoValid || !mediaValid || !mediaGoProSNMatch || !mediaSameResolution || !mediaSameFrameRate)
                 ret = EntryFieldsValidReturn.Invalid;
 
 
@@ -1090,6 +1162,61 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Check if all the media files have the same frame rate
+        /// </summary>
+        /// <returns></returns>
+        private bool CheckAllMediaFrameRateaAreTheSame()
+        {
+            bool ret = true;
+
+            double? mediaFrameRate;
+
+            if (LeftMediaFileItemList.Count + RightMediaFileItemList.Count > 1)
+            {
+                if (LeftMediaFileItemList.Count > 0 && LeftMediaFileItemList[0] is not null)
+                {
+                    MediaFileItem item = LeftMediaFileItemList[0];
+                    mediaFrameRate = item.MediaFrameRate;
+                }
+                else if (RightMediaFileItemList.Count > 0 && RightMediaFileItemList[0] is not null && RightMediaFileItemList[0].MediaFilePath is not null)
+                {
+                    MediaFileItem item = RightMediaFileItemList[0];
+                    mediaFrameRate = item.MediaFrameRate;
+                }
+                else
+                    return false;
+
+                if (ret == true)
+                {
+                    // Check all the left media files
+                    foreach (MediaFileItem item in LeftMediaFileItemList)
+                    {
+                        if (mediaFrameRate != item.MediaFrameRate)
+                        {
+                            ret = false;
+                            break;
+                        }
+                    }
+                }
+                if (ret == true)
+                {
+                    // Check all the right media files
+                    foreach (MediaFileItem item in RightMediaFileItemList)
+                    {
+                        if (mediaFrameRate != item.MediaFrameRate)
+                        {
+                            ret = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
         /// Get the default thumbnail for a media file. Use if a thumbnail can't be 
         /// extracted from the media file
         /// </summary>
@@ -1157,14 +1284,33 @@ namespace Surveyor.User_Controls
                     }
                 }
 
-                // Get the frame size
+                // Get the frame size and frame rate
                 Dictionary<string, string> fileProperties = await GetMP4FileProperities.ExtractPropertiesAsync(file);
-                if (fileProperties.TryGetValue("Video.Width", out string? width) && fileProperties.TryGetValue("Video.Height", out string? height))
+                if (fileProperties.TryGetValue("Video.Width", out string? width) && 
+                    fileProperties.TryGetValue("Video.Height", out string? height) &&
+                    fileProperties.TryGetValue("Video.FrameRate", out string? frameRate))
                 {
-                    item.MediaFrameWidth = Int32.Parse(width);
-                    item.MediaFrameHeight = Int32.Parse(height);
+                    try
+                    {
+                        item.MediaFrameWidth = Int32.Parse(width);
+                        item.MediaFrameHeight = Int32.Parse(height);
+                    }
+                    catch (FormatException)
+                    {
+                        item.MediaFrameWidth = 0;
+                        item.MediaFrameHeight = 0;
+                    }
+                    try
+                    {
+                        item.MediaFrameRate = Double.Parse(frameRate);
+                    }
+                    catch (FormatException) 
+                    {
+                        item.MediaFrameRate = 0.0;
+                    }
                 }
 
+               
                 // Get the duration
                 if (fileProperties.TryGetValue("Video.Duration", out string? value))
                 {
@@ -1210,6 +1356,80 @@ namespace Surveyor.User_Controls
             RightMediaFileItemList.Clear();
         }
 
+        /// <summary>
+        /// Enable or disables the list view control buttons based on
+        /// list view control selection of viable options for moving or
+        /// changing the order of media files
+        /// </summary>
+        private void EnableDisableControlButtons()
+        {
+
+            if (LeftMediaFileNames.SelectedItem is MediaFileItem selectedItem)
+            {
+                int index = LeftMediaFileItemList.IndexOf(selectedItem);
+
+                // Up Button
+                if (LeftMediaFileItemList.Count < 2 || index == 0)
+                    MoveItemUp.IsEnabled = false;
+                else
+                    MoveItemUp.IsEnabled = true;
+
+                // Down Button
+                if (LeftMediaFileItemList.Count < 2 || index == LeftMediaFileItemList.Count - 1)
+                    MoveItemDown.IsEnabled = false;
+                else
+                    MoveItemDown.IsEnabled = true;
+
+                // Move to Right Button
+                MoveItemAcrossRight.IsEnabled = true;
+
+                // Move to Left Button (not possible)
+                MoveItemAcrossLeft.IsEnabled = false;
+
+                // Delete Button (can't delete media in the Settings window because it maybe referenced)
+                if (ParentDialog is not null)
+                    DeleteItem.IsEnabled = true;
+                else
+                    DeleteItem.IsEnabled = false;
+            }
+            else if (RightMediaFileNames.SelectedItem is MediaFileItem rightSelectedItem)
+            {
+                int index = RightMediaFileItemList.IndexOf(rightSelectedItem);
+
+                // Up Button
+                if (RightMediaFileItemList.Count < 2 || index == 0)
+                    MoveItemUp.IsEnabled = false;
+                else
+                    MoveItemUp.IsEnabled = true;
+
+                // Down Button
+                if (RightMediaFileItemList.Count < 2 || index == RightMediaFileItemList.Count - 1)
+                    MoveItemDown.IsEnabled = false;
+                else
+                    MoveItemDown.IsEnabled = true;
+
+                // Move to Right Button (not possible)
+                MoveItemAcrossRight.IsEnabled = false;
+
+                // Move to Left Button
+                MoveItemAcrossLeft.IsEnabled = true;
+
+                // Delete Button (can't delete media in the Settings window because it maybe referenced)
+                if (ParentDialog is not null)
+                    DeleteItem.IsEnabled = true;
+                else
+                    DeleteItem.IsEnabled = false;
+            }
+            else
+            {
+                MoveItemUp.IsEnabled = false;
+                MoveItemDown.IsEnabled = false;
+                MoveItemAcrossLeft.IsEnabled = false;
+                MoveItemAcrossRight.IsEnabled = false;
+                DeleteItem.IsEnabled = false;
+            }
+        }
+
 
         /// <summary>
         /// Use at the top of the function if that function is intended for use use only on the 
@@ -1220,6 +1440,7 @@ namespace Surveyor.User_Controls
             if (!DispatcherQueue.HasThreadAccess)
                 throw new InvalidOperationException("This function must be called from the UI thread");
         }
+
 
 
         // **END OF SurveyInfoAndMedia**
@@ -1233,6 +1454,7 @@ namespace Surveyor.User_Controls
         private string _goProSerialNumber = "";
         private int _mediaFrameWidth = 0;
         private int _mediaFrameHeight = 0;
+        private double _mediaFrameRate = 0.0;
         private DateTime? _mediaFileCreateDateTime = null;
         private TimeSpan? _mediaFileDuration = null;
 
@@ -1264,7 +1486,11 @@ namespace Surveyor.User_Controls
             get => _mediaFrameHeight;
             set => SetProperty(ref _mediaFrameHeight, value);
         }
-
+        public double MediaFrameRate
+        {
+            get => _mediaFrameRate;
+            set => SetProperty(ref _mediaFrameRate, value);
+        }
         public DateTime? MediaFileCreateDateTime
         {
             get => _mediaFileCreateDateTime;

@@ -17,6 +17,7 @@ using Surveyor.Helper;
 using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 using Windows.ApplicationModel;
 using Windows.Graphics;
 using static Surveyor.User_Controls.SettingsWindowEventData;
@@ -41,22 +42,28 @@ namespace Surveyor.User_Controls
         // Declare the mediator handler for MediaPlayer
         private SettingsWindowHandler? _settingsWindowHandler;
 
-
         private readonly ElementTheme? rootThemeOriginal = null;
 
         public string WinAppSdkRuntimeDetails => App.WinAppSdkRuntimeDetails;
 
+        private Survey? survey = null;
 
         public SettingsWindow(Survey surveyClass)
         {
             this.InitializeComponent();
             this.Closed += SettingsWindow_Closed;
 
+            // Remember the survey
+            survey = surveyClass;
+
             // Set the current saved theme
             SetSettingsTheme(SettingsManager.ApplicationTheme);
 
             // Inform the SurveyInfoAndMedia user control that is is being used in the SettingsWindow
             SurveyInfoAndMedia.SetupForSettingWindow(SettingsCardSurveyInfoAndMedia, surveyClass);
+
+            // Inform the SettingsSurveyRules user control that it is being used in the SettingsWindow for a survey (as opposed to a Field Trip)
+            SettingsSurveyRules.SetupForSurveySettingWindow(SettingsExpanderSurveyRules, surveyClass);
 
             // Remove the separate title bar from the window
             ExtendsContentIntoTitleBar = true;
@@ -175,6 +182,20 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// User request a recalculation of the event measurements and the applying of survey rules
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void ReCalculate_Click(object sender, RoutedEventArgs e)
+        {
+            if (_mainWindow is not null)
+            {
+                await _mainWindow.CheckIfEventMeasurementsAreUpToDate(true/*forceReCalc*/);
+            }
+        }
+
+
+        /// <summary>
         /// Set the combobox theme to the last saved theme
         /// </summary>
         /// <param name="theme"></param>
@@ -252,6 +273,11 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// Toggle the diagnostic information on or off
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void diagnosticInformation_Toggled(object sender, RoutedEventArgs e)
         {
             if (diagnosticInformation.IsOn)
@@ -272,6 +298,12 @@ namespace Surveyor.User_Controls
             });
         }
 
+
+        /// <summary>
+        /// Toggle the automatic magnifier window on or off
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void magnifierWindowAutomatic_Toggled(object sender, RoutedEventArgs e)
         {
             bool settingValue;
@@ -299,6 +331,16 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// Toggle the survey rules on or off
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void surveyRulesActive_Toggled(object sender, RoutedEventArgs e)
+        {
+
+        }
+
 
         ///
         /// PRIVATE
@@ -322,8 +364,25 @@ namespace Surveyor.User_Controls
         /// </summary>        
         private string SettingsExpanderInfoText
         {
-            ///??? TO DO: survey .MP4 files
-            get => "TO DO [*] survey .MP4 files";
+            get
+            {
+                StringBuilder sb = new();
+
+                if (survey is not null)
+                {
+                    if (survey.Data.Info.SurveyCode is not null)
+                    {
+                        sb.Append(survey.Data.Info.SurveyCode);
+
+                        if (!string.IsNullOrEmpty(survey.Data.Info.SurveyDepth))
+                        {
+                            sb.Append($"/{survey.Data.Info.SurveyDepth}");
+                        }
+                    }
+                }
+
+                return sb.ToString();
+            }
         }
 
 
@@ -340,6 +399,8 @@ namespace Surveyor.User_Controls
 
         [DllImport("User32.dll")]
         private static extern uint GetDpiForWindow(IntPtr hWnd);
+
+
         // ***END OF SettingsWindow***
     }
 

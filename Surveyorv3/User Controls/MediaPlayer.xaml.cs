@@ -18,6 +18,7 @@ using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -27,6 +28,7 @@ using System.Numerics;
 using System.Threading.Tasks;
 using Windows.Graphics.Imaging;
 using Windows.Media;
+using Windows.Media.Capture;
 using Windows.Media.Casting;
 using Windows.Media.Core;
 using Windows.Media.MediaProperties;
@@ -83,6 +85,7 @@ namespace Surveyor.User_Controls
 
         // Used in the redenering of a frame to the screen
         private readonly VideoFrameAvailableResources _vfar = new();
+        //???***private VideoFrameExtractor videoFrameExtractor;
 
         // VideoFrameAvailable thread access lock
         private static readonly object _lockObject = new();
@@ -193,6 +196,9 @@ namespace Surveyor.User_Controls
                         playbackSession.SeekableRangesChanged += PlaybackSession_SeekableRangesChanged;
                         playbackSession.SeekCompleted += PlaybackSession_SeekCompleted;
                         playbackSession.SupportedPlaybackRatesChanged += PlaybackSession_SupportedPlaybackRatesChanged;
+
+                        // This is used to extract frames from MediaPlayer on pause 
+                        //???***videoFrameExtractor = new(MediaPlayerElement.MediaPlayer);
                     }
                     else
                     {
@@ -591,6 +597,51 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Used to calculate the frame index from the current position (TimeSpan) using the 
+        /// frame rate.  The private variable '_frameRate' is used for the calculation which 
+        /// is set in the function 'GetAndStoreTheCurrentFrameRate'
+        /// </summary>
+        /// <param name="ts"></param>
+        /// <returns>-1 if can't calculate (normal because _frameRate is not yet set</returns>
+        internal Int64 GetFrameIndexFromPosition(System.TimeSpan ts)
+        {
+            Int64 frameIndex = -1;
+
+            if (_frameRate != -1)
+            {
+                double frameIndexDouble = ts.Ticks * _frameRate / TimeSpan.TicksPerSecond;
+                frameIndex = (long)Math.Round(frameIndexDouble, MidpointRounding.AwayFromZero);
+            }
+            else
+                Debug.WriteLine($"{CameraSide}: Error GetFrameIndexFromPosition: Can't calculate frame index, _frameRate == -1");
+
+            return frameIndex;
+        }
+
+
+        /// <summary>
+        /// Used to calculate the frame index from the current position (TimeSpan) using the
+        /// passed frame rate
+        /// </summary>
+        /// <param name="ts"></param>
+        /// <param name="frameRate"></param>
+        /// <returns></returns>
+        internal static Int64 GetFrameIndexFromPosition(System.TimeSpan ts, double frameRate)
+        {
+            Int64 frameIndex = -1;
+
+            if (frameRate > 0)
+            {
+                double frameIndexDouble = ts.Ticks * frameRate / TimeSpan.TicksPerSecond;
+                frameIndex = (long)Math.Round(frameIndexDouble, MidpointRounding.AwayFromZero);
+            }
+            else
+                Debug.WriteLine($"Error GetFrameIndexFromPosition(static version): Can't calculate frame index, frameRate <= 0");
+
+            return frameIndex;
+        }
+
+        /// <summary>
         /// Used to cast the media to a casting device
         /// </summary>
         internal void StartCasting()
@@ -702,98 +753,85 @@ namespace Surveyor.User_Controls
                     if (playbackSession.PlaybackState == MediaPlaybackState.Playing)
                         // Prevent the screen from turning off automatically
                         await EnableDisplayTimoutAsync(false);
-                    else // PlaybackState is Buffering, None, Opening, or Paused.
+                    else// PlaybackState is Buffering, None, Opening, or Paused.
                         // Allow the screen to turn off automatically
                         await EnableDisplayTimoutAsync(true);
 
 
                     switch (playbackSession.PlaybackState)
                     {
-                        case MediaPlaybackState.Playing:
-                            try
-                            {
-                                // Remember we are now in Player mode using the media player to render the video
-                                _mode = eMode.modePlayer;
+                    case MediaPlaybackState.Playing:
+                        try
+                        {
+                            // Remember we are now in Player mode using the media player to render the video
+                            _mode = eMode.modePlayer;
                                 
-                                // Exit Frame Server mode so the Media Player can render the frame
-                                DispatcherQueue.TryEnqueue(DispatcherQueuePriority.High, () =>
-                                {
-                                    MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled = false;
-
-                                    /*//???make things worse*/        // Display the Media Player (Helps with screen refresh issues media player has)
-                                    if (MediaPlayerElement.Visibility != Visibility.Visible)
-                                        /*???//???make things worse*/
-                                        MediaPlayerElement.Visibility = Visibility.Visible;
-
-                                    // Hide the frame image user control
-                                    if (ImageFrame.Visibility != Visibility.Collapsed)
-                                        ImageFrame.Visibility = Visibility.Collapsed;
-
-                                    Debug.WriteLine($"{CameraSide}: Info PlaybackSession_PlaybackStateChanged: Make Player visible and collapse Image Frame.");
-
-                                    // Inform the media control that the media is playing
-                                    _mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Playing, CameraSide, _mode));
-
-                                    Debug.WriteLine($"{CameraSide}: PlaybackSession_PlaybackStateChanged: Playing & video frame event disabled, IsVideoFrameServerEnabled ={MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled}");
-                                });
-                            }
-                            catch (Exception ex)
+                            // Exit Frame Server mode so the Media Player can render the frame
+                            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.High, () =>
                             {
-                                Debug.WriteLine($"  {CameraSide}: Error PlaybackSession_PlaybackStateChanged  {ex.Message}");
-                            }
-                            break;
+                                MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled = false;
 
-                        case MediaPlaybackState.Paused:
-                            // Remember we are now in Frame mode where we are responsible for rendering the frame
-                            _mode = eMode.modeFrame;
+                                // Display the Media Player (Helps with screen refresh issues media player has)
+                                if (MediaPlayerElement.Visibility != Visibility.Visible)
+                                    MediaPlayerElement.Visibility = Visibility.Visible;
 
-                            // Capture the frame dimensions if not already known
-                            if (_frameWidth == 0 && playbackSession.NaturalVideoWidth != 0)
-                            {
-                                _frameWidth = playbackSession.NaturalVideoWidth;
-                                _frameHeight = playbackSession.NaturalVideoHeight;
+                                // Hide the frame image user control
+                                if (ImageFrame.Visibility != Visibility.Collapsed)
+                                    ImageFrame.Visibility = Visibility.Collapsed;
 
-                                // Signal the frame size
-                                _mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.FrameSize, CameraSide, _mode)
-                                {
-                                    frameWidth = (int?)_frameWidth,
-                                    frameHeight = (int?)_frameHeight
-                                });
-                            }
-
-                            // Rememmber the position in paused mode
-                            _positionPausedMode = sender.Position;
-                            Debug.WriteLine($"MediaTimelineController_StateChanged: PositionOffset: {_positionPausedMode:hh\\:mm\\:ss\\.ff}");
-                            Debug.Flush();//???
-                            // Go into Frame Server mode so we can handle the frame rendering
-                            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
-                            {
-                                // Capture the frame rate if not already known
-                                if (_frameRate == -1)
-                                {
-                                    _frameRate = GetCurrentFrameRate(MediaPlayerElement.MediaPlayer);
-                                    //???Old_frameRateTimeSpan = TimeSpan.FromMilliseconds(1000.0 / _frameRate);
-                                    double ticksPerFrameDouble = TimeSpan.TicksPerSecond / _frameRate;
-                                    long ticksPerFrame = (long)Math.Round(ticksPerFrameDouble, MidpointRounding.AwayFromZero);
-                                    _frameRateTimeSpan = TimeSpan.FromTicks(ticksPerFrame);
-                                }
-
-                                MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled = true;
-
-
-                                // Note the ImageFrame is made visible in the VideoFrameAvailable event
-                                // this is a stop a 'flick' back to an older frame
-                //???make things worse        // Hide the Media Player (Helps with screen refresh issues media player has)
-                //???make things worse        MediaPlayerElement.Visibility = Visibility.Collapsed;
+                                Debug.WriteLine($"{CameraSide}: Info PlaybackSession_PlaybackStateChanged: Make Player visible and collapse Image Frame.");
 
                                 // Inform the media control that the media is playing
-                                _mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Paused, CameraSide, _mode));
+                                _mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Playing, CameraSide, _mode));
 
-
-                                Debug.WriteLine($"{CameraSide}: Info PlaybackSession_PlaybackStateChanged: Paused & video frame event enabled");
-
+                                Debug.WriteLine($"{CameraSide}: PlaybackSession_PlaybackStateChanged: Playing & video frame event disabled, IsVideoFrameServerEnabled ={MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled}");
                             });
-                            break;
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"  {CameraSide}: Error PlaybackSession_PlaybackStateChanged  {ex.Message}");
+                        }
+                        break;
+
+                    case MediaPlaybackState.Paused:
+                        // Remember we are now in Frame mode where we are responsible for rendering the frame
+                        _mode = eMode.modeFrame;
+
+                        // Capture the frame dimensions if not already known
+                        if (_frameWidth == 0 && playbackSession.NaturalVideoWidth != 0)
+                        {
+                            _frameWidth = playbackSession.NaturalVideoWidth;
+                            _frameHeight = playbackSession.NaturalVideoHeight;
+
+                            // Signal the frame size
+                            _mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.FrameSize, CameraSide, _mode)
+                            {
+                                frameWidth = (int?)_frameWidth,
+                                frameHeight = (int?)_frameHeight
+                            });
+                        }
+
+                        // Rememmber the position in paused mode
+                        _positionPausedMode = sender.Position;
+                        Debug.WriteLine($"MediaTimelineController_StateChanged: PositionOffset: {_positionPausedMode:hh\\:mm\\:ss\\.ff}");
+                            
+                        // Go into Frame Server mode so we can handle the frame rendering
+                        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+                        {
+                            // Capture the frame rate if not already known
+                            if (_frameRate == -1)
+                            {
+                                GetFrameRateAndTimePerFrame();
+                            }
+
+                            MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled = true;
+
+                            // Inform the media control that the media is playing
+                            _mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Paused, CameraSide, _mode));
+
+                            Debug.WriteLine($"{CameraSide}: Info PlaybackSession_PlaybackStateChanged: Paused & video frame event enabled");
+                        });
+                        break;
                     }
                 }
             }
@@ -801,19 +839,6 @@ namespace Surveyor.User_Controls
             {
                 Debug.WriteLine($"{CameraSide}: Error PlaybackSession_PlaybackStateChanged: Exception: {ex.Message}");
             }
-        }
-
-
-        /// <summary>
-        /// Buffering ended - hide the progress ring
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="args"></param>
-        private void PlaybackSession_BufferingEnded(MediaPlaybackSession sender, object args)
-        {
-            // Hide the progress ring
-            _mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, /*async*/ () =>
-                ProgressRing_Buffering.IsActive = false);
         }
 
 
@@ -827,6 +852,19 @@ namespace Surveyor.User_Controls
             _mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, /*async*/ () =>
                 ProgressRing_Buffering.IsActive = true);
 
+        }
+
+
+        /// <summary>
+        /// Buffering ended - hide the progress ring
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void PlaybackSession_BufferingEnded(MediaPlaybackSession sender, object args)
+        {
+            // Hide the progress ring
+            _mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, /*async*/ () =>
+                ProgressRing_Buffering.IsActive = false);
         }
 
 
@@ -874,6 +912,12 @@ namespace Surveyor.User_Controls
                     // Signel the media duration event via mediator if known
                     if (playbackSession.NaturalDuration != TimeSpan.Zero)
                     {
+                        // Get the frame rate if not already known
+                        if (_frameRate == -1)
+                            GetFrameRateAndTimePerFrame();
+                            
+
+                        // Signal the media duration and frame rate via mediator (used by the MediaStereoController and MediaControl)
                         MediaPlayerEventData data = new(MediaPlayerEventData.eMediaPlayerEvent.DurationAndFrameRate, CameraSide, _mode)
                         {
                             duration = playbackSession.NaturalDuration,
@@ -891,28 +935,23 @@ namespace Surveyor.User_Controls
         {
             MediaPlaybackSession playbackSession = sender as MediaPlaybackSession;
 
-            _frameIndexCurrent = GetFrameIndexFromPosition(playbackSession.Position);
+            //???_frameIndexCurrent = GetFrameIndexFromPosition(playbackSession.Position);
 
-            // I've seen this event fire when the media is closing
-            try
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
             {
-                // Signel the position change via mediator
-                DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+                if (!IsMediaSynchronized())
                 {
-
+                    // If the media isn't syncronised signal the position of the MediaPlayer
+                    // (If sync'd the timeline controller sends the poisition message)
                     MediaPlayerEventData data = new(MediaPlayerEventData.eMediaPlayerEvent.Position, CameraSide, _mode)
                     {
-                        position = playbackSession.Position,
-                        frameIndex = _frameIndexCurrent
+                        position = playbackSession.Position
+                        //???frameIndex = _frameIndexCurrent
                     };
                     _mediaPlayerHandler?.Send(data);
-                });
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"{CameraSide}: Error PlaybackSession_PositionChanged: Exception: {ex.Message}");
-            }
-            //???Debug.WriteLine($"{CameraSide}: Info PlaybackSession_PositionChanged: Total milliseconds:{playbackSession.Position.TotalMilliseconds:F1}ms, Frame Index={GetFrameIndexFromPosition(playbackSession.Position)}, State:{playbackSession.PlaybackState}");
+                }
+            });
+            Debug.WriteLine($"{CameraSide}: Info PlaybackSession_PositionChanged:{sender.Position:hh\\:mm\\:ss\\.ff}");
         }
 
         private void PlaybackSession_SeekableRangesChanged(MediaPlaybackSession sender, object args)
@@ -970,15 +1009,9 @@ namespace Surveyor.User_Controls
                     // Get the natural duration of the media
                     _naturalDuration = sender.PlaybackSession.NaturalDuration - sender.TimelineControllerPositionOffset;
 
-                    // Get the media name
-                    //???Change to just remembering the _mediaUri at open time
-                    //???GetAndStroreTheCurrentMediaSource(sender/*MediaPlayer*/);
-                    //???Debug.WriteLine($"{CameraSide}: Info MediaPlayer_MediaOpened: Source={_mediaUri}, Duration:{_naturalDuration:hh\\:mm\\:ss\\.ff}");
-
-                        
                     if (!IsRemoteFile(_mediaUri))
                     {
-                        // If the media is local then we can move one frome forward and back to
+                        // If the media is local then we can move one frame forward and back to
                         // get a frame to display                            
                         MediaPlayerElement.MediaPlayer.StepForwardOneFrame();
                         await Task.Delay(150);
@@ -1005,9 +1038,13 @@ namespace Surveyor.User_Controls
                     };
                     _mediaPlayerHandler?.Send(data);
 
-                    // Signel the media duration event via mediator if known
+                    // Signel the media duration and frame rate via mediator if known (used by the MediaStereoController and MediaControl)
                     if (_naturalDuration != TimeSpan.Zero)
                     {
+                        // Get the frame rate if not already known
+                        if (_frameRate == 0.0)
+                            _frameRate = GetCurrentFrameRate(MediaPlayerElement.MediaPlayer);
+
                         data = new(MediaPlayerEventData.eMediaPlayerEvent.DurationAndFrameRate, CameraSide, _mode)
                         {
                             duration = _naturalDuration,
@@ -1184,7 +1221,15 @@ namespace Surveyor.User_Controls
                     // Copy the frame from the media player to the inputBitmap
                     // This call must be done otherwise MediaPlayer_VideoFrameAvailable will be called repeatly
                     // With the same frame
-                    mp.CopyFrameToVideoSurface(_vfar.inputBitmap);
+                    try
+                    {
+                        mp.CopyFrameToVideoSurface(_vfar.inputBitmap);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"    {CameraSide}: Error MediaPlayer_VideoFrameAvailable: {ex.Message}");
+                        return;
+                    }
 
                     // Draw the frame if there is no frame pending to be drawn
                     if (_vfar.videoFrameCount == 1)
@@ -1249,10 +1294,54 @@ namespace Surveyor.User_Controls
         }
 
 
-
         ///
         /// PRIVATE FUNCTIONS
         ///
+
+        //???***private class VideoFrameExtractor(MediaPlayer mediaPlayer)
+        //{
+        //    private MediaCapture? mediaCapture;
+        //    private readonly MediaPlayer mediaPlayer = mediaPlayer;
+        //    private readonly CanvasDevice canvasDevice = new();
+
+        //    public async Task InitializeMediaCaptureAsync()
+        //    {
+        //        if (mediaCapture == null)
+        //        {
+        //            mediaCapture = new MediaCapture();
+
+        //            var settings = new MediaCaptureInitializationSettings
+        //            {
+        //                StreamingCaptureMode = StreamingCaptureMode.Video,
+        //                SourceGroup = null // Capture from playback
+        //            };
+
+        //            await mediaCapture.InitializeAsync(settings);
+        //        }
+        //    }
+
+        //    public async Task<CanvasBitmap> CaptureFrameAsync()
+        //    {
+        //        await InitializeMediaCaptureAsync();
+
+        //        if (mediaCapture == null)
+        //        {
+        //            throw new InvalidOperationException("MediaCapture is not initialized.");
+        //        }
+
+        //        var videoFrame = new Windows.Media.VideoFrame(BitmapPixelFormat.Bgra8,
+        //                                                      (int)mediaPlayer.PlaybackSession.NaturalVideoWidth,
+        //                                                      (int)mediaPlayer.PlaybackSession.NaturalVideoHeight);
+
+        //        await mediaCapture.GetPreviewFrameAsync(videoFrame);
+
+        //        SoftwareBitmap? softwareBitmap = videoFrame.SoftwareBitmap ?? throw new InvalidOperationException("Failed to capture a frame.");
+
+        //        // Convert to CanvasBitmap
+        //        return CanvasBitmap.CreateFromSoftwareBitmap(canvasDevice, softwareBitmap);
+        //    }
+        //}
+
 
 
         /// <summary>
@@ -1347,78 +1436,6 @@ namespace Surveyor.User_Controls
                     }
                 });
             });
-        }
-
-
-        /// <summary>
-        /// Used to extract and store in '_mediaUri' the media source URI either the from the MediaSource or the 
-        /// MediaPlaybackItem depending on which is being used
-        /// </summary>
-        /// <param name="mediaPlayer"></param>
-        //???private void GetAndStroreTheCurrentMediaSource(MediaPlayer mediaPlayer)
-        //{
-        //    // Reset
-        //    _mediaUri = "";
-
-        //    // Get the MediaPlayer source
-        //    var source = mediaPlayer.Source;
-
-        //    if (source is MediaSource mediaSource)
-        //    {
-        //        // For MediaSource, typically use the Uri
-        //        var uri = mediaSource.Uri;
-        //        if (uri != null)
-        //        {
-        //            Debug.WriteLine($"{CameraSide}: Info GetAndStroreTheCurrentMediaSource: Media Source URI: {uri.AbsoluteUri}");
-        //            _mediaUri = uri.AbsoluteUri;
-        //        }
-        //        else
-        //            Debug.WriteLine($"{CameraSide}: Warning GetAndStroreTheCurrentMediaSource: Media Source URI is null.");
-        //    }
-        //    else if (source is MediaPlaybackItem mediaPlaybackItem)
-        //    {
-        //        // For MediaPlaybackItem, check its Source property
-        //        var itemSource = mediaPlaybackItem.Source as MediaSource;
-        //        if (itemSource != null && itemSource.Uri != null)
-        //        {
-        //            Debug.WriteLine($"{CameraSide}: Info GetAndStroreTheCurrentMediaSource: Media Playback Item Source URI: {itemSource.Uri.AbsoluteUri}");
-        //            _mediaUri = itemSource.Uri.AbsoluteUri;
-        //        }
-        //        else
-        //        {
-        //            Debug.WriteLine($"{CameraSide}: Warning Media Playback Item Source URI is null.");
-        //        }
-        //    }
-        //    else if (source == null)
-        //        Debug.WriteLine($"{CameraSide}: Warning MediaPlayer source is null.");
-        //    else
-        //        // If the source is of some other type
-        //        Debug.WriteLine($"{CameraSide}: Error MediaPlayer source is of type {source.GetType()}");
-        //}
-
-
-        /// <summary>
-        /// Used to calculate the frame index from the current position (TimeSpan) using the 
-        /// frame rate.  The variable '_frameRate' is used for the calculation which is set in 
-        /// the function 'GetAndStoreTheCurrentFrameRate'
-        /// </summary>
-        /// <param name="ts"></param>
-        /// <returns>-1 if can't calculate (normal because _frameRate is not yet set</returns>
-        private Int64 GetFrameIndexFromPosition(System.TimeSpan ts)
-        {
-            Int64 frameIndex = -1;
-
-            if (_frameRate != -1)
-            {
-                double frameIndexDouble = ts.Ticks * _frameRate / TimeSpan.TicksPerSecond;
-                frameIndex = (long)Math.Round(frameIndexDouble, MidpointRounding.AwayFromZero);
-                //???OldframeIndex = Convert.ToInt64(ts.TotalMilliseconds * _frameRate / 1000);
-            }
-            else
-                Debug.WriteLine($"{CameraSide}: Error GetFrameIndexFromPosition: Can't calculate frame index, _frameRate == -1");
-
-
-            return frameIndex;
         }
 
 
@@ -1623,6 +1640,22 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// Called to calculate the frame rate and the time per frame
+        /// This is called either when the media opened event or the natural 
+        /// duration event are fired
+        /// </summary>
+        private void GetFrameRateAndTimePerFrame()
+        {
+            _frameRate = GetCurrentFrameRate(MediaPlayerElement.MediaPlayer);
+            if (_frameRate != -1)
+            {
+                double ticksPerFrameDouble = TimeSpan.TicksPerSecond / _frameRate;
+                long ticksPerFrame = (long)Math.Round(ticksPerFrameDouble, MidpointRounding.AwayFromZero);
+                _frameRateTimeSpan = TimeSpan.FromTicks(ticksPerFrame);
+            }
+        }
+
 
         /// <summary>
         /// Use at the top of the function if that function is intended for use use only on the 
@@ -1692,10 +1725,10 @@ namespace Surveyor.User_Controls
         public TimeSpan? duration;
         public double? frameRate;
 
-        // Only used for Position, Mediasynchronized & FrameRendered
+        // Only used for Position & FrameRendered
         public TimeSpan? position;
-        // Only used for Position
-        public Int64? frameIndex;
+        //???// Only used for Position
+        //???public Int64? frameIndex;
 
         // Only used for eMediaPlayerAction.Position and eMediaPlayerAction.Buffering
         public float? percentage;

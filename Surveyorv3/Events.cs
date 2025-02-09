@@ -216,7 +216,15 @@ namespace Surveyor.Events
             var eventInstance = new Event();
 
             // Deserialize common properties
-            eventInstance.Guid = jsonObject["Guid"]?.ToObject<Guid>() ?? Guid.Empty;
+            try
+            {
+                eventInstance.Guid = jsonObject["Guid"]?.ToObject<Guid>() ?? Guid.Empty;
+            }
+            catch (Exception)
+            {
+                eventInstance.Guid = Guid.Empty;
+            }
+
             eventInstance.DateTimeCreate = jsonObject["DateTimeCreate"]?.ToObject<DateTime>() ?? DateTime.MinValue;
             eventInstance.TimeSpanTimelineController = jsonObject["TimeSpanTimelineController"]?.ToObject<TimeSpan>() ?? TimeSpan.Zero;
             eventInstance.TimeSpanLeftFrame = jsonObject["TimeSpanLeftFrame"]?.ToObject<TimeSpan>() ?? TimeSpan.Zero;

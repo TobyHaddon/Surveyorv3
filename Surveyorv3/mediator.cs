@@ -4,6 +4,7 @@
 // 09 Mar 2024 Added MainWindow parameter to TListener constructor to enable SafeUICall() to work
 // 20 Mar 2024 Added conditional compile OUTPUTMEDIATORTODEBUG to enable outputting of message to the VS dubug window
 // 20 Mar 2024 Change MainWindow to Window
+// 09 Feb 2024 If DiagnosticInformation is on report listeners being registered and unregistered
 
 
 
@@ -12,6 +13,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using Microsoft.UI.Xaml;
+using Surveyor.User_Controls;
 #if DEBUG && OUTPUTMEDIATORTODEBUG
 using static Surveyor.User_Controls.MediaControlEventData;
 using static Surveyor.User_Controls.MediaPlayerEventData;
@@ -30,18 +32,61 @@ namespace Surveyor
 
     public class SurveyorMediator : IMediator
     {
-        private readonly List<WeakReference> _listeners = new List<WeakReference>();
+        // Copy of the reporter
+        private Reporter? report = null;
 
+        // List of current mediator listeners
+        private readonly List<WeakReference> _listeners = [];
+
+        // Debug mode
+        private bool diagnosticInformation = false;
+        public SurveyorMediator()
+        {
+            diagnosticInformation = SettingsManager.DiagnosticInformation;
+        }
+
+        /// <summary>
+        /// Set the Reporter, used to output messages.
+        /// Call as early as possible after creating the class instance.
+        /// </summary>
+        /// <param name="_report"></param>
+        public void SetReporter(Reporter _report)
+        {
+            report = _report;
+        }
+
+
+        /// <summary>
+        /// Register a new listener
+        /// </summary>
+        /// <param name="listener"></param>
         public void Register(object listener)
         {
             _listeners.Add(new WeakReference(listener));
+
+            if (diagnosticInformation)
+                report?.Info("", $"+Mediator listeners registered {listener.GetType()}, total={_listeners.Count}");
         }
 
+
+        /// <summary>
+        /// Remove an existing listener
+        /// </summary>
+        /// <param name="listener"></param>
         public void Unregister(object listener)
         {
             _listeners.RemoveAll(wr => wr.Target == null || !wr.Target.Equals(listener));
+
+            if (diagnosticInformation)
+                report?.Info("", $"-Mediator listeners unregistered {listener.GetType()}, total={_listeners.Count}");
         }
 
+
+        /// <summary>
+        /// Send a message the current registered listeners
+        /// </summary>
+        /// <param name="listenerFrom"></param>
+        /// <param name="message"></param>
         public void Send(TListener listenerFrom, object message)
         {
             //foreach (var weakReference in _listeners)

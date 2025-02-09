@@ -1,4 +1,10 @@
-﻿using Emgu.CV;
+﻿// StereoProjection
+// Stereo projection maths support
+// 
+// Version 1.1  02 Feb 2025
+// Added code to calculate the RMS
+
+using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
@@ -6,6 +12,7 @@ using Surveyor.User_Controls;
 using System;
 using System.Text;
 using Windows.Foundation;
+
 
 
 
@@ -180,6 +187,36 @@ namespace Surveyor
             return ret;
         }
 
+        /// <summary>
+        /// Load measurement point A only from the left camera and the corresponding point on the
+        /// right camera. 
+        /// </summary>
+        /// <param name="LPointA"></param>
+        /// <param name="RPointA"></param>
+        /// <returns></returns>
+        public bool PointsLoad(Point? _LPointA, Point? _RPointA)
+        {
+            bool ret = false;
+
+            // Reset
+            PointsClear();
+
+            if (calibrationClass is not null)
+            {
+                if (_LPointA is not null && _RPointA is not null)
+                {
+                    LPointA = _LPointA;
+                    LPointB = null;
+                    RPointA = _RPointA;
+                    RPointB = null;
+
+                    ret = true;
+                }
+            }
+
+            return ret;
+        }
+
 
         /// <summary>
         /// Clear the remembered 2D and 3D points
@@ -210,36 +247,40 @@ namespace Surveyor
         {
             double? ret = null;
 
-            if (IsReadyUndistortedPoints())
+            if (IsReadyCalibrationData())
             {
-                MCvPoint3D64f? vecA = vecAUndistortedArray![calibrationClass!.PreferredCalibrationDataIndex];
-                MCvPoint3D64f? vecB = vecBUndistortedArray![calibrationClass!.PreferredCalibrationDataIndex];
 
-                // Preferred calibration data instance measure calculation
-                if (vecA is not null && vecB is not null)
+                if (IsReadyUndistortedPoints())
                 {
-                    ret = DistanceBetween3DPoints((MCvPoint3D64f)vecA, (MCvPoint3D64f)vecB);
+                    MCvPoint3D64f? vecA = vecAUndistortedArray![calibrationClass!.PreferredCalibrationDataIndex];
+                    MCvPoint3D64f? vecB = vecBUndistortedArray![calibrationClass!.PreferredCalibrationDataIndex];
 
-                    
-                    report!.Out(Reporter.WarningLevel.Info, "", $"---Length using preferred Calibration Data[{calibrationClass!.CalibrationDataList[calibrationClass!.PreferredCalibrationDataIndex].Description}] Measurement = {(ret * 1000):F1}mm");
-                }
-
-                // Non-Preferred calibration data instance measure calculation
-                for (int i = 0; i < calibrationClass!.CalibrationDataList.Count; i++)
-                {
-                    if (i != calibrationClass!.PreferredCalibrationDataIndex)
+                    // Preferred calibration data instance measure calculation
+                    if (vecA is not null && vecB is not null)
                     {
-                        if (calibrationClass!.CalibrationDataList[i].FrameSizeCompare(frameWidth, frameHeight))
+                        ret = DistanceBetween3DPoints((MCvPoint3D64f)vecA, (MCvPoint3D64f)vecB);
+
+
+                        report!.Out(Reporter.WarningLevel.Info, "", $"---Length using preferred Calibration Data[{calibrationClass!.CalibrationDataList[calibrationClass!.PreferredCalibrationDataIndex].Description}] Measurement = {Math.Round((double)ret * 1000,1)}mm");
+                    }
+
+                    // Non-Preferred calibration data instance measure calculation
+                    for (int i = 0; i < calibrationClass!.CalibrationDataList.Count; i++)
+                    {
+                        if (i != calibrationClass!.PreferredCalibrationDataIndex)
                         {
-                            vecA = vecAUndistortedArray![i];
-                            vecB = vecBUndistortedArray![i];
-
-                            // Preferred calibration data instance measure calculation
-                            if (vecA is not null && vecB is not null)
+                            if (calibrationClass!.CalibrationDataList[i].FrameSizeCompare(frameWidth, frameHeight))
                             {
-                                double measurementAlt = DistanceBetween3DPoints((MCvPoint3D64f)vecA, (MCvPoint3D64f)vecB);
+                                vecA = vecAUndistortedArray![i];
+                                vecB = vecBUndistortedArray![i];
 
-                                report!.Out(Reporter.WarningLevel.Info, "", $"---Length using non-preferred Calibration Data[{calibrationClass!.CalibrationDataList[i].Description}] Measurement = {(measurementAlt * 1000):F1}mm");
+                                // Preferred calibration data instance measure calculation
+                                if (vecA is not null && vecB is not null)
+                                {
+                                    double measurementAlt = DistanceBetween3DPoints((MCvPoint3D64f)vecA, (MCvPoint3D64f)vecB);
+
+                                    report!.Out(Reporter.WarningLevel.Info, "", $"---Length using non-preferred Calibration Data[{calibrationClass!.CalibrationDataList[i].Description}] Measurement = {Math.Round(measurementAlt * 1000,1)}mm");
+                                }
                             }
                         }
                     }
@@ -341,7 +382,8 @@ namespace Surveyor
         {
             double? ret = null;
 
-            if (IsReadyCalibrationData())
+            // Check if the calibration data and the undistored points are ready
+            if (IsReadyUndistortedPoints())
             {
                 MCvPoint3D64f? cameraSystemCentre = cameraSystemCentreArray![calibrationClass!.PreferredCalibrationDataIndex];
                 MCvPoint3D64f? vecABMid = vecABMidArray![calibrationClass!.PreferredCalibrationDataIndex];
@@ -351,6 +393,7 @@ namespace Surveyor
                     ret = DistanceBetween3DPoints((MCvPoint3D64f)cameraSystemCentre, (MCvPoint3D64f)vecABMid);
                 }
             }
+
 
             return ret;
         }
@@ -365,8 +408,9 @@ namespace Surveyor
         {
             double? ret = null;
 
-            if (IsReadyCalibrationData())
-            {
+            // Check if the calibration data and the undistored points are ready
+            if (IsReadyUndistortedPoints())
+            { 
                 MCvPoint3D64f? cameraSystemCentre = cameraSystemCentreArray![calibrationClass!.PreferredCalibrationDataIndex];
                 MCvPoint3D64f? vecABMid = vecABMidArray![calibrationClass!.PreferredCalibrationDataIndex];
 
@@ -389,7 +433,8 @@ namespace Surveyor
         {
             double? ret = null;
 
-            if (IsReadyCalibrationData())
+            // Check if the calibration data and the undistored points are ready
+            if (IsReadyUndistortedPoints())
             {
                 MCvPoint3D64f? cameraSystemCentre = cameraSystemCentreArray![calibrationClass!.PreferredCalibrationDataIndex];
                 MCvPoint3D64f? vecABMid = vecABMidArray![calibrationClass!.PreferredCalibrationDataIndex];
@@ -668,6 +713,9 @@ namespace Surveyor
                             ret = true;
                         }
                     }
+                    else
+                        // Assume we are already setup
+                        ret = true;
                 }
                 else if (LPointA is not null && RPointA is not null)
                 {
@@ -712,6 +760,9 @@ namespace Surveyor
                             ret = true;
                         }
                     }
+                    else
+                        // Assume we are already setup
+                        ret = true;
                 }
 
             }
@@ -851,24 +902,32 @@ namespace Surveyor
 
             if (vector3D is not null)
             {
-                MCvPoint3D64f point3D = new MCvPoint3D64f(vector3D[0], vector3D[1], vector3D[2]);
+                MCvPoint3D64f point3D = new(vector3D[0], vector3D[1], vector3D[2]);
 
+                // Calculate the rays from each camera so the RMS error can be calculated
                 if (cd.CalibrationStereoCameraData.Translation is not null)
                 {
                     // Get Camera Centers
-                    MCvPoint3D64f cameraLeft = new MCvPoint3D64f(0, 0, 0);
-                    MCvPoint3D64f cameraRight = new MCvPoint3D64f(cd.CalibrationStereoCameraData.Translation[0, 0],
-                                                                  cd.CalibrationStereoCameraData.Translation[1, 0],
-                                                                  cd.CalibrationStereoCameraData.Translation[2, 0]);
+                    MCvPoint3D64f cameraLeft = new(0, 0, 0);
+                    MCvPoint3D64f cameraRight = new(cd.CalibrationStereoCameraData.Translation[0, 0],
+                                                    cd.CalibrationStereoCameraData.Translation[0, 1],
+                                                    cd.CalibrationStereoCameraData.Translation[0, 2]);
 
-                    // Compute Ray Directions
-                    var rayLeft = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([vector3D[0], vector3D[1], vector3D[2]]).Normalize(2);
+                    // Compute Ray Directions (do not normalize as that is done in ComputeRealWorldRMSError)
+                    var rayLeft = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([vector3D[0], vector3D[1], vector3D[2]]);
                     var rayRight = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([vector3D[0] - cameraRight.X,
-                                                                            vector3D[1] - cameraRight.Y,
-                                                                            vector3D[2] - cameraRight.Z]).Normalize(2);
+                                                                                                     vector3D[1] - cameraRight.Y, vector3D[2] - cameraRight.Z]);
 
                     // Compute real-world RMS
                     RMSRealWorld = ComputeRealWorldRMSError(cameraLeft, rayLeft, cameraRight, rayRight);
+
+                    var cameraCenterLeft = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([cameraLeft.X, cameraLeft.Y, cameraLeft.Z]);
+                    var cameraCenterRight = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([cameraRight.X, cameraRight.Y, cameraRight.Z]);
+
+
+                    RMSRealWorld = ComputeRMSDistance(cameraCenterLeft, rayLeft,
+                                                      cameraCenterRight, rayRight);
+
                 }
                 else
                 {
@@ -897,8 +956,8 @@ namespace Surveyor
                 MCvPoint3D64f cameraCenterRight, MathNet.Numerics.LinearAlgebra.Vector<double> rayDirectionRight)
         {
             // Convert 3D points to Math.NET vectors for easier calculations
-            var P1 = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray(new double[] { cameraCenterLeft.X, cameraCenterLeft.Y, cameraCenterLeft.Z });
-            var P2 = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray(new double[] { cameraCenterRight.X, cameraCenterRight.Y, cameraCenterRight.Z });
+            var P1 = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([cameraCenterLeft.X, cameraCenterLeft.Y, cameraCenterLeft.Z]);
+            var P2 = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([cameraCenterRight.X, cameraCenterRight.Y, cameraCenterRight.Z]);
 
             var d1 = rayDirectionLeft.Normalize(2);
             var d2 = rayDirectionRight.Normalize(2);
@@ -918,8 +977,9 @@ namespace Surveyor
             if (Math.Abs(denominator) < 1e-6)
             {
                 // If the denominator is very small, the rays are almost parallel, return a large error
-                return double.MaxValue;
+                return 1000;  // Arbitrary large value (1 meter) instead of infinity
             }
+        
 
             double s = (b * e - c * d) / denominator;
             double t = (a * e - b * d) / denominator;
@@ -934,6 +994,50 @@ namespace Surveyor
             return rmsError;
         }
 
+
+
+        public static double ComputeRMSDistance(MathNet.Numerics.LinearAlgebra.Vector<double> cameraCenterLeft, MathNet.Numerics.LinearAlgebra.Vector<double> rayDirectionLeft,
+                                                MathNet.Numerics.LinearAlgebra.Vector<double> cameraCenterRight, MathNet.Numerics.LinearAlgebra.Vector<double> rayDirectionRight)
+        {
+            // Normalize the direction vectors
+            var U1 = rayDirectionLeft.Normalize(2); // Left ray direction (unit vector)
+            var U2 = rayDirectionRight.Normalize(2); // Right ray direction (unit vector)
+
+            // Compute the normal vector (cross product of U1 and U2)
+            var N = CrossProduct(U1, U2); // Math.NET has a custom CrossProduct extension
+            double nmag = N.L2Norm(); // Magnitude of the normal vector
+
+            // Handle the case where rays are parallel or nearly parallel
+            if (nmag < 1e-6)
+            {
+                return 1000; // Arbitrary large value for parallel rays
+            }
+
+            // Compute the vector between the two camera centers
+            var P1P2 = cameraCenterRight - cameraCenterLeft;
+
+            // Compute the perpendicular distance between the rays
+            double Distance = Math.Abs(P1P2.DotProduct(N) / nmag);
+
+            return Distance; // RMS Distance Error in meters
+        }
+
+        public static MathNet.Numerics.LinearAlgebra.Vector<double> CrossProduct(
+            MathNet.Numerics.LinearAlgebra.Vector<double> v1,
+            MathNet.Numerics.LinearAlgebra.Vector<double> v2)
+        {
+            if (v1.Count != 3 || v2.Count != 3)
+            {
+                throw new ArgumentException("Cross product is only defined for 3D vectors.");
+            }
+
+            return MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray(new double[]
+            {
+                v1[1] * v2[2] - v1[2] * v2[1], // X component
+                v1[2] * v2[0] - v1[0] * v2[2], // Y component
+                v1[0] * v2[1] - v1[1] * v2[0]  // Z component
+            });
+        }
 
         /// <summary>
         /// Convert a matched left and right 2D points to a real world 3D point
@@ -950,16 +1054,30 @@ namespace Surveyor
                 cd.CalibrationStereoCameraData.Rotation is not null &&
                 cd.CalibrationStereoCameraData.Translation is not null)
             {
-                var RT_L = MathNet.Numerics.LinearAlgebra.Double.DenseMatrix.CreateIdentity(3).Append(MathNet.Numerics.LinearAlgebra.Double.DenseMatrix.Create(3, 1, 0));
+                var RT_L = MathNet.Numerics.LinearAlgebra.Double.DenseMatrix.CreateIdentity(3)
+                    .Append(MathNet.Numerics.LinearAlgebra.Double.DenseMatrix.Create(3, 1, 0));
                 var P_L = ConvertEmguMatrixToMathNetMatrix(cd.LeftCalibrationCameraData.Mtx).Multiply(RT_L);
 
-                var RT_R = ConvertEmguMatrixToMathNetMatrix(cd.CalibrationStereoCameraData.Rotation).Append(ConvertEmguMatrixToMathNetVector(cd.CalibrationStereoCameraData.Translation).ToColumnMatrix());
+                var RT_R = ConvertEmguMatrixToMathNetMatrix(cd.CalibrationStereoCameraData.Rotation)
+                    .Append(ConvertEmguMatrixToMathNetVector(cd.CalibrationStereoCameraData.Translation).ToColumnMatrix());
                 var P_R = ConvertEmguMatrixToMathNetMatrix(cd.RightCalibrationCameraData.Mtx).Multiply(RT_R);
 
                 return DirectLinearTransformation(P_L, P_R, L2D, R2D);
             }
 
             return null;
+        }
+
+
+        private static MathNet.Numerics.LinearAlgebra.Matrix<double> NormalizeProjectionMatrix(MathNet.Numerics.LinearAlgebra.Matrix<double> P)
+        {
+            for (int i = 0; i < P.RowCount; i++)
+            {
+                double rowNorm = P.Row(i).L2Norm();
+                if (rowNorm > 0)
+                    P.SetRow(i, P.Row(i) / rowNorm);
+            }
+            return P;
         }
 
 
@@ -972,10 +1090,15 @@ namespace Surveyor
                 (P2.Row(0) - point2[0] * P2.Row(2)).ToArray()
             );
 
-            var B = A.TransposeThisAndMultiply(A);
-            var svd = B.Svd(true);
+            //???var B = A.TransposeThisAndMultiply(A);
+            //???var svd = B.Svd(true);
+            //???var Vh = svd.VT;
+            //???var triangulatedPoint = Vh.Row(3).SubVector(0, 3) / Vh[3, 3];
+            var svd = A.Svd(true);
             var Vh = svd.VT;
             var triangulatedPoint = Vh.Row(3).SubVector(0, 3) / Vh[3, 3];
+
+
 
             Console.WriteLine("Triangulated point: ");
             Console.WriteLine(triangulatedPoint);
