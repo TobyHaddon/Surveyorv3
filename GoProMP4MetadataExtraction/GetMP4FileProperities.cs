@@ -1,25 +1,26 @@
 //
 // Version 1.0  03 Jan 2025
 //
+// Version 1.1 12 Feb 2025
+// Added ExtractProperties(...)
+// Added ExtractPropertiesDuration(...)
 
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Windows.Media.Core;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
-using Windows.Media.MediaProperties;
-
-
-using static GoProMP4MetadataExtraction.GetMP4FileProperities;
 
 namespace GoProMP4MetadataExtraction
 {
     public static class GetMP4FileProperities
     {
-        // ...
-
-        public static async Task<Dictionary<string, string>> ExtractPropertiesAsync(StorageFile videoFile)
+        /// <summary>
+        /// Retreive the file properties of a video file used StorageFile
+        /// </summary>
+        /// <param name="videoFile"></param>
+        /// <returns></returns>
+        public static async Task<Dictionary<string, string>> ExtractProperties(StorageFile videoFile)
         {
             ArgumentNullException.ThrowIfNull(videoFile);
 
@@ -66,6 +67,59 @@ namespace GoProMP4MetadataExtraction
             }
 
             return metadata;
+        }
+
+
+        /// <summary>
+        /// Retreive the file properties of a video file using a file path
+        /// </summary>
+        /// <param name="fileSpec"></param>
+        /// <returns></returns>
+        public static async Task<Dictionary<string, string>> ExtractProperties(string fileSpec)
+        {
+            StorageFile file = await StorageFile.GetFileFromPathAsync(fileSpec);
+
+            // You can now use the `file` object to read or manipulate the file
+            return await GetMP4FileProperities.ExtractProperties(file);
+        }
+
+
+        /// <summary>
+        /// Extract the duration of a video file
+        /// </summary>
+        /// <param name="videoFile"></param>
+        /// <returns></returns>
+        public static async Task<TimeSpan?> ExtractPropertiesDuration(StorageFile videoFile)
+        {
+            TimeSpan? duration = null;
+
+            Dictionary<string, string> metadata = await ExtractProperties(videoFile);
+
+            if (metadata is not null)
+            {
+                string durationString = metadata["Video.Duration"];
+
+                if (TimeSpan.TryParse(durationString, out TimeSpan durationValue))
+                {
+                    duration = durationValue;
+                }
+            }
+
+            return duration;
+        }
+
+
+        /// <summary>
+        /// Extract the duration of a video file
+        /// </summary>
+        /// <param name="fileSpec"></param>
+        /// <returns></returns>
+        public static async Task<TimeSpan?> ExtractPropertiesDuration(string fileSpec)
+        {
+            StorageFile file = await StorageFile.GetFileFromPathAsync(fileSpec);
+
+            // You can now use the `file` object to read or manipulate the file
+            return await GetMP4FileProperities.ExtractPropertiesDuration(file);
         }
     }
 }

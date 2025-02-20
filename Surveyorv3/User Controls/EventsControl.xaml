@@ -49,15 +49,15 @@
                             <ColumnDefinition Width="*"/>
                         </Grid.ColumnDefinitions>
                         <!-- Column 0: Event Type Glyph -->
-                        <TextBlock Grid.Column="0" Text="{x:Bind EventDataType, Mode=OneWay, Converter={StaticResource EventTypeToGlyphConverter}}" Width="16" TextAlignment="Left" Margin="0,0,10,0" FontFamily="Segoe MDL2 Assets"/>
+                        <TextBlock Grid.Column="0" Text="{x:Bind EventDataType, Mode=OneWay, Converter={StaticResource EventTypeToGlyphConverter}}" Width="16" TextAlignment="Left" Margin="0,0,10,0" FontFamily="Segoe Fluent Icons"/>
 
                         <!-- Column 1: Left Frame -->
                         <TextBlock Grid.Column="1" Text="{x:Bind TimeSpanTimelineController, Mode=OneWay, Converter={StaticResource TimeSpanToStringConverter}}" 
-                                   Width="150" TextAlignment="Left" Margin="0,0,10,0"/>
+                                   Width="180" TextAlignment="Left" Margin="0,0,10,0"/>
 
                         <!-- Column 3: Event Type -->
                         <TextBlock Grid.Column="3" Text="{x:Bind EventDataType, Mode=OneWay, Converter={StaticResource EventDataTypeToStringConverter}}" 
-                                   Width="200" TextAlignment="Left" Margin="0,0,0,0" />
+                                   Width="160" TextAlignment="Left" Margin="0,0,0,0" />
 
                         <!-- Column 4: Event Data -->
                         <TextBlock Grid.Column="4" Text="{x:Bind Converter={StaticResource EventDataToStringConverter}}" 
@@ -79,11 +79,11 @@
         <!-- ContentDialog Definition -->
         <ContentDialog x:Name="EventDialog"
                        Title="Event"
-                       CloseButtonText="OK"
+                       CloseButtonText="Cancel"
                        SecondaryButtonText="&#xE8C8;">
             <ContentDialog.SecondaryButtonStyle>
                 <Style TargetType="Button">
-                    <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+                    <Setter Property="FontFamily" Value="Segoe Fluent Icons"/>
                 </Style>
             </ContentDialog.SecondaryButtonStyle>
             <StackPanel Orientation="Vertical" Spacing="10">

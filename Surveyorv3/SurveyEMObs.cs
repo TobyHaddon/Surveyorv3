@@ -265,8 +265,8 @@ namespace Surveyor
                     switch (item.rowType)
                     {
                         case RowTypeManaged.RowTypeMeasurementPoint3D:
-                            eventItem = new Event(DataType.SurveyMeasurementPoints);
-                            eventItem.SetData(DataType.SurveyMeasurementPoints);
+                            eventItem = new Event(SurveyDataType.SurveyMeasurementPoints);
+                            eventItem.SetData(SurveyDataType.SurveyMeasurementPoints);
                             SurveyMeasurement surveyMeasurement = (SurveyMeasurement)eventItem.EventData!;                            
                             surveyMeasurement.Measurment/*fish length*/ = item.Length;
                             surveyMeasurement.LeftXA = item.PointLX1;
@@ -281,7 +281,7 @@ namespace Surveyor
                             break;
                         case RowTypeManaged.RowTypePoint3D:
                             eventItem = new Event();
-                            eventItem.SetData(DataType.SurveyStereoPoint);
+                            eventItem.SetData(SurveyDataType.SurveyStereoPoint);
                             SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)eventItem.EventData!;
                             surveyStereoPoint.LeftX = item.PointLX1;
                             surveyStereoPoint.LeftY = item.PointLY1;
@@ -292,9 +292,9 @@ namespace Surveyor
                         case RowTypeManaged.RowTypePoint2DLeftCamera:                            
                             eventItem = new Event();
                             {
-                                eventItem.SetData(DataType.SurveyPoint);
+                                eventItem.SetData(SurveyDataType.SurveyPoint);
                                 SurveyPoint surveyPoint = (SurveyPoint)eventItem.EventData!;
-                                surveyPoint.trueLeftfalseRight = true;/*left camera*/
+                                surveyPoint.TrueLeftfalseRight = true;/*left camera*/
                                 surveyPoint.X = item.PointLX1;
                                 surveyPoint.Y = item.PointLY1;
                                 LoadSpeciesInfo(item, surveyPoint.SpeciesInfo);
@@ -303,9 +303,9 @@ namespace Surveyor
                         case RowTypeManaged.RowTypePoint2DRightCamera:
                             eventItem = new Event();
                             {
-                                eventItem.SetData(DataType.SurveyPoint);
+                                eventItem.SetData(SurveyDataType.SurveyPoint);
                                 SurveyPoint surveyPoint = (SurveyPoint)eventItem.EventData!;
-                                surveyPoint.trueLeftfalseRight = false;/*right camera*/
+                                surveyPoint.TrueLeftfalseRight = false;/*right camera*/
                                 surveyPoint.X = item.PointRX1;
                                 surveyPoint.Y = item.PointRY1;
                                 LoadSpeciesInfo(item, surveyPoint.SpeciesInfo);

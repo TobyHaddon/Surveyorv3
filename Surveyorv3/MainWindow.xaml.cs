@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.WinUI;
+using MathNet.Numerics.LinearAlgebra.Factorization;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
@@ -23,6 +24,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Windows.Foundation;
+using Windows.Media;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Provider;
@@ -65,6 +67,7 @@ namespace Surveyor
         private readonly EventsControl eventsControl = new();
         private readonly Reporter report = new();
 
+        private SurveyMarkerManager surveyMarkerManager = new();
 
         private const string RECENT_SURVEYS_KEY = "RecentSurveys";
         private int maxRecentSurveysDisplayed = 4;      // Will be controlled from SettingsWindow TO DO
@@ -111,8 +114,9 @@ namespace Surveyor
 #if !No_MagnifyAndMarkerDisplay
                                                             MagnifyAndMarkerDisplayLeft, MagnifyAndMarkerDisplayRight,
 #endif
-                                                            stereoProjection/*, 
-                                                            MediaInfoLeft, MediaInfoRight */);
+                                                            eventsControl,
+                                                            stereoProjection                                                            
+                                                            /*MediaInfoLeft, MediaInfoRight */);
 
             // Inform the Events Control of the MediaStereoController
             eventsControl.SetMediaStereoController(mediaStereoController);
@@ -440,15 +444,13 @@ namespace Surveyor
                 surveyClass = new Survey(report);
                 surveyClass.PropertyChanged += Survey_PropertyChanged;
 
-                // Inform the MediaStereoController of the Events list so edits to the
-                // list can be actioned by MediaStereoController
-                mediaStereoController.SetEvents((ObservableCollection<Event>)surveyClass.Data.Events.EventList);
-
+                // Inform the MagnifyAndMarkerDisplays of the new survey events
 #if !No_MagnifyAndMarkerDisplay
                 MagnifyAndMarkerDisplayLeft.SetEvents(surveyClass.Data.Events.EventList);
                 MagnifyAndMarkerDisplayRight.SetEvents(surveyClass.Data.Events.EventList);
 #endif
 
+                // Inform the EventControl of the new survey events
                 eventsControl.SetEvents(surveyClass.Data.Events.EventList);
 
                 SetMenuStatusBasedOnProjectState();
@@ -829,11 +831,11 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void FileLockUnlockMediaPlayers_Click(object sender, RoutedEventArgs e)
+        private async void InsertLockUnlockMediaPlayers_Click(object sender, RoutedEventArgs e)
         {
             if (!mediaStereoController.IsPlaying())
             {
-                if (MenuFileLockUnlockMediaPlayers.IsChecked)
+                if (MenuLockUnlockMediaPlayers.IsChecked)
                 {
                     // Lock the left and right media controlers
                     if (surveyClass is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
@@ -875,10 +877,38 @@ namespace Surveyor
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 
                 // Undo the check
-                MenuFileLockUnlockMediaPlayers.IsChecked = !MenuFileLockUnlockMediaPlayers.IsChecked;
+                MenuLockUnlockMediaPlayers.IsChecked = !MenuLockUnlockMediaPlayers.IsChecked;
             }
 
         }
+
+
+        /// <summary>
+        /// Insert a marker (as an Event) to indicate either the start or end of a survey within the movies
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void InsertSurveyStartStopMarker_Click(object sender, RoutedEventArgs e)
+        {
+            mediaStereoController.GetFullMediaPosition(out TimeSpan positionTimelineController, out TimeSpan leftPosition, out TimeSpan rightPosition);
+
+            surveyMarkerManager.AddMarker(eventsControl,
+                                          positionTimelineController,
+                                          leftPosition,
+                                          rightPosition);
+        }
+
+
+        /// <summary>
+        /// Display the settings windows
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileSettings_Click(object sender, RoutedEventArgs e)
+        {
+            ShowSettingsWindow();
+        }
+
 
         /// <summary>
         /// Exit the app
@@ -1303,10 +1333,6 @@ namespace Surveyor
             if (ret == 0 &&
                 surveyClass.Data is not null && surveyClass.Data.Media is not null && surveyClass.Data.Media.MediaPath is not null)
             {
-                // Inform the MediaStereoController & MagnifyAndMarkerDisplay of the Events list so edits to the
-                // list can be actioned by MediaStereoController
-                mediaStereoController.SetEvents((ObservableCollection<Event>)surveyClass.Data.Events.EventList);
-
 #if !No_MagnifyAndMarkerDisplay
                 MagnifyAndMarkerDisplayLeft.SetEvents(surveyClass.Data.Events.EventList);
                 MagnifyAndMarkerDisplayRight.SetEvents(surveyClass.Data.Events.EventList);
@@ -1330,8 +1356,10 @@ namespace Surveyor
                     {
                         // Set the lock/unlock media files 
                         if (surveyClass.Data.Sync.IsSynchronized == true)
-                            MenuFileLockUnlockMediaPlayers.IsChecked = true;
+                            MenuLockUnlockMediaPlayers.IsChecked = true;
 
+                        // Enable the insert survey marker menu item
+                        MenuSurveyStartStopMarker.IsEnabled = true;
 
                         // Remember the survey folder
                         SettingsManager.SurveyFolder = Path.GetDirectoryName(projectFileName);
@@ -1469,11 +1497,11 @@ namespace Surveyor
 
                 if (this.surveyClass.IsDirty == true)
                 {
-                    // Create a FontIcon using the Segoe MDL2 Assets font
+                    // Create a FontIcon using the Segoe Fluent Icons font
                     var warningIcon = new FontIcon
                     {
-                        Glyph = "\uE814", // Unicode character for a warning icon in Segoe MDL2 Assets
-                        FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                        Glyph = "\uE814", // Unicode character for a warning icon in Segoe Fluent Icons
+                        FontFamily = new FontFamily("Segoe Fluent Icons"),
                         Width = 24,
                         Height = 24
                     };
@@ -1700,13 +1728,15 @@ namespace Surveyor
                         if (surveyClass.Data.Info.SurveyFileName is not null)
                             SetTitle(surveyClass.Data.Info.SurveyFileName);
 
-                        MenuFileLockUnlockMediaPlayers.IsEnabled = true;
+                        MenuLockUnlockMediaPlayers.IsEnabled = true;
+                        MenuSurveyStartStopMarker.IsEnabled = true;
                     }
                     else
                     {
                         SetTitle("");
                         SetLockUnlockIndicator(null, null);
-                        MenuFileLockUnlockMediaPlayers.IsEnabled = false;
+                        MenuLockUnlockMediaPlayers.IsEnabled = false;
+                        MenuSurveyStartStopMarker.IsEnabled = false;
 
                         // Display both media controls
                         MediaControlsDisplayMode(false);
@@ -1736,7 +1766,8 @@ namespace Surveyor
 
                 SetLockUnlockIndicator(null, null);
 
-                MenuFileLockUnlockMediaPlayers.IsEnabled = false;
+                MenuLockUnlockMediaPlayers.IsEnabled = false;
+                MenuSurveyStartStopMarker.IsEnabled = false;
             }
         }
 
@@ -1757,8 +1788,11 @@ namespace Surveyor
                 // Import calibration
                 MenuImportCalibration.IsEnabled = true;
                 // Media Lock
-                MenuFileLockUnlockMediaPlayers.IsEnabled = true;
+                MenuLockUnlockMediaPlayers.IsEnabled = true;
                 //MenuItemSetFrameSettings.IsEnabled = true;
+
+                // Survey Marker
+                MenuSurveyStartStopMarker.IsEnabled = true;
             }
             else
             {
@@ -1769,10 +1803,12 @@ namespace Surveyor
                 // Import calibration
                 MenuImportCalibration.IsEnabled = false;
                 // Media lock
-                MenuFileLockUnlockMediaPlayers.IsEnabled = false;
-                MenuFileLockUnlockMediaPlayers.IsChecked = false;
+                MenuLockUnlockMediaPlayers.IsEnabled = false;
+                MenuLockUnlockMediaPlayers.IsChecked = false;
                 //this.MenuItemSetFrameSettings.IsEnabled = false;
 
+                // Survey Marker
+                MenuSurveyStartStopMarker.IsEnabled = false;
             }
         }
 
@@ -1952,7 +1988,7 @@ namespace Surveyor
                         bool upToDate = true;
                         foreach (Event evt in surveyClass.Data.Events.EventList)
                         {
-                            if (evt.EventDataType == DataType.SurveyMeasurementPoints && evt.EventData is not null)
+                            if (evt.EventDataType == SurveyDataType.SurveyMeasurementPoints && evt.EventData is not null)
                             {
                                 SurveyMeasurement surveyMeasurement = (SurveyMeasurement)evt.EventData;
                                 if (surveyMeasurement.CalibrationID != calibrationID || surveyMeasurement.Measurment == -1)
@@ -1961,7 +1997,7 @@ namespace Surveyor
                                     break;
                                 }
                             }
-                            else if (evt.EventDataType == DataType.SurveyStereoPoint && evt.EventData is not null)
+                            else if (evt.EventDataType == SurveyDataType.SurveyStereoPoint && evt.EventData is not null)
                             {
                                 SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
                                 if (surveyStereoPoint.CalibrationID != calibrationID)
@@ -2014,7 +2050,7 @@ namespace Surveyor
                             {
                                 if (evt.EventData is not null)
                                 {
-                                    if (evt.EventDataType == DataType.SurveyMeasurementPoints)
+                                    if (evt.EventDataType == SurveyDataType.SurveyMeasurementPoints)
                                     {
                                         SurveyMeasurement surveyMeasurement = (SurveyMeasurement)evt.EventData;
                                         if (surveyMeasurement.CalibrationID != calibrationID || surveyMeasurement.Measurment == -1 || forceReCalc)
@@ -2024,7 +2060,7 @@ namespace Surveyor
                                             ret = true;
                                         }
                                     }
-                                    else if (evt.EventDataType == DataType.SurveyStereoPoint || forceReCalc)
+                                    else if (evt.EventDataType == SurveyDataType.SurveyStereoPoint || forceReCalc)
                                     {
                                         SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
                                         if (surveyStereoPoint.CalibrationID != calibrationID)
@@ -2320,7 +2356,7 @@ namespace Surveyor
             MediaControlsDisplayMode(true);
 
             // Adjust the File menu item text 
-            MenuFileLockUnlockMediaPlayers.Text = "Unlock Media Players";
+            MenuLockUnlockMediaPlayers.Text = "Unlock Media Players";
         }
 
 
@@ -2336,7 +2372,7 @@ namespace Surveyor
             MediaControlsDisplayMode(false);
 
             // Adjust the File menu item text 
-            MenuFileLockUnlockMediaPlayers.Text = "Lock Media Players";
+            MenuLockUnlockMediaPlayers.Text = "Lock Media Players";
         }
 
         /// <summary>

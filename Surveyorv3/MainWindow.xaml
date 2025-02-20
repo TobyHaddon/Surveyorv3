@@ -72,13 +72,18 @@
                     <MenuFlyoutSeparator/>
                     <MenuFlyoutItem Name="MenuImportCalibration" Text="Import Calibration" IsEnabled="False" Click="FileImportCalibration_Click"/>
                     <MenuFlyoutSeparator/>
-                    <ToggleMenuFlyoutItem Name="MenuFileLockUnlockMediaPlayers" Text="Lock Media Players" IsEnabled="False" Click="FileLockUnlockMediaPlayers_Click"/>
+                    <MenuFlyoutItem Name="MenuSettings" Text="Settings..." IsEnabled="True" Click="FileSettings_Click"/>
                     <MenuFlyoutSeparator/>
                     <MenuFlyoutItem Text="Exit" Click="FileExit_Click">
                         <MenuFlyoutItem.KeyboardAccelerators>
                             <KeyboardAccelerator Modifiers="Control" Key="E"/>
                         </MenuFlyoutItem.KeyboardAccelerators>
                     </MenuFlyoutItem>
+                </MenuBarItem>
+                <MenuBarItem Title="Insert">
+                    <ToggleMenuFlyoutItem Name="MenuLockUnlockMediaPlayers" Text="Lock Media Players" IsEnabled="False" Click="InsertLockUnlockMediaPlayers_Click"/>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Name="MenuSurveyStartStopMarker" Text="Survey Start/Stop Marker..." IsEnabled="False" Click="InsertSurveyStartStopMarker_Click"/>
                 </MenuBarItem>
             </MenuBar>
 
@@ -113,7 +118,7 @@
                  on the title bar at startup. This is so this area isn't draggable and can 
                  therefore display a tooltip -->
             <TextBlock x:Name="LockUnLockIndicator"
-                       FontFamily="Segoe MDL2 Assets"
+                       FontFamily="Segoe Fluent Icons"
                        FontSize="14" 
                        Text="&#xE1F7;"
                        Style="{StaticResource CaptionTextBlockStyle}"
@@ -197,7 +202,7 @@
                 <StackPanel Orientation="Horizontal">
                     <TextBlock x:Name="PointerCoordinatesIndicator"
                            Visibility="Collapsed"
-                           FontFamily="Segoe MDL2 Assets"
+                           FontFamily="Segoe Fluent Icons"
                            FontSize="12" 
                            Text="&#xE65A;"
                            VerticalAlignment="Center">

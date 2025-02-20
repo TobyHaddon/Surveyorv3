@@ -1285,7 +1285,7 @@ namespace Surveyor.User_Controls
                 }
 
                 // Get the frame size and frame rate
-                Dictionary<string, string> fileProperties = await GetMP4FileProperities.ExtractPropertiesAsync(file);
+                Dictionary<string, string> fileProperties = await GetMP4FileProperities.ExtractProperties(file);
                 if (fileProperties.TryGetValue("Video.Width", out string? width) && 
                     fileProperties.TryGetValue("Video.Height", out string? height) &&
                     fileProperties.TryGetValue("Video.FrameRate", out string? frameRate))

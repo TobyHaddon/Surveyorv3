@@ -20,6 +20,7 @@ using Surveyor.Events;
 using System.Text;
 using System.Runtime.CompilerServices;
 using MathNet.Numerics.LinearAlgebra.Factorization;
+using System.Threading.Tasks;
 
 
 namespace Surveyor.User_Controls
@@ -28,6 +29,7 @@ namespace Surveyor.User_Controls
     {
 
         private DispatcherQueue? dispatcherQueue;
+        private ObservableCollection<Event> events = [];
 
         // Copy of left mediaplayer
         MediaStereoController? mediaStereoController = null;
@@ -42,9 +44,10 @@ namespace Surveyor.User_Controls
             this.dispatcherQueue = dispatcherQueue;
         }
 
-        internal void SetEvents(ObservableCollection<Event> EventItems)
+        internal void SetEvents(ObservableCollection<Event> eventItems)
         {
-            ListViewEvent.ItemsSource = EventItems;
+            events = eventItems;
+            ListViewEvent.ItemsSource = events;
         }
 
         internal void SetMediaStereoController(MediaStereoController _mediaStereoController)
@@ -55,38 +58,139 @@ namespace Surveyor.User_Controls
 
         internal ListView GetListView() => ListViewEvent;
 
-  
+        internal ObservableCollection<Event> GetEvents() => events;
+
+        /// <summary>
+        /// Add an event to the list
+        /// </summary>
+        /// <param name="evt"></param>
+        public async Task AddEvent(Event evt)
+        {
+#pragma warning disable CA1868
+            if (events.Contains(evt))
+#pragma warning restore CA1868
+            {
+                events.Remove(evt);
+                await Task.Delay(100);
+            }
+            events.Add(evt);
+
+            // Assuming your ListView is named "myListView"
+            // Set the SelectedItem property to the newly added event
+            ListViewEvent.SelectedItem = evt;
+        }
+
+
+        /// <summary>
+        /// Delete an event from the list
+        /// </summary>
+        /// <param name="evt"></param>
+        public void DeleteEvent(Event evt)
+        {
+            events.Remove(evt);
+        }
+
+
+        /// <summary>
+        /// Delete all events of a specific type
+        /// </summary>
+        /// <param name="dataType"></param>
+        /// <returns></returns>
+        public int DeleteEventOfType(SurveyDataType dataType)
+        {
+            int count = 0;
+            // Remove any existing StereoSyncPoint events
+            // Use a reverse loop to avoid issues with changing collection indices when removing items
+            for (int i = events.Count - 1; i >= 0; i--)
+            {
+                if (events[i].EventDataType == dataType)
+                {
+                    events.RemoveAt(i);
+                    count++;
+                }
+            }
+
+            return count;
+        }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="guid"></param>
+        /// <returns></returns>
+        public Event? FindEvent(Guid guid)
+        {
+            return events.FirstOrDefault(e => e.Guid == guid);
+        }
+
+
+        /// <summary>
+        /// Display Event in a ContentDialog
+        /// </summary>
+        /// <param name="evt"></param>
         public async void Display(Event evt)
         {
-            //??? Support full display of all values in all event types
-            //??? Display created date as dd MMM yyyy
-            //??? Add a 'Copy' button using the standard copy gypth and format as tab delimited
-            StringBuilder sb = new StringBuilder();
-            sb.Append($"{evt.EventDataType}:\r\nCreated: {evt.DateTimeCreate:dd MMM yyyy hh:mm:ss}\r\n\r\n");
+            // Set the content dialog title
+            switch (evt.EventDataType)
+            {
+                case SurveyDataType.SurveyPoint:
+                    EventDialog.Title = $"Survey Point";
+                    break;
+                case SurveyDataType.SurveyStereoPoint:
+                    EventDialog.Title = $"Survey Stereo Point";
+                    break;
+                case SurveyDataType.SurveyMeasurementPoints:
+                    EventDialog.Title = $"Survey Measurement Points";
+                    break;
+                case SurveyDataType.StereoCalibrationPoints:
+                    EventDialog.Title = $"Stereo Calibration Points";
+                    break;
+                case SurveyDataType.StereoSyncPoint:
+                    EventDialog.Title = $"Stereo Sync Point";
+                    break;
+                case SurveyDataType.SurveyStart:
+                    EventDialog.Title = $"Survey Start";
+                    break;
+                case SurveyDataType.SurveyEnd:
+                    EventDialog.Title = $"Survey End";
+                    break;
+                default:
+                    EventDialog.Title = $"{evt.EventDataType}";
+                    break;
+            }
+            EventDialog.PrimaryButtonText = "Cancel";
+
+            // Create a string to display the event data
+            StringBuilder sb = new();
+            sb.Append($"Created: {evt.DateTimeCreate:dd MMM yyyy hh:mm:ss}\r\n\r\n");
 
             if (evt.EventData is not null)
             {
                 switch (evt.EventDataType)
                 {
-                    case DataType.StereoSyncPoint:  // No EventData for this type 
+                    case SurveyDataType.StereoSyncPoint:  // No EventData for this type 
 
                         sb.Append($"Sync media position: {evt.TimeSpanTimelineController}\r\n");
                         sb.Append($"Left media position: {evt.TimeSpanLeftFrame}\r\n");
                         sb.Append($"Right media position: {evt.TimeSpanRightFrame}\r\n");
                         break;
 
-                    case DataType.SurveyMeasurementPoints:
-                    case DataType.SurveyStereoPoint:
+                    case SurveyDataType.SurveyMeasurementPoints:
+                    case SurveyDataType.SurveyStereoPoint:
                         SurveyRulesCalc? surveyRulesCalc = null;
                         if (evt.EventData is SurveyMeasurement surveyMeasurement)
                         {
                             sb.Append($"Species: {surveyMeasurement.SpeciesInfo.Species}\r\n");
-                            sb.Append($"Measurement: {surveyMeasurement.Measurment}m\r\n");
+                            if (surveyMeasurement.Measurment is not null)
+                                sb.Append($"Measurement: {Math.Round((double)surveyMeasurement.Measurment * 1000, 0)}mm\r\n");
+                            else
+                                sb.Append($"Measurement: missing\r\n");
                             sb.Append($"Survey Rules: {surveyMeasurement.SurveyRulesCalc.SurveyRulesText}\r\n");
                             sb.Append($"\r\n");
                             sb.Append($"2D Points:\r\n");
                             sb.Append($"Set A\r\n");
-                            sb.Append("Left Camera: ({Math.Round(surveyMeasurement.LeftXA,1)}, {Math.Round(surveyMeasurement.LeftYA,1)})\r\n");
+                            sb.Append($"Left Camera: ({Math.Round(surveyMeasurement.LeftXA,1)}, {Math.Round(surveyMeasurement.LeftYA,1)})\r\n");
                             sb.Append($"Right Camera: ({Math.Round(surveyMeasurement.RightXA, 1)}, {Math.Round(surveyMeasurement.RightYA, 1)})\r\n");
                             sb.Append($"Set B\r\n");
                             sb.Append($"Left Camera: ({Math.Round(surveyMeasurement.LeftXB, 1)}, {Math.Round(surveyMeasurement.LeftYB, 1)})\r\n");
@@ -147,13 +251,13 @@ namespace Surveyor.User_Controls
                         }
                         break;
                     
-                    case DataType.SurveyPoint:
+                    case SurveyDataType.SurveyPoint:
                         if (evt.EventData is SurveyPoint surveyPoint)
                         {
                             sb.Append($"Species: {surveyPoint.SpeciesInfo.Species}\r\n");
                             sb.Append($"\r\n");
                             sb.Append($"2D Point:\r\n");
-                            string camera = surveyPoint.trueLeftfalseRight ? "Left" : "Right";
+                            string camera = surveyPoint.TrueLeftfalseRight ? "Left" : "Right";
                             sb.Append($"{camera} Camera: ({Math.Round(surveyPoint.X, 1)}, {Math.Round(surveyPoint.Y, 1)})\r\n");
                             sb.Append($"\r\n");
                         }
@@ -177,6 +281,133 @@ namespace Surveyor.User_Controls
             }
         }
 
+
+        /// <summary>
+        /// Display status of the SurveyStart/SurveyEnd markers in a ContentDialog
+        /// </summary>
+
+        public async void DisplaySurveyStartEndMarkers(Event? newestEventEndMarker)
+        {
+            // Set the content dialog title
+            EventDialog.Title = "Survey Start & End Segment";
+            EventDialog.PrimaryButtonText = "Ok";
+
+            Event? newestEventStartMarker = null;
+            SurveyMarker? newestStartSurveyMarker = null;
+            SurveyMarker? newestEndSurveyMarker = null;
+                        
+
+            List<Event> startEndEvents = [.. GetEvents().Where(e => e.EventDataType == SurveyDataType.SurveyStart || e.EventDataType == SurveyDataType.SurveyEnd)
+                                                        .OrderBy(e => e.TimeSpanTimelineController)];
+
+            // Find the matching newest start marker
+            for (int i = startEndEvents.Count - 1; i >= 0; i--)
+            {
+                // Find where the newest end marker is in the list
+                if (startEndEvents[i] == newestEventEndMarker)
+                {
+                    // Find the matching start marker
+                    if (i > 0)
+                    {
+                        newestEventStartMarker = startEndEvents[i - 1];
+                        break;
+                    }
+                }
+            }
+
+
+            if (newestEventStartMarker is not null)
+                newestStartSurveyMarker = (SurveyMarker)newestEventStartMarker.EventData!;
+
+            if (newestEventEndMarker is not null)
+                newestEndSurveyMarker = (SurveyMarker)newestEventEndMarker.EventData!;
+            
+
+            //??? Support full display of all values in all event types
+            //??? Display created date as dd MMM yyyy
+            //??? Add a 'Copy' button using the standard copy gypth and format as tab delimited
+            StringBuilder sb = new();
+            if (newestEndSurveyMarker is not null)
+                sb.Append($"A new survey start/end segment {newestEndSurveyMarker.MarkerName} has been defined\r\n");
+            else
+                sb.Append($"A new survey start/end segment (Not named) has been defined:\r\n");
+
+            if (newestEventStartMarker is not null)
+                sb.Append($"Start: {newestEventStartMarker.TimeSpanTimelineController.ToString(@"hh\:mm\:ss\.fff")}\r\n");
+            else
+                sb.Append($"Start: Missing\r\n");
+
+            if (newestEventEndMarker is not null)
+                sb.Append($"End: {newestEventEndMarker.TimeSpanTimelineController.ToString(@"hh\:mm\:ss\.fff")}\r\n");
+            else
+                sb.Append($"End: Missing\r\n");
+
+
+            // If there are other survey start/end markers, then display them
+            if (startEndEvents.Count > 2)
+            {
+                sb.Append($"\r\n\r\n");
+                sb.Append($"All survey start/end segments:\r\n");
+
+                Event? eventStartMarker = null;
+                Event? eventEndMarker = null;
+                SurveyMarker? startSurveyMarker = null;
+                SurveyMarker? endSurveyMarker = null;
+
+                for (int i = 0; i < startEndEvents.Count; i += 2)
+                {
+                    eventStartMarker = startEndEvents[i];
+                    eventEndMarker = startEndEvents[i + 1];
+
+                    if (eventStartMarker is not null)
+                    {
+                        startSurveyMarker = (SurveyMarker)eventStartMarker.EventData!;
+                        sb.Append($"{startSurveyMarker.MarkerName}: {eventStartMarker.TimeSpanTimelineController.ToString(@"hh\:mm\:ss\.fff")} - ");
+                    }
+                    else
+                        sb.Append($"Start missing - ");
+
+                    if (eventEndMarker is not null)
+                    {
+                        endSurveyMarker = (SurveyMarker)eventEndMarker.EventData!;
+                        sb.Append($"{eventEndMarker.TimeSpanTimelineController.ToString(@"hh\:mm\:ss\.fff")}");
+                    }
+                    else
+                        sb.Append($"End missing");
+
+                    sb.Append($"\r\n");
+                }
+            }
+
+
+            // Set the content of the TextBlock inside the dialog
+            EventDialogContent.Text = sb.ToString();
+
+            // Show the dialog
+            var result = await EventDialog.ShowAsync();
+
+
+            if (result == ContentDialogResult.Secondary)
+            {
+                // Copy the event data to the clipboard
+                var dataPackage = new DataPackage();
+                dataPackage.SetText(sb.ToString());
+                Clipboard.SetContent(dataPackage);
+            }
+        }
+
+
+
+        ///
+        /// EVENTS
+        ///
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void ViewMenuItem_Click(object sender, RoutedEventArgs e)
         {
             if (ListViewEvent.SelectedItem is Event selectedItem)
@@ -291,7 +522,7 @@ namespace Surveyor.User_Controls
         {
             if (value is TimeSpan timeSpan)
             {
-                return $"{Math.Round(timeSpan.TotalSeconds, 2)} seconds";
+                return $"{Math.Round(timeSpan.TotalSeconds, 2):F2} seconds";
             }
             return "0.00 seconds";
         }
@@ -310,28 +541,32 @@ namespace Surveyor.User_Controls
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {
-            if (value is Surveyor.Events.DataType eventType)
+            if (value is Surveyor.Events.SurveyDataType eventType)
             {
                 switch (eventType)
                 {
-                    case Surveyor.Events.DataType.MonoLeftPoint:
+                    /*??? not usedcase Surveyor.Events.DataType.MonoLeftPoint:
                         return "Mono Left Point";
                     case Surveyor.Events.DataType.MonoRightPoint:
                         return "Mono Right Point";
                     case Surveyor.Events.DataType.StereoPoint:
                         return "Stereo Point";
                     case Surveyor.Events.DataType.StereoPairPoints:
-                        return "Stereo Pair Points";
-                    case Surveyor.Events.DataType.SurveyPoint:
+                        return "Stereo Pair Points";*/
+                    case Surveyor.Events.SurveyDataType.SurveyPoint:
                         return "Survey Point";
-                    case Surveyor.Events.DataType.SurveyStereoPoint:
+                    case Surveyor.Events.SurveyDataType.SurveyStereoPoint:
                         return "Survey 3D Point";
-                    case Surveyor.Events.DataType.SurveyMeasurementPoints:
+                    case Surveyor.Events.SurveyDataType.SurveyMeasurementPoints:
                         return "Survey Measurement";
-                    case Surveyor.Events.DataType.StereoCalibrationPoints:
+                    case Surveyor.Events.SurveyDataType.StereoCalibrationPoints:
                         return "Stereo Calibration Points";
-                    case Surveyor.Events.DataType.StereoSyncPoint:
+                    case Surveyor.Events.SurveyDataType.StereoSyncPoint:
                         return "Stereo Sync Point";
+                    case SurveyDataType.SurveyStart:
+                        return "Survey Start";
+                    case SurveyDataType.SurveyEnd:
+                        return "Survey End";
                     default:
                         return "Unknown";
                 }
@@ -353,28 +588,32 @@ namespace Surveyor.User_Controls
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {
-            if (value is Surveyor.Events.DataType eventType)
+            if (value is Surveyor.Events.SurveyDataType eventType)
             {
                 switch (eventType)
                 {
-                    case Surveyor.Events.DataType.MonoLeftPoint:
+                   /*??? not used  case Surveyor.Events.DataType.MonoLeftPoint:
                         return "L";
                     case Surveyor.Events.DataType.MonoRightPoint:
                         return "R";
                     case Surveyor.Events.DataType.StereoPoint:
                         return "SP";
                     case Surveyor.Events.DataType.StereoPairPoints:
-                        return "SPP";
-                    case Surveyor.Events.DataType.SurveyPoint:
+                        return "SPP";*/
+                    case Surveyor.Events.SurveyDataType.SurveyPoint:
                         return "\uE139";
-                    case Surveyor.Events.DataType.SurveyStereoPoint:
+                    case Surveyor.Events.SurveyDataType.SurveyStereoPoint:
                         return "\uECAF";
-                    case Surveyor.Events.DataType.SurveyMeasurementPoints:
+                    case Surveyor.Events.SurveyDataType.SurveyMeasurementPoints:
                         return "\uE1D9";
-                    case Surveyor.Events.DataType.StereoCalibrationPoints:
+                    case Surveyor.Events.SurveyDataType.StereoCalibrationPoints:
                         return "\uEB3C";
-                    case Surveyor.Events.DataType.StereoSyncPoint:
+                    case Surveyor.Events.SurveyDataType.StereoSyncPoint:
                         return "\uE754";
+                    case Surveyor.Events.SurveyDataType.SurveyStart:
+                        return "\uEA52";
+                    case Surveyor.Events.SurveyDataType.SurveyEnd:
+                        return "\uE7FD";
                     default:
                         return "Unknown";
                 }

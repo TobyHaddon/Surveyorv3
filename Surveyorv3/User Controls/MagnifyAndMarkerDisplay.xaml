@@ -15,7 +15,7 @@
             <Setter Property="FontSize" Value="10"/> 
             <Setter Property="VerticalContentAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
-            <Setter Property="FontFamily" Value="Segoe MDL2 Assets"/>
+            <Setter Property="FontFamily" Value="Segoe Fluent Icons"/>
             <Setter Property="Foreground" Value="Black"/>
             <Setter Property="Background" Value="#80FFFFFF"/>
             <Setter Property="Padding" Value="4"/>

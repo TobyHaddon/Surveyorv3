@@ -6,6 +6,7 @@
 // 29 Apr 2024 Moved the species info out of StereoMeasurementPoints into SpeciesInfo
 // 29 Apr 2024 Rename StereoMeasurementPoints to SurveyMeasurement and create SurveyStereoPoint and SurveyPoint
 // 01 Oct 2024 Added left/right indicator to SinglePoint class
+// 13 Feb 2025 Added SurveyStart and SurveyEnd SurveyDataType
 
 
 
@@ -22,17 +23,15 @@ using System.Runtime.CompilerServices;
 namespace Surveyor.Events
 {
     // https://chat.openai.com/c/e631ccac-52f1-4906-b9fe-0579dd59bdb4
-    public enum DataType
+    public enum SurveyDataType
     {
-        MonoLeftPoint,
-        MonoRightPoint,
-        StereoPoint,
-        StereoPairPoints,
         SurveyPoint,
         SurveyStereoPoint,
         SurveyMeasurementPoints,
         StereoCalibrationPoints,
-        StereoSyncPoint
+        StereoSyncPoint,
+        SurveyStart,
+        SurveyEnd
     }
 
     public interface IPointData
@@ -42,7 +41,7 @@ namespace Surveyor.Events
 
     public class SinglePoint : IPointData
     {
-        public bool trueLeftfalseRight { get; set; }
+        public bool TrueLeftfalseRight { get; set; }
         public double X { get; set; }
         public double Y { get; set; }
     }
@@ -73,6 +72,15 @@ namespace Surveyor.Events
         // Right Side Point B (X,Y)
         public double RightXB { get; set; }
         public double RightYB { get; set; }
+    }
+
+
+    /// <summary>
+    /// SurveyMarker class used on a SurveyStart and SurveyEnd event
+    /// </summary>
+    public class SurveyMarker : IPointData
+    {
+        public string MarkerName { get; set; } = "";
     }
 
 
@@ -156,11 +164,11 @@ namespace Surveyor.Events
         public TimeSpan TimeSpanTimelineController { get; set; }
         public TimeSpan TimeSpanLeftFrame { get; set; }
         public TimeSpan TimeSpanRightFrame { get; set; }
-        public DataType EventDataType { get; set; }
+        public SurveyDataType EventDataType { get; set; }
         public IPointData? EventData { get; set; }
 
         // Constructor
-        public Event(DataType dataType) : this()  // Chaining to the base constructor
+        public Event(SurveyDataType dataType) : this()  // Chaining to the base constructor
         {
             EventDataType = dataType;
         }
@@ -175,25 +183,23 @@ namespace Surveyor.Events
 
 
         // Depending on your logic, you can have a method to initialize the Data property with the appropriate class instance.
-        public void SetData(DataType dataType)
+        public void SetData(SurveyDataType dataType)
         {
             EventData = CreateDataType(dataType);
             EventDataType = dataType;
         }
 
-        public static IPointData? CreateDataType(DataType dataType)
+        public static IPointData? CreateDataType(SurveyDataType dataType)
         {
             return dataType switch
-            {
-                DataType.MonoLeftPoint => new SinglePoint(),
-                DataType.MonoRightPoint => new SinglePoint(),
-                DataType.StereoPoint => new StereoPoint(),
-                DataType.StereoPairPoints => new StereoPairPoints(),
-                DataType.SurveyPoint => new SurveyPoint(),
-                DataType.SurveyStereoPoint => new SurveyStereoPoint(),
-                DataType.SurveyMeasurementPoints => new SurveyMeasurement(),
-                DataType.StereoCalibrationPoints => new StereoCalibrationPoints(),
-                DataType.StereoSyncPoint => new StereoCalibrationPoints(),
+            {                
+                SurveyDataType.SurveyPoint => new SurveyPoint(),
+                SurveyDataType.SurveyStereoPoint => new SurveyStereoPoint(),
+                SurveyDataType.SurveyMeasurementPoints => new SurveyMeasurement(),
+                SurveyDataType.StereoCalibrationPoints => new StereoCalibrationPoints(),
+                SurveyDataType.StereoSyncPoint => new StereoCalibrationPoints(),
+                SurveyDataType.SurveyStart => new SurveyMarker(),
+                SurveyDataType.SurveyEnd => new SurveyMarker(),
                 _ => throw new ArgumentOutOfRangeException()
             };
         }
@@ -232,10 +238,10 @@ namespace Surveyor.Events
 
             // Deserialize the EventDataType from string
             var eventDataTypeString = jsonObject["EventDataType"]?.ToString();
-            if (eventDataTypeString is not null && Enum.TryParse(typeof(DataType), eventDataTypeString, out var eventDataType))
+            if (eventDataTypeString is not null && Enum.TryParse(typeof(SurveyDataType), eventDataTypeString, out var eventDataType))
             {
                 if (eventDataType is not null)
-                    eventInstance.EventDataType = (DataType)eventDataType;
+                    eventInstance.EventDataType = (SurveyDataType)eventDataType;
             }
 
             // Deserialize the EventData based on EventDataType

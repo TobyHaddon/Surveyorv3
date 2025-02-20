@@ -556,22 +556,50 @@ namespace Surveyor
             return ret;
         }
 
-        public bool CalculateEpipilorLine(bool TrueLeftFalseRight, Point point, out double epiLine_a, out double epiLine_b, out double epiLine_c)
+        public bool CalculateEpipilorLine(bool TrueLeftFalseRight, Point point, out double epiLine_a, out double epiLine_b, out double epiLine_c, 
+                                          out double focalLength, out double baseline,
+                                          out double principalXLeft, out double principalYLeft, out double principalXRight, out double principalYRight)
         {
+            bool ret = false;
+
             // Reset
-            epiLine_a = 0;
-            epiLine_b = 0;
-            epiLine_c = 0;
+            epiLine_a = 0.0;
+            epiLine_b = 0.0;
+            epiLine_c = 0.0;
+            focalLength = 0.0;
+            baseline = 0.0;
+            principalXLeft = 0.0;
+            principalYLeft = 0.0;
+            principalXRight = 0.0;
+            principalYRight = 0.0;
 
             if (IsReadyCalibrationData())
-                return CalculateEpipilorLine(calibrationClass!.PreferredCalibrationDataIndex,
+            {
+                ret = CalculateEpipilorLine(calibrationClass!.PreferredCalibrationDataIndex,
                                              TrueLeftFalseRight,
                                              point,
                                              out epiLine_a,
                                              out epiLine_b,
                                              out epiLine_c);
+                if (ret == true)
+                {
+                    // Get the preferred calibration data instance
+                    CalibrationData calibrationData = calibrationClass!.CalibrationDataList[calibrationClass!.PreferredCalibrationDataIndex];
 
-            return false;
+                    // Extract focal length from left camera matrix
+                    focalLength = calibrationData.LeftCalibrationCameraData.Mtx?[0, 0] ?? 0.0; // f = fx
+                    baseline = Math.Abs(calibrationData.CalibrationStereoCameraData.Translation?[0, 0] ?? 0.0);
+
+                    // Extract principal point (cx, cy) from left camera matrix
+                    principalXLeft = calibrationData.LeftCalibrationCameraData.Mtx?[0, 2] ?? 0.0;
+                    principalYLeft = calibrationData.LeftCalibrationCameraData.Mtx?[1, 2] ?? 0.0;
+
+                    // Extract principal point (cx, cy) from right camera matrix
+                    principalXRight = calibrationData.RightCalibrationCameraData.Mtx?[0, 2] ?? 0.0;
+                    principalYRight = calibrationData.RightCalibrationCameraData.Mtx?[1, 2] ?? 0.0;
+                }
+            }
+            return ret;
         }
 
 
@@ -770,6 +798,7 @@ namespace Surveyor
             return ret;
         }
 
+
         /// <summary>
         /// A unique string is create from the calibration data set in the CalibrationClass instance.
         /// This is used to check for changes in the calibration data so the essential matrix and fundamental matrix
@@ -798,6 +827,7 @@ namespace Surveyor
 
             return sb.ToString();
         }
+
 
         /// <summary>
         /// Calculate the Essential Matrix
@@ -864,9 +894,6 @@ namespace Surveyor
         }
 
 
-
-
-
         /// <summary>
         /// Convert a matched left and right 2D points to a real world 3D point
         /// </summary>
@@ -907,27 +934,30 @@ namespace Surveyor
                 // Calculate the rays from each camera so the RMS error can be calculated
                 if (cd.CalibrationStereoCameraData.Translation is not null)
                 {
-                    // Get Camera Centers
-                    MCvPoint3D64f cameraLeft = new(0, 0, 0);
-                    MCvPoint3D64f cameraRight = new(cd.CalibrationStereoCameraData.Translation[0, 0],
-                                                    cd.CalibrationStereoCameraData.Translation[0, 1],
-                                                    cd.CalibrationStereoCameraData.Translation[0, 2]);
+                    // Get Camera Centers                    
+                    var leftCameraCentre = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([0, 0, 0]);
+                    var t = cd.CalibrationStereoCameraData.Translation;
+                    var rightCameraCentre = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([t[0, 0], t[0, 1], t[0, 2]]);
 
-                    // Compute Ray Directions (do not normalize as that is done in ComputeRealWorldRMSError)
-                    var rayLeft = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([vector3D[0], vector3D[1], vector3D[2]]);
-                    var rayRight = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([vector3D[0] - cameraRight.X,
-                                                                                                     vector3D[1] - cameraRight.Y, vector3D[2] - cameraRight.Z]);
+                    if (cd.LeftCalibrationCameraData.Mtx is not null &&
+                        cd.RightCalibrationCameraData.Mtx is not null &&
+                        cd.CalibrationStereoCameraData.Rotation is not null)
+                    {
+                        // Compute the ray directions
+                        var rayLeftDirection = ComputeRayDirection(L2D,      // 2D pixel coordinates (u, v)
+                                                                   ConvertEmguMatrixToMathNetMatrix(cd.LeftCalibrationCameraData.Mtx), // 3x3 intrinsic matrix K
+                                                                   MathNet.Numerics.LinearAlgebra.Double.DenseMatrix.CreateIdentity(3)); // Identity matrix for no rotation
 
-                    // Compute real-world RMS
-                    RMSRealWorld = ComputeRealWorldRMSError(cameraLeft, rayLeft, cameraRight, rayRight);
-
-                    var cameraCenterLeft = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([cameraLeft.X, cameraLeft.Y, cameraLeft.Z]);
-                    var cameraCenterRight = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([cameraRight.X, cameraRight.Y, cameraRight.Z]);
+                        var rayRightDirection = ComputeRayDirection(R2D,      // 2D pixel coordinates (u, v)
+                                                                    ConvertEmguMatrixToMathNetMatrix(cd.RightCalibrationCameraData.Mtx), // 3x3 intrinsic matrix K
+                                                                    ConvertEmguMatrixToMathNetMatrix(cd.CalibrationStereoCameraData.Rotation));  // Rotation matrix for the right camera
 
 
-                    RMSRealWorld = ComputeRMSDistance(cameraCenterLeft, rayLeft,
-                                                      cameraCenterRight, rayRight);
+                        // Compute the RMS Distance error by calculating the shortest distance between the two rays
+                        RMSRealWorld = ComputeMinimumDistance(leftCameraCentre, rayLeftDirection,
+                                                              rightCameraCentre, rayRightDirection);
 
+                    }
                 }
                 else
                 {
@@ -951,103 +981,50 @@ namespace Surveyor
         /// <param name="cameraCenterRight"></param>
         /// <param name="rayDirectionRight"></param>
         /// <returns></returns>
-        private static double ComputeRealWorldRMSError(
-                MCvPoint3D64f cameraCenterLeft, MathNet.Numerics.LinearAlgebra.Vector<double> rayDirectionLeft,
-                MCvPoint3D64f cameraCenterRight, MathNet.Numerics.LinearAlgebra.Vector<double> rayDirectionRight)
-        {
-            // Convert 3D points to Math.NET vectors for easier calculations
-            var P1 = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([cameraCenterLeft.X, cameraCenterLeft.Y, cameraCenterLeft.Z]);
-            var P2 = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([cameraCenterRight.X, cameraCenterRight.Y, cameraCenterRight.Z]);
-
-            var d1 = rayDirectionLeft.Normalize(2);
-            var d2 = rayDirectionRight.Normalize(2);
-
-            // Compute vector between the two camera centers
-            var w0 = P1 - P2;
-
-            // Compute coefficients for the closest points on each ray
-            double a = d1.DotProduct(d1);
-            double b = d1.DotProduct(d2);
-            double c = d2.DotProduct(d2);
-            double d = d1.DotProduct(w0);
-            double e = d2.DotProduct(w0);
-
-            // Solve for the two closest points on the rays
-            double denominator = a * c - b * b;
-            if (Math.Abs(denominator) < 1e-6)
-            {
-                // If the denominator is very small, the rays are almost parallel, return a large error
-                return 1000;  // Arbitrary large value (1 meter) instead of infinity
-            }
-        
-
-            double s = (b * e - c * d) / denominator;
-            double t = (a * e - b * d) / denominator;
-
-            // Compute the closest points on each ray
-            var closestPointOnRay1 = P1 + s * d1;
-            var closestPointOnRay2 = P2 + t * d2;
-
-            // Compute the Euclidean distance between these closest points
-            double rmsError = (closestPointOnRay1 - closestPointOnRay2).L2Norm();
-
-            return rmsError;
-        }
 
 
 
-        public static double ComputeRMSDistance(MathNet.Numerics.LinearAlgebra.Vector<double> cameraCenterLeft, MathNet.Numerics.LinearAlgebra.Vector<double> rayDirectionLeft,
-                                                MathNet.Numerics.LinearAlgebra.Vector<double> cameraCenterRight, MathNet.Numerics.LinearAlgebra.Vector<double> rayDirectionRight)
-        {
-            // Normalize the direction vectors
-            var U1 = rayDirectionLeft.Normalize(2); // Left ray direction (unit vector)
-            var U2 = rayDirectionRight.Normalize(2); // Right ray direction (unit vector)
 
-            // Compute the normal vector (cross product of U1 and U2)
-            var N = CrossProduct(U1, U2); // Math.NET has a custom CrossProduct extension
-            double nmag = N.L2Norm(); // Magnitude of the normal vector
+        /// <summary>
+        /// This method computes the cross product of two 3-dimensional vectors, v1 and v2, using the 
+        /// MathNet.Numerics library. The cross product is a vector operation in 3D space that results 
+        /// in a new vector perpendicular to the plane formed by the input vectors
+        /// </summary>
+        /// <param name="v1">Three component input vector</param>
+        /// <param name="v2">Three component input vector</param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        //????        public static MathNet.Numerics.LinearAlgebra.Vector<double> CrossProduct(
+        //    MathNet.Numerics.LinearAlgebra.Vector<double> v1,
+        //    MathNet.Numerics.LinearAlgebra.Vector<double> v2)
+        //{
+        //    // Ensure that both input vectors have exactly three components
+        //    if (v1.Count != 3 || v2.Count != 3)
+        //    {
+        //        throw new ArgumentException("Cross product is only defined for 3D vectors.");
+        //    }
 
-            // Handle the case where rays are parallel or nearly parallel
-            if (nmag < 1e-6)
-            {
-                return 1000; // Arbitrary large value for parallel rays
-            }
+        //    // Cross Product Calculation
+        //    return MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray(
+        //    [
+        //        v1[1] * v2[2] - v1[2] * v2[1], // X component
+        //        v1[2] * v2[0] - v1[0] * v2[2], // Y component
+        //        v1[0] * v2[1] - v1[1] * v2[0]  // Z component
+        //    ]);
+        //}
 
-            // Compute the vector between the two camera centers
-            var P1P2 = cameraCenterRight - cameraCenterLeft;
-
-            // Compute the perpendicular distance between the rays
-            double Distance = Math.Abs(P1P2.DotProduct(N) / nmag);
-
-            return Distance; // RMS Distance Error in meters
-        }
-
-        public static MathNet.Numerics.LinearAlgebra.Vector<double> CrossProduct(
-            MathNet.Numerics.LinearAlgebra.Vector<double> v1,
-            MathNet.Numerics.LinearAlgebra.Vector<double> v2)
-        {
-            if (v1.Count != 3 || v2.Count != 3)
-            {
-                throw new ArgumentException("Cross product is only defined for 3D vectors.");
-            }
-
-            return MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray(new double[]
-            {
-                v1[1] * v2[2] - v1[2] * v2[1], // X component
-                v1[2] * v2[0] - v1[0] * v2[2], // Y component
-                v1[0] * v2[1] - v1[1] * v2[0]  // Z component
-            });
-        }
 
         /// <summary>
         /// Convert a matched left and right 2D points to a real world 3D point
         /// Uses MathNET matrix and vector types but has Calibration data that uses EmguCV matrix types
         /// </summary>
-        /// <param name="cd"></param>
-        /// <param name="L2D"></param>
-        /// <param name="R2D"></param>
+        /// <param name="cd">Calibration data</param>
+        /// <param name="L2D">Left camera 2D point (normally undistorted)</param>
+        /// <param name="R2D">Right camera 2D point (normally undistorted)</param>
         /// <returns></returns>
-        public static MathNet.Numerics.LinearAlgebra.Vector<double>? Convert2DTo3D(CalibrationData cd, MathNet.Numerics.LinearAlgebra.Vector<double> L2D, MathNet.Numerics.LinearAlgebra.Vector<double> R2D)
+        public static MathNet.Numerics.LinearAlgebra.Vector<double>? Convert2DTo3D(CalibrationData cd, 
+                                                                                   MathNet.Numerics.LinearAlgebra.Vector<double> L2D, 
+                                                                                   MathNet.Numerics.LinearAlgebra.Vector<double> R2D)
         {
             if (cd.LeftCalibrationCameraData.Mtx is not null &&
                 cd.RightCalibrationCameraData.Mtx is not null &&
@@ -1069,20 +1046,18 @@ namespace Surveyor
         }
 
 
-        private static MathNet.Numerics.LinearAlgebra.Matrix<double> NormalizeProjectionMatrix(MathNet.Numerics.LinearAlgebra.Matrix<double> P)
-        {
-            for (int i = 0; i < P.RowCount; i++)
-            {
-                double rowNorm = P.Row(i).L2Norm();
-                if (rowNorm > 0)
-                    P.SetRow(i, P.Row(i) / rowNorm);
-            }
-            return P;
-        }
 
-
+        /// <summary>
+        /// Performs 3D triangulation using two camera projection matrices and corresponding 2D points from stereo images
+        /// </summary>
+        /// <param name="P1">Projection matrix of the first (left) camera</param>
+        /// <param name="P2">Projection matrix of the second (right) camera</param>
+        /// <param name="point1">2D point from the first camera's image plane</param>
+        /// <param name="point2"> 2D point from the second camera's image plane</param>
+        /// <returns></returns>
         public static MathNet.Numerics.LinearAlgebra.Vector<double> DirectLinearTransformation(MathNet.Numerics.LinearAlgebra.Matrix<double> P1, MathNet.Numerics.LinearAlgebra.Matrix<double> P2, MathNet.Numerics.LinearAlgebra.Vector<double> point1, MathNet.Numerics.LinearAlgebra.Vector<double> point2)
         {
+            // Create the matrix A based on the Direct Linear Transformation (DLT) algorithm
             var A = MathNet.Numerics.LinearAlgebra.Double.DenseMatrix.OfRowArrays(
                 (point1[1] * P1.Row(2) - P1.Row(1)).ToArray(),
                 (P1.Row(0) - point1[0] * P1.Row(2)).ToArray(),
@@ -1090,22 +1065,104 @@ namespace Surveyor
                 (P2.Row(0) - point2[0] * P2.Row(2)).ToArray()
             );
 
-            //???var B = A.TransposeThisAndMultiply(A);
+            // Singular Value Decomposition (SVD)           
+            //???Older approach  var B = A.TransposeThisAndMultiply(A);
             //???var svd = B.Svd(true);
-            //???var Vh = svd.VT;
-            //???var triangulatedPoint = Vh.Row(3).SubVector(0, 3) / Vh[3, 3];
             var svd = A.Svd(true);
             var Vh = svd.VT;
+
+            // Extract the 3D Point
             var triangulatedPoint = Vh.Row(3).SubVector(0, 3) / Vh[3, 3];
 
+            // Debug Report
+            Console.WriteLine($"Triangulated point: {triangulatedPoint}");
 
-
-            Console.WriteLine("Triangulated point: ");
-            Console.WriteLine(triangulatedPoint);
             return triangulatedPoint;
         }
 
 
+        /// <summary>
+        /// Compute the minimum distance between two rays in 3D space
+        /// </summary>
+        /// <param name="C1">Camera one centre 3D coordinate</param>
+        /// <param name="d1">Camera one ray direction vector</param>
+        /// <param name="C2">Camera two centre 3D coordinate</param>
+        /// <param name="d2">Camera two ray direction vector</param>
+        /// <returns></returns>
+        public static double ComputeMinimumDistance(MathNet.Numerics.LinearAlgebra.Vector<double> C1,
+                                                    MathNet.Numerics.LinearAlgebra.Vector<double> d1,
+                                                    MathNet.Numerics.LinearAlgebra.Vector<double> C2,
+                                                    MathNet.Numerics.LinearAlgebra.Vector<double> d2)
+        {
+            var cross = d1.CrossProduct(d2); // Compute the cross product of d1 and d2
+            //????var cross = CrossProduct(d1, d2); // Compute the cross product of d1 and d2
+            double denom = cross.L2Norm();    // Magnitude of the cross product
+
+            if (denom < 1e-6)
+            {
+                // Rays are parallel or nearly parallel
+                return (C2 - C1).CrossProduct(d1).L2Norm() / d1.L2Norm();
+            }
+
+            // Compute the closest points
+            var C2_C1 = C2 - C1;
+            double t1 = C2_C1.DotProduct(d2.CrossProduct(cross)) / cross.DotProduct(cross);
+            double t2 = C2_C1.DotProduct(d1.CrossProduct(cross)) / cross.DotProduct(cross);
+
+            var P1 = C1 + t1 * d1; // Closest point on Ray 1
+            var P2 = C2 + t2 * d2; // Closest point on Ray 2
+
+            // Compute the minimum distance
+            return (P1 - P2).L2Norm();
+        }
+
+
+        /// <summary>
+        /// Compute the ray direction from a pixel coordinate in the image
+        /// </summary>
+        /// <param name="pixelCoords"></param>
+        /// <param name="intrinsicMatrix"></param>
+        /// <param name="rotationMatrix"></param>
+        /// <param name=""></param>
+        /// <returns></returns>
+        public static MathNet.Numerics.LinearAlgebra.Vector<double> ComputeRayDirection(MathNet.Numerics.LinearAlgebra.Vector<double> pixelCoords,      // 2D pixel coordinates (u, v)
+                                                                                        MathNet.Numerics.LinearAlgebra.Matrix<double> intrinsicMatrix, // 3x3 intrinsic matrix K
+                                                                                        MathNet.Numerics.LinearAlgebra.Matrix<double> rotationMatrix)  // 3x3 rotation matrix R
+        {
+            // Step 1: Normalize the Image Coordinates
+            double u = pixelCoords[0];
+            double v = pixelCoords[1];
+            double fx = intrinsicMatrix[0, 0];
+            double fy = intrinsicMatrix[1, 1];
+            double cx = intrinsicMatrix[0, 2];
+            double cy = intrinsicMatrix[1, 2];
+
+            double x = (u - cx) / fx;
+            double y = (v - cy) / fy;
+
+            // Create the normalized image point in homogeneous coordinates
+            var normalizedImagePoint = MathNet.Numerics.LinearAlgebra.Double.DenseVector.OfArray([x, y, 1.0]);
+
+            // Step 2: Form the Ray in Camera Coordinates
+            // In camera coordinates, the ray direction is the normalized image point
+            var rayCameraCoords = normalizedImagePoint.Normalize(2);
+
+            // Step 3: Transform the Ray to World Coordinates
+            // Apply the inverse of the rotation matrix to transform to world coordinates
+            var rayWorldCoords = rotationMatrix.TransposeThisAndMultiply(rayCameraCoords);
+
+            // Step 4: Normalize the Ray Direction
+            var rayDirection = rayWorldCoords.Normalize(2);
+
+            return rayDirection;
+        }
+
+        /// <summary>
+        /// Used to convert an Emgu matrix to a MathNet matrix
+        /// i.e. Emgu.CV.Matrix<double> to a MathNet.Numerics.LinearAlgebra.Matrix<double>
+        /// </summary>
+        /// <param name="emguMatrix">Emgu format matrix</param>
+        /// <returns>MathNet matrix</returns>
         public static MathNet.Numerics.LinearAlgebra.Matrix<double> ConvertEmguMatrixToMathNetMatrix(Emgu.CV.Matrix<double> emguMatrix)
         {
             int rows = emguMatrix.Rows;
@@ -1124,6 +1181,12 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// Used to convert an Emgu matrix to a MathNet vector
+        /// </summary>
+        /// <param name="emguMatrix">Emgu format matrix</param>
+        /// <returns>MathNet vector</returns>
+        /// <exception cref="ArgumentException"></exception>
         public static MathNet.Numerics.LinearAlgebra.Vector<double> ConvertEmguMatrixToMathNetVector(Emgu.CV.Matrix<double> emguMatrix)
         {
             // Check if the matrix is one-dimensional
@@ -1178,7 +1241,7 @@ namespace Surveyor
         public static Point UndistortPoint(CalibrationCameraData ccd, Point point)
         {
             // Convert the input point to a VectorOfPoint2D32F
-            VectorOfPointF distortedPoints = new(new System.Drawing.PointF[] { new System.Drawing.PointF((float)point.X, (float)point.Y) });
+            VectorOfPointF distortedPoints = new(new System.Drawing.PointF[] { new((float)point.X, (float)point.Y) });
 
             // Create a VectorOfPoint2D32F to hold the undistorted point
             VectorOfPointF undistortedPoints = new(1);
@@ -1220,5 +1283,36 @@ namespace Surveyor
 
 
 
+    }
+
+
+    /// <summary>
+    /// This MathNetExtensions method computes the cross product of two 3-dimensional vectors, v1 and v2, using the 
+    /// MathNet.Numerics library. The cross product is a vector operation in 3D space that results 
+    /// in a new vector perpendicular to the plane formed by the input vectors
+    /// </summary>
+    /// <param name="v1">Three component input vector</param>
+    /// <param name="v2">Three component input vector</param>
+    /// <returns></returns>
+    /// <exception cref="ArgumentException"></exception>
+    public static class MathNetExtensions
+    {
+        /// <summary>
+        /// Computes the cross product of two 3D vectors.
+        /// </summary>
+        public static MathNet.Numerics.LinearAlgebra.Vector<double> CrossProduct(this MathNet.Numerics.LinearAlgebra.Vector<double> v1, MathNet.Numerics.LinearAlgebra.Vector<double> v2)
+        {
+            if (v1.Count != 3 || v2.Count != 3)
+            {
+                throw new ArgumentException("Cross product is only defined for 3D vectors.");
+            }
+
+            return MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray(
+            [
+            v1[1] * v2[2] - v1[2] * v2[1],
+            v1[2] * v2[0] - v1[0] * v2[2],
+            v1[0] * v2[1] - v1[1] * v2[0]
+            ]);
+        }
     }
 }

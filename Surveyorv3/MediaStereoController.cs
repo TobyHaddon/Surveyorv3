@@ -9,14 +9,14 @@ using Surveyor.Events;
 using Surveyor.User_Controls;
 using System;
 using Microsoft.UI.Dispatching;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Media;
 using static Surveyor.MediaStereoControllerEventData;
-using static Surveyor.Survey.DataClass;
-using System.Xml.Linq;
+using Microsoft.UI.Xaml.Input;
+
+
 
 
 #if !No_MagnifyAndMarkerDisplay
@@ -70,8 +70,8 @@ namespace Surveyor
         // Position of the MediaTimelineController whilst paused and moving frame by frame
         TimeSpan mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
 
-        // Events (existing measurements etc)
-        private ObservableCollection<Event>? events = null;
+        // EventControl (existing measurements etc)
+        private readonly EventsControl? eventsControl = null;
 
         // Species Selector dialog class
         public SpeciesSelector speciesSelector = new();
@@ -83,14 +83,15 @@ namespace Surveyor
 
 
         public MediaStereoController(MainWindow _mainWindow, Reporter _report, 
-            SurveyorMediator _mediator, 
-            SurveyorMediaPlayer _mediaPlayerLeft, SurveyorMediaPlayer _mediaPlayerRight, 
-            SurveyorMediaControl _mediaControlPrimary, SurveyorMediaControl _mediaControlSecondary,
+                                     SurveyorMediator _mediator, 
+                                     SurveyorMediaPlayer _mediaPlayerLeft, SurveyorMediaPlayer _mediaPlayerRight, 
+                                     SurveyorMediaControl _mediaControlPrimary, SurveyorMediaControl _mediaControlSecondary,
 #if !No_MagnifyAndMarkerDisplay
-            MagnifyAndMarkerDisplay _magnifyAndMarkerDisplayLeft, MagnifyAndMarkerDisplay _magnifyAndMarkerDisplayRight,
+                                     MagnifyAndMarkerDisplay _magnifyAndMarkerDisplayLeft, MagnifyAndMarkerDisplay _magnifyAndMarkerDisplayRight,
 #endif
-            StereoProjection _stereoProjection/*,
-            SurveyorMediaInfo mediaInfoLeft, SurveyorMediaInfo mediaInfoRight*/)
+                                     EventsControl _eventsControl,
+                                     StereoProjection _stereoProjection/*,
+                                     SurveyorMediaInfo mediaInfoLeft, SurveyorMediaInfo mediaInfoRight*/)
         {
             // Remember the main window
             mainWindow = _mainWindow;
@@ -122,6 +123,9 @@ namespace Surveyor
             magnifyAndMarkerDisplayLeft = _magnifyAndMarkerDisplayLeft;
             magnifyAndMarkerDisplayRight = _magnifyAndMarkerDisplayRight;
 #endif
+
+            // Remember the EventControl
+            eventsControl = _eventsControl;
 
             // Remember media info controls
             //???_mediaInfoLeft = mediaInfoLeft;
@@ -161,17 +165,6 @@ namespace Surveyor
         ///
         /// PUBLIC METHODS
         ///
-
-
-        /// <summary>
-        /// Passed a reference to the Event list 
-        /// null can passed to indicate no existing Events
-        /// </summary>
-        /// <param name="existingEvents"></param>
-        public void SetEvents(ObservableCollection<Event>? _events)
-        {
-            events = _events;
-        }
 
 
         /// <summary>
@@ -596,6 +589,46 @@ namespace Surveyor
                 else
                     mediaPlayerRight.FrameJump(position);
             }
+        }
+
+
+        /// <summary>
+        /// Get the current position of the media
+        /// </summary>
+        /// <param name="positionTimelineController"></param>
+        /// <param name="leftPosition"></param>
+        /// <param name="rightPosition"></param>
+        /// <returns>true is media in sync'd</returns>
+        public bool GetFullMediaPosition(out TimeSpan positionTimelineController, out TimeSpan leftPosition, out TimeSpan rightPosition)
+        {
+            bool ret = false;
+
+            // Reset
+            positionTimelineController = TimeSpan.Zero;
+            leftPosition = TimeSpan.Zero;
+            rightPosition = TimeSpan.Zero;
+
+            if (mediaSynchronized)
+            {
+                if (mediaTimelineController is not null && mediaPlayerLeft.Position is not null && mediaPlayerRight.Position is not null)
+                {
+                    positionTimelineController = mediaTimelineController.Position;
+                    leftPosition = (TimeSpan)mediaPlayerLeft.Position;
+                    rightPosition = (TimeSpan)mediaPlayerRight.Position;
+                    ret = true;
+                }
+            }
+            else
+            {
+                if (mediaPlayerLeft.Position is not null && mediaPlayerRight.Position is not null)
+                {
+                    positionTimelineController = TimeSpan.Zero;
+                    leftPosition = (TimeSpan)mediaPlayerLeft.Position;
+                    rightPosition = (TimeSpan)mediaPlayerRight.Position;
+                }
+            }
+
+            return ret;
         }
 
 
@@ -1161,8 +1194,14 @@ namespace Surveyor
                 {
                     // Display Epipolar line
                     if (stereoProjection.CalculateEpipilorLine((bool)TrueLeftFalseRight, (Point)point, 
-                                out double epiLine_a, out double epiLine_b, out double epiLine_c))
+                                out double epiLine_a, out double epiLine_b, out double epiLine_c, out double focalLength, out double baseline,
+                                out double principalXLeft, out double principalYLeft, out double principalXRight, out double principalYRight))
                     {
+                        Debug.WriteLine($"{cameraSideAlt} Epipolar for Point({point.Value.X:F2}, {point.Value.Y:F2})  ax+by+c=0: {epiLine_a:F5}x + {epiLine_b:F5}y + {epiLine_c:F5} = 0");
+                        Debug.WriteLine($"{cameraSideAlt} Epipolar left border intersect (0, {-epiLine_c / epiLine_b})");
+//                        Double y = -((epiLine_a * ) + epiLine_c) / epiLine_b;
+//                        Debug.WriteLine($"{cameraSideAlt} Epipolar right border intersect (0, {-epiLine_c / epiLine_b})");
+
                         // Signal to the MagnifyAndMarkerControl to display the epipolar line
                         MagnifyAndMarkerControlData data = new(MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarLine, cameraSideAlt)
                         {
@@ -1170,6 +1209,12 @@ namespace Surveyor
                             epipolarLine_a = (double)epiLine_a,
                             epipolarLine_b = (double)epiLine_b,
                             epipolarLine_c = (double)epiLine_c,
+                            focalLength = focalLength,
+                            baseline = baseline,
+                            principalXLeft = principalXLeft,
+                            principalYLeft = principalYLeft,
+                            principalXRight = principalXRight,
+                            principalYRight = principalYRight,
                             channelWidth = 0
                         };
                         mediaControllerHandler?.Send(data);
@@ -1201,7 +1246,7 @@ namespace Surveyor
         {
             // Check if the Events list is null and the stereo projection is not null (normally
             // stereoProject is not null if we have calibration data)
-            if (events is not null && stereoProjection is not null)
+            if (eventsControl is not null && stereoProjection is not null)
             {
                 bool fullSetOfMeasurementPoints = false;
                 SurveyMeasurement surveyMeasurement = new();
@@ -1252,7 +1297,7 @@ namespace Surveyor
                     SpeciesInfo specifiesInfo = new();
                     if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo) == true)
                     {
-                        Event evt = new(DataType.SurveyMeasurementPoints)
+                        Event evt = new(SurveyDataType.SurveyMeasurementPoints)
                         {
                             EventData = surveyMeasurement
                         };
@@ -1276,9 +1321,9 @@ namespace Surveyor
                                     evt.TimeSpanTimelineController = (TimeSpan)timelineConntrollerPoistion;
                                     evt.TimeSpanLeftFrame = (TimeSpan)leftPosition;
                                     evt.TimeSpanRightFrame = (TimeSpan)rightPosition;
-                                   
+
                                     // Add the species info to the Events list
-                                    events!.Add(evt);
+                                    eventsControl?.AddEvent(evt);
 
                                     // Remove targets
                                     ClearCachedTargets();
@@ -1310,23 +1355,23 @@ namespace Surveyor
         /// <returns></returns>
         internal async Task SurveyPointSelected(SurveyorMediaPlayer.eCameraSide cameraSide, bool TruePointAFalsePointB, Point? pointA, Point? pointB)
         {
-            if (events is not null && stereoProjection is not null)
+            if (eventsControl is not null && stereoProjection is not null)
             {
-                DataType eventDataType = DataType.SurveyPoint;   // Default event type to a single point until we confirm there are stereo point
+                SurveyDataType eventDataType = SurveyDataType.SurveyPoint;   // Default event type to a single point until we confirm there are stereo point
 
                 if (cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
                 {
                     if (TruePointAFalsePointB == true && TargetARight is not null)
-                        eventDataType = DataType.SurveyStereoPoint;
+                        eventDataType = SurveyDataType.SurveyStereoPoint;
                     else if (TruePointAFalsePointB == false && TargetBRight is not null)
-                        eventDataType = DataType.SurveyStereoPoint;
+                        eventDataType = SurveyDataType.SurveyStereoPoint;
                 }
                 else if (cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
                 {
                     if (TruePointAFalsePointB == true && TargetALeft is not null)
-                        eventDataType = DataType.SurveyStereoPoint;
+                        eventDataType = SurveyDataType.SurveyStereoPoint;
                     else if (TruePointAFalsePointB == false && TargetBLeft is not null)
-                        eventDataType = DataType.SurveyStereoPoint;
+                        eventDataType = SurveyDataType.SurveyStereoPoint;
                 }
 
                 // Declare a new event with the right event data type
@@ -1334,7 +1379,7 @@ namespace Surveyor
                 evt.SetData(eventDataType);
 
                 // Setup the coord of a Survey Stereo Point (corresponding point on the left and right camera)
-                if (eventDataType == DataType.SurveyStereoPoint && evt.EventData is not null)
+                if (eventDataType == SurveyDataType.SurveyStereoPoint && evt.EventData is not null)
                 {
                     SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
 
@@ -1354,7 +1399,7 @@ namespace Surveyor
                     }                    
                 }
                 // Setup the coord of a Survey Point (point on left camera only)
-                else if (eventDataType == DataType.SurveyPoint && evt.EventData is not null)
+                else if (eventDataType == SurveyDataType.SurveyPoint && evt.EventData is not null)
                 {
                     SurveyPoint surveyPoint = (SurveyPoint)evt.EventData;
 
@@ -1367,7 +1412,7 @@ namespace Surveyor
                 SpeciesInfo specifiesInfo = new();
                 if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo) == true)
                 {
-                    if (eventDataType == DataType.SurveyStereoPoint && evt.EventData is not null)
+                    if (eventDataType == SurveyDataType.SurveyStereoPoint && evt.EventData is not null)
                     {
                         SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
                         surveyStereoPoint.SpeciesInfo = specifiesInfo;
@@ -1392,7 +1437,8 @@ namespace Surveyor
                                     evt.TimeSpanRightFrame = (TimeSpan)rightPosition;
 
                                     // Add the species info to the Events list
-                                    events!.Add(evt);
+                                    //EventCo
+                                    eventsControl?.AddEvent(evt);
 
                                     // Remove targets
                                     ClearCachedTargets();
@@ -1407,7 +1453,7 @@ namespace Surveyor
                         }
 
                     }
-                    else if (eventDataType == DataType.SurveyPoint && evt.EventData is not null)
+                    else if (eventDataType == SurveyDataType.SurveyPoint && evt.EventData is not null)
                     {
                         SurveyPoint surveyPoint = (SurveyPoint)evt.EventData;
                         surveyPoint.SpeciesInfo = specifiesInfo;
@@ -1425,34 +1471,28 @@ namespace Surveyor
         /// <returns></returns>
         internal async Task EditSpeciesInfo(Guid eventGuid)
         {
-            if (events is not null)
+            if (eventsControl is not null)
             {
-                // Find the event in the EventsList
-                foreach (Event evt in events)
+                Event? evt = eventsControl.FindEvent(eventGuid);
+
+                if (evt is not null)
                 {
-                    if (evt.Guid == eventGuid)
+                    SpeciesInfo? speciesInfo = null;
+                    if (evt.EventData is SurveyMeasurement surveyMeasurement)
+                        speciesInfo = surveyMeasurement.SpeciesInfo;
+                    else if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
+                        speciesInfo = surveyStereoPoint.SpeciesInfo;
+                    else if (evt.EventData is SurveyPoint surveyPoint)
+                        speciesInfo = surveyPoint.SpeciesInfo;
+
+
+                    if (speciesInfo is not null)
                     {
-                        SpeciesInfo? speciesInfo = null;
-                        if (evt.EventData is SurveyMeasurement surveyMeasurement)
-                            speciesInfo = surveyMeasurement.SpeciesInfo;
-                        else if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
-                            speciesInfo = surveyStereoPoint.SpeciesInfo;
-                        else if (evt.EventData is SurveyPoint surveyPoint)
-                            speciesInfo = surveyPoint.SpeciesInfo;
-
-
-                        if (speciesInfo is not null)
+                        // Assigned the species info via a user dialog box
+                        if (await speciesSelector.SpeciesEdit(mainWindow, speciesInfo) == true)
                         {
-                            // Assigned the species info via a user dialog box
-                            if (await speciesSelector.SpeciesEdit(mainWindow, speciesInfo) == true)
-                            {
-                                // Force UI to refresh
-                                events.Remove(evt);
-                                events.Add((Event)evt);
-                            }
-                            break;
+                            eventsControl?.AddEvent(evt);
                         }
-                        break;
                     }
                 }
             }
@@ -1466,32 +1506,24 @@ namespace Surveyor
         internal void SurveyStereoSyncPointSelected(TimeSpan timelineConntrollerPoistion, TimeSpan leftPosition, TimeSpan rightPosition)
         {
             // Check if the Events list is not null 
-            if (events is not null)
+            if (eventsControl is not null)
             {
                 if (mediaTimelineController is not null)
                 {
                     // Remove any existing StereoSyncPoint events
-                    // Use a reverse loop to avoid issues with changing collection indices when removing items
-                    for (int i = events.Count - 1; i >= 0; i--)
-                    {
-                        if (events[i].EventDataType == DataType.StereoSyncPoint)
-                        {
-                            events.RemoveAt(i);
-                        }
-                    }
+                    eventsControl?.DeleteEventOfType(SurveyDataType.StereoSyncPoint);
 
                     // Create the StereoSyncPoint event
-                    Event evt = new(DataType.StereoSyncPoint)
+                    Event evt = new(SurveyDataType.StereoSyncPoint)
                     {
-                        EventData = null
+                        EventData = null,
+                        TimeSpanTimelineController = timelineConntrollerPoistion,
+                        TimeSpanLeftFrame = leftPosition,
+                        TimeSpanRightFrame = rightPosition
                     };
 
-                    evt.TimeSpanTimelineController = timelineConntrollerPoistion;
-                    evt.TimeSpanLeftFrame = leftPosition;
-                    evt.TimeSpanRightFrame = rightPosition;
-
                     // Add the species info to the Events list
-                    events!.Add(evt);
+                    eventsControl?.AddEvent(evt);
                 }
             }
         }

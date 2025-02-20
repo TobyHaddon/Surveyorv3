@@ -118,32 +118,32 @@
                 <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="0,0,10,0">
                     <Button x:Name="MoveItemUp" Click="MoveItemUp_Click" Margin="0,0,0,10">
                         <Button.Content>
-                            <FontIcon Glyph="&#xE96D;" FontSize="12" FontFamily="Segoe MDL2 Assets" />
+                            <FontIcon Glyph="&#xE96D;" FontSize="12" FontFamily="Segoe Fluent Icons" />
                         </Button.Content>
                     </Button>
                     <Button x:Name="MoveItemDown" Click="MoveItemDown_Click" Margin="0,0,0,10">
                         <Button.Content>
-                            <FontIcon Glyph="&#xE96E;" FontSize="12" FontFamily="Segoe MDL2 Assets" />
+                            <FontIcon Glyph="&#xE96E;" FontSize="12" FontFamily="Segoe Fluent Icons" />
                         </Button.Content>
                     </Button>
                     <Button x:Name="MoveItemAcrossLeft" Click="MoveItemAcrossLeft_Click" Margin="0,0,0,10">
                         <Button.Content>
-                            <FontIcon Glyph="&#xE96F;" FontSize="12" FontFamily="Segoe MDL2 Assets" />
+                            <FontIcon Glyph="&#xE96F;" FontSize="12" FontFamily="Segoe Fluent Icons" />
                         </Button.Content>
                     </Button>
                     <Button x:Name="MoveItemAcrossRight" Click="MoveItemAcrossRight_Click" Margin="0,0,0,10">
                         <Button.Content>
-                            <FontIcon Glyph="&#xE970;" FontSize="12" FontFamily="Segoe MDL2 Assets" />
+                            <FontIcon Glyph="&#xE970;" FontSize="12" FontFamily="Segoe Fluent Icons" />
                         </Button.Content>
                     </Button>
                     <Button x:Name="DeleteItem" Click="DeleteItem_Click" Margin="0,0,0,10">
                         <Button.Content>
-                            <FontIcon Glyph="&#xE74D;" FontSize="12" FontFamily="Segoe MDL2 Assets" />
+                            <FontIcon Glyph="&#xE74D;" FontSize="12" FontFamily="Segoe Fluent Icons" />
                         </Button.Content>
                     </Button>
                     <Button x:Name="AddItem" Click="AddItem_Click" Visibility="Collapsed">
                         <Button.Content>
-                            <FontIcon Glyph="&#xED25;" FontSize="12" FontFamily="Segoe MDL2 Assets" />
+                            <FontIcon Glyph="&#xED25;" FontSize="12" FontFamily="Segoe Fluent Icons" />
                         </Button.Content>
                     </Button>
                 </StackPanel>

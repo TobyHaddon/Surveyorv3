@@ -384,8 +384,8 @@ namespace Surveyor
             {
                 if (RMS is not null)
                 {
-                    ruleText = $"RMS: {Math.Round((double)RMS, 2)}mm (Max allowed: {surveyRulesData.RMSMax}mm) ";
-                    if (RMS > surveyRulesData.RMSMax)
+                    ruleText = $"RMS: {Math.Round((double)RMS * 1000, 1)}mm (Max allowed: {surveyRulesData.RMSMax}mm) ";
+                    if (RMS/*in metres*/ * 1000 > surveyRulesData.RMSMax/*in mm*/)
                     {
                         SurveyRules = false;
                         if (surveyRulesFailedText.Length > 0)
@@ -440,7 +440,7 @@ namespace Surveyor
 
             // Combine the passed and failed rules text            
             if (surveyRulesFailedText.Length > 0 )
-                SurveyRulesText = $"FAILED {surveyRulesFailedText}";
+                SurveyRulesText = $"FAILED [{surveyRulesFailedText}]";
 
             if (surveyRulesPassedText.Length > 0)
             {

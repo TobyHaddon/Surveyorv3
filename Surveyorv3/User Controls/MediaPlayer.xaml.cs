@@ -246,9 +246,15 @@ namespace Surveyor.User_Controls
             {
                 // First detach the TimelineController if necessary
                 // This is so we can control the MediaPlayer directly
-                MediaPlayer mp = MediaPlayerElement.MediaPlayer;
-                if (mp.TimelineController is not null)
-                    mp.TimelineController = null;
+                MediaPlayer? mp = null;
+                try
+                {
+                    mp = MediaPlayerElement.MediaPlayer;
+                    if (mp.TimelineController is not null)
+                        mp.TimelineController = null;
+                }
+                catch // Seen this fail
+                { }
 
                 // Pause just in case the media is playing
                 if (MediaPlayerElement.MediaPlayer.CurrentState != MediaPlayerState.Paused)
@@ -257,27 +263,36 @@ namespace Surveyor.User_Controls
                 }
 
                 // Event PlaybackSession cancel subscriptions
-                MediaPlaybackSession playbackSession = MediaPlayerElement.MediaPlayer.PlaybackSession;
-                playbackSession.PlaybackStateChanged -= PlaybackSession_PlaybackStateChanged;
-                playbackSession.BufferingStarted -= PlaybackSession_BufferingStarted;
-                playbackSession.BufferingEnded -= PlaybackSession_BufferingEnded;
-                playbackSession.NaturalDurationChanged -= PlaybackSession_NaturalDurationChanged;
-                playbackSession.NaturalVideoSizeChanged -= PlaybackSession_NaturalVideoSizeChanged;
-                playbackSession.PositionChanged -= PlaybackSession_PositionChanged;
-                playbackSession.SeekableRangesChanged -= PlaybackSession_SeekableRangesChanged;
-                playbackSession.SeekCompleted -= PlaybackSession_SeekCompleted;
-                playbackSession.SupportedPlaybackRatesChanged -= PlaybackSession_SupportedPlaybackRatesChanged;
+                MediaPlaybackSession? playbackSession = null;
+                try
+                {
+                    playbackSession = MediaPlayerElement.MediaPlayer.PlaybackSession;
+                    playbackSession.PlaybackStateChanged -= PlaybackSession_PlaybackStateChanged;
+                    playbackSession.BufferingStarted -= PlaybackSession_BufferingStarted;
+                    playbackSession.BufferingEnded -= PlaybackSession_BufferingEnded;
+                    playbackSession.NaturalDurationChanged -= PlaybackSession_NaturalDurationChanged;
+                    playbackSession.NaturalVideoSizeChanged -= PlaybackSession_NaturalVideoSizeChanged;
+                    playbackSession.PositionChanged -= PlaybackSession_PositionChanged;
+                    playbackSession.SeekableRangesChanged -= PlaybackSession_SeekableRangesChanged;
+                    playbackSession.SeekCompleted -= PlaybackSession_SeekCompleted;
+                    playbackSession.SupportedPlaybackRatesChanged -= PlaybackSession_SupportedPlaybackRatesChanged;
+                }
+                catch 
+                { }
 
 
                 // Event MediaPlayer cancel subscriptions
-                mp.MediaEnded -= MediaPlayer_MediaEnded;
-                mp.MediaFailed -= MediaPlayer_MediaFailed;
-                mp.MediaOpened -= MediaPlayer_MediaOpened;
-                mp.MediaPlayerRateChanged -= MediaPlayer_MediaPlayerRateChanged;
-                mp.PlaybackMediaMarkerReached -= MediaPlayer_PlaybackMediaMarkerReached;
-                mp.SourceChanged -= MediaPlayer_SourceChanged;
-                mp.VideoFrameAvailable -= MediaPlayer_VideoFrameAvailable;
-                mp.Dispose();
+                if (mp is not null)
+                {
+                    mp.MediaEnded -= MediaPlayer_MediaEnded;
+                    mp.MediaFailed -= MediaPlayer_MediaFailed;
+                    mp.MediaOpened -= MediaPlayer_MediaOpened;
+                    mp.MediaPlayerRateChanged -= MediaPlayer_MediaPlayerRateChanged;
+                    mp.PlaybackMediaMarkerReached -= MediaPlayer_PlaybackMediaMarkerReached;
+                    mp.SourceChanged -= MediaPlayer_SourceChanged;
+                    mp.VideoFrameAvailable -= MediaPlayer_VideoFrameAvailable;
+                    mp.Dispose();
+                }
 
                 // Release the resources used to render the video frame
                 _vfar.Release();
@@ -1247,13 +1262,13 @@ namespace Surveyor.User_Controls
                             // Define the font and size for the glyph
                             CanvasTextFormat textFormat = new CanvasTextFormat()
                             {
-                                FontFamily = "Segoe MDL2 Assets",
+                                FontFamily = "Segoe Fluent Icons",
                                 FontSize = 48,
                                 HorizontalAlignment = CanvasHorizontalAlignment.Left,
                                 VerticalAlignment = CanvasVerticalAlignment.Top
                             };
 
-                            // Draw the glyph (E722 is the image symbol in Segoe MDL2 Assets)
+                            // Draw the glyph (E722 is the image symbol in Segoe Fluent Icons)
                             string pauseGlyph = "\uE158";
                             ds.DrawText(pauseGlyph, glyphPosition, Colors.White, textFormat);
 #endif // End of DEBUG

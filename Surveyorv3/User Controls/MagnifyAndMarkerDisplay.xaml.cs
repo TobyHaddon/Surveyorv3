@@ -164,7 +164,9 @@ namespace Surveyor.User_Controls
 
         // Epipolar line colours
         private readonly Brush epipolarALineColour = new SolidColorBrush(Microsoft.UI.Colors.Red);
-        private readonly Brush epipolarBLineColour = new SolidColorBrush(Microsoft.UI.Colors.Green);
+        //???private readonly Brush epipolarBLineColour = new SolidColorBrush(Microsoft.UI.Colors.Green);
+        private readonly Brush epipolarBLineColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 10, 228, 30));
+
 
         // Selected measurement markers
         private Point? pointTargetA = null;
@@ -734,13 +736,13 @@ namespace Surveyor.User_Controls
                     if (targetEvent is not null)
                     {
                         // If the species info details is a point then enable the delete point menu item
-                        if (targetEvent.EventDataType == DataType.SurveyPoint || targetEvent.EventDataType == DataType.SurveyStereoPoint)
+                        if (targetEvent.EventDataType == SurveyDataType.SurveyPoint || targetEvent.EventDataType == SurveyDataType.SurveyStereoPoint)
                             CanvasFrameMenuDeleteTarget.IsEnabled = true;
                         else
                             CanvasFrameMenuDeleteTarget.IsEnabled = false;
 
                         // If the species info details is a measurement then enable the delete measurement menu item
-                        if (targetEvent.EventDataType == DataType.SurveyMeasurementPoints)
+                        if (targetEvent.EventDataType == SurveyDataType.SurveyMeasurementPoints)
                             CanvasFrameMenuDeleteMeasurement.IsEnabled = true;
                         else
                             CanvasFrameMenuDeleteMeasurement.IsEnabled = false;
@@ -2840,6 +2842,12 @@ namespace Surveyor.User_Controls
         public double epipolarLine_a;
         public double epipolarLine_b;
         public double epipolarLine_c;
+        public double focalLength;
+        public double baseline;
+        public double principalXLeft;
+        public double principalYLeft;
+        public double principalXRight;
+        public double principalYRight;
         public int channelWidth; /* 1=Line, >1 = channel, -1 remove line*/
     }
 
@@ -2909,7 +2917,10 @@ namespace Surveyor.User_Controls
                     {
                         case MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarLine:
                             SafeUICall(() => _magnifyAndMarkerControl.SetEpipolarLine(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
-                                                                                      data.epipolarLine_a, data.epipolarLine_b, data.epipolarLine_c, data.channelWidth));
+                                                                                      data.epipolarLine_a, data.epipolarLine_b, data.epipolarLine_c, 
+                                                                                      data.focalLength, data.baseline, 
+                                                                                      data.principalXLeft, data.principalYLeft, data.principalXRight, data.principalYRight,
+                                                                                      data.channelWidth));
                             break;
 
                     }
