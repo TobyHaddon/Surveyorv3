@@ -1,5 +1,4 @@
 ﻿using CommunityToolkit.WinUI;
-using MathNet.Numerics.LinearAlgebra.Factorization;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
@@ -24,7 +23,6 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Windows.Foundation;
-using Windows.Media;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Provider;
@@ -1347,9 +1345,10 @@ namespace Surveyor
 
                 if (ret == 0)
                 {
-                    // Create a MeasurementPointControl instance that allows the user to add measurement points to the media
+                    // Create a StereoProjection instance that allows the user to add measurement points to the media images
                     // Do this before opening the media so the calibration data is available when the media is opened and the frame size established
                     stereoProjection.SetCalibrationData(surveyClass.Data.Calibration);
+                    stereoProjection.SetSurveyRules(surveyClass.Data.SurveyRules);
 
                     // Open Media Files and bind the MediaPlayers if IsSynchronized is true
                     if (await OpenSVSMediaFiles() == true)
@@ -1568,9 +1567,11 @@ namespace Surveyor
                     surveyClass = null;
 
                                         
-                    // Clear the measurement class by loaded an empty calibration class
-                    stereoProjection.SetCalibrationData(new Survey.DataClass.CalibrationClass());
+                    // Clear the calibration data and the survey rules 
+                    stereoProjection.ClearCalibrationData();
                     SetCalibratedIndicator(null, null);
+                    stereoProjection.ClearSurveyRules();
+                    
 
                     // Display both media controls
                     MediaControlsDisplayMode(false);
@@ -1784,13 +1785,12 @@ namespace Surveyor
                 MenuSurveySave.IsEnabled = true;
                 MenuSurveySaveAs.IsEnabled = true;
                 MenuSurveyClose.IsEnabled = true;
-
                 // Import calibration
                 MenuImportCalibration.IsEnabled = true;
                 // Media Lock
                 MenuLockUnlockMediaPlayers.IsEnabled = true;
-                //MenuItemSetFrameSettings.IsEnabled = true;
-
+                // Settings
+                MenuSettings.IsEnabled = true;
                 // Survey Marker
                 MenuSurveyStartStopMarker.IsEnabled = true;
             }
@@ -1805,8 +1805,8 @@ namespace Surveyor
                 // Media lock
                 MenuLockUnlockMediaPlayers.IsEnabled = false;
                 MenuLockUnlockMediaPlayers.IsChecked = false;
-                //this.MenuItemSetFrameSettings.IsEnabled = false;
-
+                // Settings
+                MenuSettings.IsEnabled = false;
                 // Survey Marker
                 MenuSurveyStartStopMarker.IsEnabled = false;
             }
@@ -1876,10 +1876,10 @@ namespace Surveyor
                 {
                     // Inform about the preferred calibration data
                     if (!string.IsNullOrEmpty(calibrationDataPreferred.Description) &&
-                        calibrationDataPreferred.LeftCalibrationCameraData is not null &&
-                        calibrationDataPreferred.LeftCalibrationCameraData.ImageSize is not null)
+                        calibrationDataPreferred.LeftCameraCalibration is not null &&
+                        calibrationDataPreferred.LeftCameraCalibration.ImageSize is not null)
                     {
-                        Emgu.CV.Matrix<int> imageSize = calibrationDataPreferred.LeftCalibrationCameraData.ImageSize!;
+                        Emgu.CV.Matrix<int> imageSize = calibrationDataPreferred.LeftCameraCalibration.ImageSize!;
                         tooltip = $"Calibration Data Description: {calibrationDataPreferred.Description}, frame size:({imageSize[0, 0]},{imageSize[0, 1]})";
                     }
                     else if (!string.IsNullOrEmpty(calibrationDataPreferred.Description))
@@ -1943,9 +1943,9 @@ namespace Surveyor
                 else
                     sb.Append("   ");
 
-                if (calibrationClass.CalibrationDataList[i].Description is not null && calibrationClass.CalibrationDataList[i].LeftCalibrationCameraData.ImageSize is not null)
+                if (calibrationClass.CalibrationDataList[i].Description is not null && calibrationClass.CalibrationDataList[i].LeftCameraCalibration.ImageSize is not null)
                 {
-                    Emgu.CV.Matrix<int> imageSize = calibrationClass.CalibrationDataList[i].LeftCalibrationCameraData.ImageSize!;
+                    Emgu.CV.Matrix<int> imageSize = calibrationClass.CalibrationDataList[i].LeftCameraCalibration.ImageSize!;
                     sb.AppendLine($"{i + 1}. {calibrationClass.CalibrationDataList[i].Description}, frame size:({imageSize[0, 0]},{imageSize[0, 1]})");
                 }
                 else if (calibrationClass.CalibrationDataList[i].Description is not null)
@@ -2060,10 +2060,10 @@ namespace Surveyor
                                             ret = true;
                                         }
                                     }
-                                    else if (evt.EventDataType == SurveyDataType.SurveyStereoPoint || forceReCalc)
+                                    else if (evt.EventDataType == SurveyDataType.SurveyStereoPoint)
                                     {
                                         SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
-                                        if (surveyStereoPoint.CalibrationID != calibrationID)
+                                        if (surveyStereoPoint.CalibrationID != calibrationID || forceReCalc)
                                         {
                                             // Recalculate for a stero point
                                             DoRulesCalculations(surveyStereoPoint);
@@ -2422,41 +2422,49 @@ namespace Surveyor
         /// <summary>
         /// Display the settings window
         /// </summary>
+        private int settingsWindowEntryCount = 0;
         private async void ShowSettingsWindow()
         {
             if (surveyClass is not null)
             {
-                SettingsWindow settingsWindow = new((Survey)surveyClass);
-                settingsWindow.InitializeMediator(mediator, this);
-
-                // Get the HWND (window handle) for both windows
-                IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
-                IntPtr settingsWindowHandle = WindowNative.GetWindowHandle(settingsWindow);
-
-                // Get the AppWindow instances for both windows
-                AppWindow mainAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(mainWindowHandle));
-                AppWindow settingsAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(settingsWindowHandle));
-
-                // Disable the main window by setting it inactive
-                SetWindowEnabled(mainWindowHandle, false);
-
-                // Ensure settings window stays on top
-                WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
-
-                // Activate settings window
-                settingsWindow.Activate();
-
-                // Wait for settings window to close
-                await Task.Run(() =>
+                settingsWindowEntryCount++;
+                // Make sure we only open the settings window once.
+                // This can happen if the survey and movies are loaded and the user clicks the settings a few times.
+                if (settingsWindowEntryCount == 1)
                 {
-                    while (settingsAppWindow != null && settingsAppWindow.IsVisible)
-                    {
-                        System.Threading.Thread.Sleep(100);
-                    }
-                });
+                    SettingsWindow settingsWindow = new(mediator, this, (Survey)surveyClass);
+                    
+                    // Get the HWND (window handle) for both windows
+                    IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
+                    IntPtr settingsWindowHandle = WindowNative.GetWindowHandle(settingsWindow);
 
-                // Re-enable the main window after closing settings
-                SetWindowEnabled(mainWindowHandle, true);
+                    // Get the AppWindow instances for both windows
+                    AppWindow mainAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(mainWindowHandle));
+                    AppWindow settingsAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(settingsWindowHandle));
+
+                    // Disable the main window by setting it inactive
+                    SetWindowEnabled(mainWindowHandle, false);
+
+                    // Ensure settings window stays on top
+                    WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
+
+                    // Activate settings window
+                    settingsWindow.Activate();
+
+                    // Wait for settings window to close
+                    await Task.Run(() =>
+                    {
+                        while (settingsAppWindow != null && settingsAppWindow.IsVisible)
+                        {
+                            System.Threading.Thread.Sleep(100);
+                        }
+                    });
+
+                    // Re-enable the main window after closing settings
+                    SetWindowEnabled(mainWindowHandle, true);
+                }
+
+                settingsWindowEntryCount--;
             }
         }
 

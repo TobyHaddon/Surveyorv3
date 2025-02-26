@@ -1,0 +1,852 @@
+{
+  "Info": {
+    "Version": 1.0,
+    "SurveyFileName": "101 (CEV22 Pool Survey).survey",
+    "SurveyPath": "C:\\Users\\tobyh\\OneDrive\\Docs\\Training\\Opwall\\SVS2\\SVS2 Media\\Survey Files",
+    "SurveyCode": "101 (CEV22 Pool Survey)",
+    "SurveyAnalystName": "Toby Haddon",
+    "SurveyDepth": "5"
+  },
+  "Media": {
+    "Version": 1.0,
+    "MediaPath": "C:\\Users\\tobyh\\OneDrive\\Docs\\Training\\Opwall\\SVS2\\SVS2 Media",
+    "LeftMediaFileNames": [
+      "101L (CEV22 Pool Survey Rules).MP4"
+    ],
+    "RightMediaFileNames": [
+      "101R (CEV22 Pool Survey Rules).MP4"
+    ]
+  },
+  "Sync": {
+    "Version": 1.3,
+    "IsSynchronized": true,
+    "TimeSpanOffset": "-00:00:17.3679940",
+    "ActualTimeSpanOffsetLeft": "00:03:15.4164151",
+    "ActualTimeSpanOffsetRight": "00:02:58.0484211"
+  },
+  "Events": {
+    "Version": 1.0,
+    "EventList": [
+      {
+        "Guid": "00edd126-2a59-4801-8814-b8f5f186fdcd",
+        "DateTimeCreate": "2025-02-06T01:57:04.5431012+01:00",
+        "TimeSpanLeftFrame": "00:00:17.3679940",
+        "TimeSpanTimelineController": "00:00:00",
+        "TimeSpanRightFrame": "00:00:00",
+        "EventDataType": "SurveyMeasurementPoints",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Carangidae/Jacks",
+            "Genus": "Caranx",
+            "Species": "bartholomaei/Yellow jack",
+            "Code": "8",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "Measurment": 0.28771946632762513,
+          "SurveyRulesCalc": {
+            "SurveyRules": false,
+            "SurveyRulesText": "FAILED Horizontal Range: -2.13m (Allowed between: left 2m and right 2m) , PASSED Range: 6.2m (Range allowed from 0m to 10m) , RMS: 0mm (Max allowed: 20mm) , Vertical Range Rule Off",
+            "Range": 6.199448992791107,
+            "XOffset": -2.1307496675307753,
+            "YOffset": -1.8691431416686615,
+            "RMS": 7.614543750858903E-15
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftXA": 965.427490234375,
+          "LeftYA": 336.97113037109375,
+          "LeftXB": 1089.427490234375,
+          "LeftYB": 316.97113037109375,
+          "RightXA": 971.18994140625,
+          "RightYA": 325.7471008300781,
+          "RightXB": 1085.18994140625,
+          "RightYB": 302.2471008300781
+        }
+      },
+      {
+        "Guid": "7b8ed0a7-cc44-42cd-b4c0-87e554ea2e14",
+        "DateTimeCreate": "2025-02-06T01:59:42.8761176+01:00",
+        "TimeSpanLeftFrame": "00:00:17.3679940",
+        "TimeSpanTimelineController": "00:00:00",
+        "TimeSpanRightFrame": "00:00:00",
+        "EventDataType": "SurveyMeasurementPoints",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Acanthuridae/Surgeonfishes",
+            "Genus": "Acanthurus",
+            "Species": "bahianus/Barber surgeonfish",
+            "Code": "1",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "Measurment": 0.488942632796856,
+          "SurveyRulesCalc": {
+            "SurveyRules": true,
+            "SurveyRulesText": "FAILED , PASSED Range: 8.84m (Range allowed: 0m - 10m) , RMS: 0.00mm (Max allowed: 20mm) , Horizontal Range: 1.70m (Allowed between: -2m - 2m) , Vertical Range Rule Off",
+            "Range": 8.842171677854678,
+            "XOffset": 1.7001109546323456,
+            "YOffset": -2.2534166375901044,
+            "RMS": 1.1359051976736954E-14
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftXA": 2383.662353515625,
+          "LeftYA": 479.27459716796875,
+          "LeftXB": 2522.162353515625,
+          "LeftYB": 477.27459716796875,
+          "RightXA": 2460.02587890625,
+          "RightYA": 405.6908874511719,
+          "RightXB": 2608.52587890625,
+          "RightYB": 399.6908874511719
+        }
+      },
+      {
+        "Guid": "c7a008e3-4a4f-4397-b489-37347786b0b9",
+        "DateTimeCreate": "2025-02-08T19:39:30.2259319+01:00",
+        "TimeSpanLeftFrame": "00:00:17.3679940",
+        "TimeSpanTimelineController": "00:00:00",
+        "TimeSpanRightFrame": "00:00:00",
+        "EventDataType": "SurveyStereoPoint",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Carangidae/Jacks",
+            "Genus": "Trachinotus",
+            "Species": "falcatus/Permit",
+            "Code": "10",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "SurveyRulesCalc": {
+            "SurveyRules": false,
+            "SurveyRulesText": "FAILED Range: 15.29m (Range allowed from 0m to 10m) , Horizontal Range: -9.04m (Allowed between: left 2m and right 2m) , PASSED RMS: 0mm (Max allowed: 20mm) , Vertical Range Rule Off",
+            "Range": 15.289033105713251,
+            "XOffset": -9.037727651295878,
+            "YOffset": -0.1259180994056482,
+            "RMS": 4.45513562233816E-14
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftX": 378.33074951171875,
+          "LeftY": 1786.7105712890625,
+          "RightX": 570.06005859375,
+          "RightY": 471.6487121582031
+        }
+      },
+      {
+        "Guid": "ff0174dc-d105-4d5f-a28c-7c1b9295fcc9",
+        "DateTimeCreate": "2025-02-09T01:15:39.8770548+01:00",
+        "TimeSpanLeftFrame": "00:00:17.3679940",
+        "TimeSpanTimelineController": "00:00:00",
+        "TimeSpanRightFrame": "00:00:00",
+        "EventDataType": "SurveyStereoPoint",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Acanthuridae/Surgeonfishes",
+            "Genus": "Acanthurus",
+            "Species": "bahianus/Barber surgeonfish",
+            "Code": "1",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "SurveyRulesCalc": {
+            "SurveyRules": true,
+            "SurveyRulesText": "PASSED Range: 6.29m (Range allowed from 0m to 10m) , RMS: 0mm (Max allowed: 20mm) , Horizontal Range: -0.48m (Allowed between: left 2m and right 2m) , Vertical Range Rule Off",
+            "Range": 6.292977213287833,
+            "XOffset": -0.4808519213498857,
+            "YOffset": -1.919910316914556,
+            "RMS": 3.081243945852279E-15
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftX": 1763.7386474609375,
+          "LeftY": 356.419677734375,
+          "RightX": 1721.658203125,
+          "RightY": 308.2494201660156
+        }
+      },
+      {
+        "Guid": "a7788917-1ddb-4b62-84aa-6b87dbc2e38f",
+        "DateTimeCreate": "2025-02-06T00:31:51.5734399+01:00",
+        "TimeSpanLeftFrame": "00:00:17.4013607",
+        "TimeSpanTimelineController": "00:00:00.0333667",
+        "TimeSpanRightFrame": "00:00:00.0333667",
+        "EventDataType": "SurveyMeasurementPoints",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Carangidae/Jacks",
+            "Genus": "Caranx",
+            "Species": "bartholomaei/Yellow jack",
+            "Code": "8",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "Measurment": 0.3441606455772968,
+          "SurveyRulesCalc": {
+            "SurveyRules": true,
+            "SurveyRulesText": "",
+            "Range": 6.179641851562821,
+            "XOffset": -2.1468706702839473,
+            "YOffset": -1.8767164858922478,
+            "RMS": 5.8453005018891085E-15
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftXA": 939.1632080078125,
+          "LeftYA": 323.7610778808594,
+          "LeftXB": 1090.1632080078125,
+          "LeftYB": 317.7610778808594,
+          "RightXA": 946.5626220703125,
+          "RightYA": 312.5822448730469,
+          "RightXB": 1085.5626220703125,
+          "RightYB": 300.5822448730469
+        }
+      },
+      {
+        "Guid": "c9d83639-549e-4ea4-af58-18a2702712b0",
+        "DateTimeCreate": "2025-02-06T00:33:18.7566064+01:00",
+        "TimeSpanLeftFrame": "00:00:17.4013607",
+        "TimeSpanTimelineController": "00:00:00.0333667",
+        "TimeSpanRightFrame": "00:00:00.0333667",
+        "EventDataType": "SurveyMeasurementPoints",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Carangidae/Jacks",
+            "Genus": "Caranx",
+            "Species": "bartholomaei/Yellow jack",
+            "Code": "8",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "Measurment": 0.09487059601870855,
+          "SurveyRulesCalc": {
+            "SurveyRules": true,
+            "SurveyRulesText": "",
+            "Range": 6.237527922474024,
+            "XOffset": -1.9587643956286864,
+            "YOffset": -1.8678397796580097,
+            "RMS": 7.552781223416605E-15
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftXA": 1098.3980712890625,
+          "LeftYA": 345.4007873535156,
+          "LeftXB": 1138.3980712890625,
+          "LeftYB": 336.9007873535156,
+          "RightXA": 1092.8172607421875,
+          "RightYA": 326.721923828125,
+          "RightXB": 1129.8172607421875,
+          "RightYB": 316.221923828125
+        }
+      },
+      {
+        "Guid": "6215187e-e77e-49b0-8c29-6f275d85babc",
+        "DateTimeCreate": "2025-02-06T00:34:34.7897537+01:00",
+        "TimeSpanLeftFrame": "00:00:17.4013607",
+        "TimeSpanTimelineController": "00:00:00.0333667",
+        "TimeSpanRightFrame": "00:00:00.0333667",
+        "EventDataType": "SurveyMeasurementPoints",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Carangidae/Jacks",
+            "Genus": "Caranx",
+            "Species": "crysos/Blue runner",
+            "Code": "114",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "Measurment": 0.09492294393471573,
+          "SurveyRulesCalc": {
+            "SurveyRules": true,
+            "SurveyRulesText": "",
+            "Range": 6.043417790364975,
+            "XOffset": 2.2923574992065388,
+            "YOffset": -0.43305986285030984,
+            "RMS": 9.28099302751221E-15
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftXA": 947.4647216796875,
+          "LeftYA": 1342.9857177734375,
+          "LeftXB": 990.4647216796875,
+          "LeftYB": 1344.4857177734375,
+          "RightXA": 1717.1436767578125,
+          "RightYA": 1242.250732421875,
+          "RightXB": 1757.6436767578125,
+          "RightYB": 1243.250732421875
+        }
+      },
+      {
+        "Guid": "4802d7c4-0582-406c-90db-9c54cc7c2774",
+        "DateTimeCreate": "2025-02-06T00:38:07.9847528+01:00",
+        "TimeSpanLeftFrame": "00:00:17.4013607",
+        "TimeSpanTimelineController": "00:00:00.0333667",
+        "TimeSpanRightFrame": "00:00:00.0333667",
+        "EventDataType": "SurveyMeasurementPoints",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Acanthuridae/Surgeonfishes",
+            "Genus": "Acanthurus",
+            "Species": "bahianus/Barber surgeonfish",
+            "Code": "1",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "Measurment": 0.02107081434283124,
+          "SurveyRulesCalc": {
+            "SurveyRules": true,
+            "SurveyRulesText": "",
+            "Range": 1.4422711071188876,
+            "XOffset": 0.6742982902676107,
+            "YOffset": 0.08238233348396781,
+            "RMS": 7.033998881952434E-16
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftXA": 3222.6630859375,
+          "LeftYA": 1284.1893310546875,
+          "LeftXB": 3256.1630859375,
+          "LeftYB": 1278.1893310546875,
+          "RightXA": 1708.5040283203125,
+          "RightYA": 1257.390380859375,
+          "RightXB": 1750.5040283203125,
+          "RightYB": 1257.390380859375
+        }
+      },
+      {
+        "Guid": "8bbcea03-9800-497d-a37b-3b8e3a7f54a2",
+        "DateTimeCreate": "2025-02-07T04:51:30.9745261+01:00",
+        "TimeSpanLeftFrame": "00:00:17.4013607",
+        "TimeSpanTimelineController": "00:00:00.0333667",
+        "TimeSpanRightFrame": "00:00:00.0333667",
+        "EventDataType": "SurveyMeasurementPoints",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Acanthuridae/Surgeonfishes",
+            "Genus": "Acanthurus",
+            "Species": "coeruleus/Caribbean blue tang",
+            "Code": "3",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "Measurment": 0.13578459860597944,
+          "SurveyRulesCalc": {
+            "SurveyRules": true,
+            "SurveyRulesText": "PASSED Range: 6.34m (Range allowed: 0m - 10m) , RMS: 0.00mm (Max allowed: 20mm) , Horizontal Range: -0.48m (Allowed between: left 2m and right 2m) , Vertical Range Rule Off",
+            "Range": 6.336936910789608,
+            "XOffset": -0.48332017111562475,
+            "YOffset": -1.8688365823140205,
+            "RMS": 8.338506654326406E-15
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftXA": 1763.719970703125,
+          "LeftYA": 356.40093994140625,
+          "LeftXB": 1765.719970703125,
+          "LeftYB": 411.90093994140625,
+          "RightXA": 1724.67236328125,
+          "RightYA": 308.2306823730469,
+          "RightXB": 1728.17236328125,
+          "RightYB": 363.7306823730469
+        }
+      },
+      {
+        "Guid": "f474b26c-42fa-4382-a1a2-ecb12eb7c2e6",
+        "DateTimeCreate": "2025-02-06T01:23:37.9641523+01:00",
+        "TimeSpanLeftFrame": "00:00:17.4680941",
+        "TimeSpanTimelineController": "00:00:00.1001001",
+        "TimeSpanRightFrame": "00:00:00.1001001",
+        "EventDataType": "SurveyMeasurementPoints",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Acanthuridae/Surgeonfishes",
+            "Genus": "Acanthurus",
+            "Species": "chirurgus/Doctorfish",
+            "Code": "2",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "Measurment": 0.13011155463595583,
+          "SurveyRulesCalc": {
+            "SurveyRules": true,
+            "SurveyRulesText": "FAILED , PASSED Range: 6.20m (Range allowed: 0m - 10m) , RMS: 0.00mm (Max allowed: 20mm) , Horizontal Range: -2.06m (Allowed between: -2.5m - 2.5m) , Vertical Range Rule Off",
+            "Range": 6.199336847446513,
+            "XOffset": -2.0632587381833094,
+            "YOffset": -1.875114554385377,
+            "RMS": 2.0350724194510405E-15
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftXA": 1060.4134521484375,
+          "LeftYA": 299.50390625,
+          "LeftXB": 1061.9134521484375,
+          "LeftYB": 356.50390625,
+          "RightXA": 1056.67578125,
+          "RightYA": 283.7447204589844,
+          "RightXB": 1058.67578125,
+          "RightYB": 338.7447204589844
+        }
+      },
+      {
+        "Guid": "8054e291-6cda-4bef-876e-553bb3bb7df9",
+        "DateTimeCreate": "2025-02-10T21:32:54.013877+01:00",
+        "TimeSpanLeftFrame": "00:00:17.4680941",
+        "TimeSpanTimelineController": "00:00:00.1001001",
+        "TimeSpanRightFrame": "00:00:00.1001001",
+        "EventDataType": "SurveyStereoPoint",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Lutjanidae/Snappers",
+            "Genus": "Lutjanus",
+            "Species": "jocu/Dog snapper",
+            "Code": "53",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "SurveyRulesCalc": {
+            "SurveyRules": false,
+            "SurveyRulesText": "FAILED [RMS: 448.8mm (Max allowed: 20mm) ], PASSED Range: 8.88m (Range allowed from 0m to 10m) , Horizontal Range: 1.73m (Allowed between: left 2m and right 2m) , Vertical Range Rule Off",
+            "Range": 8.882181101203695,
+            "XOffset": 1.7315415165890435,
+            "YOffset": -2.3169533464997873,
+            "RMS": 0.4487662689353433
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftX": 2460.88330078125,
+          "LeftY": 462.576904296875,
+          "RightX": 2542.9326171875,
+          "RightY": 384.0147705078125
+        }
+      },
+      {
+        "Guid": "262b1e13-47dd-4d92-b819-a04a4f9900af",
+        "DateTimeCreate": "2025-02-10T01:48:40.9833883+01:00",
+        "TimeSpanLeftFrame": "00:00:17.5014608",
+        "TimeSpanTimelineController": "00:00:00.1334668",
+        "TimeSpanRightFrame": "00:00:00.1334668",
+        "EventDataType": "SurveyStereoPoint",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Lutjanidae/Snappers",
+            "Genus": "Lutjanus",
+            "Species": "jocu/Dog snapper",
+            "Code": "53",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "SurveyRulesCalc": {
+            "SurveyRules": true,
+            "SurveyRulesText": "PASSED Range: 6.24m (Range allowed from 0m to 10m) , RMS: 0.36mm (Max allowed: 20mm) , Horizontal Range: -1.83m (Allowed between: left 2m and right 2m) , Vertical Range Rule Off",
+            "Range": 6.243396644586333,
+            "XOffset": -1.8284113293743014,
+            "YOffset": -1.9018102802290098,
+            "RMS": 0.35639160899811106
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftX": 1179.2432861328125,
+          "LeftY": 330.32427978515625,
+          "RightX": 1166.543212890625,
+          "RightY": 309.873046875
+        }
+      },
+      {
+        "Guid": "ba3a6987-befe-40fd-b736-737b70fbc975",
+        "DateTimeCreate": "2025-02-09T01:48:13.246483+01:00",
+        "TimeSpanLeftFrame": "00:00:17.5348275",
+        "TimeSpanTimelineController": "00:00:00.1668335",
+        "TimeSpanRightFrame": "00:00:00.1668335",
+        "EventDataType": "SurveyStereoPoint",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Sciaenidae/Drumfishes",
+            "Genus": "Equetus",
+            "Species": "lanceolatus/Jackknife-fish",
+            "Code": "88",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "SurveyRulesCalc": {
+            "SurveyRules": true,
+            "SurveyRulesText": "PASSED Range: 0.81m (Range allowed from 0m to 10m) , RMS: 0mm (Max allowed: 20mm) , Horizontal Range: 0.56m (Allowed between: left 2m and right 2m) , Vertical Range Rule Off",
+            "Range": 0.807396621151718,
+            "XOffset": 0.5627554353364314,
+            "YOffset": 0.010334229910023699,
+            "RMS": 6.753579488534262E-16
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftX": 22.303436279296875,
+          "LeftY": 70.32215881347656,
+          "RightX": 3765.63330078125,
+          "RightY": 2066.4169921875
+        }
+      },
+      {
+        "Guid": "3a7ce6b0-7dc8-4259-975b-9c87efddb0d7",
+        "DateTimeCreate": "2025-02-09T02:46:09.0731731+01:00",
+        "TimeSpanLeftFrame": "00:00:17.5348275",
+        "TimeSpanTimelineController": "00:00:00.1668335",
+        "TimeSpanRightFrame": "00:00:00.1668335",
+        "EventDataType": "SurveyStereoPoint",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Serranidae/Groupers",
+            "Genus": "Cephalopholis",
+            "Species": "cruentata/Graysby grouper",
+            "Code": "91",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "SurveyRulesCalc": {
+            "SurveyRules": true,
+            "SurveyRulesText": "PASSED Range: 6.4m (Range allowed from 0m to 10m) , RMS: 0mm (Max allowed: 20mm) , Horizontal Range: -0.21m (Allowed between: left 2m and right 2m) , Vertical Range Rule Off",
+            "Range": 6.398727907208095,
+            "XOffset": -0.21215250571023503,
+            "YOffset": -1.8883735840100098,
+            "RMS": 4.07770876447321E-15
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftX": 1875.0655517578125,
+          "LeftY": 384.39630126953125,
+          "RightX": 1837.6181640625,
+          "RightY": 331.7259826660156
+        }
+      },
+      {
+        "Guid": "f79abda2-42cf-48c3-bd28-dec13d830c5f",
+        "DateTimeCreate": "2025-02-06T01:05:22.491224+01:00",
+        "TimeSpanLeftFrame": "00:00:17.5681942",
+        "TimeSpanTimelineController": "00:00:00.2002002",
+        "TimeSpanRightFrame": "00:00:00.2002002",
+        "EventDataType": "SurveyMeasurementPoints",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Acanthuridae/Surgeonfishes",
+            "Genus": "Acanthurus",
+            "Species": "bahianus/Barber surgeonfish",
+            "Code": "1",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "Measurment": 0.13246694646910834,
+          "SurveyRulesCalc": {
+            "SurveyRules": true,
+            "SurveyRulesText": "",
+            "Range": 6.2085098345123395,
+            "XOffset": -2.0664106888515064,
+            "YOffset": -1.8777967991366888,
+            "RMS": 3.978256139440565E-15
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftXA": 1059.8759765625,
+          "LeftYA": 297.96649169921875,
+          "LeftXB": 1062.3759765625,
+          "LeftYB": 356.96649169921875,
+          "RightXA": 1056.6708984375,
+          "RightYA": 284.2447204589844,
+          "RightXB": 1059.6708984375,
+          "RightYB": 339.2447204589844
+        }
+      },
+      {
+        "Guid": "48344b26-3b67-42b7-b51a-0e9f312d388f",
+        "DateTimeCreate": "2025-02-19T23:15:49.7366637+01:00",
+        "TimeSpanLeftFrame": "00:00:20.7046607",
+        "TimeSpanTimelineController": "00:00:03.3366667",
+        "TimeSpanRightFrame": "00:00:03.3366667",
+        "EventDataType": "SurveyStart",
+        "EventData": {
+          "MarkerName": "1"
+        }
+      },
+      {
+        "Guid": "a9a8ec8d-339b-42f2-94c2-32398552f11b",
+        "DateTimeCreate": "2025-02-10T01:58:44.3982606+01:00",
+        "TimeSpanLeftFrame": "00:00:47.3679940",
+        "TimeSpanTimelineController": "00:00:30",
+        "TimeSpanRightFrame": "00:00:30",
+        "EventDataType": "SurveyStereoPoint",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Chaetodontidae/Butterflyfishes",
+            "Genus": "Chaetodon",
+            "Species": "capistratus/Four-eye butterflyfish",
+            "Code": "11",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "SurveyRulesCalc": {
+            "SurveyRules": false,
+            "SurveyRulesText": "FAILED [RMS: 0.2mm (Max allowed: 20mm) ], PASSED Range: 2.92m (Range allowed from 0m to 10m) , Horizontal Range: 0.49m (Allowed between: left 2m and right 2m) , Vertical Range Rule Off",
+            "Range": 2.923063286520141,
+            "XOffset": 0.4939261786387727,
+            "YOffset": -0.8485598935159153,
+            "RMS": 0.2004670115749773
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftX": 2395.54052734375,
+          "LeftY": 386.62164306640625,
+          "RightX": 1884.768798828125,
+          "RightY": 322.8629150390625
+        }
+      },
+      {
+        "Guid": "868a3b45-5aa1-4a98-9570-e26be59b9ca6",
+        "DateTimeCreate": "2025-02-10T02:06:12.8846121+01:00",
+        "TimeSpanLeftFrame": "00:00:47.3679940",
+        "TimeSpanTimelineController": "00:00:30",
+        "TimeSpanRightFrame": "00:00:30",
+        "EventDataType": "SurveyStereoPoint",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Balistidae/Triggerfishes",
+            "Genus": "Balistes",
+            "Species": "vetula/Queen triggerfish",
+            "Code": "5",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "SurveyRulesCalc": {
+            "SurveyRules": false,
+            "SurveyRulesText": "FAILED [RMS: 60mm (Max allowed: 20mm) ], PASSED Range: 1.49m (Range allowed from 0m to 10m) , Horizontal Range: 0.67m (Allowed between: left 2m and right 2m) , Vertical Range Rule Off",
+            "Range": 1.491287653393917,
+            "XOffset": 0.673269517495442,
+            "YOffset": 0.06412825832873606,
+            "RMS": 0.06002352324661916
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftX": 3183.45947265625,
+          "LeftY": 1245.37841796875,
+          "RightX": 1753.314697265625,
+          "RightY": 1211.025390625
+        }
+      },
+      {
+        "Guid": "e1682a55-201d-42ac-9643-76988667f0a9",
+        "DateTimeCreate": "2025-02-10T02:07:44.7800229+01:00",
+        "TimeSpanLeftFrame": "00:00:47.3679940",
+        "TimeSpanTimelineController": "00:00:30",
+        "TimeSpanRightFrame": "00:00:30",
+        "EventDataType": "SurveyMeasurementPoints",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Chaetodontidae/Butterflyfishes",
+            "Genus": "Chaetodon",
+            "Species": "striatus/Banded butterflyfish",
+            "Code": "14",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "Measurment": 0.1375277642303237,
+          "SurveyRulesCalc": {
+            "SurveyRules": false,
+            "SurveyRulesText": "FAILED [RMS: 363.1mm (Max allowed: 20mm) ], PASSED Range: 6.34m (Range allowed from 0m to 10m) , Horizontal Range: -0.48m (Allowed between: left 2m and right 2m) , Vertical Range Rule Off",
+            "Range": 6.341760761484078,
+            "XOffset": -0.48406918602333876,
+            "YOffset": -1.8700649304324268,
+            "RMS": 0.36310189187561204
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftXA": 1763.3377685546875,
+          "LeftYA": 355.68914794921875,
+          "LeftXB": 1765.8377685546875,
+          "LeftYB": 411.68914794921875,
+          "RightXA": 1724.827392578125,
+          "RightYA": 308.8629150390625,
+          "RightXB": 1728.327392578125,
+          "RightYB": 364.3629150390625
+        }
+      },
+      {
+        "Guid": "79730e3e-b6ac-414a-86d8-57ebe0382963",
+        "DateTimeCreate": "2025-02-19T23:17:18.7115577+01:00",
+        "TimeSpanLeftFrame": "00:00:50.7046607",
+        "TimeSpanTimelineController": "00:00:33.3366667",
+        "TimeSpanRightFrame": "00:00:33.3366667",
+        "EventDataType": "SurveyEnd",
+        "EventData": {
+          "MarkerName": "1"
+        }
+      },
+      {
+        "Guid": "a0345826-51ea-4d07-b9d1-852affed3e66",
+        "DateTimeCreate": "2025-02-19T23:21:21.251365+01:00",
+        "TimeSpanLeftFrame": "00:00:57.4079940",
+        "TimeSpanTimelineController": "00:00:40.0400000",
+        "TimeSpanRightFrame": "00:00:40.0400000",
+        "EventDataType": "SurveyStart",
+        "EventData": {
+          "MarkerName": "2"
+        }
+      },
+      {
+        "Guid": "d5aaf386-d5ac-4e8e-b6c7-1d3390e6fc28",
+        "DateTimeCreate": "2025-02-19T23:27:45.1144802+01:00",
+        "TimeSpanLeftFrame": "00:01:27.4079940",
+        "TimeSpanTimelineController": "00:01:10.0400000",
+        "TimeSpanRightFrame": "00:01:10.0400000",
+        "EventDataType": "SurveyEnd",
+        "EventData": {
+          "MarkerName": "2"
+        }
+      },
+      {
+        "Guid": "9f74ab1e-68b4-424f-ba37-1dcec5cf986a",
+        "DateTimeCreate": "2025-02-10T17:11:05.852951+01:00",
+        "TimeSpanLeftFrame": "00:01:47.3679940",
+        "TimeSpanTimelineController": "00:01:30",
+        "TimeSpanRightFrame": "00:01:30",
+        "EventDataType": "SurveyStereoPoint",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Carangidae/Jacks",
+            "Genus": "Trachinotus",
+            "Species": "falcatus/Permit",
+            "Code": "10",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "SurveyRulesCalc": {
+            "SurveyRules": false,
+            "SurveyRulesText": "FAILED [RMS: 362.3mm (Max allowed: 20mm) ], PASSED Range: 6.41m (Range allowed from 0m to 10m) , Horizontal Range: -0.49m (Allowed between: left 2m and right 2m) , Vertical Range Rule Off",
+            "Range": 6.410209236973149,
+            "XOffset": -0.4936026818289944,
+            "YOffset": -1.9501949129679024,
+            "RMS": 0.3622853547492466
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftX": 1762.3243408203125,
+          "LeftY": 357.17572021484375,
+          "RightX": 1727.329833984375,
+          "RightY": 311.8603515625
+        }
+      },
+      {
+        "Guid": "0d3e01ea-6544-43a7-a335-2eb67a3143b3",
+        "DateTimeCreate": "2025-02-19T23:44:00.6189331+01:00",
+        "TimeSpanLeftFrame": "00:01:57.4079940",
+        "TimeSpanTimelineController": "00:01:40.0400000",
+        "TimeSpanRightFrame": "00:01:40.0400000",
+        "EventDataType": "SurveyStart",
+        "EventData": {
+          "MarkerName": "3"
+        }
+      },
+      {
+        "Guid": "762800c6-203b-4b18-af60-dde471a7f1e1",
+        "DateTimeCreate": "2025-02-19T23:44:18.4059116+01:00",
+        "TimeSpanLeftFrame": "00:01:57.5080941",
+        "TimeSpanTimelineController": "00:01:40.1401001",
+        "TimeSpanRightFrame": "00:01:40.1401001",
+        "EventDataType": "SurveyEnd",
+        "EventData": {
+          "MarkerName": "3"
+        }
+      },
+      {
+        "Guid": "d06835fb-edc0-453c-9ae7-25ca8ebe495a",
+        "DateTimeCreate": "2025-02-03T12:20:32.8110015+01:00",
+        "TimeSpanLeftFrame": "00:03:15.4164151",
+        "TimeSpanTimelineController": "00:02:58.0484211",
+        "TimeSpanRightFrame": "00:02:58.0484211",
+        "EventDataType": "StereoSyncPoint",
+        "EventData": {
+          "LeftPoints": null,
+          "RightPoints": null
+        }
+      },
+      {
+        "Guid": "3f8ca297-5b33-4d97-890c-0c332b1bbf3e",
+        "DateTimeCreate": "2025-02-03T12:26:19.6998284+01:00",
+        "TimeSpanLeftFrame": "00:04:05.8278729",
+        "TimeSpanTimelineController": "00:03:48.4598789",
+        "TimeSpanRightFrame": "00:03:48.4598789",
+        "EventDataType": "SurveyMeasurementPoints",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": "Carangidae/Jacks",
+            "Genus": "Caranx",
+            "Species": "latus/Horse-eye jack",
+            "Code": "121",
+            "Number": "1",
+            "Stage": null,
+            "Activity": null,
+            "Comment": ""
+          },
+          "Measurment": 0.31227073626867463,
+          "SurveyRulesCalc": {
+            "SurveyRules": null,
+            "SurveyRulesText": "",
+            "Range": null,
+            "XOffset": null,
+            "YOffset": null,
+            "RMS": null
+          },
+          "CalibrationID": "d5147fbd-5fb6-4357-a654-79c1d5c6be3d",
+          "LeftXA": 968.5315551757812,
+          "LeftYA": 339.0599365234375,
+          "LeftXB": 1094.8648681640625,
+          "LeftYB": 325.39324951171875,
+          "RightXA": 972.7750244140625,
+          "RightYA": 325.7666320800781,
+          "RightXB": 1092.4417724609375,
+          "RightYB": 307.43328857421875
+        }
+      }
+    ]
+  },
+  "Calibration": {
+    "Version": 1.0,
+    "AllowMultipleCalibrationData": false,
+    "PreferredCalibrationDataIndex": 0,
+    "CalibrationDataList": [
+      "{\"CalibrationID\":\"d5147fbd-5fb6-4357-a654-79c1d5c6be3d\",\"Description\":\"100 (CEV22 Pool Calib)\",\"LeftCalibrationCameraData\":{\"RMS\":0.0,\"CameraMatrix\":[[2457.533252328369,0.0,1961.0459617442593],[0.0,2457.533252328369,1066.7420961488094],[0.0,0.0,1.0]],\"DistortionCoefficients\":[[-0.1108799674189081,0.15009199756706942,0.0,0.0,0.0]],\"ImageSize\":[[3840,2160]],\"ImageTotal\":0,\"ImageUseable\":0,\"CameraID\":\"\"},\"RightCalibrationCameraData\":{\"RMS\":0.0,\"CameraMatrix\":[[2464.932755231347,0.0,1846.818121472416],[0.0,2464.932755231347,1056.838296512517],[0.0,0.0,1.0]],\"DistortionCoefficients\":[[-0.00929409571254929,-0.3140186182028748,0.0,0.0,0.0]],\"ImageSize\":[[3840,2160]],\"ImageTotal\":0,\"ImageUseable\":0,\"CameraID\":\"\"},\"CalibrationStereoCameraData\":{\"RMS\":0.0,\"Rotation\":[[0.9824291224710066,-0.004811879848343358,0.18657402052047123],[-0.00209958848238357,0.9993193831241252,0.03682882350310014],[-0.18662425096715796,-0.03657343742038703,0.9817503616633937]],\"Translation\":[[-0.9603758615013508,0.003068960505464242,0.11147148203752219]],\"ImageTotal\":0,\"ImageUseable\":0}}"
+    ]
+  },
+  "SurveyRules": {
+    "Version": 1.1,
+    "SurveyRulesActive": true,
+    "SurveyRulesInherited": null,
+    "SurveyRulesData": {
+      "Version": 1.0,
+      "RangeRuleActive": true,
+      "RangeMin": 0.0,
+      "RangeMax": 10.0,
+      "RMSRuleActive": true,
+      "RMSMax": 20.0,
+      "HorizontalRangeRuleActive": true,
+      "HorizontalRangeLeft": 2.0,
+      "HorizontalRangeRight": 2.0,
+      "VerticalRangeRuleActive": false,
+      "VerticalRangeTop": 0.0,
+      "VerticalRangeBottom": 0.0
+    }
+  }
+}

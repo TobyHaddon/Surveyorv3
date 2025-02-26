@@ -5,6 +5,7 @@
 // 20 Mar 2024 Added conditional compile OUTPUTMEDIATORTODEBUG to enable outputting of message to the VS dubug window
 // 20 Mar 2024 Change MainWindow to Window
 // 09 Feb 2024 If DiagnosticInformation is on report listeners being registered and unregistered
+// 22 Feb 2025 Removed the use of WeakReference
 
 
 
@@ -36,7 +37,8 @@ namespace Surveyor
         private Reporter? report = null;
 
         // List of current mediator listeners
-        private readonly List<WeakReference> _listeners = [];
+        //???WeakRef code private readonly List<WeakReference> _listeners = [];
+        private readonly List<TListener> _listeners = [];
 
         // Debug mode
         private bool diagnosticInformation = false;
@@ -62,10 +64,13 @@ namespace Surveyor
         /// <param name="listener"></param>
         public void Register(object listener)
         {
-            _listeners.Add(new WeakReference(listener));
+            //???WeakRef code _listeners.Add(new WeakReference(listener));
+            _listeners.Add((TListener)listener);
 
             if (diagnosticInformation)
                 report?.Info("", $"+Mediator listeners registered {listener.GetType()}, total={_listeners.Count}");
+
+            Debug.WriteLine($"+Mediator listeners registered {listener.GetType()}, total={_listeners.Count}");
         }
 
 
@@ -75,10 +80,13 @@ namespace Surveyor
         /// <param name="listener"></param>
         public void Unregister(object listener)
         {
-            _listeners.RemoveAll(wr => wr.Target == null || !wr.Target.Equals(listener));
+            //???WeakRef code _listeners.RemoveAll(wr => wr.Target == null || !wr.Target.Equals(listener));
+            _listeners.RemoveAll(sr => sr.Equals(listener));
 
             if (diagnosticInformation)
                 report?.Info("", $"-Mediator listeners unregistered {listener.GetType()}, total={_listeners.Count}");
+
+            Debug.WriteLine($"-Mediator listeners unregistered {listener.GetType()}, total={_listeners.Count}");
         }
 
 
@@ -89,21 +97,19 @@ namespace Surveyor
         /// <param name="message"></param>
         public void Send(TListener listenerFrom, object message)
         {
-            //foreach (var weakReference in _listeners)
-            //{
-            //    if (weakReference.Target is TListener listener && weakReference.IsAlive)
-            //    {
-            //        listener.Receive(listenerFrom, message);
-            //    }
-            //}
+
 #if DEBUG && OUTPUTMEDIATORTODEBUG
             DebugOutputMessage(listenerFrom, message);
 #endif
-            _listeners.Select(wr => wr.Target)
-                      .OfType<TListener>()
-                      .Where(listener => listener != null && listener != listenerFrom)
-                      .ToList()
-                      .ForEach(listener => listener.Receive(listenerFrom, message));
+            //???WeakRef code _listeners.Select(wr => wr.Target)
+            //???          .OfType<TListener>()
+            //???          .Where(listener => listener != null && listener != listenerFrom)
+            //???          .ToList()
+            //???          .ForEach(listener => listener.Receive(listenerFrom, message));
+            _listeners
+                .Where(listener => listener != null && listener != listenerFrom) // Filter out null and the sender
+                .ToList() // Convert to a list to avoid modifying the collection while iterating
+                .ForEach(listener => listener.Receive(listenerFrom, message)); // Send the message to each listener
         }
 
         public void SendTo<T>(TListener listenerFrom, object message) where T : TListener
@@ -111,10 +117,15 @@ namespace Surveyor
             //this._listeners.OfType<T>().ToList().ForEach(m => m.Receive(listenerFrom, message));
 
             // Not sure if this is correct
-            _listeners.Where(wr => wr.IsAlive && wr.Target is T && (wr.Target as TListener) != listenerFrom)
-                      .Select(wr => wr.Target as T)
-                      .ToList()
-                      .ForEach(listener => listener?.Receive(listenerFrom, message));
+            //???WeakRef code _listeners.Where(wr => wr.IsAlive && wr.Target is T && (wr.Target as TListener) != listenerFrom)
+            //???          .Select(wr => wr.Target as T)
+            //???          .ToList()
+            //???          .ForEach(listener => listener?.Receive(listenerFrom, message));
+            _listeners
+                .OfType<T>() // Filter listeners of type T
+                .Where(listener => listener != listenerFrom) // Exclude the sender
+                .ToList()
+                .ForEach(listener => listener.Receive(listenerFrom, message));
         }
 
 #if DEBUG && OUTPUTMEDIATORTODEBUG
@@ -215,7 +226,4 @@ namespace Surveyor
         }
 
     }
-
-
-
 }

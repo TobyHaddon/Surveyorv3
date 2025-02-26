@@ -157,6 +157,35 @@
                         </Button>
                     </StackPanel>
                 </StackPanel>
+
+                <TeachingTip x:Name="EpipolarLineTeachingTip"
+                     Target="{x:Bind CanvasMag}"
+                     Title="Corresponding point"
+                     Subtitle="Now select the corresponding point on the other image which should exist on the line of the same color as target.&#x0a;To lock the mouse to the line move close the line and hold the Control key."
+                     CloseButtonContent="Got it!"
+                     CloseButtonClick="EpipolarLineTeachingTip_CloseButtonClick"
+                     PreferredPlacement="Center"
+                     IsLightDismissEnabled="True"
+                     IsOpen="False">
+                    <TeachingTip.IconSource>
+                        <FontIconSource Glyph="&#xE8B0;" />
+                    </TeachingTip.IconSource>
+                </TeachingTip>
+
+                <TeachingTip x:Name="EpipolarPointsTeachingTip"
+                     Target="{x:Bind CanvasMag}"
+                     Title="Corresponding point"
+                     Subtitle="Now select the corresponding point on the other image which should exist on the line of the same color as target."
+                     CloseButtonContent="Got it!"
+                     CloseButtonClick="EpipolarPointsTeachingTip_CloseButtonClick"
+                     PreferredPlacement="Center"
+                     IsLightDismissEnabled="True"
+                     IsOpen="False">
+                    <TeachingTip.IconSource>
+                        <FontIconSource Glyph="&#xE8B0;" />
+                    </TeachingTip.IconSource>
+                </TeachingTip>
+
             </Grid>
         </Border>
     </Grid>

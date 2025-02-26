@@ -59,6 +59,7 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading.Tasks;
 using Windows.Foundation;               // Point class
 using Windows.Graphics.Imaging;         // BitmapTransform
 using Windows.Media;
@@ -299,8 +300,15 @@ namespace Surveyor.User_Controls
             // Remove any Events from the CanvasFrame
             RemoveCanvasShapesByTag("Event");
 
-            // Remove any simple Epipolar lines from the CanvasFrame
+            // Remove any Epipolar lines or curves from the CanvasFrame
             RemoveCanvasShapesByTag("EpipolarLine");
+            RemoveCanvasShapesByTag("EpipolarPoints");
+
+            // Clear values
+            ClearEventsAndEpipolar();
+
+            // Clear in memory image stream
+            streamSource?.Dispose();
 
             // Assume the image in the ImageFrame is no longer loaded
             imageLoaded = false;
@@ -313,7 +321,7 @@ namespace Surveyor.User_Controls
         /// Other frame setup functions like SetTargets and SetEvents must be called
         /// AFTER NewImageFrame is called
         /// </summary>       
-        internal async void NewImageFrame(CanvasBitmap canvasBitmap, TimeSpan _position)
+        internal void NewImageFrame(IRandomAccessStream? frameStream, TimeSpan _position, uint _imageSourceWidth, uint _imageSourceHeight)
         {
             CheckIsUIThread();
 
@@ -322,15 +330,11 @@ namespace Surveyor.User_Controls
 
             // Remember the frame position
             // Used to know what Events are applicable to this frame
-            position = _position;   
+            position = _position;
+            streamSource = frameStream;
+            imageSourceWidth = _imageSourceWidth;
+            imageSourceHeight = _imageSourceHeight;
 
-            // Create a render target with the same size and format as the source bitmap
-            imageSourceWidth = (uint)canvasBitmap.SizeInPixels.Width;
-            imageSourceHeight = (uint)canvasBitmap.SizeInPixels.Height;
-
-            // Put the incoming CanvasBitmap frame into a memory stream
-            streamSource = new InMemoryRandomAccessStream();
-            await canvasBitmap.SaveAsync(streamSource, CanvasBitmapFileFormat.Bmp);
 
             // Reset the Mag Window
             isMagLocked = false;
@@ -369,6 +373,7 @@ namespace Surveyor.User_Controls
             // Remove Events and epipolar lines
             RemoveCanvasShapesByTag("Event");
             RemoveCanvasShapesByTag("EpipolarLine");
+            RemoveCanvasShapesByTag("EpipolarPoints");
 
             // Do coordinate need to be displayed
             DisplayPointerCoords = SettingsManager.DiagnosticInformation;
@@ -1341,6 +1346,22 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// Teaching tip is closing
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void EpipolarLineTeachingTip_CloseButtonClick(TeachingTip sender, object args)
+        {
+            SettingsManager.SetTeachingTipShown("EpipolarLineTeachingTip");
+        }
+
+        private void EpipolarPointsTeachingTip_CloseButtonClick(TeachingTip sender, object args)
+        {
+            SettingsManager.SetTeachingTipShown("EpipolarPointsTeachingTip");
+        }
+
+
 
         ///
         /// PRIVATE METHODS
@@ -1589,7 +1610,7 @@ namespace Surveyor.User_Controls
                                 rectMagWindowScreen = new Rect(magWindowLeft, magWindowTop, magWindowWidth, magWindowHeight);
                             }
 
-                            // Calcaulte the source rectangle fromt he ImageFrame that is used to fill
+                            // Calcaulte the source rectangle from the ImageFrame that is used to fill
                             // the Mag Window.                         
                             { // Putting this in braces so that variable go out of scope and not used by mistake
                                 double magWidthZoomed = magWidth / zoom;
@@ -1714,6 +1735,11 @@ namespace Surveyor.User_Controls
                             else
                                 ResetTargetIconOnCanvas(TargetBMag);    // Just hides the MagWindow target icon
 
+                            // Check for epipolar line for Target A
+                            if (epipolarLineTargetActiveA)
+                            {
+
+                            }
                         }
                         else
                         {
@@ -2404,8 +2430,10 @@ namespace Surveyor.User_Controls
         /// </summary>
         private void SetupTimer()
         {
-            _timer = new DispatcherTimer();
-            _timer.Interval = TimeSpan.FromSeconds(3);
+            _timer = new DispatcherTimer
+            {
+                Interval = TimeSpan.FromSeconds(3)
+            };
             _timer.Tick += Timer_Tick;
             _timer.Start();
         }
@@ -2702,7 +2730,9 @@ namespace Surveyor.User_Controls
                 _mainWindow?.DisplayPointerCoordinates(-1, -1);
         }
 
-    // ***END OF MagnifyAndMarkerControl***
+
+
+        // ***END OF MagnifyAndMarkerControl***
     }
 
 
@@ -2822,6 +2852,7 @@ namespace Surveyor.User_Controls
         public enum MagnifyAndMarkerControlEvent
         {
             EpipolarLine,
+            EpipolarPoints,
             Error
         }
         public MagnifyAndMarkerControlEvent magnifyAndMarkerControlEvent;
@@ -2832,8 +2863,10 @@ namespace Surveyor.User_Controls
         // Used for all
         public TimeSpan? frame;
 
-        // Used in EpipolarLine
+        // Used in EpipolarLine & EpipolarPoints
         public bool TrueEpipolarLinePointAFalseEpipolarLinePointB;
+
+        // Used in EpipolarLine
         // ax+by+c = 0
         // Where:
         // a is the coefficient of x
@@ -2848,6 +2881,14 @@ namespace Surveyor.User_Controls
         public double principalYLeft;
         public double principalXRight;
         public double principalYRight;
+
+        // Used in EpipolarPoints
+        // Because the iamge are distorted and the epipolar line is not straight, we need to define 3 points
+        public Point pointNear;
+        public Point pointMiddle;
+        public Point pointFar;
+
+        // Used in EpipolarLine & EpipolarPoints
         public int channelWidth; /* 1=Line, >1 = channel, -1 remove line*/
     }
 
@@ -2876,9 +2917,6 @@ namespace Surveyor.User_Controls
 
         // Used for all
         public readonly SurveyorMediaPlayer.eCameraSide cameraSide;
-
-        // Used for all
-        //??? public TimeSpan? frame;  /// Don't think this is needed as the Stereo controller will know
 
         // Used by TargetPointSelected
         public bool? TruePointAFalsePointB;
@@ -2923,6 +2961,11 @@ namespace Surveyor.User_Controls
                                                                                       data.channelWidth));
                             break;
 
+                        case MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarPoints:
+                            SafeUICall(() => _magnifyAndMarkerControl.SetEpipolarPoints(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
+                                                                                        data.pointNear, data.pointMiddle, data.pointFar,
+                                                                                        data.channelWidth));
+                            break;
                     }
                 }
             }
@@ -2936,8 +2979,8 @@ namespace Surveyor.User_Controls
                     switch (data.mediaPlayerEvent)
                     {
                         case MediaPlayerEventData.eMediaPlayerEvent.FrameRendered:
-                            if (data.canvasBitmap is not null && data.position is not null)
-                                SafeUICall(() => _magnifyAndMarkerControl.NewImageFrame(data.canvasBitmap, (TimeSpan)data.position));
+                            if (data.frameStream is not null && data.position is not null)
+                                SafeUICall(() => _magnifyAndMarkerControl.NewImageFrame(data.frameStream, (TimeSpan)data.position, data.imageSourceWidth, data.imageSourceHeight));
                             break;
                     }
                 }
@@ -2948,20 +2991,21 @@ namespace Surveyor.User_Controls
 
                 switch (data.settingsWindowEvent)
                 {
-                    // The user has changed the auto magnify setting
-                    case eSettingsWindowEvent.MagnifierWindow:
-                        SafeUICall(() => _magnifyAndMarkerControl.SetIsAutoMagnify((bool)data!.magnifierWindowAutomatic!));
-                        break;
+                // The user has changed the auto magnify setting
+                case eSettingsWindowEvent.MagnifierWindow:
+                    SafeUICall(() => _magnifyAndMarkerControl.SetIsAutoMagnify((bool)data!.magnifierWindowAutomatic!));
+                    break;
 
-                    // The user has changed the Diagnostic Information settings
-                    case eSettingsWindowEvent.DiagnosticInformation:
-                        if (data.diagnosticInformation is not null)
-                        {
-                            _magnifyAndMarkerControl.SetDiagnosticInformation((bool)data!.diagnosticInformation);
-                        }
-                        break;
+                // The user has changed the Diagnostic Information settings
+                case eSettingsWindowEvent.DiagnosticInformation:
+                    if (data.diagnosticInformation is not null)
+                    {
+                        _magnifyAndMarkerControl.SetDiagnosticInformation((bool)data!.diagnosticInformation);
+                    }
+                    break;
                 }
             }
         }
     }
 }
+

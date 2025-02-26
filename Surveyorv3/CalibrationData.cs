@@ -30,12 +30,12 @@ namespace Surveyor
 
         [JsonProperty("CameraMatrix")]
         [JsonConverter(typeof(MatrixJsonConverter))]
-        public Emgu.CV.Matrix<double>? Mtx { get; set; }   // Intrinsic  Camera Matrix 3x3 (K)
+        public Emgu.CV.Matrix<double>? Intrinsic { get; set; }   // Intrinsic  Camera Matrix 3x3 (K)
 
 
         [JsonProperty("DistortionCoefficients")]
         [JsonConverter(typeof(MatrixJsonConverter))]
-        public Emgu.CV.Matrix<double>? Dist { get; set; }   // Distortion coefficient Matrix 4x1
+        public Emgu.CV.Matrix<double>? Distortion { get; set; }   // Distortion coefficient Matrix 4x1
 
         [JsonProperty(nameof(ImageSize))]
         [JsonConverter(typeof(MatrixJsonConverter))]
@@ -53,7 +53,7 @@ namespace Surveyor
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(RMS, Mtx, Dist, ImageSize, ImageTotal, ImageUseable, CameraID);
+            return HashCode.Combine(RMS, Intrinsic, Distortion, ImageSize, ImageTotal, ImageUseable, CameraID);
         }
 
 
@@ -76,8 +76,8 @@ namespace Surveyor
                     ((ImageSize == null && other.ImageSize == null) || ImageSize?.Equals(other.ImageSize) == true) &&
                     ImageTotal == other.ImageTotal &&
                     ImageUseable == other.ImageUseable &&
-                    ((Mtx == null && other.Mtx == null) || Mtx?.Equals(other.Mtx) == true) &&
-                    ((Dist == null && other.Dist == null) || Dist?.Equals(other.Dist) == true) &&
+                    ((Intrinsic == null && other.Intrinsic == null) || Intrinsic?.Equals(other.Intrinsic) == true) &&
+                    ((Distortion == null && other.Distortion == null) || Distortion?.Equals(other.Distortion) == true) &&
                     CameraID == other.CameraID;
         }
 
@@ -104,8 +104,8 @@ namespace Surveyor
         public void Clear()
         {
             RMS = 0;
-            Mtx = null;
-            Dist = null;
+            Intrinsic = null;
+            Distortion = null;
             ImageSize = null;
             ImageTotal = 0;
             ImageUseable = 0;
@@ -185,10 +185,15 @@ namespace Surveyor
 
         // Optional Description of the calibration data
         public string Description { get; set; } = "";
+        
+        [JsonProperty("LeftCalibrationCameraData")]
+        public CalibrationCameraData LeftCameraCalibration { get; set; } = new();
 
-        public CalibrationCameraData LeftCalibrationCameraData { get; set; } = new();
-        public CalibrationCameraData RightCalibrationCameraData { get; set; } = new();
-        public CalibrationStereoCameraData CalibrationStereoCameraData { get; set; } = new();
+        [JsonProperty("RightCalibrationCameraData")]
+        public CalibrationCameraData RightCameraCalibration { get; set; } = new();
+
+        [JsonProperty("CalibrationStereoCameraData")]
+        public CalibrationStereoCameraData StereoCameraCalibration { get; set; } = new();
 
 
         public CalibrationData()
@@ -286,31 +291,31 @@ namespace Surveyor
 
                     Debug.WriteLine($"Description:{Description},  Guid:{GuidString}");
                     Debug.WriteLine($"Left:");
-                    if (calibrationData.LeftCalibrationCameraData.Mtx is not null)
-                        Debug.WriteLine($"   Camera Matrix: {FormatMatrixToString(calibrationData.LeftCalibrationCameraData.Mtx, 18/*indent*/)}");
-                    if (calibrationData.LeftCalibrationCameraData.Dist is not null)
-                        Debug.WriteLine($"   Distortion Coefficients: {FormatMatrixToString(calibrationData.LeftCalibrationCameraData.Dist, 28/*indent*/)}");
-                    if (calibrationData.LeftCalibrationCameraData.ImageSize is not null)
-                        Debug.WriteLine($"   Image Size: {FormatMatrixToString(calibrationData.LeftCalibrationCameraData.ImageSize, 28/*indent*/)}");
-                    if (!string.IsNullOrEmpty(calibrationData.LeftCalibrationCameraData.CameraID))
-                        Debug.WriteLine($"   Camera ID: {calibrationData.LeftCalibrationCameraData.CameraID}");
+                    if (calibrationData.LeftCameraCalibration.Intrinsic is not null)
+                        Debug.WriteLine($"   Camera Matrix: {FormatMatrixToString(calibrationData.LeftCameraCalibration.Intrinsic, 18/*indent*/)}");
+                    if (calibrationData.LeftCameraCalibration.Distortion is not null)
+                        Debug.WriteLine($"   Distortion Coefficients: {FormatMatrixToString(calibrationData.LeftCameraCalibration.Distortion, 28/*indent*/)}");
+                    if (calibrationData.LeftCameraCalibration.ImageSize is not null)
+                        Debug.WriteLine($"   Image Size: {FormatMatrixToString(calibrationData.LeftCameraCalibration.ImageSize, 28/*indent*/)}");
+                    if (!string.IsNullOrEmpty(calibrationData.LeftCameraCalibration.CameraID))
+                        Debug.WriteLine($"   Camera ID: {calibrationData.LeftCameraCalibration.CameraID}");
 
                     Debug.WriteLine($"Right:");
-                    if (calibrationData.RightCalibrationCameraData.Mtx is not null)
-                        Debug.WriteLine($"   Camera Matrix: {FormatMatrixToString(calibrationData.RightCalibrationCameraData.Mtx, 18/*indent*/)}");
-                    if (calibrationData.RightCalibrationCameraData.Dist is not null)
-                        Debug.WriteLine($"   Distortion Coefficients: {FormatMatrixToString(calibrationData.RightCalibrationCameraData.Dist, 28/*indent*/)}");
-                    if (calibrationData.RightCalibrationCameraData.ImageSize is not null)
-                        Debug.WriteLine($"   Image Size: {FormatMatrixToString(calibrationData.RightCalibrationCameraData.ImageSize, 28/*indent*/)}");
-                    if (!string.IsNullOrEmpty(calibrationData.RightCalibrationCameraData.CameraID))
-                        Debug.WriteLine($"   Camera ID: {calibrationData.RightCalibrationCameraData.CameraID}");
+                    if (calibrationData.RightCameraCalibration.Intrinsic is not null)
+                        Debug.WriteLine($"   Camera Matrix: {FormatMatrixToString(calibrationData.RightCameraCalibration.Intrinsic, 18/*indent*/)}");
+                    if (calibrationData.RightCameraCalibration.Distortion is not null)
+                        Debug.WriteLine($"   Distortion Coefficients: {FormatMatrixToString(calibrationData.RightCameraCalibration.Distortion, 28/*indent*/)}");
+                    if (calibrationData.RightCameraCalibration.ImageSize is not null)
+                        Debug.WriteLine($"   Image Size: {FormatMatrixToString(calibrationData.RightCameraCalibration.ImageSize, 28/*indent*/)}");
+                    if (!string.IsNullOrEmpty(calibrationData.RightCameraCalibration.CameraID))
+                        Debug.WriteLine($"   Camera ID: {calibrationData.RightCameraCalibration.CameraID}");
 
                     Debug.WriteLine("Stereo:");
-                    Debug.WriteLine($"   RMS: {calibrationData.CalibrationStereoCameraData.RMS}");
-                    if (calibrationData.CalibrationStereoCameraData.Rotation is not null)
-                        Debug.WriteLine($"   Rotation: {FormatMatrixToString(calibrationData.CalibrationStereoCameraData.Rotation, 13/*indent*/)}");
-                    if (calibrationData.CalibrationStereoCameraData.Translation is not null)
-                        Debug.WriteLine($"   Translation: {FormatMatrixToString(calibrationData.CalibrationStereoCameraData.Translation, 16/*indent*/)}");
+                    Debug.WriteLine($"   RMS: {calibrationData.StereoCameraCalibration.RMS}");
+                    if (calibrationData.StereoCameraCalibration.Rotation is not null)
+                        Debug.WriteLine($"   Rotation: {FormatMatrixToString(calibrationData.StereoCameraCalibration.Rotation, 13/*indent*/)}");
+                    if (calibrationData.StereoCameraCalibration.Translation is not null)
+                        Debug.WriteLine($"   Translation: {FormatMatrixToString(calibrationData.StereoCameraCalibration.Translation, 16/*indent*/)}");
                 }
 #endif
 
@@ -322,71 +327,71 @@ namespace Surveyor
 
                     if (ret == 0)
                     {
-                        if (calibrationData.LeftCalibrationCameraData.Mtx is not null)
-                            LeftCalibrationCameraData.Mtx = calibrationData.LeftCalibrationCameraData.Mtx;
+                        if (calibrationData.LeftCameraCalibration.Intrinsic is not null)
+                            LeftCameraCalibration.Intrinsic = calibrationData.LeftCameraCalibration.Intrinsic;
                         else
                         {
                             Debug.WriteLine("Calibration.Load()   LeftCalibrationCameraData.Mtx is null");
                             ret = -4;
                         }
 
-                        if (calibrationData.LeftCalibrationCameraData.Dist is not null)
-                            LeftCalibrationCameraData.Dist = calibrationData.LeftCalibrationCameraData.Dist;
+                        if (calibrationData.LeftCameraCalibration.Distortion is not null)
+                            LeftCameraCalibration.Distortion = calibrationData.LeftCameraCalibration.Distortion;
                         else
                         {
                             Debug.WriteLine("Calibration.Load()   LeftCalibrationCameraData.Dist is null");
                             ret = -5;
                         }
 
-                        LeftCalibrationCameraData.RMS = calibrationData.LeftCalibrationCameraData.RMS;
-                        LeftCalibrationCameraData.ImageTotal = calibrationData.LeftCalibrationCameraData.ImageTotal;
-                        LeftCalibrationCameraData.ImageUseable = calibrationData.LeftCalibrationCameraData.ImageUseable;
-                        LeftCalibrationCameraData.ImageSize = calibrationData.LeftCalibrationCameraData.ImageSize;
-                        LeftCalibrationCameraData.CameraID = calibrationData.LeftCalibrationCameraData.CameraID;
+                        LeftCameraCalibration.RMS = calibrationData.LeftCameraCalibration.RMS;
+                        LeftCameraCalibration.ImageTotal = calibrationData.LeftCameraCalibration.ImageTotal;
+                        LeftCameraCalibration.ImageUseable = calibrationData.LeftCameraCalibration.ImageUseable;
+                        LeftCameraCalibration.ImageSize = calibrationData.LeftCameraCalibration.ImageSize;
+                        LeftCameraCalibration.CameraID = calibrationData.LeftCameraCalibration.CameraID;
                     }
 
 
                     if (ret == 0)
                     {
-                        if (calibrationData.RightCalibrationCameraData.Mtx is not null)
-                            RightCalibrationCameraData.Mtx = calibrationData.RightCalibrationCameraData.Mtx;
+                        if (calibrationData.RightCameraCalibration.Intrinsic is not null)
+                            RightCameraCalibration.Intrinsic = calibrationData.RightCameraCalibration.Intrinsic;
                         else
                         {
                             Debug.WriteLine("Calibration.Load()   RightCalibrationCameraData.Mtx is null");
                             ret = -8;
                         }
 
-                        if (calibrationData.RightCalibrationCameraData.Dist is not null)
-                            RightCalibrationCameraData.Dist = calibrationData.RightCalibrationCameraData.Dist;
+                        if (calibrationData.RightCameraCalibration.Distortion is not null)
+                            RightCameraCalibration.Distortion = calibrationData.RightCameraCalibration.Distortion;
                         else
                         {
                             Debug.WriteLine("Calibration.Load()   RightCalibrationCameraData.Dist is null");
                             ret = -9;
                         }
 
-                        RightCalibrationCameraData.RMS = calibrationData.RightCalibrationCameraData.RMS;
-                        RightCalibrationCameraData.ImageTotal = calibrationData.RightCalibrationCameraData.ImageTotal;
-                        RightCalibrationCameraData.ImageUseable = calibrationData.RightCalibrationCameraData.ImageUseable;
-                        RightCalibrationCameraData.ImageSize = calibrationData.RightCalibrationCameraData.ImageSize;
-                        RightCalibrationCameraData.CameraID = calibrationData.RightCalibrationCameraData.CameraID;
+                        RightCameraCalibration.RMS = calibrationData.RightCameraCalibration.RMS;
+                        RightCameraCalibration.ImageTotal = calibrationData.RightCameraCalibration.ImageTotal;
+                        RightCameraCalibration.ImageUseable = calibrationData.RightCameraCalibration.ImageUseable;
+                        RightCameraCalibration.ImageSize = calibrationData.RightCameraCalibration.ImageSize;
+                        RightCameraCalibration.CameraID = calibrationData.RightCameraCalibration.CameraID;
                     }
 
                     if (ret == 0)
                     {
-                        CalibrationStereoCameraData.RMS = calibrationData.CalibrationStereoCameraData.RMS;
-                        CalibrationStereoCameraData.ImageTotal = calibrationData.CalibrationStereoCameraData.ImageTotal;
-                        CalibrationStereoCameraData.ImageUseable = calibrationData.CalibrationStereoCameraData.ImageUseable;
+                        StereoCameraCalibration.RMS = calibrationData.StereoCameraCalibration.RMS;
+                        StereoCameraCalibration.ImageTotal = calibrationData.StereoCameraCalibration.ImageTotal;
+                        StereoCameraCalibration.ImageUseable = calibrationData.StereoCameraCalibration.ImageUseable;
 
-                        if (calibrationData.CalibrationStereoCameraData.Rotation is not null)
-                            CalibrationStereoCameraData.Rotation = calibrationData.CalibrationStereoCameraData.Rotation;
+                        if (calibrationData.StereoCameraCalibration.Rotation is not null)
+                            StereoCameraCalibration.Rotation = calibrationData.StereoCameraCalibration.Rotation;
                         else
                         {
                             Debug.WriteLine("Calibration.Load()   CalibrationStereoCameraData.Rotation is null");
                             ret = -12;
                         }
 
-                        if (calibrationData.CalibrationStereoCameraData.Translation is not null)
-                            CalibrationStereoCameraData.Translation = calibrationData.CalibrationStereoCameraData.Translation;
+                        if (calibrationData.StereoCameraCalibration.Translation is not null)
+                            StereoCameraCalibration.Translation = calibrationData.StereoCameraCalibration.Translation;
                         else
                         {
                             Debug.WriteLine("Calibration.Load()   CalibrationStereoCameraData.Translation is null");
@@ -449,15 +454,15 @@ namespace Surveyor
                                 // Image Size
                                 if (i == 0/*left camera*/)
                                 {
-                                    LeftCalibrationCameraData.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
-                                    LeftCalibrationCameraData.ImageSize[0, 0] = (int)width;
-                                    LeftCalibrationCameraData.ImageSize[0, 1] = (int)height;
+                                    LeftCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
+                                    LeftCameraCalibration.ImageSize[0, 0] = (int)width;
+                                    LeftCameraCalibration.ImageSize[0, 1] = (int)height;
                                 }
                                 else if (i == 1/*right camera*/)
                                 {
-                                    RightCalibrationCameraData.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
-                                    RightCalibrationCameraData.ImageSize[0, 0] = (int)width;
-                                    RightCalibrationCameraData.ImageSize[0, 1] = (int)height;
+                                    RightCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
+                                    RightCameraCalibration.ImageSize[0, 0] = (int)width;
+                                    RightCameraCalibration.ImageSize[0, 1] = (int)height;
                                 }
                             }
                         }
@@ -489,46 +494,46 @@ namespace Surveyor
                             if (i == 0/*left camera*/)
                             {
                                 // Left Camera Matrix
-                                LeftCalibrationCameraData.Mtx = new Emgu.CV.Matrix<double>(3/*rows*/, 3/*cols*/);
-                                LeftCalibrationCameraData.Mtx[0, 0] = f ?? 0.0;
-                                LeftCalibrationCameraData.Mtx[0, 1] = 0.0;
-                                LeftCalibrationCameraData.Mtx[0, 2] = cx ?? 0.0;
-                                LeftCalibrationCameraData.Mtx[1, 0] = 0.0;
-                                LeftCalibrationCameraData.Mtx[1, 1] = f * ar ?? 0.0;
-                                LeftCalibrationCameraData.Mtx[1, 2] = cy ?? 0.0;
-                                LeftCalibrationCameraData.Mtx[2, 0] = 0.0;
-                                LeftCalibrationCameraData.Mtx[2, 1] = 0.0;
-                                LeftCalibrationCameraData.Mtx[2, 2] = 1.0;
+                                LeftCameraCalibration.Intrinsic = new Emgu.CV.Matrix<double>(3/*rows*/, 3/*cols*/);
+                                LeftCameraCalibration.Intrinsic[0, 0] = f ?? 0.0;
+                                LeftCameraCalibration.Intrinsic[0, 1] = 0.0;
+                                LeftCameraCalibration.Intrinsic[0, 2] = cx ?? 0.0;
+                                LeftCameraCalibration.Intrinsic[1, 0] = 0.0;
+                                LeftCameraCalibration.Intrinsic[1, 1] = f * ar ?? 0.0;
+                                LeftCameraCalibration.Intrinsic[1, 2] = cy ?? 0.0;
+                                LeftCameraCalibration.Intrinsic[2, 0] = 0.0;
+                                LeftCameraCalibration.Intrinsic[2, 1] = 0.0;
+                                LeftCameraCalibration.Intrinsic[2, 2] = 1.0;
 
                                 // Left Distortion Coefficients (we use the 5 element model)
-                                LeftCalibrationCameraData.Dist = new Emgu.CV.Matrix<double>(1/*rows*/, 5/*cols*/);
-                                LeftCalibrationCameraData.Dist[0, 0] = k1 ?? 0.0;
-                                LeftCalibrationCameraData.Dist[0, 1] = k2 ?? 0.0;
-                                LeftCalibrationCameraData.Dist[0, 2] = p1 ?? 0.0;
-                                LeftCalibrationCameraData.Dist[0, 3] = p2 ?? 0.0;
-                                LeftCalibrationCameraData.Dist[0, 4] = k3 ?? 0.0;
+                                LeftCameraCalibration.Distortion = new Emgu.CV.Matrix<double>(1/*rows*/, 5/*cols*/);
+                                LeftCameraCalibration.Distortion[0, 0] = k1 ?? 0.0;
+                                LeftCameraCalibration.Distortion[0, 1] = k2 ?? 0.0;
+                                LeftCameraCalibration.Distortion[0, 2] = p1 ?? 0.0;
+                                LeftCameraCalibration.Distortion[0, 3] = p2 ?? 0.0;
+                                LeftCameraCalibration.Distortion[0, 4] = k3 ?? 0.0;
                             }
                             else if (i == 1/*right camera*/)
                             {
                                 // Right Camera Matrix
-                                RightCalibrationCameraData.Mtx = new Emgu.CV.Matrix<double>(3/*rows*/, 3/*cols*/);
-                                RightCalibrationCameraData.Mtx[0, 0] = f ?? 0.0;
-                                RightCalibrationCameraData.Mtx[0, 1] = 0.0;
-                                RightCalibrationCameraData.Mtx[0, 2] = cx ?? 0.0;
-                                RightCalibrationCameraData.Mtx[1, 0] = 0.0;
-                                RightCalibrationCameraData.Mtx[1, 1] = f * ar ?? 0.0;
-                                RightCalibrationCameraData.Mtx[1, 2] = cy ?? 0.0;
-                                RightCalibrationCameraData.Mtx[2, 0] = 0.0;
-                                RightCalibrationCameraData.Mtx[2, 1] = 0.0;
-                                RightCalibrationCameraData.Mtx[2, 2] = 1.0;
+                                RightCameraCalibration.Intrinsic = new Emgu.CV.Matrix<double>(3/*rows*/, 3/*cols*/);
+                                RightCameraCalibration.Intrinsic[0, 0] = f ?? 0.0;
+                                RightCameraCalibration.Intrinsic[0, 1] = 0.0;
+                                RightCameraCalibration.Intrinsic[0, 2] = cx ?? 0.0;
+                                RightCameraCalibration.Intrinsic[1, 0] = 0.0;
+                                RightCameraCalibration.Intrinsic[1, 1] = f * ar ?? 0.0;
+                                RightCameraCalibration.Intrinsic[1, 2] = cy ?? 0.0;
+                                RightCameraCalibration.Intrinsic[2, 0] = 0.0;
+                                RightCameraCalibration.Intrinsic[2, 1] = 0.0;
+                                RightCameraCalibration.Intrinsic[2, 2] = 1.0;
 
                                 // Right Distortion Coefficients (we use the 5 element model)
-                                RightCalibrationCameraData.Dist = new Emgu.CV.Matrix<double>(1/*rows*/, 5/*cols*/);
-                                RightCalibrationCameraData.Dist[0, 0] = k1 ?? 0.0;
-                                RightCalibrationCameraData.Dist[0, 1] = k2 ?? 0.0;
-                                RightCalibrationCameraData.Dist[0, 2] = p1 ?? 0.0;
-                                RightCalibrationCameraData.Dist[0, 3] = p2 ?? 0.0;
-                                RightCalibrationCameraData.Dist[0, 4] = k3 ?? 0.0;
+                                RightCameraCalibration.Distortion = new Emgu.CV.Matrix<double>(1/*rows*/, 5/*cols*/);
+                                RightCameraCalibration.Distortion[0, 0] = k1 ?? 0.0;
+                                RightCameraCalibration.Distortion[0, 1] = k2 ?? 0.0;
+                                RightCameraCalibration.Distortion[0, 2] = p1 ?? 0.0;
+                                RightCameraCalibration.Distortion[0, 3] = p2 ?? 0.0;
+                                RightCameraCalibration.Distortion[0, 4] = k3 ?? 0.0;
 
 
                                 // Stereo Calibration Data
@@ -544,20 +549,20 @@ namespace Surveyor
                                         rotationVector[1, 0] = (double?)rot["ry"] ?? 0.0;
                                         rotationVector[2, 0] = (double?)rot["rz"] ?? 0.0;
 
-                                        CalibrationStereoCameraData.Rotation = new Emgu.CV.Matrix<double>(3/*rows*/, 3/*cols*/);
+                                        StereoCameraCalibration.Rotation = new Emgu.CV.Matrix<double>(3/*rows*/, 3/*cols*/);
 
                                         // Convert the rotation vector to a rotation matrix
-                                        CvInvoke.Rodrigues(rotationVector, CalibrationStereoCameraData.Rotation);
+                                        CvInvoke.Rodrigues(rotationVector, StereoCameraCalibration.Rotation);
                                     }
 
                                     var t = transform["translation"];
                                     if (t is not null)
                                     {
                                         // Right Translation
-                                        CalibrationStereoCameraData.Translation = new Emgu.CV.Matrix<double>(1/*rows*/, 3/*cols*/);
-                                        CalibrationStereoCameraData.Translation[0, 0] = (double?)t["x"] ?? 0.0;
-                                        CalibrationStereoCameraData.Translation[0, 1] = (double?)t["y"] ?? 0.0;
-                                        CalibrationStereoCameraData.Translation[0, 2] = (double?)t["z"] ?? 0.0;
+                                        StereoCameraCalibration.Translation = new Emgu.CV.Matrix<double>(1/*rows*/, 3/*cols*/);
+                                        StereoCameraCalibration.Translation[0, 0] = (double?)t["x"] ?? 0.0;
+                                        StereoCameraCalibration.Translation[0, 1] = (double?)t["y"] ?? 0.0;
+                                        StereoCameraCalibration.Translation[0, 2] = (double?)t["z"] ?? 0.0;
                                     }
 
                                     if (rot is not null && t is not null && CalibrationID is null)
@@ -655,10 +660,10 @@ namespace Surveyor
             bool ret = false;
 
             // Use the left camera data
-            if (LeftCalibrationCameraData is not null && LeftCalibrationCameraData.ImageSize is not null)
+            if (LeftCameraCalibration is not null && LeftCameraCalibration.ImageSize is not null)
             {
-                if (LeftCalibrationCameraData.ImageSize[0, 0] == frameWidth &&
-                    LeftCalibrationCameraData.ImageSize[0, 1] == frameHeight)
+                if (LeftCameraCalibration.ImageSize[0, 0] == frameWidth &&
+                    LeftCameraCalibration.ImageSize[0, 1] == frameHeight)
                 {
                     ret = true;
                 }
@@ -676,18 +681,18 @@ namespace Surveyor
             CalibrationID = null;
             Description = "";
             //??? Create Clear() function in CalibrationCameraData() and CalibrationStereoCameraData() classes
-            LeftCalibrationCameraData.Clear();
-            RightCalibrationCameraData.Clear();
-            CalibrationStereoCameraData.Clear();
+            LeftCameraCalibration.Clear();
+            RightCameraCalibration.Clear();
+            StereoCameraCalibration.Clear();
         }
 
         public override int GetHashCode()
         {
             return HashCode.Combine(CalibrationID,
                                     Description,
-                                    LeftCalibrationCameraData,
-                                    RightCalibrationCameraData,
-                                    CalibrationStereoCameraData);
+                                    LeftCameraCalibration,
+                                    RightCameraCalibration,
+                                    StereoCameraCalibration);
         }
 
 
@@ -756,9 +761,9 @@ namespace Surveyor
         public bool Compare(CalibrationData other)
         {
             return Description == other.Description &&
-                    LeftCalibrationCameraData.Equals(other.LeftCalibrationCameraData) &&
-                    RightCalibrationCameraData.Equals(other.RightCalibrationCameraData) &&
-                    CalibrationStereoCameraData.Equals(other.CalibrationStereoCameraData);
+                    LeftCameraCalibration.Equals(other.LeftCameraCalibration) &&
+                    RightCameraCalibration.Equals(other.RightCameraCalibration) &&
+                    StereoCameraCalibration.Equals(other.StereoCameraCalibration);
         }
 
 

@@ -8,16 +8,16 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="8c0e24ec-57ee-4dad-b96b-fdbe9463de8e"
-    Publisher="CN=Toby Haddon"
-    Version="3.1.102.0" />
+    Name="3f77acee-b38c-42c5-aa8c-73bc511ff7bd"
+    Publisher="CN=tobyh"
+    Version="1.0.0.0" />
 
-  <mp:PhoneIdentity PhoneProductId="8c0e24ec-57ee-4dad-b96b-fdbe9463de8e" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+  <mp:PhoneIdentity PhoneProductId="3f77acee-b38c-42c5-aa8c-73bc511ff7bd" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>Surveyorv3</DisplayName>
-    <PublisherDisplayName>Toby Haddon</PublisherDisplayName>
-    <Logo>Assets\surveyor-dark.png</Logo>
+    <DisplayName>Surveyor3.Tests</DisplayName>
+    <PublisherDisplayName>tobyh</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
   <Dependencies>
@@ -34,17 +34,12 @@
       Executable="$targetnametoken$.exe"
       EntryPoint="$targetentrypoint$">
       <uap:VisualElements
-        DisplayName="Surveyor"
-        Description="Fish measurement survey software.  This software is used to process videos from a sterographic camera rig."
+        DisplayName="Surveyor3.Tests"
+        Description="Surveyor3.Tests"
         BackgroundColor="transparent"
-        Square150x150Logo="Assets\surveyor-dark.png"
-        Square44x44Logo="Assets\surveyor-dark.png">
-        <uap:DefaultTile  Wide310x150Logo="Assets\surveyor-dark.png">
-          <uap:ShowNameOnTiles>
-            <uap:ShowOn Tile="square150x150Logo"/>
-            <uap:ShowOn Tile="wide310x150Logo"/>
-          </uap:ShowNameOnTiles>
-        </uap:DefaultTile >
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
         <uap:SplashScreen Image="Assets\SplashScreen.png" />
       </uap:VisualElements>
     </Application>
@@ -52,7 +47,5 @@
 
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
-    <uap:Capability Name="userAccountInformation"/>
-    <DeviceCapability Name="bluetooth"/>
   </Capabilities>
 </Package>

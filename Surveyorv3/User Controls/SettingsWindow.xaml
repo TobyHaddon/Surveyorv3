@@ -70,7 +70,7 @@
                             <toolkit:SettingsCard.HeaderIcon>
                                 <FontIcon Glyph="&#xEB3C;" />
                             </toolkit:SettingsCard.HeaderIcon>
-                            <ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="magnifierWindowAutomatic_Toggled" />
+                            <ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="MagnifierWindowAutomatic_Toggled" />
                         </toolkit:SettingsCard>
 
                         <!--Survey Rules-->
@@ -79,7 +79,7 @@
                                 <FontIcon Glyph="&#xE73E;" />
                             </toolkit:SettingsExpander.HeaderIcon>
                             
-                            <ToggleSwitch x:Name="surveyRulesActive" IsOn="{x:Bind survey.Data.SurveyRules.SurveyRulesActive, Mode=TwoWay}" Toggled="surveyRulesActive_Toggled" />
+                            <ToggleSwitch x:Name="surveyRulesActive" IsOn="{x:Bind survey.Data.SurveyRules.SurveyRulesActive, Mode=TwoWay}"/>
                             <toolkit:SettingsExpander.Items>
                                 <surveyorControls:SettingsSurveyRules x:Name="SettingsSurveyRules"/>
                             </toolkit:SettingsExpander.Items>
@@ -100,7 +100,7 @@
                             <toolkit:SettingsCard.HeaderIcon>
                                 <FontIcon Glyph="&#xE790;" />
                             </toolkit:SettingsCard.HeaderIcon>
-                            <ComboBox x:Name="themeMode" AutomationProperties.AutomationId="themeModeComboBox" SelectionChanged="themeMode_SelectionChanged">
+                            <ComboBox x:Name="themeMode" AutomationProperties.AutomationId="themeModeComboBox" SelectionChanged="ThemeMode_SelectionChanged">
                                 <ComboBoxItem Content="Light" Tag="Light" />
                                 <ComboBoxItem Content="Dark" Tag="Dark" />
                                 <ComboBoxItem Content="Use system setting" Tag="Default" />
@@ -112,20 +112,82 @@
                             <toolkit:SettingsCard.HeaderIcon>
                                 <FontIcon Glyph="&#xE71E;" />
                             </toolkit:SettingsCard.HeaderIcon>
-                            <ToggleSwitch x:Name="magnifierWindowAutomatic" Toggled="magnifierWindowAutomatic_Toggled" />
+                            <ToggleSwitch x:Name="MagnifierWindowAutomatic" Toggled="MagnifierWindowAutomatic_Toggled" />
                         </toolkit:SettingsCard>
 
                         <toolkit:SettingsCard Header="Diagnostic Information">
                             <toolkit:SettingsCard.HeaderIcon>
                                 <FontIcon Glyph="&#xEBE8;" />
                             </toolkit:SettingsCard.HeaderIcon>
-                            <ToggleSwitch x:Name="diagnosticInformation" Toggled="diagnosticInformation_Toggled" />
+                            <ToggleSwitch x:Name="DiagnosticInformation" Toggled="DiagnosticInformation_Toggled" />
+                        </toolkit:SettingsCard>
+
+                        <toolkit:SettingsCard Header="Teaching Tips">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE7BE;" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="ReshowTeachingTips" Content="Reshow Tips" Click="ReshowTeachingTips_Click" Margin="0,0,10,0"/>
+                                <ToggleSwitch x:Name="TeachingTips" Toggled="TeachingTips_Toggled" />
+                            </StackPanel>
                         </toolkit:SettingsCard>
 
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
 
-                <!--  About  -->
+                <!-- CAMERA -->
+                <toolkit:SettingsExpander Header="Camera" MaxWidth="1200">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE722;" />
+                    </toolkit:SettingsExpander.HeaderIcon>
+                                            
+                    <toolkit:SettingsExpander.Items>
+                        <toolkit:SettingsCard Header="GoPro Setup" HorizontalContentAlignment="Left" ContentAlignment="Vertical">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xED14;" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                        </toolkit:SettingsCard>
+
+                        <StackPanel Orientation="Vertical" Margin="50,10,50,0">
+                            <TextBlock>
+                                <TextBlock.Inlines>
+                                    <Run Text="The GoPro survey cameras must have GoPro Labs installed on each camera. Follow the link to " />
+                                    <Hyperlink NavigateUri="https://gopro.github.io/labs/">
+                                        <Run Text="GoPro Labs" />
+                                    </Hyperlink>
+                                    <Run Text=".  Download the correct version for your GoPro." />
+                                </TextBlock.Inlines>
+                            </TextBlock>
+                            <TextBlock Text="After Labs is installed on each GoPro switch each camera on and point at the QR Code below. After the GoPro has read the QR Code switch the camera off." TextWrapping="WrapWholeWords"/>
+                            <TextBlock Text="The QR Code sets up the following:" TextWrapping="WrapWholeWords"/>
+                            <TextBlock Padding="10">
+                                <Run Text="• Size maximum GoPro MP4 file size of 64Gb. This is essential" /><LineBreak/>
+                                <Run Text="• Set the required resolution and frame rate" /><LineBreak/>
+                                <Run Text="• Once switched on the GoPros will start recording with a firm shake of the camera rig" />
+                            </TextBlock>
+                            <Grid Margin="0,10,0,0">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <DropDownButton x:Name="GoProQRSelection" Grid.Column="0" HorizontalAlignment="Left"  VerticalAlignment="Top" Content="Standard Setup">
+                                    <DropDownButton.Flyout>
+                                        <MenuFlyout>
+                                            <MenuFlyoutItem Text="Standard Setup" Click="GoProQRSelectionMenuFlyoutItem_Click"/>
+                                            <MenuFlyoutItem Text="Reset" Click="GoProQRSelectionMenuFlyoutItem_Click"/>
+                                        </MenuFlyout>
+                                    </DropDownButton.Flyout>
+                                </DropDownButton>
+                                <Image x:Name="GoProQRCode"  Grid.Column="1" Width="400" Height="400" Margin="10,0,10,0"/>
+                                <TextBlock x:Name="GoProQRScript" Text="" Grid.Column="2" Style="{StaticResource CaptionTextBlockStyle}" Padding="10" TextWrapping="WrapWholeWords"/>
+                            </Grid>
+                        </StackPanel>
+
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
+
+                <!--  ABOUT  -->
                 <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="About" />
                 <toolkit:SettingsExpander Description="© 2025 All rights reserved." Header="{StaticResource AppTitleName}" MaxWidth="1200">
                     <toolkit:SettingsExpander.HeaderIcon>

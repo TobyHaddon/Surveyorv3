@@ -18,6 +18,8 @@ using System;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Threading.Tasks;
+using System.Xml.Linq;
 using Windows.ApplicationModel;
 using Windows.Graphics;
 using static Surveyor.User_Controls.SettingsWindowEventData;
@@ -46,12 +48,19 @@ namespace Surveyor.User_Controls
 
         public string WinAppSdkRuntimeDetails => App.WinAppSdkRuntimeDetails;
 
-        private Survey? survey = null;
+        private readonly Survey? survey = null;
 
-        public SettingsWindow(Survey surveyClass)
+        public SettingsWindow(SurveyorMediator mediator, MainWindow mainWindow, Survey surveyClass)
         {
+            // Remember main window (needed for this method)
+            _mainWindow = mainWindow;
+
             this.InitializeComponent();
             this.Closed += SettingsWindow_Closed;
+
+            // Initialize mediator handler for SurveyorMediaControl
+            _mediator = mediator;
+            _settingsWindowHandler = new SettingsWindowHandler(_mediator, this, mainWindow);
 
             // Remember the survey
             survey = surveyClass;
@@ -92,24 +101,11 @@ namespace Surveyor.User_Controls
                 (workArea.Height - adjustedHeight) / 2
             ));
 
+            // Force QR Standard Setup
+            _ = SetQRCodeSelection("Standard Setup");
+
             // Setup the Setting page
             OnSettingsPageLoaded(SettingsManager.ApplicationTheme);
-        }
-
-
-        /// <summary>
-        /// Initialize mediator handler for SurveyorMediaControl
-        /// </summary>
-        /// <param name="mediator"></param>
-        /// <returns></returns>
-        public TListener InitializeMediator(SurveyorMediator mediator, MainWindow mainWindow)
-        {
-            _mediator = mediator;
-            _mainWindow = mainWindow;
-
-            _settingsWindowHandler = new SettingsWindowHandler(_mediator, this, mainWindow);
-
-            return _settingsWindowHandler;
         }
 
 
@@ -218,7 +214,13 @@ namespace Surveyor.User_Controls
                 }
 
                 // Load the current isAutoMagnify state
-                magnifierWindowAutomatic.IsOn = SettingsManager.MagnifierWindowAutomatic;
+                MagnifierWindowAutomatic.IsOn = SettingsManager.MagnifierWindowAutomatic;
+
+                // Load the current diags indo state
+                DiagnosticInformation.IsOn = SettingsManager.DiagnosticInformation;
+
+                // Load the teaching tip enabled state
+                TeachingTips.IsOn = SettingsManager.TeachingTipsEnabled;
             }
         }
 
@@ -239,7 +241,8 @@ namespace Surveyor.User_Controls
             SettingsManager.ApplicationTheme = rootElement.RequestedTheme;
 
             // Unregister the mediator handler
-            _settingsWindowHandler!.Cleanup();
+            if (_mediator is not null && _settingsWindowHandler is not null)
+                _mediator.Unregister(_settingsWindowHandler);
         }
 
 
@@ -248,7 +251,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void themeMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        private void ThemeMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             var selectedTheme = ((ComboBoxItem)themeMode.SelectedItem)?.Tag?.ToString();
             
@@ -278,9 +281,9 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void diagnosticInformation_Toggled(object sender, RoutedEventArgs e)
+        private void DiagnosticInformation_Toggled(object sender, RoutedEventArgs e)
         {
-            if (diagnosticInformation.IsOn)
+            if (DiagnosticInformation.IsOn)
             {
                 // Enable diagnostic information
                 SettingsManager.DiagnosticInformation = true;
@@ -294,7 +297,7 @@ namespace Surveyor.User_Controls
             // Inform everyone of the state change
             _settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.DiagnosticInformation)
             {
-                diagnosticInformation = diagnosticInformation.IsOn
+                diagnosticInformation = DiagnosticInformation.IsOn
             });
         }
 
@@ -304,11 +307,11 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void magnifierWindowAutomatic_Toggled(object sender, RoutedEventArgs e)
+        private void MagnifierWindowAutomatic_Toggled(object sender, RoutedEventArgs e)
         {
             bool settingValue;
 
-            if (magnifierWindowAutomatic.IsOn)
+            if (MagnifierWindowAutomatic.IsOn)
             {
                 // Enable automatic magnifier window
                 settingValue = true;
@@ -332,13 +335,55 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Toggle the survey rules on or off
+        /// Any traching tipss that had been marked not to be shown again will be shown again
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void surveyRulesActive_Toggled(object sender, RoutedEventArgs e)
+        private void ReshowTeachingTips_Click(object sender, RoutedEventArgs e)
         {
+            SettingsManager.RemoveAllTeachingTipShown();
+        }
 
+        /// <summary>
+        /// Toggle the teaching tips on or off
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void TeachingTips_Toggled(object sender, RoutedEventArgs e)
+        {
+            bool settingValue;
+
+            if (this.TeachingTips.IsOn)
+            {
+                // Enable teaching tips
+                settingValue = true;
+
+            }
+            else
+            {
+                // Disable teaching tips
+                settingValue = false;
+            }
+
+            // Remember the new state
+            SettingsManager.TeachingTipsEnabled = settingValue;
+        }
+
+
+        /// <summary>
+        /// Show the GoPro Camera Setup QR Codes
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private readonly string goproScriptStandardSetup = "!MQRDR=0mVr4p30q1oR1*64BT=64000\"Shake to record. Shutter to stop\"!MBOOT=\"!Luwp\"!SAVEuwp=>a0.8<r0\"Start\"+!S+H2!R";
+        private readonly string goproScriptReset = "!MBOOT=\"!Luwp\"!SAVEuwp=";
+
+        private async void GoProQRSelectionMenuFlyoutItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuFlyoutItem menuItem)
+            {
+                await SetQRCodeSelection(menuItem.Text);
+            }
         }
 
 
@@ -399,6 +444,28 @@ namespace Surveyor.User_Controls
 
         [DllImport("User32.dll")]
         private static extern uint GetDpiForWindow(IntPtr hWnd);
+
+
+        /// <summary>
+        /// Set the toolkit:SettingsCard for the GoPro setup
+        /// </summary>
+        /// <param name="name"></param>
+        private async Task SetQRCodeSelection(string name)
+        {
+            GoProQRSelection.Content = name; // Update button text
+
+            if (name == "Standard Setup")
+            {
+                GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(goproScriptStandardSetup);
+                GoProQRScript.Text = $"Script:\n{goproScriptStandardSetup}";
+            }
+            else if (name == "Reset")
+            {
+                GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(goproScriptReset);
+                GoProQRScript.Text = $"Script:\n{goproScriptReset}";
+            }
+
+        }
 
 
         // ***END OF SettingsWindow***

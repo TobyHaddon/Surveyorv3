@@ -50,11 +50,12 @@ namespace Surveyor
             /// </summary>
             public void Clear()
             {
-                this.Info.Clear();
-                this.Media.Clear();
-                this.Sync.Clear();
-                this.Events.Clear();
-                this.Calibration.Clear();
+                Info.Clear();
+                Media.Clear();
+                Sync.Clear();
+                Events.Clear();
+                Calibration.Clear();
+                SurveyRules.Clear();
             }
 
 
@@ -186,7 +187,7 @@ namespace Surveyor
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
                 }
             }
-            public InfoClass Info { get; set; } = new InfoClass();
+            public InfoClass Info { get; } = new InfoClass();
 
             public partial class MediaClass : INotifyPropertyChanged
             {
@@ -304,7 +305,7 @@ namespace Surveyor
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
                 }
             }
-            public MediaClass Media { get; set; } = new MediaClass();
+            public MediaClass Media { get; } = new MediaClass();
 
             public partial class SyncClass : INotifyPropertyChanged
             {
@@ -420,7 +421,7 @@ namespace Surveyor
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
                 }
             }
-            public SyncClass Sync { get; set; } = new SyncClass();
+            public SyncClass Sync { get; } = new SyncClass();
 
 
             public partial class EventsClass : INotifyPropertyChanged
@@ -499,7 +500,7 @@ namespace Surveyor
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
                 }
             }
-            public EventsClass Events { get; set; } = new EventsClass();
+            public EventsClass Events { get; } = new EventsClass();
 
 
             public partial class CalibrationClass : INotifyPropertyChanged
@@ -644,7 +645,7 @@ namespace Surveyor
                 }
 
             }
-            public CalibrationClass Calibration { get; set; } = new CalibrationClass();
+            public CalibrationClass Calibration { get; } = new CalibrationClass();
 
 
             public partial class SurveyRulesClass : INotifyPropertyChanged
@@ -766,9 +767,9 @@ namespace Surveyor
 
             }
 
-            public SurveyRulesClass SurveyRules { get; set; } = new SurveyRulesClass();
+            public SurveyRulesClass SurveyRules { get; } = new SurveyRulesClass();
         }
-        public DataClass Data { get; set; } = new DataClass();
+        public DataClass Data { get; set; } = new DataClass();      // Data instance is allowed to change
 
 
         /// <summary>
@@ -1190,9 +1191,9 @@ namespace Surveyor
                         result = CalibrationDataListResult.Found;
                         break;
                     }
-                    else if (calibrationData.LeftCalibrationCameraData == calibrationDataItem.LeftCalibrationCameraData &&
-                             calibrationData.RightCalibrationCameraData == calibrationDataItem.RightCalibrationCameraData &&
-                             calibrationData.CalibrationStereoCameraData == calibrationDataItem.CalibrationStereoCameraData)
+                    else if (calibrationData.LeftCameraCalibration == calibrationDataItem.LeftCameraCalibration &&
+                             calibrationData.RightCameraCalibration == calibrationDataItem.RightCameraCalibration &&
+                             calibrationData.StereoCameraCalibration == calibrationDataItem.StereoCameraCalibration)
                     {
                         index = i;
                         result = CalibrationDataListResult.FoundButDescriptionDiffer;

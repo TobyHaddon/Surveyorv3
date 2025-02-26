@@ -170,5 +170,76 @@ namespace Surveyor
                 localSettings.Values["UserName"] = value;
             }
         }
+
+        // Teaching Tips Enabled
+        public static bool TeachingTipsEnabled
+        {
+            get
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                if (localSettings.Values["TeachingTipsEnabled"] is not bool teachingTipsEnabled)
+                    teachingTipsEnabled = true;     // Default teaching tip to enabled
+
+                return teachingTipsEnabled;
+            }
+            set
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                localSettings.Values["TeachingTipsEnabled"] = value;
+            }
+        }
+
+
+        /// <summary>
+        /// Teaching tip control
+        /// </summary>
+        private const string TeachingTipShownKey = "TeachingTipShown";
+        public static bool HasTeachingTipBeenShown(string teachingTipName)
+        {
+            // Retrieve the flag from local settings
+            var localSettings = ApplicationData.Current.LocalSettings;
+            string key = TeachingTipShownKey + teachingTipName;
+            return localSettings.Values.ContainsKey(key) &&
+                   (bool)localSettings.Values[key];
+        }
+
+        public static void SetTeachingTipShown(string teachingTipName)
+        {
+            // Save the flag in local settings
+            var localSettings = ApplicationData.Current.LocalSettings;
+            string key = TeachingTipShownKey + teachingTipName;
+            localSettings.Values[key] = true;
+        }
+
+
+
+        /// <summary>
+        /// Used to remove all the TeachingTipShownXXXX values so the teaching tip are shown again
+        /// </summary>
+        public static void RemoveAllTeachingTipShown()
+        {
+            // Get the local settings container
+            var localSettings = ApplicationData.Current.LocalSettings;
+
+            // Create a list to store keys that need to be removed
+            List<string> keysToRemove = [];
+
+            // Iterate through all settings
+            foreach (var key in localSettings.Values.Keys)
+            {
+                // Check if the key starts with "TeachingTipShown"
+                if (key.StartsWith("TeachingTipShown"))
+                {
+                    // Add the key to the removal list
+                    keysToRemove.Add(key);
+                }
+            }
+
+            // Remove the settings with the identified keys
+            foreach (var key in keysToRemove)
+            {
+                localSettings.Values.Remove(key);
+            }
+        }
     }
 }
