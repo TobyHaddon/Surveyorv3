@@ -4,6 +4,8 @@
 // Version 1.1
 // Required a public method MainWindow.MediaBackToWindow() and MediaFullScreen() to return the media players to the stereo layout
 // Added support to Save a frame
+// Version 1.2  26 Feb 2025
+// Add a method to swap the targets is user LeftA mixed up with RightB (and therefore LeftB with RightA
 
 using Surveyor.Events;
 using Surveyor.User_Controls;
@@ -14,7 +16,10 @@ using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Media;
 using static Surveyor.MediaStereoControllerEventData;
-using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Controls;
+using System.Diagnostics.Metrics;
+using Surveyor.Helper;
+
 
 
 
@@ -703,6 +708,72 @@ namespace Surveyor
         //}
 
 
+        ///
+        /// MEDIATOR METHODS (Called by the TListener, always marked as internal)
+        ///
+
+        /// <summary>
+        /// Received from the MediaPlayers the natural duration of the media
+        /// </summary>
+        /// <param name="cameraSide">Indicate which player send the information</param>
+        /// <param name="naturalDuration">TimeSpan indicating the length of the media</param>
+        internal void _UpdateDurationAndFrameRate(eCameraSide cameraSide, TimeSpan naturalDuration, double frameRate)
+        {
+            // Maintain _maxNaturalDurationForController so it is as long as the longest media source.
+            if (naturalDuration > _maxNaturalDurationForController)
+                _maxNaturalDurationForController = naturalDuration;
+
+            if (cameraSide == eCameraSide.Left)
+                _frameRate = frameRate;
+        }
+
+
+        /// <summary>
+        /// Received from the MediaPlayer a new frame has been displayed
+        /// </summary>
+        internal void _NewImageFrame()
+        {
+            // Reset any target or measurement variables and
+            // clear any targets on the magnifier wondows
+            ClearCachedTargets();
+        }
+
+//=========================
+        /// <summary>
+        /// Receive a request to edit an existing SpeciesInfo record
+        /// </summary>
+        /// <param name="eventGuid"></param>
+        /// <returns></returns>
+        internal async Task _EditSpeciesInfo(Guid eventGuid)
+        {
+            if (eventsControl is not null)
+            {
+                Event? evt = eventsControl.FindEvent(eventGuid);
+
+                if (evt is not null)
+                {
+                    SpeciesInfo? speciesInfo = null;
+                    if (evt.EventData is SurveyMeasurement surveyMeasurement)
+                        speciesInfo = surveyMeasurement.SpeciesInfo;
+                    else if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
+                        speciesInfo = surveyStereoPoint.SpeciesInfo;
+                    else if (evt.EventData is SurveyPoint surveyPoint)
+                        speciesInfo = surveyPoint.SpeciesInfo;
+
+
+                    if (speciesInfo is not null)
+                    {
+                        // Assigned the species info via a user dialog box
+                        if (await speciesSelector.SpeciesEdit(mainWindow, speciesInfo) == true)
+                        {
+                            eventsControl?.AddEvent(evt);
+                        }
+                    }
+                }
+            }
+        }
+
+
 
         ///
         /// PRIVATE METHODS
@@ -710,74 +781,26 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Received from the MediaPlayers the natural duration of the media
-        /// </summary>
-        /// <param name="cameraSide">Indicate which player send the information</param>
-        /// <param name="naturalDuration">TimeSpan indicating the length of the media</param>
-        internal void UpdateDurationAndFrameRate(eCameraSide cameraSide, TimeSpan naturalDuration, double frameRate)
-        {
-            // Maintain _maxNaturalDurationForController so it is as long as the longest media source.
-            if (naturalDuration > _maxNaturalDurationForController)
-                _maxNaturalDurationForController = naturalDuration;
-            
-            if (cameraSide == eCameraSide.Left)
-                _frameRate = frameRate;
-
-            //if (!mediaSynchronized)
-            //{
-            //    // Signal to the MediaControls the natural duration
-            //    MediaControlHandlerData data = new(MediaControlHandlerData.eMediaControlAction.Duration, SurveyorMediaControl.eControlType.Primary)
-            //    {
-            //        duration = _maxNaturalDurationForController
-            //    };
-            //    mediaControllerHandler?.Send(data);
-            //}
-            //else
-            //{
-            //    SurveyorMediaControl.eControlType controlType;
-            //    controlType = cameraSide == eCameraSide.Left ? SurveyorMediaControl.eControlType.Primary : SurveyorMediaControl.eControlType.Secondary;
-
-            //    // Signal to the MediaControls the natural duration
-            //    MediaControlHandlerData data = new(MediaControlHandlerData.eMediaControlAction.Duration, SurveyorMediaControl.eControlType.Primary)
-            //    {
-            //        duration = naturalDuration
-            //    };
-            //    mediaControllerHandler?.Send(data);
-            //}
-        }
-
-
-        /// <summary>
-        /// Received from the MediaPlayer a new frame has been displayed
-        /// </summary>
-        internal void NewImageFrame()
-        {
-            // Reset any target or measurement variables and
-            // clear any targets on the magnifier wondows
-            ClearCachedTargets();
-        }
-
-
-        /// <summary>
         /// Received from the MediaPlayers the current position of the media
         /// </summary>
         /// <param name="cameraSide">Indicate which player send the information</param>
         /// <param name="position">TimeSpan indicating the current position in the media playback</param>
-        internal void ReceivePosition(eCameraSide cameraSide, TimeSpan currentPosition)
-        {
-            if (!mediaSynchronized)
-            {
-                SurveyorMediaControl.eControlType controlType;
-                controlType = cameraSide == eCameraSide.Left ? SurveyorMediaControl.eControlType.Primary : SurveyorMediaControl.eControlType.Secondary;
+        //??? No used
+        //internal void ReceivePosition(eCameraSide cameraSide, TimeSpan currentPosition)
+        //{
+        //    if (!mediaSynchronized)
+        //    {
+        //        SurveyorMediaControl.eControlType controlType;
+        //        controlType = cameraSide == eCameraSide.Left ? SurveyorMediaControl.eControlType.Primary : SurveyorMediaControl.eControlType.Secondary;
 
-                // Signal to the MediaControls the natural duration
-                MediaControlHandlerData data = new(MediaControlHandlerData.eMediaControlAction.Position, controlType)
-                {
-                    position = currentPosition
-                };
-                mediaControllerHandler?.Send(data);
-            }
-        }
+        //        // Signal to the MediaControls the natural duration
+        //        MediaControlHandlerData data = new(MediaControlHandlerData.eMediaControlAction.Position, controlType)
+        //        {
+        //            position = currentPosition
+        //        };
+        //        mediaControllerHandler?.Send(data);
+        //    }
+        //}
 
 
         /// <summary>
@@ -1241,6 +1264,7 @@ namespace Surveyor
                             mediaControllerHandler?.Send(data);
                         }
 
+#if DEBUG   // Appraoch is under test
                         // *** Epipolar Line Calculation - Approach 2 ***
                         // Calculate the near, far and middle points on the epipolar line from the SurveyRules
                         // if not SurveyRules for range in place then use 1m,10m and 5.5m
@@ -1259,6 +1283,7 @@ namespace Surveyor
                             };
                             mediaControllerHandler?.Send(data);
                         }
+#endif
                     }
                     else
                     {
@@ -1355,6 +1380,10 @@ namespace Surveyor
 
                 if (fullSetOfMeasurementPoints)
                 {
+                    // Check that logically Target Left A correponds to Target Right A and Target Left B is correponds to Target Right B
+                    // This is incase the user selected the points the wrong way around. If so the target will be swapped
+                    SurveyMeasurementHelper.EnsureCorrectCorrespondence(surveyMeasurement);
+
                     // Assigned the species info via a user dialog box
                     SpeciesInfo specifiesInfo = new();
                     if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo) == true)
@@ -1526,46 +1555,11 @@ namespace Surveyor
         }
 
 
-        /// <summary>
-        /// Receive a request to edit an existing SpeciesInfo record
-        /// </summary>
-        /// <param name="eventGuid"></param>
-        /// <returns></returns>
-        internal async Task EditSpeciesInfo(Guid eventGuid)
-        {
-            if (eventsControl is not null)
-            {
-                Event? evt = eventsControl.FindEvent(eventGuid);
-
-                if (evt is not null)
-                {
-                    SpeciesInfo? speciesInfo = null;
-                    if (evt.EventData is SurveyMeasurement surveyMeasurement)
-                        speciesInfo = surveyMeasurement.SpeciesInfo;
-                    else if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
-                        speciesInfo = surveyStereoPoint.SpeciesInfo;
-                    else if (evt.EventData is SurveyPoint surveyPoint)
-                        speciesInfo = surveyPoint.SpeciesInfo;
-
-
-                    if (speciesInfo is not null)
-                    {
-                        // Assigned the species info via a user dialog box
-                        if (await speciesSelector.SpeciesEdit(mainWindow, speciesInfo) == true)
-                        {
-                            eventsControl?.AddEvent(evt);
-                        }
-                    }
-                }
-            }
-        }
-
 
         /// <summary>
         /// Create a Event record for a StereoSyncPoint at the current locked media position
-        /// 
         /// </summary>
-        internal void SurveyStereoSyncPointSelected(TimeSpan timelineConntrollerPoistion, TimeSpan leftPosition, TimeSpan rightPosition)
+        private void SurveyStereoSyncPointSelected(TimeSpan timelineConntrollerPoistion, TimeSpan leftPosition, TimeSpan rightPosition)
         {
             // Check if the Events list is not null 
             if (eventsControl is not null)
@@ -1591,19 +1585,18 @@ namespace Surveyor
         }
 
 
+
+
+
         /// <summary>
         /// Clear the targets on the magnifier windows and the remembered copys in this class
         /// </summary>
-        void ClearCachedTargets()
+        private void ClearCachedTargets()
         {
             TargetALeft = null;
             TargetBLeft = null;
             TargetARight = null;
             TargetBRight = null;
-
-            //???Do this in the magnifyAndMarkerDisplay.NewImageFrame()
-            //???magnifyAndMarkerDisplayLeft.SetTargets(null, null);
-            //???magnifyAndMarkerDisplayRight.SetTargets(null, null);
         }
 
 
@@ -1657,12 +1650,12 @@ namespace Surveyor
 
     internal class MediaControllerHandler : TListener
     {
-        private readonly MediaStereoController _mediaStereoController;
+        private readonly MediaStereoController mediaStereoController;
 
 
-        internal MediaControllerHandler(IMediator mediator, MainWindow mainWindow, MediaStereoController mediaStereoController) : base(mediator, mainWindow)
+        internal MediaControllerHandler(IMediator mediator, MainWindow mainWindow, MediaStereoController _mediaStereoController) : base(mediator, mainWindow)
         {
-            _mediaStereoController = mediaStereoController;
+            mediaStereoController = _mediaStereoController;
         }
 
         public override void Receive(TListener listenerFrom, object message)
@@ -1679,25 +1672,25 @@ namespace Surveyor
                             break;
 
                         case MediaPlayerEventData.eMediaPlayerEvent.Closed:
-                            _mediaStereoController.SetFrameSize(eCameraSide.Left, -1, -1);
-                            _mediaStereoController.SetFrameSize(eCameraSide.Right, -1, -1);
+                            mediaStereoController.SetFrameSize(eCameraSide.Left, -1, -1);
+                            mediaStereoController.SetFrameSize(eCameraSide.Right, -1, -1);
                             break;
 
                         case MediaPlayerEventData.eMediaPlayerEvent.DurationAndFrameRate:
                             if (data.duration is not null && data.frameRate is not null)
-                                _mediaStereoController.UpdateDurationAndFrameRate(data.cameraSide, (TimeSpan)data.duration, (double)data.frameRate);
+                                mediaStereoController._UpdateDurationAndFrameRate(data.cameraSide, (TimeSpan)data.duration, (double)data.frameRate);
                             break;
 
                         case MediaPlayerEventData.eMediaPlayerEvent.EndOfMedia:
                             break;
 
                         case MediaPlayerEventData.eMediaPlayerEvent.FrameRendered:
-                            _mediaStereoController.NewImageFrame();  // Clear any selected targets
+                            mediaStereoController._NewImageFrame();  // Clear any selected targets
                             break;
 
                         case MediaPlayerEventData.eMediaPlayerEvent.FrameSize:
                             if (data.frameWidth is not null && data.frameHeight is not null)
-                                SafeUICall(() => _mediaStereoController.SetFrameSize(data.cameraSide, (int)data.frameWidth, (int)data.frameHeight));
+                                SafeUICall(() => mediaStereoController.SetFrameSize(data.cameraSide, (int)data.frameWidth, (int)data.frameHeight));
                            break;
                     }
                 }
@@ -1711,78 +1704,77 @@ namespace Surveyor
                     {
                         // Play or Pause
                         case MediaControlEventData.eMediaControlEvent.UserReqPlayOrPause:
-                            //if (data.playOrPause is not null)
-                                _mediaStereoController.UserReqPlayOrPause(data.controlType, data.playOrPause);
+                            mediaStereoController.UserReqPlayOrPause(data.controlType, data.playOrPause);
                             break;
 
                         // Jump to an absolute position in the media
                         case MediaControlEventData.eMediaControlEvent.UserReqFrameJump:
                             if (data.positionJump is not null)
-                                _mediaStereoController.UserReqFrameJump(data.controlType, (TimeSpan)data.positionJump);
+                                mediaStereoController.UserReqFrameJump(data.controlType, (TimeSpan)data.positionJump);
                             break;
 
                         // Move to a relative position in the media
                         case MediaControlEventData.eMediaControlEvent.UserReqFrameMove:
-                            _mediaStereoController.UserReqFrameMove(data.controlType, data.framesDelta);
+                            mediaStereoController.UserReqFrameMove(data.controlType, data.framesDelta);
                             break;
 
                         // Frame back
                         case MediaControlEventData.eMediaControlEvent.UserReqFrameBackward:
-                            _mediaStereoController.UserReqFrameMove(data.controlType, -1);
+                            mediaStereoController.UserReqFrameMove(data.controlType, -1);
                             break;
 
                         // Frame forward
                         case MediaControlEventData.eMediaControlEvent.UserReqFrameForward:
-                            _mediaStereoController.UserReqFrameMove(data.controlType, 1);
+                            mediaStereoController.UserReqFrameMove(data.controlType, 1);
                             break;
 
                         // Move step back 10 seconds
                         case MediaControlEventData.eMediaControlEvent.UserReqMoveStepBack:
-                            _mediaStereoController.UserReqMoveStep(data.controlType, -(new TimeSpan(0, 0, 10)));
+                            mediaStereoController.UserReqMoveStep(data.controlType, -(new TimeSpan(0, 0, 10)));
                             break;
 
                         // Move step forward 30 seconds
                         case MediaControlEventData.eMediaControlEvent.UserReqMoveStepForward:
-                            _mediaStereoController.UserReqMoveStep(data.controlType, (new TimeSpan(0, 0, 30)));
+                            mediaStereoController.UserReqMoveStep(data.controlType, (new TimeSpan(0, 0, 30)));
                             break;
 
                         // Mute or Unmute   
                         case MediaControlEventData.eMediaControlEvent.UserReqMutedOrUmuted:
                             if (data.mute is not null)
-                                _mediaStereoController.UserReqMutedOrUmuted(data.controlType, (bool)data.mute);
+                                mediaStereoController.UserReqMutedOrUmuted(data.controlType, (bool)data.mute);
                             break;
 
                         // Set speed
                         case MediaControlEventData.eMediaControlEvent.UserReqSpeedSelect:
                             if (data.speed is not null)
-                                _mediaStereoController.UserReqSetSpeed(data.controlType, (float)data.speed);
+                                mediaStereoController.UserReqSetSpeed(data.controlType, (float)data.speed);
                             break;
 
                         // Full screen
                         case MediaControlEventData.eMediaControlEvent.UserReqFullScreen:
-                            _mediaStereoController.UserReqFullScreen(data.controlType, data.cameraSide);
+                            mediaStereoController.UserReqFullScreen(data.controlType, data.cameraSide);
                             break;
 
                         // Back to window
                         case MediaControlEventData.eMediaControlEvent.UserReqBackToWindow:
-                            _mediaStereoController.UserReqBackToWindow();
+                            mediaStereoController.UserReqBackToWindow();
                             break;
 
                         // Cast to device
                         case MediaControlEventData.eMediaControlEvent.UserReqCasting:
-                            _mediaStereoController.UserReqCasting(data.controlType);
+                            mediaStereoController.UserReqCasting(data.controlType);
                             break;
 
                         // Save frame request
                         case MediaControlEventData.eMediaControlEvent.UserReqSaveFrame:
-                            _mediaStereoController.UserReqSaveFrame(data.controlType);
+                            mediaStereoController.UserReqSaveFrame(data.controlType);
                             break;
 
                         // Mag Window size change request
 #if !No_MagnifyAndMarkerDisplay
                         case MediaControlEventData.eMediaControlEvent.UserReqMagWindowSizeSelect:
                             if (data.magWindowSize is not null)
-                                _mediaStereoController.UserReqMagWindowSizeSelect(data.controlType, data.magWindowSize);
+                                mediaStereoController.UserReqMagWindowSizeSelect(data.controlType, data.magWindowSize);
                             break;
 #endif
 
@@ -1790,7 +1782,7 @@ namespace Surveyor
 #if !No_MagnifyAndMarkerDisplay
                         case MediaControlEventData.eMediaControlEvent.UserReqMagZoomSelect:
                             if (data.canvasZoomFactor is not null)
-                                _mediaStereoController.UserReqMagZoomSelect(data.controlType, (double)data.canvasZoomFactor);
+                                mediaStereoController.UserReqMagZoomSelect(data.controlType, (double)data.canvasZoomFactor);
                             break;
 #endif
 
@@ -1798,7 +1790,7 @@ namespace Surveyor
 #if !No_MagnifyAndMarkerDisplay
                         case MediaControlEventData.eMediaControlEvent.UserReqAutoMagOnOff:
                             if (data.isAutoMagnify is not null)
-                                _mediaStereoController.UserReqAutoMagZoomOnOff(data.controlType, (bool)data.isAutoMagnify);
+                                mediaStereoController.UserReqAutoMagZoomOnOff(data.controlType, (bool)data.isAutoMagnify);
                             break;
 #endif
 
@@ -1806,7 +1798,7 @@ namespace Surveyor
                         // Layer type displayed
                         case MediaControlEventData.eMediaControlEvent.UserReqLayersDisplayed:
                             if (data.layerTypesDisplayed is not null)
-                                _mediaStereoController.UserReqLayersDisplayed(data.controlType, (LayerType)data.layerTypesDisplayed);
+                                mediaStereoController.UserReqLayersDisplayed(data.controlType, (LayerType)data.layerTypesDisplayed);
                             break;  
 #endif
                     }
@@ -1822,7 +1814,7 @@ namespace Surveyor
                     case MagnifyAndMarkerControlEvent.TargetPointSelected:
                         if (data.TruePointAFalsePointB is not null)
                         {
-                            SafeUICall(() => _mediaStereoController.TargetPointSelected(data.cameraSide, (bool)data.TruePointAFalsePointB, data.pointA, data.pointB));
+                            SafeUICall(() => mediaStereoController.TargetPointSelected(data.cameraSide, (bool)data.TruePointAFalsePointB, data.pointA, data.pointB));
                             if ((bool)data.TruePointAFalsePointB)
                             {
                                 if (data.pointA is not null)
@@ -1843,7 +1835,7 @@ namespace Surveyor
                     case MagnifyAndMarkerControlEvent.SurveyMeasurementPairSelected:
                         if (data.pointA is not null && data.pointB is not null)
                         {
-                            SafeUICall(async () => await _mediaStereoController.SurveyMeasurementPairSelected(data.cameraSide, (Point)data.pointA, (Point)data.pointB));
+                            SafeUICall(async () => await mediaStereoController.SurveyMeasurementPairSelected(data.cameraSide, (Point)data.pointA, (Point)data.pointB));
                             Debug.WriteLine($"***SurveyMeasurementPairSelected");
                         }
                         break;
@@ -1851,7 +1843,7 @@ namespace Surveyor
                     case MagnifyAndMarkerControlEvent.SurveyPointSelected:
                         if (data.TruePointAFalsePointB is not null)
                         {
-                            SafeUICall(async () => await _mediaStereoController.SurveyPointSelected(data.cameraSide, (bool)data.TruePointAFalsePointB, data.pointA, data.pointB));
+                            SafeUICall(async () => await mediaStereoController.SurveyPointSelected(data.cameraSide, (bool)data.TruePointAFalsePointB, data.pointA, data.pointB));
                             Debug.WriteLine($"***SurveyPointSelected");
                         }
                         break;
@@ -1859,7 +1851,7 @@ namespace Surveyor
                     case MagnifyAndMarkerControlEvent.EditSpeciesInfoRequest:
                         if (data.eventGuid is not null)
                         {
-                            SafeUICall(async () => await _mediaStereoController.EditSpeciesInfo((Guid)data.eventGuid));
+                            SafeUICall(async () => await mediaStereoController._EditSpeciesInfo((Guid)data.eventGuid));
                             Debug.WriteLine($"***EditSpeciesInfo");
                         }
                         break;

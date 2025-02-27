@@ -1,14 +1,28 @@
-﻿using Microsoft.UI.Xaml;
-using System;
+﻿// Handles the local per user settings and the shipped application settings
+// class SettingsManagerLocal is for the local settings that are stored on the user's device
+// class SettingsManagerApp is for the application settings that are shipped with the application and are read-only
+// Note settings from SettingsManagerApp should be remembered and not learnt repeatedly from SettingsManagerApp 
+// This is because the whole appSettings.json is loaded each time and it is not efficient to read it repeatedly
+//
+// Version 1.0
+// Verison 1.1  26 Feb 2025
+// Added SettingsManagerApp 
+
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Media;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using Windows.Storage;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System;
+using System.IO;
 
 namespace Surveyor
 {
-    internal class SettingsManager
+    /// <summary>
+    /// Handle the application local user settings 
+    /// </summary>
+    public class SettingsManagerLocal
     {
         // Path where new media (MP4) are typically imported from
         public static string? MediaImportFolder
@@ -242,4 +256,73 @@ namespace Surveyor
             }
         }
     }
+
+    public class SettingsManagerApp
+    {
+        // Singleton instance
+        private static SettingsManagerApp? _instance;
+        public static SettingsManagerApp Instance => _instance ??= Load();
+
+        public int RecentSurveysDisplayed { get; set; }  // Only use the 'get' the 'set' is for the Json deserializer
+
+
+        [JsonConverter(typeof(KeyValuePairListJsonConverter))]
+        public List<(string, string)> GoProScripts { get; set; } = [];  // Only use the 'get' the 'set' is for the Json deserializer
+
+
+
+        ///
+        /// PRIVATE
+        ///
+
+
+        /// <summary>
+        /// Load the application settings
+        /// </summary>
+
+        private static readonly string SettingsFilePath = Path.Combine(AppContext.BaseDirectory, "appSettings.json");
+        private static SettingsManagerApp Load()
+        {
+            if (File.Exists(SettingsFilePath))
+            {
+                string json = File.ReadAllText(SettingsFilePath);
+                return JsonSerializer.Deserialize<SettingsManagerApp>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new SettingsManagerApp();
+            }
+            else
+            {
+                throw new FileNotFoundException($"Settings file not found: {SettingsFilePath}");
+            }
+        }
+    }
+
+
+    /// <summary>
+    /// Custom JSON converter for KeyValuePairList
+    /// </summary>
+    public class KeyValuePairListJsonConverter : JsonConverter<List<(string, string)>>
+    {
+        public override List<(string, string)> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+        {
+            var list = new List<(string, string)>();
+            using (JsonDocument doc = JsonDocument.ParseValue(ref reader))
+            {
+                foreach (var element in doc.RootElement.EnumerateArray())
+                {
+                    if (element.ValueKind == JsonValueKind.Array && element.GetArrayLength() == 2)
+                    {
+                        string key = element[0].GetString() ?? string.Empty;
+                        string value = element[1].GetString() ?? string.Empty;
+                        list.Add((key, value));
+                    }
+                }
+            }
+            return list;
+        }
+
+        public override void Write(Utf8JsonWriter writer, List<(string, string)> value, JsonSerializerOptions options)
+        {
+            throw new NotSupportedException("Settings are read-only. Writing to JSON is not allowed.");
+        }
+    }
+
 }

@@ -44,7 +44,7 @@ namespace Surveyor
         private bool diagnosticInformation = false;
         public SurveyorMediator()
         {
-            diagnosticInformation = SettingsManager.DiagnosticInformation;
+            diagnosticInformation = SettingsManagerLocal.DiagnosticInformation;
         }
 
         /// <summary>

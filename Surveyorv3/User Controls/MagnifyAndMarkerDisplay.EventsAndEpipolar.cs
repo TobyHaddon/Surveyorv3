@@ -611,7 +611,7 @@ namespace Surveyor.User_Controls
             if (channelWidth != -1)
             {
                 // Show TeachingTip is necessary
-                if (SettingsManager.TeachingTipsEnabled == true && !SettingsManager.HasTeachingTipBeenShown("EpipolarLineTeachingTip"))
+                if (SettingsManagerLocal.TeachingTipsEnabled == true && !SettingsManagerLocal.HasTeachingTipBeenShown("EpipolarLineTeachingTip"))
                 {
                     EpipolarLineTeachingTip.IsOpen = true;
                 }
@@ -804,7 +804,7 @@ namespace Surveyor.User_Controls
             if (channelWidth != -1)
             {
                 // Show TeachingTip is necessary
-                if (SettingsManager.TeachingTipsEnabled == true && !SettingsManager.HasTeachingTipBeenShown("EpipolarPointsTeachingTip"))
+                if (SettingsManagerLocal.TeachingTipsEnabled == true && !SettingsManagerLocal.HasTeachingTipBeenShown("EpipolarPointsTeachingTip"))
                 {
                     EpipolarPointsTeachingTip.IsOpen = true;
                 }

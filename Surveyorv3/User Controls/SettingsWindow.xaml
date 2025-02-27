@@ -37,7 +37,7 @@
 
                 
                 <!--SURVEY SETTINGS-->
-                <toolkit:SettingsExpander Header="Survey Settings" MaxWidth="1200">
+                <toolkit:SettingsExpander x:Name="SurveySettingsExpander" Header="Survey Settings" MaxWidth="1200">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE160;" />
                     </toolkit:SettingsExpander.HeaderIcon>
@@ -90,7 +90,7 @@
 
 
                 <!--GENERAL SETTINGS-->
-                <toolkit:SettingsExpander Header="General Settings" MaxWidth="1200">
+                <toolkit:SettingsExpander x:Name="GeneralSettingsExpander" Header="General Settings" MaxWidth="1200">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE115;" />
                     </toolkit:SettingsExpander.HeaderIcon>
@@ -159,28 +159,26 @@
                                 </TextBlock.Inlines>
                             </TextBlock>
                             <TextBlock Text="After Labs is installed on each GoPro switch each camera on and point at the QR Code below. After the GoPro has read the QR Code switch the camera off." TextWrapping="WrapWholeWords"/>
-                            <TextBlock Text="The QR Code sets up the following:" TextWrapping="WrapWholeWords"/>
-                            <TextBlock Padding="10">
-                                <Run Text="• Size maximum GoPro MP4 file size of 64Gb. This is essential" /><LineBreak/>
+                            <TextBlock Text="The QR Code sets up the following:" TextWrapping="WrapWholeWords" Margin="0,10,0,0"/>
+                            <TextBlock Margin="10,0,0,0">
+                                <Run Text="• Sets the maximum MP4 file size of 64Gb" /><LineBreak/>
                                 <Run Text="• Set the required resolution and frame rate" /><LineBreak/>
                                 <Run Text="• Once switched on the GoPros will start recording with a firm shake of the camera rig" />
                             </TextBlock>
                             <Grid Margin="0,10,0,0">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="Auto"/>
-                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="50*"/>
+                                    <ColumnDefinition Width="50*"/>
                                 </Grid.ColumnDefinitions>
-                                <DropDownButton x:Name="GoProQRSelection" Grid.Column="0" HorizontalAlignment="Left"  VerticalAlignment="Top" Content="Standard Setup">
-                                    <DropDownButton.Flyout>
-                                        <MenuFlyout>
-                                            <MenuFlyoutItem Text="Standard Setup" Click="GoProQRSelectionMenuFlyoutItem_Click"/>
-                                            <MenuFlyoutItem Text="Reset" Click="GoProQRSelectionMenuFlyoutItem_Click"/>
-                                        </MenuFlyout>
-                                    </DropDownButton.Flyout>
-                                </DropDownButton>
-                                <Image x:Name="GoProQRCode"  Grid.Column="1" Width="400" Height="400" Margin="10,0,10,0"/>
-                                <TextBlock x:Name="GoProQRScript" Text="" Grid.Column="2" Style="{StaticResource CaptionTextBlockStyle}" Padding="10" TextWrapping="WrapWholeWords"/>
+                                <StackPanel Orientation="Vertical" VerticalAlignment="Top" HorizontalAlignment="Left">
+                                    <DropDownButton x:Name="GoProQRSelection" Grid.Column="0" HorizontalAlignment="Left"  VerticalAlignment="Top" Content="Standard Setup">
+                                        <DropDownButton.Flyout>
+                                            <MenuFlyout x:Name="GoProQRSelectionFlyout"/>
+                                        </DropDownButton.Flyout>
+                                    </DropDownButton>
+                                    <TextBlock x:Name="GoProQRScript" Text="" Grid.Column="0" Style="{StaticResource CaptionTextBlockStyle}" Margin="0,10,0,0" TextWrapping="WrapWholeWords"/>
+                                </StackPanel>
+                                <Image x:Name="GoProQRCode"  HorizontalAlignment="Right" Grid.Column="1" Width="400" Height="400" Margin="10,0,00,0"/>
                             </Grid>
                         </StackPanel>
 

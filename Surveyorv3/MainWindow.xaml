@@ -72,7 +72,7 @@
                     <MenuFlyoutSeparator/>
                     <MenuFlyoutItem Name="MenuImportCalibration" Text="Import Calibration" IsEnabled="False" Click="FileImportCalibration_Click"/>
                     <MenuFlyoutSeparator/>
-                    <MenuFlyoutItem Name="MenuSettings" Text="Settings..." IsEnabled="False" Click="FileSettings_Click"/>
+                    <MenuFlyoutItem Name="MenuSettings" Text="Settings..." IsEnabled="True" Click="FileSettings_Click"/>
                     <MenuFlyoutSeparator/>
                     <MenuFlyoutItem Text="Exit" Click="FileExit_Click">
                         <MenuFlyoutItem.KeyboardAccelerators>

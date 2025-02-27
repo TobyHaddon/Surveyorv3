@@ -46,7 +46,7 @@ namespace Surveyor.User_Controls
         private float _speed = 1.0f;
 
         // Set to true if the Magnifier Window is automatically displayed as the pointer(mouse) moves
-        private bool isAutoMagnify = SettingsManager.MagnifierWindowAutomatic;    // Must be set to the same initial value as 'isAutoMagnify' in MagnifyAndMarkerDisplay.xaml.cs
+        private bool isAutoMagnify = SettingsManagerLocal.MagnifierWindowAutomatic;    // Must be set to the same initial value as 'isAutoMagnify' in MagnifyAndMarkerDisplay.xaml.cs
         private Microsoft.UI.Xaml.Media.SolidColorBrush? appButtonAutoMagnifyOn = null;
         private Microsoft.UI.Xaml.Media.SolidColorBrush? appButtonAutoMagnifyOff = null;
         private string? appButtonAutoMagnifyTooltip = null;
@@ -960,9 +960,7 @@ namespace Surveyor.User_Controls
                     }
                 }
 
-                // Now figure which speed was clicked on
-                // Convert the selected Flyout Item text to a float
-                double _canvasZoomFactor = double.Parse(selectedFlyoutItem.Text.TrimEnd('x'));
+                // Check if the layer selected actually changed
                 if (layerTypesDisplayed != layerTypeNew)
                 {
                     layerTypesDisplayed = layerTypeNew;
@@ -1228,11 +1226,16 @@ namespace Surveyor.User_Controls
 
 
         ///
+        /// MEDIATOR METHODS (Called by the TListener, always marked as internal)
+        ///
+
+
+        ///
         /// PRIVATE METHODS
         /// 
 
         static List<float> speedList = new List<float> { 0.25f, 0.5f, 1.0f, 1.5f, 2.0f, 5.0f };
-        private float CalcSpeed(float currentSpeed, bool TrueIncreaseFalseDecrease)
+        private static float CalcSpeed(float currentSpeed, bool TrueIncreaseFalseDecrease)
         {
             float ret;
 

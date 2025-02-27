@@ -12,10 +12,13 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Newtonsoft.Json.Linq;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
@@ -36,13 +39,13 @@ namespace Surveyor.User_Controls
     public sealed partial class SettingsWindow : Window
     {
         // Copy of MainWindow
-        private MainWindow? _mainWindow = null;
+        private readonly MainWindow? mainWindow = null;
 
         // Copy of the mediator 
-        private SurveyorMediator? _mediator;
+        private readonly SurveyorMediator? mediator;
 
         // Declare the mediator handler for MediaPlayer
-        private SettingsWindowHandler? _settingsWindowHandler;
+        private readonly SettingsWindowHandler? settingsWindowHandler;
 
         private readonly ElementTheme? rootThemeOriginal = null;
 
@@ -50,29 +53,31 @@ namespace Surveyor.User_Controls
 
         private readonly Survey? survey = null;
 
-        public SettingsWindow(SurveyorMediator mediator, MainWindow mainWindow, Survey surveyClass)
+        public SettingsWindow(SurveyorMediator _mediator, MainWindow _mainWindow, Survey? surveyClass)
         {
             // Remember main window (needed for this method)
-            _mainWindow = mainWindow;
+            mainWindow = _mainWindow;
 
             this.InitializeComponent();
             this.Closed += SettingsWindow_Closed;
 
             // Initialize mediator handler for SurveyorMediaControl
-            _mediator = mediator;
-            _settingsWindowHandler = new SettingsWindowHandler(_mediator, this, mainWindow);
+            mediator = _mediator;
+            settingsWindowHandler = new SettingsWindowHandler(mediator, this, mainWindow);
 
             // Remember the survey
             survey = surveyClass;
 
             // Set the current saved theme
-            SetSettingsTheme(SettingsManager.ApplicationTheme);
+            SetSettingsTheme(SettingsManagerLocal.ApplicationTheme);
 
             // Inform the SurveyInfoAndMedia user control that is is being used in the SettingsWindow
-            SurveyInfoAndMedia.SetupForSettingWindow(SettingsCardSurveyInfoAndMedia, surveyClass);
+            if (surveyClass is not null)
+                SurveyInfoAndMedia.SetupForSettingWindow(SettingsCardSurveyInfoAndMedia, surveyClass);
 
             // Inform the SettingsSurveyRules user control that it is being used in the SettingsWindow for a survey (as opposed to a Field Trip)
-            SettingsSurveyRules.SetupForSurveySettingWindow(SettingsExpanderSurveyRules, surveyClass);
+            if (surveyClass is not null)
+                SettingsSurveyRules.SetupForSurveySettingWindow(SettingsExpanderSurveyRules, surveyClass);
 
             // Remove the separate title bar from the window
             ExtendsContentIntoTitleBar = true;
@@ -102,10 +107,13 @@ namespace Surveyor.User_Controls
             ));
 
             // Force QR Standard Setup
-            _ = SetQRCodeSelection("Standard Setup");
+            _ = SetQRCodeSelection(null);  // null selects the first item in the list
+
+            // Hide the Survey Settings if the Survey is null
+            SurveySettingsExpander.Visibility = survey is null ? Visibility.Collapsed : Visibility.Visible;
 
             // Setup the Setting page
-            OnSettingsPageLoaded(SettingsManager.ApplicationTheme);
+            OnSettingsPageLoaded(SettingsManagerLocal.ApplicationTheme);
         }
 
 
@@ -184,9 +192,9 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private async void ReCalculate_Click(object sender, RoutedEventArgs e)
         {
-            if (_mainWindow is not null)
+            if (mainWindow is not null)
             {
-                await _mainWindow.CheckIfEventMeasurementsAreUpToDate(true/*forceReCalc*/);
+                await mainWindow.CheckIfEventMeasurementsAreUpToDate(true/*forceReCalc*/);
             }
         }
 
@@ -197,7 +205,7 @@ namespace Surveyor.User_Controls
         /// <param name="theme"></param>
         private void OnSettingsPageLoaded(ElementTheme theme)
         {
-            if (_mainWindow is not null)
+            if (mainWindow is not null)
             {
                 // Load the current theme
                 switch (theme)
@@ -214,13 +222,13 @@ namespace Surveyor.User_Controls
                 }
 
                 // Load the current isAutoMagnify state
-                MagnifierWindowAutomatic.IsOn = SettingsManager.MagnifierWindowAutomatic;
+                MagnifierWindowAutomatic.IsOn = SettingsManagerLocal.MagnifierWindowAutomatic;
 
                 // Load the current diags indo state
-                DiagnosticInformation.IsOn = SettingsManager.DiagnosticInformation;
+                DiagnosticInformation.IsOn = SettingsManagerLocal.DiagnosticInformation;
 
                 // Load the teaching tip enabled state
-                TeachingTips.IsOn = SettingsManager.TeachingTipsEnabled;
+                TeachingTips.IsOn = SettingsManagerLocal.TeachingTipsEnabled;
             }
         }
 
@@ -234,15 +242,15 @@ namespace Surveyor.User_Controls
         {
             // Check if the theme has changed
             var rootElement = (FrameworkElement)(this.Content);
-            if (rootThemeOriginal != rootElement.RequestedTheme && _mainWindow is not null)
-                _mainWindow.SetTheme(rootElement.RequestedTheme);
+            if (rootThemeOriginal != rootElement.RequestedTheme && mainWindow is not null)
+                mainWindow.SetTheme(rootElement.RequestedTheme);
 
             // Set the save theme
-            SettingsManager.ApplicationTheme = rootElement.RequestedTheme;
+            SettingsManagerLocal.ApplicationTheme = rootElement.RequestedTheme;
 
             // Unregister the mediator handler
-            if (_mediator is not null && _settingsWindowHandler is not null)
-                _mediator.Unregister(_settingsWindowHandler);
+            if (mediator is not null && settingsWindowHandler is not null)
+                mediator.Unregister(settingsWindowHandler);
         }
 
 
@@ -286,16 +294,16 @@ namespace Surveyor.User_Controls
             if (DiagnosticInformation.IsOn)
             {
                 // Enable diagnostic information
-                SettingsManager.DiagnosticInformation = true;
+                SettingsManagerLocal.DiagnosticInformation = true;
             }
             else
             {
                 // Disable diagnostic information
-                SettingsManager.DiagnosticInformation = false;
+                SettingsManagerLocal.DiagnosticInformation = false;
             }
 
             // Inform everyone of the state change
-            _settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.DiagnosticInformation)
+            settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.DiagnosticInformation)
             {
                 diagnosticInformation = DiagnosticInformation.IsOn
             });
@@ -324,10 +332,10 @@ namespace Surveyor.User_Controls
             }
 
             // Remember the new state
-            SettingsManager.MagnifierWindowAutomatic = settingValue;
+            SettingsManagerLocal.MagnifierWindowAutomatic = settingValue;
 
             // Inform everyone of the state change
-            _settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.MagnifierWindow)
+            settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.MagnifierWindow)
             {
                 magnifierWindowAutomatic = settingValue
             });
@@ -341,7 +349,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void ReshowTeachingTips_Click(object sender, RoutedEventArgs e)
         {
-            SettingsManager.RemoveAllTeachingTipShown();
+            SettingsManagerLocal.RemoveAllTeachingTipShown();
         }
 
         /// <summary>
@@ -366,7 +374,7 @@ namespace Surveyor.User_Controls
             }
 
             // Remember the new state
-            SettingsManager.TeachingTipsEnabled = settingValue;
+            SettingsManagerLocal.TeachingTipsEnabled = settingValue;
         }
 
 
@@ -375,9 +383,6 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private readonly string goproScriptStandardSetup = "!MQRDR=0mVr4p30q1oR1*64BT=64000\"Shake to record. Shutter to stop\"!MBOOT=\"!Luwp\"!SAVEuwp=>a0.8<r0\"Start\"+!S+H2!R";
-        private readonly string goproScriptReset = "!MBOOT=\"!Luwp\"!SAVEuwp=";
-
         private async void GoProQRSelectionMenuFlyoutItem_Click(object sender, RoutedEventArgs e)
         {
             if (sender is MenuFlyoutItem menuItem)
@@ -385,6 +390,12 @@ namespace Surveyor.User_Controls
                 await SetQRCodeSelection(menuItem.Text);
             }
         }
+
+
+        ///
+        /// MEDIATOR METHODS (Called by the TListener, always marked as internal)
+        ///
+
 
 
         ///
@@ -450,21 +461,52 @@ namespace Surveyor.User_Controls
         /// Set the toolkit:SettingsCard for the GoPro setup
         /// </summary>
         /// <param name="name"></param>
-        private async Task SetQRCodeSelection(string name)
+        private async Task SetQRCodeSelection(string? name)
         {
-            GoProQRSelection.Content = name; // Update button text
+            List<(string, string)> GoProScriptsList = SettingsManagerApp.Instance.GoProScripts;
 
-            if (name == "Standard Setup")
+            if (name is null && GoProScriptsList.Count > 0)
             {
-                GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(goproScriptStandardSetup);
-                GoProQRScript.Text = $"Script:\n{goproScriptStandardSetup}";
-            }
-            else if (name == "Reset")
-            {
-                GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(goproScriptReset);
-                GoProQRScript.Text = $"Script:\n{goproScriptReset}";
+                name = GoProScriptsList[0].Item1;
             }
 
+            if (name is not null)
+            {
+                // Does the DropDownButton need loading?
+                int scriptCount = SettingsManagerApp.Instance.GoProScripts.Count;
+                int dropDownCount = GoProQRSelectionFlyout.Items.Count;
+                if (scriptCount != dropDownCount)
+                {
+                    GoProQRSelectionFlyout.Items.Clear();
+                    foreach (var (key, value) in GoProScriptsList)
+                    {
+                        MenuFlyoutItem menuItem = new()
+                        {
+                            Text = key
+                        };
+                        menuItem.Click += GoProQRSelectionMenuFlyoutItem_Click;
+                        GoProQRSelectionFlyout.Items.Add(menuItem);
+                    }
+                }
+
+                // Update button text
+                GoProQRSelection.Content = name;
+
+                // Find the script name (key) in the list and get the value
+                string? script = GoProScriptsList.Find(x => x.Item1 == name).Item2;
+                if (script is not null)
+                {
+                    // Update the QR Code and script
+                    GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(script);
+                    GoProQRScript.Text = $"Script:\n{script}";
+                }
+            }
+            else
+            {
+                Console.WriteLine($"No GoPro scripts loaded");
+                GoProQRCode.Source = null;
+                GoProQRScript.Text = "Failed!";
+            }
         }
 
 

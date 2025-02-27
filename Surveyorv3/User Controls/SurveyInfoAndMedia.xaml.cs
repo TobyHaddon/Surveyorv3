@@ -153,8 +153,18 @@ namespace Surveyor.User_Controls
             // Disable UI elements not used by the SettingsCard
             SurveyCode.IsEnabled = false;       // Survey code is the name of the survey e.g. CVW-10-5-2024-07-12.
                                                 // It is used as the file name and therefore can't be changed in the Setting window
-            SurveyDepth.IsEnabled = false;      // Because the depth is also in the file name it can't be changed in the Setting window
-            SurveyMediaGrid.ColumnDefinitions[1].Width = new GridLength(0); // Hides the second column
+
+            // Because the depth is also in the file name it can't be changed in the Setting window
+            // The only exception is if the depth has never been set (i.e. an old .survey file)
+            if (survey.Data.Info.SurveyDepth is null || (survey.Data.Info.SurveyDepth is not null && string.IsNullOrWhiteSpace(survey.Data.Info.SurveyDepth)))
+            {
+                SurveyDepth.IsEnabled = true;
+            }
+            else
+            {
+                SurveyDepth.IsEnabled = false;
+                SurveyMediaGrid.ColumnDefinitions[1].Width = new GridLength(0); // Hides the second column
+            }
 
 
             // Load the survey code (survey name e.g. CVW-10-5-2024-07-12)
@@ -275,7 +285,7 @@ namespace Surveyor.User_Controls
             }
 
             // Remember the last used analyst name
-            SettingsManager.UserName = SurveyAnalystName.Text;
+            SettingsManagerLocal.UserName = SurveyAnalystName.Text;
 
             // Report any issues with the data
             EntryFieldsValid(true/*report*/);
@@ -490,7 +500,7 @@ namespace Surveyor.User_Controls
             string? fullName = await UserHelper.GetUserFullNameAsync();
 
             // Get any previously usef name from local settings
-            string? previousName = SettingsManager.UserName;
+            string? previousName = SettingsManagerLocal.UserName;
             if (string.IsNullOrEmpty(previousName))
             {
                 if (!string.IsNullOrEmpty(fullName))
@@ -1226,7 +1236,7 @@ namespace Surveyor.User_Controls
             // Get the current theme so we can figure out whether to use a dark or light default thumbnail
             BitmapImage thumbnailDefault = new();
 
-            switch (SettingsManager.ApplicationTheme)
+            switch (SettingsManagerLocal.ApplicationTheme)
             {
                 case ElementTheme.Dark:
                     thumbnailDefault.UriSource = new Uri($"ms-appx:///Assets/mediaDefault-dark.png");

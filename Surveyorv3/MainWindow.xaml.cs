@@ -39,7 +39,7 @@ namespace Surveyor
     /// </summary>
     public sealed partial class MainWindow : Window
     {
-        private AppWindow appWindow;
+        private readonly AppWindow appWindow;
 
         // Create the Mediator
         private readonly SurveyorMediator mediator;
@@ -65,11 +65,11 @@ namespace Surveyor
         private readonly EventsControl eventsControl = new();
         private readonly Reporter report = new();
 
-        private SurveyMarkerManager surveyMarkerManager = new();
+        private readonly SurveyMarkerManager surveyMarkerManager = new();
 
         private const string RECENT_SURVEYS_KEY = "RecentSurveys";
-        private int maxRecentSurveysDisplayed = 4;      // Will be controlled from SettingsWindow TO DO
-        private const int MAX_RECENT_SURVEYS_SAVED = 10;
+        private readonly int maxRecentSurveysDisplayed = 4;      
+        private const int MAX_RECENT_SURVEYS_SAVED = 20;
 
         public MainWindow()
         {
@@ -86,11 +86,25 @@ namespace Surveyor
             ThemeHelper.Initialize();
 
             // Set theme
-            SetTheme(SettingsManager.ApplicationTheme);
+            SetTheme(SettingsManagerLocal.ApplicationTheme);
 
             // Add listener for theme changes
             var rootElement = (FrameworkElement)Content;
             rootElement.ActualThemeChanged += OnActualThemeChanged;
+
+            // Load app settings (these are read-only)
+            try
+            {
+                // Load settings from JSON (happens automatically)
+                var settings = SettingsManagerApp.Instance;
+            }
+            catch (Exception ex)
+            {
+                report.Error("", $"App Settings failed to load, {ex.Message}");
+            }
+
+            // Set the number of recently opened surveys that are displaying in the File menu
+            maxRecentSurveysDisplayed = Math.Min(SettingsManagerApp.Instance.RecentSurveysDisplayed, MAX_RECENT_SURVEYS_SAVED);
 
             // Set setup Mediator
             mediator = new();
@@ -382,7 +396,7 @@ namespace Surveyor
 
             // Optionally, apply additional changes
             SetTheme(newTheme);
-            SettingsManager.ApplicationTheme = ElementTheme.Default;
+            SettingsManagerLocal.ApplicationTheme = ElementTheme.Default;
         }
 
 
@@ -522,7 +536,7 @@ namespace Surveyor
             if (await CheckForOpenSurveyAndClose() == true)
             {
                 // Show dialog to find the survey file to open
-                string surveyFolder = SettingsManager.SurveyFolder is null ? "" : SettingsManager.SurveyFolder;
+                string surveyFolder = SettingsManagerLocal.SurveyFolder is null ? "" : SettingsManagerLocal.SurveyFolder;
                 if (string.IsNullOrEmpty(surveyFolder) == true)
                     surveyFolder = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
 
@@ -1361,7 +1375,7 @@ namespace Surveyor
                         MenuSurveyStartStopMarker.IsEnabled = true;
 
                         // Remember the survey folder
-                        SettingsManager.SurveyFolder = Path.GetDirectoryName(projectFileName);
+                        SettingsManagerLocal.SurveyFolder = Path.GetDirectoryName(projectFileName);
 
 
                         //// Inform the two media players of the MeasurementPointControl instances that allow the user to add measurement points to the media
@@ -1468,7 +1482,7 @@ namespace Surveyor
                         UpdateRecentSurveysMenu();
 
                         // Remember the survey folder                        
-                        SettingsManager.SurveyFolder = Path.GetDirectoryName(file.Path);
+                        SettingsManagerLocal.SurveyFolder = Path.GetDirectoryName(file.Path);
                     }                   
                     else
                     {
@@ -1806,7 +1820,7 @@ namespace Surveyor
                 MenuLockUnlockMediaPlayers.IsEnabled = false;
                 MenuLockUnlockMediaPlayers.IsChecked = false;
                 // Settings
-                MenuSettings.IsEnabled = false;
+                MenuSettings.IsEnabled = true;      // Always allow settings and setting will adjust of no survey is open
                 // Survey Marker
                 MenuSurveyStartStopMarker.IsEnabled = false;
             }
@@ -2118,15 +2132,9 @@ namespace Surveyor
                     surveyClass.Data.SurveyRules.SurveyRulesActive == true)
                 {
                     surveyMeasurement.SurveyRulesCalc.ApplyRules(surveyClass.Data.SurveyRules.SurveyRulesData, stereoProjection);
-
-                    // Report the measurement and any rules that were applied
-
                 }
                 else
                 {
-                    // Report the measurement 
-
-
                     // No rules applied
                     surveyMeasurement.SurveyRulesCalc.Clear();
                 }
@@ -2425,47 +2433,44 @@ namespace Surveyor
         private int settingsWindowEntryCount = 0;
         private async void ShowSettingsWindow()
         {
-            if (surveyClass is not null)
+            settingsWindowEntryCount++;
+            // Make sure we only open the settings window once.
+            // This can happen if the survey and movies are loaded and the user clicks the settings a few times.
+            if (settingsWindowEntryCount == 1)
             {
-                settingsWindowEntryCount++;
-                // Make sure we only open the settings window once.
-                // This can happen if the survey and movies are loaded and the user clicks the settings a few times.
-                if (settingsWindowEntryCount == 1)
-                {
-                    SettingsWindow settingsWindow = new(mediator, this, (Survey)surveyClass);
+                SettingsWindow settingsWindow = new(mediator, this, surveyClass);
                     
-                    // Get the HWND (window handle) for both windows
-                    IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
-                    IntPtr settingsWindowHandle = WindowNative.GetWindowHandle(settingsWindow);
+                // Get the HWND (window handle) for both windows
+                IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
+                IntPtr settingsWindowHandle = WindowNative.GetWindowHandle(settingsWindow);
 
-                    // Get the AppWindow instances for both windows
-                    AppWindow mainAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(mainWindowHandle));
-                    AppWindow settingsAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(settingsWindowHandle));
+                // Get the AppWindow instances for both windows
+                AppWindow mainAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(mainWindowHandle));
+                AppWindow settingsAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(settingsWindowHandle));
 
-                    // Disable the main window by setting it inactive
-                    SetWindowEnabled(mainWindowHandle, false);
+                // Disable the main window by setting it inactive
+                SetWindowEnabled(mainWindowHandle, false);
 
-                    // Ensure settings window stays on top
-                    WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
+                // Ensure settings window stays on top
+                WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
 
-                    // Activate settings window
-                    settingsWindow.Activate();
+                // Activate settings window
+                settingsWindow.Activate();
 
-                    // Wait for settings window to close
-                    await Task.Run(() =>
+                // Wait for settings window to close
+                await Task.Run(() =>
+                {
+                    while (settingsAppWindow != null && settingsAppWindow.IsVisible)
                     {
-                        while (settingsAppWindow != null && settingsAppWindow.IsVisible)
-                        {
-                            System.Threading.Thread.Sleep(100);
-                        }
-                    });
+                        System.Threading.Thread.Sleep(100);
+                    }
+                });
 
-                    // Re-enable the main window after closing settings
-                    SetWindowEnabled(mainWindowHandle, true);
-                }
-
-                settingsWindowEntryCount--;
+                // Re-enable the main window after closing settings
+                SetWindowEnabled(mainWindowHandle, true);
             }
+
+            settingsWindowEntryCount--;
         }
 
 

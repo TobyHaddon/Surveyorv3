@@ -117,7 +117,7 @@ namespace Surveyor.User_Controls
         private bool isPointerOnUs = false;
 
         // Set to true if the Magnifier Window is display as the pointer(mouse) moves
-        private bool isAutoMagnify = SettingsManager.MagnifierWindowAutomatic;    // Must be set to the same initial value as 'isAutoMagnify' in MediaControl.xaml.cs
+        private bool isAutoMagnify = SettingsManagerLocal.MagnifierWindowAutomatic;    // Must be set to the same initial value as 'isAutoMagnify' in MediaControl.xaml.cs
 
         // Set to true if the Magnifier Window is locked (i.e. the user has clicked the mouse and the Mag Window
         // no longer follows the pointer (mouse))
@@ -249,12 +249,12 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="mediator"></param>
         /// <returns></returns>
-        public TListener InitializeMediator(SurveyorMediator mediator, MainWindow mainWindow)
+        public TListener InitializeMediator(SurveyorMediator __mediator, MainWindow __mainWindow)
         {
-            _mediator = mediator;
-            _mainWindow = mainWindow;
+            _mediator = __mediator;
+            _mainWindow = __mainWindow;
 
-            _magnifyAndMarkerControlHandler = new MagnifyAndMarkerControlHandler(_mediator, this, mainWindow);
+            _magnifyAndMarkerControlHandler = new MagnifyAndMarkerControlHandler(_mediator, this, _mainWindow);
 
             return _magnifyAndMarkerControlHandler;
         }
@@ -315,78 +315,6 @@ namespace Surveyor.User_Controls
         }
 
 
-        /// <summary>        
-        /// This function resets all value associated with the previous frame and 
-        /// setups up for the new frame.  It is called from the mediator message
-        /// Other frame setup functions like SetTargets and SetEvents must be called
-        /// AFTER NewImageFrame is called
-        /// </summary>       
-        internal void NewImageFrame(IRandomAccessStream? frameStream, TimeSpan _position, uint _imageSourceWidth, uint _imageSourceHeight)
-        {
-            CheckIsUIThread();
-
-            // Check the ImageFrame is setup 
-            Debug.Assert(imageUIElement is not null, "MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
-
-            // Remember the frame position
-            // Used to know what Events are applicable to this frame
-            position = _position;
-            streamSource = frameStream;
-            imageSourceWidth = _imageSourceWidth;
-            imageSourceHeight = _imageSourceHeight;
-
-
-            // Reset the Mag Window
-            isMagLocked = false;
-
-            // Lines below can cause a GP
-            try
-            {
-                if (ImageMag is not null)
-                    ImageMag.Source = null;
-                if (BorderMag is not null)
-                    BorderMag.BorderBrush = magColourUnlocked;
-            }
-            catch 
-            { }
-
-
-            // Check if mag buttons need to be enabled/disabled
-            EnableButtonMag();
-
-            // Reset dragging
-            isDragging = false;
-
-            // Reset existing targets
-            pointTargetA = null;
-            pointTargetB = null;
-            ResetTargetIconOnCanvas(TargetAMag);
-            ResetTargetIconOnCanvas(TargetBMag);
-
-            // Cancel any selected targets
-            SetSelectedTarget(null);
-
-            // Reset the scaling
-            canvasFrameScaleX = -1;
-            canvasFrameScaleY = -1;
-
-            // Remove Events and epipolar lines
-            RemoveCanvasShapesByTag("Event");
-            RemoveCanvasShapesByTag("EpipolarLine");
-            RemoveCanvasShapesByTag("EpipolarPoints");
-
-            // Do coordinate need to be displayed
-            DisplayPointerCoords = SettingsManager.DiagnosticInformation;
- 
-
-            // Set the image loaded flag
-            imageLoaded = true;
-
-            // Calulate the scale factor between the actual image and the screen image
-            GridSizeChanged();
-        }
-
-
         /// <summary>
         /// Set any existing targets. This function must be called after NewIamgeFrame()
         /// </summary>
@@ -409,10 +337,11 @@ namespace Surveyor.User_Controls
         /// Get the target A & B values.
         /// </summary>
         /// <returns></returns>
-        public ValueTuple<Point?, Point?> GetTargets()
-        {
-            return (pointTargetA, pointTargetB);
-        }
+        //??? No longer used
+        //public ValueTuple<Point?, Point?> GetTargets()
+        //{
+        //    return (pointTargetA, pointTargetB);
+        //}
 
 
         /// <summary>
@@ -460,45 +389,45 @@ namespace Surveyor.User_Controls
         /// Increase the width and height of the Mag Window
         /// </summary>
         /// <returns>Returns the width and height as a uint tuple</returns>
-        public ValueTuple<uint, uint> MagWindowEnlargeSize()
-        {
-            if (magWidth < 800)
-            {
-                magWidth += 20;
-                magHeight += 20;
-            }
-
-            return (magWidth, magHeight);
-        }
+        //??? no longer used
+        //public ValueTuple<uint, uint> MagWindowEnlargeSize()
+        //{
+        //    if (magWidth < 800)
+        //    {
+        //        magWidth += 20;
+        //        magHeight += 20;
+        //    }
+        //    return (magWidth, magHeight);
+        //}
 
 
         /// <summary>
         /// Decrease the width and height of the zoom window
         /// </summary>
         /// <returns>Returns the width and height as a uint tuple</returns>
-        public ValueTuple<uint, uint> MagWindowReduceSize()
-        {
-            if (magWidth > 20 && magHeight > 20)
-            {
-                magWidth -= 20;
-                magHeight -= 20;
-            }
-
-            return (magWidth, magHeight);
-        }
+        //??? no longer used
+        //public ValueTuple<uint, uint> MagWindowReduceSize()
+        //{
+        //    if (magWidth > 20 && magHeight > 20)
+        //    {
+        //        magWidth -= 20;
+        //        magHeight -= 20;
+        //    }
+        //    return (magWidth, magHeight);
+        //}
 
 
         /// <summary>
         /// Reset the size of the Mag Window to the default
         /// </summary>
         /// <returns>Returns the width and height as a uint tuple</returns>
-        public ValueTuple<uint, uint> MagWindowResetSize()
-        {
-            magWidth = magWidthDefaultMedium;
-            magHeight = magHeightDefaultMedium;
-
-            return (magWidth, magHeight);
-        }
+        //??? no longer used
+        //public ValueTuple<uint, uint> MagWindowResetSize()
+        //{
+        //    magWidth = magWidthDefaultMedium;
+        //    magHeight = magHeightDefaultMedium;
+        //    return (magWidth, magHeight);
+        //}
 
 
         /// <summary>
@@ -570,7 +499,32 @@ namespace Surveyor.User_Controls
             if (targetBSet is not null)
                 otherInstanceTargetBSet = (bool)targetBSet;
         }
-    
+
+
+        /// <summary>
+        /// User requested a change to the size of the mag window
+        /// </summary>
+        /// <param name="magWindowSize"></param>
+        public void MagWindowSizeSelect(string magWindowSize)
+        {
+            if (magWindowSize == "Small")
+            {
+                magWidth = magWidthDefaultSmall;
+                magHeight = magHeightDefaultSmall;
+            }
+            else if (magWindowSize == "Medium")
+            {
+                magWidth = magWidthDefaultMedium;
+                magHeight = magHeightDefaultMedium;
+            }
+            else if (magWindowSize == "Large")
+            {
+                magWidth = magWidthDefaultLarge;
+                magHeight = magHeightDefaultLarge;
+            }
+            else
+                throw new Exception("MagWindowSizeSelect: Unknown mag window size");
+        }
 
 
         ///
@@ -1353,12 +1307,195 @@ namespace Surveyor.User_Controls
         /// <param name="args"></param>
         private void EpipolarLineTeachingTip_CloseButtonClick(TeachingTip sender, object args)
         {
-            SettingsManager.SetTeachingTipShown("EpipolarLineTeachingTip");
+            SettingsManagerLocal.SetTeachingTipShown("EpipolarLineTeachingTip");
         }
 
         private void EpipolarPointsTeachingTip_CloseButtonClick(TeachingTip sender, object args)
         {
-            SettingsManager.SetTeachingTipShown("EpipolarPointsTeachingTip");
+            SettingsManagerLocal.SetTeachingTipShown("EpipolarPointsTeachingTip");
+        }
+
+
+        /// <summary>
+        /// Handler is called when the main window is activated
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MainWindow_Activated(object sender, WindowActivatedEventArgs e)
+        {
+            if (e.WindowActivationState == Microsoft.UI.Xaml.WindowActivationState.Deactivated)
+            {
+                //???    System.Diagnostics.Debug.WriteLine("App is deactivated");
+                mainWindowActivated = false;
+            }
+            else
+            {
+                //???    System.Diagnostics.Debug.WriteLine("App is activated");
+                mainWindowActivated = true;
+            }
+        }
+
+
+        /// <summary>
+        /// Handler is called when the main window is deactivated
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MainWindow_Deactivated(object sender, WindowActivatedEventArgs e)
+        {
+            // This method is called when the app window loses focus
+            //???Debug.WriteLine("App is inactive");
+            mainWindowActivated = false;
+        }
+
+
+        /// <summary>
+        /// The Events collection has changed and this handler is to redraw the events on the canvas
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void OnEventsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
+        {
+            // Replace and redraw
+            TransferExistingEvents();
+        }
+
+
+
+        ///
+        /// MEDIATOR METHODS (Called by the TListener, always marked as internal)
+        ///
+
+
+        /// <summary>        
+        /// This function resets all value associated with the previous frame and 
+        /// setups up for the new frame.  It is called from the mediator message
+        /// Other frame setup functions like SetTargets and SetEvents must be called
+        /// AFTER NewImageFrame is called
+        /// </summary>       
+        internal void _NewImageFrame(IRandomAccessStream? frameStream, TimeSpan _position, uint _imageSourceWidth, uint _imageSourceHeight)
+        {
+            CheckIsUIThread();
+
+            // Check the ImageFrame is setup 
+            Debug.Assert(imageUIElement is not null, "MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
+
+            // Remember the frame position
+            // Used to know what Events are applicable to this frame
+            position = _position;
+            streamSource = frameStream;
+            imageSourceWidth = _imageSourceWidth;
+            imageSourceHeight = _imageSourceHeight;
+
+
+            // Reset the Mag Window
+            isMagLocked = false;
+
+            // Lines below can cause a GP
+            try
+            {
+                if (ImageMag is not null)
+                    ImageMag.Source = null;
+                if (BorderMag is not null)
+                    BorderMag.BorderBrush = magColourUnlocked;
+            }
+            catch
+            { }
+
+
+            // Check if mag buttons need to be enabled/disabled
+            EnableButtonMag();
+
+            // Reset dragging
+            isDragging = false;
+
+            // Reset existing targets
+            pointTargetA = null;
+            pointTargetB = null;
+            ResetTargetIconOnCanvas(TargetAMag);
+            ResetTargetIconOnCanvas(TargetBMag);
+
+            // Cancel any selected targets
+            SetSelectedTarget(null);
+
+            // Reset the scaling
+            canvasFrameScaleX = -1;
+            canvasFrameScaleY = -1;
+
+            // Remove Events and epipolar lines
+            RemoveCanvasShapesByTag("Event");
+            RemoveCanvasShapesByTag("EpipolarLine");
+            RemoveCanvasShapesByTag("EpipolarPoints");
+
+            // Do coordinate need to be displayed
+            DisplayPointerCoords = SettingsManagerLocal.DiagnosticInformation;
+
+
+            // Set the image loaded flag
+            imageLoaded = true;
+
+            // Calulate the scale factor between the actual image and the screen image
+            GridSizeChanged();
+        }
+
+
+
+        /// <summary>
+        /// Check if this MagnifyAndMarkerDisplay control should process the message
+        /// </summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
+        internal bool _ProcessIfForMe(SurveyorMediaPlayer.eCameraSide cameraSide)
+        {
+            if (CameraLeftRight == CameraSide.Left && cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
+                return true;
+            else if (CameraLeftRight == CameraSide.Right && cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
+                return true;
+            else
+                return false;
+        }
+
+
+        /// <summary>
+        /// Check if this MagnifyAndMarkerDisplay control should process the message
+        /// </summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
+        internal bool _ProcessIfForMe(SurveyorMediaControl.eControlType ControlType)
+        {
+            if (CameraLeftRight == CameraSide.Left && ControlType == SurveyorMediaControl.eControlType.Primary)
+                return true;
+            else if (CameraLeftRight == CameraSide.Right && ControlType == SurveyorMediaControl.eControlType.Secondary)
+                return true;
+            else if (ControlType == SurveyorMediaControl.eControlType.Both)
+                return true;
+            else
+                return false;
+        }
+
+
+        /// <summary>
+        /// Used to change the status of auto magnify. Used by the SettingsWindow to inform the MagnifyAndMarkerDisplay
+        /// that the user has changed the auto magnify setting
+        /// </summary>
+        /// <param name="isAutoMagnify"></param>
+        internal void _SetIsAutoMagnify(bool isAutoMagnify)
+        {
+            this.isAutoMagnify = isAutoMagnify;
+        }
+
+
+        /// <summary>
+        /// The user changes the Diagnostic Information setting
+        /// </summary>
+        /// <param name="diagnosticInformation"></param>
+        internal void _SetDiagnosticInformation(bool diagnosticInformation)
+        {
+            DisplayPointerCoords = diagnosticInformation;
+            if (diagnosticInformation)
+
+                // Hide pointer coords
+                _mainWindow?.DisplayPointerCoordinates(-1, -1);
         }
 
 
@@ -1366,7 +1503,6 @@ namespace Surveyor.User_Controls
         ///
         /// PRIVATE METHODS
         ///
-
 
 
         /// <summary>
@@ -2422,9 +2558,6 @@ namespace Surveyor.User_Controls
         }
 
 
-
-
-
         /// <summary>
         /// Utility timer
         /// </summary>
@@ -2452,128 +2585,7 @@ namespace Surveyor.User_Controls
         }
 
 
-        /// <summary>
-        /// Use at the top of the function if that function is intended for use use only on the 
-        /// UI Thread.  This is to prevent the function being called from a non-UI thread.
-        /// </summary>        
-        private void CheckIsUIThread()
-        {
-            if (!DispatcherQueue.HasThreadAccess)
-                throw new InvalidOperationException("This function must be called from the UI thread");
-        }
-
-
-        /// <summary>
-        /// Handler is called when the main window is activated
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void MainWindow_Activated(object sender, WindowActivatedEventArgs e)
-        {
-            if (e.WindowActivationState == Microsoft.UI.Xaml.WindowActivationState.Deactivated)
-            {
-            //???    System.Diagnostics.Debug.WriteLine("App is deactivated");
-                mainWindowActivated = false;
-            }
-            else
-            {
-            //???    System.Diagnostics.Debug.WriteLine("App is activated");
-                mainWindowActivated = true;
-            }
-        }
-
-
-        /// <summary>
-        /// Handler is called when the main window is deactivated
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void MainWindow_Deactivated(object sender, WindowActivatedEventArgs e)
-        {
-            // This method is called when the app window loses focus
-            //???Debug.WriteLine("App is inactive");
-            mainWindowActivated = false;
-        }
-
-
-        /// <summary>
-        /// The Events collection has changed and this handler is to redraw the events on the canvas
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void OnEventsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
-        {
-            //???Console.WriteLine("Collection changed!");
-            //// Check the type of change
-            //???switch (e.Action)
-            //{
-            //    case NotifyCollectionChangedAction.Add:
-            //        Console.WriteLine("Items added:");
-            //        foreach (var item in e.NewItems)
-            //        {
-            //            Console.WriteLine(item);
-            //        }                    
-            //        break;
-            //    case NotifyCollectionChangedAction.Remove:
-            //        Console.WriteLine("Items removed:");
-            //        foreach (var item in e.OldItems)
-            //        {
-            //            Console.WriteLine(item);
-            //        }
-            //        break;
-            //    case NotifyCollectionChangedAction.Replace:
-            //        Console.WriteLine("Items replaced:");
-            //        if (e.OldItems != null)
-            //        {
-            //            foreach (var item in e.OldItems)
-            //                Console.WriteLine("Old item: " + item);
-            //        }
-            //        if (e.NewItems != null)
-            //        {
-            //            foreach (var item in e.NewItems)
-            //                Console.WriteLine("New item: " + item);
-            //        }
-            //        break;
-            //    case NotifyCollectionChangedAction.Move:
-            //        Console.WriteLine("Items moved");
-            //        break;
-            //    case NotifyCollectionChangedAction.Reset:
-            //        Console.WriteLine("Items cleared");
-            //        break;
-            //}
-
-            // Replace and redraw
-            TransferExistingEvents();
-        }
-
-
-        /// <summary>
-        /// User requested a change to the size of the mag window
-        /// </summary>
-        /// <param name="magWindowSize"></param>
-        internal void MagWindowSizeSelect(string magWindowSize)
-        {
-            if (magWindowSize == "Small")
-            {
-                magWidth = magWidthDefaultSmall;
-                magHeight = magHeightDefaultSmall;
-            }
-            else if (magWindowSize == "Medium")
-            {
-                magWidth = magWidthDefaultMedium;
-                magHeight = magHeightDefaultMedium;
-            }
-            else if (magWindowSize == "Large")
-            {
-                magWidth = magWidthDefaultLarge;
-                magHeight = magHeightDefaultLarge;
-            }
-            else
-                throw new Exception("MagWindowSizeSelect: Unknown mag window size");
-        }
-
-
-        internal void MagWindowSizeEnlargeOrReduce(bool TrueEnargeFalseReduce)
+        private void MagWindowSizeEnlargeOrReduce(bool TrueEnargeFalseReduce)
         {
             string magWindowSize;
 
@@ -2624,7 +2636,7 @@ namespace Surveyor.User_Controls
         /// Used to increase of decrease the zoom factor from inside the MagWindow
         /// </summary>
         /// <param name="TrueZoomInFalseZoomOut"></param>
-        internal void MagWindowZoomFactorEnlargeOrReduce(bool TrueZoomInFalseZoomOut)
+        private void MagWindowZoomFactorEnlargeOrReduce(bool TrueZoomInFalseZoomOut)
         {
             // Zoom levels 5,3,2,1,0.5
             // The logic in this function needs to align with the MediaControl zoom factor menu options
@@ -2673,61 +2685,13 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Check if this MagnifyAndMarkerDisplay control should process the message
-        /// </summary>
-        /// <param name="message"></param>
-        /// <returns></returns>
-        internal bool ProcessIfForMe(SurveyorMediaPlayer.eCameraSide cameraSide)
+        /// Use at the top of the function if that function is intended for use use only on the 
+        /// UI Thread.  This is to prevent the function being called from a non-UI thread.
+        /// </summary>        
+        private void CheckIsUIThread()
         {
-            if (CameraLeftRight == CameraSide.Left && cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
-                return true;
-            else if (CameraLeftRight == CameraSide.Right && cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
-                return true;
-            else
-                return false;
-        }
-
-
-        /// <summary>
-        /// Check if this MagnifyAndMarkerDisplay control should process the message
-        /// </summary>
-        /// <param name="message"></param>
-        /// <returns></returns>
-        internal bool ProcessIfForMe(SurveyorMediaControl.eControlType ControlType)
-        {
-            if (CameraLeftRight == CameraSide.Left && ControlType == SurveyorMediaControl.eControlType.Primary)
-                return true;
-            else if (CameraLeftRight == CameraSide.Right && ControlType == SurveyorMediaControl.eControlType.Secondary)
-                return true;
-            else if (ControlType == SurveyorMediaControl.eControlType.Both)
-                return true;
-            else
-                return false;
-        }
-
-
-        /// <summary>
-        /// Used to change the status of auto magnify. Used by the SettingsWindow to inform the MagnifyAndMarkerDisplay
-        /// that the user has changed the auto magnify setting
-        /// </summary>
-        /// <param name="isAutoMagnify"></param>
-        internal void SetIsAutoMagnify(bool isAutoMagnify)
-        {
-            this.isAutoMagnify = isAutoMagnify;
-        }
-
-
-        /// <summary>
-        /// The user changes the Diagnostic Information setting
-        /// </summary>
-        /// <param name="diagnosticInformation"></param>
-        internal void SetDiagnosticInformation(bool diagnosticInformation)
-        {
-            DisplayPointerCoords = diagnosticInformation;
-            if (diagnosticInformation)
-               
-                // Hide pointer coords
-                _mainWindow?.DisplayPointerCoordinates(-1, -1);
+            if (!DispatcherQueue.HasThreadAccess)
+                throw new InvalidOperationException("This function must be called from the UI thread");
         }
 
 
@@ -2949,7 +2913,7 @@ namespace Surveyor.User_Controls
                 MagnifyAndMarkerControlData data = (MagnifyAndMarkerControlData)message;
 
                 // Proceed if the message for the MediaPlayer is for this MediaControl instance
-                if (_magnifyAndMarkerControl.ProcessIfForMe(data.cameraSide))
+                if (_magnifyAndMarkerControl._ProcessIfForMe(data.cameraSide))
                 {
                     switch (data.magnifyAndMarkerControlEvent)
                     {
@@ -2974,13 +2938,13 @@ namespace Surveyor.User_Controls
                 MediaPlayerEventData data = (MediaPlayerEventData)message;
 
                 // Proceed if the message for the MediaPlayer is for this MediaControl instance
-                if (_magnifyAndMarkerControl.ProcessIfForMe(data.cameraSide))
+                if (_magnifyAndMarkerControl._ProcessIfForMe(data.cameraSide))
                 {
                     switch (data.mediaPlayerEvent)
                     {
                         case MediaPlayerEventData.eMediaPlayerEvent.FrameRendered:
                             if (data.frameStream is not null && data.position is not null)
-                                SafeUICall(() => _magnifyAndMarkerControl.NewImageFrame(data.frameStream, (TimeSpan)data.position, data.imageSourceWidth, data.imageSourceHeight));
+                                SafeUICall(() => _magnifyAndMarkerControl._NewImageFrame(data.frameStream, (TimeSpan)data.position, data.imageSourceWidth, data.imageSourceHeight));
                             break;
                     }
                 }
@@ -2993,14 +2957,14 @@ namespace Surveyor.User_Controls
                 {
                 // The user has changed the auto magnify setting
                 case eSettingsWindowEvent.MagnifierWindow:
-                    SafeUICall(() => _magnifyAndMarkerControl.SetIsAutoMagnify((bool)data!.magnifierWindowAutomatic!));
+                    SafeUICall(() => _magnifyAndMarkerControl._SetIsAutoMagnify((bool)data!.magnifierWindowAutomatic!));
                     break;
 
                 // The user has changed the Diagnostic Information settings
                 case eSettingsWindowEvent.DiagnosticInformation:
                     if (data.diagnosticInformation is not null)
                     {
-                        _magnifyAndMarkerControl.SetDiagnosticInformation((bool)data!.diagnosticInformation);
+                        _magnifyAndMarkerControl._SetDiagnosticInformation((bool)data!.diagnosticInformation);
                     }
                     break;
                 }

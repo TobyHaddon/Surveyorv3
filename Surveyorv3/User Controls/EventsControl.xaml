@@ -18,7 +18,7 @@
     </UserControl.Resources>
     
     <Grid>
-        <ListView x:Name="ListViewEvent" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"
+        <ListView x:Name="ListViewEvent" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" 
                    IsItemClickEnabled="True" ItemClick="GoToFrameMenuItem_Click" RightTapped="ListViewEvent_RightTapped" KeyDown="ListViewEvent_KeyDown">
 
             <!-- Enable UI Virtualization -->
@@ -30,11 +30,11 @@
                         
             <ListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
-                    <!-- Reduce padding and margin -->
+                     <!--Reduce padding and margin--> 
                     <Setter Property="Padding" Value="0" />
                     <Setter Property="Margin" Value="0" />
                     <Setter Property="MinHeight" Value="20" />
-                    <!-- Adjust as needed -->
+                     <!--Adjust as needed--> 
                 </Style>
             </ListView.ItemContainerStyle>
 
