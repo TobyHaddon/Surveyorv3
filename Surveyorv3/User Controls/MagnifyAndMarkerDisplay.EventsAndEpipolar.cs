@@ -1,5 +1,6 @@
 ﻿// MagnifyAndMarkerDisplay.EventsAndEpipolar.cs
 // Extension to the main class to handle the drawing of events and epipolar lines
+using MathNet.Numerics.LinearAlgebra.Factorization;
 using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -8,12 +9,15 @@ using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
-using Surveyor.Events;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
 using Windows.Foundation;
+
+using Surveyor.Events;
+using Surveyor.Helper;
 
 
 namespace Surveyor.User_Controls
@@ -32,10 +36,10 @@ namespace Surveyor.User_Controls
         // Remembered Epipolar line
         private bool epipolarLineTargetActiveA = false;
         private bool epipolarLineTargetActiveB = false;
-        private Point? epipolarStartCanvasFrameTargetA = null;
-        private Point? epipolarEndCanvasFrameTargetA = null;
-        private Point? epipolarStartCanvasFrameTargetB = null;
-        private Point? epipolarEndCanvasFrameTargetB = null;
+        //???private Point? epipolarStartCanvasFrameTargetA = null;
+        //???private Point? epipolarEndCanvasFrameTargetA = null;
+        //???private Point? epipolarStartCanvasFrameTargetB = null;
+        //???private Point? epipolarEndCanvasFrameTargetB = null;
         private double epipolarLine_aTargetA = 0.0;
         private double epipolarLine_bTargetA = 0.0;
         private double epipolarLine_cTargetA = 0.0;
@@ -65,10 +69,10 @@ namespace Surveyor.User_Controls
         
             epipolarLineTargetActiveA = false;
             epipolarLineTargetActiveB = false;
-            epipolarStartCanvasFrameTargetA = null;
-            epipolarEndCanvasFrameTargetA = null;
-            epipolarStartCanvasFrameTargetB = null;
-            epipolarEndCanvasFrameTargetB = null;
+            //???epipolarStartCanvasFrameTargetA = null;
+            //???epipolarEndCanvasFrameTargetA = null;
+            //???epipolarStartCanvasFrameTargetB = null;
+            //???epipolarEndCanvasFrameTargetB = null;
             epipolarLine_aTargetA = 0.0;
             epipolarLine_bTargetA = 0.0;
             epipolarLine_cTargetA = 0.0;
@@ -119,17 +123,17 @@ namespace Surveyor.User_Controls
             Point p1Start = new(pointA.X, pointA.Y);
             Point p1End = new(pointA.X + (offset * perp.X), pointA.Y + (offset * perp.Y));
 
-            DrawLine(p1Start, p1End, eventDimensionLineColour, canvasTagDimensionEnd);
+            CanvasDrawingHelper.DrawLine(CanvasFrame, p1Start, p1End, eventDimensionLineColour, canvasTagDimensionEnd, EventElement_PointerMoved, EventElement_PointerPressed);
 
             // Parallel line 2
             Point p2Start = new(pointB.X, pointB.Y);
             Point p2End = new(pointB.X + (offset * perp.X), pointB.Y + (offset * perp.Y));
-            DrawLine(p2Start, p2End, eventDimensionLineColour, canvasTagDimensionEnd);
+            CanvasDrawingHelper.DrawLine(CanvasFrame, p2Start, p2End, eventDimensionLineColour, canvasTagDimensionEnd, EventElement_PointerMoved, EventElement_PointerPressed);
 
             // Draw dimension line
             Point dimPoint1 = new(pointA.X + (offset * perp.X * 0.80), pointA.Y + (offset * perp.Y * 0.80));
             Point dimPoint2 = new(pointB.X + (offset * perp.X * 0.80), pointB.Y + (offset * perp.Y * 0.80));
-            DrawLineWithArrowHeads(dimPoint1, dimPoint2, eventArrowLineColour, canvasTagDimensionLine, true/*start arrow*/, true/*end arrow*/);
+            CanvasDrawingHelper.DrawLineWithArrowHeads(CanvasFrame, dimPoint1, dimPoint2, 10/*arrow length*/, eventArrowLineColour, canvasTagDimensionLine, true/*start arrow*/, true/*end arrow*/, EventElement_PointerMoved, EventElement_PointerPressed);
 
             // Draw dimension text
             string fishID = "";
@@ -182,7 +186,7 @@ namespace Surveyor.User_Controls
             CanvasTag canvasTagPoint = new("Event", "Point", guid);
             CanvasTag canvasTagDetails = new("Event", "Details", guid);
 
-            DrawDot(point, 10/*diameter*/, eventDimensionLineColour, canvasTagPoint);
+            CanvasDrawingHelper.DrawDot(CanvasFrame, point, 10 / canvasFrameScaleX/*diameter*/, eventDimensionLineColour, canvasTagPoint, EventElement_PointerMoved, EventElement_PointerPressed);
 
             // Draw species text
             string fishID = "";
@@ -214,130 +218,6 @@ namespace Surveyor.User_Controls
 
 
 
-        /// <summary>
-        /// Draw aline on the CanvasFrame using the indicated brush and tag
-        /// </summary>
-        /// <param name="start"></param>
-        /// <param name="end"></param>
-        /// <param name="brush"></param>
-        /// <param name="canvasTag"></param>
-        private void DrawLine(Point start, Point end, Brush brush, CanvasTag canvasTag)
-        {
-            try
-            {
-                Microsoft.UI.Xaml.Shapes.Line line = new()
-                {
-                    X1 = start.X,
-                    Y1 = start.Y,
-                    X2 = end.X,
-                    Y2 = end.Y,
-                    StrokeThickness = 2,
-                    Stroke = brush,
-                    Tag = canvasTag
-                };
-
-                line.PointerMoved += EventElement_PointerMoved;
-                line.PointerPressed += EventElement_PointerPressed;
-
-                CanvasFrame.Children.Add(line);
-            }
-            catch (Exception ex) 
-            {
-                Debug.WriteLine($"MagnifyAndMarkerDisplay.DrawLine: Exception raised, start ({start.X},{start.Y}). end ({end.X},{end.Y}), {canvasTag.TagType}/{canvasTag.TagSubType}, {ex.Message}");
-            }
-        }
-
-
-        /// <summary>
-        /// Draw a dot on the canvas
-        /// </summary>
-        /// <param name="centre"></param>
-        /// <param name="brush"></param>
-        /// <param name="canvasTag"></param>
-        /// <param name="canvas"></param>
-        private void DrawDot(Point centre, double diameter, Brush brush, object canvasTag)
-        {
-            double scaledDiameter = diameter / canvasFrameScaleX;
-
-            // Create an ellipse (circle) with a diameter of 6
-            Ellipse ellipse = new()
-            {
-                Width = scaledDiameter,
-                Height = scaledDiameter,
-                Fill = brush, // Set the fill color
-                Stroke = brush, // Set the outline color
-                StrokeThickness = 1, // Set the thickness of the outline
-                Tag = canvasTag
-            };
-            ellipse.PointerMoved += EventElement_PointerMoved;
-            ellipse.PointerPressed += EventElement_PointerPressed;
-
-            // Set the position of the ellipse on the canvas
-            Canvas.SetLeft(ellipse, centre.X - (scaledDiameter / 2)); // Subtract half the width to center
-            Canvas.SetTop(ellipse, centre.Y - (scaledDiameter / 2)); // Subtract half the height to center
-
-
-            // Add the ellipse to the canvas
-            CanvasFrame.Children.Add(ellipse);
-        }
-
-
-
-        /// <summary>
-        /// Draw aline on the CanvasFrame with arrow heads using the indicated brush and tag
-        /// </summary>
-        /// <param name="start"></param>
-        /// <param name="end"></param>
-        /// <param name="brush"></param>
-        /// <param name="tag"></param>
-        /// <param name="arrowStart"></param>
-        /// <param name="arrowEnd"></param>
-        private void DrawLineWithArrowHeads(Point start, Point end, Brush brush, CanvasTag canvasTag, bool arrowStart, bool arrowEnd)
-        {
-            // First draw the line
-            DrawLine(start, end, brush, canvasTag);
-
-            // Calculate the direction vector
-            Vector2 lineDirection = new Vector2((float)(end.X - start.X), (float)(end.Y - start.Y));
-
-            // Draw the arrow heads as required
-            if (arrowStart)
-                DrawArrowHead(start, -lineDirection, brush, canvasTag);
-            if (arrowEnd)
-                DrawArrowHead(end, lineDirection, brush, canvasTag);
-        }
-
-
-        /// <summary>
-        /// Draw an arrow head on the Canvas Frame
-        /// </summary>
-        /// <param name="end"></param>
-        /// <param name="direction"></param>
-        /// <param name="brush"></param>
-        /// <param name="tag"></param>
-        private void DrawArrowHead(Point end, Vector2 direction, Brush brush, CanvasTag canvasTag)
-        {
-            const float arrowLength = 10f;  // Length of the arrow lines
-            const float arrowAngle = 30f;   // Angle of the arrow lines
-
-            // Normalize and scale the direction vector
-            direction = Vector2.Normalize(direction) * arrowLength;
-
-            // Calculate the two points that form the arrow lines
-            Point arrowEnd1 = new(
-                end.X - (direction.X * Math.Cos(arrowAngle * Math.PI / 180) - direction.Y * Math.Sin(arrowAngle * Math.PI / 180)),
-                end.Y - (direction.X * Math.Sin(arrowAngle * Math.PI / 180) + direction.Y * Math.Cos(arrowAngle * Math.PI / 180))
-            );
-
-            Point arrowEnd2 = new(
-                end.X - (direction.X * Math.Cos(-arrowAngle * Math.PI / 180) - direction.Y * Math.Sin(-arrowAngle * Math.PI / 180)),
-                end.Y - (direction.X * Math.Sin(-arrowAngle * Math.PI / 180) + direction.Y * Math.Cos(-arrowAngle * Math.PI / 180))
-            );
-
-            // Draw the arrow lines
-            DrawLine(end, arrowEnd1, brush, canvasTag);
-            DrawLine(end, arrowEnd2, brush, canvasTag);
-        }
 
 
         /// <summary>
@@ -427,45 +307,94 @@ namespace Surveyor.User_Controls
 
 
 
+
         /// <summary>
-        /// Blur a polygen
+        /// Called from mediatior to display the epipolar line on the canvas frame.
+        /// **A ChannelWidth of 0 draws a simple epipolar line.
+        /// **A ChannelWidth of -1 clears the epipolar line**.
         /// </summary>
-        /// <param name="points"></param>
-        /// <param name="brush"></param>
-        /// <param name="canvasTag"></param>
-        private void DrawPolygonAcrylic(PointCollection points, Brush brush, CanvasTag canvasTag)
+        internal void SetCanvasFrameEpipolarLine(bool TrueEpipolarLinePointAFalseEpipolarLinePointB,
+                                                 double epiLine_a, double epiLine_b, double epiLine_c,                                                  
+                                                 double channelWidth)
         {
-            Windows.UI.Color tintColor;
+            Rect clippingWindow = new(0, 0, CanvasFrame.Width, CanvasFrame.Height);
 
-            // Extract from brush if SolidColorBrush
-            if (brush is SolidColorBrush solidColorBrush)
-                tintColor = solidColorBrush.Color;
-            else
-                tintColor = Colors.Black;
+            SetEpipolarLine(TrueEpipolarLinePointAFalseEpipolarLinePointB,
+                            clippingWindow,
+                            epiLine_a, epiLine_b, epiLine_c,
+                            0.0/*focalLength*/, 0.0/*baseline*/, 0.0/*principalXLeft*/, 0.0/*principalYLeft*/, 0.0/*principalXRight*/, 0.0/*principalYRight*/, // Experimental parameters
+                            0/*Draw line*/,
+                            true/*trueCanvasFrameFalseMagWindow*/);
 
-            // Create a Polygon
-            Polygon polygon = new() 
+            if (channelWidth == 0)
             {
-                Points = points,
-                Tag = canvasTag
-            };
-
-
-            // Define the AcrylicBrush
-            AcrylicBrush acrylicBrush = new()
+                // Remember the epipolar coefficients for use by the Mag Window
+                if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
+                {
+                    epipolarLineTargetActiveA = true;
+                    epipolarLine_aTargetA = epiLine_a;
+                    epipolarLine_bTargetA = epiLine_b;
+                    epipolarLine_cTargetA = epiLine_c;
+                }
+                else
+                {
+                    epipolarLineTargetActiveB = true;
+                    epipolarLine_aTargetB = epiLine_a;
+                    epipolarLine_bTargetB = epiLine_b;
+                    epipolarLine_cTargetB = epiLine_c;
+                }
+            }
+            else if (channelWidth != -1)
             {
-                TintColor = tintColor,
-                TintOpacity = 0.1,
-                FallbackColor = Colors.White
-            };
-
-            // Set the Fill of the Polygon
-            polygon.Fill = acrylicBrush;
-
-            // Add the Polygon to the Canvas
-            CanvasFrame.Children.Add(polygon);
+                // Remove the epipolar line
+                if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
+                {
+                    epipolarLineTargetActiveA = false;
+                    epipolarLine_aTargetA = 0.0;
+                    epipolarLine_bTargetA = 0.0;
+                    epipolarLine_cTargetA = 0.0;
+                }
+                else
+                {
+                    epipolarLineTargetActiveB = false;
+                    epipolarLine_aTargetB = 0.0;
+                    epipolarLine_bTargetB = 0.0;
+                    epipolarLine_cTargetB = 0.0;
+                }
+            }
         }
 
+
+        /// <summary>
+        /// Called from MagWindow() method to display the epipolar line on the mag window.
+        /// **A ChannelWidth of 0 draws a simple epipolar line.
+        /// **A ChannelWidth of -1 clears the epipolar line**.
+        /// </summary>
+
+        private void SetMagWindowEpipolarLine(bool TrueEpipolarLinePointAFalseEpipolarLinePointB,
+                                               Rect magWindow,                                
+                                               double channelWidth)
+        {
+            if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
+            {
+                SetEpipolarLine(TrueEpipolarLinePointAFalseEpipolarLinePointB,
+                                magWindow,
+                                epipolarLine_aTargetA, epipolarLine_bTargetA, epipolarLine_cTargetA,
+                                0.0/*focalLength*/, 0.0/*baseline*/, 0.0/*principalXLeft*/, 0.0/*principalYLeft*/, 0.0/*principalXRight*/, 0.0/*principalYRight*/, // Experimental parameters
+                                0/*Draw line*/,
+                                false/*trueCanvasFrameFalseMagWindow*/);
+            }
+            else
+            {
+                SetEpipolarLine(TrueEpipolarLinePointAFalseEpipolarLinePointB,
+                                magWindow,
+                                epipolarLine_aTargetB, epipolarLine_bTargetB, epipolarLine_cTargetB,
+                                0.0/*focalLength*/, 0.0/*baseline*/, 0.0/*principalXLeft*/, 0.0/*principalYLeft*/, 0.0/*principalXRight*/, 0.0/*principalYRight*/, // Experimental parameters
+                                0/*Draw line*/,
+                                false/*trueCanvasFrameFalseMagWindow*/);
+            }
+
+        }
 
         /// <summary>
         /// Called you display the epipolar line on the canvas.
@@ -484,127 +413,59 @@ namespace Surveyor.User_Controls
         ///     c is the constant term
         /// y = -(a/b)x - (c/b)
         /// </summary>
-        /// <param name="TrueEpipolarLinePointAFalseEpipolarLinePointB"></param>
+        /// <param name="trueEpipolarLinePointAFalseEpipolarLinePointB"></param>
         /// <param name="epiLine_a"></param>
         /// <param name="epiLine_b"></param>
         /// <param name="epiLine_c"></param>
         /// <param name="channelWidth"></param>
-        internal void SetEpipolarLine(bool TrueEpipolarLinePointAFalseEpipolarLinePointB,
-            double epiLine_a, double epiLine_b, double epiLine_c, double focalLength, double baseline, double principalXLeft, double principalYLeft, double principalXRight, double principalYRight, double channelWidth)
+        private void SetEpipolarLine(bool trueEpipolarLinePointAFalseEpipolarLinePointB,
+                                     Rect clippingWindow,
+                                     double epiLine_a, double epiLine_b, double epiLine_c, 
+                                     double focalLength, double baseline, double principalXLeft, double principalYLeft, double principalXRight, double principalYRight, // Experimental parameters
+                                     double channelWidth,
+                                     bool trueCanvasFrameFalseMagWindow)
         {
             // The tagValue is used to indicate if Point A or B
-            string tagValue = TrueEpipolarLinePointAFalseEpipolarLinePointB.ToString();
+            string tagValue = trueEpipolarLinePointAFalseEpipolarLinePointB.ToString();
 
-            // Remove any existing epipolar lines
-            RemoveCanvasShapesByTag(new CanvasTag("EpipolarLine", "Polygon1", tagValue));
-            RemoveCanvasShapesByTag(new CanvasTag("EpipolarLine", "Polygon1", tagValue));
-            RemoveCanvasShapesByTag(new CanvasTag("EpipolarLine", "Line", tagValue));
-
+            if (trueCanvasFrameFalseMagWindow)
+            {
+                // Remove any existing epipolar lines
+                RemoveCanvasShapesByTag(new CanvasTag("EpipolarLine", "Polygon1", tagValue));
+                RemoveCanvasShapesByTag(new CanvasTag("EpipolarLine", "Polygon1", tagValue));
+                RemoveCanvasShapesByTag(new CanvasTag("EpipolarLine", "Line", tagValue));
+            }
 
             // If channelWidth is 0 then draw a simple epipolar line
             if (channelWidth == 0)
             {
                 // Create points for the line start and end points
-                var (start, end) = GetEpipolarLineEndpoints(epiLine_a, epiLine_b, epiLine_c, 
-                                                            CanvasFrame.Width, CanvasFrame.Height);
+                var (start, end) = GetEpipolarLineEndpoints(epiLine_a, epiLine_b, epiLine_c,
+                                                            clippingWindow);
 
                 if (start is not null && end is not null)
                 {
-                    // Failed attempt to only show the epipolar line for a given depth range
-                    // The idea, if it worked, was to show the depth range that the SurveyRules allowed
-                    //???var (start, end) = GetEpipolarLineForUnrectifiedStereo(epiLine_a, epiLine_b, epiLine_c, CanvasFrame.Width, CanvasFrame.Height, 
-                    //???                                                       focalLength, baseline, 
-                    //???                                                       principalXLeft, principalYLeft, principalXRight, principalYRight, 0.0001, 3);
-
                     // Set the brush colour
                     Brush brush;
-                    if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
+                    if (trueEpipolarLinePointAFalseEpipolarLinePointB)
                         brush = epipolarALineColour;
                     else
                         brush = epipolarBLineColour;
 
                     //??? Plain Epiploar line
                     //???DrawLine(start, end, brush, new CanvasTag("EpipolarLine", "Line", tagValue));
+
                     // Epipolar line with an arrow head on the end with the larger depth 
-                    DrawLineWithArrowHeads((Point)start, (Point)end, brush, new CanvasTag("EpipolarLine", "Line", tagValue), false, true);
-
-                    // Remember the epipolar line
-                    if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
-                    {                        
-                        epipolarStartCanvasFrameTargetA = start;
-                        epipolarEndCanvasFrameTargetA = end;
-                    }
-                    else
-                    {                        
-                        epipolarStartCanvasFrameTargetB = start;
-                        epipolarEndCanvasFrameTargetB = end;
-                    }
-
-                    // Remember the epipolar coefficients
-                    if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
+                    if (trueCanvasFrameFalseMagWindow)
                     {
-                        epipolarLineTargetActiveA = true;
-                        epipolarLine_aTargetA = epiLine_a;
-                        epipolarLine_bTargetA = epiLine_b;
-                        epipolarLine_cTargetA = epiLine_c;
+                        CanvasDrawingHelper.DrawLineWithArrowHeads(CanvasFrame, (Point)start, (Point)end, 10 / (float)canvasFrameScaleX/*arrow length*/, brush, new CanvasTag("EpipolarLine", "Line", tagValue), false, true, EventElement_PointerMoved, EventElement_PointerPressed);
                     }
                     else
                     {
-                        epipolarLineTargetActiveB = true;
-                        epipolarLine_aTargetB = epiLine_a;
-                        epipolarLine_bTargetB = epiLine_b;
-                        epipolarLine_cTargetB = epiLine_c;
+                        Point magWindowEpipolarStart = new (start.Value.X - clippingWindow.X, start.Value.Y - clippingWindow.Y);
+                        Point magWindowEpipolarEnd = new (end.Value.X - clippingWindow.X, end.Value.Y - clippingWindow.Y);
+                        CanvasDrawingHelper.DrawLineWithArrowHeads(CanvasMag, (Point)magWindowEpipolarStart, (Point)magWindowEpipolarEnd, 10/*arrow length*/, brush, new CanvasTag("EpipolarLine", "Line", tagValue), false, true, EventElement_PointerMoved, EventElement_PointerPressed);
                     }
-                }
-            }
-            // THIS CODE IS NOT UP-TO-DATE.  IT NEED TO BE REFACTORED TO USE SAME LOGIC AS GetEpipolarLineEndpoints()
-            // IF IT IS BOUGHT UP-TO-DATE THEN channelWidth NEEDS TO BE INCLUDING IN GENERAL SETTINGS
-            // ADD 'Show Epiploar Line' (or more descriptive word)
-            // ADD DROPDOWN 'Line Only' or 'Blur outer area'
-            else if (channelWidth > 0) // If channelWidth is not 0 then draw parallel lines to epipolar line
-                                       // with blurring above and below to indicate where the user should focus
-            {
-                // Caculate the offset for the dimension line either above or below
-                double offset = (channelWidth / canvasFrameScaleX);
-
-                // Calculate the out of bounds polygon for line 1 and 2
-                CalculateOutOfBoundsPolygons(TrueEpipolarLinePointAFalseEpipolarLinePointB,
-                    epiLine_a, epiLine_b, epiLine_c, 
-                    offset, 
-                    CanvasFrame.Width, CanvasFrame.Height,
-                    out PointCollection points1, out PointCollection points2);
-
-                // Set the brush colour
-                Brush brush;
-                if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
-                    brush = epipolarALineColour;
-                else
-                    brush = epipolarBLineColour;
-
-                // Parallel line1
-                DrawPolygonAcrylic(points1, brush, new CanvasTag("EpipolarLine", "Polygon1", tagValue));
-                DrawPolygonAcrylic(points2, brush, new CanvasTag("EpipolarLine", "Polygon2", tagValue));
-            }
-            else if (channelWidth != -1)
-            {
-                // Remove the epipolar line
-                if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
-                {
-                    epipolarLineTargetActiveA = false;
-                    epipolarStartCanvasFrameTargetA = null;
-                    epipolarEndCanvasFrameTargetA = null;
-                    epipolarLine_aTargetA = 0.0;
-                    epipolarLine_bTargetA = 0.0;
-                    epipolarLine_cTargetA = 0.0;
-                }
-                else
-                {
-                    epipolarLineTargetActiveB = false;
-                    epipolarStartCanvasFrameTargetB = null;
-                    epipolarEndCanvasFrameTargetB = null;
-                    epipolarLine_aTargetB = 0.0;
-                    epipolarLine_bTargetB = 0.0;
-                    epipolarLine_cTargetB = 0.0;
                 }
             }
 
@@ -620,7 +481,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Compute Epipolar Line Endpoints
+        /// Compute Epipolar Line Endpoints and clip to be witin the rectClip
         /// </summary>
         /// <param name="a"></param>
         /// <param name="b"></param>
@@ -629,53 +490,107 @@ namespace Surveyor.User_Controls
         /// <param name="canvasHeight"></param>
         /// <returns></returns>
         /// <exception cref="InvalidOperationException"></exception>
-        public static (Point? start, Point? end) GetEpipolarLineEndpoints(double a, double b, double c, double canvasWidth, double canvasHeight)
+        public static (Point? start, Point? end) GetEpipolarLineEndpoints(double a, double b, double c, Rect clippingWindow)
         {
             List<Point> intersections = [];
 
-            // Left boundary (x = 0), solve for y
+            double leftX = clippingWindow.X;
+            double rightX = clippingWindow.X + clippingWindow.Width;
+            double topY = clippingWindow.Y;
+            double bottomY = clippingWindow.Y + clippingWindow.Height;
+
+            // Left boundary (x = leftX), solve for y
             if (b != 0)
             {
-                double yLeft = (-c - a * 0) / b;
-                if (yLeft >= 0 && yLeft <= canvasHeight)
-                    intersections.Add(new Point(0, yLeft));
+                double yLeft = (-c - a * leftX) / b;
+                if (yLeft >= topY && yLeft <= bottomY)
+                    intersections.Add(new Point(leftX, yLeft));
             }
 
-            // Right boundary (x = canvasWidth), solve for y
+            // Right boundary (x = rightX), solve for y
             if (b != 0)
             {
-                double yRight = (-c - a * canvasWidth) / b;
-                if (yRight >= 0 && yRight <= canvasHeight)
-                    intersections.Add(new Point(canvasWidth, yRight));
+                double yRight = (-c - a * rightX) / b;
+                if (yRight >= topY && yRight <= bottomY)
+                    intersections.Add(new Point(rightX, yRight));
             }
 
-            // Top boundary (y = 0), solve for x
+            // Top boundary (y = topY), solve for x
             if (a != 0)
             {
-                double xTop = (-c - b * 0) / a;
-                if (xTop >= 0 && xTop <= canvasWidth)
-                    intersections.Add(new Point(xTop, 0));
+                double xTop = (-c - b * topY) / a;
+                if (xTop >= leftX && xTop <= rightX)
+                    intersections.Add(new Point(xTop, topY));
             }
 
-            // Bottom boundary (y = canvasHeight), solve for x
+            // Bottom boundary (y = bottomY), solve for x
             if (a != 0)
             {
-                double xBottom = (-c - b * canvasHeight) / a;
-                if (xBottom >= 0 && xBottom <= canvasWidth)
-                    intersections.Add(new Point(xBottom, canvasHeight));
+                double xBottom = (-c - b * bottomY) / a;
+                if (xBottom >= leftX && xBottom <= rightX)
+                    intersections.Add(new Point(xBottom, bottomY));
             }
 
-            // Ensure we have two valid points to draw the line
+            // Ensure we have two valid points to define the epipolar line
             if (intersections.Count >= 2)
             {
                 return (intersections[0], intersections[1]);
             }
             else
             {
-                Debug.WriteLine("GetEpipolarLineEndpoints: Epipolar line does not intersect the canvas correctly.");
+                Debug.WriteLine("GetEpipolarLineEndpoints: Epipolar line does not intersect the defined rectangle correctly.");
                 return (null, null);
             }
         }
+        //??? older version (keep for a while 02 Feb 2025)
+        //public static (Point? start, Point? end) GetEpipolarLineEndpoints(double a, double b, double c, double canvasWidth, double canvasHeight)
+        //{
+        //    List<Point> intersections = [];
+
+        //    // Left boundary (x = 0), solve for y
+        //    if (b != 0)
+        //    {
+        //        double yLeft = (-c - a * 0) / b;
+        //        if (yLeft >= 0 && yLeft <= canvasHeight)
+        //            intersections.Add(new Point(0, yLeft));
+        //    }
+
+        //    // Right boundary (x = canvasWidth), solve for y
+        //    if (b != 0)
+        //    {
+        //        double yRight = (-c - a * canvasWidth) / b;
+        //        if (yRight >= 0 && yRight <= canvasHeight)
+        //            intersections.Add(new Point(canvasWidth, yRight));
+        //    }
+
+        //    // Top boundary (y = 0), solve for x
+        //    if (a != 0)
+        //    {
+        //        double xTop = (-c - b * 0) / a;
+        //        if (xTop >= 0 && xTop <= canvasWidth)
+        //            intersections.Add(new Point(xTop, 0));
+        //    }
+
+        //    // Bottom boundary (y = canvasHeight), solve for x
+        //    if (a != 0)
+        //    {
+        //        double xBottom = (-c - b * canvasHeight) / a;
+        //        if (xBottom >= 0 && xBottom <= canvasWidth)
+        //            intersections.Add(new Point(xBottom, canvasHeight));
+        //    }
+
+        //    // Ensure we have two valid points to draw the line
+        //    if (intersections.Count >= 2)
+        //    {
+        //        return (intersections[0], intersections[1]);
+        //    }
+        //    else
+        //    {
+        //        Debug.WriteLine("GetEpipolarLineEndpoints: Epipolar line does not intersect the canvas correctly.");
+        //        return (null, null);
+        //    }
+        //}
+
 
 
         /// <summary>
@@ -696,41 +611,42 @@ namespace Surveyor.User_Controls
         /// <param name="minDepth"></param>
         /// <param name="maxDepth"></param>
         /// <returns></returns>
-        public static (Point start, Point end) GetEpipolarLineForUnrectifiedStereo(double a, double b, double c, double canvasWidth, double canvasHeight,
-                                                    double focalLength, double baseline, 
-                                                    double principalXLeft, double principalYLeft, double principalXRight, double principalYRight,
-                                                    double minDepth, double maxDepth)                                                    
-        {
-            // Ensure valid depth range
-            if (minDepth == 0) minDepth = 0.01;  // Prevent division by zero
-            if (maxDepth <= minDepth) maxDepth = minDepth + 0.1;
+        //??? NOT CURRENT USED
+        //public static (Point start, Point end) GetEpipolarLineForUnrectifiedStereo(double a, double b, double c, double canvasWidth, double canvasHeight,
+        //                                            double focalLength, double baseline, 
+        //                                            double principalXLeft, double principalYLeft, double principalXRight, double principalYRight,
+        //                                            double minDepth, double maxDepth)                                                    
+        //{
+        //    // Ensure valid depth range
+        //    if (minDepth == 0) minDepth = 0.01;  // Prevent division by zero
+        //    if (maxDepth <= minDepth) maxDepth = minDepth + 0.1;
 
-            // Compute disparity range
-            double maxDisparity = (focalLength * baseline) / minDepth; // Closest object (largest disparity)
-            double minDisparity = (focalLength * baseline) / maxDepth; // Farthest object (smallest disparity)
+        //    // Compute disparity range
+        //    double maxDisparity = (focalLength * baseline) / minDepth; // Closest object (largest disparity)
+        //    double minDisparity = (focalLength * baseline) / maxDepth; // Farthest object (smallest disparity)
 
-            // Convert disparity to right image coordinates
-            double xMinRight = principalXLeft - minDisparity + (principalXRight - principalXLeft);
-            double xMaxRight = principalXLeft - maxDisparity + (principalXRight - principalXLeft);
+        //    // Convert disparity to right image coordinates
+        //    double xMinRight = principalXLeft - minDisparity + (principalXRight - principalXLeft);
+        //    double xMaxRight = principalXLeft - maxDisparity + (principalXRight - principalXLeft);
 
-            // Adjust for principalY difference (if right image is shifted)
-            double yMinRight = (-c - a * xMinRight) / b + (principalYRight - principalYLeft);
-            double yMaxRight = (-c - a * xMaxRight) / b + (principalYRight - principalYLeft);
+        //    // Adjust for principalY difference (if right image is shifted)
+        //    double yMinRight = (-c - a * xMinRight) / b + (principalYRight - principalYLeft);
+        //    double yMaxRight = (-c - a * xMaxRight) / b + (principalYRight - principalYLeft);
 
-            // Ensure the epipolar line is clipped within the canvas bounds
-            var (canvasStart, canvasEnd) = GetEpipolarLineEndpoints(a, b, c, canvasWidth, canvasHeight);
+        //    // Ensure the epipolar line is clipped within the canvas bounds
+        //    var (canvasStart, canvasEnd) = GetEpipolarLineEndpoints(a, b, c, canvasWidth, canvasHeight);
 
-            if (canvasStart is not null && canvasEnd is not null)
-            {
-                xMinRight = Math.Clamp(xMinRight, Math.Min(canvasStart.Value.X, canvasEnd.Value.X), Math.Max(canvasStart.Value.X, canvasEnd.Value.X));
-                yMinRight = Math.Clamp(yMinRight, Math.Min(canvasStart.Value.Y, canvasEnd.Value.Y), Math.Max(canvasStart.Value.Y, canvasEnd.Value.Y));
+        //    if (canvasStart is not null && canvasEnd is not null)
+        //    {
+        //        xMinRight = Math.Clamp(xMinRight, Math.Min(canvasStart.Value.X, canvasEnd.Value.X), Math.Max(canvasStart.Value.X, canvasEnd.Value.X));
+        //        yMinRight = Math.Clamp(yMinRight, Math.Min(canvasStart.Value.Y, canvasEnd.Value.Y), Math.Max(canvasStart.Value.Y, canvasEnd.Value.Y));
 
-                xMaxRight = Math.Clamp(xMaxRight, Math.Min(canvasStart.Value.X, canvasEnd.Value.X), Math.Max(canvasStart.Value.X, canvasEnd.Value.X));
-                yMaxRight = Math.Clamp(yMaxRight, Math.Min(canvasStart.Value.Y, canvasEnd.Value.Y), Math.Max(canvasStart.Value.Y, canvasEnd.Value.Y));
-            }
+        //        xMaxRight = Math.Clamp(xMaxRight, Math.Min(canvasStart.Value.X, canvasEnd.Value.X), Math.Max(canvasStart.Value.X, canvasEnd.Value.X));
+        //        yMaxRight = Math.Clamp(yMaxRight, Math.Min(canvasStart.Value.Y, canvasEnd.Value.Y), Math.Max(canvasStart.Value.Y, canvasEnd.Value.Y));
+        //    }
 
-            return (new Point(xMinRight, yMinRight), new Point(xMaxRight, yMaxRight));
-        }
+        //    return (new Point(xMinRight, yMinRight), new Point(xMaxRight, yMaxRight));
+        //}
 
 
         /// <summary>
@@ -762,8 +678,9 @@ namespace Surveyor.User_Controls
                     brush = epipolarBLineColour;
 
                 // Epipolar line with an arrow head on the end with the larger depth 
-                DrawLine(pointNear, pointMiddle, brush, new CanvasTag("EpipolarPoints", "Curve", tagValue));
-                DrawLineWithArrowHeads((Point)pointMiddle, (Point)pointFar, brush, new CanvasTag("EpipolarPoints", "Curve", tagValue), false, true);
+                CanvasDrawingHelper.DrawLine(CanvasFrame, pointNear, pointMiddle, brush, new CanvasTag("EpipolarPoints", "Curve", tagValue), EventElement_PointerMoved, EventElement_PointerPressed);
+                CanvasDrawingHelper.DrawLineWithArrowHeads(CanvasFrame, (Point)pointMiddle, (Point)pointFar, 10/*arrow length*/, brush, new CanvasTag("EpipolarPoints", "Curve", tagValue), false, true, EventElement_PointerMoved, EventElement_PointerPressed);
+                CanvasDrawingHelper.DrawDot(CanvasFrame, pointMiddle, 10/*diameter*/, brush, new CanvasTag("EpipolarPoints", "Curve", tagValue), EventElement_PointerMoved, EventElement_PointerPressed);
 
                 // Remember the epipolar line
                 if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
@@ -826,174 +743,175 @@ namespace Surveyor.User_Controls
         /// <param name="canvasHeight"></param>
         /// <param name="point1"></param>
         /// <param name="point2"></param>
-        private void CalculateOutOfBoundsPolygons(bool TrueEpipolarLinePointAFalseEpipolarLinePointB,
-            double epiLine_a, double epiLine_b, double epiLine_c,
-            double channelWidth,
-            double canvasWidth, double canvasHeight,
-            out PointCollection points1, out PointCollection points2)
-        {
+        //??? Not used 02 Feb 2025
+//        private void CalculateOutOfBoundsPolygons(bool TrueEpipolarLinePointAFalseEpipolarLinePointB,
+//            double epiLine_a, double epiLine_b, double epiLine_c,
+//            double channelWidth,
+//            double canvasWidth, double canvasHeight,
+//            out PointCollection points1, out PointCollection points2)
+//        {
 
-            // The tagValue is used to indicate if Point A or B
-            string tagValue = TrueEpipolarLinePointAFalseEpipolarLinePointB.ToString();
+//            // The tagValue is used to indicate if Point A or B
+//            string tagValue = TrueEpipolarLinePointAFalseEpipolarLinePointB.ToString();
 
              
-            // Get the intersect points of the epipolar line with the canvas
-            // boundaries for polygon line 1
-            CalculateCanvasIntersectPointForEpipolarLine(epiLine_a, epiLine_b, epiLine_c,
-                channelWidth,
-                canvasWidth, canvasHeight,
-                out double? polyLineLeftIntersect1,
-                out double? polyLineRightIntersect1,
-                out double? polyLineTopIntersect1,
-                out double? polyLineBottomIntersect1);
+//            // Get the intersect points of the epipolar line with the canvas
+//            // boundaries for polygon line 1
+//            CalculateCanvasIntersectPointForEpipolarLine(epiLine_a, epiLine_b, epiLine_c,
+//                channelWidth,
+//                canvasWidth, canvasHeight,
+//                out double? polyLineLeftIntersect1,
+//                out double? polyLineRightIntersect1,
+//                out double? polyLineTopIntersect1,
+//                out double? polyLineBottomIntersect1);
 
 
-            // Get the intersect points of the epipolar line with the canvas
-            // boundaries for polygon line 2
-            CalculateCanvasIntersectPointForEpipolarLine(epiLine_a, epiLine_b, epiLine_c,
-                -channelWidth,
-                canvasWidth, canvasHeight,
-                out double? polyLineLeftIntersect2,
-                out double? polyLineRightIntersect2,
-                out double? polyLineTopIntersect2,
-                out double? polyLineBottomIntersect2);
+//            // Get the intersect points of the epipolar line with the canvas
+//            // boundaries for polygon line 2
+//            CalculateCanvasIntersectPointForEpipolarLine(epiLine_a, epiLine_b, epiLine_c,
+//                -channelWidth,
+//                canvasWidth, canvasHeight,
+//                out double? polyLineLeftIntersect2,
+//                out double? polyLineRightIntersect2,
+//                out double? polyLineTopIntersect2,
+//                out double? polyLineBottomIntersect2);
 
 
-            // points 1 is typically the upper out of bounds area
-            points1 = new();
+//            // points 1 is typically the upper out of bounds area
+//            points1 = new();
 
-            // Did we intersect the left canvas boundary?
-            if (polyLineLeftIntersect1 is not null)
-                points1.Add(new Point(0, (double)polyLineLeftIntersect1));
+//            // Did we intersect the left canvas boundary?
+//            if (polyLineLeftIntersect1 is not null)
+//                points1.Add(new Point(0, (double)polyLineLeftIntersect1));
 
-            // Did we intersect the top canvas boundary?
-            if (polyLineTopIntersect1 is not null)
-                points1.Add(new Point((double)polyLineTopIntersect1, 0));
+//            // Did we intersect the top canvas boundary?
+//            if (polyLineTopIntersect1 is not null)
+//                points1.Add(new Point((double)polyLineTopIntersect1, 0));
 
-            // Did we intersect the right canvas boundary?
-            if (polyLineRightIntersect1 is not null)
-                points1.Add(new Point(canvasWidth - 1, (double)polyLineRightIntersect1));
+//            // Did we intersect the right canvas boundary?
+//            if (polyLineRightIntersect1 is not null)
+//                points1.Add(new Point(canvasWidth - 1, (double)polyLineRightIntersect1));
 
-            // Did we interest the bottom canvas boundary?
-            if (polyLineBottomIntersect1 is not null)
-                points1.Add(new Point((double)polyLineBottomIntersect1, canvasHeight - 1));
+//            // Did we interest the bottom canvas boundary?
+//            if (polyLineBottomIntersect1 is not null)
+//                points1.Add(new Point((double)polyLineBottomIntersect1, canvasHeight - 1));
 
 
 
-            // If intersect is Left and Top then add(0, 0)
-            if (polyLineLeftIntersect1 is not null && polyLineTopIntersect1 is not null)
-                points1.Add(new Point(0, 0));
+//            // If intersect is Left and Top then add(0, 0)
+//            if (polyLineLeftIntersect1 is not null && polyLineTopIntersect1 is not null)
+//                points1.Add(new Point(0, 0));
 
-            // If intersect is Top and Right then add(w, 0)
-            if (polyLineTopIntersect1 is not null && polyLineRightIntersect1 is not null)
-                points1.Add(new Point(canvasWidth, 0));
+//            // If intersect is Top and Right then add(w, 0)
+//            if (polyLineTopIntersect1 is not null && polyLineRightIntersect1 is not null)
+//                points1.Add(new Point(canvasWidth, 0));
 
-            // If intersect is Left and Right then add(w, 0) & (0, 0)
-            if (polyLineLeftIntersect1 is not null && polyLineRightIntersect1 is not null)
-            {
-                points1.Add(new Point(canvasWidth, 0));
-                points1.Add(new Point(0, 0));
-            }
+//            // If intersect is Left and Right then add(w, 0) & (0, 0)
+//            if (polyLineLeftIntersect1 is not null && polyLineRightIntersect1 is not null)
+//            {
+//                points1.Add(new Point(canvasWidth, 0));
+//                points1.Add(new Point(0, 0));
+//            }
 
-            // If intersect is Left and Bottom then add(w, h), (w, 0) & (0, 0)
-            if (polyLineLeftIntersect1 is not null && polyLineBottomIntersect1 is not null)
-            {
-                points1.Add(new Point(canvasWidth, canvasHeight));
-                points1.Add(new Point(canvasWidth, 0));
-                points1.Add(new Point(0, 0));
-            }
+//            // If intersect is Left and Bottom then add(w, h), (w, 0) & (0, 0)
+//            if (polyLineLeftIntersect1 is not null && polyLineBottomIntersect1 is not null)
+//            {
+//                points1.Add(new Point(canvasWidth, canvasHeight));
+//                points1.Add(new Point(canvasWidth, 0));
+//                points1.Add(new Point(0, 0));
+//            }
 
-            // If intersect is Top and Bottom then add(w, h) & (w, 0)
-            if (polyLineTopIntersect1 is not null && polyLineBottomIntersect1 is not null)
-            {
-//                if (polyLineTopIntersect1 > polyLineBottomIntersect1)
-//                {
-                    points1.Add(new Point(0, canvasHeight));
-                    points1.Add(new Point(0, 0));
-                //}
-                //else
-                //{
-                //    points1.Add(new Point(canvasWidth, canvasHeight));
-                //    points1.Add(new Point(canvasWidth, 0));
-                //}
-            }
+//            // If intersect is Top and Bottom then add(w, h) & (w, 0)
+//            if (polyLineTopIntersect1 is not null && polyLineBottomIntersect1 is not null)
+//            {
+////                if (polyLineTopIntersect1 > polyLineBottomIntersect1)
+////                {
+//                    points1.Add(new Point(0, canvasHeight));
+//                    points1.Add(new Point(0, 0));
+//                //}
+//                //else
+//                //{
+//                //    points1.Add(new Point(canvasWidth, canvasHeight));
+//                //    points1.Add(new Point(canvasWidth, 0));
+//                //}
+//            }
 
-            // If intersect is Right and Bottom then add(0, h), (0, 0) & (w, 0)
-            if (polyLineRightIntersect1 is not null && polyLineBottomIntersect1 is not null)
-            {
-                points1.Add(new Point(0, canvasHeight));
-                points1.Add(new Point(0, 0));
-                points1.Add(new Point(canvasWidth, 0));
-            }
+//            // If intersect is Right and Bottom then add(0, h), (0, 0) & (w, 0)
+//            if (polyLineRightIntersect1 is not null && polyLineBottomIntersect1 is not null)
+//            {
+//                points1.Add(new Point(0, canvasHeight));
+//                points1.Add(new Point(0, 0));
+//                points1.Add(new Point(canvasWidth, 0));
+//            }
         
 
 
-            // points 2 is typically the upper out of bounds area
-            points2 = new();
+//            // points 2 is typically the upper out of bounds area
+//            points2 = new();
 
-            // Did we intersect the left canvas boundary?
-            if (polyLineLeftIntersect2 is not null)
-                points2.Add(new Point(0, (double)polyLineLeftIntersect2));
+//            // Did we intersect the left canvas boundary?
+//            if (polyLineLeftIntersect2 is not null)
+//                points2.Add(new Point(0, (double)polyLineLeftIntersect2));
 
-            // Did we intersect the top canvas boundary?
-            if (polyLineTopIntersect2 is not null)
-                points2.Add(new Point((double)polyLineTopIntersect2, 0));
+//            // Did we intersect the top canvas boundary?
+//            if (polyLineTopIntersect2 is not null)
+//                points2.Add(new Point((double)polyLineTopIntersect2, 0));
 
-            // Did we intersect the right canvas boundary?
-            if (polyLineRightIntersect2 is not null)
-                points2.Add(new Point(canvasWidth - 1, (double)polyLineRightIntersect2));
+//            // Did we intersect the right canvas boundary?
+//            if (polyLineRightIntersect2 is not null)
+//                points2.Add(new Point(canvasWidth - 1, (double)polyLineRightIntersect2));
 
-            // Did we interest the bottom canvas boundary?
-            if (polyLineBottomIntersect2 is not null)
-                points2.Add(new Point((double)polyLineBottomIntersect2, canvasHeight - 1));
+//            // Did we interest the bottom canvas boundary?
+//            if (polyLineBottomIntersect2 is not null)
+//                points2.Add(new Point((double)polyLineBottomIntersect2, canvasHeight - 1));
 
 
-            // If intersect is Left and Top then add(w, 0), (w, h) & (0, h)
-            if (polyLineLeftIntersect2 is not null && polyLineTopIntersect2 is not null)
-            {
-                points2.Add(new Point(canvasWidth, 0));                
-                points2.Add(new Point(canvasWidth, canvasHeight));
-                points2.Add(new Point(0, canvasHeight));
-            }
+//            // If intersect is Left and Top then add(w, 0), (w, h) & (0, h)
+//            if (polyLineLeftIntersect2 is not null && polyLineTopIntersect2 is not null)
+//            {
+//                points2.Add(new Point(canvasWidth, 0));                
+//                points2.Add(new Point(canvasWidth, canvasHeight));
+//                points2.Add(new Point(0, canvasHeight));
+//            }
 
-            // If intersect is Top and Right then  add(w, h), (0, h) & (0, 0)
-            if (polyLineTopIntersect2 is not null && polyLineRightIntersect2 is not null)
-            {
-                points2.Add(new Point(canvasWidth, canvasHeight));
-                points2.Add(new Point(0, canvasHeight));                
-                points2.Add(new Point(0, 0));
-            }
+//            // If intersect is Top and Right then  add(w, h), (0, h) & (0, 0)
+//            if (polyLineTopIntersect2 is not null && polyLineRightIntersect2 is not null)
+//            {
+//                points2.Add(new Point(canvasWidth, canvasHeight));
+//                points2.Add(new Point(0, canvasHeight));                
+//                points2.Add(new Point(0, 0));
+//            }
 
-            // If intersect is Left and Right then  add(w, h) & (0, h)
-            if (polyLineLeftIntersect2 is not null && polyLineRightIntersect2 is not null)
-            {
-                points2.Add(new Point(canvasWidth, canvasHeight));
-                points2.Add(new Point(0, canvasHeight));            
-            }
+//            // If intersect is Left and Right then  add(w, h) & (0, h)
+//            if (polyLineLeftIntersect2 is not null && polyLineRightIntersect2 is not null)
+//            {
+//                points2.Add(new Point(canvasWidth, canvasHeight));
+//                points2.Add(new Point(0, canvasHeight));            
+//            }
 
-            // If intersect is Left and Bottom then  add(0, h)
-            if (polyLineLeftIntersect2 is not null && polyLineBottomIntersect2 is not null)
-                points2.Add(new Point(0, canvasHeight));
+//            // If intersect is Left and Bottom then  add(0, h)
+//            if (polyLineLeftIntersect2 is not null && polyLineBottomIntersect2 is not null)
+//                points2.Add(new Point(0, canvasHeight));
 
-            // If intersect is Top and Bottom then  add(0, h) & (0, 0)
-            if (polyLineTopIntersect2 is not null && polyLineBottomIntersect2 is not null)
-            {
-//                if (polyLineTopIntersect2 > polyLineBottomIntersect2)
-//                {
-                    points2.Add(new Point(canvasWidth, canvasHeight));
-                    points2.Add(new Point(canvasWidth, 0));
-                //}
-                //else
-                //{
-                //    points2.Add(new Point(0, canvasHeight));
-                //    points2.Add(new Point(0, 0));
-                //}
-            }
+//            // If intersect is Top and Bottom then  add(0, h) & (0, 0)
+//            if (polyLineTopIntersect2 is not null && polyLineBottomIntersect2 is not null)
+//            {
+////                if (polyLineTopIntersect2 > polyLineBottomIntersect2)
+////                {
+//                    points2.Add(new Point(canvasWidth, canvasHeight));
+//                    points2.Add(new Point(canvasWidth, 0));
+//                //}
+//                //else
+//                //{
+//                //    points2.Add(new Point(0, canvasHeight));
+//                //    points2.Add(new Point(0, 0));
+//                //}
+//            }
 
-            // If intersect is Right and Bottom then  add(w, h)
-            if (polyLineRightIntersect2 is not null && polyLineBottomIntersect2 is not null)
-                points2.Add(new Point(canvasWidth, canvasHeight));
-        }
+//            // If intersect is Right and Bottom then  add(w, h)
+//            if (polyLineRightIntersect2 is not null && polyLineBottomIntersect2 is not null)
+//                points2.Add(new Point(canvasWidth, canvasHeight));
+//        }
 
 
         /// <summary>
@@ -1049,68 +967,69 @@ namespace Surveyor.User_Controls
         /// <param name="polyLineRightIntersect"></param>
         /// <param name="polyLineTopIntersect"></param>
         /// <param name="polyLineBottomIntersect"></param>
-        private void CalculateCanvasIntersectPointForEpipolarLine(double A, double B, double C,
-            double channelWidth,
-            double canvasWidth, double canvasHeight,
-            out double? polyLineLeftIntersect,
-            out double? polyLineRightIntersect,
-            out double? polyLineTopIntersect,
-            out double? polyLineBottomIntersect)
-        {
-            // Reset
-            polyLineLeftIntersect = null;
-            polyLineRightIntersect = null;
-            polyLineTopIntersect = null;
-            polyLineBottomIntersect = null;
+        ///??? Not Used 02 Feb 2025 
+        //private void XXCalculateCanvasIntersectPointForEpipolarLine(double A, double B, double C,
+        //    double channelWidth,
+        //    double canvasWidth, double canvasHeight,
+        //    out double? polyLineLeftIntersect,
+        //    out double? polyLineRightIntersect,
+        //    out double? polyLineTopIntersect,
+        //    out double? polyLineBottomIntersect)
+        //{
+        //    // Reset
+        //    polyLineLeftIntersect = null;
+        //    polyLineRightIntersect = null;
+        //    polyLineTopIntersect = null;
+        //    polyLineBottomIntersect = null;
 
-            // Does polygon1 line intersect left canvas boundary
-            // Range is between 0 and (canvasHeight - 2) inclusive, (canvasHeight - 1) is classified as the bottom boundary
-            // y = ((-a * x) - (c + cw)) / b so if x = 0 then y = -(c + cw) / b
-            if (B != 0)
-            {
-                polyLineLeftIntersect = LineSolveForY(0 /*x=0*/, A, B, C, channelWidth);
+        //    // Does polygon1 line intersect left canvas boundary
+        //    // Range is between 0 and (canvasHeight - 2) inclusive, (canvasHeight - 1) is classified as the bottom boundary
+        //    // y = ((-a * x) - (c + cw)) / b so if x = 0 then y = -(c + cw) / b
+        //    if (B != 0)
+        //    {
+        //        polyLineLeftIntersect = LineSolveForY(0 /*x=0*/, A, B, C, channelWidth);
 
-                // Check if the intersect is out of bounds
-                if (polyLineLeftIntersect < 0 || polyLineLeftIntersect >= (canvasHeight - 1))
-                    polyLineLeftIntersect = null;
-            }
+        //        // Check if the intersect is out of bounds
+        //        if (polyLineLeftIntersect < 0 || polyLineLeftIntersect >= (canvasHeight - 1))
+        //            polyLineLeftIntersect = null;
+        //    }
 
-            // Does polygon line intersect right canvas boundary
-            // Range is greater than 0 and (canvasHeight - 1) inclusive, 0 is classified as the top boundary
-            // y = ((-a * x) - (c + cw)) / b  so if x=(canvasWidth - 1) then y = ((-a * (canvasWidth - 1)) - (c + cw)) / b
-            if (B != 0)
-            {
-                polyLineRightIntersect = LineSolveForY(canvasWidth - 1 /*x=canvasWidth - 1*/, A, B, C, channelWidth);
+        //    // Does polygon line intersect right canvas boundary
+        //    // Range is greater than 0 and (canvasHeight - 1) inclusive, 0 is classified as the top boundary
+        //    // y = ((-a * x) - (c + cw)) / b  so if x=(canvasWidth - 1) then y = ((-a * (canvasWidth - 1)) - (c + cw)) / b
+        //    if (B != 0)
+        //    {
+        //        polyLineRightIntersect = LineSolveForY(canvasWidth - 1 /*x=canvasWidth - 1*/, A, B, C, channelWidth);
 
-                // Check if the intersect is out of bounds
-                if (polyLineRightIntersect <= 0 || polyLineRightIntersect > canvasHeight - 1)
-                    polyLineRightIntersect = null;
-            }
+        //        // Check if the intersect is out of bounds
+        //        if (polyLineRightIntersect <= 0 || polyLineRightIntersect > canvasHeight - 1)
+        //            polyLineRightIntersect = null;
+        //    }
 
-            // Does polygon1 line intersect top canvas boundary
-            // Range is greater than 0 and (canvasWidth - 1) inclusive, 0 is classified as the lef boundary
-            // x = ((-b * y) - (c + cw)) / a  so if y = 0  then x = (-(c + cw) / a
-            if (A != 0)
-            {
-                polyLineTopIntersect = LineSolveForX(0/*y=0*/, A, B, C, channelWidth);
+        //    // Does polygon1 line intersect top canvas boundary
+        //    // Range is greater than 0 and (canvasWidth - 1) inclusive, 0 is classified as the lef boundary
+        //    // x = ((-b * y) - (c + cw)) / a  so if y = 0  then x = (-(c + cw) / a
+        //    if (A != 0)
+        //    {
+        //        polyLineTopIntersect = LineSolveForX(0/*y=0*/, A, B, C, channelWidth);
 
-                // Check if the intersect is out of bounds
-                if (polyLineTopIntersect <= 0 || polyLineTopIntersect > canvasWidth - 1)
-                    polyLineTopIntersect = null;
-            }
+        //        // Check if the intersect is out of bounds
+        //        if (polyLineTopIntersect <= 0 || polyLineTopIntersect > canvasWidth - 1)
+        //            polyLineTopIntersect = null;
+        //    }
 
-            // Does polygon1 line intersect bottom canvas boundary
-            // Range is between 0 and least than (canvasWidth - 1) inclusive, (canvasWidth - 1) is classified as the right boundary
-            // x = ((-b * y) - (c + cw)) / a  so if y = (canvasHeight - 1)  then x = ((-b * (canvasHeight - 1)) - (c + cw)) / a
-            if (A != 0)
-            {
-                polyLineBottomIntersect = LineSolveForX(canvasHeight - 1/*y=canvasHeight - 1*/, A, B, C, channelWidth);
+        //    // Does polygon1 line intersect bottom canvas boundary
+        //    // Range is between 0 and least than (canvasWidth - 1) inclusive, (canvasWidth - 1) is classified as the right boundary
+        //    // x = ((-b * y) - (c + cw)) / a  so if y = (canvasHeight - 1)  then x = ((-b * (canvasHeight - 1)) - (c + cw)) / a
+        //    if (A != 0)
+        //    {
+        //        polyLineBottomIntersect = LineSolveForX(canvasHeight - 1/*y=canvasHeight - 1*/, A, B, C, channelWidth);
 
-                // Check if the intersect is out of bounds
-                if (polyLineBottomIntersect <= 0 || polyLineBottomIntersect > canvasWidth - 1)
-                    polyLineBottomIntersect = null;
-            }
-        }
+        //        // Check if the intersect is out of bounds
+        //        if (polyLineBottomIntersect <= 0 || polyLineBottomIntersect > canvasWidth - 1)
+        //            polyLineBottomIntersect = null;
+        //    }
+        //}
 
 
         /// <summary>

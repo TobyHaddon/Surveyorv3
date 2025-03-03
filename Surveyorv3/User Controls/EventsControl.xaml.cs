@@ -149,7 +149,7 @@ namespace Surveyor.User_Controls
                     EventDialog.Title = $"{evt.EventDataType}";
                     break;
             }
-            EventDialog.PrimaryButtonText = "Cancel";
+            //???EventDialog.PrimaryButtonText = "Cancel";
 
             // Create a string to display the event data
             StringBuilder sb = new();
@@ -262,7 +262,7 @@ namespace Surveyor.User_Controls
             var result = await EventDialog.ShowAsync();
 
 
-            if (result == ContentDialogResult.Secondary)
+            if (result == ContentDialogResult.Primary)
             {
                 // Copy the event data to the clipboard
                 var dataPackage = new DataPackage();
@@ -377,7 +377,7 @@ namespace Surveyor.User_Controls
             var result = await EventDialog.ShowAsync();
 
 
-            if (result == ContentDialogResult.Secondary)
+            if (result == ContentDialogResult.Primary)
             {
                 // Copy the event data to the clipboard
                 var dataPackage = new DataPackage();
@@ -442,7 +442,7 @@ namespace Surveyor.User_Controls
                         Title = "Delete Event",
                         Content = "Are you sure you want to delete the selected event?",
                         PrimaryButtonText = "OK",
-                        SecondaryButtonText = "Cancel",
+                        CloseButtonText = "Cancel",
                         DefaultButton = ContentDialogButton.Primary,
                         XamlRoot = this.Content.XamlRoot
                     };
@@ -651,8 +651,14 @@ namespace Surveyor.User_Controls
                         surveyRulesCalc = surveyStereoPoint.SurveyRulesCalc;
                     }
 
-                    
 
+                    // Length of the fish
+                    if (measurment is not null && measurment != 0)
+                    {
+                        if (sb.Length > 0)
+                            sb.Append(", ");
+                        sb.Append($"{Math.Round((double)measurment * 1000, 0)}mm "); // Round up to the nearest whole number
+                    }
 
                     // Species/Genus/Family
                     if (speciesInfo is not null)
@@ -663,14 +669,6 @@ namespace Surveyor.User_Controls
                             sb.Append($"{speciesInfo.Genus}");
                         else if (!string.IsNullOrEmpty(speciesInfo.Family))
                             sb.Append($"{speciesInfo.Family}");
-                    }
-
-                    // Length of the fish
-                    if (measurment is not null && measurment != 0)
-                    {
-                        if (sb.Length > 0)
-                            sb.Append(", ");
-                        sb.Append($"{Math.Round((double)measurment * 1000, 0)}mm long"); // Round up to the nearest whole number
                     }
 
                     // Survey rules passed or failed

@@ -1,10 +1,4 @@
 ﻿// SurveyMeasurementHelper
-// Ensures the measurments points are not mixed up
-// How it works:
-// Calculate the angle using Math.Atan2(deltaY, deltaX), which gives the inclination of the line in degrees.
-// Compare the angles:
-//    -If their absolute difference is greater than 45 degrees, the corresponding points are incorrect.
-//    -We then swap TargetBLeft and TargetBRight to correct the mistake.
 // 
 // Version 1.0  26 Feb 2025
 
@@ -15,6 +9,15 @@ namespace Surveyor.Helper
 
     public static class SurveyMeasurementHelper
     {
+        /// <summary>
+        // Ensures the measurments points are not mixed up
+        // How it works:
+        // Calculate the angle using Math.Atan2(deltaY, deltaX), which gives the inclination of the line in degrees.
+        // Compare the angles:
+        //    -If their absolute difference is greater than 45 degrees, the corresponding points are incorrect.
+        //    -We then swap TargetBLeft and TargetBRight to correct the mistake.
+        /// </summary>
+        /// <param name="measurement"></param>
         public static void EnsureCorrectCorrespondence(SurveyMeasurement measurement)
         {
             // Calculate angles in degrees
@@ -28,6 +31,20 @@ namespace Surveyor.Helper
             }
         }
 
+
+        ///
+        /// PRIVATE
+        ///
+
+
+        /// <summary>
+        /// Returns the angle between two points in degrees
+        /// </summary>
+        /// <param name="x1"></param>
+        /// <param name="y1"></param>
+        /// <param name="x2"></param>
+        /// <param name="y2"></param>
+        /// <returns></returns>
         private static double CalculateAngle(double x1, double y1, double x2, double y2)
         {
             double deltaY = y2 - y1;
@@ -37,6 +54,11 @@ namespace Surveyor.Helper
             return angleDeg;
         }
 
+
+        /// <summary>
+        /// Swaps the Right Target A and Right Target B coordinates
+        /// </summary>
+        /// <param name="measurement"></param>
         private static void SwapRightTargets(SurveyMeasurement measurement)
         {
             // Swap Right A and Right B coordinates

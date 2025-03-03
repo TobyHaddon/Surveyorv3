@@ -26,6 +26,7 @@ using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Provider;
+using Windows.UI.Core;
 using WinRT.Interop;
 using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.Survey.DataClass;
@@ -39,8 +40,6 @@ namespace Surveyor
     /// </summary>
     public sealed partial class MainWindow : Window
     {
-        private readonly AppWindow appWindow;
-
         // Create the Mediator
         private readonly SurveyorMediator mediator;
 
@@ -74,7 +73,12 @@ namespace Surveyor
         public MainWindow()
         {
             this.InitializeComponent();
+            
+            // Event fired after the main window is commited to closing
             this.Closed += MainWindow_Closed;
+            // Event first before the app window is commited to closing (i.e. can be cancelled)
+            if (this.AppWindow is not null)
+                this.AppWindow.Closing += AppWindow_Closing;
 
             // Inform the Reporter of the DispatcherQueue
             report.SetDispatcherQueue(DispatcherQueue);
@@ -142,7 +146,7 @@ namespace Surveyor
             // Allows the menu bar to extend into the title bar
             // Assumes "this" is a XAML Window. In projects that don't use 
             // WinUI 3 1.3 or later, use interop APIs to get the AppWindow.
-            appWindow = this.AppWindow;
+            //???appWindow = this.AppWindow;
             AppTitleBar.Loaded += AppTitleBar_Loaded;
             AppTitleBar.SizeChanged += AppTitleBar_SizeChanged;
             ExtendsContentIntoTitleBar = true;
@@ -400,8 +404,9 @@ namespace Surveyor
         }
 
 
+
         /// <summary>
-        /// Window is closing. Save the current window state
+        /// Window is committed to closing. Save the current window state
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -409,16 +414,34 @@ namespace Surveyor
         {
             IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
             var windowId = Win32Interop.GetWindowIdFromWindow(WinRT.Interop.WindowNative.GetWindowHandle(this));
-            var appWindow = AppWindow.GetFromWindowId(windowId);
+            var _appWindow = AppWindow.GetFromWindowId(windowId);
 
-            // Save the current window state
-            WindowStateHelper.SaveWindowState(hWnd, appWindow);
+            WindowStateHelper.SaveWindowState(hWnd, _appWindow);
         }
 
-        public void AppClosed()
+
+
+        /// <summary>
+        /// Window close has been requested by user, check for open Surveys
+        /// </summary>
+        /// <returns></returns>
+        private async void AppWindow_Closing(object sender, AppWindowClosingEventArgs e)
         {
-            // Implement your cleanup or closing logic here
-            mediaStereoController.MediaClose();
+            // Cancel the close in case we don't want it
+            e.Cancel = true;
+
+            // Check if there is an unsaved survey
+            if (await CheckForOpenSurveyAndClose() == true)
+            {
+                mediaStereoController.MediaClose();
+
+                this.Close(); // This will NOT retrigger AppWindow.Closing
+            }
+            else
+            {
+                // User canceled, prevent the app from closing
+                e.Cancel = true;
+            }
         }
 
 
@@ -1529,7 +1552,12 @@ namespace Surveyor
                             Children =
                             {
                                 warningIcon, // Add the warning icon to the dialog content
-                                new TextBlock { Text = "Before you close this survey do you want to save the changes you have made?\n\nPress 'Yes' to save the existing survey, 'No' to close without saving" }
+                                new TextBlock
+                                {
+                                    Text = "Before you close this survey do you want to save the changes you have made?\n\nPress 'Yes' to save the existing survey, 'No' to close without saving",
+                                    TextWrapping = TextWrapping.Wrap, // Enables text wrapping
+                                    MaxWidth = 300 // Prevents text from stretching too wide
+                                }
                             }
                         },
                         CloseButtonText = "Cancel",
@@ -2271,8 +2299,8 @@ namespace Surveyor
 
             double scaleAdjustment = AppTitleBar.XamlRoot.RasterizationScale;
 
-            RightPaddingColumn.Width = new GridLength(appWindow.TitleBar.RightInset / scaleAdjustment);
-            LeftPaddingColumn.Width = new GridLength(appWindow.TitleBar.LeftInset / scaleAdjustment);
+            RightPaddingColumn.Width = new GridLength(AppWindow.TitleBar.RightInset / scaleAdjustment);
+            LeftPaddingColumn.Width = new GridLength(AppWindow.TitleBar.LeftInset / scaleAdjustment);
 
             // Area for the menu bar
             GeneralTransform transformMenuBar = AppMenuBar.TransformToVisual(null);
@@ -2474,6 +2502,7 @@ namespace Surveyor
         }
 
 
+
         /// <summary>
         /// Disables or enables a window in WinUI 3 using native Win32 API.
         /// </summary>
@@ -2608,107 +2637,6 @@ namespace Surveyor
                 }
             }
         }
-    }
-
-
-    /// <summary>
-    /// Sets and restore the window position and size and which monitor
-    /// </summary>
-    public static class WindowStateHelper
-    {
-        // P/Invoke to get monitor information
-        [DllImport("user32.dll")]
-        static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
-
-        // P/Invoke to get window monitor
-        [DllImport("user32.dll")]
-        static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
-
-        private const int SWP_NOZORDER = 0x0004;
-        private const int SWP_NOACTIVATE = 0x0010;
-        private const uint MONITOR_DEFAULTTONEAREST = 0x00000002;
-
-        [StructLayout(LayoutKind.Sequential)]
-        struct MONITORINFO
-        {
-            public int cbSize;
-            public RECT rcMonitor;
-            public RECT rcWork;
-            public uint dwFlags;
-        }
-
-        [StructLayout(LayoutKind.Sequential)]
-        struct RECT
-        {
-            public int left;
-            public int top;
-            public int right;
-            public int bottom;
-        }
-
-        // Save window position and size
-        public static void SaveWindowState(IntPtr hWnd, AppWindow appWindow)
-        {
-            // Find the monitor associated with the window
-            IntPtr monitor = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
-
-            // Retrieve DPI scaling factors
-            uint dpiX, dpiY;
-            DPIHelper.GetDpiForMonitor(monitor, DPIHelper.MDT_EFFECTIVE_DPI, out dpiX, out dpiY);
-
-            // Convert window coordinates to DIPs
-            var position = appWindow.Position;
-            var size = appWindow.Size;
-            int dipX = (int)(position.X * 96.0 / dpiX);
-            int dipY = (int)(position.Y * 96.0 / dpiY);
-
-            // Save values in local settings
-            ApplicationData.Current.LocalSettings.Values["WindowPosX"] = dipX;
-            ApplicationData.Current.LocalSettings.Values["WindowPosY"] = dipY;
-            ApplicationData.Current.LocalSettings.Values["WindowWidth"] = (int)(size.Width * 96.0 / dpiX);
-            ApplicationData.Current.LocalSettings.Values["WindowHeight"] = (int)(size.Height * 96.0 / dpiY);
-        }
-
-        // Restore window position and size
-        public static void RestoreWindowState(IntPtr hWnd, AppWindow appWindow)
-        {
-            // Retrieve values from local settings
-            if (ApplicationData.Current.LocalSettings.Values.TryGetValue("WindowPosX", out object? posX) &&
-                ApplicationData.Current.LocalSettings.Values.TryGetValue("WindowPosY", out object? posY) &&
-                ApplicationData.Current.LocalSettings.Values.TryGetValue("WindowWidth", out object? width) &&
-                ApplicationData.Current.LocalSettings.Values.TryGetValue("WindowHeight", out object? height))
-            {
-                // Find the monitor associated with the window
-                IntPtr monitor = MonitorFromWindow(hWnd, MONITOR_DEFAULTTONEAREST);
-
-                // Retrieve DPI scaling factors
-                uint dpiX, dpiY;
-                DPIHelper.GetDpiForMonitor(monitor, DPIHelper.MDT_EFFECTIVE_DPI, out dpiX, out dpiY);
-
-                // Convert DIPs back to physical pixels
-                int pixelX = (int)(Convert.ToInt32(posX) * dpiX / 96.0);
-                int pixelY = (int)(Convert.ToInt32(posY) * dpiY / 96.0);
-                int pixelWidth = (int)(Convert.ToInt32(width) * dpiX / 96.0);
-                int pixelHeight = (int)(Convert.ToInt32(height) * dpiY / 96.0);
-
-                // Restore window size and position using Win32 API
-                SetWindowPos(hWnd, IntPtr.Zero, pixelX, pixelY, pixelWidth, pixelHeight, SWP_NOZORDER | SWP_NOACTIVATE);
-            }
-        }
-
-        // P/Invoke to set window position
-        [DllImport("user32.dll", SetLastError = true)]
-        private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int cx, int cy, uint uFlags);
-    }
-
-    public class DPIHelper
-    {
-        // Monitor DPI retrieval function from Windows API
-        [DllImport("Shcore.dll")]
-        public static extern int GetDpiForMonitor(IntPtr hMonitor, int dpiType, out uint dpiX, out uint dpiY);
-
-        // Constants for DPI scaling
-        public const int MDT_EFFECTIVE_DPI = 0;
     }
 
 

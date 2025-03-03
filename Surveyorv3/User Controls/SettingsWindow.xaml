@@ -46,7 +46,7 @@
                         <!--Survey Info and Media-->
                         <toolkit:SettingsExpander Header="Survey Info &amp; Media">
                             <toolkit:SettingsExpander.HeaderIcon>
-                                <FontIcon Glyph="&#xE768;" ToolTipService.ToolTip="Survey setup information and survey media"/>
+                                <FontIcon Glyph="&#xF0E3;" ToolTipService.ToolTip="Survey setup information and survey media"/>
                             </toolkit:SettingsExpander.HeaderIcon>
 
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">

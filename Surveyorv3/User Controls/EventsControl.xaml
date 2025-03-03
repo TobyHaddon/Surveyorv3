@@ -68,10 +68,22 @@
 
             <ListView.ContextFlyout>
                 <MenuFlyout>
-                    <MenuFlyoutItem Text="Display Frame" Click="GoToFrameMenuItem_Click" />
-                    <MenuFlyoutItem Text="Delete Event" Click="ListViewEvent_Delete" />
+                    <MenuFlyoutItem Text="Display Frame" Click="GoToFrameMenuItem_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE8EF;" FontFamily="Segoe Fluent Icons" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Text="Delete Event" Click="ListViewEvent_Delete">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE74D;" FontFamily="Segoe Fluent Icons" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
                     <MenuFlyoutSeparator />
-                    <MenuFlyoutItem Text="Properties" Click="ViewMenuItem_Click" />
+                    <MenuFlyoutItem Text="Properties" Click="ViewMenuItem_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon Glyph="&#xE713;" FontFamily="Segoe Fluent Icons" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
                 </MenuFlyout>
             </ListView.ContextFlyout>
         </ListView>
@@ -80,12 +92,12 @@
         <ContentDialog x:Name="EventDialog"
                        Title="Event"
                        CloseButtonText="Cancel"
-                       SecondaryButtonText="&#xE8C8;">
-            <ContentDialog.SecondaryButtonStyle>
+                       PrimaryButtonText="&#xE8C8;">
+            <ContentDialog.PrimaryButtonStyle>
                 <Style TargetType="Button">
                     <Setter Property="FontFamily" Value="Segoe Fluent Icons"/>
                 </Style>
-            </ContentDialog.SecondaryButtonStyle>
+            </ContentDialog.PrimaryButtonStyle>
             <StackPanel Orientation="Vertical" Spacing="10">
                 <!-- Placeholder for dynamic content -->
                 <TextBlock x:Name="EventDialogContent" TextWrapping="Wrap" />

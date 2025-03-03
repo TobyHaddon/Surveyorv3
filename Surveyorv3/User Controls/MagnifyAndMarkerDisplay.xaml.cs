@@ -52,7 +52,6 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Shapes;
-using Surveyor.Events;
 using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -66,8 +65,8 @@ using Windows.Media;
 using Windows.Storage.Streams;
 using static Surveyor.User_Controls.SettingsWindowEventData;
 
-
-
+using Surveyor.Events;
+using Surveyor.Helper;
 
 
 namespace Surveyor.User_Controls
@@ -1380,6 +1379,8 @@ namespace Surveyor.User_Controls
             // Check the ImageFrame is setup 
             Debug.Assert(imageUIElement is not null, "MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
 
+            Debug.WriteLine($"_NewImageFrame: Position:{_position}, Width:{_imageSourceWidth}, Height:{_imageSourceHeight}");
+
             // Remember the frame position
             // Used to know what Events are applicable to this frame
             position = _position;
@@ -1584,6 +1585,32 @@ namespace Surveyor.User_Controls
                 targetMagIconOffsetToCentre.X = (TargetAMag.Width - 1) / 2;
                 targetMagIconOffsetToCentre.Y = (TargetAMag.Height - 1) / 2;
             }
+            else
+            {
+                //???
+                bool imageUIElementNotNull = false;
+                bool imageUIElementParentIsGrid = false;
+                double? imageUIElementActualWidth = null;
+
+
+                if (imageUIElement is not null)
+                {
+                    imageUIElementNotNull = true;
+
+                    if (imageUIElement.Parent is not null)
+                    {
+                        if (imageUIElement.Parent is Grid)
+                        {
+                            imageUIElementParentIsGrid = true;
+
+                            imageUIElementActualWidth = imageUIElement.ActualWidth;
+
+                        }
+                    }
+                }
+                Debug.WriteLine($"AdjustCanvasSizeAndScaling: Skipped body. imageUIElement Not Null is {imageUIElementNotNull}, imageUIElementParent is Grid {imageUIElementParentIsGrid}, AcutalWidth = {imageUIElementActualWidth}");
+            }
+
         }
 
 
@@ -1874,7 +1901,16 @@ namespace Surveyor.User_Controls
                             // Check for epipolar line for Target A
                             if (epipolarLineTargetActiveA)
                             {
-
+                                SetMagWindowEpipolarLine(true/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
+                                                         rectMagWindowSource, 
+                                                         0 /*draw line*/);
+                            }
+                            // Check for epipolar line for Target B
+                            if (epipolarLineTargetActiveB)
+                            {
+                                SetMagWindowEpipolarLine(false/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
+                                                         rectMagWindowSource,
+                                                         0 /*draw line*/);
                             }
                         }
                         else
@@ -2700,106 +2736,6 @@ namespace Surveyor.User_Controls
     }
 
 
-    /// <summary>
-    /// Class of imbedding information in a Canvas child element
-    /// Tag format:
-    /// [TagType]:[TagSubType]:[Value]
-    /// The TagType is the type of tag e.g. 'Event' or 'EpipolarLine'
-    /// The TagSubType is the sub type of the tag e.g. 'DimensionEnd' or 'DimensionLine'
-    /// The Value is the value of the tag e.g. '12345678-1234-1234-1234-1234567890AB' or 'SomeText'
-    /// </summary>
-    public class CanvasTag
-    {
-        public enum ValueType
-        {
-            vtNone,
-            vtGuid,
-            vtString
-        }
-
-        // TagType e.g. 'Event' or 'EpipolarLine'
-        public string TagType { get; set; }
-        // TagSubType e.g. 'DimensionEnd' or 'DimensionLine'
-        public string TagSubType { get; set; }
-
-        // Value type e.g. GUID or String
-        public ValueType VType;
-        public Guid? ValueGuid { get; set; }
-        public string? ValueString { get; set; }
-
-        public CanvasTag(string tagType, string tagSubType)
-        {
-            TagType = tagType;
-            TagSubType = tagSubType;
-
-            VType = ValueType.vtNone;
-            ValueGuid = null;
-            ValueString = null;
-
-        }
-        public CanvasTag(string tagType, string tagSubType, Guid guid) : this(tagType, tagSubType)
-        {
-            VType = ValueType.vtGuid;
-            ValueGuid = guid;
-        }
-        public CanvasTag(string tagType, string tagSubType, string valueString) : this(tagType, tagSubType)
-        {
-            VType = ValueType.vtString;
-            ValueString = valueString;
-        }
-
-        /// <summary>
-        /// Check if the tag is of the indicated values and ignore the sub type
-        /// </summary>
-        /// <param name="tagType"></param>
-        /// <returns></returns>
-        public bool IsTagType(string tagType)
-        {
-            return TagType == tagType;
-        }
-
-
-        /// <summary>
-        /// Check if the tag andn sub tag is of the indicated values 
-        /// </summary>
-        /// <param name="tagType"></param>
-        /// <param name="tagSubType"></param>
-        /// <returns></returns>
-        public bool IsTagType(string tagType, string tagSubType)
-        {
-            return TagType == tagType && TagSubType == tagSubType;
-        }
-
-        public bool IsTag(CanvasTag tagOther)
-        {
-            return (TagType == tagOther.TagType && TagSubType == tagOther.TagSubType && IsValue(tagOther));
-        }
-
-        public bool IsValue(CanvasTag tagOther)
-        {
-            switch (VType)
-            {
-                case ValueType.vtNone:
-                    return false;
-
-                case ValueType.vtGuid:
-                    if (ValueGuid is null || tagOther.ValueGuid is null)
-                        return false;
-                    else
-                        return (tagOther.VType == ValueType.vtGuid) && (ValueGuid == tagOther.ValueGuid);
-
-                case ValueType.vtString:
-                    if (ValueString is null || tagOther.ValueString is null)
-                        return false;
-                    else
-                        return (tagOther.VType == ValueType.vtString) && (ValueString == tagOther.ValueString);
-
-                default:
-                    return false;
-            }
-        }
-    }
-
 
 
     /// <summary>
@@ -2918,14 +2854,12 @@ namespace Surveyor.User_Controls
                     switch (data.magnifyAndMarkerControlEvent)
                     {
                         case MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarLine:
-                            SafeUICall(() => _magnifyAndMarkerControl.SetEpipolarLine(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
-                                                                                      data.epipolarLine_a, data.epipolarLine_b, data.epipolarLine_c, 
-                                                                                      data.focalLength, data.baseline, 
-                                                                                      data.principalXLeft, data.principalYLeft, data.principalXRight, data.principalYRight,
-                                                                                      data.channelWidth));
+                            SafeUICall(() => _magnifyAndMarkerControl.SetCanvasFrameEpipolarLine(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
+                                                                                                 data.epipolarLine_a, data.epipolarLine_b, data.epipolarLine_c, 
+                                                                                                 data.channelWidth));
                             break;
 
-                        case MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarPoints:
+                        case MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarPoints:  // Experimental
                             SafeUICall(() => _magnifyAndMarkerControl.SetEpipolarPoints(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
                                                                                         data.pointNear, data.pointMiddle, data.pointFar,
                                                                                         data.channelWidth));

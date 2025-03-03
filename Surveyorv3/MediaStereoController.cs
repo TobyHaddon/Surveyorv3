@@ -1058,7 +1058,7 @@ namespace Surveyor
             // can do some UI work if necessary (no UI world in this class)
             if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Both)
                 mainWindow.SaveCurrentFrame(SurveyorMediaControl.eControlType.Both);
-            else if (controlType == SurveyorMediaControl.eControlType.None)
+            else if (controlType != SurveyorMediaControl.eControlType.None)
                 mainWindow.SaveCurrentFrame(controlType);
         }
 
