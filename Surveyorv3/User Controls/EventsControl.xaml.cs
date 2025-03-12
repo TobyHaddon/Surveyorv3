@@ -199,7 +199,7 @@ namespace Surveyor.User_Controls
                             sb.Append($"\r\n");
                             surveyRulesCalc = surveyStereoPoint.SurveyRulesCalc;
                         }
-
+                        
                         if (surveyRulesCalc is not null)
                         {
                             if (surveyRulesCalc.RMS is not null)

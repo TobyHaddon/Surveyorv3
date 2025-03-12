@@ -255,7 +255,7 @@ namespace Surveyor
         /// Called from the stereo controler to save the current video frame
         /// </summary>
         /// <param name="controlType"></param>
-        public async void SaveCurrentFrame(SurveyorMediaControl.eControlType controlType)
+        public async Task SaveCurrentFrame(SurveyorMediaControl.eControlType controlType)
         {
             if (surveyClass is null ||
                 surveyClass.IsLoaded == false ||
@@ -316,13 +316,13 @@ namespace Surveyor
 
                 if (controlType == SurveyorMediaControl.eControlType.Both)
                 {
-                    MediaPlayerLeft.SaveCurrentFrame(framesPath);
-                    MediaPlayerRight.SaveCurrentFrame(framesPath);
+                    await MediaPlayerLeft.SaveCurrentFrame(framesPath);
+                    await MediaPlayerRight.SaveCurrentFrame(framesPath);
                 }
                 else if (controlType == SurveyorMediaControl.eControlType.Primary)
-                    MediaPlayerLeft.SaveCurrentFrame(framesPath);
+                    await MediaPlayerLeft.SaveCurrentFrame(framesPath);
                 else if (controlType == SurveyorMediaControl.eControlType.Secondary)
-                    MediaPlayerRight.SaveCurrentFrame(framesPath);
+                    await MediaPlayerRight.SaveCurrentFrame(framesPath);
             }
         }
 
@@ -433,7 +433,7 @@ namespace Surveyor
             // Check if there is an unsaved survey
             if (await CheckForOpenSurveyAndClose() == true)
             {
-                mediaStereoController.MediaClose();
+                await mediaStereoController.MediaClose();
 
                 this.Close(); // This will NOT retrigger AppWindow.Closing
             }
@@ -882,6 +882,12 @@ namespace Surveyor
                         surveyClass.Data.Sync.ActualTimeSpanOffsetRight = (TimeSpan)MediaPlayerRight.Position;
                     }
 
+                    // Wait for things to settle i.e. any pending MediPlayer directed plays or pauses to have completed
+                    // note. calling MediaPlayer.Play or Pause with the MediaTimelineController engaged will cause an
+                    // exception
+                    await Task.Delay(500);
+
+                    // Engage to the MediaTimelineController
                     mediaStereoController.MediaLockMediaPlayers();
                 }
                 else
@@ -939,9 +945,9 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FileSettings_Click(object sender, RoutedEventArgs e)
+        private async void FileSettings_Click(object sender, RoutedEventArgs e)
         {
-            ShowSettingsWindow();
+            await ShowSettingsWindow();
         }
 
 
@@ -950,9 +956,9 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FileExit_Click(object sender, RoutedEventArgs e)
+        private async void FileExit_Click(object sender, RoutedEventArgs e)
         {
-            mediaStereoController.MediaClose();
+            await mediaStereoController.MediaClose();
 
             SetTitle("");
             SetLockUnlockIndicator(null, null);
@@ -1602,7 +1608,7 @@ namespace Surveyor
                     await Task.Delay(500);
 
                     // Closes the StereoMediaController, clears the title and the sync indicator
-                    CloseSVSMediaFiles();
+                    await CloseSVSMediaFiles();
 
                     // Close and clear the Project class (holds the survey data)
                     await surveyClass.SurveyClose();
@@ -1742,7 +1748,7 @@ namespace Surveyor
                 // Check if already Open and close if necessary
                 if (mediaStereoController.MediaIsOpen())
                 {
-                    mediaStereoController.MediaClose();
+                    await mediaStereoController.MediaClose();
                     SetTitle("");
                     SetLockUnlockIndicator(null, null);
                 }
@@ -1796,12 +1802,12 @@ namespace Surveyor
         /// <summary>
         /// CloseMediaFiles
         /// </summary>
-        private void CloseSVSMediaFiles()
+        private async Task CloseSVSMediaFiles()
         {
 
             if (mediaStereoController.MediaIsOpen())
             {
-                mediaStereoController.MediaClose();
+                await mediaStereoController.MediaClose();
 
                 SetTitle("");
                 SetTitleSaveStatus("");
@@ -2440,11 +2446,11 @@ namespace Surveyor
         /// <param name="sender"></param>
         /// <param name="e"></param>
 
-        private void OnNavigationViewSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
+        private async void OnNavigationViewSelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
         {
             if (args.IsSettingsSelected)
             {              
-                ShowSettingsWindow();
+                await ShowSettingsWindow();
                 NavigationView.SelectedItem = (NavigationViewItem)NavigationView.MenuItems[0];  // Assuming Events is the first item
             }
             else
@@ -2459,7 +2465,7 @@ namespace Surveyor
         /// Display the settings window
         /// </summary>
         private int settingsWindowEntryCount = 0;
-        private async void ShowSettingsWindow()
+        private async Task ShowSettingsWindow()
         {
             settingsWindowEntryCount++;
             // Make sure we only open the settings window once.

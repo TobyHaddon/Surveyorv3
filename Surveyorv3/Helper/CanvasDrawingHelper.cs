@@ -25,6 +25,10 @@ namespace Surveyor.Helper
         /// <param name="canvasTag"></param>
         public static void DrawLine(Canvas canvas, Point start, Point end, Brush brush, CanvasTag canvasTag, PointerEventHandler? pointerMoved, PointerEventHandler? pointerPressed)
         {
+            CanvasDrawingHelper.DrawLine(canvas, start, end, 2/*strokeThickness*/, brush, canvasTag, pointerMoved, pointerPressed);
+        }
+        public static void DrawLine(Canvas canvas, Point start, Point end, double strokeThickness, Brush brush, CanvasTag canvasTag, PointerEventHandler? pointerMoved, PointerEventHandler? pointerPressed)
+        {
             try
             {
                 Microsoft.UI.Xaml.Shapes.Line line = new()
@@ -33,7 +37,7 @@ namespace Surveyor.Helper
                     Y1 = start.Y,
                     X2 = end.X,
                     Y2 = end.Y,
-                    StrokeThickness = 2,
+                    StrokeThickness = strokeThickness,
                     Stroke = brush,
                     Tag = canvasTag
                 };

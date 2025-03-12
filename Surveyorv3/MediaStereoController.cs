@@ -6,6 +6,8 @@
 // Added support to Save a frame
 // Version 1.2  26 Feb 2025
 // Add a method to swap the targets is user LeftA mixed up with RightB (and therefore LeftB with RightA
+// Version 1.3  09 Mar 2025
+// Refractored based on ExampleMediaTimelineController
 
 using Surveyor.Events;
 using Surveyor.User_Controls;
@@ -19,6 +21,10 @@ using static Surveyor.MediaStereoControllerEventData;
 using Microsoft.UI.Xaml.Controls;
 using System.Diagnostics.Metrics;
 using Surveyor.Helper;
+using CommunityToolkit.WinUI;
+using Microsoft.UI.Xaml;
+
+
 
 
 
@@ -199,10 +205,10 @@ namespace Surveyor
 
             // Open both files
             if (!string.IsNullOrEmpty(mediaFileSpecLeft))
-                mediaPlayerLeft.Open(mediaFileSpecLeft);
+                await mediaPlayerLeft.Open(mediaFileSpecLeft);
 
             if (!string.IsNullOrEmpty(mediaFileSpecRight))
-                mediaPlayerRight.Open(mediaFileSpecRight);
+                await mediaPlayerRight.Open(mediaFileSpecRight);
 
             // If the timeSpanOffset is not null and both media files opened then request the media
             // players to be locked together
@@ -238,32 +244,31 @@ namespace Surveyor
         /// <summary>
         /// Close media on eft and right media players (if open). Reset variables
         /// </summary>
-        public async void MediaClose()
+        public async Task MediaClose()
         {
             CheckIsUIThread();
 
             // This is Pause the media if it is synchronized and playing
-            if (mediaSynchronized)
-                // Pause the media if it is playing (This will also stop the MediaTimelineController
-                Pause(eCameraSide.None);
+            if (mediaSynchronized)                
+                await Pause(eCameraSide.None);
             else
             {
-                Pause(eCameraSide.Left);
-                Pause(eCameraSide.Right);
+                await Pause(eCameraSide.Left);
+                await Pause(eCameraSide.Right);
             }
 
-            // Wait 2 secs
+            // Wait to settle
             await Task.Delay(2000);
 
 
             if (mediaPlayerLeft.IsOpen())
             {
-                mediaPlayerLeft.Close();
+                await mediaPlayerLeft.Close();
                 mediaControlPrimary.Clear();
             }
             if (mediaPlayerRight.IsOpen())
             {
-                mediaPlayerRight.Close();
+                await mediaPlayerRight.Close();
                 mediaControlSecondary.Clear();
             }
 
@@ -445,14 +450,24 @@ namespace Surveyor
             CheckIsUIThread();
 
             if (mediaSynchronized)
+            {
+                // Disable the frame server on both media players (and hide the Image Frame)
+                mediaPlayerLeft.FrameServerEnable(false);
+                mediaPlayerRight.FrameServerEnable(false);
+              
+                // Play is called on both media players JUST to set the mode to Play. The MediaTimelineController
+                // will control the play
+                mediaPlayerLeft.SetPlayMode();     
+                mediaPlayerRight.SetPlayMode();
                 // MediaPlayers are locked together so control via the MediaTimelineController
                 mediaTimelineController!.Resume();
+            }
             else
             {
                 if (cameraSide == eCameraSide.Left)
-                   mediaPlayerLeft.Play();
+                    mediaPlayerLeft.Play();
                 else
-                   mediaPlayerRight.Play();
+                    mediaPlayerRight.Play();
             }
         }
 
@@ -462,24 +477,137 @@ namespace Surveyor
         /// If seperate the cameraSide will determine which media player will play
         /// </summary>
         /// <param name="cameraSide"></param>
-        private void Pause(eCameraSide cameraSide)
+        private async Task Pause(eCameraSide cameraSide)
         {
             CheckIsUIThread();
 
             if (mediaSynchronized)
             {
-                // MediaPlayers are locked together so control via the MediaTimelineController
-                mediaTimelineController!.Pause();
+                // Enable the frame server on both media players (and show the Image Frame)
+                // Pause is called on both media players JUST to set the mode to Paused. The MediaTimelineController
+                // will control the play
+                mediaPlayerLeft.SetPauseMode();
+                mediaPlayerRight.SetPauseMode();
+                // Enable the frame server on both media players (and show the Image Frame)
+                mediaPlayerLeft.FrameServerEnable(true);
+                mediaPlayerRight.FrameServerEnable(true);
 
-                // Go back one frame to force into frame mode an render the image on the ImageFrame 
-                FrameMove(eCameraSide.Left/*doesn't matter*/, -1);
+
+                //???await Task.Run(async () =>
+                _ = DispatcherQueue.GetForCurrentThread()?.TryEnqueue(async () =>
+                {
+                    try
+                    {
+
+                        bool retLeftReq = mediaPlayerLeft.RequestOneMoreFrame();
+                        bool retRightReq = mediaPlayerRight.RequestOneMoreFrame();
+
+                        if (retLeftReq && retRightReq)
+                        {
+                            // Run both waits in parallel
+                            await Task.WhenAll(
+                                mediaPlayerLeft.WaitOneMoreFrame(),
+                                mediaPlayerRight.WaitOneMoreFrame()
+                            );
+                        }
+                        else if (retLeftReq)
+                        {
+                            await mediaPlayerLeft.WaitOneMoreFrame();
+                        }
+                        else if (retRightReq)
+                        {
+                            await mediaPlayerRight.WaitOneMoreFrame();
+                        }
+
+                        // MediaPlayers are locked together so control via the MediaTimelineController
+                        Debug.WriteLine($"{DateTime.Now:hh:mm:ss} MediaTimelineController.Pause: Entered");
+                        mediaTimelineController!.Pause();
+                        Debug.WriteLine($"{DateTime.Now:hh:mm:ss} MediaTimelineController.Pause: Returned");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"{DateTime.Now:hh:mm:ss} MediaTimelineController.Pause: Exception {ex.Message}");
+                    }
+                });
+
+                // Wait for Pause state to be reached
+                bool paused = await WaitForMediaTimelinePaused(TimeSpan.FromMilliseconds(3000)); // Timeout of 3 seconds
+
+                if (paused)
+                {
+                    if (mediaPlayerLeft.Position is not null && mediaPlayerRight.Position is not null)
+                    {
+                        bool forwardFrame = false;
+
+                        // Check Mediaplayer Poistions and MediaTimeLineController positon and offset are correct
+                        TimeSpan currentMediaOffset = (TimeSpan)(mediaPlayerRight.Position - mediaPlayerLeft.Position);
+
+                        if (currentMediaOffset != mediaSynchronizedFrameOffset)
+                        {
+                            Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {cameraSide} Warning PauseControl: The MediaPlayers position offsets is not correct, open offset:{((TimeSpan)mediaSynchronizedFrameOffset!).TotalSeconds:F3}s, current offset:{currentMediaOffset.TotalSeconds:F3}");
+                            forwardFrame = true;
+                        }
+
+                        // Forward frame
+                        if (forwardFrame)
+                        {
+                            Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {cameraSide} Info PauseControl: Forcing a frame forward to maintain sync");
+                            await Task.Delay(10);
+                            await FrameMove(eCameraSide.Left/*doesn't matter*/, 1);
+                        }
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {cameraSide} Warning PauseControl: MediaTimelineController did not reach Paused state in time!");
+                }
             }
             else
             {
                 if (cameraSide == eCameraSide.Left)
-                    mediaPlayerLeft.Pause();
+                    await mediaPlayerLeft.Pause();
                 else
-                    mediaPlayerRight.Pause();
+                    await mediaPlayerRight.Pause();
+            }
+        }
+
+
+        /// <summary>
+        /// USed to wait the MediaTimelineController to reach the Paused state
+        /// </summary>
+        /// <param name="timeout"></param>
+        /// <returns></returns>
+        private async Task<bool> WaitForMediaTimelinePaused(TimeSpan timeout)
+        {
+            if (mediaTimelineController!.State != MediaTimelineControllerState.Paused)
+            {
+                var tcs = new TaskCompletionSource<bool>();
+                void Handler(MediaTimelineController sender, object args)
+                {
+                    if (sender.State == MediaTimelineControllerState.Paused)
+                    {
+                        sender.StateChanged -= Handler; //  Unsubscribe to prevent memory leaks
+                        tcs.TrySetResult(true); //  Mark as completed
+                    }
+                }
+
+                mediaTimelineController!.StateChanged += Handler;
+
+                // Wait for either the event OR timeout
+                if (await Task.WhenAny(tcs.Task, Task.Delay(timeout)) == tcs.Task)
+                {
+                    return true; // Successfully paused
+                }
+                else
+                {
+                    mediaTimelineController.StateChanged -= Handler; //  Ensure cleanup on timeout
+                    Debug.WriteLine($"{DateTime.Now:hh:mm:ss} MediaTimelineController.WaitForMediaTimelinePaused: Warning Timeout waiting for to reach Paused state, current state is {mediaTimelineController!.State}!");
+                    return false; //  Timed out
+                }
+            }
+            else
+            {
+                return true; // Already paused
             }
         }
 
@@ -491,12 +619,12 @@ namespace Surveyor
         /// </summary>
         /// <param name="cameraSide"></param>
         /// <param name="timeSpan"></param>
-        private void FrameMove(eCameraSide cameraSide, TimeSpan deltaPosition)
+        private async Task FrameMove(eCameraSide cameraSide, TimeSpan deltaPosition)
         {
             CheckIsUIThread();
 
             if (IsPlaying())
-                Pause(cameraSide);
+                await Pause(cameraSide);
 
             if (mediaSynchronized)
             {
@@ -534,7 +662,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="cameraSide"></param>
         /// <param name="frames">negative move back, positive move forward</param>
-        private void FrameMove(eCameraSide cameraSide, int frames)
+        private async Task FrameMove(eCameraSide cameraSide, int frames)
         {
             CheckIsUIThread();
 
@@ -545,7 +673,7 @@ namespace Surveyor
                 TimeSpan leftTimePerFrame = (TimeSpan)mediaPlayerLeft.TimePerFrame;
                 TimeSpan timeSpan = leftTimePerFrame * frames;
 
-                FrameMove(cameraSide, timeSpan);
+                await FrameMove(cameraSide, timeSpan);
             }
             else
             {
@@ -692,7 +820,7 @@ namespace Surveyor
             });
 
 
-            Debug.WriteLine($"MediaTimelineController_StateChanged: Position={sender.Position}");
+            //???Debug.WriteLine($"MediaTimelineController_PositionChanged: Position={sender.Position}");
         }
 
         // Incase we need later
@@ -821,27 +949,39 @@ namespace Surveyor
 
         /// <summary>
         /// Used by the TListener to call back the MediaPlayers to play/pause
+        /// TListener is not async so we need to call the MediaPlayers on the UI thread
         /// </summary>
         /// <param name="controlType"></param>
         /// <param name="mute"></param>
         internal void UserReqPlayOrPause(SurveyorMediaControl.eControlType controlType, bool playOrPause)
         {
-            CheckIsUIThread();
+            
+            DispatcherQueue.GetForCurrentThread()?.TryEnqueue(async () =>
+            {
+                try
+                {
+                    CheckIsUIThread();
 
-            if (playOrPause)
-            {
-                if (controlType == SurveyorMediaControl.eControlType.Primary)
-                    Play(eCameraSide.Left);
-                else
-                    Play(eCameraSide.Right);
-            }
-            else
-            {
-                if (controlType == SurveyorMediaControl.eControlType.Primary)
-                    Pause(eCameraSide.Left);
-                else
-                    Pause(eCameraSide.Right);
-            }
+                    if (playOrPause)
+                    {
+                        if (controlType == SurveyorMediaControl.eControlType.Primary)
+                            Play(eCameraSide.Left);
+                        else
+                            Play(eCameraSide.Right);
+                    }
+                    else
+                    {
+                        if (controlType == SurveyorMediaControl.eControlType.Primary)
+                            await Pause(eCameraSide.Left);
+                        else
+                            await Pause(eCameraSide.Right);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"MediaStereoController.UserReqPlayOrPause: {ex.Message}");
+                }
+            });
         }
 
         /// <summary>
@@ -872,17 +1012,29 @@ namespace Surveyor
         /// <param name="framesDelta"></param>
         internal void UserReqFrameMove(SurveyorMediaControl.eControlType controlType, int framesDelta)
         {
-            if (mediaSynchronized)
+            DispatcherQueue.GetForCurrentThread()?.TryEnqueue(async () =>
             {
-                FrameMove(eCameraSide.None, framesDelta);
-            }
-            else
-            {
-                if (controlType == SurveyorMediaControl.eControlType.Primary)
-                    FrameMove(eCameraSide.Left, framesDelta);
-                else
-                    FrameMove(eCameraSide.Right, framesDelta);
-            }
+                try
+                {
+                    CheckIsUIThread();
+
+                    if (mediaSynchronized)
+                    {
+                        await FrameMove(eCameraSide.None, framesDelta);
+                    }
+                    else
+                    {
+                        if (controlType == SurveyorMediaControl.eControlType.Primary)
+                            await FrameMove(eCameraSide.Left, framesDelta);
+                        else
+                            await FrameMove(eCameraSide.Right, framesDelta);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"MediaStereoController.UserReqFrameMove: {ex.Message}");
+                }
+            });
         }
 
 
@@ -892,18 +1044,28 @@ namespace Surveyor
         /// </summary>
         /// <param name="controlType"></param>
         internal void UserReqMoveStep(SurveyorMediaControl.eControlType controlType, TimeSpan step)
-        {                       
-            if (mediaSynchronized)
+        {
+            DispatcherQueue.GetForCurrentThread()?.TryEnqueue(async () =>
             {
-                FrameMove(eCameraSide.None, step);
-            }
-            else
-            {
-                if (controlType == SurveyorMediaControl.eControlType.Primary)
-                    FrameMove(eCameraSide.Left, step);                    
-                else
-                    FrameMove(eCameraSide.Right, step);
-            }
+                try
+                {
+                    if (mediaSynchronized)
+                    {
+                        await FrameMove(eCameraSide.None, step);
+                    }
+                    else
+                    {
+                        if (controlType == SurveyorMediaControl.eControlType.Primary)
+                            await FrameMove(eCameraSide.Left, step);
+                        else
+                            await FrameMove(eCameraSide.Right, step);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"MediaStereoController.UserReqMoveStep: {ex.Message}");
+                }
+            });
         }
 
 
@@ -917,26 +1079,37 @@ namespace Surveyor
         /// <param name="mute"></param>
         internal void UserReqMutedOrUmuted(SurveyorMediaControl.eControlType controlType, bool mute)
         {
-            if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Primary)
+            // Mute/Umute maybe need a UI thread so to be sure we are on the UI thread
+            DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
             {
-                if (mute)
-                    mediaPlayerLeft.Mute();
-                else
+                try
                 {
-                    mediaPlayerLeft.Unmute();
-                    mediaPlayerRight.Mute();
+                    if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Primary)
+                    {
+                        if (mute)
+                            mediaPlayerLeft.Mute();
+                        else
+                        {
+                            mediaPlayerLeft.Unmute();
+                            mediaPlayerRight.Mute();
+                        }
+                    }
+                    else
+                    {
+                        if (mute)
+                            mediaPlayerRight.Mute();
+                        else
+                        {
+                            mediaPlayerRight.Unmute();
+                            mediaPlayerLeft.Mute();
+                        }
+                    }
                 }
-            }
-            else
-            {
-                if (mute)
-                    mediaPlayerRight.Mute();
-                else
+                catch (Exception ex)
                 {
-                    mediaPlayerRight.Unmute();
-                    mediaPlayerLeft.Mute();
+                    Debug.WriteLine($"MediaStereoController.UserReqMutedOrUmuted: {ex.Message}");
                 }
-            }
+            });
         }
 
 
@@ -948,19 +1121,29 @@ namespace Surveyor
         /// <param name="controlType"></param>
         /// <param name="speed"></param>
         internal void UserReqSetSpeed(SurveyorMediaControl.eControlType controlType, float speed)
-        {        
-            if (mediaSynchronized)
+        {
+            DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() =>
             {
-                // Set the ClockRate on the MediaTimelineController
-                mediaTimelineController!.ClockRate = speed;
-            }
-            else
-            {
-                if (controlType == SurveyorMediaControl.eControlType.Primary)
-                    mediaPlayerLeft.SetSpeed(speed);
-                else
-                    mediaPlayerRight.SetSpeed(speed);
-            }
+                try
+                {
+                    if (mediaSynchronized)
+                    {
+                        // Set the ClockRate on the MediaTimelineController
+                        mediaTimelineController!.ClockRate = speed;
+                    }
+                    else
+                    {
+                        if (controlType == SurveyorMediaControl.eControlType.Primary)
+                            mediaPlayerLeft.SetSpeed(speed);
+                        else
+                            mediaPlayerRight.SetSpeed(speed);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"MediaStereoController.UserReqSetSpeed: {ex.Message}");
+                }
+            });
         }
 
         /// <summary>
@@ -1054,12 +1237,24 @@ namespace Surveyor
         /// <param name="controlType"></param>
         internal void UserReqSaveFrame(SurveyorMediaControl.eControlType controlType)
         {
-            // Call to the MainWindow so a) we have access to the Projectclass and b) we
-            // can do some UI work if necessary (no UI world in this class)
-            if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Both)
-                mainWindow.SaveCurrentFrame(SurveyorMediaControl.eControlType.Both);
-            else if (controlType != SurveyorMediaControl.eControlType.None)
-                mainWindow.SaveCurrentFrame(controlType);
+            DispatcherQueue.GetForCurrentThread()?.TryEnqueue(async () =>
+            {
+                CheckIsUIThread();
+
+                try
+                {
+                    // Call to the MainWindow so a) we have access to the Projectclass and b) we
+                    // can do some UI work if necessary (no UI world in this class)
+                    if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Both)
+                        await mainWindow.SaveCurrentFrame(SurveyorMediaControl.eControlType.Both);
+                    else if (controlType != SurveyorMediaControl.eControlType.None)
+                        await mainWindow.SaveCurrentFrame(controlType);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"MediaStereoController.UserReqSaveFrame: {ex.Message}");
+                }
+            });
         }
 
 
@@ -1071,6 +1266,7 @@ namespace Surveyor
 #if !No_MagnifyAndMarkerDisplay
         internal void UserReqMagWindowSizeSelect(SurveyorMediaControl.eControlType controlType, string magWindowSize)
         {
+            // Thread Safe/UI Check not required
             if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Primary)
                 magnifyAndMarkerDisplayLeft.MagWindowSizeSelect(magWindowSize);
 
@@ -1088,6 +1284,8 @@ namespace Surveyor
 #if !No_MagnifyAndMarkerDisplay
         internal void UserReqMagZoomSelect(SurveyorMediaControl.eControlType controlType, double canvasZoomFactor)
         {
+            // Thread Safe/UI Check not 
+
             if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Primary)
                 magnifyAndMarkerDisplayLeft.MagWindowZoomFactor(canvasZoomFactor);
 

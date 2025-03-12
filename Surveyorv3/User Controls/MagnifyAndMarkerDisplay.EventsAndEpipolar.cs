@@ -431,9 +431,16 @@ namespace Surveyor.User_Controls
             if (trueCanvasFrameFalseMagWindow)
             {
                 // Remove any existing epipolar lines
-                RemoveCanvasShapesByTag(new CanvasTag("EpipolarLine", "Polygon1", tagValue));
-                RemoveCanvasShapesByTag(new CanvasTag("EpipolarLine", "Polygon1", tagValue));
-                RemoveCanvasShapesByTag(new CanvasTag("EpipolarLine", "Line", tagValue));
+                RemoveCanvasShapesByTag(CanvasFrame, new CanvasTag("EpipolarLine", "Polygon1", tagValue));
+                RemoveCanvasShapesByTag(CanvasFrame, new CanvasTag("EpipolarLine", "Polygon1", tagValue));
+                RemoveCanvasShapesByTag(CanvasFrame, new CanvasTag("EpipolarLine", "Line", tagValue));
+            }
+            else
+            {
+                // Remove any existing epipolar lines
+                RemoveCanvasShapesByTag(CanvasMag, new CanvasTag("EpipolarLine", "Polygon1", tagValue));
+                RemoveCanvasShapesByTag(CanvasMag, new CanvasTag("EpipolarLine", "Polygon1", tagValue));
+                RemoveCanvasShapesByTag(CanvasMag, new CanvasTag("EpipolarLine", "Line", tagValue));
             }
 
             // If channelWidth is 0 then draw a simple epipolar line
@@ -462,14 +469,14 @@ namespace Surveyor.User_Controls
                     }
                     else
                     {
-                        Point magWindowEpipolarStart = new (start.Value.X - clippingWindow.X, start.Value.Y - clippingWindow.Y);
-                        Point magWindowEpipolarEnd = new (end.Value.X - clippingWindow.X, end.Value.Y - clippingWindow.Y);
-                        CanvasDrawingHelper.DrawLineWithArrowHeads(CanvasMag, (Point)magWindowEpipolarStart, (Point)magWindowEpipolarEnd, 10/*arrow length*/, brush, new CanvasTag("EpipolarLine", "Line", tagValue), false, true, EventElement_PointerMoved, EventElement_PointerPressed);
+                        Point magWindowEpipolarStart = new(start.Value.X - clippingWindow.X, start.Value.Y - clippingWindow.Y);
+                        Point magWindowEpipolarEnd = new(end.Value.X - clippingWindow.X, end.Value.Y - clippingWindow.Y);
+                        CanvasDrawingHelper.DrawLine(CanvasMag, (Point)magWindowEpipolarStart, (Point)magWindowEpipolarEnd, 1/*thickness*/, brush, new CanvasTag("EpipolarLine", "Line", tagValue), EventElement_PointerMoved, EventElement_PointerPressed);
                     }
                 }
             }
 
-            if (channelWidth != -1)
+            if (trueCanvasFrameFalseMagWindow && channelWidth != -1)
             {
                 // Show TeachingTip is necessary
                 if (SettingsManagerLocal.TeachingTipsEnabled == true && !SettingsManagerLocal.HasTeachingTipBeenShown("EpipolarLineTeachingTip"))
@@ -664,7 +671,7 @@ namespace Surveyor.User_Controls
             string tagValue = TrueEpipolarLinePointAFalseEpipolarLinePointB.ToString();
 
             // Remove any existing epipolar lines
-            RemoveCanvasShapesByTag(new CanvasTag("EpipolarPoints", "Curve", tagValue));
+            RemoveCanvasShapesByTag(CanvasFrame, new CanvasTag("EpipolarPoints", "Curve", tagValue));
 
 
             // If channelWidth is 0 then draw a simple epipolar line

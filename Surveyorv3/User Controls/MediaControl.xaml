@@ -141,7 +141,7 @@
                             </AppBarButton.Icon>
                             <AppBarButton.Flyout>
                                 <MenuFlyout Opening="ControlSpeed_Opening">
-                                    <ToggleMenuFlyoutItem x:Name="ControlSpeed5_00" Text="5.00" Click="ControlSpeed_Click"/>
+                                    <ToggleMenuFlyoutItem x:Name="ControlSpeed4_00" Text="4.00" Click="ControlSpeed_Click"/>
                                     <ToggleMenuFlyoutItem x:Name="ControlSpeed2_00" Text="2.00" Click="ControlSpeed_Click"/>
                                     <ToggleMenuFlyoutItem x:Name="ControlSpeed1_50" Text="1.50" Click="ControlSpeed_Click"/>
                                     <ToggleMenuFlyoutItem x:Name="ControlSpeed1_00" Text="1.00" Click="ControlSpeed_Click"/>
@@ -250,6 +250,12 @@
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE722;"/>
                         </AppBarButton.Icon>
+                        <AppBarButton.KeyboardAccelerators>
+                            <!-- Single S key -->
+                            <KeyboardAccelerator Key="S" />
+                            <!-- Ctrl + S key combination -->
+                            <KeyboardAccelerator Key="S" Modifiers="Control" />
+                        </AppBarButton.KeyboardAccelerators>
                     </AppBarButton>
 
                     <!-- Mute/Unmute, E198(Mute) E15D(Unmute) -->

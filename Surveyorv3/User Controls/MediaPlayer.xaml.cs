@@ -13,7 +13,12 @@
 // Version 1.2 25 Feb 2025
 // Moved to using the inbuilt SaveAsync in CanvasBitmap to save the frame to a file
 // Moved all the control of the frame buffer into the VideoFrameManager class (i.e. no direct access to the frame buffer)
+// Version 1.3  09 Mar 2025
+// Refractored based on ExampleMediaTimelineController
+// Moved the setting of 'mode' out of PlaybackSession_PlaybackStateChanged and into where the 
+// Play/Pause is requested
 
+using CommunityToolkit.WinUI;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Text;
 using Microsoft.Graphics.Canvas.UI.Xaml;
@@ -27,6 +32,7 @@ using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Graphics.Imaging;
@@ -37,6 +43,7 @@ using Windows.Media.MediaProperties;
 using Windows.Media.Playback;
 using Windows.Storage.Streams;
 using Windows.System.Display;
+using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
 using static Surveyor.User_Controls.SurveyorMediaPlayer;
 
 namespace Surveyor.User_Controls
@@ -72,7 +79,7 @@ namespace Surveyor.User_Controls
         // Used to indicate if the control is in Player mode (i.e. using MediaPlayerElement) or in frame mode (i.e. reading and displaying video frame via FFmpeg)
         public enum Mode { modeNone, modePlayer, modeFrame };
         private Mode mode = Mode.modeNone;
-        private Int64 _frameIndexCurrent = 0;
+        
         private TimeSpan positionPausedMode = TimeSpan.Zero;
 
         // Media duration
@@ -140,7 +147,7 @@ namespace Surveyor.User_Controls
         /// Opens the indicated media file in the Media Player
         /// </summary>
         /// <param name="mediaFileSpec"></param>
-        internal async void Open(string mediaFileSpec)
+        internal async Task Open(string mediaFileSpec)
         {
             Debug.WriteLine($"{CameraSide}: Open: Enter  (UIThread={DispatcherQueue.HasThreadAccess})");
 
@@ -160,7 +167,7 @@ namespace Surveyor.User_Controls
                         // Reset
                         mediaOpen = false;
                         mode = Mode.modeNone;
-                        _frameIndexCurrent = 0;
+                        //???_frameIndexCurrent = 0;
                         naturalDuration = TimeSpan.Zero;
                         frameWidth = 0;
                         frameHeight = 0;
@@ -177,7 +184,6 @@ namespace Surveyor.User_Controls
                         mp.MediaFailed += MediaPlayer_MediaFailed;
                         mp.MediaOpened += MediaPlayer_MediaOpened;
                         mp.MediaPlayerRateChanged += MediaPlayer_MediaPlayerRateChanged;
-                        mp.PlaybackMediaMarkerReached += MediaPlayer_PlaybackMediaMarkerReached;
                         mp.SourceChanged += MediaPlayer_SourceChanged;
                         mp.VideoFrameAvailable += MediaPlayer_VideoFrameAvailable;
 
@@ -242,7 +248,7 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Unscribe from the media player events and close the media and set the media open flag to false
         /// </summary>
-        internal void Close()
+        internal async Task Close()
         {
             // Check the player is actually open
             if (IsOpen())
@@ -265,7 +271,7 @@ namespace Surveyor.User_Controls
                 // Pause just in case the media is playing
                 if (MediaPlayerElement.MediaPlayer.CurrentState != MediaPlayerState.Paused)
                 {
-                    Pause();
+                    await Pause();
                 }
 
                 // Event PlaybackSession cancel subscriptions
@@ -294,25 +300,28 @@ namespace Surveyor.User_Controls
                     mp.MediaFailed -= MediaPlayer_MediaFailed;
                     mp.MediaOpened -= MediaPlayer_MediaOpened;
                     mp.MediaPlayerRateChanged -= MediaPlayer_MediaPlayerRateChanged;
-                    mp.PlaybackMediaMarkerReached -= MediaPlayer_PlaybackMediaMarkerReached;
                     mp.SourceChanged -= MediaPlayer_SourceChanged;
                     mp.VideoFrameAvailable -= MediaPlayer_VideoFrameAvailable;
+
+                    MediaPlayerElement.SetMediaPlayer(null);
+                    await Task.Delay(300);
                     mp.Dispose();
                 }
-
-                // Release the resources used to render the video frame
-                vidFrameMgr.Release();
 
                 // Hide the media player and the frame image user control
                 MediaPlayerElement.Visibility = Visibility.Collapsed;
                 ImageFrame.Visibility = Visibility.Collapsed;
                 ImageFrame.Source = null;
+                await Task.Delay(500);
 
+                // Release the resources used to render the video frame
+                vidFrameMgr.Release();
+                
                 // Reset the variables
                 mediaOpen = false;
                 mediaUri = "";
                 mode = Mode.modeNone;
-                _frameIndexCurrent = 0;
+                //???_frameIndexCurrent = 0;
                 naturalDuration = TimeSpan.Zero;
                 frameWidth = 0;
                 frameHeight = 0;
@@ -434,7 +443,7 @@ namespace Surveyor.User_Controls
         }
 
         /// <summary>
-        /// Play the media
+        /// Play the media player
         /// </summary>
         internal void Play()
         {
@@ -444,17 +453,58 @@ namespace Surveyor.User_Controls
             {
                 // Can only use this function if the media is not synchronized
                 if (!IsMediaSynchronized())
+                {
+                    // Let MediaPlayerElement render the video frame
+                    MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled = false;
+
+                    // Hide the ImageFrame control
+                    ImageFrame.Visibility = Visibility.Collapsed;
+
+                    // Play the media
+                    mode = Mode.modePlayer;
                     MediaPlayerElement.MediaPlayer.Play();
+                }
                 else
+                {
                     // Illegal to use this function if the media is synchronized
                     throw new InvalidOperationException("Can't use MediaPlayer.Play() when media is synchronized");
+                }
             }
         }
 
+
         /// <summary>
-        /// Pause the media
+        /// Called by MediaTimelineController to set the mode to Player
+        /// The media must be synchronized for this to be a valid request
         /// </summary>
-        internal void Pause()
+        internal void SetPlayMode()
+        {
+            if (IsOpen())
+            {
+                // Can only use this function if the media is not synchronized
+                if (IsMediaSynchronized())
+                {
+                    // Flag pause media
+                    // MediaTimelineController is used to play media and call this method
+                    // just to set the mode in the MediaPlayer UserControl to play
+                    mode = Mode.modePlayer;
+
+                    // Show the MediaPlayer
+                    MediaPlayerElement.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    // Illegal to use this function if the media is not synchronized
+                    throw new InvalidOperationException("Can't use MediaPlayer.SetPlayMode() when media is not synchronized");
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Pause the media player
+        /// </summary>
+        internal async Task Pause()
         {
             CheckIsUIThread();
 
@@ -463,19 +513,61 @@ namespace Surveyor.User_Controls
                 // Can only use this function if the media is not synchronized
                 if (!IsMediaSynchronized())
                 {
+                    // Start the frame server so we can render the frames
+                    FrameServerEnable(true);
+
+                    // Wait for at least one frame so frame is display on the image frame Control
+                    // Note the VideoFrameAvailable event shows the image frame control
+                    if (vidFrameMgr.RequestOneMoreFrame(CameraSide) == true)
+                    {
+                        await vidFrameMgr.WaitOneMoreFrame(CameraSide);
+                    }
+
+                    // Pause media
+                    mode = Mode.modeFrame;
                     MediaPlayerElement.MediaPlayer.Pause();
 
-                    // Move back one frame and forward one frame. This is a workaround to get the frame
-                    // server to sync with the frame the player. Otherwise the the server frame is typically
-                    // behind the player frame. However sometimes the displayed frame in
-                    // the player sometimes behind the MediaPlaybackSession.Position.  In this case the
-                    // server will sync to that forward position. This is the best we can do currently.
-                    MediaPlayerElement.MediaPlayer.StepBackwardOneFrame();
-                    MediaPlayerElement.MediaPlayer.StepForwardOneFrame();
+                    // Settle
+                    await Task.Delay(50);
+
+                    //???// Move back one frame and forward one frame. This is a workaround to get the frame
+                    //// server to sync with the frame the player. Otherwise the the server frame is typically
+                    //// behind the player frame. However sometimes the displayed frame in
+                    //// the player sometimes behind the MediaPlaybackSession.Position.  In this case the
+                    //// server will sync to that forward position. This is the best we can do currently.
+                    //MediaPlayerElement.MediaPlayer.StepBackwardOneFrame();
+                    //???MediaPlayerElement.MediaPlayer.StepForwardOneFrame();
                 }
                 else
+                {
                     // Illegal to use this function if the media is synchronized
                     throw new InvalidOperationException("Can't use MediaPlayer.Pause() when media is synchronized");
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Called by MediaTimelineController to set the mode to Pause
+        /// The media must be synchronized for this to be a valid request
+        /// </summary>
+        internal void SetPauseMode()
+        {
+            if (IsOpen())
+            {
+                // Can only use this function if the media is not synchronized
+                if (IsMediaSynchronized())
+                {
+                    // Flag pause media
+                    // MediaTimelineController is used to pause media and call this method
+                    // just to set the mode inside the MediaPLayer UserControl to Paused
+                    mode = Mode.modeFrame;
+                }
+                else
+                {
+                    // Illegal to use this function if the media is not synchronized
+                    throw new InvalidOperationException("Can't use MediaPlayer.SetPauseMode() when media is not synchronized");
+                }
             }
         }
 
@@ -570,6 +662,39 @@ namespace Surveyor.User_Controls
             }
         }
 
+        /// <summary>
+        /// Used by the stereo controller to enable and disable the frame server
+        /// </summary>
+        /// <param name="enabled"></param>
+        internal void FrameServerEnable(bool enabled)
+        {
+            MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled = enabled;
+
+            if (!enabled)
+                ImageFrame.Visibility = Visibility.Collapsed;
+        }
+
+
+        /// <summary>
+        /// Setup for a request for at least one frame to be set to the VideoFrameAvailable
+        /// event
+        /// </summary>
+        /// <returns></returns>
+        internal bool RequestOneMoreFrame()
+        {
+            return vidFrameMgr.RequestOneMoreFrame(CameraSide);
+        }
+
+
+        /// <summary>
+        /// Wait until at least one more frame has been received by the VideoFrameAvailable
+        /// event
+        /// </summary>
+        /// <returns></returns>
+        internal async Task<bool> WaitOneMoreFrame()
+        {
+            return await vidFrameMgr.WaitOneMoreFrame(CameraSide);
+        }
 
 
         /// <summary>
@@ -711,7 +836,7 @@ namespace Surveyor.User_Controls
         /// This method uses the last frame saved _vfar instance(VideoFrameAvailableResources)
         /// to save the frame to a file
         /// </summary>
-        internal async void SaveCurrentFrame(string framesPath)
+        internal async Task SaveCurrentFrame(string framesPath)
         {
             // Check if the players if loaded and paused
             if (IsOpen() && mode == Mode.modeFrame)
@@ -759,13 +884,12 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
-        private async void PlaybackSession_PlaybackStateChanged(MediaPlaybackSession sender, object args)
+        private async void PlaybackSession_PlaybackStateChanged(MediaPlaybackSession playbackSession, object args)
         {
-            Debug.WriteLine($"{CameraSide}: PlaybackSession_PlaybackStateChanged: Enter PlaybackState={((MediaPlaybackSession)sender).PlaybackState}, NaturalDuration:{((MediaPlaybackSession)sender).NaturalDuration:hh\\:mm\\:ss\\.ff}");
+            Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {CameraSide}: PlaybackSession_PlaybackStateChanged: Enter PlaybackState={playbackSession.PlaybackState}, NaturalDuration:{playbackSession.NaturalDuration:hh\\:mm\\:ss\\.ff}");
 
             try
             {
-                MediaPlaybackSession playbackSession = sender as MediaPlaybackSession;
                 if (playbackSession != null && playbackSession.NaturalVideoHeight != 0)
                 {
                     if (playbackSession.PlaybackState == MediaPlaybackState.Playing)
@@ -779,62 +903,68 @@ namespace Surveyor.User_Controls
                     switch (playbackSession.PlaybackState)
                     {
                     case MediaPlaybackState.Playing:
-                        try
+                        // MOVED TO THE PLAY METHOD
+                        // Remember we are now in Player mode using the media player to render the video
+                        //???mode = Mode.modePlayer;
+
+                        //???try
+                        //{
+                        //    // Remember we are now in Player mode using the media player to render the video
+                        //    mode = Mode.modePlayer;
+
+                        //    // Exit Frame Server mode so the Media Player can render the frame
+                        //    DispatcherQueue.TryEnqueue(DispatcherQueuePriority.High, () =>
+                        //    {
+                        //        MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled = false;
+
+                        //        // Display the Media Player (Helps with screen refresh issues media player has)
+                        //        if (MediaPlayerElement.Visibility != Visibility.Visible)
+                        //            MediaPlayerElement.Visibility = Visibility.Visible;
+
+                        //        // Hide the frame image user control
+                        //        if (ImageFrame.Visibility != Visibility.Collapsed)
+                        //            ImageFrame.Visibility = Visibility.Collapsed;
+
+                        //        Debug.WriteLine($"{CameraSide}: Info PlaybackSession_PlaybackStateChanged: Make Player visible and collapse Image Frame.");
+
+                        //        // Inform the media control that the media is playing
+                        //        mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Playing, CameraSide, mode));
+
+                        //        Debug.WriteLine($"{CameraSide}: PlaybackSession_PlaybackStateChanged: Playing & video frame event disabled, IsVideoFrameServerEnabled ={MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled}");
+                        //    });
+                        //}
+                        //catch (Exception ex)
+                        //{
+                        //    Debug.WriteLine($"  {CameraSide}: Error PlaybackSession_PlaybackStateChanged  {ex.Message}");
+                        //???}
+
+
+                        // Inform the MediaControl that the media is playing
+                        _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.High, () =>
                         {
-                            // Remember we are now in Player mode using the media player to render the video
-                            mode = Mode.modePlayer;
-                                
-                            // Exit Frame Server mode so the Media Player can render the frame
-                            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.High, () =>
+                            try
                             {
-                                MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled = false;
-
-                                // Display the Media Player (Helps with screen refresh issues media player has)
-                                if (MediaPlayerElement.Visibility != Visibility.Visible)
-                                    MediaPlayerElement.Visibility = Visibility.Visible;
-
-                                // Hide the frame image user control
-                                if (ImageFrame.Visibility != Visibility.Collapsed)
-                                    ImageFrame.Visibility = Visibility.Collapsed;
-
-                                Debug.WriteLine($"{CameraSide}: Info PlaybackSession_PlaybackStateChanged: Make Player visible and collapse Image Frame.");
-
                                 // Inform the media control that the media is playing
                                 mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Playing, CameraSide, mode));
-
-                                Debug.WriteLine($"{CameraSide}: PlaybackSession_PlaybackStateChanged: Playing & video frame event disabled, IsVideoFrameServerEnabled ={MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled}");
-                            });
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"  {CameraSide}: Error PlaybackSession_PlaybackStateChanged  {ex.Message}");
-                        }
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {CameraSide}: Error PlaybackSession_PlaybackStateChanged  {ex.Message}");
+                            }
+                        });
                         break;
 
                     case MediaPlaybackState.Paused:
+                        // MOVED TO THE PLAY METHOD
                         // Remember we are now in Frame mode where we are responsible for rendering the frame
-                        mode = Mode.modeFrame;
-
-                        // Capture the frame dimensions if not already known
-                        if (frameWidth == 0 && playbackSession.NaturalVideoWidth != 0)
-                        {
-                            frameWidth = playbackSession.NaturalVideoWidth;
-                            frameHeight = playbackSession.NaturalVideoHeight;
-
-                            // Signal the frame size
-                            mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.FrameSize, CameraSide, mode)
-                            {
-                                frameWidth = (int?)frameWidth,
-                                frameHeight = (int?)frameHeight
-                            });
-                        }
+                        //???mode = Mode.modeFrame;
 
                         // Rememmber the position in paused mode
-                        positionPausedMode = sender.Position;
-                        Debug.WriteLine($"MediaTimelineController_StateChanged: PositionOffset: {positionPausedMode:hh\\:mm\\:ss\\.ff}");
+                        positionPausedMode = playbackSession.Position;
+                        Debug.WriteLine($"{DateTime.Now:hh:mm:ss} MediaTimelineController_StateChanged: PositionOffset: {positionPausedMode:hh\\:mm\\:ss\\.ff}");
                             
                         // Go into Frame Server mode so we can handle the frame rendering
-                        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+                        _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
                         {
                             // Capture the frame rate if not already known
                             if (frameRate == -1)
@@ -842,12 +972,10 @@ namespace Surveyor.User_Controls
                                 GetFrameRateAndTimePerFrame();
                             }
 
-                            MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled = true;
-
                             // Inform the media control that the media is playing
                             mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Paused, CameraSide, mode));
 
-                            Debug.WriteLine($"{CameraSide}: Info PlaybackSession_PlaybackStateChanged: Paused & video frame event enabled");
+                            Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {CameraSide}: Info PlaybackSession_PlaybackStateChanged: Paused & video frame event enabled");
                         });
                         break;
                     }
@@ -855,7 +983,7 @@ namespace Surveyor.User_Controls
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"{CameraSide}: Error PlaybackSession_PlaybackStateChanged: Exception: {ex.Message}");
+                Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {CameraSide}: Error PlaybackSession_PlaybackStateChanged: Exception: {ex.Message}");
             }
         }
 
@@ -953,8 +1081,6 @@ namespace Surveyor.User_Controls
         {
             MediaPlaybackSession playbackSession = sender as MediaPlaybackSession;
 
-            //???_frameIndexCurrent = GetFrameIndexFromPosition(playbackSession.Position);
-
             DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
             {
                 if (!IsMediaSynchronized())
@@ -963,28 +1089,29 @@ namespace Surveyor.User_Controls
                     // (If sync'd the timeline controller sends the poisition message)
                     MediaPlayerEventData data = new(MediaPlayerEventData.eMediaPlayerEvent.Position, CameraSide, mode)
                     {
-                        position = playbackSession.Position
-                        //???frameIndex = _frameIndexCurrent
+                        position = playbackSession.Position                       
                     };
                     mediaPlayerHandler?.Send(data);
                 }
             });
-            Debug.WriteLine($"{CameraSide}: Info PlaybackSession_PositionChanged:{sender.Position:hh\\:mm\\:ss\\.ff}");
+
+            //???if (CameraSide == eCameraSide.Left)
+            //???    Debug.WriteLine($"{CameraSide}: Info PlaybackSession_PositionChanged:{sender.Position:hh\\:mm\\:ss\\.ff}, mode {mode}");
         }
 
         private void PlaybackSession_SeekableRangesChanged(MediaPlaybackSession sender, object args)
         {
             MediaPlaybackSession playbackSession = sender as MediaPlaybackSession;
-            Debug.WriteLine($"{CameraSide}: Info PlaybackSession_SeekableRangesChanged");
+            Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {CameraSide}: Info PlaybackSession_SeekableRangesChanged");
         }
 
         private void PlaybackSession_SeekCompleted(MediaPlaybackSession sender, object args)
         {
             MediaPlaybackSession playbackSession = sender as MediaPlaybackSession;
 
-            _frameIndexCurrent = GetFrameIndexFromPosition(playbackSession.Position);
+            //???_frameIndexCurrent = GetFrameIndexFromPosition(playbackSession.Position);
 
-            Debug.WriteLine($"{CameraSide}: Info PlaybackSession_SeekCompleted: Total milliseconds:{playbackSession.Position.TotalMilliseconds:F1}ms, Frame Index={GetFrameIndexFromPosition(playbackSession.Position)}");
+            //???Debug.WriteLine($"{CameraSide}: Info PlaybackSession_SeekCompleted: Total milliseconds:{playbackSession.Position.TotalMilliseconds:F1}ms, Frame Index={GetFrameIndexFromPosition(playbackSession.Position)}");
         }
 
         private void PlaybackSession_SupportedPlaybackRatesChanged(MediaPlaybackSession sender, object args)
@@ -993,14 +1120,6 @@ namespace Surveyor.User_Controls
             Debug.WriteLine($"{CameraSide}: Info PlaybackSession_SupportedPlaybackRatesChanged: PlaybackRate:{playbackSession.PlaybackRate}");
 
         }
-
-        private void MediaPlayer_PlaybackMediaMarkerReached(MediaPlayer sender, PlaybackMediaMarkerReachedEventArgs args)
-        {
-
-            MediaPlayer mediaPlayer = sender as MediaPlayer;
-            Debug.WriteLine($"{CameraSide}: Info MediaPlayer_PlaybackMediaMarkerReached: being depricated instead use MediaPlaybackItem.TimedMetadataTracks");
-        }
-
 
         private void MediaPlayer_MediaPlayerRateChanged(MediaPlayer sender, MediaPlayerRateChangedEventArgs args)
         {
@@ -1015,15 +1134,37 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
-        private /*???async*/ void MediaPlayer_MediaOpened(MediaPlayer sender, object args)
+        private void MediaPlayer_MediaOpened(MediaPlayer sender, object args)
         {
             Debug.WriteLine($"{CameraSide}: MediaPlayer_MediaOpened: Enter  (UIThread={DispatcherQueue.HasThreadAccess})");
-            //???await Task.Delay(150); // Found this and not sure it is needed
 
-            try
+            mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, async () =>
             {
-                mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, async () =>
+                try
                 {
+                    // Set the ImageFrame in the video frame manager
+                    vidFrameMgr.SetImage(ImageFrame);
+
+                    // Set the resource to be used by the VideoFrameAvailable event
+                    bool setupOk = await vidFrameMgr.SetupIfNecessary(MediaPlayerElement.MediaPlayer);
+                    if (!setupOk)
+                    { 
+                        Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {CameraSide}: Error  Failed to setup resources");
+                        return;
+                    }
+
+                    // Capture the frame dimensions
+                    frameWidth = MediaPlayerElement.MediaPlayer.PlaybackSession.NaturalVideoWidth;
+                    frameHeight = MediaPlayerElement.MediaPlayer.PlaybackSession.NaturalVideoHeight;
+
+                    // Signal the frame size
+                    mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.FrameSize, CameraSide, mode)
+                    {
+                        frameWidth = (int?)frameWidth,
+                        frameHeight = (int?)frameHeight
+                    });
+
+
                     // Get the natural duration of the media
                     naturalDuration = sender.PlaybackSession.NaturalDuration - sender.TimelineControllerPositionOffset;
 
@@ -1070,12 +1211,12 @@ namespace Surveyor.User_Controls
                         };
                         mediaPlayerHandler?.Send(data);
                     }
-                });
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"{CameraSide}: Error MediaPlayer_MediaOpened: Exception: {ex.Message}");
-            }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"{CameraSide}: Error MediaPlayer_MediaOpened: Exception: {ex.Message}");
+                }
+            });
 
             Debug.WriteLine($"{CameraSide}: MediaPlayer_MediaOpened: Exit");
         }
@@ -1111,107 +1252,155 @@ namespace Surveyor.User_Controls
         /// Class to safely store the resources used to render the video frame
         /// these resources are created when the media is opened and released when the media is closed
         /// </summary>
-        public class VideoFrameManager
+        private class VideoFrameManager
         {
-            // Locks
-            private readonly object setupLock = new(); // Lock object
-            private readonly ReaderWriterLockSlim bitmapLock = new();
-
             // Image Control
+            private Image? imageFrame = null;
+
+            // Bitmaps and Soruces  
             private SoftwareBitmap? frameServerDest = null;
             private CanvasImageSource? canvasImageSource = null;
             private CanvasBitmap? inputBitmap = null;
             private uint frameWidthSoftwareBitmap = 0;
             private uint frameHeightSoftwareBitmap = 0;
             private int videoFrameCount = 0;
-            
-            // Status
+
+
+            // Wait for one more frame 
+            private bool waitForOneMoreFrame = false;
+            private TaskCompletionSource<bool>? taskOneMoreFrameCompletion = null;
+            private readonly object _frameLock = new(); // Lock for synchronization
+
+
+            /// <summary>
+            /// Set the Image control
+            /// </summary>
+            /// <param name="_imageFrame"></param>
+            public void SetImage(Image _imageFrame)
+            {
+                imageFrame = _imageFrame;
+            }
+
             public bool IsSetup { get; set; } = false;
 
 
             /// <summary>
-            /// Called to setup the resource if necessary
-            /// Needs to be public so MagnifyAndMarker can access it
+            /// Setup the resources if necessary
             /// </summary>
-            /// <param name="mp">Media Player</param>
-            /// <param name="image">Image UIElement</param>
+            /// <param name="mp"></param>
             /// <returns></returns>
-            public bool SetupIfNecessary(MediaPlayer mp, Image image)
+            public async Task<bool> SetupIfNecessary(MediaPlayer mp)
             {
-                lock (setupLock) // Ensures only one thread enters setup at a time
+                Debug.Assert(imageFrame != null, "Must call SetImage before calling SetupIfNecessary.");
+
+                if (!IsSetup)
                 {
+                    // Wait the frame width and heights to be available (5 sec max)
+                    await WaitForNonZeroFrameSizeAsync(mp);
 
-                    if (!IsSetup)
-                    {
-                        // Remember the frame width and height used to create the resources
-                        frameWidthSoftwareBitmap = mp.PlaybackSession.NaturalVideoWidth;
-                        frameHeightSoftwareBitmap = mp.PlaybackSession.NaturalVideoHeight;
+                    // Remember the frame width and height used to create the resources
+                    frameWidthSoftwareBitmap = mp.PlaybackSession.NaturalVideoWidth;
+                    frameHeightSoftwareBitmap = mp.PlaybackSession.NaturalVideoHeight;
 
+                    // Object used by Win2D for rendering graphics
+                    CanvasDevice canvasDevice = CanvasDevice.GetSharedDevice();
 
-                        // Object used by Win2D for rendering graphics
-                        CanvasDevice canvasDevice = CanvasDevice.GetSharedDevice();
+                    // Creates a new SoftwareBitmap with the specified width, height, and format
+                    // This bitmap will be used to hold the video frame data
+                    frameServerDest = new SoftwareBitmap(BitmapPixelFormat.Rgba8, (int)frameWidthSoftwareBitmap, (int)frameHeightSoftwareBitmap, BitmapAlphaMode.Ignore);
 
-                        // Lock access (write)
-                        bitmapLock.EnterWriteLock();
-                        try
-                        {
-                            // Creates a new SoftwareBitmap with the specified width, height, and format
-                            // This bitmap will be used to hold the video frame data
-                            frameServerDest = new SoftwareBitmap(BitmapPixelFormat.Rgba8, (int)frameWidthSoftwareBitmap, (int)frameHeightSoftwareBitmap, BitmapAlphaMode.Ignore);
+                    // Creates a new CanvasImageSource with the specified dimensions and DPI (dots per inch)
+                    canvasImageSource = new CanvasImageSource(canvasDevice, (float)frameWidthSoftwareBitmap, (float)frameHeightSoftwareBitmap, 96/*DisplayInformation.GetForCurrentView().LogicalDpi*/);//96); 
 
-                            // Creates a new CanvasImageSource with the specified dimensions and DPI (dots per inch)
-                            canvasImageSource = new CanvasImageSource(canvasDevice, (float)frameWidthSoftwareBitmap, (float)frameHeightSoftwareBitmap, 96/*DisplayInformation.GetForCurrentView().LogicalDpi*/);//96); 
+                    // Create inputBitMap to receive the frame from Media Player
+                    inputBitmap = CanvasBitmap.CreateFromSoftwareBitmap(canvasDevice, frameServerDest);
 
-                            // Create inputBitMap to receive the frame from Media Player
-                            inputBitmap = CanvasBitmap.CreateFromSoftwareBitmap(canvasDevice, frameServerDest);
+                    // Assign the canvasImageSource to the Image.Source
+                    imageFrame.Source = canvasImageSource;
 
-                            // Assume the canvasImageSource to the Image.Source
-                            image.Source = canvasImageSource;
-                        }
-                        finally
-                        {
-                            bitmapLock.ExitWriteLock();
-                        }
-
-                        // Check all setup ok
-                        if (frameServerDest != null && canvasImageSource != null && inputBitmap != null)
-                            IsSetup = true;
-                        else
-                            IsSetup = false;
-
-                    }
+                    // Check all setup ok
+                    if (frameServerDest != null && canvasImageSource != null && inputBitmap != null)
+                        IsSetup = true;
+                    else
+                        IsSetup = false;
                 }
                 return IsSetup;
             }
 
+
             /// <summary>
-            /// Release all the resources
+            /// Wait for the frame size to become non-zero. Sometimes NaturalVideoWidth/Height are zero when
+            /// the MediaOpened event is raised.  If we wait a little while, the values will be set.
+            /// </summary>
+            /// <param name="mp"></param>
+            /// <param name="timeoutMs"></param>
+            /// <param name="checkIntervalMs"></param>
+            /// <returns></returns>
+            private async Task WaitForNonZeroFrameSizeAsync(MediaPlayer mp, int timeoutMs = 5000, int checkIntervalMs = 50)
+            {
+                var tcs = new TaskCompletionSource<bool>();
+
+                var cancellationTokenSource = new CancellationTokenSource(timeoutMs);
+
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        while (mp.PlaybackSession.NaturalVideoWidth == 0 || mp.PlaybackSession.NaturalVideoHeight == 0)
+                        {
+                            if (cancellationTokenSource.Token.IsCancellationRequested)
+                            {
+                                tcs.TrySetCanceled();
+                                return;
+                            }
+
+                            await Task.Delay(checkIntervalMs); // Non-blocking wait
+                        }
+
+                        // Values are non-zero — signal completion
+                        tcs.TrySetResult(true);
+                    }
+                    catch (Exception ex)
+                    {
+                        tcs.TrySetException(ex);
+                    }
+                }, cancellationTokenSource.Token);
+
+                try
+                {
+                    // Wait for the task to complete or timeout
+                    await tcs.Task;
+                    Debug.WriteLine($"Frame size detected: {mp.PlaybackSession.NaturalVideoWidth} x {mp.PlaybackSession.NaturalVideoHeight}");
+                }
+                catch (OperationCanceledException)
+                {
+                    Debug.WriteLine("Timeout waiting for frame size to become non-zero.");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error waiting for frame size: {ex.Message}");
+                }
+            }
+
+
+            /// <summary>
+            /// Release the resources
             /// </summary>
             public void Release()
             {
-                lock (setupLock) // Ensure thread safety during cleanup
+                if (frameServerDest != null)
                 {
-                    bitmapLock.EnterWriteLock();
-                    try
-                    {
-
-                        frameServerDest?.Dispose();
-                        frameServerDest = null;
-
-                        canvasImageSource = null;
-                        inputBitmap = null;
-                    }
-                    finally
-                    {
-                        bitmapLock.ExitWriteLock();
-                    }
-
-                    frameWidthSoftwareBitmap = 0;
-                    frameHeightSoftwareBitmap = 0;
-                    videoFrameCount = 0;
-
-                    IsSetup = false;
+                    frameServerDest.Dispose();
+                    frameServerDest = null;
                 }
+                canvasImageSource = null;
+                inputBitmap = null;
+
+                frameWidthSoftwareBitmap = 0;
+                frameHeightSoftwareBitmap = 0;
+                videoFrameCount = 0;
+
+                IsSetup = false;
             }
 
 
@@ -1223,6 +1412,7 @@ namespace Surveyor.User_Controls
                 videoFrameCount++;
             }
 
+
             /// <summary>
             /// Used to manage MediaPlayer_VideoFrameAvailable reentry
             /// </summary>
@@ -1230,6 +1420,7 @@ namespace Surveyor.User_Controls
             {
                 videoFrameCount--;
             }
+
 
             /// <summary>
             /// Check if there are multiple frames pending
@@ -1255,28 +1446,253 @@ namespace Surveyor.User_Controls
 
 
             /// <summary>
-            /// Use to get the source for the ImageFrame from setup in the video frame manager
+            /// Setup the request for a signal from the frame server that one more frame has
+            /// been rendered in the UI Image control.
+            /// This function must be used in conjunction with WaitOneMoreFrame() which actually
+            /// does the waiting for the signel.
+            /// ** This method is called on the UI side (waiting side) **
             /// </summary>
+            /// <param name="cameraSide"></param>
+            /// <param name="_surveyorMediaPlayer">Pause request handler or can be null</param>
             /// <returns></returns>
-            public CanvasImageSource? SetImageSource(Image image)
+            public bool RequestOneMoreFrame(eCameraSide cameraSide)
             {
-                CanvasImageSource? ret = null;
+                bool ret = false;
 
-                bitmapLock.EnterReadLock();
-                try
+                lock (_frameLock)
                 {
-                    image.Source = canvasImageSource;
+                    if (!waitForOneMoreFrame)
+                    {
+                        taskOneMoreFrameCompletion = new TaskCompletionSource<bool>();
+                        waitForOneMoreFrame = true;
+
+                        Debug.WriteLine($"{cameraSide} (Wait side) Requested one more frame notification");
+                        ret = true;
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"{cameraSide} (Wait side) Requested one more frame FAILED");
+                    }
                 }
-                catch (Exception e)
+                return ret;
+            }
+
+
+            /// <summary>
+            /// Wait for the frame server to signal that one more frame has been received and rendered in the 
+            /// UI image control. RequestOneMoreFrame() must be call before this method to setup the request
+            /// /// ** This method is called on the UI side (waiting side) **
+            /// </summary>
+            /// <param name="cameraSide"></param>
+            /// <returns></returns>
+            public async Task<bool> WaitOneMoreFrame(eCameraSide cameraSide)
+            {
+                Debug.WriteLine($"{cameraSide} WaitOneMoreFrame (Wait side) Witing...");
+
+                lock (_frameLock)
                 {
-                    Debug.WriteLine($"VideoFrameManager.SetImageSource exception:{e}");
+                    if (!waitForOneMoreFrame)
+                    {
+                        return false; // Avoid waiting on an uninitialized task
+                    }
                 }
-                finally
+
+                if (taskOneMoreFrameCompletion is not null)
                 {
-                    bitmapLock.ExitReadLock();
+                    if (await Task.WhenAny(taskOneMoreFrameCompletion.Task, Task.Delay(2000)) == taskOneMoreFrameCompletion.Task)
+                    {
+                        Debug.WriteLine($"{cameraSide} WaitOneMoreFrame (Wait side) Successfully waited for one more frame");
+                        return true;
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"{cameraSide} WaitOneMoreFrame (Wait side) Timeout waiting for one more frame");
+                        waitForOneMoreFrame = false;
+                        return false;
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine($"{cameraSide} WaitOneMoreFrame (Wait side) Error: taskOneMoreFrameCompletion is null");
+                    waitForOneMoreFrame = false;
+                    return false;
+                }
+            }
+
+
+            /// <summary>
+            /// Called inside the frame server after a new frame has been rendered into the IU
+            /// image control.  The methed check if the UI side was waiting for one more frame and
+            /// if so signals to the waiting thread.
+            /// The purpose of this is has the MediaPlayer move from playing to pause that at least
+            /// one frame comes via the frame serve so there is an up-to-date frame in the Image UI 
+            /// control which is displayed as the media player element is hidden.
+            /// ** This method is called on the frame server side (MediaPlayer thread) **
+            /// </summary>
+            /// <param name="cameraSide"></param>
+            public void DoWeNeedToSignalForOneMoreFrameReceived(eCameraSide cameraSide)
+            {
+                lock (_frameLock)
+                {
+                    if (waitForOneMoreFrame)
+                    {
+                        Debug.WriteLine($"{cameraSide} (Frame Side) Signalling for one more frame received");
+                        if (taskOneMoreFrameCompletion is not null)
+                        {
+                            taskOneMoreFrameCompletion.TrySetResult(true);
+
+                            waitForOneMoreFrame = false;
+                        }
+                        else
+                        {
+                            Debug.WriteLine($"{cameraSide} (Frame Side) Error: taskOneMoreFrameCompletion is null");
+                            waitForOneMoreFrame = false;
+                        }
+                    }
+                }
+            }
+
+            /// <summary>
+            /// THIS IS TEST CODE
+            /// If we are waiting to signal and we have one more frame and we are skipping frames
+            /// then we maybe overloaded and need to stop for frame server
+            /// </summary>
+            /// <param name="cameraSide"></param>
+            public bool DoWeNeedToSignalForOneMoreFrameReceivedButSkippingFrames(eCameraSide cameraSide)
+            {
+                bool ret = false;
+                lock (_frameLock)
+                {
+                    if (waitForOneMoreFrame)
+                    {
+                        Debug.WriteLine($"{cameraSide} (Frame Side) Waiting for frame and Frame Skipping - So shutdown the frame server");
+                        ret = true;
+                    }
                 }
 
                 return ret;
+            }
+
+
+            /// <summary>
+            /// Get the next frame from the media player into the inputBitmap
+            /// </summary>
+            /// <param name="mp"></param>
+            public bool GetNextMediaPlayFrame(eCameraSide CameraSide, MediaPlayer mp)
+            {
+                bool ret = false;
+                try
+                {
+                    if (inputBitmap is not null)
+                    {
+                        // Copies the current video frame from the MediaPlayer to the provided IDirect3DSurface
+                        mp.CopyFrameToVideoSurface(inputBitmap);
+                        ret = true;
+                    }
+                }
+                catch (Exception e)
+                {
+                    Debug.Write($"{CameraSide} VideoFrameManager.GetNextMediaPlayFrame Exception:{e.Message}");
+                }
+
+                return ret;
+            }
+
+
+            /// <summary>
+            /// Draw the frame on the image control
+            /// </summary>
+            public bool DrawFrameOnImageControl(eCameraSide CameraSide)
+            {
+                bool ret = false;
+
+                try
+                {
+                    if (canvasImageSource == null || inputBitmap == null)
+                        return ret; // Avoid null reference issues
+
+                    // Draw the frame
+                    ret = true;  // Assume success
+                    try
+                    {
+                        using (CanvasDrawingSession ds = canvasImageSource!.CreateDrawingSession(Microsoft.UI.Colors.Black))
+                        {
+                            ds.DrawImage(inputBitmap);
+                            //???Debug.WriteLine($"    {CameraSide}: Info MediaPlayer_VideoFrameAvailable: Frame drawn. Index from player position:{(mp.PlaybackSession.Position.TotalMilliseconds / 1000.0):F3}");
+
+                            // In Debug mode, draw a camera symbol on the frame for differentiation
+                            // between the media player video surface and the image frame
+#if DEBUG
+                            // Define the position for the glyph
+                            Vector2 glyphPosition = new(10, 10); // Top-left position of the glyph
+
+                            // Define the font and size for the glyph
+                            CanvasTextFormat textFormat = new()
+                            {
+                                FontFamily = "Segoe Fluent Icons",
+                                FontSize = 48,
+                                HorizontalAlignment = CanvasHorizontalAlignment.Left,
+                                VerticalAlignment = CanvasVerticalAlignment.Top
+                            };
+
+                            // Draw the glyph (E158 is the pause symbol in Segoe Fluent Icons)
+                            string pauseGlyph = "\uE158";
+                            ds.DrawText(pauseGlyph, glyphPosition, Colors.White, textFormat);
+#endif // End of DEBUG
+                        }
+                    }
+                    catch (COMException ex) when ((uint)ex.HResult == 0x88980801)
+                    {
+                        Debug.WriteLine($"    {CameraSide}: DirectX context lost or unsupported operation in CreateDrawingSession: {ex.Message}-----------*****************");
+                        ret = false;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"    {CameraSide}: Exception during frame rendering: {ex.Message}");
+                        ret = false;
+                    }
+
+                    ret = true;
+                }
+                catch (Exception e)
+                {
+                    Debug.Write($"VideoFrameManager.DrawFrameOnImageControl Exception:{e.Message}");
+                }
+
+                return ret;
+            }
+
+
+            /// <summary>
+            /// Copy the frame to a memory stream this is used by MagnifyAndMarker
+            /// </summary>
+            /// <returns></returns>
+            /// <exception cref="InvalidOperationException"></exception>
+            public (IRandomAccessStream stream, uint imageSourceWidth, uint imageSourceHeight) CopyFrameToMemoryStreamAsync()
+            {
+                if (inputBitmap is null)
+                {
+                    throw new InvalidOperationException("CopyFrameToMemoryStreamAsync: inputBitmap is not initialized.");
+                }
+
+                // Get image dimensions
+                uint imageSourceWidth = (uint)inputBitmap.SizeInPixels.Width;
+                uint imageSourceHeight = (uint)inputBitmap.SizeInPixels.Height;
+
+                // Create a memory stream
+                InMemoryRandomAccessStream streamSource = new();
+
+                try
+                {
+                    // Save the CanvasBitmap into the memory stream
+                    _ = inputBitmap.SaveAsync(streamSource, CanvasBitmapFileFormat.Bmp);
+                    return (streamSource, imageSourceWidth, imageSourceHeight); // Return the stream with the image data
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"CopyFrameToMemoryStreamAsync: Failed to save frame to memory stream: {ex.Message}");
+                    throw; // Rethrow the exception so caller can handle it
+                }
             }
 
 
@@ -1293,146 +1709,345 @@ namespace Surveyor.User_Controls
             public async Task<bool> SaveFrame(string fileSpec, CanvasBitmapFileFormat fileFormat)
             {
                 bool ret = false;
-                
-             
-                bitmapLock.EnterReadLock();
-                try
+
+                if (inputBitmap is not null)
                 {
-                    if (inputBitmap is not null)
+                    try
                     {
-                        try
-                        {
-                            await inputBitmap.SaveAsync(fileSpec, fileFormat);
-                            Debug.WriteLine($"SaveFrame Saved: {fileSpec}");
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"SaveFrame: failed to write:{fileSpec} to format:{fileFormat}  {ex.Message}");
-                        }
+                        await inputBitmap.SaveAsync(fileSpec, fileFormat);
+                        Debug.WriteLine($"SaveFrame Saved: {fileSpec}");
                     }
-                }
-                finally
-                {
-                    bitmapLock.ExitReadLock();
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"SaveFrame: failed to write:{fileSpec} to format:{fileFormat}  {ex.Message}");
+                    }
                 }
 
                 return ret;
             }
-
-
-            /// <summary>
-            /// Get the next frame from the media player into the inputBitmap
-            /// </summary>
-            /// <param name="mp"></param>
-            public void GetNextMediaPlayFrame(MediaPlayer mp)
-            {
-                bitmapLock.EnterWriteLock(); // Acquire a write lock since inputBitmap is being modified
-                try
-                {
-                    if (inputBitmap is not null)
-                    {
-                        // Copies the current video frame from the MediaPlayer to the provided IDirect3DSurface
-                        mp.CopyFrameToVideoSurface(inputBitmap); 
-                    }
-                }
-                catch (Exception e)
-                {
-                    Debug.Write($"VideoFrameManager.GetNextMediaPlayFrame Exception:{e.Message}");
-                }
-                finally
-                {
-                    bitmapLock.ExitWriteLock(); // Always release the write lock
-                }
-            }
-
-
-            /// <summary>
-            /// Draw the frame on the image control
-            /// </summary>
-            public void DrawFrameOnImageControl()
-            {
-                bitmapLock.EnterWriteLock(); // Acquire write lock to prevent concurrent modifications
-                try
-                {
-                    if (canvasImageSource == null || inputBitmap == null)
-                        return; // Avoid null reference issues
-
-                    // Draw the frame
-                    using CanvasDrawingSession ds = canvasImageSource.CreateDrawingSession(Microsoft.UI.Colors.Black);
-                    ds.DrawImage(inputBitmap);
-
-                    // In Debug mode, draw a camera symbol on the frame for differentiation
-                    // between the media player video surface and the image frame
-#if DEBUG
-
-                    // Define the position for the glyph
-                    Vector2 glyphPosition = new(10, 10); // Top-left position of the glyph
-
-                    // Define the font and size for the glyph
-                    CanvasTextFormat textFormat = new()
-                    {
-                        FontFamily = "Segoe Fluent Icons",
-                        FontSize = 48,
-                        HorizontalAlignment = CanvasHorizontalAlignment.Left,
-                        VerticalAlignment = CanvasVerticalAlignment.Top
-                    };
-
-                    // Draw the glyph (E158 is the pause symbol in Segoe Fluent Icons)
-                    string pauseGlyph = "\uE158";
-                    ds.DrawText(pauseGlyph, glyphPosition, Colors.White, textFormat);
-
-#endif // End of DEBUG
-                }
-                finally
-                {
-                    bitmapLock.ExitWriteLock(); // Ensure the lock is released
-                }
-            }
-
-
-            /// <summary>
-            /// Copy the frame to a memory stream this is used by MagnifyAndMarker
-            /// </summary>
-            /// <returns></returns>
-            /// <exception cref="InvalidOperationException"></exception>
-            public (IRandomAccessStream stream, uint imageSourceWidth, uint imageSourceHeight) CopyFrameToMemoryStreamAsync()
-            {
-                bitmapLock.EnterReadLock(); // Read lock since we're not modifying canvasBitmap
-                try
-                {
-                    if (inputBitmap is null)
-                    {
-                        throw new InvalidOperationException("CopyFrameToMemoryStreamAsync: inputBitmap is not initialized.");
-                    }
-
-                    // Get image dimensions
-                    uint imageSourceWidth = (uint)inputBitmap.SizeInPixels.Width;
-                    uint imageSourceHeight = (uint)inputBitmap.SizeInPixels.Height;
-
-                    // Create a memory stream
-                    InMemoryRandomAccessStream streamSource = new();
-
-                    try
-                    {
-                        // Save the CanvasBitmap into the memory stream
-                        _ = inputBitmap.SaveAsync(streamSource, CanvasBitmapFileFormat.Bmp);
-                        return (streamSource, imageSourceWidth, imageSourceHeight); // Return the stream with the image data
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"CopyFrameToMemoryStreamAsync: Failed to save frame to memory stream: {ex.Message}");
-                        throw; // Rethrow the exception so caller can handle it
-                    }
-                }
-                finally
-                {
-                    bitmapLock.ExitReadLock(); // Ensure lock is released
-                }
-            }
-
-
-
         }
+
+        /// <summary>
+        /// Class to safely store the resources used to render the video frame
+        /// these resources are created when the media is opened and released when the media is closed
+        /// </summary>
+        //        public class VideoFrameManager___Original
+        //        {
+        //            // Locks
+        //            private readonly object setupLock = new(); // Lock object
+        //            private readonly ReaderWriterLockSlim bitmapLock = new();
+
+        //            // Image Control
+        //            private SoftwareBitmap? frameServerDest = null;
+        //            private CanvasImageSource? canvasImageSource = null;
+        //            private CanvasBitmap? inputBitmap = null;
+        //            private uint frameWidthSoftwareBitmap = 0;
+        //            private uint frameHeightSoftwareBitmap = 0;
+        //            private int videoFrameCount = 0;
+
+        //            // Status
+        //            public bool IsSetup { get; set; } = false;
+
+        //            public TimeSpan LastFrameSend { get; set; } = TimeSpan.MinValue;
+
+        //            /// <summary>
+        //            /// Called to setup the resource if necessary
+        //            /// Needs to be public so MagnifyAndMarker can access it
+        //            /// </summary>
+        //            /// <param name="mp">Media Player</param>
+        //            /// <param name="image">Image UIElement</param>
+        //            /// <returns></returns>
+        //            public bool SetupIfNecessary(MediaPlayer mp, Image image)
+        //            {
+        //                lock (setupLock) // Ensures only one thread enters setup at a time
+        //                {
+
+        //                    if (!IsSetup)
+        //                    {
+        //                        // Remember the frame width and height used to create the resources
+        //                        frameWidthSoftwareBitmap = mp.PlaybackSession.NaturalVideoWidth;
+        //                        frameHeightSoftwareBitmap = mp.PlaybackSession.NaturalVideoHeight;
+
+
+        //                        // Object used by Win2D for rendering graphics
+        //                        CanvasDevice canvasDevice = CanvasDevice.GetSharedDevice();
+
+        //                        // Lock access (write)
+        //                        bitmapLock.EnterWriteLock();
+        //                        try
+        //                        {
+        //                            // Creates a new SoftwareBitmap with the specified width, height, and format
+        //                            // This bitmap will be used to hold the video frame data
+        //                            frameServerDest = new SoftwareBitmap(BitmapPixelFormat.Rgba8, (int)frameWidthSoftwareBitmap, (int)frameHeightSoftwareBitmap, BitmapAlphaMode.Ignore);
+
+        //                            // Creates a new CanvasImageSource with the specified dimensions and DPI (dots per inch)
+        //                            canvasImageSource = new CanvasImageSource(canvasDevice, (float)frameWidthSoftwareBitmap, (float)frameHeightSoftwareBitmap, 96/*DisplayInformation.GetForCurrentView().LogicalDpi*/);//96); 
+
+        //                            // Create inputBitMap to receive the frame from Media Player
+        //                            inputBitmap = CanvasBitmap.CreateFromSoftwareBitmap(canvasDevice, frameServerDest);
+
+        //                            // Assign the canvasImageSource to the Image.Source
+        //                            image.Source = canvasImageSource;
+        //                        }
+        //                        finally
+        //                        {
+        //                            bitmapLock.ExitWriteLock();
+        //                        }
+
+        //                        // Check all setup ok
+        //                        if (frameServerDest != null && canvasImageSource != null && inputBitmap != null)
+        //                            IsSetup = true;
+        //                        else
+        //                            IsSetup = false;
+
+        //                    }
+        //                }
+        //                return IsSetup;
+        //            }
+
+        //            /// <summary>
+        //            /// Release all the resources
+        //            /// </summary>
+        //            public void Release()
+        //            {
+        //                lock (setupLock) // Ensure thread safety during cleanup
+        //                {
+        //                    bitmapLock.EnterWriteLock();
+        //                    try
+        //                    {
+
+        //                        frameServerDest?.Dispose();
+        //                        frameServerDest = null;
+
+        //                        canvasImageSource = null;
+        //                        inputBitmap = null;
+        //                    }
+        //                    finally
+        //                    {
+        //                        bitmapLock.ExitWriteLock();
+        //                    }
+
+        //                    frameWidthSoftwareBitmap = 0;
+        //                    frameHeightSoftwareBitmap = 0;
+        //                    videoFrameCount = 0;
+
+        //                    IsSetup = false;
+        //                }
+        //            }
+
+
+        //            /// <summary>
+        //            /// Used to manage MediaPlayer_VideoFrameAvailable reentry
+        //            /// </summary>
+        //            public void VideoFrameAvailableEnter()
+        //            {
+        //                videoFrameCount++;
+        //            }
+
+        //            /// <summary>
+        //            /// Used to manage MediaPlayer_VideoFrameAvailable reentry
+        //            /// </summary>
+        //            public void VideoFrameAvailableExit()
+        //            {
+        //                videoFrameCount--;
+        //            }
+
+        //            /// <summary>
+        //            /// Check if there are multiple frames pending
+        //            /// </summary>
+        //            /// <returns>true is multiple frames are pending</returns>
+        //            public bool MultipleFramesPending()
+        //            {
+        //                return videoFrameCount > 1;
+        //            }
+
+
+        //            /// <summary>
+        //            /// Return the entry count in the MediaPlayer_VideoFrameAvailable event
+        //            /// </summary>
+        //            public int GetEntryCount { get { return videoFrameCount; } }
+
+
+        //            /// <summary>
+        //            /// Get the frame dimensions
+        //            /// </summary>
+        //            public uint FrameWidth { get { return frameWidthSoftwareBitmap; } }
+        //            public uint FrameHeight { get { return frameHeightSoftwareBitmap; } }
+
+
+        //            /// <summary>
+        //            /// Use to get the source for the ImageFrame from setup in the video frame manager
+        //            /// </summary>
+        //            /// <returns></returns>
+        //            public CanvasImageSource? SetImageSource(Image image)
+        //            {
+        //                CanvasImageSource? ret = null;
+
+        //                bitmapLock.EnterReadLock();
+        //                try
+        //                {
+        //                    image.Source = canvasImageSource;
+        //                }
+        //                catch (Exception e)
+        //                {
+        //                    Debug.WriteLine($"VideoFrameManager.SetImageSource exception:{e}");
+        //                }
+        //                finally
+        //                {
+        //                    bitmapLock.ExitReadLock();
+        //                }
+
+        //                return ret;
+        //            }
+
+
+        //            /// <summary>
+        //            /// Save the frame to a file
+        //            /// Many format available including:
+        //            ///     CanvasBitmapFileFormat.Jpeg
+        //            ///     CanvasBitmapFileFormat.Png
+        //            ///     CanvasBitmapFileFormat.Bmp
+        //            /// </summary>
+        //            /// <param name=""></param>
+        //            /// <param name=""></param>
+        //            /// <returns></returns>
+        //            public async Task<bool> SaveFrame(string fileSpec, CanvasBitmapFileFormat fileFormat)
+        //            {
+        //                bool ret = false;
+
+        //                bitmapLock.EnterReadLock();
+        //                try
+        //                {
+        //                    if (inputBitmap is not null)
+        //                    {
+        //                        try
+        //                        {
+        //                            await inputBitmap.SaveAsync(fileSpec, fileFormat);
+        //                            Debug.WriteLine($"SaveFrame Saved: {fileSpec}");
+        //                        }
+        //                        catch (Exception ex)
+        //                        {
+        //                            Debug.WriteLine($"SaveFrame: failed to write:{fileSpec} to format:{fileFormat}  {ex.Message}");
+        //                        }
+        //                    }
+        //                }
+        //                finally
+        //                {
+        //                    bitmapLock.ExitReadLock();
+        //                }
+
+        //                return ret;
+        //            }
+
+        //            /// <summary>
+        //            /// Get the next frame from the media player into the inputBitmap
+        //            /// </summary>
+        //            /// <param name="mp"></param>
+        //            public void GetNextMediaPlayFrame(MediaPlayer mp)
+        //            {
+        //                bitmapLock.EnterWriteLock(); // Acquire a write lock since inputBitmap is being modified
+        //                try
+        //                {
+        //                    if (inputBitmap is not null)
+        //                    {
+        //                        // Copies the current video frame from the MediaPlayer to the provided IDirect3DSurface
+        //                        mp.CopyFrameToVideoSurface(inputBitmap); 
+        //                    }
+        //                }
+        //                catch (Exception e)
+        //                {
+        //                    Debug.Write($"VideoFrameManager.GetNextMediaPlayFrame Exception:{e.Message}");
+        //                }
+        //                finally
+        //                {
+        //                    bitmapLock.ExitWriteLock(); // Always release the write lock
+        //                }
+        //            }
+
+        //            /// <summary>
+        //            /// Draw the frame on the image control
+        //            /// </summary>
+        //            public void DrawFrameOnImageControl()
+        //            {
+        //                bitmapLock.EnterWriteLock(); // Acquire write lock to prevent concurrent modifications
+        //                try
+        //                {
+        //                    if (canvasImageSource == null || inputBitmap == null)
+        //                        return; // Avoid null reference issues
+
+        //                    // Draw the frame
+        //                    using CanvasDrawingSession ds = canvasImageSource.CreateDrawingSession(Microsoft.UI.Colors.Black);
+        //                    ds.DrawImage(inputBitmap);
+
+        //                    // In Debug mode, draw a camera symbol on the frame for differentiation
+        //                    // between the media player video surface and the image frame
+        //#if DEBUG
+
+        //                    // Define the position for the glyph
+        //                    Vector2 glyphPosition = new(10, 10); // Top-left position of the glyph
+
+        //                    // Define the font and size for the glyph
+        //                    CanvasTextFormat textFormat = new()
+        //                    {
+        //                        FontFamily = "Segoe Fluent Icons",
+        //                        FontSize = 48,
+        //                        HorizontalAlignment = CanvasHorizontalAlignment.Left,
+        //                        VerticalAlignment = CanvasVerticalAlignment.Top
+        //                    };
+
+        //                    // Draw the glyph (E158 is the pause symbol in Segoe Fluent Icons)
+        //                    string pauseGlyph = "\uE158";
+        //                    ds.DrawText(pauseGlyph, glyphPosition, Colors.White, textFormat);
+
+        //#endif // End of DEBUG
+        //                }
+        //                finally
+        //                {
+        //                    bitmapLock.ExitWriteLock(); // Ensure the lock is released
+        //                }
+        //            }
+
+
+        //            /// <summary>
+        //            /// Copy the frame to a memory stream this is used by MagnifyAndMarker
+        //            /// </summary>
+        //            /// <returns></returns>
+        //            /// <exception cref="InvalidOperationException"></exception>
+        //            public (IRandomAccessStream stream, uint imageSourceWidth, uint imageSourceHeight) CopyFrameToMemoryStreamAsync()
+        //            {
+        //                bitmapLock.EnterReadLock(); // Read lock since we're not modifying canvasBitmap
+        //                try
+        //                {
+        //                    if (inputBitmap is null)
+        //                    {
+        //                        throw new InvalidOperationException("CopyFrameToMemoryStreamAsync: inputBitmap is not initialized.");
+        //                    }
+
+        //                    // Get image dimensions
+        //                    uint imageSourceWidth = (uint)inputBitmap.SizeInPixels.Width;
+        //                    uint imageSourceHeight = (uint)inputBitmap.SizeInPixels.Height;
+
+        //                    // Create a memory stream
+        //                    InMemoryRandomAccessStream streamSource = new();
+
+        //                    try
+        //                    {
+        //                        // Save the CanvasBitmap into the memory stream
+        //                        _ = inputBitmap.SaveAsync(streamSource, CanvasBitmapFileFormat.Bmp);
+        //                        return (streamSource, imageSourceWidth, imageSourceHeight); // Return the stream with the image data
+        //                    }
+        //                    catch (Exception ex)
+        //                    {
+        //                        Debug.WriteLine($"CopyFrameToMemoryStreamAsync: Failed to save frame to memory stream: {ex.Message}");
+        //                        throw; // Rethrow the exception so caller can handle it
+        //                    }
+        //                }
+        //                finally
+        //                {
+        //                    bitmapLock.ExitReadLock(); // Ensure lock is released
+        //                }
+        //            }
+        //        }
 
 
         /// <summary>
@@ -1445,10 +2060,13 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
-        private void MediaPlayer_VideoFrameAvailable(MediaPlayer mp, object args)
+        private async void MediaPlayer_VideoFrameAvailable(MediaPlayer mp, object args)
         {
             // *****************************
             // **Not called from UI Thread**
+
+            // Flag to indicate the buffers need reseting (used if we get an exception)
+            bool reset = false;
 
             // Check if media is being closed
             if (isClosing)
@@ -1474,101 +2092,157 @@ namespace Surveyor.User_Controls
                 Debug.WriteLine($"{CameraSide}: MediaPlayer_VideoFrameAvailable: Warning ***************VideoFrameAvailable CALLED WHILE IN MODE PLAYER***************");
 
                 // This call must be done otherwise MediaPlayer_VideoFrameAvailable will be called repeatly
-                vidFrameMgr.GetNextMediaPlayFrame(mp);
+                vidFrameMgr.GetNextMediaPlayFrame(CameraSide, mp);
 
                 return;
             }
 
+            if (CameraSide == eCameraSide.Left)
+                Debug.WriteLine($"{CameraSide}: MediaPlayer_VideoFrameAvailable Enter");
 
-            //???Debug.WriteLine($"{CameraSide}: MediaPlayer_VideoFrameAvailable Enter");
+            // Reentry counter
+            vidFrameMgr.VideoFrameAvailableEnter();
 
-            // Reentry counter - increment
-            //??? NOT REQUIRED - FRAMES NEVER/CAN@T QUEUE UP
-            //???vidFrameMgr.VideoFrameAvailableEnter();
 
-            _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+            //  Check if the resources are setup
+            if (!vidFrameMgr.IsSetup)
             {
-                //???TO BE DELETED
-                //???try
-                //???{
-                    // Ensure only one thread at a time can access this section of code.
-                    // This is to prevent crashes
-                    lock (lockVideoFrameAvailable)
+                Debug.WriteLine($"    {CameraSide}: Error  Failed to setup resources");
+                vidFrameMgr.VideoFrameAvailableExit();
+                return;
+            }
+
+            // Copy the frame from the media player to the inputBitmap
+            // This call must be done otherwise MediaPlayer_VideoFrameAvailable will be called repeatly
+            // With the same frame
+            if (vidFrameMgr.GetNextMediaPlayFrame(CameraSide, mp) == false)
+            {
+                // Allow time to settle
+                await Task.Delay(50);
+
+                // Retry
+                if (vidFrameMgr.GetNextMediaPlayFrame(CameraSide, mp) == false)
+                {
+                    Debug.WriteLine($"    {CameraSide}: Error MediaPlayer_VideoFrameAvailable from GetNextMediaPlayFrame: Second try failed");
+                    reset = true;
+                }
+            }
+
+
+            if (reset == false)
+            {
+
+                //_ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.High, () =>
+                await DispatcherQueue.EnqueueAsync(() =>
+                {
+
+                    bool lockTaken = false;
+                    try
                     {
-                        // Setup the resources if necessary                    
-                        // We do this setup here because at this point we definately known the frame width/height
-                        if (!vidFrameMgr.SetupIfNecessary(mp, ImageFrame))
-                        {
-                            Debug.WriteLine($"    {CameraSide}: Error  Failed to setup resources");
-                            return;
-                        }
+                        // Ensure only one thread at a time can access this section of code.
+                        // This is to prevent crashes
+                        Monitor.TryEnter(lockVideoFrameAvailable, ref lockTaken);
+                        if (lockTaken)
+                        {                            
+                            // Check the frame dimensions are as excepted
+                            if (vidFrameMgr.FrameWidth != mp.PlaybackSession.NaturalVideoWidth || vidFrameMgr.FrameHeight != mp.PlaybackSession.NaturalVideoHeight)
+                                Debug.WriteLine($"    {CameraSide}: Warning dimension change, SoftwareBitmap setup at ({vidFrameMgr.FrameWidth},{vidFrameMgr.FrameHeight}), this frame is ({mp.PlaybackSession.NaturalVideoWidth},{mp.PlaybackSession.NaturalVideoHeight})");
 
-                        // Check the frame dimensions are as excepted
-                        if (vidFrameMgr.FrameWidth != mp.PlaybackSession.NaturalVideoWidth || vidFrameMgr.FrameHeight != mp.PlaybackSession.NaturalVideoHeight)
-                            Debug.WriteLine($"    {CameraSide}: Warning dimension change, SoftwareBitmap setup at ({vidFrameMgr.FrameWidth},{vidFrameMgr.FrameHeight}), this frame is ({mp.PlaybackSession.NaturalVideoWidth},{mp.PlaybackSession.NaturalVideoHeight})");
-
-                        // Copy the frame from the media player to the inputBitmap
-                        // This call must be done otherwise MediaPlayer_VideoFrameAvailable will be called repeatly
-                        // With the same frame
-                        try
-                        {
-                            vidFrameMgr.GetNextMediaPlayFrame(mp);
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"    {CameraSide}: Error MediaPlayer_VideoFrameAvailable: {ex.Message}");
-                            return;
-                        }
-
-                        // Draw the frame if there is no frame pending to be drawn
-                        // i.e. waste if time if there is already a frame pending
-                        Debug.WriteLine($"{CameraSide} Entry Count:{vidFrameMgr.GetEntryCount}");
-                        if (!vidFrameMgr.MultipleFramesPending())
-                        {
-                            // Draw the frame
-                            vidFrameMgr.DrawFrameOnImageControl();
-
-                            // Make the ImageFrame visible if it is not already and we are not in player mode
-                            // Note this is relatively slow function and the player mode is checked at the start
-                            // but may have changed by the time we get here.
-                            // If we are now in player mode then we mustn't make the ImageFrame visible and collapse the player
-                            if (mode != Mode.modePlayer && ImageFrame.Visibility == Visibility.Collapsed)
+                            // Draw the frame if there is no frame pending to be drawn
+                            // i.e. waste if time if there is already a frame pending
+                            if (!vidFrameMgr.MultipleFramesPending())
                             {
-                                ImageFrame.Visibility = Visibility.Visible;
-                                MediaPlayerElement.Visibility = Visibility.Collapsed;
-                                Debug.WriteLine($"{CameraSide}: Info MediaPlayer_VideoFrameAvailable: Make Image frame visible and collapse player, mode={mode}.");
+                                // Draw the frame
+                                if (vidFrameMgr.DrawFrameOnImageControl(CameraSide) == false)
+                                    reset = true;
+
+                                if (reset == false)
+                                {
+
+                                    // Make the ImageFrame visible if it is not already and we are not in player mode
+                                    // Note this is relatively slow function and the player mode is checked at the start
+                                    // but may have changed by the time we get here.
+                                    // If we are now in player mode then we mustn't make the ImageFrame visible and collapse the player
+                                    if (mode != Mode.modePlayer && ImageFrame.Visibility == Visibility.Collapsed)
+                                    {
+                                        ImageFrame.Visibility = Visibility.Visible;
+
+                                        MediaPlayerElement.Visibility = Visibility.Collapsed;
+
+                                        Debug.WriteLine($"{CameraSide}: Info MediaPlayer_VideoFrameAvailable: Make Image frame visible and collapse player, mode={mode}.");
+                                    }
+
+                                    // Get the image frame in memory for the Magnify Window
+                                    var (_frameStream, _imageSourceWidth, _imageSourceHeight) = vidFrameMgr.CopyFrameToMemoryStreamAsync();
+
+#if !No_MagnifyAndMarkerDisplay
+                                    // Signal the frame is ready and pass the reference to the CanvasBitmap
+                                    //mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.FrameRendered, CameraSide, mode)
+                                    //{
+                                    //    position = mp.PlaybackSession.Position,
+                                    //    frameStream = _frameStream,
+                                    //    imageSourceWidth = _imageSourceWidth,
+                                    //    imageSourceHeight = _imageSourceHeight
+                                    //});
+#endif
+
+                                    // Signal for one more frame received if it was requested
+                                    vidFrameMgr.DoWeNeedToSignalForOneMoreFrameReceived(CameraSide);
+                                }
                             }
-
-                            // Set ImageFrame.Source last so the old images are not displayed
-                            //??? Now done in Open()
-                            //???ImageFrame.Source = vidFrameMgr.canvasImageSource;
-
-                            // Get the image frame in memory for the Magnify Window
-                            var (_frameStream, _imageSourceWidth, _imageSourceHeight) = vidFrameMgr.CopyFrameToMemoryStreamAsync();
-
-                            // Signal the frame is ready and pass the reference to the CanvasBitmap
-                            mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.FrameRendered, CameraSide, mode)
+                            else
                             {
-                                position = mp.PlaybackSession.Position,
-                                frameStream = _frameStream,
-                                imageSourceWidth = _imageSourceWidth,
-                                imageSourceHeight = _imageSourceHeight
-                            });
+                                // Frame skipped
+                                Debug.WriteLine($"    {CameraSide}: Warning MediaPlayer_VideoFrameAvailable: ***Frame skipped***. Index from player position:{(mp.PlaybackSession.Position.TotalMilliseconds / 1000.0):F3}");
+                                if (vidFrameMgr.DoWeNeedToSignalForOneMoreFrameReceivedButSkippingFrames(CameraSide))
+                                {
+                                    FrameServerEnable(false);  //???
+                                }
+                            }
                         }
-                        else
-                            // Frame skipped
-                            Debug.WriteLine($"    {CameraSide}: Warning MediaPlayer_VideoFrameAvailable: ***Frame skipped***. Index from player position:{(mp.PlaybackSession.Position.TotalMilliseconds / 1000.0):F3}");
-                    }
-                //???}
-                //???NOT REQUIRED
-                //finally
-                //{ 
-                //    // Reentry counter - decrement
-                //    vidFrameMgr.VideoFrameAvailableExit();
-                //}
-            });
 
-           //??? Debug.WriteLine($"{CameraSide}: MediaPlayer_VideoFrameAvailable Exit");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"    {CameraSide}: Error MediaPlayer_VideoFrameAvailable: {ex.Message}");
+                    }
+                    finally
+                    {
+                        if (lockTaken)
+                        {
+                            Monitor.Exit(lockVideoFrameAvailable);
+                        }
+
+                        // Reentry counter - decrement
+                        vidFrameMgr.VideoFrameAvailableExit();
+                    }
+                }, DispatcherQueuePriority.High);
+            }
+
+            // Failure - try to reset the the buffer before the next event
+            if (reset)
+            {
+                vidFrameMgr.IsSetup = false;  // Do this quickly to avoid reentry
+                await DispatcherQueue.EnqueueAsync(async () =>
+                {
+                    //  Reset the frame server mode to recover                                    
+                    mp.IsVideoFrameServerEnabled = false;
+
+                    // Optionally reset CanvasImageSource
+                    await Task.Delay(100);
+                    vidFrameMgr.Release();
+
+                    await Task.Delay(100);                  
+                    await vidFrameMgr.SetupIfNecessary(mp);
+
+                    await Task.Delay(100);
+                    mp.IsVideoFrameServerEnabled = true;
+
+                    Debug.WriteLine("CanvasImageSource reset after DirectX context loss");
+                });
+            }
+
+            //??? Debug.WriteLine($"{CameraSide}: MediaPlayer_VideoFrameAvailable Exit");
         }
 
 

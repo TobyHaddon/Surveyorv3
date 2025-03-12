@@ -297,11 +297,15 @@ namespace Surveyor.User_Controls
             ResetTargetOnCanvasFrame(TargetB);
 
             // Remove any Events from the CanvasFrame
-            RemoveCanvasShapesByTag("Event");
+            RemoveCanvasShapesByTag(CanvasFrame, "Event");
 
             // Remove any Epipolar lines or curves from the CanvasFrame
-            RemoveCanvasShapesByTag("EpipolarLine");
-            RemoveCanvasShapesByTag("EpipolarPoints");
+            RemoveCanvasShapesByTag(CanvasFrame, "EpipolarLine");
+            RemoveCanvasShapesByTag(CanvasFrame, "EpipolarPoints");
+
+            // Remove any Epipolar lines or curves from the CanvasMag
+            RemoveCanvasShapesByTag(CanvasMag, "EpipolarLine");
+            RemoveCanvasShapesByTag(CanvasMag, "EpipolarPoints");
 
             // Clear values
             ClearEventsAndEpipolar();
@@ -1424,9 +1428,11 @@ namespace Surveyor.User_Controls
             canvasFrameScaleY = -1;
 
             // Remove Events and epipolar lines
-            RemoveCanvasShapesByTag("Event");
-            RemoveCanvasShapesByTag("EpipolarLine");
-            RemoveCanvasShapesByTag("EpipolarPoints");
+            RemoveCanvasShapesByTag(CanvasFrame, "Event");
+            RemoveCanvasShapesByTag(CanvasFrame, "EpipolarLine");
+            RemoveCanvasShapesByTag(CanvasFrame, "EpipolarPoints");
+            RemoveCanvasShapesByTag(CanvasMag, "EpipolarLine");
+            RemoveCanvasShapesByTag(CanvasMag, "EpipolarPoints");
 
             // Do coordinate need to be displayed
             DisplayPointerCoords = SettingsManagerLocal.DiagnosticInformation;
@@ -2153,7 +2159,7 @@ namespace Surveyor.User_Controls
         private void TransferExistingEvents()
         {
             // Remove any existing events on the canvas
-            RemoveCanvasShapesByTag("Event");
+            RemoveCanvasShapesByTag(CanvasFrame, "Event");
 
             // Check if the events are to be displayed
             if ((layerTypesDisplayed & LayerType.Events) != 0)
@@ -2384,29 +2390,29 @@ namespace Surveyor.User_Controls
         /// e.g. Event:12345678-1234-1234-1234-1234567890AB
         /// </summary>
         /// <param name="tagRemove"></param>
-        private void RemoveCanvasShapesByTag(string tagRemove)
+        private static void RemoveCanvasShapesByTag(Canvas canvas, string tagRemove)
         {
             // Clear the canvas of all children tagged as 'Event'
-            for (int i = CanvasFrame.Children.Count - 1; i >= 0; i--)
+            for (int i = canvas.Children.Count - 1; i >= 0; i--)
             {
-                FrameworkElement? element = CanvasFrame.Children[i] as FrameworkElement;
+                FrameworkElement? element = canvas.Children[i] as FrameworkElement;
                 if (element != null && element.Tag is CanvasTag canvasTag)
                 {
                     if (canvasTag.IsTagType(tagRemove))
-                        CanvasFrame.Children.RemoveAt(i);
+                        canvas.Children.RemoveAt(i);
                 }
             }
         }
-        private void RemoveCanvasShapesByTag(CanvasTag canvasTagRemove)
+        private static void RemoveCanvasShapesByTag(Canvas canvas, CanvasTag canvasTagRemove)
         {
             // Clear the canvas of all children tagged as 'Event'
-            for (int i = CanvasFrame.Children.Count - 1; i >= 0; i--)
+            for (int i = canvas.Children.Count - 1; i >= 0; i--)
             {
-                FrameworkElement? element = CanvasFrame.Children[i] as FrameworkElement;
+                FrameworkElement? element = canvas.Children[i] as FrameworkElement;
                 if (element != null && element.Tag is CanvasTag canvasTag)
                 {
                     if (canvasTag.IsTag(canvasTagRemove))
-                        CanvasFrame.Children.RemoveAt(i);
+                        canvas.Children.RemoveAt(i);
                 }
             }
         }
@@ -2860,9 +2866,9 @@ namespace Surveyor.User_Controls
                             break;
 
                         case MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarPoints:  // Experimental
-                            SafeUICall(() => _magnifyAndMarkerControl.SetEpipolarPoints(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
-                                                                                        data.pointNear, data.pointMiddle, data.pointFar,
-                                                                                        data.channelWidth));
+                            //SafeUICall(() => _magnifyAndMarkerControl.SetEpipolarPoints(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
+                            //                                                            data.pointNear, data.pointMiddle, data.pointFar,
+                            //                                                            data.channelWidth));
                             break;
                     }
                 }

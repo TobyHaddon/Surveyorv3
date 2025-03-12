@@ -3,6 +3,8 @@
 // 
 // Version 1.1
 //
+// Version 1.2  10 Mar 2025
+// Limit speed to x4 for unsync (MediaPlayer) and x2 sync (MediaTimelineController
 
 
 using Microsoft.UI.Xaml;
@@ -107,6 +109,9 @@ namespace Surveyor.User_Controls
                 Interval = TimeSpan.FromMilliseconds(_wheelDebounceIntervalMs)
             };
             _wheelEventTimer.Tick += WheelEventTimer_Tick;
+
+            // Handle KeyDown at the window level
+            this.KeyDown += OnKeyDown;
         }
 
 
@@ -405,13 +410,13 @@ namespace Surveyor.User_Controls
         private void ControlPlayPause_Click(object sender, RoutedEventArgs e)
         {
             // !PlayOrPause is the new state
-            string playOrPause = !PlayOrPause == true ? "play" : "pause";
+            string playOrPauseText = !PlayOrPause == true ? "play" : "pause";
 
             // Signal eMediaControlEvent.UserReqPlayOrPause with !PlayOrPause
             mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqPlayOrPause, ControlType) { playOrPause = !PlayOrPause });
 
             string controls = ControlType.ToString();            
-            Debug.WriteLine($"{controls}: User requested to {playOrPause}");
+            Debug.WriteLine($"{controls}: User requested to {playOrPauseText}");
         }
 
 
@@ -500,7 +505,12 @@ namespace Surveyor.User_Controls
         private void ControlSpeedDecrease_Click(object sender, RoutedEventArgs e)
         {
             // Calculate the new increased speed
-            _speed = CalcSpeed(_speed, false/*TrueIncreaseFalseDecrease*/);
+            if (mediaSynchronized)
+                // MediaTimelineController has a max of x2
+                _speed = CalcSpeedMediaPlayer(_speed, false/*TrueIncreaseFalseDecrease*/);
+            else
+                // MediaPlayer has a max of x4
+                _speed = CalcSpeedMediaPlayer(_speed, false/*TrueIncreaseFalseDecrease*/);
 
             ControlSpeedText.Text = $"x{Math.Round(_speed, 2)}";
 
@@ -541,7 +551,12 @@ namespace Surveyor.User_Controls
         private void ControlSpeedIncrease_Click(object sender, RoutedEventArgs e)
         {
             // Calculate the new increased speed
-            _speed = CalcSpeed(_speed, true/*TrueIncreaseFalseDecrease*/);
+            if (mediaSynchronized)
+                // MediaTimelineController
+                _speed = CalcSpeedMediaTimelineController(_speed, true/*TrueIncreaseFalseDecrease*/);
+            else
+                // MediaPlayer
+                _speed = CalcSpeedMediaPlayer(_speed, true/*TrueIncreaseFalseDecrease*/);
 
             ControlSpeedText.Text = $"x{Math.Round(_speed, 2)}";
 
@@ -571,6 +586,12 @@ namespace Surveyor.User_Controls
         {
             // Retrieve the parent MenuFlyout
             MenuFlyout? parentFlyout = sender as MenuFlyout;
+
+            // Remove the x4 option if media is sync (MediaTimelineController restriction
+            if (mediaSynchronized)
+                ControlSpeed4_00.Visibility = Visibility.Collapsed;
+            else
+                ControlSpeed4_00.Visibility = Visibility.Visible;
 
             // Create a text string of the current speed of 2 decimal places to compare
             // with the speed of the menu items
@@ -1234,30 +1255,73 @@ namespace Surveyor.User_Controls
         /// PRIVATE METHODS
         /// 
 
-        static List<float> speedList = new List<float> { 0.25f, 0.5f, 1.0f, 1.5f, 2.0f, 5.0f };
-        private static float CalcSpeed(float currentSpeed, bool TrueIncreaseFalseDecrease)
+        /// <summary>
+        /// User has requested a speed increase/decrease. 
+        /// Calculate the next speed for MediaTimeController
+        /// </summary>
+        /// <param name="currentSpeed"></param>
+        /// <param name="TrueIncreaseFalseDecrease"></param>
+        /// <returns></returns>
+
+        static List<float> speedListMediaTimelineController = new List<float> { 0.25f, 0.5f, 1.0f, 1.5f, 2.0f };
+        private static float CalcSpeedMediaTimelineController(float currentSpeed, bool TrueIncreaseFalseDecrease)
         {
             float ret;
 
-            int index = speedList.IndexOf(currentSpeed);
+            int index = speedListMediaTimelineController.IndexOf(currentSpeed);
 
             if (TrueIncreaseFalseDecrease)
             {
-                if (index < speedList.Count - 1)
-                    ret = speedList[index + 1];
+                if (index >= 0 && index < speedListMediaTimelineController.Count - 1)
+                    ret = speedListMediaTimelineController[index + 1];
                 else
                     ret = currentSpeed;
             }
             else
             {
                 if (index > 0)
-                    ret = speedList[index - 1];
+                    ret = speedListMediaTimelineController[index - 1];
                 else
                     ret = currentSpeed;
             }
 
             return ret;
         }
+
+
+        /// <summary>
+        /// User has requested a speed increase/decrease. 
+        /// Calculate the next speed for MediaPlayer
+        /// </summary>
+        /// <param name="currentSpeed"></param>
+        /// <param name="TrueIncreaseFalseDecrease"></param>
+        /// <returns></returns>
+
+        static List<float> speedListMediaPlayer = new List<float> { 0.25f, 0.5f, 1.0f, 1.5f, 2.0f, 4.0f };
+        private static float CalcSpeedMediaPlayer(float currentSpeed, bool TrueIncreaseFalseDecrease)
+        {
+            float ret;
+
+            int index = speedListMediaPlayer.IndexOf(currentSpeed);
+
+            if (TrueIncreaseFalseDecrease)
+            {
+                if (index >= 0 && index < speedListMediaPlayer.Count - 1)
+                    ret = speedListMediaPlayer[index + 1];
+                else
+                    ret = currentSpeed;
+            }
+            else
+            {
+                if (index > 0)
+                    ret = speedListMediaPlayer[index - 1];
+                else
+                    ret = currentSpeed;
+            }
+
+            return ret;
+        }
+
 
         /// <summary>
         /// Used by the TListener to change the state of the MediaControl to understand that the
@@ -1452,6 +1516,20 @@ namespace Surveyor.User_Controls
             }
         }
 
+
+        /// <summary>
+        /// Used to stop cursor left and right keys from moving the focus to the next control
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void OnKeyDown(object sender, KeyRoutedEventArgs e)
+        {
+            if (e.Key == VirtualKey.Left || e.Key == VirtualKey.Right)
+            {
+                // Mark the event as handled to stop it from moving focus
+                e.Handled = true;
+            }
+        }
 
         // ***END OF MediaControl***
     }
