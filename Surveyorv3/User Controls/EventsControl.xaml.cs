@@ -153,7 +153,7 @@ namespace Surveyor.User_Controls
 
             // Create a string to display the event data
             StringBuilder sb = new();
-            sb.Append($"Created: {evt.DateTimeCreate:dd MMM yyyy hh:mm:ss}\r\n\r\n");
+            sb.Append($"Created: {evt.DateTimeCreate:dd MMM yyyy HH:mm:ss}\r\n\r\n");
 
             if (evt.EventData is not null)
             {

@@ -459,6 +459,7 @@ namespace Surveyor.User_Controls
 
                     // Hide the ImageFrame control
                     ImageFrame.Visibility = Visibility.Collapsed;
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide} Play: Hide the ImageFrame");
 
                     // Play the media
                     mode = Mode.modePlayer;
@@ -490,7 +491,7 @@ namespace Surveyor.User_Controls
                     mode = Mode.modePlayer;
 
                     // Show the MediaPlayer
-                    MediaPlayerElement.Visibility = Visibility.Visible;
+                    //???ONLY SHOW/HIDE THE IMAGEFRAME MediaPlayerElement.Visibility = Visibility.Visible;
                 }
                 else
                 {
@@ -671,7 +672,10 @@ namespace Surveyor.User_Controls
             MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled = enabled;
 
             if (!enabled)
+            {
                 ImageFrame.Visibility = Visibility.Collapsed;
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide} FrameServerEnable: Hide the ImageFrame");
+            }
         }
 
 
@@ -886,7 +890,7 @@ namespace Surveyor.User_Controls
         /// <param name="args"></param>
         private async void PlaybackSession_PlaybackStateChanged(MediaPlaybackSession playbackSession, object args)
         {
-            Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {CameraSide}: PlaybackSession_PlaybackStateChanged: Enter PlaybackState={playbackSession.PlaybackState}, NaturalDuration:{playbackSession.NaturalDuration:hh\\:mm\\:ss\\.ff}");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: PlaybackSession_PlaybackStateChanged: Enter PlaybackState={playbackSession.PlaybackState}, NaturalDuration:{playbackSession.NaturalDuration:hh\\:mm\\:ss\\.ff}");
 
             try
             {
@@ -949,7 +953,7 @@ namespace Surveyor.User_Controls
                             }
                             catch (Exception ex)
                             {
-                                Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {CameraSide}: Error PlaybackSession_PlaybackStateChanged  {ex.Message}");
+                                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error PlaybackSession_PlaybackStateChanged  {ex.Message}");
                             }
                         });
                         break;
@@ -961,7 +965,7 @@ namespace Surveyor.User_Controls
 
                         // Rememmber the position in paused mode
                         positionPausedMode = playbackSession.Position;
-                        Debug.WriteLine($"{DateTime.Now:hh:mm:ss} MediaTimelineController_StateChanged: PositionOffset: {positionPausedMode:hh\\:mm\\:ss\\.ff}");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} PlaybackSession_PlaybackStateChanged: PositionOffset: {positionPausedMode:hh\\:mm\\:ss\\.ff}");
                             
                         // Go into Frame Server mode so we can handle the frame rendering
                         _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
@@ -975,7 +979,7 @@ namespace Surveyor.User_Controls
                             // Inform the media control that the media is playing
                             mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Paused, CameraSide, mode));
 
-                            Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {CameraSide}: Info PlaybackSession_PlaybackStateChanged: Paused & video frame event enabled");
+                            //???Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info PlaybackSession_PlaybackStateChanged: Paused & video frame event enabled");
                         });
                         break;
                     }
@@ -983,7 +987,7 @@ namespace Surveyor.User_Controls
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {CameraSide}: Error PlaybackSession_PlaybackStateChanged: Exception: {ex.Message}");
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error PlaybackSession_PlaybackStateChanged: Exception: {ex.Message}");
             }
         }
 
@@ -1095,14 +1099,13 @@ namespace Surveyor.User_Controls
                 }
             });
 
-            //???if (CameraSide == eCameraSide.Left)
-            //???    Debug.WriteLine($"{CameraSide}: Info PlaybackSession_PositionChanged:{sender.Position:hh\\:mm\\:ss\\.ff}, mode {mode}");
+            //???    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info PlaybackSession_PositionChanged:{sender.Position:hh\\:mm\\:ss\\.ff}, mode {mode}");
         }
 
         private void PlaybackSession_SeekableRangesChanged(MediaPlaybackSession sender, object args)
         {
             MediaPlaybackSession playbackSession = sender as MediaPlaybackSession;
-            Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {CameraSide}: Info PlaybackSession_SeekableRangesChanged");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info PlaybackSession_SeekableRangesChanged");
         }
 
         private void PlaybackSession_SeekCompleted(MediaPlaybackSession sender, object args)
@@ -1149,7 +1152,7 @@ namespace Surveyor.User_Controls
                     bool setupOk = await vidFrameMgr.SetupIfNecessary(MediaPlayerElement.MediaPlayer);
                     if (!setupOk)
                     { 
-                        Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {CameraSide}: Error  Failed to setup resources");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error  Failed to setup resources");
                         return;
                     }
 
@@ -1228,7 +1231,7 @@ namespace Surveyor.User_Controls
 
             mode = Mode.modeNone;
 
-            Debug.WriteLine($"{CameraSide}: Info MediaPlayer_MediaFailed: Media playback error: {args.ErrorMessage}, Extended error code: {args.ExtendedErrorCode.HResult}");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info MediaPlayer_MediaFailed: Media playback error: {args.ErrorMessage}, Extended error code: {args.ExtendedErrorCode.HResult}");
         }
 
         private void MediaPlayer_MediaEnded(MediaPlayer sender, object args)
@@ -1237,13 +1240,13 @@ namespace Surveyor.User_Controls
 
             mode = Mode.modeNone;
 
-            Debug.WriteLine($"{CameraSide}: Info MediaPlayer_MediaEnded");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info MediaPlayer_MediaEnded");
         }
 
         private void MediaPlayer_SourceChanged(MediaPlayer sender, object args)
         {
             MediaPlayer mediaPlayer = sender as MediaPlayer;
-            Debug.WriteLine($"{CameraSide}: Info MediaPlayer_SourceChanged:");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info MediaPlayer_SourceChanged:");
         }
 
 
@@ -1466,12 +1469,12 @@ namespace Surveyor.User_Controls
                         taskOneMoreFrameCompletion = new TaskCompletionSource<bool>();
                         waitForOneMoreFrame = true;
 
-                        Debug.WriteLine($"{cameraSide} (Wait side) Requested one more frame notification");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} (Wait side) Requested one more frame notification");
                         ret = true;
                     }
                     else
                     {
-                        Debug.WriteLine($"{cameraSide} (Wait side) Requested one more frame FAILED");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} (Wait side) Requested one more frame FAILED");
                     }
                 }
                 return ret;
@@ -1487,7 +1490,7 @@ namespace Surveyor.User_Controls
             /// <returns></returns>
             public async Task<bool> WaitOneMoreFrame(eCameraSide cameraSide)
             {
-                Debug.WriteLine($"{cameraSide} WaitOneMoreFrame (Wait side) Witing...");
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} WaitOneMoreFrame (Wait side) Waiting...");
 
                 lock (_frameLock)
                 {
@@ -1501,19 +1504,19 @@ namespace Surveyor.User_Controls
                 {
                     if (await Task.WhenAny(taskOneMoreFrameCompletion.Task, Task.Delay(2000)) == taskOneMoreFrameCompletion.Task)
                     {
-                        Debug.WriteLine($"{cameraSide} WaitOneMoreFrame (Wait side) Successfully waited for one more frame");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} WaitOneMoreFrame (Wait side) Successfully waited for one more frame");
                         return true;
                     }
                     else
                     {
-                        Debug.WriteLine($"{cameraSide} WaitOneMoreFrame (Wait side) Timeout waiting for one more frame");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} WaitOneMoreFrame (Wait side) Timeout waiting for one more frame");
                         waitForOneMoreFrame = false;
                         return false;
                     }
                 }
                 else
                 {
-                    Debug.WriteLine($"{cameraSide} WaitOneMoreFrame (Wait side) Error: taskOneMoreFrameCompletion is null");
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} WaitOneMoreFrame (Wait side) Error: taskOneMoreFrameCompletion is null");
                     waitForOneMoreFrame = false;
                     return false;
                 }
@@ -1536,7 +1539,7 @@ namespace Surveyor.User_Controls
                 {
                     if (waitForOneMoreFrame)
                     {
-                        Debug.WriteLine($"{cameraSide} (Frame Side) Signalling for one more frame received");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} (Frame Side) Signalling for one more frame received");
                         if (taskOneMoreFrameCompletion is not null)
                         {
                             taskOneMoreFrameCompletion.TrySetResult(true);
@@ -1545,7 +1548,7 @@ namespace Surveyor.User_Controls
                         }
                         else
                         {
-                            Debug.WriteLine($"{cameraSide} (Frame Side) Error: taskOneMoreFrameCompletion is null");
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} (Frame Side) Error: taskOneMoreFrameCompletion is null");
                             waitForOneMoreFrame = false;
                         }
                     }
@@ -1565,7 +1568,7 @@ namespace Surveyor.User_Controls
                 {
                     if (waitForOneMoreFrame)
                     {
-                        Debug.WriteLine($"{cameraSide} (Frame Side) Waiting for frame and Frame Skipping - So shutdown the frame server");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} (Frame Side) Waiting for frame and Frame Skipping - So shutdown the frame server");
                         ret = true;
                     }
                 }
@@ -1618,7 +1621,7 @@ namespace Surveyor.User_Controls
                         using (CanvasDrawingSession ds = canvasImageSource!.CreateDrawingSession(Microsoft.UI.Colors.Black))
                         {
                             ds.DrawImage(inputBitmap);
-                            //???Debug.WriteLine($"    {CameraSide}: Info MediaPlayer_VideoFrameAvailable: Frame drawn. Index from player position:{(mp.PlaybackSession.Position.TotalMilliseconds / 1000.0):F3}");
+                            //???Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info MediaPlayer_VideoFrameAvailable: Frame drawn. Index from player position:{(mp.PlaybackSession.Position.TotalMilliseconds / 1000.0):F3}");
 
                             // In Debug mode, draw a camera symbol on the frame for differentiation
                             // between the media player video surface and the image frame
@@ -1643,12 +1646,12 @@ namespace Surveyor.User_Controls
                     }
                     catch (COMException ex) when ((uint)ex.HResult == 0x88980801)
                     {
-                        Debug.WriteLine($"    {CameraSide}: DirectX context lost or unsupported operation in CreateDrawingSession: {ex.Message}-----------*****************");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: DirectX context lost or unsupported operation in CreateDrawingSession: {ex.Message}-----------*****************");
                         ret = false;
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"    {CameraSide}: Exception during frame rendering: {ex.Message}");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Exception during frame rendering: {ex.Message}");
                         ret = false;
                     }
 
@@ -1656,7 +1659,7 @@ namespace Surveyor.User_Controls
                 }
                 catch (Exception e)
                 {
-                    Debug.Write($"VideoFrameManager.DrawFrameOnImageControl Exception:{e.Message}");
+                    Debug.Write($"{DateTime.Now:HH:mm:ss.ff} VideoFrameManager.DrawFrameOnImageControl Exception:{e.Message}");
                 }
 
                 return ret;
@@ -1690,7 +1693,7 @@ namespace Surveyor.User_Controls
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"CopyFrameToMemoryStreamAsync: Failed to save frame to memory stream: {ex.Message}");
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} CopyFrameToMemoryStreamAsync: Failed to save frame to memory stream: {ex.Message}");
                     throw; // Rethrow the exception so caller can handle it
                 }
             }
@@ -1890,7 +1893,7 @@ namespace Surveyor.User_Controls
         //                }
         //                catch (Exception e)
         //                {
-        //                    Debug.WriteLine($"VideoFrameManager.SetImageSource exception:{e}");
+        //                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} VideoFrameManager.SetImageSource exception:{e}");
         //                }
         //                finally
         //                {
@@ -2064,6 +2067,13 @@ namespace Surveyor.User_Controls
         {
             // *****************************
             // **Not called from UI Thread**
+            Stopwatch functionTime = new();
+            functionTime.Start();
+
+            // THIS IS AN EXPERIMENT - WE ONLY WANT ONE FRAME
+            mp.IsVideoFrameServerEnabled = false;
+            //???FrameServerEnable(false);
+
 
             // Flag to indicate the buffers need reseting (used if we get an exception)
             bool reset = false;
@@ -2071,7 +2081,7 @@ namespace Surveyor.User_Controls
             // Check if media is being closed
             if (isClosing)
             {
-                Debug.WriteLine($"{CameraSide}: Skipping MediaPlayer_VideoFrameAvailable - Player is closing.");
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Skipping MediaPlayer_VideoFrameAvailable - Player is closing.");
                 return;
             }
 
@@ -2081,24 +2091,24 @@ namespace Surveyor.User_Controls
             // * been set to false, however we still get this event. So we need to check the mode and set  *
             // * the IsVideoFrameServerEnabled to false again and report                                   *
             // *********************************************************************************************
-            if (mode == Mode.modePlayer)
-            {
-                _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
-                {
-                    // Force to false again
-                    MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled = false;
-                });
+            //??? DISABLE THIS
+            //if (mode == Mode.modePlayer)
+            //{
+            //    _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+            //    {
+            //        // Force to false again
+            //        MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled = false;
+            //    });
 
-                Debug.WriteLine($"{CameraSide}: MediaPlayer_VideoFrameAvailable: Warning ***************VideoFrameAvailable CALLED WHILE IN MODE PLAYER***************");
+            //    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MediaPlayer_VideoFrameAvailable: Warning **VideoFrameAvailable CALLED WHILE IN MODE PLAYER***************");
 
-                // This call must be done otherwise MediaPlayer_VideoFrameAvailable will be called repeatly
-                vidFrameMgr.GetNextMediaPlayFrame(CameraSide, mp);
+            //    // This call must be done otherwise MediaPlayer_VideoFrameAvailable will be called repeatly
+            //    vidFrameMgr.GetNextMediaPlayFrame(CameraSide, mp);
 
-                return;
-            }
+            //    return;
+            //}
 
-            if (CameraSide == eCameraSide.Left)
-                Debug.WriteLine($"{CameraSide}: MediaPlayer_VideoFrameAvailable Enter");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MediaPlayer_VideoFrameAvailable Enter");
 
             // Reentry counter
             vidFrameMgr.VideoFrameAvailableEnter();
@@ -2107,7 +2117,7 @@ namespace Surveyor.User_Controls
             //  Check if the resources are setup
             if (!vidFrameMgr.IsSetup)
             {
-                Debug.WriteLine($"    {CameraSide}: Error  Failed to setup resources");
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error  Failed to setup resources");
                 vidFrameMgr.VideoFrameAvailableExit();
                 return;
             }
@@ -2115,6 +2125,8 @@ namespace Surveyor.User_Controls
             // Copy the frame from the media player to the inputBitmap
             // This call must be done otherwise MediaPlayer_VideoFrameAvailable will be called repeatly
             // With the same frame
+            Stopwatch watch = new();
+            watch.Start();
             if (vidFrameMgr.GetNextMediaPlayFrame(CameraSide, mp) == false)
             {
                 // Allow time to settle
@@ -2123,11 +2135,12 @@ namespace Surveyor.User_Controls
                 // Retry
                 if (vidFrameMgr.GetNextMediaPlayFrame(CameraSide, mp) == false)
                 {
-                    Debug.WriteLine($"    {CameraSide}: Error MediaPlayer_VideoFrameAvailable from GetNextMediaPlayFrame: Second try failed");
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error MediaPlayer_VideoFrameAvailable from GetNextMediaPlayFrame: Second try failed");
                     reset = true;
                 }
             }
-
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: GetNextMediaPlayFrame Time={watch.ElapsedMilliseconds}m/s");
+            watch.Stop();
 
             if (reset == false)
             {
@@ -2135,6 +2148,7 @@ namespace Surveyor.User_Controls
                 //_ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.High, () =>
                 await DispatcherQueue.EnqueueAsync(() =>
                 {
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MediaPlayer_VideoFrameAvailable Into UI Thread {functionTime.ElapsedMilliseconds}m/s.");
 
                     bool lockTaken = false;
                     try
@@ -2146,34 +2160,43 @@ namespace Surveyor.User_Controls
                         {                            
                             // Check the frame dimensions are as excepted
                             if (vidFrameMgr.FrameWidth != mp.PlaybackSession.NaturalVideoWidth || vidFrameMgr.FrameHeight != mp.PlaybackSession.NaturalVideoHeight)
-                                Debug.WriteLine($"    {CameraSide}: Warning dimension change, SoftwareBitmap setup at ({vidFrameMgr.FrameWidth},{vidFrameMgr.FrameHeight}), this frame is ({mp.PlaybackSession.NaturalVideoWidth},{mp.PlaybackSession.NaturalVideoHeight})");
+                                Debug.WriteLine($"{CameraSide}: Warning dimension change, SoftwareBitmap setup at ({vidFrameMgr.FrameWidth},{vidFrameMgr.FrameHeight}), this frame is ({mp.PlaybackSession.NaturalVideoWidth},{mp.PlaybackSession.NaturalVideoHeight})");
 
                             // Draw the frame if there is no frame pending to be drawn
                             // i.e. waste if time if there is already a frame pending
                             if (!vidFrameMgr.MultipleFramesPending())
                             {
-                                // Draw the frame
+                                // Draw the framePrimary: User requested to play
+                                watch = new();
+                                watch.Start();
                                 if (vidFrameMgr.DrawFrameOnImageControl(CameraSide) == false)
                                     reset = true;
+                                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: DrawFrameOnImageControl Time={watch.ElapsedMilliseconds}m/s");
+                                watch.Stop();
 
                                 if (reset == false)
                                 {
 
+                                    //???REVIEW AND UPDATE COMMENT
                                     // Make the ImageFrame visible if it is not already and we are not in player mode
                                     // Note this is relatively slow function and the player mode is checked at the start
                                     // but may have changed by the time we get here.
                                     // If we are now in player mode then we mustn't make the ImageFrame visible and collapse the player
-                                    if (mode != Mode.modePlayer && ImageFrame.Visibility == Visibility.Collapsed)
+                                    if (/*???mode != Mode.modePlayer &&*/ ImageFrame.Visibility == Visibility.Collapsed)
                                     {
                                         ImageFrame.Visibility = Visibility.Visible;
 
-                                        MediaPlayerElement.Visibility = Visibility.Collapsed;
+                                        //???ONLY SHOW/HIDE THE IMAGEFRAME MediaPlayerElement.Visibility = Visibility.Collapsed;
 
-                                        Debug.WriteLine($"{CameraSide}: Info MediaPlayer_VideoFrameAvailable: Make Image frame visible and collapse player, mode={mode}.");
+                                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide} Info MediaPlayer_VideoFrameAvailable: Make Image frame visible and collapse player, mode={mode}.");
                                     }
 
                                     // Get the image frame in memory for the Magnify Window
+                                    watch = new();
+                                    watch.Start();
                                     var (_frameStream, _imageSourceWidth, _imageSourceHeight) = vidFrameMgr.CopyFrameToMemoryStreamAsync();
+                                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CopyFrameToMemoryStreamAsync Time={watch.ElapsedMilliseconds}m/s");
+                                    watch.Stop();
 
 #if !No_MagnifyAndMarkerDisplay
                                     // Signal the frame is ready and pass the reference to the CanvasBitmap
@@ -2186,6 +2209,8 @@ namespace Surveyor.User_Controls
                                     //});
 #endif
 
+                                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MediaPlayer_VideoFrameAvailable Before DoWeNeedToSignalForOneMoreFrameReceived {functionTime.ElapsedMilliseconds}m/s.");
+
                                     // Signal for one more frame received if it was requested
                                     vidFrameMgr.DoWeNeedToSignalForOneMoreFrameReceived(CameraSide);
                                 }
@@ -2193,10 +2218,10 @@ namespace Surveyor.User_Controls
                             else
                             {
                                 // Frame skipped
-                                Debug.WriteLine($"    {CameraSide}: Warning MediaPlayer_VideoFrameAvailable: ***Frame skipped***. Index from player position:{(mp.PlaybackSession.Position.TotalMilliseconds / 1000.0):F3}");
+                                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Warning MediaPlayer_VideoFrameAvailable: ***Frame skipped***. Index from player position:{(mp.PlaybackSession.Position.TotalMilliseconds / 1000.0):F3}");
                                 if (vidFrameMgr.DoWeNeedToSignalForOneMoreFrameReceivedButSkippingFrames(CameraSide))
                                 {
-                                    FrameServerEnable(false);  //???
+                                    FrameServerEnable(false);  //??? 
                                 }
                             }
                         }
@@ -2204,7 +2229,7 @@ namespace Surveyor.User_Controls
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"    {CameraSide}: Error MediaPlayer_VideoFrameAvailable: {ex.Message}");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error MediaPlayer_VideoFrameAvailable: {ex.Message}");
                     }
                     finally
                     {
@@ -2216,7 +2241,7 @@ namespace Surveyor.User_Controls
                         // Reentry counter - decrement
                         vidFrameMgr.VideoFrameAvailableExit();
                     }
-                }, DispatcherQueuePriority.High);
+                }, DispatcherQueuePriority.Normal);
             }
 
             // Failure - try to reset the the buffer before the next event
@@ -2238,11 +2263,11 @@ namespace Surveyor.User_Controls
                     await Task.Delay(100);
                     mp.IsVideoFrameServerEnabled = true;
 
-                    Debug.WriteLine("CanvasImageSource reset after DirectX context loss");
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide} CanvasImageSource reset after DirectX context loss");
                 });
             }
 
-            //??? Debug.WriteLine($"{CameraSide}: MediaPlayer_VideoFrameAvailable Exit");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MediaPlayer_VideoFrameAvailable Exit");
         }
 
 

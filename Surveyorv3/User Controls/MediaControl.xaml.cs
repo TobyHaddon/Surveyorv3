@@ -416,7 +416,7 @@ namespace Surveyor.User_Controls
             mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqPlayOrPause, ControlType) { playOrPause = !PlayOrPause });
 
             string controls = ControlType.ToString();            
-            Debug.WriteLine($"{controls}: User requested to {playOrPauseText}");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {controls}: User requested to {playOrPauseText}");
         }
 
 

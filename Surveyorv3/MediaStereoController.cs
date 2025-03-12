@@ -452,15 +452,19 @@ namespace Surveyor
             if (mediaSynchronized)
             {
                 // Disable the frame server on both media players (and hide the Image Frame)
-                mediaPlayerLeft.FrameServerEnable(false);
-                mediaPlayerRight.FrameServerEnable(false);
+            //??? CURRENTLY VIDEOFRAMEAVAILABLE SWITCHES SERVER OFF IMMEDATELY
+            //???    mediaPlayerLeft.FrameServerEnable(false);
+            //???    mediaPlayerRight.FrameServerEnable(false);
               
                 // Play is called on both media players JUST to set the mode to Play. The MediaTimelineController
                 // will control the play
                 mediaPlayerLeft.SetPlayMode();     
                 mediaPlayerRight.SetPlayMode();
+
                 // MediaPlayers are locked together so control via the MediaTimelineController
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MediaTimelineController Resume requested");
                 mediaTimelineController!.Resume();
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MediaTimelineController Resume returned");
             }
             else
             {
@@ -520,13 +524,13 @@ namespace Surveyor
                         }
 
                         // MediaPlayers are locked together so control via the MediaTimelineController
-                        Debug.WriteLine($"{DateTime.Now:hh:mm:ss} MediaTimelineController.Pause: Entered");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MediaTimelineController.Pause: Entered");
                         mediaTimelineController!.Pause();
-                        Debug.WriteLine($"{DateTime.Now:hh:mm:ss} MediaTimelineController.Pause: Returned");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MediaTimelineController.Pause: Returned");
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"{DateTime.Now:hh:mm:ss} MediaTimelineController.Pause: Exception {ex.Message}");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MediaTimelineController.Pause: Exception {ex.Message}");
                     }
                 });
 
@@ -544,14 +548,14 @@ namespace Surveyor
 
                         if (currentMediaOffset != mediaSynchronizedFrameOffset)
                         {
-                            Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {cameraSide} Warning PauseControl: The MediaPlayers position offsets is not correct, open offset:{((TimeSpan)mediaSynchronizedFrameOffset!).TotalSeconds:F3}s, current offset:{currentMediaOffset.TotalSeconds:F3}");
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} Warning PauseControl: The MediaPlayers position offsets is not correct, open offset:{((TimeSpan)mediaSynchronizedFrameOffset!).TotalSeconds:F3}s, current offset:{currentMediaOffset.TotalSeconds:F3}");
                             forwardFrame = true;
                         }
 
                         // Forward frame
                         if (forwardFrame)
                         {
-                            Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {cameraSide} Info PauseControl: Forcing a frame forward to maintain sync");
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} Info PauseControl: Forcing a frame forward to maintain sync");
                             await Task.Delay(10);
                             await FrameMove(eCameraSide.Left/*doesn't matter*/, 1);
                         }
@@ -559,7 +563,7 @@ namespace Surveyor
                 }
                 else
                 {
-                    Debug.WriteLine($"{DateTime.Now:hh:mm:ss} {cameraSide} Warning PauseControl: MediaTimelineController did not reach Paused state in time!");
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} Warning PauseControl: MediaTimelineController did not reach Paused state in time!");
                 }
             }
             else
@@ -601,7 +605,7 @@ namespace Surveyor
                 else
                 {
                     mediaTimelineController.StateChanged -= Handler; //  Ensure cleanup on timeout
-                    Debug.WriteLine($"{DateTime.Now:hh:mm:ss} MediaTimelineController.WaitForMediaTimelinePaused: Warning Timeout waiting for to reach Paused state, current state is {mediaTimelineController!.State}!");
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MediaTimelineController.WaitForMediaTimelinePaused: Warning Timeout waiting for to reach Paused state, current state is {mediaTimelineController!.State}!");
                     return false; //  Timed out
                 }
             }

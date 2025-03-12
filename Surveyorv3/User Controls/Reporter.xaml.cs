@@ -187,7 +187,7 @@ namespace Surveyor.User_Controls
                 {
                     WarningLevel = warningLevel,
                     ImageData = imageData,
-                    Time = DateTime.Now.ToString("dd MMM yy hh:mm:ss"),
+                    Time = DateTime.Now.ToString("dd MMM yy HH:mm:ss"),
                     Channel = channel,
                     Message = message
                 };
