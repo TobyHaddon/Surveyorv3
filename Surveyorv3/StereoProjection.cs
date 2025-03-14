@@ -10,9 +10,8 @@ using Emgu.CV.Structure;
 using Emgu.CV.Util;
 using Surveyor.User_Controls;
 using System;
-//using System.Drawing;
 using System.Text;
-using Windows.Foundation;   // We use Point from here
+using Windows.Foundation;   // We use the Point class from here
 
 
 
@@ -96,6 +95,7 @@ namespace Surveyor
             essentialMatrixArray = null;
             fundamentalMatrixArray = null;
             cameraSystemCentreArray = null;
+            calibationDataUniqueString = "";
         }
 
 
@@ -141,6 +141,7 @@ namespace Surveyor
             essentialMatrixArray = null;
             fundamentalMatrixArray = null;
             cameraSystemCentreArray = null;
+            calibationDataUniqueString = "";
 
             // Set the frame size
             frameWidth = _frameWidth;
@@ -155,7 +156,7 @@ namespace Surveyor
         /// <summary>
         /// Reset the frame size
         /// </summary>
-        public void RetFrameSize()
+        public void ResetFrameSize()
         {
             // Set the frame size
             frameWidth = -1;
@@ -717,7 +718,10 @@ namespace Surveyor
                             Emgu.CV.Matrix<double>? fundamentalMatrix = ComputeFundamentalMatrix(essentialMatrix, cdp.LeftCameraCalibration.Intrinsic/*intrinsicLeft*/, cdp.RightCameraCalibration.Intrinsic/*intrinsicRight*/);
 
                             // Compute the 3D centre point of the camera system
-                            MCvPoint3D64f? cameraSystemCentre= new MCvPoint3D64f(cdp.StereoCameraCalibration.Translation[0, 1] / 2.0, 0.0, 0.0);
+                            //OLD MCvPoint3D64f? cameraSystemCentre= new MCvPoint3D64f(cdp.StereoCameraCalibration.Translation[0, 1] / 2.0, 0.0, 0.0);
+                            MCvPoint3D64f? cameraSystemCentre = new MCvPoint3D64f(cdp.StereoCameraCalibration.Translation[0, 0] / 2.0, 
+                                                                                  cdp.StereoCameraCalibration.Translation[0, 1] / 2.0, 
+                                                                                  cdp.StereoCameraCalibration.Translation[0, 2] / 2.0);
 
 
                             essentialMatrixArray[i] = essentialMatrix;

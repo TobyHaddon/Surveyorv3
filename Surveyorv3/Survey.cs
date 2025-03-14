@@ -3,6 +3,8 @@
 // 
 // Version 1.1
 // Make Partial class to allow for the addition of ProjectEMObs
+// Version 1.2
+// Added the CameraID to the MediaClass
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -208,21 +210,29 @@ namespace Surveyor
                     _mediaPath = null;
                     _leftMediaFileNames.Clear();
                     _rightMediaFileNames.Clear();
+                    _leftCameraID = "";
+                    _rightCameraID = "";
                     _isDirty = false;
                 }
 
 
                 // Media class version
-                public float Version { get; set; } = 1.0f;
+                public float Version { get; set; } = 2.0f;
 
                 [JsonIgnore]
                 private string? _mediaPath = null;
 
                 [JsonIgnore]
-                private ObservableCollection<string> _leftMediaFileNames = new();
+                private ObservableCollection<string> _leftMediaFileNames = [];
 
                 [JsonIgnore]
-                private ObservableCollection<string> _rightMediaFileNames = new();
+                private ObservableCollection<string> _rightMediaFileNames = [];
+
+                [JsonIgnore]
+                private string _leftCameraID = "";
+
+                [JsonIgnore]
+                private string _rightCameraID = "";
 
                 public string? MediaPath
                 {
@@ -262,6 +272,31 @@ namespace Surveyor
                         {
                             _rightMediaFileNames = value;
 
+                            IsDirty = true;
+                        }
+                    }
+                }
+
+                public string LeftCameraID
+                {
+                    get => _leftCameraID;
+                    set
+                    {
+                        if (_leftCameraID != value)
+                        {
+                            _leftCameraID = value;
+                            IsDirty = true;
+                        }
+                    }
+                }
+                public string RightCameraID
+                {
+                    get => _rightCameraID;
+                    set
+                    {
+                        if (_rightCameraID != value)
+                        {
+                            _rightCameraID = value;
                             IsDirty = true;
                         }
                     }

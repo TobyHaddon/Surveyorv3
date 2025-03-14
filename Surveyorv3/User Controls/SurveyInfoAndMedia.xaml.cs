@@ -276,16 +276,25 @@ namespace Surveyor.User_Controls
                     if (item.MediaFileName is not null)
                         surveyClass.Data.Media.LeftMediaFileNames.Add(item.MediaFileName);
                 }
+                // Get and remember left GoPro serial number
+                if (surveyClass.Data.Media.LeftMediaFileNames.Count > 0) 
+                    surveyClass.Data.Media.LeftCameraID = ((MediaFileItem)LeftMediaFileNames.Items[0]).GoProSerialNumber;
+
+
                 // Load right media
                 foreach (MediaFileItem item in RightMediaFileNames.Items)
                 {
                     if (item.MediaFileName is not null)
                         surveyClass.Data.Media.RightMediaFileNames.Add(item.MediaFileName);
                 }
-            }
+                // Get and remember right GoPro serial number
+                if (surveyClass.Data.Media.RightMediaFileNames.Count > 0)
+                    surveyClass.Data.Media.RightCameraID = ((MediaFileItem)RightMediaFileNames.Items[0]).GoProSerialNumber;
 
-            // Remember the last used analyst name
-            SettingsManagerLocal.UserName = SurveyAnalystName.Text;
+        }
+
+        // Remember the last used analyst name
+        SettingsManagerLocal.UserName = SurveyAnalystName.Text;
 
             // Report any issues with the data
             EntryFieldsValid(true/*report*/);
@@ -1450,8 +1459,6 @@ namespace Surveyor.User_Controls
             if (!DispatcherQueue.HasThreadAccess)
                 throw new InvalidOperationException("This function must be called from the UI thread");
         }
-
-
 
         // **END OF SurveyInfoAndMedia**
     }

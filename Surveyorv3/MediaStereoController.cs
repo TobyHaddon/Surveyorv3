@@ -451,11 +451,6 @@ namespace Surveyor
 
             if (mediaSynchronized)
             {
-                // Disable the frame server on both media players (and hide the Image Frame)
-            //??? CURRENTLY VIDEOFRAMEAVAILABLE SWITCHES SERVER OFF IMMEDATELY
-            //???    mediaPlayerLeft.FrameServerEnable(false);
-            //???    mediaPlayerRight.FrameServerEnable(false);
-              
                 // Play is called on both media players JUST to set the mode to Play. The MediaTimelineController
                 // will control the play
                 mediaPlayerLeft.SetPlayMode();     
@@ -487,83 +482,51 @@ namespace Surveyor
 
             if (mediaSynchronized)
             {
-                // Enable the frame server on both media players (and show the Image Frame)
-                // Pause is called on both media players JUST to set the mode to Paused. The MediaTimelineController
-                // will control the play
-                mediaPlayerLeft.SetPauseMode();
-                mediaPlayerRight.SetPauseMode();
-                // Enable the frame server on both media players (and show the Image Frame)
-                mediaPlayerLeft.FrameServerEnable(true);
-                mediaPlayerRight.FrameServerEnable(true);
+                // We Pause the players using the MediaTimelineController
+                // We wait for the players to be paused 
+                // Once paused to confirm the sync offset is correct and if not we move a frame forward
+                // We then grab the frame and display it
+                mediaTimelineController!.Pause();
 
-
-                //???await Task.Run(async () =>
-                _ = DispatcherQueue.GetForCurrentThread()?.TryEnqueue(async () =>
-                {
-                    try
-                    {
-
-                        bool retLeftReq = mediaPlayerLeft.RequestOneMoreFrame();
-                        bool retRightReq = mediaPlayerRight.RequestOneMoreFrame();
-
-                        if (retLeftReq && retRightReq)
-                        {
-                            // Run both waits in parallel
-                            await Task.WhenAll(
-                                mediaPlayerLeft.WaitOneMoreFrame(),
-                                mediaPlayerRight.WaitOneMoreFrame()
-                            );
-                        }
-                        else if (retLeftReq)
-                        {
-                            await mediaPlayerLeft.WaitOneMoreFrame();
-                        }
-                        else if (retRightReq)
-                        {
-                            await mediaPlayerRight.WaitOneMoreFrame();
-                        }
-
-                        // MediaPlayers are locked together so control via the MediaTimelineController
-                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MediaTimelineController.Pause: Entered");
-                        mediaTimelineController!.Pause();
-                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MediaTimelineController.Pause: Returned");
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MediaTimelineController.Pause: Exception {ex.Message}");
-                    }
-                });
 
                 // Wait for Pause state to be reached
-                bool paused = await WaitForMediaTimelinePaused(TimeSpan.FromMilliseconds(3000)); // Timeout of 3 seconds
+                bool paused = await WaitForMediaTimelinePaused(TimeSpan.FromMilliseconds(2000)); // Timeout of 2 seconds
 
                 if (paused)
                 {
-                    if (mediaPlayerLeft.Position is not null && mediaPlayerRight.Position is not null)
+                    bool forwardFrame = false;
+
+                    // Check Mediaplayer Poistions and MediaTimeLineController positon and offset are correct
+                    TimeSpan currentMediaOffset = (TimeSpan)mediaPlayerRight.Position! - (TimeSpan)mediaPlayerLeft.Position!;
+
+                    if (currentMediaOffset != mediaSynchronizedFrameOffset)
                     {
-                        bool forwardFrame = false;
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} Warning MediaStereoController.Pause: The MediaPlayers position offsets are not correct, open offset:{((TimeSpan)mediaSynchronizedFrameOffset!).TotalSeconds:F3}s, current offset:{currentMediaOffset.TotalSeconds:F3}");
+                        forwardFrame = true;
+                    }
 
-                        // Check Mediaplayer Poistions and MediaTimeLineController positon and offset are correct
-                        TimeSpan currentMediaOffset = (TimeSpan)(mediaPlayerRight.Position - mediaPlayerLeft.Position);
+                    // Forward frame
+                    if (forwardFrame)
+                    {
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} Info PauseControl: Forcing a frame forward to maintain sync");
+                        await Task.Delay(10);
+                        await FrameMove(eCameraSide.Left/*Doesn't matter which because we are sync'd*/, 1);
+                        
 
-                        if (currentMediaOffset != mediaSynchronizedFrameOffset)
-                        {
-                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} Warning PauseControl: The MediaPlayers position offsets is not correct, open offset:{((TimeSpan)mediaSynchronizedFrameOffset!).TotalSeconds:F3}s, current offset:{currentMediaOffset.TotalSeconds:F3}");
-                            forwardFrame = true;
-                        }
+                        // Wait again for pause
+                        paused = await WaitForMediaTimelinePaused(TimeSpan.FromMilliseconds(2000)); 
+                    }
 
-                        // Forward frame
-                        if (forwardFrame)
-                        {
-                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} Info PauseControl: Forcing a frame forward to maintain sync");
-                            await Task.Delay(10);
-                            await FrameMove(eCameraSide.Left/*doesn't matter*/, 1);
-                        }
+                    if (paused)
+                    {
+                        // Read the frame from MediaPlayers and copy to the ImageFrames
+                        mediaPlayerLeft.GrabAndDisplayFrame();
+                        mediaPlayerRight.GrabAndDisplayFrame();
                     }
                 }
                 else
                 {
-                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} Warning PauseControl: MediaTimelineController did not reach Paused state in time!");
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide}Warning PauseControl: MediaTimelineController did not reach Paused state in time!");
                 }
             }
             else
@@ -574,6 +537,7 @@ namespace Surveyor
                     await mediaPlayerRight.Pause();
             }
         }
+
 
 
         /// <summary>
@@ -634,6 +598,10 @@ namespace Surveyor
             {
                 if (mediaTimelineController!.State == MediaTimelineControllerState.Paused)
                 {
+                    // Enable Frame Server
+                    mediaPlayerLeft.FrameServerEnable(true);
+                    mediaPlayerRight.FrameServerEnable(true);
+
                     // Calculate the new position
                     TimeSpan position = mediaTimelineControllerPositionPausedMode + deltaPosition;
 
@@ -652,9 +620,9 @@ namespace Surveyor
             else
             {
                 if (cameraSide == eCameraSide.Left)
-                    mediaPlayerLeft.FrameMove(deltaPosition);
+                    await mediaPlayerLeft.FrameMove(deltaPosition);
                 else
-                    mediaPlayerRight.FrameMove(deltaPosition);
+                    await mediaPlayerRight.FrameMove(deltaPosition);
             }
         }
 
@@ -685,13 +653,13 @@ namespace Surveyor
                 {
                     TimeSpan leftTimePerFrame = (TimeSpan)mediaPlayerLeft.TimePerFrame;
                     TimeSpan timeSpan = leftTimePerFrame * frames;
-                    mediaPlayerLeft.FrameMove(timeSpan);
+                    await mediaPlayerLeft.FrameMove(timeSpan);
                 }
                 else
                 {
                     TimeSpan leftTimePerFrame = (TimeSpan)mediaPlayerRight.TimePerFrame;
                     TimeSpan timeSpan = leftTimePerFrame * frames;
-                    mediaPlayerRight.FrameMove(timeSpan);
+                    await mediaPlayerRight.FrameMove(timeSpan);
                 }
             }
         }
@@ -706,18 +674,22 @@ namespace Surveyor
         {
             if (mediaSynchronized)
             {
-                if (mediaTimelineController!.State == MediaTimelineControllerState.Paused)
-                {                   
-                    // Check move is in bounds
-                    if (position < TimeSpan.Zero)
-                        position = TimeSpan.Zero;
-                    else if (position > _maxNaturalDurationForController)
-                        position = _maxNaturalDurationForController;
+                // Check move is in bounds
+                if (position < TimeSpan.Zero)
+                    position = TimeSpan.Zero;
+                else if (position > _maxNaturalDurationForController)
+                    position = _maxNaturalDurationForController;
 
-                    // Move to the absolute position
-                    mediaTimelineControllerPositionPausedMode = position;
-                    mediaTimelineController.Position = mediaTimelineControllerPositionPausedMode;
+                if (mediaTimelineController!.State == MediaTimelineControllerState.Paused)
+                {
+                    // Enable Frame Server
+                    mediaPlayerLeft.FrameServerEnable(true);
+                    mediaPlayerRight.FrameServerEnable(true);
                 }
+
+                // Move to the absolute position
+                mediaTimelineControllerPositionPausedMode = position;
+                mediaTimelineController.Position = mediaTimelineControllerPositionPausedMode;
             }
             else
             {

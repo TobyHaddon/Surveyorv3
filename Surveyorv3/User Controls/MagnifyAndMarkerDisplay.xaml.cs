@@ -290,22 +290,24 @@ namespace Surveyor.User_Controls
             // Clear position
             position = null;
 
-            // Reset the target 
-            pointTargetA = null;
-            pointTargetB = null;
-            ResetTargetOnCanvasFrame(TargetA);
-            ResetTargetOnCanvasFrame(TargetB);
+            _ResetCanvas();
 
-            // Remove any Events from the CanvasFrame
-            RemoveCanvasShapesByTag(CanvasFrame, "Event");
+            //// Reset the target 
+            //pointTargetA = null;
+            //pointTargetB = null;
+            //ResetTargetOnCanvasFrame(TargetA);
+            //ResetTargetOnCanvasFrame(TargetB);
 
-            // Remove any Epipolar lines or curves from the CanvasFrame
-            RemoveCanvasShapesByTag(CanvasFrame, "EpipolarLine");
-            RemoveCanvasShapesByTag(CanvasFrame, "EpipolarPoints");
+            //// Remove any Events from the CanvasFrame
+            //RemoveCanvasShapesByTag(CanvasFrame, "Event");
 
-            // Remove any Epipolar lines or curves from the CanvasMag
-            RemoveCanvasShapesByTag(CanvasMag, "EpipolarLine");
-            RemoveCanvasShapesByTag(CanvasMag, "EpipolarPoints");
+            //// Remove any Epipolar lines or curves from the CanvasFrame
+            //RemoveCanvasShapesByTag(CanvasFrame, "EpipolarLine");
+            //RemoveCanvasShapesByTag(CanvasFrame, "EpipolarPoints");
+
+            //// Remove any Epipolar lines or curves from the CanvasMag
+            //RemoveCanvasShapesByTag(CanvasMag, "EpipolarLine");
+            //RemoveCanvasShapesByTag(CanvasMag, "EpipolarPoints");
 
             // Clear values
             ClearEventsAndEpipolar();
@@ -1370,28 +1372,15 @@ namespace Surveyor.User_Controls
         ///
 
 
-        /// <summary>        
-        /// This function resets all value associated with the previous frame and 
-        /// setups up for the new frame.  It is called from the mediator message
-        /// Other frame setup functions like SetTargets and SetEvents must be called
-        /// AFTER NewImageFrame is called
-        /// </summary>       
-        internal void _NewImageFrame(IRandomAccessStream? frameStream, TimeSpan _position, uint _imageSourceWidth, uint _imageSourceHeight)
+        /// <summary>
+        /// Clear the canvas of all events and targets
+        /// <summary>
+        internal void _ResetCanvas()
         {
             CheckIsUIThread();
 
             // Check the ImageFrame is setup 
             Debug.Assert(imageUIElement is not null, "MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
-
-            Debug.WriteLine($"_NewImageFrame: Position:{_position}, Width:{_imageSourceWidth}, Height:{_imageSourceHeight}");
-
-            // Remember the frame position
-            // Used to know what Events are applicable to this frame
-            position = _position;
-            streamSource = frameStream;
-            imageSourceWidth = _imageSourceWidth;
-            imageSourceHeight = _imageSourceHeight;
-
 
             // Reset the Mag Window
             isMagLocked = false;
@@ -1433,6 +1422,74 @@ namespace Surveyor.User_Controls
             RemoveCanvasShapesByTag(CanvasFrame, "EpipolarPoints");
             RemoveCanvasShapesByTag(CanvasMag, "EpipolarLine");
             RemoveCanvasShapesByTag(CanvasMag, "EpipolarPoints");
+        }
+
+
+        /// <summary>        
+        /// This function resets all value associated with the previous frame and 
+        /// setups up for the new frame.  It is called from the mediator message
+        /// Other frame setup functions like SetTargets and SetEvents must be called
+        /// AFTER NewImageFrame is called
+        /// </summary>       
+        internal void _NewImageFrame(IRandomAccessStream? frameStream, TimeSpan _position, uint _imageSourceWidth, uint _imageSourceHeight)
+        {
+            CheckIsUIThread();
+
+            // Check the ImageFrame is setup 
+            Debug.Assert(imageUIElement is not null, "MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
+
+            Debug.WriteLine($"_NewImageFrame: Position:{_position}, Width:{_imageSourceWidth}, Height:{_imageSourceHeight}");
+
+            // Remember the frame position
+            // Used to know what Events are applicable to this frame
+            position = _position;
+            streamSource = frameStream;
+            imageSourceWidth = _imageSourceWidth;
+            imageSourceHeight = _imageSourceHeight;
+
+            // Clear the canvas
+            _ResetCanvas();
+
+            //// Reset the Mag Window
+            //isMagLocked = false;
+
+            //// Lines below can cause a GP
+            //try
+            //{
+            //    if (ImageMag is not null)
+            //        ImageMag.Source = null;
+            //    if (BorderMag is not null)
+            //        BorderMag.BorderBrush = magColourUnlocked;
+            //}
+            //catch
+            //{ }
+
+
+            //// Check if mag buttons need to be enabled/disabled
+            //EnableButtonMag();
+
+            //// Reset dragging
+            //isDragging = false;
+
+            //// Reset existing targets
+            //pointTargetA = null;
+            //pointTargetB = null;
+            //ResetTargetIconOnCanvas(TargetAMag);
+            //ResetTargetIconOnCanvas(TargetBMag);
+
+            //// Cancel any selected targets
+            //SetSelectedTarget(null);
+
+            //// Reset the scaling
+            //canvasFrameScaleX = -1;
+            //canvasFrameScaleY = -1;
+
+            //// Remove Events and epipolar lines
+            //RemoveCanvasShapesByTag(CanvasFrame, "Event");
+            //RemoveCanvasShapesByTag(CanvasFrame, "EpipolarLine");
+            //RemoveCanvasShapesByTag(CanvasFrame, "EpipolarPoints");
+            //RemoveCanvasShapesByTag(CanvasMag, "EpipolarLine");
+            //RemoveCanvasShapesByTag(CanvasMag, "EpipolarPoints");
 
             // Do coordinate need to be displayed
             DisplayPointerCoords = SettingsManagerLocal.DiagnosticInformation;
@@ -2885,6 +2942,9 @@ namespace Surveyor.User_Controls
                         case MediaPlayerEventData.eMediaPlayerEvent.FrameRendered:
                             if (data.frameStream is not null && data.position is not null)
                                 SafeUICall(() => _magnifyAndMarkerControl._NewImageFrame(data.frameStream, (TimeSpan)data.position, data.imageSourceWidth, data.imageSourceHeight));
+                            break;
+                        case MediaPlayerEventData.eMediaPlayerEvent.Playing:
+                            SafeUICall(() => _magnifyAndMarkerControl._ResetCanvas());
                             break;
                     }
                 }

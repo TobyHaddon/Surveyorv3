@@ -193,7 +193,7 @@
             
             <NavigationView.MenuItems>
                 <NavigationViewItem Content="Events" Icon="Calendar" Tag="EventsPage"/>
-                <NavigationViewItem Content="Results" Icon="Document" Tag="ResultsPage"/>
+                <!--<NavigationViewItem Content="Results" Icon="Document" Tag="ResultsPage"/>-->
                 <NavigationViewItem Content="Output" Icon="Print" Tag="OutputPage"/>
             </NavigationView.MenuItems>
 

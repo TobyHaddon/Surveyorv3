@@ -16,6 +16,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.ComponentModel.Design;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -30,6 +31,7 @@ using Windows.UI.Core;
 using WinRT.Interop;
 using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.Survey.DataClass;
+using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
 #if !No_MagnifyAndMarkerDisplay
 #endif
 
@@ -511,36 +513,39 @@ namespace Surveyor
                     return await openPicker.PickMultipleFilesAsync();
                 });
 
-                // Load the Info and Media user control to setup the survey
 
-                SurveyInfoAndMediaUserControl.SetupForContentDialog(SurveyInfoAndMediaContentDialog, mediaFilesSelected);
-                SurveyInfoAndMediaUserControl.SetReporter(report);
-
-                try
+                if (mediaFilesSelected.Count > 0)
                 {
-                    // ** Important notes **
-                    // The UserControl SurveyInfoAndMedia is displayed within a ContentDialog for 
-                    // the purpose of setting up a new survey (also using from a SettingsCard)
-                    // I stuggled to get the ContentDialog to show width necessary to fully display
-                    // the UserControl.  The solution was to:
-                    // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
-                    // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
-                    // This took a lot of trail and error. It seems to effect the title bar is left in
-                    // default row zero.
-                    ContentDialogResult result = await SurveyInfoAndMediaContentDialog.ShowAsync();
-                    if (result == ContentDialogResult.Primary)
+                    // Load the Info and Media user control to setup the survey
+                    SurveyInfoAndMediaUserControl.SetupForContentDialog(SurveyInfoAndMediaContentDialog, mediaFilesSelected);
+                    SurveyInfoAndMediaUserControl.SetReporter(report);
+
+                    try
                     {
-                        SurveyInfoAndMediaUserControl.SaveForContentDialog(surveyClass);
+                        // ** Important notes **
+                        // The UserControl SurveyInfoAndMedia is displayed within a ContentDialog for 
+                        // the purpose of setting up a new survey (also using from a SettingsCard)
+                        // I stuggled to get the ContentDialog to show width necessary to fully display
+                        // the UserControl.  The solution was to:
+                        // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
+                        // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
+                        // This took a lot of trail and error. It seems to effect the title bar is left in
+                        // default row zero.
+                        ContentDialogResult result = await SurveyInfoAndMediaContentDialog.ShowAsync();
+                        if (result == ContentDialogResult.Primary)
+                        {
+                            SurveyInfoAndMediaUserControl.SaveForContentDialog(surveyClass);
 
-                        // Open Media Files
-                        await OpenSVSMediaFiles();
+                            // Open Media Files
+                            await OpenSVSMediaFiles();
 
+                        }
                     }
-                }
-                catch (Exception ex)
-                {
-                    // Log or handle the exception as needed
-                    report.Error("", $"Error showing SurveyInfoAndMediaContentDialog: {ex.Message}");
+                    catch (Exception ex)
+                    {
+                        // Log or handle the exception as needed
+                        report.Error("", $"Error showing SurveyInfoAndMediaContentDialog: {ex.Message}");
+                    }
                 }
             }
 
@@ -872,23 +877,92 @@ namespace Surveyor
             {
                 if (MenuLockUnlockMediaPlayers.IsChecked)
                 {
-                    // Lock the left and right media controlers
-                    if (surveyClass is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
-                        MediaPlayerLeft.Position is not null && MediaPlayerRight.Position is not null)
-                    {
-                        surveyClass.Data.Sync.IsSynchronized = true;
-                        surveyClass.Data.Sync.TimeSpanOffset = (TimeSpan)MediaPlayerRight.Position - (TimeSpan)MediaPlayerLeft.Position;
-                        surveyClass.Data.Sync.ActualTimeSpanOffsetLeft = (TimeSpan)MediaPlayerLeft.Position;
-                        surveyClass.Data.Sync.ActualTimeSpanOffsetRight = (TimeSpan)MediaPlayerRight.Position;
-                    }
-
                     // Wait for things to settle i.e. any pending MediPlayer directed plays or pauses to have completed
                     // note. calling MediaPlayer.Play or Pause with the MediaTimelineController engaged will cause an
                     // exception
                     await Task.Delay(500);
 
+                    // Action flags
+                    bool reEnable = false;
+                    bool newPosition = false;
+
+                    // Check if sync offset is already present and just needs enabling
+                    if (surveyClass is not null)
+                    {
+                        if (surveyClass.Data.Sync.ActualTimeSpanOffsetLeft != TimeSpan.Zero || 
+                            surveyClass.Data.Sync.ActualTimeSpanOffsetRight != TimeSpan.Zero)
+                        {
+                            // Create a SymbolIcon with an exclamation mark
+                            var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
+
+                            var dialog = new ContentDialog
+                            {
+                                Title = "Lock Media Players",
+                                Content = new StackPanel
+                                {
+                                    Orientation = Orientation.Horizontal,
+                                    Spacing = 10,
+                                    Children =
+                                    {
+                                        warningIcon, // Add the exclamation icon to the dialog content
+                                        new TextBlock
+                                        {
+                                            Text = "There is synchronization information already in this survey that is currently disabled. Do you want to re-enable it or do you want to lock the players at their current position?",
+                                            TextWrapping = TextWrapping.Wrap
+                                        }
+                                    }
+                                },
+                                PrimaryButtonText = "Enable",
+                                SecondaryButtonText = "Current Position",
+                                CloseButtonText = "Cancel",
+                                DefaultButton = ContentDialogButton.Primary,
+                                XamlRoot = this.Content.XamlRoot, // Ensure this points to the correct XamlRoot
+                            };
+
+                            var result = await dialog.ShowAsync();
+
+                            switch (result)
+                            {
+                                case ContentDialogResult.Primary:
+                                    // Handle Enable action
+                                    reEnable = true;
+                                    break;
+
+                                case ContentDialogResult.Secondary:
+                                    // Handle Current Position action
+                                    newPosition = true;
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            // No sync information present so use the current position
+                            newPosition = true;
+                        }
+
+                    }
+
+                    // Lock the left and right media controlers
+                    if (surveyClass is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
+                        MediaPlayerLeft.Position is not null && MediaPlayerRight.Position is not null)
+                    {
+                        if (reEnable)
+                        {
+                            surveyClass.Data.Sync.IsSynchronized = true;
+                        }
+                        else if (newPosition)
+                        {
+                            surveyClass.Data.Sync.IsSynchronized = true;
+                            surveyClass.Data.Sync.TimeSpanOffset = (TimeSpan)MediaPlayerRight.Position - (TimeSpan)MediaPlayerLeft.Position;
+                            surveyClass.Data.Sync.ActualTimeSpanOffsetLeft = (TimeSpan)MediaPlayerLeft.Position;
+                            surveyClass.Data.Sync.ActualTimeSpanOffsetRight = (TimeSpan)MediaPlayerRight.Position;
+
+                        }
+                    }
+
                     // Engage to the MediaTimelineController
-                    mediaStereoController.MediaLockMediaPlayers();
+                    if (reEnable || newPosition)
+                        mediaStereoController.MediaLockMediaPlayers();
                 }
                 else
                 {
@@ -1001,6 +1075,114 @@ namespace Surveyor
                 // Load the calibration file
                 CalibrationData calibrationData = new();
                 int ret = calibrationData.LoadFromFile(calibrationFileSpec);
+
+
+                if (ret == 0)
+                {
+                    bool? leftCameraIDMatch = null;
+                    bool? rightCameraIDMatch = null;
+                    bool cameraWrongWayRound = false;
+
+                    // Check for GoPro serial numbers in the calibration data and the media class
+                    if (!string.IsNullOrEmpty(calibrationData.LeftCameraCalibration.CameraID) &&
+                        !string.IsNullOrEmpty(surveyClass.Data.Media.LeftCameraID))
+                    {
+                        if (calibrationData.LeftCameraCalibration.CameraID == surveyClass.Data.Media.LeftCameraID)
+                            leftCameraIDMatch = true;
+                        else
+                            leftCameraIDMatch = false;
+                    }
+                    if (!string.IsNullOrEmpty(calibrationData.RightCameraCalibration.CameraID) &&
+                        !string.IsNullOrEmpty(surveyClass.Data.Media.RightCameraID))
+                    {
+                        if (calibrationData.RightCameraCalibration.CameraID == surveyClass.Data.Media.RightCameraID)
+                            rightCameraIDMatch = true;
+                        else
+                            rightCameraIDMatch = false;
+                    }
+                    // Check for camera wrong way round
+                    if (leftCameraIDMatch is not null && rightCameraIDMatch is not null &&
+                        !(bool)leftCameraIDMatch && !(bool)rightCameraIDMatch)
+                    {
+                        if (calibrationData.LeftCameraCalibration.CameraID == surveyClass.Data.Media.RightCameraID &&
+                            calibrationData.RightCameraCalibration.CameraID == surveyClass.Data.Media.LeftCameraID)
+                        {
+                            cameraWrongWayRound = true;
+                        }
+                    }
+
+                    string text = "";
+                    bool warnUser = false;
+                    if (leftCameraIDMatch is not null && rightCameraIDMatch is not null && 
+                        !(bool)leftCameraIDMatch && !(bool)rightCameraIDMatch)
+                    {
+                        // Check if camera are the wrong way round
+                        if (!cameraWrongWayRound)
+                        {
+                            text = $"The GoPros used in the survey are different to those used for calibration. " +
+                                   $"Any measurement results will be invalid. You need to either use the cameras " +
+                                   $"used for the calibration or re-calibrate using the cameras used for this survey.\n\n" +
+                                   $"The calibration cameras had the following serial numbers:\n\n" +
+                                   $"Left: {calibrationData.LeftCameraCalibration.CameraID}\n" +
+                                   $"Right: {calibrationData.RightCameraCalibration.CameraID}";
+                            warnUser = true;
+                        }
+                        else
+                        {
+                            text = $"The GoPros used in the survey are the wrong way round (left camera on right side, right camera on left side) vs. the way they were used during calibration. " +
+                                   $"Any measurement results will be invalid. You need to either redo the survey with the cameras swapped around " +
+                                   $"or re-calibrate using the cameras the same way round that you had for this survey.\n\n" +
+                                   $"The calibration cameras had the following serial numbers:\n\n" +
+                                   $"Left: {calibrationData.LeftCameraCalibration.CameraID}\n" +
+                                   $"Right: {calibrationData.RightCameraCalibration.CameraID}";
+                            warnUser = true;
+                        }
+                    }
+                    else if (leftCameraIDMatch is not null && rightCameraIDMatch is not null &&
+                        (bool)leftCameraIDMatch && !(bool)rightCameraIDMatch)
+                    {
+                        text = $"The right GoPro isn't the same as the right GoPro used for Calibration (left GoPro was the same). " +
+                               $"Any measurement results will be invalid. You need to either use the cameras " +
+                                   $"used for the calibration or re-calibrate using the cameras used for this survey.\n\n" +
+                                   $"The calibration cameras had the following serial numbers:\n\n" +
+                                   $"Left: {calibrationData.LeftCameraCalibration.CameraID}\n" +
+                                   $"Right: {calibrationData.RightCameraCalibration.CameraID}";
+                        warnUser = true;
+                    }
+                    else if (leftCameraIDMatch is not null && rightCameraIDMatch is not null &&
+                             !(bool)leftCameraIDMatch && (bool)rightCameraIDMatch)
+                    {
+                        text = $"The left GoPro isn't the same as the right GoPro used for Calibration (right GoPro was the same). " +
+                               $"Any measurement results will be invalid. You need to either use the cameras " +
+                                   $"used for the calibration or re-calibrate using the cameras used for this survey.\n\n" +
+                                   $"The calibration cameras had the following serial numbers:\n\n" +
+                                   $"Left: {calibrationData.LeftCameraCalibration.CameraID}\n" +
+                                   $"Right: {calibrationData.RightCameraCalibration.CameraID}";
+                        warnUser = true;
+                    }
+
+                    if (warnUser == true)
+                    {
+                        // The GoPro serial number in the calibration data does not match the one in the survey
+                        // Cancel Only
+                        ContentDialog confirmationDialog = new()
+                        {
+                            Title = "Survey & Calibration Camera Mismatch",
+                            Content = text,
+                            CloseButtonText = "Cancel",
+                            // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
+                            XamlRoot = this.Content.XamlRoot
+                        };
+                        // Display the dialog
+                        ContentDialogResult resultDlg = await confirmationDialog.ShowAsync();
+                    
+                        if (resultDlg == ContentDialogResult.None)
+                        {
+                            ret = -1;
+                        }
+                    }
+                }
+
 
                 if (ret == 0)
                 {
@@ -1611,10 +1793,12 @@ namespace Surveyor
                     await CloseSVSMediaFiles();
 
                     // Close and clear the Project class (holds the survey data)
-                    await surveyClass.SurveyClose();
-                    surveyClass = null;
-
-                                        
+                    if (surveyClass is not null)
+                    {
+                        await surveyClass.SurveyClose();
+                        surveyClass = null;
+                    }
+                   
                     // Clear the calibration data and the survey rules 
                     stereoProjection.ClearCalibrationData();
                     SetCalibratedIndicator(null, null);
