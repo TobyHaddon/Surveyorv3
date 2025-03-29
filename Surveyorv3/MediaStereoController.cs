@@ -1016,10 +1016,10 @@ namespace Surveyor
 
         /// <summary>
         /// Used by the TListener to call the MediaPlayers to step forward/back in blocks of time 
-        /// i.e 10 seconds back, 30 seconds forward
+        /// i.e 10 frame back, 30 frames forward
         /// </summary>
         /// <param name="controlType"></param>
-        internal void UserReqMoveStep(SurveyorMediaControl.eControlType controlType, TimeSpan step)
+        internal void UserReqMoveStep(SurveyorMediaControl.eControlType controlType, int frames)
         {
             DispatcherQueue.GetForCurrentThread()?.TryEnqueue(async () =>
             {
@@ -1027,14 +1027,14 @@ namespace Surveyor
                 {
                     if (mediaSynchronized)
                     {
-                        await FrameMove(eCameraSide.None, step);
+                        await FrameMove(eCameraSide.None, frames);
                     }
                     else
                     {
                         if (controlType == SurveyorMediaControl.eControlType.Primary)
-                            await FrameMove(eCameraSide.Left, step);
+                            await FrameMove(eCameraSide.Left, frames);
                         else
-                            await FrameMove(eCameraSide.Right, step);
+                            await FrameMove(eCameraSide.Right, frames);
                     }
                 }
                 catch (Exception ex)
@@ -1904,12 +1904,12 @@ namespace Surveyor
 
                         // Move step back 10 seconds
                         case MediaControlEventData.eMediaControlEvent.UserReqMoveStepBack:
-                            mediaStereoController.UserReqMoveStep(data.controlType, -(new TimeSpan(0, 0, 10)));
+                            mediaStereoController.UserReqMoveStep(data.controlType, -10/*old methed was time based -(new TimeSpan(0, 0, 10))*/);
                             break;
 
                         // Move step forward 30 seconds
                         case MediaControlEventData.eMediaControlEvent.UserReqMoveStepForward:
-                            mediaStereoController.UserReqMoveStep(data.controlType, (new TimeSpan(0, 0, 30)));
+                            mediaStereoController.UserReqMoveStep(data.controlType, 30/*old methed was time based (new TimeSpan(0, 0, 30))*/);
                             break;
 
                         // Mute or Unmute   

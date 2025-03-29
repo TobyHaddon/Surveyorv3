@@ -67,6 +67,7 @@ using static Surveyor.User_Controls.SettingsWindowEventData;
 
 using Surveyor.Events;
 using Surveyor.Helper;
+using Emgu.CV.Dai;
 
 
 namespace Surveyor.User_Controls
@@ -292,23 +293,6 @@ namespace Surveyor.User_Controls
 
             _ResetCanvas();
 
-            //// Reset the target 
-            //pointTargetA = null;
-            //pointTargetB = null;
-            //ResetTargetOnCanvasFrame(TargetA);
-            //ResetTargetOnCanvasFrame(TargetB);
-
-            //// Remove any Events from the CanvasFrame
-            //RemoveCanvasShapesByTag(CanvasFrame, "Event");
-
-            //// Remove any Epipolar lines or curves from the CanvasFrame
-            //RemoveCanvasShapesByTag(CanvasFrame, "EpipolarLine");
-            //RemoveCanvasShapesByTag(CanvasFrame, "EpipolarPoints");
-
-            //// Remove any Epipolar lines or curves from the CanvasMag
-            //RemoveCanvasShapesByTag(CanvasMag, "EpipolarLine");
-            //RemoveCanvasShapesByTag(CanvasMag, "EpipolarPoints");
-
             // Clear values
             ClearEventsAndEpipolar();
 
@@ -390,49 +374,6 @@ namespace Surveyor.User_Controls
         }
 
 
-        /// <summary>
-        /// Increase the width and height of the Mag Window
-        /// </summary>
-        /// <returns>Returns the width and height as a uint tuple</returns>
-        //??? no longer used
-        //public ValueTuple<uint, uint> MagWindowEnlargeSize()
-        //{
-        //    if (magWidth < 800)
-        //    {
-        //        magWidth += 20;
-        //        magHeight += 20;
-        //    }
-        //    return (magWidth, magHeight);
-        //}
-
-
-        /// <summary>
-        /// Decrease the width and height of the zoom window
-        /// </summary>
-        /// <returns>Returns the width and height as a uint tuple</returns>
-        //??? no longer used
-        //public ValueTuple<uint, uint> MagWindowReduceSize()
-        //{
-        //    if (magWidth > 20 && magHeight > 20)
-        //    {
-        //        magWidth -= 20;
-        //        magHeight -= 20;
-        //    }
-        //    return (magWidth, magHeight);
-        //}
-
-
-        /// <summary>
-        /// Reset the size of the Mag Window to the default
-        /// </summary>
-        /// <returns>Returns the width and height as a uint tuple</returns>
-        //??? no longer used
-        //public ValueTuple<uint, uint> MagWindowResetSize()
-        //{
-        //    magWidth = magWidthDefaultMedium;
-        //    magHeight = magHeightDefaultMedium;
-        //    return (magWidth, magHeight);
-        //}
 
 
         /// <summary>
@@ -548,7 +489,7 @@ namespace Surveyor.User_Controls
                 GridSizeChanged();
         }
 
-
+        
         /// <summary>
         /// Pointer moved on the canvas
         /// </summary>

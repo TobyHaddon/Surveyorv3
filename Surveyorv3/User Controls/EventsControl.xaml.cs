@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Surveyor.Events;
 using System;
 using System.Collections.Generic;
@@ -582,14 +583,6 @@ namespace Surveyor.User_Controls
             {
                 switch (eventType)
                 {
-                   /*??? not used  case Surveyor.Events.DataType.MonoLeftPoint:
-                        return "L";
-                    case Surveyor.Events.DataType.MonoRightPoint:
-                        return "R";
-                    case Surveyor.Events.DataType.StereoPoint:
-                        return "SP";
-                    case Surveyor.Events.DataType.StereoPairPoints:
-                        return "SPP";*/
                     case Surveyor.Events.SurveyDataType.SurveyPoint:
                         return "\uE139";
                     case Surveyor.Events.SurveyDataType.SurveyStereoPoint:
@@ -610,6 +603,43 @@ namespace Surveyor.User_Controls
             }
             return "Unknown";
 
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, string language)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+
+    /// <summary>
+    /// Convert the EventDataType to a brush for display
+    /// </summary>
+    public class EventTypeToBrushConverter : IValueConverter
+    {
+        public object? Convert(object value, Type targetType, object parameter, string language)
+        {
+            if (value is Surveyor.Events.SurveyDataType eventType)
+            {
+
+                switch (eventType)
+                {
+                    case Surveyor.Events.SurveyDataType.SurveyPoint:
+                    case Surveyor.Events.SurveyDataType.SurveyStereoPoint:
+                    case Surveyor.Events.SurveyDataType.SurveyMeasurementPoints:
+                    case Surveyor.Events.SurveyDataType.StereoCalibrationPoints:
+                    default:
+                        // Return system default foreground brush
+                        return Application.Current.Resources["TextControlForeground"] as Brush;
+
+                    case Surveyor.Events.SurveyDataType.StereoSyncPoint:
+                    case Surveyor.Events.SurveyDataType.SurveyStart:
+                    case Surveyor.Events.SurveyDataType.SurveyEnd:
+                        return new SolidColorBrush(Microsoft.UI.Colors.LimeGreen); // Bright green
+                }
+            }
+
+            return new SolidColorBrush(Microsoft.UI.Colors.Gray); // Default color
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)
@@ -672,23 +702,19 @@ namespace Surveyor.User_Controls
                     }
 
                     // Survey rules passed or failed
-                    if (surveyRulesCalc is not null)
+                    if (surveyRulesCalc is not null && !string.IsNullOrEmpty(surveyRulesCalc.SurveyRulesText))
                     {
-                        //if (sb.Length > 0)
-                        //    sb.Append(", ");
-                        //if (surveyRulesCalc.SurveyRules == true)
-                        //    sb.Append("Passed survey rules");
-                        //else if (surveyRulesCalc.SurveyRules == false)
-                        //{
-                        //    sb.Append("Failed survey rules");
-                            sb.Append(", ");
-                            sb.Append(surveyRulesCalc.SurveyRulesText);
-                        //}
+                        sb.Append(", ");
+                        sb.Append(surveyRulesCalc.SurveyRulesText);
                     }
                 }
                 else if (eventItem.EventData is Surveyor.Events.SurveyPoint surveyPoint)
                 {
-                    sb.AppendLine($"Species: {surveyPoint.SpeciesInfo.Species}");
+                    sb.Append($"Species: {surveyPoint.SpeciesInfo.Species}");
+                }
+                else if (eventItem.EventData is Surveyor.Events.SurveyMarker surveyMarker)
+                {
+                    sb.Append($"Survey #{surveyMarker.MarkerName}");
                 }
 
                 // Add other conditions as necessary

@@ -486,11 +486,11 @@ namespace Surveyor.User_Controls
         }
 
         /// <summary>
-        /// The user has selected to move the media back 10 seconds
+        /// The user has selected to move the media back 10 frames
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void ControlBack10_Click(object sender, RoutedEventArgs e)
+        private void ControlBack10Frames_Click(object sender, RoutedEventArgs e)
         {
             // Signal eMediaControlEvent.UserReqMoveStepBack 
             mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqMoveStepBack, ControlType));
@@ -566,11 +566,11 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// The user has selected to move the media forward 30 seconds
+        /// The user has selected to move the media forward 30 frames
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void ControlForward30_Click(object sender, RoutedEventArgs e)
+        private void ControlForward30Frames_Click(object sender, RoutedEventArgs e)
         {
             // Signal eMediaControlEvent.UserReqMoveStepForward
             mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqMoveStepForward, ControlType));
@@ -784,48 +784,50 @@ namespace Surveyor.User_Controls
             mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqCasting, ControlType));
         }
 
+
         /// <summary>
         /// The user toggled the automatical opening of the Mag Window on or off
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void ControlAutoMag_Click(object sender, RoutedEventArgs e)
-        {
-            // Initial entry
-            if (appButtonAutoMagnifyOn == null && isAutoMagnify == true/*this should always be the case initially*/)
-            {
-                // Remember the original button color so a) we can restore it, b) we can make a greyer version
-                appButtonAutoMagnifyOn = ControlAutoMagIcon.Foreground as Microsoft.UI.Xaml.Media.SolidColorBrush;
+        // The AutoMag feature is being dropped are discussing with Alex/Opwall
+        //private void ControlAutoMag_Click(object sender, RoutedEventArgs e)
+        //{
+        //    // Initial entry
+        //    if (appButtonAutoMagnifyOn == null && isAutoMagnify == true/*this should always be the case initially*/)
+        //    {
+        //        // Remember the original button color so a) we can restore it, b) we can make a greyer version
+        //        appButtonAutoMagnifyOn = ControlAutoMagIcon.Foreground as Microsoft.UI.Xaml.Media.SolidColorBrush;
 
-                // Rememmber the original tooltip. 
-                appButtonAutoMagnifyTooltip = ToolTipService.GetToolTip(ControlAutoMag) as string;
+        //        // Rememmber the original tooltip. 
+        //        appButtonAutoMagnifyTooltip = ToolTipService.GetToolTip(ControlAutoMag) as string;
 
-                // Make a greyer version of the original button color
-                Windows.UI.Color originalColor = appButtonAutoMagnifyOn!.Color;
-                byte grey = (byte)((originalColor.R + originalColor.G + originalColor.B) / 3);
-                Windows.UI.Color greyColor = Windows.UI.Color.FromArgb(originalColor.A, grey, grey, grey);
-                appButtonAutoMagnifyOff = new Microsoft.UI.Xaml.Media.SolidColorBrush(greyColor);
-            }
+        //        // Make a greyer version of the original button color
+        //        Windows.UI.Color originalColor = appButtonAutoMagnifyOn!.Color;
+        //        byte grey = (byte)((originalColor.R + originalColor.G + originalColor.B) / 3);
+        //        Windows.UI.Color greyColor = Windows.UI.Color.FromArgb(originalColor.A, grey, grey, grey);
+        //        appButtonAutoMagnifyOff = new Microsoft.UI.Xaml.Media.SolidColorBrush(greyColor);
+        //    }
 
-            isAutoMagnify = !isAutoMagnify;
+        //    isAutoMagnify = !isAutoMagnify;
 
-            if (isAutoMagnify)
-            {
-                ControlAutoMagIcon.Foreground = appButtonAutoMagnifyOn;
-                ToolTipService.SetToolTip(ControlAutoMag, appButtonAutoMagnifyTooltip + "\nSwitch off the auto magnifier window.");
-            }
-            else
-            {
-                ControlAutoMagIcon.Foreground = appButtonAutoMagnifyOff;
-                ToolTipService.SetToolTip(ControlAutoMag, appButtonAutoMagnifyTooltip + "\nSwitch on the auto magnifier window.");
-            }
+        //    if (isAutoMagnify)
+        //    {
+        //        ControlAutoMagIcon.Foreground = appButtonAutoMagnifyOn;
+        //        ToolTipService.SetToolTip(ControlAutoMag, appButtonAutoMagnifyTooltip + "\nSwitch off the auto magnifier window.");
+        //    }
+        //    else
+        //    {
+        //        ControlAutoMagIcon.Foreground = appButtonAutoMagnifyOff;
+        //        ToolTipService.SetToolTip(ControlAutoMag, appButtonAutoMagnifyTooltip + "\nSwitch on the auto magnifier window.");
+        //    }
 
-            // Signal eMediaControlEvent.UserReqAutoMagOnOff with isAutoMagnify
-            mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqAutoMagOnOff, ControlType)
-            {
-                isAutoMagnify = this.isAutoMagnify
-            });
-        }
+        //    // Signal eMediaControlEvent.UserReqAutoMagOnOff with isAutoMagnify
+        //    mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqAutoMagOnOff, ControlType)
+        //    {
+        //        isAutoMagnify = this.isAutoMagnify
+        //    });
+        //}
 
 
         /// <summary>

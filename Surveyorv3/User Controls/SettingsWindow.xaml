@@ -206,6 +206,7 @@
                                 <HyperlinkButton Content="Windows UI Library" NavigateUri="https://aka.ms/winui" />
                                 <HyperlinkButton Content="Windows Community Toolkit" NavigateUri="https://aka.ms/toolkit/windows" />
                                 <HyperlinkButton Content="Win2D" NavigateUri="https://github.com/Microsoft/Win2D" />
+                                <HyperlinkButton Content="OpenCV Apache 2.0 License"  NavigateUri="https://www.apache.org/licenses/LICENSE-2.0"/>
                                 <HyperlinkButton Content="Emgu.CV GPL V3" NavigateUri="https://www.nuget.org/packages/Emgu.CV" />
                                 <HyperlinkButton Content="Math.NET Numerics MIT License" NavigateUri="https://numerics.mathdotnet.com" />
                                 <HyperlinkButton Content="Json.NET MIT License" NavigateUri="https://www.newtonsoft.com/json" />

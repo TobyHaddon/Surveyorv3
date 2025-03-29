@@ -257,85 +257,94 @@ namespace Surveyor.User_Controls
             // Check the player is actually open
             if (IsOpen())
             {
-                // Indicate closing in progress
-                isClosing = true; 
-
-                // First detach the TimelineController if necessary
-                // This is so we can control the MediaPlayer directly
-                MediaPlayer? mp = null;
                 try
                 {
-                    mp = MediaPlayerElement.MediaPlayer;
-                    if (mp.TimelineController is not null)
-                        mp.TimelineController = null;
-                }
-                catch // Seen this fail
-                { }
+                    ProgressRing_Buffering.IsActive = true;
 
-                // Pause just in case the media is playing
-                if (MediaPlayerElement.MediaPlayer.CurrentState != MediaPlayerState.Paused)
+                    // Indicate closing in progress
+                    isClosing = true;
+
+                    // First detach the TimelineController if necessary
+                    // This is so we can control the MediaPlayer directly
+                    MediaPlayer? mp = null;
+                    try
+                    {
+                        mp = MediaPlayerElement.MediaPlayer;
+                        if (mp.TimelineController is not null)
+                            mp.TimelineController = null;
+                    }
+                    catch // Seen this fail
+                    { }
+
+                    // Pause just in case the media is playing
+                    if (MediaPlayerElement.MediaPlayer.CurrentState != MediaPlayerState.Paused)
+                    {
+                        await Pause();
+                    }
+
+                    // Event PlaybackSession cancel subscriptions
+                    MediaPlaybackSession? playbackSession = null;
+                    try
+                    {
+                        playbackSession = MediaPlayerElement.MediaPlayer.PlaybackSession;
+                        playbackSession.PlaybackStateChanged -= PlaybackSession_PlaybackStateChanged;
+                        playbackSession.BufferingStarted -= PlaybackSession_BufferingStarted;
+                        playbackSession.BufferingEnded -= PlaybackSession_BufferingEnded;
+                        playbackSession.NaturalDurationChanged -= PlaybackSession_NaturalDurationChanged;
+                        playbackSession.NaturalVideoSizeChanged -= PlaybackSession_NaturalVideoSizeChanged;
+                        playbackSession.PositionChanged -= PlaybackSession_PositionChanged;
+                        playbackSession.SeekableRangesChanged -= PlaybackSession_SeekableRangesChanged;
+                        playbackSession.SeekCompleted -= PlaybackSession_SeekCompleted;
+                        playbackSession.SupportedPlaybackRatesChanged -= PlaybackSession_SupportedPlaybackRatesChanged;
+                    }
+                    catch
+                    { }
+
+
+                    // Event MediaPlayer cancel subscriptions
+                    if (mp is not null)
+                    {
+                        mp.MediaEnded -= MediaPlayer_MediaEnded;
+                        mp.MediaFailed -= MediaPlayer_MediaFailed;
+                        mp.MediaOpened -= MediaPlayer_MediaOpened;
+                        mp.MediaPlayerRateChanged -= MediaPlayer_MediaPlayerRateChanged;
+                        mp.SourceChanged -= MediaPlayer_SourceChanged;
+                        mp.VideoFrameAvailable -= MediaPlayer_VideoFrameAvailable;
+
+                        MediaPlayerElement.SetMediaPlayer(null);
+                        await Task.Delay(300);
+                        mp.Dispose();
+                    }
+
+                    // Hide the media player and the frame image user control
+                    MediaPlayerElement.Visibility = Visibility.Collapsed;
+                    ImageFrame.Visibility = Visibility.Collapsed;
+                    ImageFrame.Source = null;
+                    await Task.Delay(500);
+
+                    // Release the resources used to render the video frame
+                    vidFrameMgr.Release();
+
+                    // Reset the variables
+                    mediaOpen = false;
+                    mediaUri = "";
+                    mode = Mode.modeNone;
+                    //???_frameIndexCurrent = 0;
+                    naturalDuration = TimeSpan.Zero;
+                    frameWidth = 0;
+                    frameHeight = 0;
+                    frameRate = -1;
+                    frameRateTimeSpan = TimeSpan.Zero;
+                    positionPausedMode = TimeSpan.Zero;
+
+                    // Signal the media close event via mediator
+                    mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Closed, CameraSide, mode));
+                    Debug.WriteLine($"{CameraSide}: Info SurveyorMediaPlayer.Close");
+                }
+                finally
                 {
-                    await Pause();
+                    ProgressRing_Buffering.IsActive = false;
                 }
-
-                // Event PlaybackSession cancel subscriptions
-                MediaPlaybackSession? playbackSession = null;
-                try
-                {
-                    playbackSession = MediaPlayerElement.MediaPlayer.PlaybackSession;
-                    playbackSession.PlaybackStateChanged -= PlaybackSession_PlaybackStateChanged;
-                    playbackSession.BufferingStarted -= PlaybackSession_BufferingStarted;
-                    playbackSession.BufferingEnded -= PlaybackSession_BufferingEnded;
-                    playbackSession.NaturalDurationChanged -= PlaybackSession_NaturalDurationChanged;
-                    playbackSession.NaturalVideoSizeChanged -= PlaybackSession_NaturalVideoSizeChanged;
-                    playbackSession.PositionChanged -= PlaybackSession_PositionChanged;
-                    playbackSession.SeekableRangesChanged -= PlaybackSession_SeekableRangesChanged;
-                    playbackSession.SeekCompleted -= PlaybackSession_SeekCompleted;
-                    playbackSession.SupportedPlaybackRatesChanged -= PlaybackSession_SupportedPlaybackRatesChanged;
-                }
-                catch 
-                { }
-
-
-                // Event MediaPlayer cancel subscriptions
-                if (mp is not null)
-                {
-                    mp.MediaEnded -= MediaPlayer_MediaEnded;
-                    mp.MediaFailed -= MediaPlayer_MediaFailed;
-                    mp.MediaOpened -= MediaPlayer_MediaOpened;
-                    mp.MediaPlayerRateChanged -= MediaPlayer_MediaPlayerRateChanged;
-                    mp.SourceChanged -= MediaPlayer_SourceChanged;
-                    mp.VideoFrameAvailable -= MediaPlayer_VideoFrameAvailable;
-
-                    MediaPlayerElement.SetMediaPlayer(null);
-                    await Task.Delay(300);
-                    mp.Dispose();
-                }
-
-                // Hide the media player and the frame image user control
-                MediaPlayerElement.Visibility = Visibility.Collapsed;
-                ImageFrame.Visibility = Visibility.Collapsed;
-                ImageFrame.Source = null;
-                await Task.Delay(500);
-
-                // Release the resources used to render the video frame
-                vidFrameMgr.Release();
-                
-                // Reset the variables
-                mediaOpen = false;
-                mediaUri = "";
-                mode = Mode.modeNone;
-                //???_frameIndexCurrent = 0;
-                naturalDuration = TimeSpan.Zero;
-                frameWidth = 0;
-                frameHeight = 0;
-                frameRate = -1;
-                frameRateTimeSpan = TimeSpan.Zero;
-                positionPausedMode = TimeSpan.Zero;
-
-                // Signal the media close event via mediator
-                mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Closed, CameraSide, mode));
-                Debug.WriteLine($"{CameraSide}: Info SurveyorMediaPlayer.Close");
             }
         }
 
@@ -543,6 +552,7 @@ namespace Surveyor.User_Controls
                     //// server will sync to that forward position. This is the best we can do currently.
                     //MediaPlayerElement.MediaPlayer.StepBackwardOneFrame();
                     //???MediaPlayerElement.MediaPlayer.StepForwardOneFrame();
+
                 }
                 else
                 {
@@ -1688,7 +1698,8 @@ namespace Surveyor.User_Controls
                     {
                         // Copies the current video frame from the MediaPlayer to the provided IDirect3DSurface
                         mp.CopyFrameToVideoSurface(inputBitmap);
-                        ret = true;
+
+                        ret = !IsImageBlank();
                     }
                 }
                 catch (Exception e)
@@ -1825,6 +1836,39 @@ namespace Surveyor.User_Controls
                 }
 
                 return ret;
+            }
+
+            /// <summary>
+            /// Test if the image is blank.  This is to test if media player returned a blank frame
+            /// </summary>
+            /// <returns></returns>
+            public bool IsImageBlank()
+            {
+                if (inputBitmap == null)
+                    return false;
+
+                int width = (int)inputBitmap.SizeInPixels.Width;
+                int height = (int)inputBitmap.SizeInPixels.Height;
+
+                var pixels = inputBitmap.GetPixelBytes();
+
+                for (int y = 0; y < height; y++)
+                {
+                    for (int x = 0; x < width; x++)
+                    {
+                        int index = (y * width + x) * 4; // BGRA format
+
+                        byte b = pixels[index];
+                        byte g = pixels[index + 1];
+                        byte r = pixels[index + 2];
+                        byte a = pixels[index + 3];
+
+                        if (!(r == 0 && g == 0 && b == 0 && a == 255))
+                            return false; // Found a non-black pixel
+                    }
+                }
+
+                return true; // All pixels are pure black
             }
         }
 
@@ -2322,7 +2366,6 @@ namespace Surveyor.User_Controls
         public IRandomAccessStream? frameStream;
         public uint imageSourceWidth;
         public uint imageSourceHeight;
-        //???public SurveyorMediaPlayer.VideoFrameManager? videoFrameManager;
 
         // Only used for FrameSize
         public int? frameWidth;

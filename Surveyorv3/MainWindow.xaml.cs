@@ -665,11 +665,14 @@ namespace Surveyor
                 if (menuItem.Tag is string filePath)
                 {
                     // Open survey in the regular way
-                    await OpenSurvey(filePath);
+                    int ret = await OpenSurvey(filePath);
 
-                    // Check if the preferred calibration data is the one being using for
-                    // the current event measurements calculations
-                    await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
+                    if (ret == 0)
+                    {
+                        // Check if the preferred calibration data is the one being using for
+                        // the current event measurements calculations
+                        await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
+                    }
                 }
 
                 SetMenuStatusBasedOnProjectState();
@@ -895,20 +898,52 @@ namespace Surveyor
                             // Create a SymbolIcon with an exclamation mark
                             var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
 
+                            //var dialog = new ContentDialog
+                            //{
+                            //    Title = "Lock Media Players",
+                            //    Content = new StackPanel
+                            //    {
+                            //        Orientation = Orientation.Horizontal,
+                            //        Spacing = 10,
+                            //        Children =
+                            //        {
+                            //            warningIcon, // Add the exclamation icon to the dialog content
+                            //            new TextBlock
+                            //            {
+                            //                Text = "There is synchronization information already in this survey that is currently disabled. Do you want to re-enable it or do you want to lock the players at their current position?",
+                            //                TextWrapping = TextWrapping.Wrap
+                            //            }
+                            //        }
+                            //    },
+                            //    PrimaryButtonText = "Enable",
+                            //    SecondaryButtonText = "Current Position",
+                            //    CloseButtonText = "Cancel",
+                            //    DefaultButton = ContentDialogButton.Primary,
+                            //    XamlRoot = this.Content.XamlRoot, // Ensure this points to the correct XamlRoot
+                            //};
                             var dialog = new ContentDialog
                             {
                                 Title = "Lock Media Players",
-                                Content = new StackPanel
+                                Content = new Grid
                                 {
-                                    Orientation = Orientation.Horizontal,
-                                    Spacing = 10,
+                                    Width = 400, // Set the width of the dialog content
                                     Children =
                                     {
-                                        warningIcon, // Add the exclamation icon to the dialog content
-                                        new TextBlock
+                                        new StackPanel
                                         {
-                                            Text = "There is synchronization information already in this survey that is currently disabled. Do you want to re-enable it or do you want to lock the players at their current position?",
-                                            TextWrapping = TextWrapping.Wrap
+                                            Orientation = Orientation.Horizontal,
+                                            Spacing = 10,
+                                            Children =
+                                            {
+                                                warningIcon, // Add the exclamation icon to the dialog content
+                                                new TextBlock
+                                                {
+                                                    Text = "There is synchronization information already in this survey that is currently disabled. Do you want to re-enable it or do you want to lock the players at their current position?",
+                                                    TextWrapping = TextWrapping.Wrap,
+                                                    MaxWidth = 320, // Limit width to allow wrapping
+                                                    HorizontalAlignment = HorizontalAlignment.Left
+                                                }
+                                            }
                                         }
                                     }
                                 },
@@ -916,7 +951,7 @@ namespace Surveyor
                                 SecondaryButtonText = "Current Position",
                                 CloseButtonText = "Cancel",
                                 DefaultButton = ContentDialogButton.Primary,
-                                XamlRoot = this.Content.XamlRoot, // Ensure this points to the correct XamlRoot
+                                XamlRoot = this.Content.XamlRoot // Ensure this points to the correct XamlRoot
                             };
 
                             var result = await dialog.ShowAsync();

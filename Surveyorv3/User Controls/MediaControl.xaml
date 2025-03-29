@@ -81,7 +81,7 @@
                         </Grid>
 
                         <!-- Step Back 10 Seconds Media Control Button, ED3C -->
-                        <AppBarButton x:Name="ControlBack10" MinWidth="20" Width="30" Click="ControlBack10_Click" ToolTipService.ToolTip="Skip backwards (Ctrl+Left)">
+                        <AppBarButton x:Name="ControlBack10" MinWidth="20" Width="30" Click="ControlBack10Frames_Click" ToolTipService.ToolTip="Skip backwards 10 frames (Ctrl+Left)">
                             <AppBarButton.Icon>
                                 <FontIcon Glyph="&#xED3C;"/>
                             </AppBarButton.Icon>
@@ -125,7 +125,7 @@
                         </AppBarButton>
 
                         <!-- Step Forward 30 Seconds Media Control Button, ED3D -->
-                        <AppBarButton x:Name="ControlForward30" MinWidth="20" Width="30" Click="ControlForward30_Click" ToolTipService.ToolTip="Skip forwards (Ctrl+Right)">
+                        <AppBarButton x:Name="ControlForward30" MinWidth="20" Width="30" Click="ControlForward30Frames_Click" ToolTipService.ToolTip="Skip forwards 30 frames (Ctrl+Right)">
                             <AppBarButton.Icon>
                                 <FontIcon Glyph="&#xED3D;"/>
                             </AppBarButton.Icon>
@@ -173,14 +173,14 @@
                         </AppBarButton>
 
                         <!-- Auto Magnifier On/Off Control Button E71E -->
-                        <AppBarButton x:Name="ControlAutoMag" MinWidth="20" Width="30" Click="ControlAutoMag_Click" ToolTipService.ToolTip="Controls if the magnifier window automatically appears">
+                        <!--<AppBarButton x:Name="ControlAutoMag" MinWidth="20" Width="30" Click="ControlAutoMag_Click" ToolTipService.ToolTip="Controls if the magnifier window automatically appears">
                             <AppBarButton.Icon>
                                 <FontIcon Glyph="&#xE71E;" x:Name="ControlAutoMagIcon"/>
                             </AppBarButton.Icon>
                             <AppBarButton.KeyboardAccelerators>
                                 <KeyboardAccelerator Modifiers="Control" Key="M"/>
                             </AppBarButton.KeyboardAccelerators>
-                        </AppBarButton>
+                        </AppBarButton>-->
 
                         <!-- Magnifier Zoom Level Button E12E-->
                         <AppBarButton x:Name="ControlMagZoom" MinWidth="20" Width="30" ToolTipService.ToolTip="Set the magnifier window zoom level">
@@ -251,8 +251,6 @@
                             <FontIcon Glyph="&#xE722;"/>
                         </AppBarButton.Icon>
                         <AppBarButton.KeyboardAccelerators>
-                            <!-- Single S key -->
-                            <KeyboardAccelerator Key="S" />
                             <!-- Ctrl + S key combination -->
                             <KeyboardAccelerator Key="S" Modifiers="Control" />
                         </AppBarButton.KeyboardAccelerators>
