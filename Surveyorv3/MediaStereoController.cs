@@ -18,15 +18,8 @@ using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Media;
 using static Surveyor.MediaStereoControllerEventData;
-using Microsoft.UI.Xaml.Controls;
-using System.Diagnostics.Metrics;
 using Surveyor.Helper;
-using CommunityToolkit.WinUI;
-using Microsoft.UI.Xaml;
-
-
-
-
+using Windows.Media.Playback;
 
 
 
@@ -87,8 +80,7 @@ namespace Surveyor
         // Species Selector dialog class
         public SpeciesSelector speciesSelector = new();
 
-        // Measurement class
-        //public Measurement Measurement { get; private set; } = new();
+        // StereoProjection class        
         public StereoProjection stereoProjection;
 
 
@@ -179,6 +171,16 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Diags dump of class information
+        /// </summary>
+        public void DumpAllProperties()
+        {
+            DumpClassPropertiesHelper.DumpAllProperties(this, /*ignore*/"mediator,report,mediaControllerHandler,mainWindow,mediaPlayerLeft,mediaPlayerRight,mediaControlPrimary,mediaControlSecondary,magnifyAndMarkerDisplayLeft,magnifyAndMarkerDisplayRight,mediaTimelineController,eventsControl,speciesSelector,stereoProjection");
+            DumpClassPropertiesHelper.DumpAllProperties(speciesSelector, /*ignore*/"_contentLoaded");
+        }
+
+
+        /// <summary>
         /// Open left and right media files. If timeSpanOffset is null allow media to play independently. If not null, 
         /// lock the media together and offset the right media by the timeSpanOffset
         /// If the timeSpanOffset is positive the left media will start at zero and the right media will start at the 
@@ -225,7 +227,7 @@ namespace Surveyor
                     tries++;
                 }
 
-                MediaLockMediaPlayers((TimeSpan)timeSpanOffset);
+                await MediaLockMediaPlayers((TimeSpan)timeSpanOffset);
             }
             else
             {
@@ -258,7 +260,7 @@ namespace Surveyor
             }
 
             // Wait to settle
-            await Task.Delay(2000);
+            await Task.Delay(500);
 
 
             if (mediaPlayerLeft.IsOpen())
@@ -298,7 +300,7 @@ namespace Surveyor
         /// Lock the two mediaplayer together at their current offset position
         /// </summary>
         /// <returns></returns>
-        public bool MediaLockMediaPlayers()
+        public async Task<bool> MediaLockMediaPlayers()
         {
             CheckIsUIThread();
 
@@ -307,7 +309,7 @@ namespace Surveyor
             if (!mediaSynchronized)
             {
                 // Lock the players at their current position
-                ret = MediaLockMediaPlayers(null);
+                ret = await MediaLockMediaPlayers(null);
             }
             return ret;
         }
@@ -318,7 +320,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="_lockedMediaPlayersFrameOffset"></param>
         /// <returns></returns>
-        public bool MediaLockMediaPlayers(TimeSpan? _lockedMediaPlayersFrameOffset)
+        public async Task<bool> MediaLockMediaPlayers(TimeSpan? _lockedMediaPlayersFrameOffset)
         {
             CheckIsUIThread();
 
@@ -333,39 +335,49 @@ namespace Surveyor
                 //_mediaTimelineController.Ended += MediaTimelineController_Ended;    // Incase we need later
                 //_mediaTimelineController.Failed += MediaTimelineController_Failed;  // Incase we need later
 
+                // Wait the media players to be ready
+                await WaitForPlayersToHaveValidPosition(mediaPlayerLeft, mediaPlayerRight);
+
+                // Remember the current Media Player Position. This is so we can check that the players
+                // did actually move to the correct position later in this method
+                TimeSpan leftPositionActual = (TimeSpan)mediaPlayerLeft.Position!;
+                TimeSpan rightPositionActual = (TimeSpan)mediaPlayerRight.Position!;
+
                 if (_lockedMediaPlayersFrameOffset is null)
                 {
                     // Lock in the current player play position.  The user is manually syncing the media players
-                    TimeSpan? leftPosition = mediaPlayerLeft.Position;
-                    TimeSpan? rightPosition = mediaPlayerRight.Position;
-
-                    if (leftPosition is not null && rightPosition is not null)
+                    if (mediaPlayerLeft.Position is not null && mediaPlayerRight.Position is not null)
                     {
-                        // Remember the offset between the two media players
-                        mediaSynchronizedFrameOffset = (TimeSpan)rightPosition - (TimeSpan)leftPosition;
+
+                        // Correct on frame boundaries (rounding down is ok)
+                        long leftFrame = (long)(leftPositionActual.TotalMilliseconds * _frameRate / 1000.0);
+                        long rightFrame = (long)(rightPositionActual.TotalMilliseconds * _frameRate / 1000.0);
+                        TimeSpan leftPositionRounded = TimeSpan.FromMilliseconds(leftFrame * 1000 / _frameRate);
+                        TimeSpan rightPositionRounded = TimeSpan.FromMilliseconds(rightFrame * 1000 / _frameRate);
+                        mediaSynchronizedFrameOffset = (TimeSpan)rightPositionRounded - (TimeSpan)leftPositionRounded;
 
                         // Lock in the current player play position delta
                         TimeSpan leftOffset = mediaSynchronizedFrameOffset > TimeSpan.Zero ? TimeSpan.Zero : (TimeSpan)(-mediaSynchronizedFrameOffset);
                         TimeSpan rightOffset = mediaSynchronizedFrameOffset > TimeSpan.Zero ? (TimeSpan)(mediaSynchronizedFrameOffset) : TimeSpan.Zero;
-
                         mediaPlayerLeft.SetTimelineController(mediaTimelineController, leftOffset);
                         mediaPlayerRight.SetTimelineController(mediaTimelineController, rightOffset);
-                        Debug.WriteLine($"MediaLockMediaPlayers: Lock PositionOffset: (Left:{(((TimeSpan)leftPosition).TotalMilliseconds / 1000.0):F3},Right:{(((TimeSpan)rightPosition).TotalMilliseconds / 1000.0):F6})");
+                        Debug.WriteLine($"MediaLockMediaPlayers: Lock PositionOffset: (Left:{leftPositionRounded.TotalMilliseconds / 1000.0:F3}, Right:{rightPositionRounded.TotalMilliseconds / 1000.0:F3})");
 
                         // Engaging MedaTimelineController will cause the media players to jump to the new start position
                         // of the MediaTimelineController. We want to lock the players but stay at the original point
                         // However once the MediaTimelineController is engaged, the Position can only be move using 
                         // MediaPlayer.TimelineController.Position. 
                         if (mediaSynchronizedFrameOffset >= TimeSpan.Zero)
-                            mediaTimelineController.Position = (TimeSpan)leftPosition;
+                            mediaTimelineController.Position = leftPositionRounded;
                         else
-                            mediaTimelineController.Position = (TimeSpan)rightPosition;
+                            mediaTimelineController.Position = rightPositionRounded;
+
 
                         // Save the sync point as an event so the user can return to this point
                         if (mediaSynchronizedFrameOffset >= TimeSpan.Zero)
-                            SurveyStereoSyncPointSelected((TimeSpan)leftPosition/*MediaTimelineController*/, (TimeSpan)leftPosition, (TimeSpan)rightPosition);
+                            SurveyStereoSyncPointSelected(leftPositionRounded/*MediaTimelineController*/, leftPositionRounded, rightPositionRounded);
                         else
-                            SurveyStereoSyncPointSelected((TimeSpan)rightPosition/*MediaTimelineController*/, (TimeSpan)leftPosition, (TimeSpan)rightPosition);
+                            SurveyStereoSyncPointSelected(rightPositionRounded/*MediaTimelineController*/, leftPositionRounded, rightPositionRounded);
                     }
                 }
                 else
@@ -381,11 +393,37 @@ namespace Surveyor
 
                     mediaPlayerLeft.SetTimelineController(mediaTimelineController, leftOffset);
                     mediaPlayerRight.SetTimelineController(mediaTimelineController, rightOffset);
-                    Debug.WriteLine($"MediaLockMediaPlayers: PositionOffset: (Left:{(leftOffset.TotalMilliseconds / 1000.0):F6},Right:{(rightOffset.TotalMilliseconds / 1000.0):F3})");
+                    Debug.WriteLine($"MediaLockMediaPlayers: PositionOffset: (Left:{(leftOffset.TotalMilliseconds / 1000.0):F3}, Right:{(rightOffset.TotalMilliseconds / 1000.0):F3})");
+
+
+                    // Check the mediaplayers moved
+                    int tries = 0;
+
+                    while ((leftPositionActual == (TimeSpan)mediaPlayerLeft.Position && rightPositionActual == (TimeSpan)mediaPlayerRight.Position) &&
+                           tries < 20)
+                    {
+                        // Sleep 100ms
+                        await Task.Delay(100);
+                        tries++;
+                    }
                 }
 
+                // Wait to settle players
+                await Task.Delay(250);
+
+                // Check the actual media offset is what we need
+                // I have seen it not use the provided offset (can be -2 to 2 frames out)
+                leftPositionActual = (TimeSpan)mediaPlayerLeft.Position!;
+                rightPositionActual = (TimeSpan)mediaPlayerRight.Position!;
+                TimeSpan mediaSynchronizedFrameOffsetTest = (TimeSpan)rightPositionActual - (TimeSpan)leftPositionActual;
+
+                if (mediaSynchronizedFrameOffsetTest != mediaSynchronizedFrameOffset)
+                    Debug.WriteLine($"MediaLockMediaPlayers: Warning Synchronization Offset: Required:{mediaSynchronizedFrameOffset.TotalMilliseconds / 1000.0:F3}, Actual:{mediaSynchronizedFrameOffsetTest.TotalMilliseconds / 1000.0:F3})");
+
+                    
                 // Indicate we have locked the media players
                 mediaSynchronized = true;  
+
 
                 // Signal the media is synchronized (This is used by the MainWindow and the primary MediaControls)
                 mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.MediaSynchronized)
@@ -394,12 +432,49 @@ namespace Surveyor
                 });
 
                 ret = true;
+
             }
 
             return ret;
         }
 
-        
+
+        /// <summary>
+        /// Wait for the media players to have a valid Position (non-null). This is used to wait for the media players to
+        /// be ready
+        /// </summary>
+        /// <param name="mediaPlayerLeft"></param>
+        /// <param name="mediaPlayerRight"></param>
+        /// <returns></returns>
+        private static async Task WaitForPlayersToHaveValidPosition(SurveyorMediaPlayer mediaPlayerLeft, SurveyorMediaPlayer mediaPlayerRight)
+        {
+            const int maxWaitTimeMs = 3000; // Max time to wait
+            const int pollIntervalMs = 50;
+            int waited = 0;
+            Stopwatch stopwatch = new();
+
+            stopwatch.Start();
+            while (waited < maxWaitTimeMs)
+            {
+                var leftPos = mediaPlayerLeft.Position;
+                var rightPos = mediaPlayerRight.Position;
+
+                // Wait until both positions have advanced from zero
+                if (leftPos is not null && rightPos is not null)
+                {
+                    Debug.WriteLine($"WaitForPlayersToHaveValidPosition Ready waited {stopwatch.ElapsedMilliseconds}ms");
+                    return;
+                }
+
+                await Task.Delay(pollIntervalMs);
+                waited += pollIntervalMs;
+            }
+            stopwatch.Stop();
+            
+            Debug.WriteLine($"WaitForPlayersToHaveValidPosition Timed out waiting {stopwatch.ElapsedMilliseconds}ms for media players to start");
+        }
+
+
         /// <summary>
         /// Used to unlock the media players.
         /// </summary>
@@ -443,9 +518,10 @@ namespace Surveyor
         /// <summary>
         /// Play the media. If the media is locked together then both media players will play
         /// If seperate the cameraSide will determine which media player will play
+        /// USES 'Internal' to allow Unit Testing
         /// </summary>
         /// <param name="cameraSide"></param>
-        private void Play(eCameraSide cameraSide)
+        internal void Play(eCameraSide cameraSide)
         {
             CheckIsUIThread();
 
@@ -474,9 +550,10 @@ namespace Surveyor
         /// <summary>
         /// Pause the media. If the media is locked together then both media players will pause
         /// If seperate the cameraSide will determine which media player will play
+        /// USES 'Internal' to allow Unit Testing
         /// </summary>
         /// <param name="cameraSide"></param>
-        private async Task Pause(eCameraSide cameraSide)
+        internal async Task Pause(eCameraSide cameraSide)
         {
             CheckIsUIThread();
 
@@ -501,20 +578,27 @@ namespace Surveyor
 
                     if (currentMediaOffset != mediaSynchronizedFrameOffset)
                     {
-                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} Warning MediaStereoController.Pause: The MediaPlayers position offsets are not correct, open offset:{((TimeSpan)mediaSynchronizedFrameOffset!).TotalSeconds:F3}s, current offset:{currentMediaOffset.TotalSeconds:F3}");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} Both Warning MediaStereoController.Pause: The MediaPlayers position offsets are not correct, open offset:{((TimeSpan)mediaSynchronizedFrameOffset!).TotalSeconds:F3}s, current offset:{currentMediaOffset.TotalSeconds:F3}");
                         forwardFrame = true;
                     }
+                    else
+                    {
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} Both Info MediaStereoController.Pause: The MediaPlayers position offsets are correct, open offset:{((TimeSpan)mediaSynchronizedFrameOffset!).TotalSeconds:F3}s, current offset:{currentMediaOffset.TotalSeconds:F3}, MediaController Position:{mediaTimelineController.Position.TotalSeconds:F3}, Left Position:{((TimeSpan)mediaPlayerLeft.Position).TotalSeconds:F3}, Right Position:{((TimeSpan)mediaPlayerRight.Position).TotalSeconds:F3}");
+                    }
+
+                    // Force a forware frame regardless
+                    forwardFrame = true;
 
                     // Forward frame
                     if (forwardFrame)
                     {
-                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} Info PauseControl: Forcing a frame forward to maintain sync");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} Both Info PauseControl: Forcing a frame forward to maintain sync");
                         await Task.Delay(10);
                         await FrameMove(eCameraSide.Left/*Doesn't matter which because we are sync'd*/, 1);
-                        
+
 
                         // Wait again for pause
-                        paused = await WaitForMediaTimelinePaused(TimeSpan.FromMilliseconds(2000)); 
+                        paused = await WaitForMediaTimelinePaused(TimeSpan.FromMilliseconds(2000));
                     }
 
                     if (paused)
@@ -526,7 +610,7 @@ namespace Surveyor
                 }
                 else
                 {
-                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide}Warning PauseControl: MediaTimelineController did not reach Paused state in time!");
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} Both Warning PauseControl: MediaTimelineController did not reach Paused state in time!");
                 }
             }
             else
@@ -584,10 +668,11 @@ namespace Surveyor
         /// Move the media forward(positive) or back(negative) by the timespan duration
         /// The function will move both players if they are locked together. If they are not locked together
         /// it will use cameraSide to determine which player to move
+        /// USES 'Internal' to allow Unit Testing
         /// </summary>
         /// <param name="cameraSide"></param>
         /// <param name="timeSpan"></param>
-        private async Task FrameMove(eCameraSide cameraSide, TimeSpan deltaPosition)
+        internal async Task FrameMove(eCameraSide cameraSide, TimeSpan deltaPosition)
         {
             CheckIsUIThread();
 
@@ -631,10 +716,11 @@ namespace Surveyor
         /// Move the media forward(positive) or back(negative) by the number of frames
         /// The function will move both players if they are locked together. If they are not locked together
         /// it will use cameraSide to determine which player to move
+        /// USES 'Internal' to allow Unit Testing
         /// </summary>
         /// <param name="cameraSide"></param>
         /// <param name="frames">negative move back, positive move forward</param>
-        private async Task FrameMove(eCameraSide cameraSide, int frames)
+        internal async Task FrameMove(eCameraSide cameraSide, int frames)
         {
             CheckIsUIThread();
 
@@ -667,10 +753,11 @@ namespace Surveyor
 
         /// <summary>
         /// Move to the absolute position in the media
+        /// USES 'Internal' to allow Unit Testing
         /// </summary>
         /// <param name="cameraSide"></param>
         /// <param name="timeSpan"></param>
-        private void FrameJump(eCameraSide cameraSide, TimeSpan position)
+        internal void FrameJump(eCameraSide cameraSide, TimeSpan position)
         {
             if (mediaSynchronized)
             {
@@ -749,7 +836,7 @@ namespace Surveyor
         /// This is the StateChanged event handler for the MediaTimelineController
         /// It is called when the MediaTimelineController is started, paused, stopped, etc
         /// </summary>
-        /// <param name="sender"></param>
+        /// <param name="sender"></param>tryenqueue
         /// <param name="args"></param>
         private void MediaTimelineController_StateChanged(MediaTimelineController sender, object args)
         {
@@ -883,28 +970,6 @@ namespace Surveyor
         /// PRIVATE METHODS
         ///
 
-
-        /// <summary>
-        /// Received from the MediaPlayers the current position of the media
-        /// </summary>
-        /// <param name="cameraSide">Indicate which player send the information</param>
-        /// <param name="position">TimeSpan indicating the current position in the media playback</param>
-        //??? No used
-        //internal void ReceivePosition(eCameraSide cameraSide, TimeSpan currentPosition)
-        //{
-        //    if (!mediaSynchronized)
-        //    {
-        //        SurveyorMediaControl.eControlType controlType;
-        //        controlType = cameraSide == eCameraSide.Left ? SurveyorMediaControl.eControlType.Primary : SurveyorMediaControl.eControlType.Secondary;
-
-        //        // Signal to the MediaControls the natural duration
-        //        MediaControlHandlerData data = new(MediaControlHandlerData.eMediaControlAction.Position, controlType)
-        //        {
-        //            position = currentPosition
-        //        };
-        //        mediaControllerHandler?.Send(data);
-        //    }
-        //}
 
 
         /// <summary>
@@ -1438,25 +1503,25 @@ namespace Surveyor
                             mediaControllerHandler?.Send(data);
                         }
 
-#if DEBUG   // Appraoch is under test
-                        // *** Epipolar Line Calculation - Approach 2 ***
-                        // Calculate the near, far and middle points on the epipolar line from the SurveyRules
-                        // if not SurveyRules for range in place then use 1m,10m and 5.5m
-                        if(stereoProjection.CalculateEpipolarPoints((bool)TrueLeftFalseRight, (Point)point, out Point _pointNear, out Point _pointMiddle, out Point _pointFar))
-                        {
-                            Debug.WriteLine($"{cameraSideAlt} Epipolar Points for Point({point.Value.X:F2}, {point.Value.Y:F2})  {cameraSide} Near({_pointNear.X:F2}, {_pointNear.Y:F2}), Middle({_pointMiddle.X:F2}, {_pointMiddle.Y:F2}), Far({_pointFar.X:F2}, {_pointFar.Y:F2})");
+#if DEBUG   // Approach is under test (NOT WORKING CURRENTLY)
+                        //// *** Epipolar Line Calculation - Approach 2 ***
+                        //// Calculate the near, far and middle points on the epipolar line from the SurveyRules
+                        //// if not SurveyRules for range in place then use 1m,10m and 5.5m
+                        //if(stereoProjection.CalculateEpipolarPoints((bool)TrueLeftFalseRight, (Point)point, out Point _pointNear, out Point _pointMiddle, out Point _pointFar))
+                        //{
+                        //    Debug.WriteLine($"{cameraSideAlt} Epipolar Points for Point({point.Value.X:F2}, {point.Value.Y:F2})  {cameraSide} Near({_pointNear.X:F2}, {_pointNear.Y:F2}), Middle({_pointMiddle.X:F2}, {_pointMiddle.Y:F2}), Far({_pointFar.X:F2}, {_pointFar.Y:F2})");
 
-                            // Signal to the MagnifyAndMarkerControl to display the epipolar points
-                            MagnifyAndMarkerControlData data = new(MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarPoints, cameraSideAlt)
-                            {
-                                TrueEpipolarLinePointAFalseEpipolarLinePointB = (bool)TruePointAFalsePointB,
-                                pointNear = _pointNear,
-                                pointMiddle = _pointMiddle,
-                                pointFar = _pointFar,
-                                channelWidth = 0
-                            };
-                            mediaControllerHandler?.Send(data);
-                        }
+                        //    // Signal to the MagnifyAndMarkerControl to display the epipolar points
+                        //    MagnifyAndMarkerControlData data = new(MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarPoints, cameraSideAlt)
+                        //    {
+                        //        TrueEpipolarLinePointAFalseEpipolarLinePointB = (bool)TruePointAFalsePointB,
+                        //        pointNear = _pointNear,
+                        //        pointMiddle = _pointMiddle,
+                        //        pointFar = _pointFar,
+                        //        channelWidth = 0
+                        //    };
+                        //    mediaControllerHandler?.Send(data);
+                        //}
 #endif
                     }
                     else

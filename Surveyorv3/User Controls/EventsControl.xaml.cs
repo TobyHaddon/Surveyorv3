@@ -5,6 +5,7 @@ using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Surveyor.Events;
+using Surveyor.Helper;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -24,6 +25,8 @@ namespace Surveyor.User_Controls
 
         // Copy of left mediaplayer
         MediaStereoController? mediaStereoController = null;
+
+        private int displayToDecimalPlaces = 2;     // If we start using frame rate of 120fps then we will need to increase this to 3dp
 
         public EventsControl()
         {
@@ -154,7 +157,7 @@ namespace Surveyor.User_Controls
 
             // Create a string to display the event data
             StringBuilder sb = new();
-            sb.Append($"Created: {evt.DateTimeCreate:dd MMM yyyy HH:mm:ss}\r\n\r\n");
+            sb.Append($"Event Created: {evt.DateTimeCreate:dd MMM yyyy HH:mm:ss}\r\n\r\n");
 
             if (evt.EventData is not null)
             {
@@ -162,9 +165,9 @@ namespace Surveyor.User_Controls
                 {
                     case SurveyDataType.StereoSyncPoint:  // No EventData for this type 
 
-                        sb.Append($"Sync media position: {evt.TimeSpanTimelineController}\r\n");
-                        sb.Append($"Left media position: {evt.TimeSpanLeftFrame}\r\n");
-                        sb.Append($"Right media position: {evt.TimeSpanRightFrame}\r\n");
+                        sb.Append($"Sync media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
+                        sb.Append($"Left media position: {TimePositionHelper.Format(evt.TimeSpanLeftFrame, displayToDecimalPlaces)}\r\n");
+                        sb.Append($"Right media position: {TimePositionHelper.Format(evt.TimeSpanRightFrame, displayToDecimalPlaces)}\r\n");
                         break;
 
                     case SurveyDataType.SurveyMeasurementPoints:
@@ -172,13 +175,21 @@ namespace Surveyor.User_Controls
                         SurveyRulesCalc? surveyRulesCalc = null;
                         if (evt.EventData is SurveyMeasurement surveyMeasurement)
                         {
+                            sb.Append($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
+
+                            // Measurement
                             sb.Append($"Species: {surveyMeasurement.SpeciesInfo.Species}\r\n");
                             if (surveyMeasurement.Measurment is not null)
                                 sb.Append($"Measurement: {Math.Round((double)surveyMeasurement.Measurment * 1000, 0)}mm\r\n");
                             else
                                 sb.Append($"Measurement: missing\r\n");
-                            sb.Append($"Survey Rules: {surveyMeasurement.SurveyRulesCalc.SurveyRulesText}\r\n");
+
+                            // Survey Rules
+                            string surveyRulesText = !string.IsNullOrWhiteSpace(surveyMeasurement.SurveyRulesCalc.SurveyRulesText) ? surveyMeasurement.SurveyRulesCalc.SurveyRulesText : "No Survey Rules";
+                            sb.Append($"Survey Rules: {surveyRulesText}\r\n");
                             sb.Append($"\r\n");
+
+                            // 2D Points
                             sb.Append($"2D Points:\r\n");
                             sb.Append($"Set A\r\n");
                             sb.Append($"Left Camera: ({Math.Round(surveyMeasurement.LeftXA,1)}, {Math.Round(surveyMeasurement.LeftYA,1)})\r\n");
@@ -245,6 +256,8 @@ namespace Surveyor.User_Controls
                     case SurveyDataType.SurveyPoint:
                         if (evt.EventData is SurveyPoint surveyPoint)
                         {
+                            sb.Append($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
+
                             sb.Append($"Species: {surveyPoint.SpeciesInfo.Species}\r\n");
                             sb.Append($"\r\n");
                             sb.Append($"2D Point:\r\n");
@@ -513,9 +526,9 @@ namespace Surveyor.User_Controls
         {
             if (value is TimeSpan timeSpan)
             {
-                return $"{Math.Round(timeSpan.TotalSeconds, 2):F2} seconds";
+                return TimePositionHelper.Format(timeSpan, 2);
             }
-            return "0.00 seconds";
+            return "0.00 secs";
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)
@@ -536,14 +549,6 @@ namespace Surveyor.User_Controls
             {
                 switch (eventType)
                 {
-                    /*??? not usedcase Surveyor.Events.DataType.MonoLeftPoint:
-                        return "Mono Left Point";
-                    case Surveyor.Events.DataType.MonoRightPoint:
-                        return "Mono Right Point";
-                    case Surveyor.Events.DataType.StereoPoint:
-                        return "Stereo Point";
-                    case Surveyor.Events.DataType.StereoPairPoints:
-                        return "Stereo Pair Points";*/
                     case Surveyor.Events.SurveyDataType.SurveyPoint:
                         return "Survey Point";
                     case Surveyor.Events.SurveyDataType.SurveyStereoPoint:

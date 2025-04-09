@@ -8,6 +8,7 @@ using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
+using Surveyor.Helper;
 using Surveyor.User_Controls;
 using System;
 using System.Text;
@@ -67,6 +68,15 @@ namespace Surveyor
         public StereoProjection()
         {
 
+        }
+
+
+        /// <summary>
+        /// Diags dump of class information
+        /// </summary>
+        public void DumpAllProperties()
+        {
+            DumpClassPropertiesHelper.DumpAllProperties(this);
         }
 
 

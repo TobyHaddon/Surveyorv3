@@ -12,12 +12,14 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Surveyor.Helper;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.System;
+using System.Text.RegularExpressions;
 using static Surveyor.MediaStereoControllerEventData;
 #if !No_MagnifyAndMarkerDisplay
 using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
@@ -49,9 +51,9 @@ namespace Surveyor.User_Controls
 
         // Set to true if the Magnifier Window is automatically displayed as the pointer(mouse) moves
         private bool isAutoMagnify = SettingsManagerLocal.MagnifierWindowAutomatic;    // Must be set to the same initial value as 'isAutoMagnify' in MagnifyAndMarkerDisplay.xaml.cs
-        private Microsoft.UI.Xaml.Media.SolidColorBrush? appButtonAutoMagnifyOn = null;
-        private Microsoft.UI.Xaml.Media.SolidColorBrush? appButtonAutoMagnifyOff = null;
-        private string? appButtonAutoMagnifyTooltip = null;
+        //???private Microsoft.UI.Xaml.Media.SolidColorBrush? appButtonAutoMagnifyOn = null;
+        //???private Microsoft.UI.Xaml.Media.SolidColorBrush? appButtonAutoMagnifyOff = null;
+        //???private string? appButtonAutoMagnifyTooltip = null;
 
         // The scaling of the image in the ImageMag where 1 is scales to full image source size 
         private double canvasZoomFactor = 2;    // Must be set to the same initial value as 'canvasZoomFactor' in MagnifyAndMarkerDisplay.xaml.cs
@@ -77,6 +79,7 @@ namespace Surveyor.User_Controls
         // Duration and frame rate of the media (last received from the MediaPlayer)
         private TimeSpan _duration = TimeSpan.Zero;
         private double _frameRate = 0;
+        private int displayToDecimalPlaces = 2;     // If we start using frame rate of 120fps then we will need to increase this to 3dp
 
         // Used to detect if the user is dragging the media position slider
         private bool _userIsInteractingWithSlider = false;
@@ -112,6 +115,15 @@ namespace Surveyor.User_Controls
 
             // Handle KeyDown at the window level
             this.KeyDown += OnKeyDown;
+        }
+
+
+        /// <summary>
+        /// Diags dump of class information
+        /// </summary>
+        public void DumpAllProperties()
+        {
+            DumpClassPropertiesHelper.DumpAllProperties(this);
         }
 
 
@@ -158,6 +170,7 @@ namespace Surveyor.User_Controls
             // the MediaSteroController as though the user has moved the slider
             ControlPosition.ValueChanged -= ControlSlider_ValueChanged;
             ControlPosition.Value = 0;
+            ControlPosition.Maximum = 100;      // placeholder value, will be replaced by ther duration in seconds
             ControlPosition.ValueChanged += ControlSlider_ValueChanged;
         }
 
@@ -309,9 +322,13 @@ namespace Surveyor.User_Controls
                 if (message.duration is not null)
                 {
                     _duration = (TimeSpan)message.duration;
-                    string durationText = $"{_duration:hh\\:mm\\:ss}";
+                    string durationText = TimePositionHelper.Format(_duration, displayToDecimalPlaces);
 
                     ControlDurationText.Text = durationText;
+
+                    // Set the slider maximum to the duration in seconds
+                    // Note the video position is zero based so technically the maximum should be duration - 1 frame. However this looks odd so we will leave it as the duration
+                    ControlPosition.Maximum = TimePositionHelper.ToSeconds(_duration, displayToDecimalPlaces); 
                 }
 
                 if (message.frameRate is not null)
@@ -334,7 +351,7 @@ namespace Surveyor.User_Controls
                 // Update the position text time
                 string positionText;
                 string frameText = "";
-                positionText = $"{message.position:hh\\:mm\\:ss\\.ff}";
+                positionText = TimePositionHelper.Format((TimeSpan)message.position, displayToDecimalPlaces);
 
                 // Update the frame index
                 if (_frameRate > 0.0)
@@ -350,7 +367,7 @@ namespace Surveyor.User_Controls
                     ControlPosition.ValueChanged -= ControlSlider_ValueChanged;
                     if (_duration != TimeSpan.Zero)
                     {
-                        ControlPosition.Value = ((TimeSpan)message.position).TotalSeconds / _duration.TotalSeconds * 100;
+                        ControlPosition.Value = ((TimeSpan)message.position).TotalSeconds;
                     }
                     else
                     {
@@ -427,14 +444,15 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void ControlSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
         {            
-            double newValue = e.NewValue;            
-            TimeSpan position = TimeSpan.FromSeconds(newValue / 100 * _duration.TotalSeconds);
+            double newValue = e.NewValue;
+            //???TimeSpan position = TimeSpan.FromSeconds(newValue / 100 * _duration.TotalSeconds);
+            TimeSpan position = TimeSpan.FromSeconds(newValue);
 
             // Signal eMediaControlEvent.UserReqFrameJump with position
             mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameJump, ControlType) { positionJump = position });
 
             string controls = ControlType.ToString();
-            Debug.WriteLine($"{controls}: User requested to jump to position {position:hh\\:mm\\:ss\\.ff}");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {controls}: User requested to jump to position {TimePositionHelper.Format(position, displayToDecimalPlaces)}");
         }
 
 
@@ -736,13 +754,13 @@ namespace Surveyor.User_Controls
         }
 
         private void ControlProperties_Click(object sender, RoutedEventArgs e)
-        {            
-            new NotImplementedException("MediaCOntrols.ControlProperties_Click To Do");
+        {
+            _ = new NotImplementedException("MediaCOntrols.ControlProperties_Click To Do");
         }
 
         private void ControlEvent_Click(object sender, RoutedEventArgs e)
         {
-            new NotImplementedException("MediaCOntrols.ControlEvent_Click To Do");
+            _ = new NotImplementedException("MediaCOntrols.ControlEvent_Click To Do");
         }
 
 
@@ -1153,11 +1171,19 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
-        //???NEW
         private void ControlFrameEdit_BeforeTextChanging(TextBox sender, TextBoxBeforeTextChangingEventArgs args)
         {
             // Validate the input and allow only numeric characters
-            args.Cancel = !args.NewText.All(char.IsDigit);
+            //???args.Cancel = !args.NewText.All(char.IsDigit);
+
+            string input = args.NewText;
+
+            // Define the valid patterns:
+            // - Integer only: "123"
+            // - Decimal + 's' or 'secs': "12.34s", "5secs", etc.
+            var validPattern = @"^(\d+(\.\d+)?(s|secs)?|\d*)$";
+
+            args.Cancel = !Regex.IsMatch(input, validPattern, RegexOptions.IgnoreCase);
         }
 
 
@@ -1184,7 +1210,7 @@ namespace Surveyor.User_Controls
                 {
                     _lowestMouseWheelDeltaSeen = Math.Abs(delta);
 
-                    Debug.WriteLine($"{ControlType} MouseWheel notch calculated at a delta of: {_lowestMouseWheelDeltaSeen}");
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {ControlType} MouseWheel notch calculated at a delta of: {_lowestMouseWheelDeltaSeen}");
                 }
 
 
@@ -1236,7 +1262,7 @@ namespace Surveyor.User_Controls
             {
                 int frames = delta / _lowestMouseWheelDeltaSeen;
 
-                Debug.WriteLine($"{ControlType} MouseWheel move {frames} frames");
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {ControlType} MouseWheel move {frames} frames");
 
                 // If the mouse wheel delta is positive then move forward else move back
                 // Signal eMediaControlEvent.UserReqFrameBackward
@@ -1265,7 +1291,7 @@ namespace Surveyor.User_Controls
         /// <param name="TrueIncreaseFalseDecrease"></param>
         /// <returns></returns>
 
-        static List<float> speedListMediaTimelineController = new List<float> { 0.25f, 0.5f, 1.0f, 1.5f, 2.0f };
+        private static readonly List<float> speedListMediaTimelineController = [0.25f, 0.5f, 1.0f, 1.5f, 2.0f];
         private static float CalcSpeedMediaTimelineController(float currentSpeed, bool TrueIncreaseFalseDecrease)
         {
             float ret;
@@ -1486,17 +1512,25 @@ namespace Surveyor.User_Controls
         /// </summary>
         private void ProcessControlFrameEdit()
         {
-            if (long.TryParse(ControlFrameEdit.Text, out long frameIndex) == true)
+            // First check is the user has entered a number ending the 's' or 'secs'
+            if (TimePositionHelper.Parse(ControlFrameEdit.Text, out TimeSpan? position) == true)
+            {
+                // Signal eMediaControlEvent.UserReqFrameJump with position
+                mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameJump, ControlType) { positionJump = position });
+                string controls = ControlType.ToString();
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {controls}: User requested to jump to position {TimePositionHelper.Format((TimeSpan)position!, displayToDecimalPlaces)}");
+            }
+            else if (long.TryParse(ControlFrameEdit.Text, out long frameIndex) == true)
             {
 
                 double ticksPerFrameDouble = TimeSpan.TicksPerSecond / _frameRate;
-                TimeSpan position = TimeSpan.FromTicks((long)Math.Round(ticksPerFrameDouble * frameIndex, MidpointRounding.AwayFromZero));
+                TimeSpan position2 = TimeSpan.FromTicks((long)Math.Round(ticksPerFrameDouble * frameIndex, MidpointRounding.AwayFromZero));
 
                 // Signal eMediaControlEvent.UserReqFrameJump with position
                 mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameJump, ControlType) { positionJump = position });
 
                 string controls = ControlType.ToString();
-                Debug.WriteLine($"{controls}: User requested to jump to position {position}");
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {controls}: User requested to frame jump to position {TimePositionHelper.Format(position2, displayToDecimalPlaces)}");
 
             }
         }

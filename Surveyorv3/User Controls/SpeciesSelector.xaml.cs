@@ -1,6 +1,7 @@
 //using ExampleMagnifierWinUI;
 using Microsoft.UI.Xaml.Controls;
 using Surveyor.Events;
+using Surveyor.Helper;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -18,6 +19,15 @@ namespace Surveyor.User_Controls
         public SpeciesSelector()
         {
             this.InitializeComponent();            
+        }
+
+
+        /// <summary>
+        /// Diags dump of class information
+        /// </summary>
+        public void DumpAllProperties()
+        {
+            DumpClassPropertiesHelper.DumpAllProperties(this);
         }
 
 
@@ -234,6 +244,7 @@ namespace Surveyor.User_Controls
         private void Unload()
         {
             speciesCodeList.Unload();
+            fileSpecSpecies = null;
         }
 
 

@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "Surveyor.Tests (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "Surveyor.Tests (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

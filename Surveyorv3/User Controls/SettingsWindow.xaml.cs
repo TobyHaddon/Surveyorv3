@@ -12,17 +12,14 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Newtonsoft.Json.Linq;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
-using System.Xml.Linq;
 using Windows.ApplicationModel;
 using Windows.Graphics;
 using static Surveyor.User_Controls.SettingsWindowEventData;
@@ -251,6 +248,9 @@ namespace Surveyor.User_Controls
             // Unregister the mediator handler
             if (mediator is not null && settingsWindowHandler is not null)
                 mediator.Unregister(settingsWindowHandler);
+
+            // Pass focus to the main window
+           mainWindow?.Activate();
         }
 
 

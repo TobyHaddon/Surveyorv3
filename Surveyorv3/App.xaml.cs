@@ -9,8 +9,12 @@ using System.Reflection;
 using Windows.ApplicationModel;
 
 
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+// Top of App.xaml.cs (before any namespace or class)
+// This is to allow the UnitTestApp to access internal members 
+using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
+[assembly: InternalsVisibleTo("Surveyor3")]  
+
 
 namespace Surveyor
 {
@@ -19,8 +23,8 @@ namespace Surveyor
     /// </summary>
     public partial class App : Application
     {
-
-        private MainWindow mainWindow;
+        // Needs to be 'internal' for Unit Testing
+        static internal MainWindow? mainWindow;
 
 
         /// <summary>
@@ -100,5 +104,24 @@ namespace Surveyor
             }
             return (TEnum)Enum.Parse(typeof(TEnum), text);
         }       
+    }
+
+    public static class TestAppHost
+    {
+        public static MainWindow? MainWindowRef { get; private set; }
+
+        public static async Task<MainWindow> EnsureMainWindowAsync()
+        {
+            if (MainWindowRef == null)
+            {
+                MainWindowRef = new MainWindow();
+                MainWindowRef.Activate();
+
+                // Wait briefly to ensure the DispatcherQueue is running
+                await Task.Delay(250);
+            }
+
+            return MainWindowRef;
+        }
     }
 }

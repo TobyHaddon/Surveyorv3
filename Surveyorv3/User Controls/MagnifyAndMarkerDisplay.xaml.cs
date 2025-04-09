@@ -245,6 +245,15 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Diags dump of class information
+        /// </summary>
+        public void DumpAllProperties()
+        {
+            DumpClassPropertiesHelper.DumpAllProperties(this);
+        }
+
+
+        /// <summary>
         /// Initialize mediator handler for SurveyorMediaControl
         /// </summary>
         /// <param name="mediator"></param>
@@ -321,16 +330,6 @@ namespace Surveyor.User_Controls
                 TransferTargetsBetweenVariableAndCanvasFrame(false/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
             }
         }
-
-        /// <summary>
-        /// Get the target A & B values.
-        /// </summary>
-        /// <returns></returns>
-        //??? No longer used
-        //public ValueTuple<Point?, Point?> GetTargets()
-        //{
-        //    return (pointTargetA, pointTargetB);
-        //}
 
 
         /// <summary>
@@ -1377,9 +1376,9 @@ namespace Surveyor.User_Controls
             CheckIsUIThread();
 
             // Check the ImageFrame is setup 
-            Debug.Assert(imageUIElement is not null, "MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
+            Debug.Assert(imageUIElement is not null, $"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
 
-            Debug.WriteLine($"_NewImageFrame: Position:{_position}, Width:{_imageSourceWidth}, Height:{_imageSourceHeight}");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: _NewImageFrame: Position:{_position}, Width:{_imageSourceWidth}, Height:{_imageSourceHeight}");
 
             // Remember the frame position
             // Used to know what Events are applicable to this frame
@@ -1390,47 +1389,7 @@ namespace Surveyor.User_Controls
 
             // Clear the canvas
             _ResetCanvas();
-
-            //// Reset the Mag Window
-            //isMagLocked = false;
-
-            //// Lines below can cause a GP
-            //try
-            //{
-            //    if (ImageMag is not null)
-            //        ImageMag.Source = null;
-            //    if (BorderMag is not null)
-            //        BorderMag.BorderBrush = magColourUnlocked;
-            //}
-            //catch
-            //{ }
-
-
-            //// Check if mag buttons need to be enabled/disabled
-            //EnableButtonMag();
-
-            //// Reset dragging
-            //isDragging = false;
-
-            //// Reset existing targets
-            //pointTargetA = null;
-            //pointTargetB = null;
-            //ResetTargetIconOnCanvas(TargetAMag);
-            //ResetTargetIconOnCanvas(TargetBMag);
-
-            //// Cancel any selected targets
-            //SetSelectedTarget(null);
-
-            //// Reset the scaling
-            //canvasFrameScaleX = -1;
-            //canvasFrameScaleY = -1;
-
-            //// Remove Events and epipolar lines
-            //RemoveCanvasShapesByTag(CanvasFrame, "Event");
-            //RemoveCanvasShapesByTag(CanvasFrame, "EpipolarLine");
-            //RemoveCanvasShapesByTag(CanvasFrame, "EpipolarPoints");
-            //RemoveCanvasShapesByTag(CanvasMag, "EpipolarLine");
-            //RemoveCanvasShapesByTag(CanvasMag, "EpipolarPoints");
+            
 
             // Do coordinate need to be displayed
             DisplayPointerCoords = SettingsManagerLocal.DiagnosticInformation;
@@ -1440,7 +1399,8 @@ namespace Surveyor.User_Controls
             imageLoaded = true;
 
             // Calulate the scale factor between the actual image and the screen image
-            GridSizeChanged();
+            //??? Checking we need this - may need to be re-enabled
+            //GridSizeChanged();
         }
 
 
@@ -1612,7 +1572,7 @@ namespace Surveyor.User_Controls
                         }
                     }
                 }
-                Debug.WriteLine($"AdjustCanvasSizeAndScaling: Skipped body. imageUIElement Not Null is {imageUIElementNotNull}, imageUIElementParent is Grid {imageUIElementParentIsGrid}, AcutalWidth = {imageUIElementActualWidth}");
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: AdjustCanvasSizeAndScaling: Skipped body. imageUIElement Not Null is {imageUIElementNotNull}, imageUIElementParent is Grid {imageUIElementParentIsGrid}, AcutalWidth = {imageUIElementActualWidth}");
             }
 
         }
@@ -1721,7 +1681,7 @@ namespace Surveyor.User_Controls
                 // Otherwise the Mag Window needs to be automatically cancelled
                 // (this will set IsMagLocked = false)
                 MagHide();
-                Debug.WriteLine($"Unlock Magnify Window and hide");
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: Unlock Magnify Window and hide");
             }
 
             return ret;
@@ -1738,7 +1698,7 @@ namespace Surveyor.User_Controls
         private async void MagWindow(Point pointerPosition)
         {
             // Check the ImageFrame is setup 
-            Debug.Assert(imageUIElement is not null, "MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
+            Debug.Assert(imageUIElement is not null, $"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: Error MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
 
             magIntoImageSquare_EntryCounter++;
 
@@ -1925,7 +1885,7 @@ namespace Surveyor.User_Controls
                     catch (Exception ex)
                     {
                         // Seen BitmapDecoder.CreateAsync(streamSource) cause a COM exception
-                        Debug.WriteLine($"MagWindow display: {ex.Message}");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: Error MagWindow display: {ex.Message}");
                     }
                 }
             }
@@ -1977,12 +1937,12 @@ namespace Surveyor.User_Controls
                 isDisplayedAtFullResolution = (imageSourceWidth <= adjustedWidth) && (imageSourceHeight <= adjustedHeight);
 
                 // Output or use the result
-                Debug.WriteLine($"CheckImageResolution: Is the image displayed at full resolution? {isDisplayedAtFullResolution}");
+                //???Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: Info CheckImageResolution: Is the image displayed at full resolution? {isDisplayedAtFullResolution}");
             }
             else
             {
                 // Handle case where the image source is not a BitmapImage, is not set, or XamlRoot is null
-                Debug.WriteLine("CheckImageResolution: Image source is not a BitmapImage, is not set, or XamlRoot is null.");
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: Error CheckImageResolution: Image source is not a BitmapImage, is not set, or XamlRoot is null.");
             }
 
             return isDisplayedAtFullResolution;
@@ -2009,12 +1969,12 @@ namespace Surveyor.User_Controls
                 if (targetSelected == TargetAMag)
                 {
                     targetSelectedTrueAFalseB = true;
-                    Debug.WriteLine($"SetSelectedTarget Selected Target A");
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: SetSelectedTarget Selected Target A");
                 }
                 else if (targetSelected == TargetBMag)
                 {
                     targetSelectedTrueAFalseB = false;
-                    Debug.WriteLine($"SetSelectedTarget Selected Target B");
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: SetSelectedTarget Selected Target B");
                 }
                 else
                     targetSelectedTrueAFalseB = null;
@@ -2083,7 +2043,7 @@ namespace Surveyor.User_Controls
                 }
             }
             else
-                throw new Exception("Scale factors (scaleX & scaleY) not setup");
+                throw new Exception($"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: Warning Scale factors (scaleX & scaleY) not setup");
         }
 
 
@@ -2242,7 +2202,7 @@ namespace Surveyor.User_Controls
             else if (rectangle == TargetBMag)
                 TrueAOnlyFalseBOnly = false;
             else
-                Debug.Assert(false, "SetTargetOnCanvasMag: Rectangle is not a CanvasMag target icon, programming error!");
+                Debug.Assert(false, $"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: Error SetTargetOnCanvasMag: Rectangle is not a CanvasMag target icon, programming error!");
 
             if (TrueAOnlyFalseBOnly is not null)
             {
@@ -2329,7 +2289,7 @@ namespace Surveyor.User_Controls
             else if (rectangle == TargetB)
                 TrueAOnlyFalseBOnly = false;
             else
-                Debug.Assert(false, "ResetTargetOnCanvasFrame: Rectangle is not a CanvasFrame target icon, programming error!");
+                Debug.Assert(false, $"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: Error ResetTargetOnCanvasFrame: Rectangle is not a CanvasFrame target icon, programming error!");
 
             if (TrueAOnlyFalseBOnly is not null)
             {
@@ -2358,7 +2318,7 @@ namespace Surveyor.User_Controls
             else if (rectangle == TargetBMag)
                 TrueAOnlyFalseBOnly = false;
             else
-                Debug.Assert(false, "ResetTargetOnCanvasMag: Rectangle is not a CanvasMag target icon, programming error!");
+                Debug.Assert(false, $"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: Error ResetTargetOnCanvasMag: Rectangle is not a CanvasMag target icon, programming error!");
 
             if (TrueAOnlyFalseBOnly is not null)
             {

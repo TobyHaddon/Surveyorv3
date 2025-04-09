@@ -5,16 +5,19 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Surveyor"
     xmlns:m="using:Microsoft.UI.Xaml"
+    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
     xmlns:surveyorControls="using:Surveyor.User_Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
+    <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <!-- The top level grid only contains the menubar and everything else in two separate cells in 1x2 grid  -->
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
+            <RowDefinition Height="0"/>
             <RowDefinition Height="150"/>
         </Grid.RowDefinitions>
 
@@ -188,8 +191,15 @@
             </Grid>
         </Grid>
 
+        <!-- Splitter between MediaPlayer and ListView -->
+        <!--<controls:GridSplitter Grid.Row="2"
+                  Height="5"
+                  HorizontalAlignment="Stretch"
+                  VerticalAlignment="Center"
+                  Background="Gray"
+                  ShowsPreview="True" />-->
 
-        <NavigationView x:Name="NavigationView" Grid.Row="2" PaneDisplayMode="Top" SelectionChanged="OnNavigationViewSelectionChanged">
+        <NavigationView x:Name="NavigationView" Grid.Row="3" PaneDisplayMode="Top" SelectionChanged="OnNavigationViewSelectionChanged">
             
             <NavigationView.MenuItems>
                 <NavigationViewItem Content="Events" Icon="Calendar" Tag="EventsPage"/>

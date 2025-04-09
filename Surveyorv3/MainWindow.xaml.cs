@@ -16,7 +16,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.ComponentModel.Design;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -27,11 +26,9 @@ using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Provider;
-using Windows.UI.Core;
 using WinRT.Interop;
 using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.Survey.DataClass;
-using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
 #if !No_MagnifyAndMarkerDisplay
 #endif
 
@@ -49,7 +46,8 @@ namespace Surveyor
         private readonly MainWindowHandler mainWindowHandler;
 
         // Declare the MediaStereoController
-        private readonly MediaStereoController mediaStereoController;
+        // Uses 'Internal' so it can be used in the unit test project
+        internal readonly MediaStereoController mediaStereoController;
 
         // Title bar title elements
         private string titlebarTitle = "";
@@ -59,7 +57,7 @@ namespace Surveyor
         // Current Survey Class
         private Survey? surveyClass = null;
 
-        // Measurement class
+        // StereoProjection class
         private readonly StereoProjection stereoProjection = new();
 
         // Hidden controls to be shown dynamically
@@ -147,8 +145,7 @@ namespace Surveyor
 
             // Allows the menu bar to extend into the title bar
             // Assumes "this" is a XAML Window. In projects that don't use 
-            // WinUI 3 1.3 or later, use interop APIs to get the AppWindow.
-            //???appWindow = this.AppWindow;
+            // WinUI 3 1.3 or later, use interop APIs to get the AppWindow.           
             AppTitleBar.Loaded += AppTitleBar_Loaded;
             AppTitleBar.SizeChanged += AppTitleBar_SizeChanged;
             ExtendsContentIntoTitleBar = true;
@@ -167,9 +164,29 @@ namespace Surveyor
             // Update the Recent open surveys sub menu
             UpdateRecentSurveysMenu();
 
+            // Debug Diags Dump keyboard shortcut (Ctrl+Shift+D)
+            var acceleratorDiagsDump = new KeyboardAccelerator
+            {
+                Key = Windows.System.VirtualKey.D,
+                Modifiers = Windows.System.VirtualKeyModifiers.Control | Windows.System.VirtualKeyModifiers.Shift
+            };
+            acceleratorDiagsDump.Invoked += AcceleratorDiagsDump_Invoked;
+            RootGrid.KeyboardAccelerators.Add(acceleratorDiagsDump);
+
+            // Test Code keyboard shortcut (Ctrl+Shift+T)
+            var acceleratorTest = new KeyboardAccelerator
+            {
+                Key = Windows.System.VirtualKey.T,
+                Modifiers = Windows.System.VirtualKeyModifiers.Control | Windows.System.VirtualKeyModifiers.Shift
+            };
+            acceleratorTest.Invoked += AcceleratorTest_Invoked;
+            RootGrid.KeyboardAccelerators.Add(acceleratorTest);
+
+            // Report that the app has loaded
             report.Info("", $"App Loaded Ok");
 
         }
+
 
 
         /// <summary>
@@ -347,6 +364,17 @@ namespace Surveyor
                 PointerCoordinates.Text = "";
                 PointerCoordinatesIndicator.Visibility = Visibility.Collapsed;
             }
+        }
+
+
+        /// <summary>
+        /// Returns the posiiton offsets of the left and right media players
+        /// This is by the SurveryorTesting class to check the media players are correctly in sync
+        /// </summary>
+        /// <returns></returns>
+        public (TimeSpan?, TimeSpan?) GetMediaPlayerPoisitions()
+        {
+            return (MediaPlayerLeft.Position, MediaPlayerRight.Position);
         }
 
 
@@ -673,6 +701,45 @@ namespace Surveyor
                         // the current event measurements calculations
                         await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
                     }
+                    else if (ret == -2)
+                    {
+                        // Report the missing survey file
+                        // Survey needs to be saved before a frame can be saved
+                        var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
+
+                        // Create the ContentDialog instance
+                        var dialog = new ContentDialog
+                        {
+                            Title = $"Survey file missing",
+                            Content = new StackPanel
+                            {
+                                Orientation = Orientation.Horizontal,
+                                Spacing = 10,
+                                Children =
+                                {
+                                    warningIcon, // Add the exclamation icon to the dialog content
+                                    new TextBlock 
+                                    { 
+                                        Text = $"{filePath}",
+                                        TextWrapping = TextWrapping.Wrap,
+                                        MaxWidth = 400 // Adjust based on your app's layout
+                                    }
+                                }
+                            },
+
+                            CloseButtonText = "Cancel",
+                            DefaultButton = ContentDialogButton.Close, // Set "Cancel" as the default button
+
+                            // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
+                            XamlRoot = this.Content.XamlRoot
+                        };
+
+                        // Show the dialog and await the result
+                        await dialog.ShowAsync();
+
+                        // Recent survey file is missing, remove from the recent file list
+                        RemoveToRecentSurveys(filePath);
+                    }
                 }
 
                 SetMenuStatusBasedOnProjectState();
@@ -687,185 +754,185 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void FileSVSMediaOpen_Click(object sender, RoutedEventArgs e)
-        {
-            bool ret = true;
+        //???private async void FileSVSMediaOpen_Click(object sender, RoutedEventArgs e)
+        //{
+        //    bool ret = true;
 
-            // Create the file picker object
-            FileOpenPicker openPicker = new()
-            {
-                ViewMode = PickerViewMode.Thumbnail,
-                SuggestedStartLocation = PickerLocationId.DocumentsLibrary
-            };
+        //    // Create the file picker object
+        //    FileOpenPicker openPicker = new()
+        //    {
+        //        ViewMode = PickerViewMode.Thumbnail,
+        //        SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+        //    };
 
-            // Add file type filters
-            openPicker.FileTypeFilter.Add(".mp4");
+        //    // Add file type filters
+        //    openPicker.FileTypeFilter.Add(".mp4");
 
-            // Associate the file picker with the current window
-            IntPtr hWnd = WindowNative.GetWindowHandle(this/*App.MainWindow*/);
-            InitializeWithWindow.Initialize(openPicker, hWnd);
+        //    // Associate the file picker with the current window
+        //    IntPtr hWnd = WindowNative.GetWindowHandle(this/*App.MainWindow*/);
+        //    InitializeWithWindow.Initialize(openPicker, hWnd);
 
-            // Show the picker and allow multiple file selection
-            IReadOnlyList<StorageFile> files = await openPicker.PickMultipleFilesAsync();
+        //    // Show the picker and allow multiple file selection
+        //    IReadOnlyList<StorageFile> files = await openPicker.PickMultipleFilesAsync();
 
-            // Check if files were picked and handle them
-            if (files.Count > 0 && this.surveyClass is not null)
-            {
+        //    // Check if files were picked and handle them
+        //    if (files.Count > 0 && this.surveyClass is not null)
+        //    {
 
-                if (files.Count == 1)
-                {
-                    // Try to auto detect which is the left and right media file
-                    var (leftFile, rightFile) = DetectLeftAndRightMediaFile(files[0].Path, null);
+        //        if (files.Count == 1)
+        //        {
+        //            // Try to auto detect which is the left and right media file
+        //            var (leftFile, rightFile) = DetectLeftAndRightMediaFile(files[0].Path, null);
 
-                    string message = "";
+        //            string message = "";
 
-                    if (leftFile is not null)
-                        message = $"Please confirm that this is the left file:\r\n    '{Path.GetFileName(leftFile)}'\r\n\r\nPress 'Yes' to confirm or 'Swap' to indicate it is the right media file.";
-                    else if (rightFile is not null)
-                        message = $"Please confirm that this is the right file:\r\n    '{Path.GetFileName(rightFile)}'\r\n\r\nPress 'Yes' to confirm or 'Swap' to indicate it is the left media file.";
+        //            if (leftFile is not null)
+        //                message = $"Please confirm that this is the left file:\r\n    '{Path.GetFileName(leftFile)}'\r\n\r\nPress 'Yes' to confirm or 'Swap' to indicate it is the right media file.";
+        //            else if (rightFile is not null)
+        //                message = $"Please confirm that this is the right file:\r\n    '{Path.GetFileName(rightFile)}'\r\n\r\nPress 'Yes' to confirm or 'Swap' to indicate it is the left media file.";
 
-                    ContentDialog confirmationDialog = new()
-                    {
-                        Title = "Confirm if left or right media file",
-                        Content = message,
-                        PrimaryButtonText = "Yes",
-                        SecondaryButtonText = "Swap",
-                        CloseButtonText = "Cancel",
+        //            ContentDialog confirmationDialog = new()
+        //            {
+        //                Title = "Confirm if left or right media file",
+        //                Content = message,
+        //                PrimaryButtonText = "Yes",
+        //                SecondaryButtonText = "Swap",
+        //                CloseButtonText = "Cancel",
 
-                        // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
-                        XamlRoot = this.Content.XamlRoot
-                    };
+        //                // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
+        //                XamlRoot = this.Content.XamlRoot
+        //            };
 
-                    // Display the dialog
-                    ContentDialogResult result = await confirmationDialog.ShowAsync();
+        //            // Display the dialog
+        //            ContentDialogResult result = await confirmationDialog.ShowAsync();
 
-                    switch (result)
-                    {
-                        case ContentDialogResult.Primary: // Yes
-                            // No action as the file names are the correct way round
-                            break;
-                        case ContentDialogResult.Secondary: // Swap
-                            if (leftFile is not null)
-                                rightFile = leftFile;
-                            else if (rightFile is not null)
-                                leftFile = rightFile;
-                            break;
-                        case ContentDialogResult.None: // Cancel
-                            ret = false;
-                            break;
-                    }
-                    if (ret)
-                    {
-                        if (leftFile is not null)
-                        {
-                            surveyClass.AddMediaFile(leftFile, false/*FalseLeftTrueRight*/);
-                        }
-                        else if (rightFile is not null)
-                        {
-                            surveyClass.AddMediaFile(rightFile, true/*FalseLeftTrueRight*/);
-                        }
-                    }
-                }
-                else if (files.Count == 2)
-                {
-                    // Try to auto detect which is the left and right media file
-                    var (leftFile, rightFile) = DetectLeftAndRightMediaFile(files[0].Path, files[1].Path);
+        //            switch (result)
+        //            {
+        //                case ContentDialogResult.Primary: // Yes
+        //                    // No action as the file names are the correct way round
+        //                    break;
+        //                case ContentDialogResult.Secondary: // Swap
+        //                    if (leftFile is not null)
+        //                        rightFile = leftFile;
+        //                    else if (rightFile is not null)
+        //                        leftFile = rightFile;
+        //                    break;
+        //                case ContentDialogResult.None: // Cancel
+        //                    ret = false;
+        //                    break;
+        //            }
+        //            if (ret)
+        //            {
+        //                if (leftFile is not null)
+        //                {
+        //                    surveyClass.AddMediaFile(leftFile, false/*FalseLeftTrueRight*/);
+        //                }
+        //                else if (rightFile is not null)
+        //                {
+        //                    surveyClass.AddMediaFile(rightFile, true/*FalseLeftTrueRight*/);
+        //                }
+        //            }
+        //        }
+        //        else if (files.Count == 2)
+        //        {
+        //            // Try to auto detect which is the left and right media file
+        //            var (leftFile, rightFile) = DetectLeftAndRightMediaFile(files[0].Path, files[1].Path);
 
-                    string message = $"Please confirm that:\r\n    '{Path.GetFileName(leftFile)}'\r\n\r\nis the left media file and:\r\n    '{Path.GetFileName(rightFile)}'\r\n\r\nis the right media file. Press 'Yes' to confirm or 'Swap' to switch them off.";
+        //            string message = $"Please confirm that:\r\n    '{Path.GetFileName(leftFile)}'\r\n\r\nis the left media file and:\r\n    '{Path.GetFileName(rightFile)}'\r\n\r\nis the right media file. Press 'Yes' to confirm or 'Swap' to switch them off.";
 
-                    ContentDialog confirmationDialog = new()
-                    {
-                        Title = "Confirm which is the left and right media files",
-                        Content = message,
-                        PrimaryButtonText = "Yes",
-                        SecondaryButtonText = "Swap",
-                        CloseButtonText = "Cancel",
+        //            ContentDialog confirmationDialog = new()
+        //            {
+        //                Title = "Confirm which is the left and right media files",
+        //                Content = message,
+        //                PrimaryButtonText = "Yes",
+        //                SecondaryButtonText = "Swap",
+        //                CloseButtonText = "Cancel",
 
-                        // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
-                        XamlRoot = this.Content.XamlRoot
-                    };
+        //                // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
+        //                XamlRoot = this.Content.XamlRoot
+        //            };
 
-                    // Display the dialog
-                    ContentDialogResult result = await confirmationDialog.ShowAsync();
+        //            // Display the dialog
+        //            ContentDialogResult result = await confirmationDialog.ShowAsync();
 
-                    switch (result)
-                    {
-                        case ContentDialogResult.Primary: // Yes
-                            // No action as the file names are the correct way round
-                            break;
-                        case ContentDialogResult.Secondary: // Swap
-                            (rightFile, leftFile) = (leftFile, rightFile);
-                            break;
-                        case ContentDialogResult.None: // Cancel
-                            ret = false;
-                            break;
-                    }
+        //            switch (result)
+        //            {
+        //                case ContentDialogResult.Primary: // Yes
+        //                    // No action as the file names are the correct way round
+        //                    break;
+        //                case ContentDialogResult.Secondary: // Swap
+        //                    (rightFile, leftFile) = (leftFile, rightFile);
+        //                    break;
+        //                case ContentDialogResult.None: // Cancel
+        //                    ret = false;
+        //                    break;
+        //            }
 
-                    if (ret)
-                    {
-                        // Clear the current media file names
-                        surveyClass.Data.Media.LeftMediaFileNames.Clear();
-                        surveyClass.Data.Media.RightMediaFileNames.Clear();
+        //            if (ret)
+        //            {
+        //                // Clear the current media file names
+        //                surveyClass.Data.Media.LeftMediaFileNames.Clear();
+        //                surveyClass.Data.Media.RightMediaFileNames.Clear();
 
-                        if (leftFile is not null)
-                            surveyClass.AddMediaFile(leftFile, false/*FalseLeftTrueRight*/);
+        //                if (leftFile is not null)
+        //                    surveyClass.AddMediaFile(leftFile, false/*FalseLeftTrueRight*/);
 
-                        if (rightFile is not null)
-                            surveyClass.AddMediaFile(rightFile, true/*FalseLeftTrueRight*/);
-                    }
-                }
+        //                if (rightFile is not null)
+        //                    surveyClass.AddMediaFile(rightFile, true/*FalseLeftTrueRight*/);
+        //            }
+        //        }
 
-                if ((ret == true))
-                    // Open Media Files
-                    await OpenSVSMediaFiles();
+        //        if ((ret == true))
+        //            // Open Media Files
+        //            await OpenSVSMediaFiles();
 
-            }
+        //    }
 
-            SetMenuStatusBasedOnProjectState();
-        }
+        //    SetMenuStatusBasedOnProjectState();
+        //}
 
 
-        /// <summary>
-        /// Try to figure out which is the left and which is the right media file
-        /// </summary>
-        /// <param name="file1"></param>
-        /// <param name="file2"></param>
-        /// <returns></returns>
-        private (string? LeftFile, string? RightFile) DetectLeftAndRightMediaFile(string? file1, string? file2)
-        {
-            // Regex to identify left and right
-            Regex leftRegex = new Regex("(?i)(left|l[^a-z])");
-            Regex rightRegex = new Regex("(?i)(right|r[^a-z])");
+        ///// <summary>
+        ///// Try to figure out which is the left and which is the right media file
+        ///// </summary>
+        ///// <param name="file1"></param>
+        ///// <param name="file2"></param>
+        ///// <returns></returns>
+        //private (string? LeftFile, string? RightFile) DetectLeftAndRightMediaFile(string? file1, string? file2)
+        //{
+        //    // Regex to identify left and right
+        //    Regex leftRegex = new Regex("(?i)(left|l[^a-z])");
+        //    Regex rightRegex = new Regex("(?i)(right|r[^a-z])");
 
-            bool isFile1Left = false;
-            bool isFile1Right = false;
-            bool isFile2Left = false;
-            bool isFile2Right = false;
+        //    bool isFile1Left = false;
+        //    bool isFile1Right = false;
+        //    bool isFile2Left = false;
+        //    bool isFile2Right = false;
 
-            if (file1 is not null)
-            {
-                isFile1Left = leftRegex.IsMatch(file1);
-                isFile1Right = rightRegex.IsMatch(file1);
-            }
-            if (file2 is not null)
-            {
-                isFile2Left = leftRegex.IsMatch(file2);
-                isFile2Right = rightRegex.IsMatch(file2);
-            }
+        //    if (file1 is not null)
+        //    {
+        //        isFile1Left = leftRegex.IsMatch(file1);
+        //        isFile1Right = rightRegex.IsMatch(file1);
+        //    }
+        //    if (file2 is not null)
+        //    {
+        //        isFile2Left = leftRegex.IsMatch(file2);
+        //        isFile2Right = rightRegex.IsMatch(file2);
+        //    }
 
-            // Determine which file is left and which is right
-            if (isFile1Left && !isFile1Right)
-                return (file1, file2);
-            else if (isFile2Left && !isFile2Right)
-                return (file2, file1);
-            else if (isFile1Right && !isFile1Left)
-                return (file2, file1);
-            else if (isFile2Right && !isFile2Left)
-                return (file1, file2);
+        //    // Determine which file is left and which is right
+        //    if (isFile1Left && !isFile1Right)
+        //        return (file1, file2);
+        //    else if (isFile2Left && !isFile2Right)
+        //        return (file2, file1);
+        //    else if (isFile1Right && !isFile1Left)
+        //        return (file2, file1);
+        //    else if (isFile2Right && !isFile2Left)
+        //        return (file1, file2);
 
-            // Default case if unable to distinguish
-            return (LeftFile: file1, RightFile: file2);
-        }
+        //    // Default case if unable to distinguish
+        //    return (LeftFile: file1, RightFile: file2);
+        //}
 
 
         /// <summary>
@@ -897,30 +964,7 @@ namespace Surveyor
                         {
                             // Create a SymbolIcon with an exclamation mark
                             var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
-
-                            //var dialog = new ContentDialog
-                            //{
-                            //    Title = "Lock Media Players",
-                            //    Content = new StackPanel
-                            //    {
-                            //        Orientation = Orientation.Horizontal,
-                            //        Spacing = 10,
-                            //        Children =
-                            //        {
-                            //            warningIcon, // Add the exclamation icon to the dialog content
-                            //            new TextBlock
-                            //            {
-                            //                Text = "There is synchronization information already in this survey that is currently disabled. Do you want to re-enable it or do you want to lock the players at their current position?",
-                            //                TextWrapping = TextWrapping.Wrap
-                            //            }
-                            //        }
-                            //    },
-                            //    PrimaryButtonText = "Enable",
-                            //    SecondaryButtonText = "Current Position",
-                            //    CloseButtonText = "Cancel",
-                            //    DefaultButton = ContentDialogButton.Primary,
-                            //    XamlRoot = this.Content.XamlRoot, // Ensure this points to the correct XamlRoot
-                            //};
+                           
                             var dialog = new ContentDialog
                             {
                                 Title = "Lock Media Players",
@@ -997,7 +1041,7 @@ namespace Surveyor
 
                     // Engage to the MediaTimelineController
                     if (reEnable || newPosition)
-                        mediaStereoController.MediaLockMediaPlayers();
+                        await mediaStereoController.MediaLockMediaPlayers();
                 }
                 else
                 {
@@ -1556,6 +1600,100 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// Keyboard accelerator to dump all the properties 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void AcceleratorDiagsDump_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+        {
+            this.DumpAllProperties();
+            mediaStereoController.DumpAllProperties();
+            MediaPlayerLeft.DumpAllProperties();
+            MediaPlayerRight.DumpAllProperties();
+#if !No_MagnifyAndMarkerDisplay
+            MagnifyAndMarkerDisplayLeft.Setup(MediaPlayerLeft.GetImageFrame(), MagnifyAndMarkerDisplay.CameraSide.Left);
+            MagnifyAndMarkerDisplayRight.Setup(MediaPlayerRight.GetImageFrame(), MagnifyAndMarkerDisplay.CameraSide.Right);
+#endif
+            surveyClass?.Data.DumpAllProperties();
+
+            //???SpeciesSelector.AccessKeyProperty
+
+            //???eventsControl.DumpAllProperties();
+            //???measurementPointControl.DumpAllProperties();
+            //???stereoProjection.DumpAllProperties();
+
+            args.Handled = true;
+        }
+
+
+        /// <summary>
+        /// Keyboard accelerator to testing code
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private async void AcceleratorTest_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+        {
+            try
+            {
+                await ShowSurveyorTestingsWindow();
+            }
+            catch (Exception ex)
+            {
+                // Log or handle the exception as needed
+                report.Error("", $"Error showing SurveyorTesting.RunTestingDialog: {ex.Message}");
+            }
+
+            args.Handled = true;
+        }
+
+
+        /// <summary>
+        /// Display the Surveyor Testing window
+        /// </summary>
+        private int surveyorTestingEntryCount = 0;
+        private async Task ShowSurveyorTestingsWindow()
+        {
+            surveyorTestingEntryCount++;
+            // Make sure we only open the window once.
+            if (surveyorTestingEntryCount == 1)
+            {
+                SurveyorTesting testingWindow = new(this, report);
+
+                // Get the HWND (window handle) for both windows
+                IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
+                IntPtr settingsWindowHandle = WindowNative.GetWindowHandle(testingWindow);
+
+                // Get the AppWindow instances for both windows
+                AppWindow mainAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(mainWindowHandle));
+                AppWindow settingsAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(settingsWindowHandle));
+
+                // Disable the main window by setting it inactive
+                SetWindowEnabled(mainWindowHandle, false);
+
+                // Ensure settings window stays on top
+                WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
+
+                // Activate settings window
+                testingWindow.Activate();
+
+                // Wait for settings window to close
+                await Task.Run(() =>
+                {
+                    while (settingsAppWindow != null && settingsAppWindow.IsVisible)
+                    {
+                        System.Threading.Thread.Sleep(100);
+                    }
+                });
+
+                // Re-enable the main window after closing settings
+                SetWindowEnabled(mainWindowHandle, true);
+            }
+
+            surveyorTestingEntryCount--;
+        }
+
+
 
         ///
         /// PRIVATE METHODS
@@ -1564,10 +1702,11 @@ namespace Surveyor
 
         /// <summary>
         /// Open the survey files
+        /// USES 'Internal' to allow Unit Testing
         /// </summary>
         /// <param name="surveyFileName"></param>
         /// <returns></returns>
-        private async Task<int> OpenSurvey(string projectFileName)
+        internal async Task<int> OpenSurvey(string projectFileName)
         {
             int ret = 0;
 
@@ -1744,9 +1883,10 @@ namespace Surveyor
 
         /// <summary>
         /// Check if there is an existing survey open and if so check if it has unsaved changes
+        /// USES 'Internal' to allow Unit Testing
         /// </summary>
         /// <returns>true is ok to proceed (i.e. no survey now open)</returns>
-        private async Task<bool> CheckForOpenSurveyAndClose()
+        internal async Task<bool> CheckForOpenSurveyAndClose()
         {
             bool ret = false;
 
@@ -2820,7 +2960,29 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// Remove the selected survey to the recent surveys list
+        /// </summary>
+        /// <param name="filePath"></param>
+        private void RemoveToRecentSurveys(string filePath)
+        {
+            var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
+            var recentSurveys = (localSettings.Values[RECENT_SURVEYS_KEY] as string[]) ?? new string[0];
 
+            // Remove if already exists
+            var list = new List<string>(recentSurveys);
+            list.Remove(filePath);
+
+            // Save back to settings
+            localSettings.Values[RECENT_SURVEYS_KEY] = list.ToArray();
+
+            UpdateRecentSurveysMenu();
+        }
+
+
+        /// <summary>
+        /// Update the recent surveys menu from localSettings
+        /// </summary>
         private void UpdateRecentSurveysMenu()
         {
             var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
@@ -2862,6 +3024,18 @@ namespace Surveyor
                 }
             }
         }
+
+
+        /// <summary>
+        /// Diags dump of class information
+        /// </summary>
+        private void DumpAllProperties()
+        {
+            // DumpClassPropertiesHelper.DumpAllProperties(object obj, string? ignorePropertiesCsv = null, string? includePropertiesCsv = null)
+        }
+
+
+        // ** End of MainWindow **
     }
 
 

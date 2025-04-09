@@ -9,6 +9,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Surveyor.Events;
+using Surveyor.Helper;
 using Surveyor.User_Controls;
 using System;
 using System.Collections.Generic;
@@ -58,6 +59,23 @@ namespace Surveyor
                 Events.Clear();
                 Calibration.Clear();
                 SurveyRules.Clear();
+            }
+
+
+            /// <summary>
+            /// Diags dump of class information
+            /// </summary>
+            public void DumpAllProperties()
+            {
+                DumpClassPropertiesHelper.DumpAllProperties(Info, /*ignore*/"<Version>k__BackingField,_surveyFileName,_surveyPath,_surveyCode,_surveyAnalystName,_surveyDepth,_isDirty,PropertyChanged");
+                DumpClassPropertiesHelper.DumpAllProperties(Media, /*ignore*/"<Version>k__BackingField,_mediaPath,_leftMediaFileNames,_rightMediaFileNames,_leftCameraID,_rightCameraID,_isDirty,PropertyChanged,LeftMediaFileNames,RightMediaFileNames");
+                //DumpClassPropertiesHelper.DumpAllProperties(Media.LeftMediaFileNames);
+                //DumpClassPropertiesHelper.DumpAllProperties(Media.RightMediaFileNames);
+                DumpClassPropertiesHelper.DumpAllProperties(Sync, /*ignore*/"PropertyChanged,<Version>k__BackingField,_isSynchronized,_timeSpanOffset,_actualTimeSpanOffsetLeft,_actualTimeSpanOffsetRight,_isDirty");
+                DumpClassPropertiesHelper.DumpAllProperties(Events, /*ignore*/"PropertyChanged,<Version>k__BackingField,_eventList,_isDirty,EventList");
+                DumpClassPropertiesHelper.DumpAllProperties(Calibration, /*ignore*/"PropertyChanged,<Version>k__BackingField,_allowMultipleCalibrationData,_preferredCalibrationDataIndex,_calibrationDataList,_isDirty,CalibrationDataList");
+                DumpClassPropertiesHelper.DumpAllProperties(SurveyRules, /*ignore*/"PropertyChanged,<Version>k__BackingField,_surveyRulesActive,_surveyRulesInherited,_surveyRulesData,_isDirty,SurveyRulesData");
+                DumpClassPropertiesHelper.DumpAllProperties(SurveyRules.SurveyRulesData, /*ignore*/"PropertyChanged,<Version>k__BackingField,_rangeRuleActive,_rangeMin,_rangeMax,_rmsRuleActive,_rmsMax,_horizontalRangeRuleActive,_horizontalRangeLeft,\r\n_horizontalRangeRight,_verticalRangeRuleActive,_verticalRangeTop,_verticalRangeBottom,_isDirty");
             }
 
 

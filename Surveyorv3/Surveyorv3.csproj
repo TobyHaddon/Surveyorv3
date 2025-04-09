@@ -27,8 +27,12 @@
 	<HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="Test Data\embeddedFrame_multiangle-right-back-offset-5-seconds[1].mp4" />
+    <None Remove="Test Data\embeddedFrame_multiangle-right-back[1].mp4" />
+    <None Remove="Test Data\Yoga-0m-1-2025-01-24.survey" />
     <None Remove="User Controls\SettingsSurveyRules.xaml" />
     <None Remove="User Controls\SurveyInfoAndMedia.xaml" />
+    <None Remove="User Controls\SurveyorTesting.xaml" />
   </ItemGroup>
 
   <ItemGroup>
@@ -39,6 +43,15 @@
     <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+    <Content Include="Test Data\embeddedFrame_multiangle-right-back-offset-5-seconds[1].mp4">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Test Data\embeddedFrame_multiangle-right-back[1].mp4">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Test Data\Yoga-0m-1-2025-01-24.survey">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
@@ -51,7 +64,7 @@
     <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
     <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.3.2" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250205002" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250310001" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="QRCoder" Version="1.6.0" />
     <Manifest Include="$(ApplicationManifest)" />
@@ -121,6 +134,9 @@
     <None Update="Species.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <Page Update="User Controls\SurveyorTesting.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="User Controls\SettingsSurveyRules.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>
