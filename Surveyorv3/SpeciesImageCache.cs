@@ -2,11 +2,14 @@
 //
 // Version 1.0 11 Apr 2025
 
+using Microsoft.UI.Composition;
 using Surveyor.User_Controls;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
+using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -21,6 +24,7 @@ namespace Surveyor
         private readonly DownloadUploadManager downloadManager;
         private readonly Reporter? report;
         private readonly Dictionary<string, SpeciesCacheState> speciesStates = new();
+        private bool isReady = false;
 
         private Timer? timer;
         private bool timerRunning = false;
@@ -80,26 +84,31 @@ namespace Surveyor
             report = _report;
         }
 
+
         /// <summary>
-        /// Starts or stops the background timer
+        /// Load the on disk persistent cache
+        /// This function must be called before using other methods
         /// </summary>
-        /// <param name="enable"></param>
-        public void Enable(bool enable)
+        /// <returns></returns>
+        public async Task<bool> Load()
         {
-            if (enable)
+            bool ret = false;
+
+            try
             {
-                if (timer == null)
-                {
-                    timer = new Timer(async _ => await TimerCallback(), null, TimeSpan.Zero, timerInterval);
-                    timerRunning = true;
-                }
+                await LoadSpeciesStates();
+                isReady = true;
+                ret = true;
+
             }
-            else
+            catch (Exception ex)
             {
-                timer?.Change(Timeout.Infinite, Timeout.Infinite);
-                timerRunning = false;
+                report?.Error("", $"SpeciesImageCache.Load Failed {ex.Message}");
             }
+
+            return ret;
         }
+
 
         /// <summary>
         /// Call to shutdown
@@ -107,7 +116,7 @@ namespace Surveyor
         /// <returns></returns>
         public async Task Unload()
         {
-            Enable(false);
+            isReady = false;
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             try
@@ -122,8 +131,37 @@ namespace Surveyor
                 report?.Warning("", "SpeciesImageCache.Unload timed out waiting for processing to complete.");
             }
 
+            Enable(false);
+
             timer?.Dispose();
             timer = null;
+        }
+
+
+        /// <summary>
+        /// Starts or stops the background timer
+        /// </summary>
+        /// <param name="enable"></param>
+        public void Enable(bool enable)
+        {
+            if (enable)
+            {
+                if (timer == null)
+                {
+#if DEBUG
+                    TimeSpan dueTime = TimeSpan.FromSeconds(10);        // Better to fire the inttial timer quickly if debugging 
+#else
+                    TimeSpan dueTime = TimeSpan.FromMinutes(1);
+#endif
+                    timer = new Timer(async _ => await TimerCallback(), null, dueTime, timerInterval);
+                    timerRunning = true;
+                }
+            }
+            else
+            {
+                timer?.Change(Timeout.Infinite, Timeout.Infinite);
+                timerRunning = false;
+            }
         }
 
 
@@ -147,6 +185,8 @@ namespace Surveyor
         /// </summary>
         public void RefreshView()
         {
+            if (!isReady) return;
+
             SpeciesStateView.Clear();
             foreach (var state in speciesStates.Values)
             {
@@ -173,6 +213,7 @@ namespace Surveyor
         /// <returns></returns>
         private async Task TimerCallback()
         {
+            if (!isReady) return;
             if (isProcessing) return;
 
             isProcessing = true;
@@ -194,6 +235,10 @@ namespace Surveyor
         /// <returns></returns>
         private async Task ProcessAsync()
         {
+            // Get the before State totals
+            var beforeTotals = CountStates();
+
+            // Run the state machine
             foreach (var state in speciesStates.Values)
             {
                 switch (state.CurrentState)
@@ -227,9 +272,23 @@ namespace Surveyor
                         break;
                 }
             }
+
+            // Get the after State totals
+            var afterTotals = CountStates();
+
+            // Report if changes to an key states
+            if (afterTotals[State.WaitingForFirstPhotoPage] != beforeTotals[State.WaitingForFirstPhotoPage] ||
+                afterTotals[State.WaitingForAllPhotoPages] != beforeTotals[State.WaitingForAllPhotoPages] ||
+                afterTotals[State.WaitingForAllImages] != beforeTotals[State.WaitingForAllImages])
+            {
+                report?.Info("", $"Fish Image Cache changes: Waiting for first photo page ${beforeTotals[State.WaitingForFirstPhotoPage]}>${beforeTotals[State.WaitingForFirstPhotoPage]}, all photos pages ${beforeTotals[State.WaitingForAllPhotoPages]}>${beforeTotals[State.WaitingForAllPhotoPages]}, all iamges ${beforeTotals[State.WaitingForAllImages]}>${beforeTotals[State.WaitingForAllImages]}");
+            }
+
+            // Save the persistent list
+            await SaveSpeciesStates();
         }
 
-        
+
         /// <summary>
         /// Check the speciesCodeList for any species that require images
         /// </summary>
@@ -243,17 +302,15 @@ namespace Surveyor
                 // If we have a code and it is a fishbase code that add to the speciesstates list
                 (CodeType codeType, string code) = item.GetCodeTypeAndCode();
                 if (codeType == CodeType.Fishbase && !string.IsNullOrEmpty(code))
-                {
-                    // Now check in the species cache for this species
-                    SpeciesCacheState search = speciesStates[code];
-
-                    if (search is null)
-                    {
+                {                    
+                    if (!speciesStates.TryGetValue(code, out SpeciesCacheState? search))
+                    { 
                         speciesStates[item.Code] = new SpeciesCacheState { SpeciesItem = item };
                         ret = true; // At least one found
                     }
                 }
             }
+            
 
             return ret;
         }
@@ -456,9 +513,6 @@ namespace Surveyor
         }
 
 
-
-
-
         /// <summary>
         /// Make the Fieshbase.se Url for a species photo page
         /// </summary>
@@ -469,6 +523,68 @@ namespace Surveyor
         {
             return $"https://www.fishbase.se/photos/PicturesSummary.php?resultPage={page}&ID={speciesID}&what=species";
         }
+
+
+        /// <summary>
+        /// Totals the number of each State in the speciesStates directory
+        /// Used for reporting only
+        /// </summary>
+        /// <returns></returns>
+        private Dictionary<State, int> CountStates()
+        {
+            var counts = speciesStates
+                .Values
+                .GroupBy(s => s.CurrentState)
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            foreach (State state in Enum.GetValues<State>())
+                counts.TryAdd(state, 0);
+
+            return counts;
+        }
+
+
+        /// <summary>
+        /// Load speciesStates from disk
+        /// </summary>
+        /// <returns></returns>
+        private async Task SaveSpeciesStates()
+        {
+            string json = System.Text.Json.JsonSerializer.Serialize(speciesStates);
+            StorageFile file = await ApplicationData.Current.LocalFolder.CreateFileAsync("speciesStates.json", CreationCollisionOption.ReplaceExisting);
+            await FileIO.WriteTextAsync(file, json);
+        }
+
+
+        /// <summary>
+        /// Save speciesStates to disk
+        /// </summary>
+        /// <returns></returns>
+        private async Task LoadSpeciesStates()
+        {
+            try
+            {
+                StorageFile file = await ApplicationData.Current.LocalFolder.GetFileAsync("speciesStates.json");
+                string json = await FileIO.ReadTextAsync(file);
+
+                var loaded = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, SpeciesCacheState>>(json);
+
+                if (loaded != null)
+                {
+                    foreach (var (key, value) in loaded)
+                    {
+                        speciesStates[key] = value;
+                    }
+                }
+            }
+            catch (FileNotFoundException)
+            {
+                // No cache found — skip
+            }
+        }
+
+
+        // *** End of SpeciesImageCache class
     }
 
 

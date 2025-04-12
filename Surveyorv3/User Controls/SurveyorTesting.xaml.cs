@@ -49,7 +49,7 @@ namespace Surveyor.User_Controls
         private Reporter? Report { get; set; } = null;
 
         // Test controlling variables
-        private bool isTestRunning = false;
+        //???private bool isTestRunning = false;
         private bool isTestAbortRequest = false;
         private Stopwatch stopwatch = new Stopwatch();
 
@@ -869,7 +869,7 @@ namespace Surveyor.User_Controls
                 // Reset the test counts (but not the totals)
                 TestCountReset();
 
-                isTestRunning = true;
+                //???isTestRunning = true;
                 isTestAbortRequest = false;
 
                 // In test
@@ -892,7 +892,7 @@ namespace Surveyor.User_Controls
             {
                 stopwatch.Stop();
 
-                isTestRunning = false;
+                //???isTestRunning = false;
                 isTestAbortRequest = false;
 
                 // Out of test

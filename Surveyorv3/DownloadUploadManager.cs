@@ -5,6 +5,8 @@
 using Surveyor.User_Controls;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
@@ -42,6 +44,24 @@ namespace Surveyor
         private readonly string storageFile = "DownloadUploadlist.json";
         private bool isReady = false;
         private bool isProcessing = false;
+        private readonly SemaphoreSlim saveLock = new(1, 1);
+
+        /// <summary>
+        /// UI view of the download/upload list record
+        /// </summary>
+        public class DownloadUploadViewItem
+        {
+            public Direction Direction { get; set; }
+            public TransferType TransferType { get; set; }
+            public Status Status { get; set; }
+            public Priority Priority { get; set; }
+            public string LocalFileSpec { get; set; } = "";
+            public string URL { get; set; } = "";
+        }
+
+
+        // View call to bind to (updated via the RefreshView() method)
+        public ObservableCollection<DownloadUploadViewItem> DownloadUploadView { get; } = [];
 
 
         public DownloadUploadManager(Reporter? _report)
@@ -119,9 +139,25 @@ namespace Surveyor
         /// <returns></returns>
         public async Task Save()
         {
-            string json = System.Text.Json.JsonSerializer.Serialize(transferItems);
-            StorageFile file = await ApplicationData.Current.LocalFolder.CreateFileAsync(storageFile, CreationCollisionOption.ReplaceExisting);
-            await FileIO.WriteTextAsync(file, json);
+            await saveLock.WaitAsync();
+            try
+            {
+                string json = System.Text.Json.JsonSerializer.Serialize(transferItems);
+                string tempFileName = storageFile + ".tmp";
+
+                StorageFile tempFile = await ApplicationData.Current.LocalFolder.CreateFileAsync(tempFileName, CreationCollisionOption.ReplaceExisting);
+                using (var stream = await tempFile.OpenStreamForWriteAsync())
+                using (var writer = new StreamWriter(stream))
+                {
+                    await writer.WriteAsync(json);
+                }
+
+                await tempFile.RenameAsync(storageFile, NameCollisionOption.ReplaceExisting);
+            }
+            finally
+            {
+                saveLock.Release();
+            }
         }
 
 
@@ -347,6 +383,27 @@ namespace Surveyor
             }
         }
 
+
+        /// <summary>
+        /// Called by the SettingWindows to refresh the UI view of the download upload list
+        /// </summary>
+        public void RefreshView()
+        {
+            DownloadUploadView.Clear();
+
+            foreach (var item in transferItems)
+            {
+                DownloadUploadView.Add(new DownloadUploadViewItem
+                {
+                    Direction = item.Direction,
+                    TransferType = item.Type,
+                    Status = item.Status,
+                    Priority = item.Priority,
+                    LocalFileSpec = item.LocalFileSpec,
+                    URL = item.URL
+                });
+            }
+        }
 
 
         ///

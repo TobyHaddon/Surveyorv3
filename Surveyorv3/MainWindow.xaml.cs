@@ -132,48 +132,6 @@ namespace Surveyor
             // Setup the Handler for the MainWindow
             mainWindowHandler = new MainWindowHandler(mediator, this);
 
-            // Create the MediaStereoController and pass it the Mediator
-            mediaStereoController = new MediaStereoController(this, report,
-                                                            mediator,
-                                                            MediaPlayerLeft, MediaPlayerRight,
-                                                            MediaControlPrimary, MediaControlSecondary,
-#if !No_MagnifyAndMarkerDisplay
-                                                            MagnifyAndMarkerDisplayLeft, MagnifyAndMarkerDisplayRight,
-#endif
-                                                            eventsControl,
-                                                            stereoProjection                                                            
-                                                            /*MediaInfoLeft, MediaInfoRight */);
-
-            // Inform the Events Control of the MediaStereoController
-            eventsControl.SetMediaStereoController(mediaStereoController);
-
-            // Setup and magnify and marker controls by linking that to the each media players ImageFrame
-#if !No_MagnifyAndMarkerDisplay
-            MagnifyAndMarkerDisplayLeft.Setup(MediaPlayerLeft.GetImageFrame(), MagnifyAndMarkerDisplay.CameraSide.Left);
-            MagnifyAndMarkerDisplayRight.Setup(MediaPlayerRight.GetImageFrame(), MagnifyAndMarkerDisplay.CameraSide.Right);
-#endif
-
-            // Allows the menu bar to extend into the title bar
-            // Assumes "this" is a XAML Window. In projects that don't use 
-            // WinUI 3 1.3 or later, use interop APIs to get the AppWindow.           
-            AppTitleBar.Loaded += AppTitleBar_Loaded;
-            AppTitleBar.SizeChanged += AppTitleBar_SizeChanged;
-            ExtendsContentIntoTitleBar = true;
-
-            // Now the interactive regions of the titlebar has been established let 
-            // remove the LockUnlockIndicator from the titlebar that was only there
-            // so the regions could be calculated correctly
-            SetLockUnlockIndicator(null, null);
-
-            // Set the default tab view visibility
-            UpdateNavigationViewVisibility();
-
-            // Show calibration status (i.e. not calibrated)
-            SetCalibratedIndicator(null, null);
-
-            // Update the Recent open surveys sub menu
-            UpdateRecentSurveysMenu();
-
             // Initialize the internet network manager
             networkManager = new(report);
 
@@ -235,15 +193,58 @@ namespace Surveyor
                 if (_isOnline)
                 {
                     await downloadUploadManager.DownloadUpload();
-                }                
+                }
 
                 return;
             }, Surveyor.Priority.Normal);
 
 
+
+            // Create the MediaStereoController and pass it the Mediator
+            mediaStereoController = new MediaStereoController(this, report,
+                                                            mediator,
+                                                            MediaPlayerLeft, MediaPlayerRight,
+                                                            MediaControlPrimary, MediaControlSecondary,
+#if !No_MagnifyAndMarkerDisplay
+                                                            MagnifyAndMarkerDisplayLeft, MagnifyAndMarkerDisplayRight,
+#endif
+                                                            eventsControl,
+                                                            stereoProjection                                                            
+                                                            /*MediaInfoLeft, MediaInfoRight */);
+
+            // Inform the Events Control of the MediaStereoController
+            eventsControl.SetMediaStereoController(mediaStereoController);
+
+            // Setup and magnify and marker controls by linking that to the each media players ImageFrame
+#if !No_MagnifyAndMarkerDisplay
+            MagnifyAndMarkerDisplayLeft.Setup(MediaPlayerLeft.GetImageFrame(), MagnifyAndMarkerDisplay.CameraSide.Left);
+            MagnifyAndMarkerDisplayRight.Setup(MediaPlayerRight.GetImageFrame(), MagnifyAndMarkerDisplay.CameraSide.Right);
+#endif
+
+            // Allows the menu bar to extend into the title bar
+            // Assumes "this" is a XAML Window. In projects that don't use 
+            // WinUI 3 1.3 or later, use interop APIs to get the AppWindow.           
+            AppTitleBar.Loaded += AppTitleBar_Loaded;
+            AppTitleBar.SizeChanged += AppTitleBar_SizeChanged;
+            ExtendsContentIntoTitleBar = true;
+
+            // Now the interactive regions of the titlebar has been established let 
+            // remove the LockUnlockIndicator from the titlebar that was only there
+            // so the regions could be calculated correctly
+            SetLockUnlockIndicator(null, null);
+
+            // Set the default tab view visibility
+            UpdateNavigationViewVisibility();
+
+            // Show calibration status (i.e. not calibrated)
+            SetCalibratedIndicator(null, null);
+
+            // Update the Recent open surveys sub menu
+            UpdateRecentSurveysMenu();
+
+
             if (SettingsManagerLocal.DiagnosticInformation)
             {
-
                 // Debug Diags Dump keyboard shortcut (Ctrl+Shift+D)
                 var acceleratorDiagsDump = new KeyboardAccelerator
                 {
@@ -551,7 +552,18 @@ namespace Surveyor
             // Check if there is an unsaved survey
             if (await CheckForOpenSurveyAndClose() == true)
             {
+                report.Debug("", "Closing MediaStereoController");
                 await mediaStereoController.MediaClose();
+
+                report.Debug("", "Closing DownloadUploadManager");
+                await downloadUploadManager.Unload();
+
+                report.Debug("", "Closing MediaStereoController");
+                await mediaStereoController.Unload();
+
+                networkManager.Dispose();
+
+                
 
                 this.Close(); // This will NOT retrigger AppWindow.Closing
             }

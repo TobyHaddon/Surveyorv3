@@ -19,7 +19,6 @@ using Windows.Foundation;
 using Windows.Media;
 using static Surveyor.MediaStereoControllerEventData;
 using Surveyor.Helper;
-using Windows.Media.Playback;
 
 
 
@@ -77,8 +76,11 @@ namespace Surveyor
         // EventControl (existing measurements etc)
         private readonly EventsControl? eventsControl = null;
 
+        // Species Image Cache (stock photos of fish species to help fish ID)
+        internal SpeciesImageCache speciesImageCache;  // Accessed by SettingsWindow
+
         // Species Selector dialog class
-        public SpeciesSelector speciesSelector = new();
+        internal SpeciesSelector speciesSelector;  // Accessed by SettingsWindow
 
         // StereoProjection class        
         public StereoProjection stereoProjection;
@@ -159,16 +161,35 @@ namespace Surveyor
             stereoProjection = _stereoProjection;
             stereoProjection.SetReporter(report);
 
+            // SpeciesSelector dialog class which contrains the Species code list
+            speciesSelector = new();
+            speciesSelector.Load("species.txt");
+
+            // Initialize the species image cache
+            speciesImageCache = new(speciesSelector.speciesCodeList, mainWindow.downloadUploadManager, report);
+            _ = speciesImageCache.Load(); // Fire and forget / Load persistent SpeciesState from disk
+            speciesImageCache.Enable(SettingsManagerLocal.UseInternetEnabled);
+
             // Setup the Handler for the MainWindow
             mediaControllerHandler = new MediaControllerHandler(mediator, mainWindow, this);
 
         }
 
 
+
         ///
         /// PUBLIC METHODS
         ///
 
+
+        /// <summary>
+        /// Shutdown 
+        /// </summary>
+        public async Task Unload()
+        {
+            await speciesImageCache.Unload();
+            speciesSelector.Unload();
+        }
 
         /// <summary>
         /// Diags dump of class information

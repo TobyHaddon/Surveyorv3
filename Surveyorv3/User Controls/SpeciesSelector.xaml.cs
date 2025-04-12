@@ -13,8 +13,8 @@ namespace Surveyor.User_Controls
     public sealed partial class SpeciesSelector : UserControl
     {
         private string? fileSpecSpecies;
-
-        private SpeciesCodeList speciesCodeList = new();
+        private Reporter? report;
+        internal SpeciesCodeList speciesCodeList { get; } = new() ;
 
         public SpeciesSelector()
         {
@@ -30,6 +30,15 @@ namespace Surveyor.User_Controls
             DumpClassPropertiesHelper.DumpAllProperties(this);
         }
 
+        /// <summary>
+        /// Set the Reporter, used to output messages.
+        /// Call as early as possible after creating the class instance.
+        /// </summary>
+        /// <param name="_report"></param>
+        public void SetReporter(Reporter _report)
+        {
+            report = _report;
+        }
 
         /// <summary>
         /// Create a new species record
@@ -73,9 +82,6 @@ namespace Surveyor.User_Controls
         private async Task<bool> SpeciesEditorNew(MainWindow mainWindow, SpeciesInfo speciesInfo, bool editExisting)
         {
             bool ret = false;
-
-            // Load the code list
-            speciesCodeList.Load("species.txt");
 
             // Create the dialog
             ContentDialog dialog = new()
@@ -230,7 +236,7 @@ namespace Surveyor.User_Controls
         /// Called to load the species code list
         /// </summary>
         /// <param name="fileSpec"></param>
-        private void Load(string fileSpec)
+        public void Load(string fileSpec)
         {
             fileSpecSpecies = fileSpec;
 
@@ -241,7 +247,7 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Called to unload the species code list
         /// </summary>
-        private void Unload()
+        public void Unload()
         {
             speciesCodeList.Unload();
             fileSpecSpecies = null;

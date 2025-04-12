@@ -12,6 +12,10 @@
 
     <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
 
+        <Grid.Resources>
+            <surveyorControls:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        </Grid.Resources>
+
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -57,7 +61,8 @@
                                 <TextBlock
                                     Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                     IsTextSelectionEnabled="True"
-                                    Text="{x:Bind SettingsExpanderInfoText}" />
+                                    Text="{x:Bind SettingsExpanderInfoText}" 
+                                    VerticalAlignment="Center"/>
                             </StackPanel>
                             
                             <toolkit:SettingsExpander.Items>
@@ -152,33 +157,105 @@
                             </StackPanel>
                         </toolkit:SettingsCard>
 
-                        <!-- Diags -->
+                        <!-- Diagnostic Info -->
                         <toolkit:SettingsExpander Header="Diagnostic Information">
                             <toolkit:SettingsExpander.HeaderIcon>
-                                <FontIcon Glyph="&#xEBE8;" ToolTipService.ToolTip="Enable diagnostic information and features. Some feature need the application to be restarted, restart now."/>
+                                <FontIcon Glyph="&#xEBE8;" ToolTipService.ToolTip="Enable diagnostic information and features. Some features need the application to be restarted." />
                             </toolkit:SettingsExpander.HeaderIcon>
+
                             <ToggleSwitch x:Name="DiagnosticInformation" Toggled="DiagnosticInformation_Toggled" />
+
                             <toolkit:SettingsExpander.Items>
-                                <dg:DataGrid ItemsSource="{x:Bind SpeciesImageCacheInstance.SpeciesStateView, Mode=OneWay}"
-                                            AutoGenerateColumns="False"
-                                            HeadersVisibility="Column"
-                                            CanUserSortColumns="True"
-                                            IsReadOnly="True"
-                                            GridLinesVisibility="Horizontal"
-                                            Height="300">
-                                    <dg:DataGrid.Columns>
-                                        <dg:DataGridTextColumn Header="Genus" Binding="{Binding Genus}" />
-                                        <dg:DataGridTextColumn Header="Species" Binding="{Binding Species}" />
-                                        <dg:DataGridTextColumn Header="Code" Binding="{Binding Code}" />
-                                        <dg:DataGridTextColumn Header="State" Binding="{Binding CurrentState}" />
-                                        <dg:DataGridTextColumn Header="Total" Binding="{Binding TotalImages}" />
-                                        <dg:DataGridTextColumn Header="Count" Binding="{Binding ImageCount}" />
-                                        <dg:DataGridTextColumn Header="Downloaded" Binding="{Binding DownloadDate}" />
-                                    </dg:DataGrid.Columns>
-                                </dg:DataGrid>
+
+                                <!-- Species Image Cache Subsection -->
+                                <toolkit:SettingsExpander x:Name="SpeciesCacheExpander" Header="Species Image Cache">
+                                    <toolkit:SettingsExpander.HeaderIcon>
+                                        <FontIcon Glyph="&#xE8B9;" ToolTipService.ToolTip="Display the species fish image cache table." />
+                                    </toolkit:SettingsExpander.HeaderIcon>
+
+                                    <!-- Species Image Cache Refresh Button -->
+                                    <Button Click="RefreshSpeciesStateView_Click"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Top"
+                                                    ToolTipService.ToolTip="Refresh Species Cache View"
+                                                    Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <FontIcon Glyph="&#xE72C;" />
+                                            <TextBlock Text="Refresh" Margin="4,0,0,0" />
+                                        </StackPanel>
+                                    </Button>
+                                    
+                                    <toolkit:SettingsExpander.Items>
+                                        <StackPanel Spacing="8">
+
+                                            <!-- Species Cache DataGrid -->
+                                            <dg:DataGrid ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView, Mode=OneWay}"
+                                                     AutoGenerateColumns="False"
+                                                     HeadersVisibility="Column"
+                                                     CanUserSortColumns="True"
+                                                     IsReadOnly="True"
+                                                     GridLinesVisibility="Horizontal"
+                                                     Height="300">
+                                                <dg:DataGrid.Columns>
+                                                    <dg:DataGridTextColumn Header="Genus" Binding="{Binding Genus}" />
+                                                    <dg:DataGridTextColumn Header="Species" Binding="{Binding Species}" />
+                                                    <dg:DataGridTextColumn Header="Code" Binding="{Binding Code}" />
+                                                    <dg:DataGridTextColumn Header="State" Binding="{Binding CurrentState}" />
+                                                    <dg:DataGridTextColumn Header="Total" Binding="{Binding TotalImages}" />
+                                                    <dg:DataGridTextColumn Header="Count" Binding="{Binding ImageCount}" />
+                                                    <dg:DataGridTextColumn Header="Downloaded" Binding="{Binding DownloadDate}" />
+                                                </dg:DataGrid.Columns>
+                                            </dg:DataGrid>
+
+                                        </StackPanel>
+                                    </toolkit:SettingsExpander.Items>
+                                </toolkit:SettingsExpander>
+
+                                <!-- Download / Upload Queue Subsection -->
+                                <toolkit:SettingsExpander x:Name="DownloadUploadExpander" Header="Download / Upload Queue">
+                                    <toolkit:SettingsExpander.HeaderIcon>
+                                        <FontIcon Glyph="&#xEBD3;" ToolTipService.ToolTip="Display the internet download / upload queue." />
+                                    </toolkit:SettingsExpander.HeaderIcon>
+
+                                    <!-- Species Image Cache Refresh Button -->
+                                    <Button Click="RefreshDownloadUploadView_Click"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Top"
+                                                    ToolTipService.ToolTip="Refresh Download / Upload Queue View"
+                                                    Visibility="{Binding IsExpanded, ElementName=DownloadUploadExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        <StackPanel Orientation="Horizontal">
+                                            <FontIcon Glyph="&#xE72C;" />
+                                            <TextBlock Text="Refresh" Margin="4,0,0,0" />
+                                        </StackPanel>
+                                    </Button>
+
+                                    <toolkit:SettingsExpander.Items>
+                                        <StackPanel Spacing="8">
+
+                                            <!-- Species Cache DataGrid -->
+                                            <dg:DataGrid ItemsSource="{x:Bind mainWindow.downloadUploadManager.DownloadUploadView, Mode=OneWay}"
+                                                     AutoGenerateColumns="False"
+                                                     HeadersVisibility="Column"
+                                                     CanUserSortColumns="True"
+                                                     IsReadOnly="True"
+                                                     GridLinesVisibility="Horizontal"
+                                                     Height="300">
+                                                <dg:DataGrid.Columns>
+                                                    <dg:DataGridTextColumn Header="Direction" Binding="{Binding Direction}" />
+                                                    <dg:DataGridTextColumn Header="Transfer Type" Binding="{Binding TransferType}" />
+                                                    <dg:DataGridTextColumn Header="Status" Binding="{Binding Status}" />
+                                                    <dg:DataGridTextColumn Header="Priority" Binding="{Binding Priority}" />
+                                                    <dg:DataGridTextColumn Header="File" Binding="{Binding LocalFileSpec}" />
+                                                    <dg:DataGridTextColumn Header="URL" Binding="{Binding URL}" />
+                                                </dg:DataGrid.Columns>
+                                            </dg:DataGrid>
+
+                                        </StackPanel>
+                                    </toolkit:SettingsExpander.Items>
+                                </toolkit:SettingsExpander>
+
                             </toolkit:SettingsExpander.Items>
                         </toolkit:SettingsExpander>
-
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
 

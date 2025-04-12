@@ -13,6 +13,7 @@ using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Data;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
 using System;
@@ -298,6 +299,9 @@ namespace Surveyor.User_Controls
 
                 // Load the Use Internet enabled state
                 UseInternet.IsOn = SettingsManagerLocal.UseInternetEnabled;
+
+                // Refresh the Species State list
+                mainWindow.mediaStereoController.speciesImageCache.RefreshView();
             }
         }
 
@@ -470,6 +474,30 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// User requested the species image cache view is updated
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void RefreshSpeciesStateView_Click(object sender, RoutedEventArgs e)
+        {
+            mainWindow?.mediaStereoController.speciesImageCache.RefreshView();
+        }
+
+
+        /// <summary>
+        /// User requested the download / upload queue is updated
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void RefreshDownloadUploadView_Click(object sender, RoutedEventArgs e)
+        {
+            mainWindow?.downloadUploadManager?.RefreshView();
+        }
+
+
+
+
         ///
         /// MEDIATOR METHODS (Called by the TListener, always marked as internal)
         ///
@@ -588,8 +616,32 @@ namespace Surveyor.User_Controls
         }
 
 
-
         // ***END OF SettingsWindow***
+    }
+
+
+    /// <summary>
+    /// XAML Converter 
+    /// </summary>
+    public class BooleanToVisibilityConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, string language)
+        {
+            if (value is bool boolValue)
+            {
+                return boolValue ? Visibility.Visible : Visibility.Collapsed;
+            }
+            return Visibility.Collapsed;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, string language)
+        {
+            if (value is Visibility visibility)
+            {
+                return visibility == Visibility.Visible;
+            }
+            return false;
+        }
     }
 
 

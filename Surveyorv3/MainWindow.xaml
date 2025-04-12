@@ -118,7 +118,11 @@
                 </MenuBarItem>
                 <MenuBarItem Title="Insert">
                     <ToggleMenuFlyoutItem Name="MenuLockUnlockMediaPlayers" Text="Lock Media Players" IsEnabled="False" Click="InsertLockUnlockMediaPlayers_Click"/>
-                    <MenuFlyoutItem Name="MenuSurveyStartStopMarker" Text="Survey Start/Stop Marker..." IsEnabled="False" Click="InsertSurveyStartStopMarker_Click"/>
+                    <MenuFlyoutItem Name="MenuSurveyStartStopMarker" Text="Survey Start/Stop Marker..." IsEnabled="False" Click="InsertSurveyStartStopMarker_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEA52;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
                 </MenuBarItem>
             </MenuBar>
 
