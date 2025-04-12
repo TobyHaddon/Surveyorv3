@@ -1,3 +1,4 @@
+using MathNet.Numerics.LinearAlgebra.Factorization;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -9,6 +10,7 @@ using Surveyor.Helper;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -26,11 +28,15 @@ namespace Surveyor.User_Controls
         // Copy of left mediaplayer
         MediaStereoController? mediaStereoController = null;
 
-        private int displayToDecimalPlaces = 2;     // If we start using frame rate of 120fps then we will need to increase this to 3dp
+        private readonly int displayToDecimalPlaces = 2;     // If we start using frame rate of 120fps then we will need to increase this to 3dp
 
         public EventsControl()
         {
             InitializeComponent();
+
+            // Add listener for theme changes
+            var rootElement = (FrameworkElement)Content;
+            rootElement.ActualThemeChanged += OnActualThemeChanged;
         }
 
         internal void SetDispatcherQueue(DispatcherQueue dispatcherQueue)
@@ -157,17 +163,19 @@ namespace Surveyor.User_Controls
 
             // Create a string to display the event data
             StringBuilder sb = new();
-            sb.Append($"Event Created: {evt.DateTimeCreate:dd MMM yyyy HH:mm:ss}\r\n\r\n");
 
             if (evt.EventData is not null)
             {
+                // Get the survey marker name for this event (if any)
+                string? surveyMarkerName = GetSurveyMarkerNameForEvent(evt);
+
                 switch (evt.EventDataType)
                 {
                     case SurveyDataType.StereoSyncPoint:  // No EventData for this type 
 
-                        sb.Append($"Sync media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
-                        sb.Append($"Left media position: {TimePositionHelper.Format(evt.TimeSpanLeftFrame, displayToDecimalPlaces)}\r\n");
-                        sb.Append($"Right media position: {TimePositionHelper.Format(evt.TimeSpanRightFrame, displayToDecimalPlaces)}\r\n");
+                        sb.AppendLine($"Sync media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}");
+                        sb.AppendLine($"Left media position: {TimePositionHelper.Format(evt.TimeSpanLeftFrame, displayToDecimalPlaces)}");
+                        sb.AppendLine($"Right media position: {TimePositionHelper.Format(evt.TimeSpanRightFrame, displayToDecimalPlaces)}");
                         break;
 
                     case SurveyDataType.SurveyMeasurementPoints:
@@ -175,40 +183,42 @@ namespace Surveyor.User_Controls
                         SurveyRulesCalc? surveyRulesCalc = null;
                         if (evt.EventData is SurveyMeasurement surveyMeasurement)
                         {
-                            sb.Append($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
+                            if (surveyMarkerName is not null)
+                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Survey #{surveyMarkerName}\r\n");
+                            else
+                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
 
                             // Measurement
-                            sb.Append($"Species: {surveyMeasurement.SpeciesInfo.Species}\r\n");
+                            sb.AppendLine($"Species: {surveyMeasurement.SpeciesInfo.Species}\r\n");
                             if (surveyMeasurement.Measurment is not null)
-                                sb.Append($"Measurement: {Math.Round((double)surveyMeasurement.Measurment * 1000, 0)}mm\r\n");
+                                sb.AppendLine($"Measurement: {Math.Round((double)surveyMeasurement.Measurment * 1000, 0)}mm");
                             else
-                                sb.Append($"Measurement: missing\r\n");
+                                sb.AppendLine($"Measurement: missing");
 
                             // Survey Rules
                             string surveyRulesText = !string.IsNullOrWhiteSpace(surveyMeasurement.SurveyRulesCalc.SurveyRulesText) ? surveyMeasurement.SurveyRulesCalc.SurveyRulesText : "No Survey Rules";
-                            sb.Append($"Survey Rules: {surveyRulesText}\r\n");
-                            sb.Append($"\r\n");
+                            sb.AppendLine($"Survey Rules: {surveyRulesText}\r\n");
 
                             // 2D Points
-                            sb.Append($"2D Points:\r\n");
-                            sb.Append($"Set A\r\n");
-                            sb.Append($"Left Camera: ({Math.Round(surveyMeasurement.LeftXA,1)}, {Math.Round(surveyMeasurement.LeftYA,1)})\r\n");
-                            sb.Append($"Right Camera: ({Math.Round(surveyMeasurement.RightXA, 1)}, {Math.Round(surveyMeasurement.RightYA, 1)})\r\n");
-                            sb.Append($"Set B\r\n");
-                            sb.Append($"Left Camera: ({Math.Round(surveyMeasurement.LeftXB, 1)}, {Math.Round(surveyMeasurement.LeftYB, 1)})\r\n");
-                            sb.Append($"Right Camera: ({Math.Round(surveyMeasurement.RightXB, 1)}, {Math.Round(surveyMeasurement.RightYB, 1)})\r\n");
-                            sb.Append($"\r\n");
+                            sb.AppendLine($"2D Points:");
+                            sb.AppendLine($"Set A");
+                            sb.AppendLine($"    Left Camera: ({Math.Round(surveyMeasurement.LeftXA,1)}, {Math.Round(surveyMeasurement.LeftYA,1)})");
+                            sb.AppendLine($"    Right Camera: ({Math.Round(surveyMeasurement.RightXA, 1)}, {Math.Round(surveyMeasurement.RightYA, 1)})");
+                            sb.AppendLine($"Set B");
+                            sb.AppendLine($"    Left Camera: ({Math.Round(surveyMeasurement.LeftXB, 1)}, {Math.Round(surveyMeasurement.LeftYB, 1)})");
+                            sb.AppendLine($"    Right Camera: ({Math.Round(surveyMeasurement.RightXB, 1)}, {Math.Round(surveyMeasurement.RightYB, 1)})");
+                            sb.AppendLine($"");
                             surveyRulesCalc = surveyMeasurement.SurveyRulesCalc;
                         }
                         else if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
                         {
-                            sb.Append($"Species: {surveyStereoPoint.SpeciesInfo.Species}\r\n");
-                            sb.Append($"Survey Rules: {surveyStereoPoint.SurveyRulesCalc.SurveyRulesText}\r\n");
-                            sb.Append($"\r\n");
-                            sb.Append($"2D Points:\r\n");
-                            sb.Append($"Left Camera: ({Math.Round(surveyStereoPoint.LeftX, 1)}, {Math.Round(surveyStereoPoint.LeftY, 1)})\r\n");
-                            sb.Append($"Right Camera: ({Math.Round(surveyStereoPoint.RightX, 1)}, {Math.Round(surveyStereoPoint.RightY, 1)})\r\n");
-                            sb.Append($"\r\n");
+                            sb.AppendLine($"Species: {surveyStereoPoint.SpeciesInfo.Species}\r\n");
+                            sb.AppendLine($"Survey Rules: {surveyStereoPoint.SurveyRulesCalc.SurveyRulesText}");
+                            sb.AppendLine($"");
+                            sb.AppendLine($"2D Points:");
+                            sb.AppendLine($"    Left Camera: ({Math.Round(surveyStereoPoint.LeftX, 1)}, {Math.Round(surveyStereoPoint.LeftY, 1)})");
+                            sb.AppendLine($"    Right Camera: ({Math.Round(surveyStereoPoint.RightX, 1)}, {Math.Round(surveyStereoPoint.RightY, 1)})");
+                            sb.AppendLine($"");
                             surveyRulesCalc = surveyStereoPoint.SurveyRulesCalc;
                         }
                         
@@ -216,39 +226,39 @@ namespace Surveyor.User_Controls
                         {
                             if (surveyRulesCalc.RMS is not null)
                             {
-                                sb.Append($"RMS Distance Error: {Math.Round((double)surveyRulesCalc.RMS * 1000, 0)}mm\r\n");
-                                sb.Append($"When a point is selected in the left camera and the corresponding point selected in the right camaera, the 3D point is computed by intersecting the resulting rays in 3D space.\r\n");
-                                sb.Append($"RMS Distance is the distance of the shortest line, between the intersecting rays. In practice, the intersection is unlikely to ever be perfect (RMS = 0mm). \r\n");
-                                sb.Append($"\r\n");
+                                sb.AppendLine($"RMS Distance Error: {Math.Round((double)surveyRulesCalc.RMS * 1000, 0)}mm");
+                                sb.AppendLine($"When a point is selected in the left camera and the corresponding point selected in the right camaera, the 3D point is computed by intersecting the resulting rays in 3D space.");
+                                sb.AppendLine($"RMS Distance is the distance of the shortest line, between the intersecting rays. In practice, the intersection is unlikely to ever be perfect (RMS = 0mm).");
+                                sb.AppendLine($"");
                             }
                             if (surveyRulesCalc.Range is not null)
                             {
-                                sb.Append($"Range: {Math.Round((double)surveyRulesCalc.Range, 2)}m\r\n");
+                                sb.AppendLine($"Range: {Math.Round((double)surveyRulesCalc.Range, 2)}m");
                                 if (evt.EventData is SurveyMeasurement)
-                                    sb.Append($"This is the calculated distance from centre of the camera system to the centre of the measurement points.\r\n");
+                                    sb.AppendLine($"This is the calculated distance from centre of the camera system to the centre of the measurement points.");
                                 else
-                                    sb.Append($"This is the calculated distance from centre of the camera system to the 3D point.\r\n");
-                                sb.Append($"\r\n");
+                                    sb.AppendLine($"This is the calculated distance from centre of the camera system to the 3D point.");
+                                sb.AppendLine($"");
                             }
                             if (surveyRulesCalc.XOffset is not null)
                             {
                                 sb.Append($"X Offset: {Math.Round((double)surveyRulesCalc.XOffset, 2)}m");
                                 if (surveyRulesCalc.XOffset < 0)
-                                    sb.Append($" (to the left of the camera system)\r\n");
+                                    sb.AppendLine($" (to the left of the camera system)");
                                 if (surveyRulesCalc.XOffset > 0)
-                                    sb.Append($" (to the right of the camera system)\r\n");
+                                    sb.AppendLine($" (to the right of the camera system)");
                                 else
-                                    sb.Append($"\r\n");
+                                    sb.AppendLine($"");
                             }
                             if (surveyRulesCalc.YOffset is not null)
                             {
                                 sb.Append($"Y Offset: {Math.Round((double)surveyRulesCalc.YOffset, 2)}m");
                                 if (surveyRulesCalc.YOffset < 0)
-                                    sb.Append($" (below the camera system)\r\n");
+                                    sb.AppendLine($" (below the camera system)");
                                 if (surveyRulesCalc.YOffset > 0)
-                                    sb.Append($" (above the camera system)\r\n");
+                                    sb.AppendLine($" (above the camera system)");
                                 else
-                                    sb.Append($"\r\n");
+                                    sb.AppendLine($"");
                             }
                         }
                         break;
@@ -256,7 +266,10 @@ namespace Surveyor.User_Controls
                     case SurveyDataType.SurveyPoint:
                         if (evt.EventData is SurveyPoint surveyPoint)
                         {
-                            sb.Append($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
+                            if (surveyMarkerName is not null)
+                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Survey #{surveyMarkerName}\r\n");
+                            else
+                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
 
                             sb.Append($"Species: {surveyPoint.SpeciesInfo.Species}\r\n");
                             sb.Append($"\r\n");
@@ -266,7 +279,20 @@ namespace Surveyor.User_Controls
                             sb.Append($"\r\n");
                         }
                         break;
+
+                    case SurveyDataType.SurveyStart:
+                    case SurveyDataType.SurveyEnd:
+                        if (evt.EventData is SurveyMarker surveyMarker)
+                        {
+                            if (surveyMarker.MarkerName is not null)
+                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Survey #{surveyMarker.MarkerName}\r\n");
+                            else
+                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
+                        }
+                        break;
                 }
+
+                sb.Append($"\r\nEvent Created: {evt.DateTimeCreate:dd MMM yyyy HH:mm:ss}");
             }
 
             // Set the content of the TextBlock inside the dialog
@@ -328,21 +354,20 @@ namespace Surveyor.User_Controls
             
 
             //??? Support full display of all values in all event types
-            //??? Display created date as dd MMM yyyy
             //??? Add a 'Copy' button using the standard copy gypth and format as tab delimited
             StringBuilder sb = new();
             if (newestEndSurveyMarker is not null)
-                sb.Append($"A new survey start/end segment {newestEndSurveyMarker.MarkerName} has been defined\r\n");
+                sb.Append($"A new survey start/end: survey #{newestEndSurveyMarker.MarkerName} has been defined\r\n");
             else
                 sb.Append($"A new survey start/end segment (Not named) has been defined:\r\n");
 
             if (newestEventStartMarker is not null)
-                sb.Append($"Start: {newestEventStartMarker.TimeSpanTimelineController.ToString(@"hh\:mm\:ss\.fff")}\r\n");
+                sb.Append($"Start: {TimePositionHelper.Format(newestEventStartMarker.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
             else
                 sb.Append($"Start: Missing\r\n");
 
             if (newestEventEndMarker is not null)
-                sb.Append($"End: {newestEventEndMarker.TimeSpanTimelineController.ToString(@"hh\:mm\:ss\.fff")}\r\n");
+                sb.Append($"End: {TimePositionHelper.Format(newestEventEndMarker.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
             else
                 sb.Append($"End: Missing\r\n");
 
@@ -361,12 +386,20 @@ namespace Surveyor.User_Controls
                 for (int i = 0; i < startEndEvents.Count; i += 2)
                 {
                     eventStartMarker = startEndEvents[i];
-                    eventEndMarker = startEndEvents[i + 1];
+                    if (i + 1 < startEndEvents.Count)
+                    {
+                        eventEndMarker = startEndEvents[i + 1];
+                    }
+                    else
+                    {
+                        // Odd number of start/end survey markers events, so no end marker
+                        eventEndMarker = null;
+                    }
 
                     if (eventStartMarker is not null)
                     {
                         startSurveyMarker = (SurveyMarker)eventStartMarker.EventData!;
-                        sb.Append($"{startSurveyMarker.MarkerName}: {eventStartMarker.TimeSpanTimelineController.ToString(@"hh\:mm\:ss\.fff")} - ");
+                        sb.Append($"{TimePositionHelper.Format(eventStartMarker.TimeSpanTimelineController, displayToDecimalPlaces)} - ");
                     }
                     else
                         sb.Append($"Start missing - ");
@@ -374,7 +407,7 @@ namespace Surveyor.User_Controls
                     if (eventEndMarker is not null)
                     {
                         endSurveyMarker = (SurveyMarker)eventEndMarker.EventData!;
-                        sb.Append($"{eventEndMarker.TimeSpanTimelineController.ToString(@"hh\:mm\:ss\.fff")}");
+                        sb.Append($"{TimePositionHelper.Format(eventEndMarker.TimeSpanTimelineController, displayToDecimalPlaces)} Survey #{endSurveyMarker.MarkerName} ");
                     }
                     else
                         sb.Append($"End missing");
@@ -514,6 +547,81 @@ namespace Surveyor.User_Controls
             GoToFrameMenuItem_Click(null, (ItemClickEventArgs?)null);
         }
 
+
+        /// <summary>
+        /// Event raised when the theme is changed in Windows
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void OnActualThemeChanged(FrameworkElement sender, object args)
+        {
+            // Assuming your ItemsSource is bound to an ObservableCollection
+            // This forces the list to "repaint" itself
+            var existing = ListViewEvent.ItemsSource;
+            ListViewEvent.ItemsSource = null;
+            ListViewEvent.ItemsSource = existing;
+        }
+
+
+        /// <summary>
+        /// For the passed targetEvent find the closest SurveyStart and SurveyEnd events then therefore return the SurveyMarker name
+        /// </summary>
+        /// <param name="targetEvent"></param>
+        /// <returns></returns>
+
+        private string? GetSurveyMarkerNameForEvent(Event targetEvent)
+        {
+            SurveyMarker? startMarker = null;
+            SurveyMarker? endMarker = null;
+
+            if (targetEvent == null || events == null || events.Count == 0)
+                return null;
+
+            // Find the index of the target event
+            int index = events.IndexOf(targetEvent);
+            if (index == -1)
+                return null;
+
+            // Search backwards for the closest SurveyStart            
+            for (int i = index - 1; i >= 0; i--)
+            {
+                // If the first marker we see going backwards is an end marker then we are not within a survey
+                if (events[i].EventDataType == SurveyDataType.SurveyEnd)
+                    break;
+
+                if (events[i].EventDataType == SurveyDataType.SurveyStart &&
+                    events[i].EventData is SurveyMarker marker)
+                {
+                    startMarker = marker;
+                    break;
+                }
+            }
+
+            // Search forwards for the closest SurveyEnd            
+            for (int i = index + 1; i < events.Count; i++)
+            {
+                // If the first marker we see going forwards is a start marker then we are not within a survey
+                if (events[i].EventDataType == SurveyDataType.SurveyStart)
+                    break;
+
+                if (events[i].EventDataType == SurveyDataType.SurveyEnd &&
+                    events[i].EventData is SurveyMarker marker)
+                {
+                    endMarker = marker;
+                    break;
+                }
+            }
+
+            // If both exist and match, return the marker name
+            if (startMarker != null && endMarker != null &&
+                startMarker.MarkerName == endMarker.MarkerName)
+            {
+                return startMarker.MarkerName;
+            }
+
+            // Not within a survey
+            return null;
+        }
     }
 
 
@@ -635,7 +743,8 @@ namespace Surveyor.User_Controls
                     case Surveyor.Events.SurveyDataType.StereoCalibrationPoints:
                     default:
                         // Return system default foreground brush
-                        return Application.Current.Resources["TextControlForeground"] as Brush;
+                        //???return Application.Current.Resources["TextControlForeground"] as Brush;
+                        return Application.Current.Resources["TextFillColorPrimaryBrush"] as Brush;
 
                     case Surveyor.Events.SurveyDataType.StereoSyncPoint:
                     case Surveyor.Events.SurveyDataType.SurveyStart:

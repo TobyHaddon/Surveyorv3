@@ -233,19 +233,23 @@ namespace Surveyor.User_Controls
 
             var dataPackage = new DataPackage();
             dataPackage.SetText(item.Message);
-            Clipboard.SetContent(dataPackage);
-
+            
             var messageDialog = new ContentDialog
             {
                 Title = "Report Line",
                 Content = display,
+                SecondaryButtonText = "Copy",
                 CloseButtonText = "OK",
+                DefaultButton = ContentDialogButton.Close,
 
                 // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
                 XamlRoot = this.Content.XamlRoot
             };
 
-            await messageDialog.ShowAsync();
+            var result = await messageDialog.ShowAsync();
+
+            if (result == ContentDialogResult.Secondary)
+                Clipboard.SetContent(dataPackage);
         }
 
         public bool IsDirty() => bDirty;

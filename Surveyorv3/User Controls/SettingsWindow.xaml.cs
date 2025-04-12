@@ -1,4 +1,4 @@
-// SettingsWindow
+﻿// SettingsWindow
 // This is a user control is used to adjust general, survey and (later) Field Trip settings
 // 
 // Version 1.0
@@ -8,6 +8,7 @@
 // Version 1.2
 // 2025-01-25 Stop the flashing on load between themes
 
+using CommunityToolkit.WinUI;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
@@ -22,6 +23,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
 using Windows.Graphics;
+using Windows.UI.ViewManagement;
 using static Surveyor.User_Controls.SettingsWindowEventData;
 
 
@@ -38,6 +40,9 @@ namespace Surveyor.User_Controls
         // Copy of MainWindow
         private readonly MainWindow? mainWindow = null;
 
+        // Reporter
+        Reporter? report = null;
+
         // Copy of the mediator 
         private readonly SurveyorMediator? mediator;
 
@@ -45,18 +50,23 @@ namespace Surveyor.User_Controls
         private readonly SettingsWindowHandler? settingsWindowHandler;
 
         private readonly ElementTheme? rootThemeOriginal = null;
+        // To detect system-wide theme changes (like Light ↔ Dark), use this API:
+        private readonly Windows.UI.ViewManagement.UISettings uiSettings = new();
 
         public string WinAppSdkRuntimeDetails => App.WinAppSdkRuntimeDetails;
 
         private readonly Survey? survey = null;
 
-        public SettingsWindow(SurveyorMediator _mediator, MainWindow _mainWindow, Survey? surveyClass)
+        public SettingsWindow(SurveyorMediator _mediator, MainWindow _mainWindow, Survey? surveyClass, Reporter? _report)
         {
             // Remember main window (needed for this method)
             mainWindow = _mainWindow;
 
             this.InitializeComponent();
             this.Closed += SettingsWindow_Closed;
+            
+            // React to theme changes
+            uiSettings.ColorValuesChanged += UiSettings_ColorValuesChanged;
 
             // Initialize mediator handler for SurveyorMediaControl
             mediator = _mediator;
@@ -64,6 +74,9 @@ namespace Surveyor.User_Controls
 
             // Remember the survey
             survey = surveyClass;
+
+            // Remember the reporter
+            report = _report;
 
             // Set the current saved theme
             SetSettingsTheme(SettingsManagerLocal.ApplicationTheme);
@@ -142,6 +155,7 @@ namespace Surveyor.User_Controls
                 rootElement.RequestedTheme = ElementTheme.Dark;
 
                 AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Dark.png");
+                SpeciesIcon.UriSource = new Uri($"ms-appx:///Assets/Fish-Dark.png");
 
                 TitleBarHelper.SetCaptionButtonColors(this, Colors.White);
 
@@ -152,6 +166,7 @@ namespace Surveyor.User_Controls
                 rootElement.RequestedTheme = ElementTheme.Light;
 
                 AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Light.png");
+                SpeciesIcon.UriSource = new Uri($"ms-appx:///Assets/Fish-Light.png");
 
                 TitleBarHelper.SetCaptionButtonColors(this, Colors.Black);
             }
@@ -165,10 +180,15 @@ namespace Surveyor.User_Controls
 
                 // Based on the background colour select a suitable application icon 
                 if (color == "Dark")
+                {
                     AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Dark.png");
-
+                    SpeciesIcon.UriSource = new Uri($"ms-appx:///Assets/Fish-Dark.png");
+                }
                 else
+                {
                     AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Light.png");
+                    SpeciesIcon.UriSource = new Uri($"ms-appx:///Assets/Fish-Light.png");
+                }
             }
 
             // If the theme has changed, announce the change to the user
@@ -177,9 +197,58 @@ namespace Surveyor.User_Controls
         }
 
 
+
         ///
         /// EVENTS
         /// 
+
+
+        /// <summary>
+        /// Toggle theauto save survey feature
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void AutoSave_Toggled(object sender, RoutedEventArgs e)
+        {
+            bool settingValue;
+
+            if (this.AutoSave.IsOn)
+            {
+                // Enable auto save
+                settingValue = true;
+
+                report?.Info("", $"Auto save threaded enabled");
+            }
+            else
+            {
+                // Disable auto save
+                settingValue = false;
+
+                report?.Info("", $"Auto save threaded disabled");
+            }
+
+            // Remember the new state
+            SettingsManagerLocal.AutoSaveEnabled = settingValue;
+        }
+
+
+        /// <summary>
+        /// Used to detect if the system theme has changed
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void UiSettings_ColorValuesChanged(Windows.UI.ViewManagement.UISettings sender, object args)
+        {
+            // Dispatch back to UI thread
+            _ = DispatcherQueue.EnqueueAsync(() =>
+            {
+                if (ThemeHelper.RootTheme == ElementTheme.Default)
+                {
+                    Debug.WriteLine("System theme changed — refreshing icons...");
+                    SetSettingsTheme(ElementTheme.Default);
+                }
+            });
+        }
 
 
         /// <summary>
@@ -204,6 +273,9 @@ namespace Surveyor.User_Controls
         {
             if (mainWindow is not null)
             {
+                // Auto Save
+                AutoSave.IsOn = SettingsManagerLocal.AutoSaveEnabled;
+
                 // Load the current theme
                 switch (theme)
                 {
@@ -218,14 +290,14 @@ namespace Surveyor.User_Controls
                         break;
                 }
 
-                // Load the current isAutoMagnify state
-                MagnifierWindowAutomatic.IsOn = SettingsManagerLocal.MagnifierWindowAutomatic;
-
                 // Load the current diags indo state
                 DiagnosticInformation.IsOn = SettingsManagerLocal.DiagnosticInformation;
 
                 // Load the teaching tip enabled state
                 TeachingTips.IsOn = SettingsManagerLocal.TeachingTipsEnabled;
+
+                // Load the Use Internet enabled state
+                UseInternet.IsOn = SettingsManagerLocal.UseInternetEnabled;
             }
         }
 
@@ -311,39 +383,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Toggle the automatic magnifier window on or off
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void MagnifierWindowAutomatic_Toggled(object sender, RoutedEventArgs e)
-        {
-            bool settingValue;
-
-            if (MagnifierWindowAutomatic.IsOn)
-            {
-                // Enable automatic magnifier window
-                settingValue = true;
-                
-            }
-            else
-            {
-                // Disable automatic magnifier window
-                settingValue = false;
-            }
-
-            // Remember the new state
-            SettingsManagerLocal.MagnifierWindowAutomatic = settingValue;
-
-            // Inform everyone of the state change
-            settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.MagnifierWindow)
-            {
-                magnifierWindowAutomatic = settingValue
-            });
-        }
-
-
-        /// <summary>
-        /// Any traching tipss that had been marked not to be shown again will be shown again
+        /// Any traching tips that had been marked not to be shown again will be shown again
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -375,6 +415,44 @@ namespace Surveyor.User_Controls
 
             // Remember the new state
             SettingsManagerLocal.TeachingTipsEnabled = settingValue;
+        }
+
+
+        /// <summary>
+        /// Toggle the allowed to use interst
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void UseInternet_Toggled(object sender, RoutedEventArgs e)
+        {
+            bool settingValue;
+
+            if (this.UseInternet.IsOn)
+            {
+                // Enable teaching tips
+                settingValue = true;
+
+            }
+            else
+            {
+                // Disable teaching tips
+                settingValue = false;
+            }
+
+            // Remember the new state
+            SettingsManagerLocal.UseInternetEnabled = settingValue;
+        }
+
+
+        /// <summary>
+        /// Because internet can be intermittent on survey sites request for downloads and uploads can be batched up
+        /// This option allows that list to be reset
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void UseInternetResetDownloadUploadList_Click(object sender, RoutedEventArgs e)
+        {
+            mainWindow?.downloadUploadManager.RemoveAll();
         }
 
 
@@ -508,6 +586,7 @@ namespace Surveyor.User_Controls
                 GoProQRScript.Text = "Failed!";
             }
         }
+
 
 
         // ***END OF SettingsWindow***

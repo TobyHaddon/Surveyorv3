@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.WinUI;
+using MathNet.Numerics.Distributions;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
@@ -67,8 +68,17 @@ namespace Surveyor
         private readonly SurveyMarkerManager surveyMarkerManager = new();
 
         private const string RECENT_SURVEYS_KEY = "RecentSurveys";
-        private readonly int maxRecentSurveysDisplayed = 4;      
+        private readonly int maxRecentSurveysDisplayed = 6;      
         private const int MAX_RECENT_SURVEYS_SAVED = 20;
+
+        // Internet connection status and management
+        internal NetworkManager networkManager;
+        private bool? isOnlineRememberedStatus = null;
+        private readonly string? networkIndicatorIndictorText = null;
+        private bool? useInternetRememberedEnabled = null;
+
+        // Internet Download/Upload manager
+        internal DownloadUploadManager downloadUploadManager;
 
         public MainWindow()
         {
@@ -164,23 +174,101 @@ namespace Surveyor
             // Update the Recent open surveys sub menu
             UpdateRecentSurveysMenu();
 
-            // Debug Diags Dump keyboard shortcut (Ctrl+Shift+D)
-            var acceleratorDiagsDump = new KeyboardAccelerator
-            {
-                Key = Windows.System.VirtualKey.D,
-                Modifiers = Windows.System.VirtualKeyModifiers.Control | Windows.System.VirtualKeyModifiers.Shift
-            };
-            acceleratorDiagsDump.Invoked += AcceleratorDiagsDump_Invoked;
-            RootGrid.KeyboardAccelerators.Add(acceleratorDiagsDump);
+            // Initialize the internet network manager
+            networkManager = new(report);
 
-            // Test Code keyboard shortcut (Ctrl+Shift+T)
-            var acceleratorTest = new KeyboardAccelerator
+            // Set the Network Connection title bar icon
+            networkIndicatorIndictorText = NetworkConnectionIndicator.Text;
+            NetworkConnectionIndicator.Text = "    ";
+            networkManager.RegisterAction((_isOnline) =>
             {
-                Key = Windows.System.VirtualKey.T,
-                Modifiers = Windows.System.VirtualKeyModifiers.Control | Windows.System.VirtualKeyModifiers.Shift
-            };
-            acceleratorTest.Invoked += AcceleratorTest_Invoked;
-            RootGrid.KeyboardAccelerators.Add(acceleratorTest);
+                if ((isOnlineRememberedStatus is null && _isOnline) ||      // If first time online state seen
+                    (_isOnline && !(bool)isOnlineRememberedStatus!) ||      // If online status has changed
+                    /*(useInternetRememberedEnabled is null && _isOnline) ||  // If online and */
+                    (useInternetRememberedEnabled is not null && _isOnline && useInternetRememberedEnabled != SettingsManagerLocal.UseInternetEnabled))  // If online and the Use Internet option has changed
+                {
+                    _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+                    {
+                        if (SettingsManagerLocal.UseInternetEnabled)
+                        {
+                            // Signal change in network to online
+                            Debug.WriteLine($"{DateTime.Now}  Application is connection to the internet and application is allowed to use the interest");
+                            NetworkConnectionIndicator.Text = networkIndicatorIndictorText;
+                            ToolTipService.SetToolTip(NetworkConnectionIndicator, "Connected to the internet");
+                        }
+                        else
+                        {
+                            // Signal change in network to online but not allowed to use
+                            Debug.WriteLine($"{DateTime.Now}  Application is connection to the internet but application is not allowed to use the internet");
+                            NetworkConnectionIndicator.Text = "\uEB5E";
+                            ToolTipService.SetToolTip(NetworkConnectionIndicator, "Connected to the internet but application not allowed to access. Go to Settings to allow access.");
+                        }
+                    });
+                }
+                else if ((isOnlineRememberedStatus is null && !_isOnline) || (!_isOnline && (bool)isOnlineRememberedStatus!))
+                {
+                    _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+                    {
+                        // Signal change in network to offline
+                        Debug.WriteLine($"{DateTime.Now}  Application is disconnection to the internet");
+
+                        // Show nothing (normally if no calibration is available)
+                        // Four spaces to make it invisible and approximately the same width
+                        // as the lock/unlock icons (do not change, not fully understood but
+                        // needed to keep the tooltip working as the glyph changes)
+                        NetworkConnectionIndicator.Text = "    ";
+                        ToolTipService.SetToolTip(NetworkConnectionIndicator, "");
+                    });
+                }
+
+                isOnlineRememberedStatus = _isOnline;                                    // Remember the current state of if the internet is available
+                useInternetRememberedEnabled = SettingsManagerLocal.UseInternetEnabled;  // Remember the current state of if we are allowed to use the internet
+                return Task.CompletedTask;
+            }, Surveyor.Priority.Normal);
+
+
+            // Initialize internet download/upload mananger
+            downloadUploadManager = new(report);
+            _ = downloadUploadManager.Load(); // fire-and-forget
+            networkManager.RegisterAction(async (_isOnline) =>
+            {
+                if (_isOnline)
+                {
+                    await downloadUploadManager.DownloadUpload();
+                }                
+
+                return;
+            }, Surveyor.Priority.Normal);
+
+
+            if (SettingsManagerLocal.DiagnosticInformation)
+            {
+
+                // Debug Diags Dump keyboard shortcut (Ctrl+Shift+D)
+                var acceleratorDiagsDump = new KeyboardAccelerator
+                {
+                    Key = Windows.System.VirtualKey.D,
+                    Modifiers = Windows.System.VirtualKeyModifiers.Control | Windows.System.VirtualKeyModifiers.Shift
+                };
+                acceleratorDiagsDump.Invoked += AcceleratorDiagsDump_Invoked;
+
+                // Attach to the root element of the Window (usually a Grid that isn't hovered)
+                RootGrid.KeyboardAccelerators.Add(acceleratorDiagsDump);
+
+
+                // Test Code keyboard shortcut (Ctrl+Shift+T)
+                var acceleratorTest = new KeyboardAccelerator
+                {
+                    Key = Windows.System.VirtualKey.T,
+                    Modifiers = Windows.System.VirtualKeyModifiers.Control | Windows.System.VirtualKeyModifiers.Shift
+                };
+                acceleratorTest.Invoked += AcceleratorTest_Invoked;
+
+                // Attach to the root element of the Window (usually a Grid that isn't hovered)
+                RootGrid.KeyboardAccelerators.Add(acceleratorTest);
+
+                report.Info("", "Diagnostic mode enabled. Ctrl+Shift+T for tests, Ctril+Shift+D to dump variables");
+            }
 
             // Report that the app has loaded
             report.Info("", $"App Loaded Ok");
@@ -748,192 +836,6 @@ namespace Surveyor
         }
 
 
-        /// <summary>
-        /// Select the media (MP4) files to use for this survey. Both the left and right MP4 files must 
-        /// be selected at the same time
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        //???private async void FileSVSMediaOpen_Click(object sender, RoutedEventArgs e)
-        //{
-        //    bool ret = true;
-
-        //    // Create the file picker object
-        //    FileOpenPicker openPicker = new()
-        //    {
-        //        ViewMode = PickerViewMode.Thumbnail,
-        //        SuggestedStartLocation = PickerLocationId.DocumentsLibrary
-        //    };
-
-        //    // Add file type filters
-        //    openPicker.FileTypeFilter.Add(".mp4");
-
-        //    // Associate the file picker with the current window
-        //    IntPtr hWnd = WindowNative.GetWindowHandle(this/*App.MainWindow*/);
-        //    InitializeWithWindow.Initialize(openPicker, hWnd);
-
-        //    // Show the picker and allow multiple file selection
-        //    IReadOnlyList<StorageFile> files = await openPicker.PickMultipleFilesAsync();
-
-        //    // Check if files were picked and handle them
-        //    if (files.Count > 0 && this.surveyClass is not null)
-        //    {
-
-        //        if (files.Count == 1)
-        //        {
-        //            // Try to auto detect which is the left and right media file
-        //            var (leftFile, rightFile) = DetectLeftAndRightMediaFile(files[0].Path, null);
-
-        //            string message = "";
-
-        //            if (leftFile is not null)
-        //                message = $"Please confirm that this is the left file:\r\n    '{Path.GetFileName(leftFile)}'\r\n\r\nPress 'Yes' to confirm or 'Swap' to indicate it is the right media file.";
-        //            else if (rightFile is not null)
-        //                message = $"Please confirm that this is the right file:\r\n    '{Path.GetFileName(rightFile)}'\r\n\r\nPress 'Yes' to confirm or 'Swap' to indicate it is the left media file.";
-
-        //            ContentDialog confirmationDialog = new()
-        //            {
-        //                Title = "Confirm if left or right media file",
-        //                Content = message,
-        //                PrimaryButtonText = "Yes",
-        //                SecondaryButtonText = "Swap",
-        //                CloseButtonText = "Cancel",
-
-        //                // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
-        //                XamlRoot = this.Content.XamlRoot
-        //            };
-
-        //            // Display the dialog
-        //            ContentDialogResult result = await confirmationDialog.ShowAsync();
-
-        //            switch (result)
-        //            {
-        //                case ContentDialogResult.Primary: // Yes
-        //                    // No action as the file names are the correct way round
-        //                    break;
-        //                case ContentDialogResult.Secondary: // Swap
-        //                    if (leftFile is not null)
-        //                        rightFile = leftFile;
-        //                    else if (rightFile is not null)
-        //                        leftFile = rightFile;
-        //                    break;
-        //                case ContentDialogResult.None: // Cancel
-        //                    ret = false;
-        //                    break;
-        //            }
-        //            if (ret)
-        //            {
-        //                if (leftFile is not null)
-        //                {
-        //                    surveyClass.AddMediaFile(leftFile, false/*FalseLeftTrueRight*/);
-        //                }
-        //                else if (rightFile is not null)
-        //                {
-        //                    surveyClass.AddMediaFile(rightFile, true/*FalseLeftTrueRight*/);
-        //                }
-        //            }
-        //        }
-        //        else if (files.Count == 2)
-        //        {
-        //            // Try to auto detect which is the left and right media file
-        //            var (leftFile, rightFile) = DetectLeftAndRightMediaFile(files[0].Path, files[1].Path);
-
-        //            string message = $"Please confirm that:\r\n    '{Path.GetFileName(leftFile)}'\r\n\r\nis the left media file and:\r\n    '{Path.GetFileName(rightFile)}'\r\n\r\nis the right media file. Press 'Yes' to confirm or 'Swap' to switch them off.";
-
-        //            ContentDialog confirmationDialog = new()
-        //            {
-        //                Title = "Confirm which is the left and right media files",
-        //                Content = message,
-        //                PrimaryButtonText = "Yes",
-        //                SecondaryButtonText = "Swap",
-        //                CloseButtonText = "Cancel",
-
-        //                // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
-        //                XamlRoot = this.Content.XamlRoot
-        //            };
-
-        //            // Display the dialog
-        //            ContentDialogResult result = await confirmationDialog.ShowAsync();
-
-        //            switch (result)
-        //            {
-        //                case ContentDialogResult.Primary: // Yes
-        //                    // No action as the file names are the correct way round
-        //                    break;
-        //                case ContentDialogResult.Secondary: // Swap
-        //                    (rightFile, leftFile) = (leftFile, rightFile);
-        //                    break;
-        //                case ContentDialogResult.None: // Cancel
-        //                    ret = false;
-        //                    break;
-        //            }
-
-        //            if (ret)
-        //            {
-        //                // Clear the current media file names
-        //                surveyClass.Data.Media.LeftMediaFileNames.Clear();
-        //                surveyClass.Data.Media.RightMediaFileNames.Clear();
-
-        //                if (leftFile is not null)
-        //                    surveyClass.AddMediaFile(leftFile, false/*FalseLeftTrueRight*/);
-
-        //                if (rightFile is not null)
-        //                    surveyClass.AddMediaFile(rightFile, true/*FalseLeftTrueRight*/);
-        //            }
-        //        }
-
-        //        if ((ret == true))
-        //            // Open Media Files
-        //            await OpenSVSMediaFiles();
-
-        //    }
-
-        //    SetMenuStatusBasedOnProjectState();
-        //}
-
-
-        ///// <summary>
-        ///// Try to figure out which is the left and which is the right media file
-        ///// </summary>
-        ///// <param name="file1"></param>
-        ///// <param name="file2"></param>
-        ///// <returns></returns>
-        //private (string? LeftFile, string? RightFile) DetectLeftAndRightMediaFile(string? file1, string? file2)
-        //{
-        //    // Regex to identify left and right
-        //    Regex leftRegex = new Regex("(?i)(left|l[^a-z])");
-        //    Regex rightRegex = new Regex("(?i)(right|r[^a-z])");
-
-        //    bool isFile1Left = false;
-        //    bool isFile1Right = false;
-        //    bool isFile2Left = false;
-        //    bool isFile2Right = false;
-
-        //    if (file1 is not null)
-        //    {
-        //        isFile1Left = leftRegex.IsMatch(file1);
-        //        isFile1Right = rightRegex.IsMatch(file1);
-        //    }
-        //    if (file2 is not null)
-        //    {
-        //        isFile2Left = leftRegex.IsMatch(file2);
-        //        isFile2Right = rightRegex.IsMatch(file2);
-        //    }
-
-        //    // Determine which file is left and which is right
-        //    if (isFile1Left && !isFile1Right)
-        //        return (file1, file2);
-        //    else if (isFile2Left && !isFile2Right)
-        //        return (file2, file1);
-        //    else if (isFile1Right && !isFile1Left)
-        //        return (file2, file1);
-        //    else if (isFile2Right && !isFile2Left)
-        //        return (file1, file2);
-
-        //    // Default case if unable to distinguish
-        //    return (LeftFile: file1, RightFile: file2);
-        //}
-
 
         /// <summary>
         /// Users wants to lock or unlock the media players. 
@@ -1084,12 +986,19 @@ namespace Surveyor
         /// <param name="e"></param>
         private void InsertSurveyStartStopMarker_Click(object sender, RoutedEventArgs e)
         {
-            mediaStereoController.GetFullMediaPosition(out TimeSpan positionTimelineController, out TimeSpan leftPosition, out TimeSpan rightPosition);
+            try
+            {
+                mediaStereoController.GetFullMediaPosition(out TimeSpan positionTimelineController, out TimeSpan leftPosition, out TimeSpan rightPosition);
 
-            surveyMarkerManager.AddMarker(eventsControl,
-                                          positionTimelineController,
-                                          leftPosition,
-                                          rightPosition);
+                surveyMarkerManager.AddMarker(eventsControl,
+                                              positionTimelineController,
+                                              leftPosition,
+                                              rightPosition);
+            }
+            catch(Exception ex)
+            {
+                Debug.WriteLine($"InsertSurveyStartStopMarker_Click(): Failed to insert a survey marker, {ex.Message}");
+            }
         }
 
 
@@ -1500,6 +1409,18 @@ namespace Surveyor
                 //RMediaPlayer.SetMeasurementPointControl(measurementPointControl);
             }
         }
+
+
+        /// <summary>
+        /// Export data
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileExport_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
 
 
         /// <summary>
@@ -2034,10 +1955,16 @@ namespace Surveyor
                         {
                             Orientation = Orientation.Horizontal,
                             Spacing = 10,
+                            MaxWidth = 500,
                             Children =
                             {
-                                warningIcon, // Add the exclamation icon to the dialog content
-                                new TextBlock { Text = message }
+                                warningIcon,
+                                new TextBlock
+                                {
+                                    Text = message,
+                                    TextWrapping = TextWrapping.Wrap,
+                                    MaxWidth = 400
+                                }
                             }
                         },
                         PrimaryButtonText = "OK",
@@ -2265,14 +2192,14 @@ namespace Surveyor
         /// Set the calibrated indicator in the title bar
         /// </summary>
         /// <param name="locked">true = locked, false = unlock, null is blank</param>
-        private string? calibratedIndictor = null;
+        private string? calibratedIndictorText = null;
 
         public void SetCalibratedIndicator(int? frameWidth, int? frameHeight)
         {
             string tooltip;
 
             // Remember the 'Calibrated' symbol so we can reuse it later
-            calibratedIndictor ??= CalibratedIndicator.Text;
+            calibratedIndictorText ??= CalibratedIndicator.Text;
 
             CalibrationClass? calibrationClass = surveyClass?.Data?.Calibration;
             CalibrationData? calibrationDataPreferred = calibrationClass?.GetPreferredCalibationData(frameWidth, frameHeight);
@@ -2301,7 +2228,7 @@ namespace Surveyor
 
 
                     // Show the calibration icon
-                    CalibratedIndicator.Text = calibratedIndictor;
+                    CalibratedIndicator.Text = calibratedIndictorText;
 
                     ToolTipService.SetToolTip(CalibratedIndicator, tooltip);
                 }
@@ -2311,13 +2238,13 @@ namespace Surveyor
                     {
                         tooltip = $"Failed to return Preferred Calibration Data for frame size ({frameWidth},{frameHeight})!\nAvailable calibration sets:\n" + MakeCalibrationDescriptionListTooltip(calibrationClass);
                         // Show the calibration icon
-                        CalibratedIndicator.Text = calibratedIndictor + "!";
+                        CalibratedIndicator.Text = calibratedIndictorText + "!";
                     }
                     else
                     {
                         tooltip = $"Failed to return Preferred Calibration Data!\nAvailable calibration sets:\n" + MakeCalibrationDescriptionListTooltip(calibrationClass);
                         // Show the calibration icon
-                        CalibratedIndicator.Text = calibratedIndictor;
+                        CalibratedIndicator.Text = calibratedIndictorText;
                     }
 
                     ToolTipService.SetToolTip(CalibratedIndicator, tooltip);
@@ -2831,7 +2758,7 @@ namespace Surveyor
             // This can happen if the survey and movies are loaded and the user clicks the settings a few times.
             if (settingsWindowEntryCount == 1)
             {
-                SettingsWindow settingsWindow = new(mediator, this, surveyClass);
+                SettingsWindow settingsWindow = new(mediator, this, surveyClass, report);
                     
                 // Get the HWND (window handle) for both windows
                 IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
@@ -3033,6 +2960,10 @@ namespace Surveyor
         {
             // DumpClassPropertiesHelper.DumpAllProperties(object obj, string? ignorePropertiesCsv = null, string? includePropertiesCsv = null)
         }
+
+
+        /// Called to signal a network connection change
+        /// 
 
 
         // ** End of MainWindow **

@@ -227,6 +227,7 @@ namespace Surveyor
                     tries++;
                 }
 
+                await Task.Delay(100);
                 await MediaLockMediaPlayers((TimeSpan)timeSpanOffset);
             }
             else
@@ -362,6 +363,9 @@ namespace Surveyor
                         mediaPlayerLeft.SetTimelineController(mediaTimelineController, leftOffset);
                         mediaPlayerRight.SetTimelineController(mediaTimelineController, rightOffset);
                         Debug.WriteLine($"MediaLockMediaPlayers: Lock PositionOffset: (Left:{leftPositionRounded.TotalMilliseconds / 1000.0:F3}, Right:{rightPositionRounded.TotalMilliseconds / 1000.0:F3})");
+
+                        // Let players settle
+                        await Task.Delay(100);
 
                         // Engaging MedaTimelineController will cause the media players to jump to the new start position
                         // of the MediaTimelineController. We want to lock the players but stay at the original point
@@ -1336,22 +1340,6 @@ namespace Surveyor
 #endif
 
 
-/// <summary>
-/// User requested the magnify window to be automatically displayed or not
-/// </summary>
-/// <param name="controlType"></param>
-/// <param name="_autoMagWindow"></param>
-#if !No_MagnifyAndMarkerDisplay
-        internal void UserReqAutoMagZoomOnOff(SurveyorMediaControl.eControlType controlType, bool autoMagWindow)
-        {
-            if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Primary)
-                magnifyAndMarkerDisplayLeft.AutoMagnify(autoMagWindow);
-
-            if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Secondary)
-                magnifyAndMarkerDisplayRight.AutoMagnify(autoMagWindow);
-        }
-#endif
-
         /// <summary>
         /// User requested a change to the layers of information displayed in the canvas frame
         /// </summary>
@@ -2022,14 +2010,6 @@ namespace Surveyor
                         case MediaControlEventData.eMediaControlEvent.UserReqMagZoomSelect:
                             if (data.canvasZoomFactor is not null)
                                 mediaStereoController.UserReqMagZoomSelect(data.controlType, (double)data.canvasZoomFactor);
-                            break;
-#endif
-
-                        // Auto Mag Window On/Off
-#if !No_MagnifyAndMarkerDisplay
-                        case MediaControlEventData.eMediaControlEvent.UserReqAutoMagOnOff:
-                            if (data.isAutoMagnify is not null)
-                                mediaStereoController.UserReqAutoMagZoomOnOff(data.controlType, (bool)data.isAutoMagnify);
                             break;
 #endif
 

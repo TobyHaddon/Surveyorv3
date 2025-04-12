@@ -146,25 +146,7 @@ namespace Surveyor
             }
         }
 
-        // Display Magnifier Window automatically
-        public static bool MagnifierWindowAutomatic
-        {
-            get
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                if (localSettings.Values["MagnifierWindowAutomatic"] is not bool magnifierWindowAutomatic)
-                    magnifierWindowAutomatic = false;
-
-                return magnifierWindowAutomatic;
-            }
-            set
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                localSettings.Values["MagnifierWindowAutomatic"] = value;
-            }
-        }
-
-
+       
         // User name 
         public static string? UserName
         {
@@ -253,6 +235,47 @@ namespace Surveyor
             foreach (var key in keysToRemove)
             {
                 localSettings.Values.Remove(key);
+            }
+        }
+
+        /// <summary>
+        /// Internet enable flag
+        /// </summary>
+        public static bool UseInternetEnabled
+        {
+            get
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                if (localSettings.Values["UseInternetEnabled"] is not bool useInternetEnabled)
+                    useInternetEnabled = true;
+
+                return useInternetEnabled;
+            }
+            set
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                localSettings.Values["UseInternetEnabled"] = value;
+            }
+        }
+
+
+        /// <summary>
+        /// Auto Save enabled flag
+        /// </summary>
+        public static bool AutoSaveEnabled
+        {
+            get
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                if (localSettings.Values["AutoSaveEnabled"] is not bool autoSaveEnabled)
+                    autoSaveEnabled = true;
+
+                return autoSaveEnabled;
+            }
+            set
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                localSettings.Values["AutoSaveEnabled"] = value;
             }
         }
     }

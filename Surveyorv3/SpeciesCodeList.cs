@@ -14,6 +14,7 @@ using System.Linq;
 using System.Diagnostics;
 using Microsoft.VisualBasic;
 using System.Reflection;
+using Windows.ApplicationModel.Background;
 
 namespace Surveyor
 {
@@ -42,6 +43,15 @@ namespace Surveyor
             Scientific,
             Common
         }
+
+        // Code tyoe
+        public enum CodeType
+        {
+            None,
+            Unknown,
+            Fishbase
+        }
+
 
         /// <summary>
         /// Load the species item from a line of text
@@ -92,6 +102,42 @@ namespace Surveyor
             }
 
             return ("", "");
+        }
+
+
+        /// <summary>
+        /// Splits the SpeciesItem.Code into the CodeType and the Code
+        /// e.g. Fishbase:3452 is CodeType.FishBase Code = 3452
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        public (CodeType codeType, string code) GetCodeTypeAndCode()
+        {
+            if (string.IsNullOrWhiteSpace(this.Code))
+                return (CodeType.None, string.Empty);
+
+            var parts = this.Code.Split(':', 2);
+            if (parts.Length == 2)
+            {
+                if (Enum.TryParse(parts[0], true, out CodeType parsedType))
+                    return (parsedType, parts[1]);
+                else
+                    return (CodeType.Unknown, parts[1]);
+            }
+
+            return (CodeType.None, this.Code);
+        }
+
+
+        /// <summary>
+        /// Make the combined SpeciesItem.Code
+        /// </summary>
+        /// <param name="codetype"></param>
+        /// <param name="code"></param>
+        /// <returns></returns>
+        public static string MakeCodeFromCodeTypeAndCode(CodeType codeType, string code)
+        {
+            return $"{codeType}:{code}";
         }
     }
 

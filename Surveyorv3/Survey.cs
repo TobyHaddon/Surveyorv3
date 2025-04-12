@@ -1270,12 +1270,14 @@ namespace Surveyor
 
             try
             {
-                Report?.Info("", $"Auto save threaded started");
+                if (SettingsManagerLocal.AutoSaveEnabled)
+                    Report?.Info("", $"Auto save threaded started");
+
                 while (_isAutoSaveRunning)
                 {
                     try
                     {
-                        if (IsDirty)
+                        if (SettingsManagerLocal.AutoSaveEnabled && IsDirty)
                         {
                             // Your logic to save the current work state
                             SurveySave();

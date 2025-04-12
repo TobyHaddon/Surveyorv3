@@ -2,13 +2,16 @@
     x:Class="Surveyor.User_Controls.SettingsWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls" 
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"   
+    xmlns:dg="using:CommunityToolkit.WinUI.UI.Controls"   
     xmlns:surveyor="using:Surveyor" 
     xmlns:surveyorControls="using:Surveyor.User_Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     Title="Settings">
 
+
     <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -70,7 +73,16 @@
                             <toolkit:SettingsCard.HeaderIcon>
                                 <FontIcon Glyph="&#xEB3C;" />
                             </toolkit:SettingsCard.HeaderIcon>
-                            <ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="MagnifierWindowAutomatic_Toggled" />
+                            <!--<ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="MagnifierWindowAutomatic_Toggled" />-->
+                        </toolkit:SettingsCard>
+
+                        <!-- Species -->
+                        <toolkit:SettingsCard Header="Species"
+                                          ToolTipService.ToolTip="Species lookup list data">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <BitmapIcon x:Name="SpeciesIcon" ShowAsMonochrome="False" UriSource="/Assets/fish-dark.png" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <!--<ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="MagnifierWindowAutomatic_Toggled" />-->
                         </toolkit:SettingsCard>
 
                         <!--Survey Rules-->
@@ -78,8 +90,8 @@
                             <toolkit:SettingsExpander.HeaderIcon>
                                 <FontIcon Glyph="&#xE73E;" />
                             </toolkit:SettingsExpander.HeaderIcon>
-                            
                             <ToggleSwitch x:Name="surveyRulesActive" IsOn="{x:Bind survey.Data.SurveyRules.SurveyRulesActive, Mode=TwoWay}"/>
+                            
                             <toolkit:SettingsExpander.Items>
                                 <surveyorControls:SettingsSurveyRules x:Name="SettingsSurveyRules"/>
                             </toolkit:SettingsExpander.Items>
@@ -96,6 +108,17 @@
                     </toolkit:SettingsExpander.HeaderIcon>
 
                     <toolkit:SettingsExpander.Items>
+                        <!-- Auto Save -->
+                        <toolkit:SettingsCard Header="Auto Save">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE74E;" ToolTipService.ToolTip="If enabled work is saved automatically every 20 secs."/>
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <ToggleSwitch x:Name="AutoSave" Toggled="AutoSave_Toggled" />
+                            </StackPanel>
+                        </toolkit:SettingsCard>
+
+                        <!-- Theme -->
                         <toolkit:SettingsCard Description="Select which app theme to display" Header="App theme">
                             <toolkit:SettingsCard.HeaderIcon>
                                 <FontIcon Glyph="&#xE790;" />
@@ -107,21 +130,18 @@
                             </ComboBox>
                         </toolkit:SettingsCard>
 
-                        <toolkit:SettingsCard Header="Magnifier Window Automatic"
-                                          ToolTipService.ToolTip="This automatically shows the magnifier window when you hover over either the left or right survey video. If it is switched off you need to left-click the area of the video frame when you want the magnifier window to appear.">
+                        <!-- Internet -->
+                        <toolkit:SettingsCard Header="Use Internet">
                             <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE71E;" />
+                                <FontIcon Glyph="&#xE701;" ToolTipService.ToolTip="When the internet is available the application is allowed to download images and upload data."/>
                             </toolkit:SettingsCard.HeaderIcon>
-                            <ToggleSwitch x:Name="MagnifierWindowAutomatic" Toggled="MagnifierWindowAutomatic_Toggled" />
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="UseInternetResetDownloadUploadList" Content="Reset Download/Upload List" Click="UseInternetResetDownloadUploadList_Click" Margin="0,0,10,0"/>
+                                <ToggleSwitch x:Name="UseInternet" Toggled="UseInternet_Toggled" />
+                            </StackPanel>
                         </toolkit:SettingsCard>
 
-                        <toolkit:SettingsCard Header="Diagnostic Information">
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xEBE8;" />
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <ToggleSwitch x:Name="DiagnosticInformation" Toggled="DiagnosticInformation_Toggled" />
-                        </toolkit:SettingsCard>
-
+                        <!-- Teaching Tips -->
                         <toolkit:SettingsCard Header="Teaching Tips">
                             <toolkit:SettingsCard.HeaderIcon>
                                 <FontIcon Glyph="&#xE7BE;" />
@@ -131,6 +151,33 @@
                                 <ToggleSwitch x:Name="TeachingTips" Toggled="TeachingTips_Toggled" />
                             </StackPanel>
                         </toolkit:SettingsCard>
+
+                        <!-- Diags -->
+                        <toolkit:SettingsExpander Header="Diagnostic Information">
+                            <toolkit:SettingsExpander.HeaderIcon>
+                                <FontIcon Glyph="&#xEBE8;" ToolTipService.ToolTip="Enable diagnostic information and features. Some feature need the application to be restarted, restart now."/>
+                            </toolkit:SettingsExpander.HeaderIcon>
+                            <ToggleSwitch x:Name="DiagnosticInformation" Toggled="DiagnosticInformation_Toggled" />
+                            <toolkit:SettingsExpander.Items>
+                                <dg:DataGrid ItemsSource="{x:Bind SpeciesImageCacheInstance.SpeciesStateView, Mode=OneWay}"
+                                            AutoGenerateColumns="False"
+                                            HeadersVisibility="Column"
+                                            CanUserSortColumns="True"
+                                            IsReadOnly="True"
+                                            GridLinesVisibility="Horizontal"
+                                            Height="300">
+                                    <dg:DataGrid.Columns>
+                                        <dg:DataGridTextColumn Header="Genus" Binding="{Binding Genus}" />
+                                        <dg:DataGridTextColumn Header="Species" Binding="{Binding Species}" />
+                                        <dg:DataGridTextColumn Header="Code" Binding="{Binding Code}" />
+                                        <dg:DataGridTextColumn Header="State" Binding="{Binding CurrentState}" />
+                                        <dg:DataGridTextColumn Header="Total" Binding="{Binding TotalImages}" />
+                                        <dg:DataGridTextColumn Header="Count" Binding="{Binding ImageCount}" />
+                                        <dg:DataGridTextColumn Header="Downloaded" Binding="{Binding DownloadDate}" />
+                                    </dg:DataGrid.Columns>
+                                </dg:DataGrid>
+                            </toolkit:SettingsExpander.Items>
+                        </toolkit:SettingsExpander>
 
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
@@ -211,6 +258,7 @@
                                 <HyperlinkButton Content="Math.NET Numerics MIT License" NavigateUri="https://numerics.mathdotnet.com" />
                                 <HyperlinkButton Content="Json.NET MIT License" NavigateUri="https://www.newtonsoft.com/json" />
                                 <HyperlinkButton Content="Snorkeling mask icon from Noun Project CC BY 3.0" NavigateUri="https://thenounproject.com/icon/snorkeling-mask-1541410/" />
+                                <HyperlinkButton Content="Fish icon created by Those Icons - Flaticon" NavigateUri="https://www.flaticon.com/free-icons/fish"/>
                                 <HyperlinkButton Content="Media icon by Thea Graph from Noun Project CC BY 3.0" NavigateUri="https://thenounproject.com/browse/icons/term/media/" />
                                 
                             </StackPanel>

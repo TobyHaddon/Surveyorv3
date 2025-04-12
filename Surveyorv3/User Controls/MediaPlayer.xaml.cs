@@ -425,15 +425,13 @@ namespace Surveyor.User_Controls
 
                 TimeSpan? ret = null;
                 if (IsOpen())
+                {
                     if (MediaPlayerElement.MediaPlayer is not null && MediaPlayerElement.MediaPlayer.PlaybackSession is not null)
                         ret = MediaPlayerElement.MediaPlayer.TimelineControllerPositionOffset;
-
+                }
                 return ret;
             }
-            //set
-            //{
-            //    _ = new NotImplementedException("Not implemented");
-            //}
+
         }
 
         /// <summary>
@@ -1283,7 +1281,7 @@ namespace Surveyor.User_Controls
         /// <param name="args"></param>
         private void MediaPlayer_MediaOpened(MediaPlayer sender, object args)
         {
-            Debug.WriteLine($"{CameraSide}: MediaPlayer_MediaOpened: Enter  (UIThread={DispatcherQueue.HasThreadAccess})");
+            //???Debug.WriteLine($"{CameraSide}: MediaPlayer_MediaOpened: Enter  (UIThread={DispatcherQueue.HasThreadAccess})");
 
             mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, async () =>
             {

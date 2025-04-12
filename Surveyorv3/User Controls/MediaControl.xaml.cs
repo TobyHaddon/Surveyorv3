@@ -49,12 +49,6 @@ namespace Surveyor.User_Controls
         // Speed
         private float _speed = 1.0f;
 
-        // Set to true if the Magnifier Window is automatically displayed as the pointer(mouse) moves
-        private bool isAutoMagnify = SettingsManagerLocal.MagnifierWindowAutomatic;    // Must be set to the same initial value as 'isAutoMagnify' in MagnifyAndMarkerDisplay.xaml.cs
-        //???private Microsoft.UI.Xaml.Media.SolidColorBrush? appButtonAutoMagnifyOn = null;
-        //???private Microsoft.UI.Xaml.Media.SolidColorBrush? appButtonAutoMagnifyOff = null;
-        //???private string? appButtonAutoMagnifyTooltip = null;
-
         // The scaling of the image in the ImageMag where 1 is scales to full image source size 
         private double canvasZoomFactor = 2;    // Must be set to the same initial value as 'canvasZoomFactor' in MagnifyAndMarkerDisplay.xaml.cs
 
@@ -1448,18 +1442,6 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Used to change the status of auto magnify. Used by the SettingsWindow to inform the MagnifyAndMarkerDisplay
-        /// that the user has changed the auto magnify setting
-        /// </summary>
-        /// <param name="isAutoMagnify"></param>
-        internal void SetIsAutoMagnify(bool isAutoMagnify)
-        {
-            this.isAutoMagnify = isAutoMagnify;
-        }
-
-
-
-        /// <summary>
         /// Replaces any existing keyboard shortcut on the given AppBarButton with the new one
         /// </summary>
         /// <param name="appBarButton"></param>
@@ -1742,18 +1724,6 @@ namespace Surveyor.User_Controls
                             break;
 
                     }
-                }
-            }
-            else if (message is SettingsWindowEventData)
-            {
-                SettingsWindowEventData data = (SettingsWindowEventData)message;
-
-                switch (data.settingsWindowEvent)
-                {
-                    // The user has changed the auto magnify setting
-                    case eSettingsWindowEvent.MagnifierWindow:
-                        SafeUICall(() => _mediaControl.SetIsAutoMagnify((bool)data!.magnifierWindowAutomatic!));
-                        break;
                 }
             }
         }

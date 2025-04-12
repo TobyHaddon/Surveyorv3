@@ -28,6 +28,8 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Storage.Pickers;
 using Windows.Storage;
 using Emgu.CV.CvEnum;
+using static QRCoder.PayloadGenerator;
+using static Surveyor.User_Controls.SurveyorTesting;
 
 
 
@@ -265,6 +267,18 @@ namespace Surveyor.User_Controls
         {
             this.isTestAbortRequest = true;
         }
+
+
+        /// <summary>
+        /// Download some test images from Fishbase.se
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void DownloadManagerTest_Click(object sender, RoutedEventArgs e)
+        {
+            await DownloadUploadManagerTest();
+        }
+
 
 
         ///
@@ -526,6 +540,109 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// Tests the DownloadUpload Manager
+        /// </summary>
+        /// <returns></returns>
+        private async Task<bool> DownloadUploadManagerTest()
+        {
+            bool ret = true;            
+
+            InTest(true/*inTest*/);
+
+            if (mainWindow is not null && Report is not null)
+            {
+                SetProgressBarMax(4);
+
+                int steps = 0;
+
+                string url1 = "https://www.fishbase.se/photos/PicturesSummary.php?resultPage=1&ID=3651&what=species";
+                string url2 = "https://www.fishbase.se/photos/PicturesSummary.php?resultPage=2&ID=3651&what=species";
+                string url3 = "https://www.fishbase.se/photos/PicturesSummary.php?resultPage=2&ID=3602&what=species";
+                mainWindow?.downloadUploadManager.AddDownloadRequest(TransferType.Page, url1, Priority.Normal);
+                mainWindow?.downloadUploadManager.AddDownloadRequest(TransferType.Page, url2, Priority.Normal);
+                mainWindow?.downloadUploadManager.AddDownloadRequest(TransferType.Page, url3, Priority.Normal);
+                SetProgressBarAndStatus(steps++, "Request 3 downloads");
+
+                long timeout = 20000;
+                bool allDownloaded = false;
+                TransferItem? item1 = null;
+                TransferItem? item2 = null;
+                TransferItem? item3 = null;
+
+                Stopwatch sw = Stopwatch.StartNew();
+                while (sw.ElapsedMilliseconds < timeout && !allDownloaded) // Timeout after 20 seconds
+                {
+                    item1 = mainWindow?.downloadUploadManager.Find(url1);
+                    item2 = mainWindow?.downloadUploadManager.Find(url2);
+                    item3 = mainWindow?.downloadUploadManager.Find(url3);
+
+                    // Check for passed test
+                    if (item1 is not null && item1.Status == Status.Downloaded)
+                    {
+                        TestCountIncrement(true/*isPass*/);
+                        steps++;
+                    }
+
+                    if (item2 is not null && item2.Status == Status.Downloaded)
+                    {
+                        TestCountIncrement(true/*isPass*/);
+                        steps++;
+                    }
+
+                    if (item3 is not null && item3.Status == Status.Downloaded)
+                    {
+                        TestCountIncrement(true/*isPass*/);
+                        steps++;
+                    }
+
+                    if ((item1 is not null && item1.Status == Status.Downloaded) && 
+                        (item2 is not null && item2.Status == Status.Downloaded) && 
+                        (item3 is not null && item3.Status == Status.Downloaded))
+                    {
+                        allDownloaded = true;
+                    }
+
+                    if (item1 is not null && item2 is not null && item3 is not null)
+                    {
+                        SetProgressBarAndStatus(steps, $"Timeout:({((double)sw.ElapsedMilliseconds / 1000):F1}/{timeout / 1000})secs, Item1:{item1.Status}, Item1:{item2.Status}, Item1:{item3.Status}");
+                    }
+
+                    await Task.Delay(500);
+                }
+
+                // Check for failed tests
+                if (item1 is null || (item1 is not null && item1.Status == Status.Downloaded))
+                    TestCountIncrement(false/*isPass*/);
+                if (item2 is null || (item2 is not null && item2.Status == Status.Downloaded))
+                    TestCountIncrement(false/*isPass*/);
+                if (item3 is null || (item3 is not null && item3.Status == Status.Downloaded))
+                    TestCountIncrement(false/*isPass*/);
+
+                // Clean up
+                if (item1 is not null)
+                    mainWindow?.downloadUploadManager.Remove(item1);
+                if (item2 is not null)
+                    mainWindow?.downloadUploadManager.Remove(item2);
+                if (item3 is not null)
+                    mainWindow?.downloadUploadManager.Remove(item3);
+
+            }
+            else
+            {
+                Debug.WriteLine("SimpleTest() MainWindow is null or Report is null");
+                ret = false;
+            }
+
+            InTest(false/*inTest*/);
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Test script engine
+        /// </summary>
         public enum MAction { None, Play, Pause, FrameMove, FrameJump, StepForward, StepBackward, Wait };
         public class DItem(SurveyorTesting.MAction action,
             int? frameIndex = null,
@@ -694,6 +811,8 @@ namespace Surveyor.User_Controls
 
                                 await Task.Delay(5);
                             }
+
+                            TestCountIncrement(true/*isPass*/);
                         }
 
                         // Close the survey Step n + 1

@@ -39,7 +39,9 @@
                     <toolkit:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xF196;" />
                     </toolkit:SettingsCard.HeaderIcon>
-                    <Button Content="Run" Click="SimpleEmbeddedTest_Click"/>
+                    <Button Click="SimpleEmbeddedTest_Click">
+                        <FontIcon Glyph="&#xF5B0;" Foreground="Green" FontSize="14"/>
+                    </Button>
                 </toolkit:SettingsCard>
 
                 <!--Simple Test (Provided Survey)-->
@@ -48,7 +50,9 @@
                     <toolkit:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xF196;" />
                     </toolkit:SettingsCard.HeaderIcon>
-                    <Button Content="Run..." Click="SimpleProvidedTest_Click"/>
+                    <Button Click="SimpleProvidedTest_Click">
+                        <FontIcon Glyph="&#xF5B0;" Foreground="Green" FontSize="14"/>
+                    </Button>
                 </toolkit:SettingsCard>
 
                 <!--Sync Test (Embedded Survey)-->
@@ -61,7 +65,9 @@
                         <TextBlock Text="Repeat:" VerticalAlignment="Center"/>
                         <TextBox x:Name="SyncEmbeddedTestRepeat" Text="100" VerticalAlignment="Center" Width="Auto" MinWidth="40" TextAlignment="Right" Margin="5,0,0,0"/>
                         <TextBlock Text="times" VerticalAlignment="Center" Margin="5,0,0,0"/>
-                        <Button Content="Run" Click="SyncEmbeddedTest_Click" Margin="10,0,0,0"/>
+                        <Button Click="SyncEmbeddedTest_Click" Margin="10,0,0,0">
+                            <FontIcon Glyph="&#xF5B0;" Foreground="Green" FontSize="14"/>
+                        </Button>
                     </StackPanel>
                 </toolkit:SettingsCard>
 
@@ -75,7 +81,9 @@
                         <TextBlock Text="Repeat:" VerticalAlignment="Center"/>
                         <TextBox x:Name="LongRun1EmbeddedTestRepeat" Text="100" VerticalAlignment="Center" Width="Auto" MinWidth="40" TextAlignment="Right" Margin="5,0,0,0"/>
                         <TextBlock Text="times" VerticalAlignment="Center" Margin="5,0,0,0"/>
-                        <Button Content="Run" Click="LongRun1EmbeddedTest_Click" Margin="10,0,0,0"/>
+                        <Button Click="LongRun1EmbeddedTest_Click" Margin="10,0,0,0">
+                            <FontIcon Glyph="&#xF5B0;" Foreground="Green" FontSize="14"/>
+                        </Button>
                     </StackPanel>
                 </toolkit:SettingsCard>
 
@@ -89,9 +97,23 @@
                         <TextBlock Text="Repeat:" VerticalAlignment="Center"/>
                         <TextBox x:Name="LongRun1ProvidedTestRepeat" Text="100" VerticalAlignment="Center" Width="Auto" MinWidth="40" TextAlignment="Right" Margin="5,0,0,0"/>
                         <TextBlock Text="times" VerticalAlignment="Center" Margin="5,0,0,0"/>
-                        <Button Content="Run..." Click="LongRun1ProvidedTest_Click" Margin="10,0,0,0"/>
+                        <Button Click="LongRun1ProvidedTest_Click" Margin="10,0,0,0">
+                            <FontIcon Glyph="&#xF5B0;" Foreground="Green" FontSize="14"/>
+                        </Button>
                     </StackPanel>
                 </toolkit:SettingsCard>
+
+                <!--DownloadManager Test-->
+                <toolkit:SettingsCard x:Name="DownloadManagerTest" Header="Download data test"
+                                          ToolTipService.ToolTip="Downloads Fishbase.se images.">
+                    <toolkit:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE896;" />
+                    </toolkit:SettingsCard.HeaderIcon>
+                    <Button Click="DownloadManagerTest_Click">
+                        <FontIcon Glyph="&#xF5B0;" Foreground="Green" FontSize="14"/>
+                    </Button>
+                </toolkit:SettingsCard>
+
 
             </StackPanel>
         </ScrollViewer>
@@ -104,16 +126,16 @@
                 <!-- Fixed-size Button -->
             </Grid.ColumnDefinitions>
 
-            <ProgressBar x:Name="TestingProgressBar"
-                 Grid.Column="0"
+            <ProgressBar x:Name="TestingProgressBar" Grid.Column="0"
                  VerticalAlignment="Center"
+                 Visibility="Collapsed"
                  Margin="0,0,8,0" />
 
-            <Button x:Name="TestAbort"
-            Grid.Column="1"
-            VerticalAlignment="Center"
-            ToolTipService.ToolTip="Stop Test"
-            Click="TestAbort_Click">
+            <Button x:Name="TestAbort" Grid.Column="1"            
+                VerticalAlignment="Center"
+                Visibility="Collapsed"
+                ToolTipService.ToolTip="Stop Test"
+                Click="TestAbort_Click">
                 <FontIcon Glyph="&#xE73B;" Foreground="Red" FontSize="14"/>
             </Button>
         </Grid>

@@ -116,9 +116,6 @@ namespace Surveyor.User_Controls
         // Indicates if the pointer (mouse) is on this user control of not
         private bool isPointerOnUs = false;
 
-        // Set to true if the Magnifier Window is display as the pointer(mouse) moves
-        private bool isAutoMagnify = SettingsManagerLocal.MagnifierWindowAutomatic;    // Must be set to the same initial value as 'isAutoMagnify' in MediaControl.xaml.cs
-
         // Set to true if the Magnifier Window is locked (i.e. the user has clicked the mouse and the Mag Window
         // no longer follows the pointer (mouse))
         private bool isMagLocked = false;
@@ -359,21 +356,6 @@ namespace Surveyor.User_Controls
         }
 
 
-        /// <summary>
-        /// Set the auto magnify mode. If true the Mag Window automatically is display as the pointer(mouse)
-        /// passes over the Image frame
-        /// </summary>
-        /// <param name="enable"></param>
-        public void AutoMagnify(bool enable)
-        {
-            isAutoMagnify = enable;
-
-            if (!isAutoMagnify)
-                MagHide();
-        }
-
-
-
 
         /// <summary>
         /// Set the zoom factor of the Mag window where 1 is the full resolution of the image
@@ -508,22 +490,8 @@ namespace Surveyor.User_Controls
                 // Check we are not in Mag Window lock mode still
                 if (!isMagLocked)
                 {
-                    // If we are allowed to auto magnify the screen and it isn't that the
-                    // image isn't already being display at it's maximum resolution then display 
-                    // the Magnify Window at the current pointer (mouse) location
-                    if (isAutoMagnify && !isImageAtFullResolution)
-                    {
-                        // Get the pointer point relative to the sender (Image control)
-                        PointerPoint pointerPoint = e.GetCurrentPoint(CanvasFrame);
-
-                        // Create a mag window at the current pointer (mouse) location
-                        MagWindow(pointerPoint.Position);
-                    }
-                    else
-                    {
-                        // If auto magnify isn't on then ensure the Mag Window in empty
-                        MagHide();
-                    }
+                    // If auto magnify isn't on then ensure the Mag Window in empty
+                    MagHide();
                 }
 
                 // Remove any existing Event line highlights
@@ -1348,6 +1316,8 @@ namespace Surveyor.User_Controls
             pointTargetB = null;
             ResetTargetIconOnCanvas(TargetAMag);
             ResetTargetIconOnCanvas(TargetBMag);
+            ResetTargetOnCanvasFrame(TargetA);
+            ResetTargetOnCanvasFrame(TargetB);
 
             // Cancel any selected targets
             SetSelectedTarget(null);
@@ -1438,16 +1408,6 @@ namespace Surveyor.User_Controls
                 return false;
         }
 
-
-        /// <summary>
-        /// Used to change the status of auto magnify. Used by the SettingsWindow to inform the MagnifyAndMarkerDisplay
-        /// that the user has changed the auto magnify setting
-        /// </summary>
-        /// <param name="isAutoMagnify"></param>
-        internal void _SetIsAutoMagnify(bool isAutoMagnify)
-        {
-            this.isAutoMagnify = isAutoMagnify;
-        }
 
 
         /// <summary>
@@ -2856,11 +2816,6 @@ namespace Surveyor.User_Controls
 
                 switch (data.settingsWindowEvent)
                 {
-                // The user has changed the auto magnify setting
-                case eSettingsWindowEvent.MagnifierWindow:
-                    SafeUICall(() => _magnifyAndMarkerControl._SetIsAutoMagnify((bool)data!.magnifierWindowAutomatic!));
-                    break;
-
                 // The user has changed the Diagnostic Information settings
                 case eSettingsWindowEvent.DiagnosticInformation:
                     if (data.diagnosticInformation is not null)

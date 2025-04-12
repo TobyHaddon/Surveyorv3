@@ -68,9 +68,10 @@ namespace Surveyor
             _listeners.Add((TListener)listener);
 
             if (diagnosticInformation)
+            {
                 report?.Info("", $"+Mediator listeners registered {listener.GetType()}, total={_listeners.Count}");
-
-            Debug.WriteLine($"+Mediator listeners registered {listener.GetType()}, total={_listeners.Count}");
+                Debug.WriteLine($"+Mediator listeners registered {listener.GetType()}, total={_listeners.Count}");
+            }
         }
 
 
@@ -84,9 +85,10 @@ namespace Surveyor
             _listeners.RemoveAll(sr => sr.Equals(listener));
 
             if (diagnosticInformation)
+            {
                 report?.Info("", $"-Mediator listeners unregistered {listener.GetType()}, total={_listeners.Count}");
-
-            Debug.WriteLine($"-Mediator listeners unregistered {listener.GetType()}, total={_listeners.Count}");
+                Debug.WriteLine($"-Mediator listeners unregistered {listener.GetType()}, total={_listeners.Count}");
+            }
         }
 
 
