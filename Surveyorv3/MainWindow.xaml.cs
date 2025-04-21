@@ -65,7 +65,7 @@ namespace Surveyor
         private readonly EventsControl eventsControl = new();
         private readonly Reporter report = new();
 
-        private readonly SurveyMarkerManager surveyMarkerManager = new();
+        private readonly TransectMarkerManager transectMarkerManager = new();
 
         private const string RECENT_SURVEYS_KEY = "RecentSurveys";
         private readonly int maxRecentSurveysDisplayed = 6;      
@@ -78,7 +78,7 @@ namespace Surveyor
         private bool? useInternetRememberedEnabled = null;
 
         // Internet Download/Upload manager
-        internal DownloadUploadManager downloadUploadManager;
+        internal InternetQueue internetQueue;
 
         public MainWindow()
         {
@@ -150,7 +150,7 @@ namespace Surveyor
                         if (SettingsManagerLocal.UseInternetEnabled)
                         {
                             // Signal change in network to online
-                            Debug.WriteLine($"{DateTime.Now}  Application is connection to the internet and application is allowed to use the interest");
+                            Debug.WriteLine($"{DateTime.Now}  Application is connection to the internet and application is allowed to use the internet");
                             NetworkConnectionIndicator.Text = networkIndicatorIndictorText;
                             ToolTipService.SetToolTip(NetworkConnectionIndicator, "Connected to the internet");
                         }
@@ -186,13 +186,13 @@ namespace Surveyor
 
 
             // Initialize internet download/upload mananger
-            downloadUploadManager = new(report);
-            _ = downloadUploadManager.Load(); // fire-and-forget
+            internetQueue = new(report);
+            _ = internetQueue.Load(); // fire-and-forget
             networkManager.RegisterAction(async (_isOnline) =>
             {
                 if (_isOnline)
                 {
-                    await downloadUploadManager.DownloadUpload();
+                    await internetQueue.DownloadUpload();
                 }
 
                 return;
@@ -272,7 +272,7 @@ namespace Surveyor
             }
 
             // Report that the app has loaded
-            report.Info("", $"App Loaded Ok");
+            report.Info("", $"App Loaded Ok (Local Path:{ApplicationData.Current.LocalFolder.Path})");
 
         }
 
@@ -546,32 +546,34 @@ namespace Surveyor
         /// <returns></returns>
         private async void AppWindow_Closing(object sender, AppWindowClosingEventArgs e)
         {
+            Debug.WriteLine("AppWindow_Closing Entered");
+
             // Cancel the close in case we don't want it
             e.Cancel = true;
+
 
             // Check if there is an unsaved survey
             if (await CheckForOpenSurveyAndClose() == true)
             {
-                report.Debug("", "Closing MediaStereoController");
-                await mediaStereoController.MediaClose();
+                Debug.WriteLine("AppWindow_Closing Closing DownloadUploadManager");
+                await internetQueue.Unload();
 
-                report.Debug("", "Closing DownloadUploadManager");
-                await downloadUploadManager.Unload();
 
-                report.Debug("", "Closing MediaStereoController");
+                Debug.WriteLine("AppWindow_Closing Closing MediaStereoController");
                 await mediaStereoController.Unload();
 
-                networkManager.Dispose();
 
-                
-
+                Debug.WriteLine("AppWindow_Closing Entering this.Close");
                 this.Close(); // This will NOT retrigger AppWindow.Closing
+                Debug.WriteLine("AppWindow_Closing Exited this.Close");
             }
             else
             {
                 // User canceled, prevent the app from closing
                 e.Cancel = true;
             }
+
+            Debug.WriteLine("AppWindow_Closing Exit");
         }
 
 
@@ -801,7 +803,7 @@ namespace Surveyor
                         // the current event measurements calculations
                         await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
                     }
-                    else if (ret == -2)
+                    else if (ret != -999/*User aborted*/)
                     {
                         // Report the missing survey file
                         // Survey needs to be saved before a frame can be saved
@@ -1002,14 +1004,14 @@ namespace Surveyor
             {
                 mediaStereoController.GetFullMediaPosition(out TimeSpan positionTimelineController, out TimeSpan leftPosition, out TimeSpan rightPosition);
 
-                surveyMarkerManager.AddMarker(eventsControl,
+                transectMarkerManager.AddMarker(eventsControl,
                                               positionTimelineController,
                                               leftPosition,
                                               rightPosition);
             }
             catch(Exception ex)
             {
-                Debug.WriteLine($"InsertSurveyStartStopMarker_Click(): Failed to insert a survey marker, {ex.Message}");
+                Debug.WriteLine($"InsertSurveyStartStopMarker_Click(): Failed to insert a survey transect marker, {ex.Message}");
             }
         }
 
@@ -1567,15 +1569,8 @@ namespace Surveyor
         /// <param name="args"></param>
         private async void AcceleratorTest_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
         {
-            try
-            {
-                await ShowSurveyorTestingsWindow();
-            }
-            catch (Exception ex)
-            {
-                // Log or handle the exception as needed
-                report.Error("", $"Error showing SurveyorTesting.RunTestingDialog: {ex.Message}");
-            }
+           
+           await ShowSurveyorTestingsWindow();
 
             args.Handled = true;
         }
@@ -1587,43 +1582,51 @@ namespace Surveyor
         private int surveyorTestingEntryCount = 0;
         private async Task ShowSurveyorTestingsWindow()
         {
-            surveyorTestingEntryCount++;
-            // Make sure we only open the window once.
-            if (surveyorTestingEntryCount == 1)
-            {
-                SurveyorTesting testingWindow = new(this, report);
-
-                // Get the HWND (window handle) for both windows
-                IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
-                IntPtr settingsWindowHandle = WindowNative.GetWindowHandle(testingWindow);
-
-                // Get the AppWindow instances for both windows
-                AppWindow mainAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(mainWindowHandle));
-                AppWindow settingsAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(settingsWindowHandle));
-
-                // Disable the main window by setting it inactive
-                SetWindowEnabled(mainWindowHandle, false);
-
-                // Ensure settings window stays on top
-                WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
-
-                // Activate settings window
-                testingWindow.Activate();
-
-                // Wait for settings window to close
-                await Task.Run(() =>
+            try
+            { 
+                surveyorTestingEntryCount++;
+                // Make sure we only open the window once.
+                if (surveyorTestingEntryCount == 1)
                 {
-                    while (settingsAppWindow != null && settingsAppWindow.IsVisible)
-                    {
-                        System.Threading.Thread.Sleep(100);
-                    }
-                });
+                    SurveyorTesting testingWindow = new(this, report);
 
-                // Re-enable the main window after closing settings
-                SetWindowEnabled(mainWindowHandle, true);
+                    // Get the HWND (window handle) for both windows
+                    IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
+                    IntPtr settingsWindowHandle = WindowNative.GetWindowHandle(testingWindow);
+
+                    // Get the AppWindow instances for both windows
+                    AppWindow mainAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(mainWindowHandle));
+                    AppWindow settingsAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(settingsWindowHandle));
+
+                    // Disable the main window by setting it inactive
+                    SetWindowEnabled(mainWindowHandle, false);
+
+                    // Ensure settings window stays on top
+                    WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
+
+                    // Activate settings window
+                    testingWindow.Activate();
+
+                    // Wait for settings window to close
+                    await Task.Run(() =>
+                    {
+                        while (settingsAppWindow != null && settingsAppWindow.IsVisible)
+                        {
+                            System.Threading.Thread.Sleep(100);
+                        }
+                    });
+
+                    // Re-enable the main window after closing settings
+                    SetWindowEnabled(mainWindowHandle, true);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log or handle the exception as needed
+                report.Error("", $"Error showing SurveyorTesting.RunTestingDialog: {ex.Message}");
             }
 
-            surveyorTestingEntryCount--;
+    surveyorTestingEntryCount--;
         }
 
 
@@ -1638,7 +1641,7 @@ namespace Surveyor
         /// USES 'Internal' to allow Unit Testing
         /// </summary>
         /// <param name="surveyFileName"></param>
-        /// <returns></returns>
+        /// <returns>-999 If user aborts</returns>
         internal async Task<int> OpenSurvey(string projectFileName)
         {
             int ret = 0;
@@ -1663,20 +1666,21 @@ namespace Surveyor
             if (ret == 0 &&
                 surveyClass.Data is not null && surveyClass.Data.Media is not null && surveyClass.Data.Media.MediaPath is not null)
             {
-#if !No_MagnifyAndMarkerDisplay
-                MagnifyAndMarkerDisplayLeft.SetEvents(surveyClass.Data.Events.EventList);
-                MagnifyAndMarkerDisplayRight.SetEvents(surveyClass.Data.Events.EventList);
-#endif
-                eventsControl.SetEvents(surveyClass.Data.Events.EventList);
-
-
                 // Check if the left media file(s) exist
-                ret = await CheckIfMediaFileExists("L", surveyClass.Data.Media.MediaPath, surveyClass.Data.Media.LeftMediaFileNames);
+                ret = await CheckIfMediaFileExists(true/*trueLeftFalseRight*/, surveyClass.Data.Media);
                 if (ret == 0)
-                    ret = await CheckIfMediaFileExists("R", surveyClass.Data.Media.MediaPath, surveyClass.Data.Media.RightMediaFileNames);
+                    ret = await CheckIfMediaFileExists(false/*trueLeftFalseRight*/, surveyClass.Data.Media);
 
                 if (ret == 0)
                 {
+                    // Setup the events
+#if !No_MagnifyAndMarkerDisplay
+                    MagnifyAndMarkerDisplayLeft.SetEvents(surveyClass.Data.Events.EventList);
+                    MagnifyAndMarkerDisplayRight.SetEvents(surveyClass.Data.Events.EventList);
+#endif
+                    eventsControl.SetEvents(surveyClass.Data.Events.EventList);
+
+
                     // Create a StereoProjection instance that allows the user to add measurement points to the media images
                     // Do this before opening the media so the calibration data is available when the media is opened and the frame size established
                     stereoProjection.SetCalibrationData(surveyClass.Data.Calibration);
@@ -1689,8 +1693,8 @@ namespace Surveyor
                         if (surveyClass.Data.Sync.IsSynchronized == true)
                             MenuLockUnlockMediaPlayers.IsChecked = true;
 
-                        // Enable the insert survey marker menu item
-                        MenuSurveyStartStopMarker.IsEnabled = true;
+                        // Enable the insert survey transect marker menu item
+                        MenuTransectStartStopMarker.IsEnabled = true;
 
                         // Remember the survey folder
                         SettingsManagerLocal.SurveyFolder = Path.GetDirectoryName(projectFileName);
@@ -1718,20 +1722,6 @@ namespace Surveyor
                             eventsStatus = $"{surveyClass.Data.Events.EventList.Count} Events";
 
                         report.Info("", $"Survey Loaded: '{surveyClass.GetSurveyTitle()}', {calibrationStatus}, {eventsStatus}");
-
-
-
-                        /////////TEST CODE//////////
-                        //if (projectClass is not null && projectClass.IsLoaded && projectClass.Data.Calibration.CalibrationDataList.Count > 0)
-                        //{
-                        //    Point pointsLRaw_A = new Point(2392.0, 2113.0);   // [2392,2113] 
-                        //    Point pointsLRaw_B = new Point(3052.0, 2100.0);   // [3052,2100]
-                        //    Point pointsRRaw_A = new Point(1962.0, 2171.0);   // [1962,2171]
-                        //    Point pointsRRaw_B = new Point(2581.0, 2206.0);   // [2581,2206]
-                        //    double distance = stereoProjection.Distance(pointsLRaw_A, pointsLRaw_B, pointsRRaw_A, pointsRRaw_B, true);    
-                        //    Report.Info("", $"Distance: {distance}");
-                        //}
-                        ////////////////////////////
                     }
                     else
                         // Failed to open media files
@@ -1940,21 +1930,39 @@ namespace Surveyor
         /// <param name="mediaPath"></param>
         /// <param name="mediaFileNames"></param>
         /// <returns></returns>
-        private async Task<int> CheckIfMediaFileExists(string channel/*L or R*/, string mediaPath, ObservableCollection<string> mediaFileNames)
+        private async Task<int> CheckIfMediaFileExists(bool trueLeftFalseRight, MediaClass mediaClass)
         {
             int ret = 0;
+            ObservableCollection<string> mediaFileNames = trueLeftFalseRight ? mediaClass.LeftMediaFileNames : mediaClass.RightMediaFileNames;
 
             for (int index = 0; index < mediaFileNames.Count; index++)
             {
-                string fileName = mediaFileNames[index];
-                string fileSpec = Path.Combine(mediaPath, fileName);
+                bool promptForMediaFile = false;
 
-                if (File.Exists(fileSpec) == false)
+                string fileName = mediaFileNames[index];
+                string fileSpec = "";
+
+                if (mediaClass.MediaPath is not null)
+                {
+                    fileSpec = Path.Combine(mediaClass.MediaPath, fileName);
+
+                    if (File.Exists(fileSpec) == false)
+                        promptForMediaFile = true;
+                }
+                else
+                    promptForMediaFile = true;
+
+                if (promptForMediaFile)
                 {
                     // Media file is missing. Report to the user and ask if they would like to try to find the file
-                    string cameraSide = channel == "L" ? "Left" : "Right";
+                    string cameraSide = trueLeftFalseRight ? "Left" : "Right";
                     string fileNumber = mediaFileNames.Count > 1 ? $"number {index + 1} " : "";
-                    string message = $"The {cameraSide.ToLower()} media file {fileNumber}'{fileSpec}' does not exist. Press 'Ok' to try to find the file. Press 'Cancel' to stop loading the survey";
+                    string message;
+
+                    if (mediaClass.MediaPath is not null)
+                        message = $"The {cameraSide.ToLower()} media file {fileNumber}'{fileSpec}' does not exist. Press 'Ok' to try to find the file. Press 'Cancel' to stop loading the survey";
+                    else
+                        message = $"The {cameraSide.ToLower()} media file {fileNumber}'{fileName}' does not exist. Press 'Ok' to try to find the file. Press 'Cancel' to stop loading the survey";
 
                     // Create a SymbolIcon with an exclamation mark
                     var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
@@ -2011,8 +2019,23 @@ namespace Surveyor
                         var file = await openPicker.PickSingleFileAsync();
                         if (file is not null)
                         {
+                            // Adjust media file name
                             string fileNameOnly = Path.GetFileName(file.Name);
                             mediaFileNames[index] = fileNameOnly;
+
+                            string extractedMediaPath = Path.GetDirectoryName(file.Path) ?? "";
+
+                            // Check if the media path needs to change
+                            if (mediaClass.MediaPath is not null)
+                            {
+                                if (mediaClass.MediaPath != extractedMediaPath)
+                                    mediaClass.MediaPath = extractedMediaPath;
+                            }
+                            else
+                            {
+                                // Media is missing so just apply new path
+                                mediaClass.MediaPath = extractedMediaPath;
+                            }
                         }
                         else
                         {
@@ -2022,7 +2045,7 @@ namespace Surveyor
                     else if (result == ContentDialogResult.Secondary)
                     {
                         // "Cancel" button clicked
-                        ret = -1;
+                        ret = -999;
                     }
                 }
             }
@@ -2076,14 +2099,14 @@ namespace Surveyor
                             SetTitle(surveyClass.Data.Info.SurveyFileName);
 
                         MenuLockUnlockMediaPlayers.IsEnabled = true;
-                        MenuSurveyStartStopMarker.IsEnabled = true;
+                        MenuTransectStartStopMarker.IsEnabled = true;
                     }
                     else
                     {
                         SetTitle("");
                         SetLockUnlockIndicator(null, null);
                         MenuLockUnlockMediaPlayers.IsEnabled = false;
-                        MenuSurveyStartStopMarker.IsEnabled = false;
+                        MenuTransectStartStopMarker.IsEnabled = false;
 
                         // Display both media controls
                         MediaControlsDisplayMode(false);
@@ -2114,7 +2137,7 @@ namespace Surveyor
                 SetLockUnlockIndicator(null, null);
 
                 MenuLockUnlockMediaPlayers.IsEnabled = false;
-                MenuSurveyStartStopMarker.IsEnabled = false;
+                MenuTransectStartStopMarker.IsEnabled = false;
             }
         }
 
@@ -2137,8 +2160,8 @@ namespace Surveyor
                 MenuLockUnlockMediaPlayers.IsEnabled = true;
                 // Settings
                 MenuSettings.IsEnabled = true;
-                // Survey Marker
-                MenuSurveyStartStopMarker.IsEnabled = true;
+                // Survey Transect Marker
+                MenuTransectStartStopMarker.IsEnabled = true;
             }
             else
             {
@@ -2153,8 +2176,8 @@ namespace Surveyor
                 MenuLockUnlockMediaPlayers.IsChecked = false;
                 // Settings
                 MenuSettings.IsEnabled = true;      // Always allow settings and setting will adjust of no survey is open
-                // Survey Marker
-                MenuSurveyStartStopMarker.IsEnabled = false;
+                // Survey Transect Marker
+                MenuTransectStartStopMarker.IsEnabled = false;
             }
         }
 
@@ -2770,36 +2793,45 @@ namespace Surveyor
             // This can happen if the survey and movies are loaded and the user clicks the settings a few times.
             if (settingsWindowEntryCount == 1)
             {
-                SettingsWindow settingsWindow = new(mediator, this, surveyClass, report);
-                    
-                // Get the HWND (window handle) for both windows
-                IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
-                IntPtr settingsWindowHandle = WindowNative.GetWindowHandle(settingsWindow);
-
-                // Get the AppWindow instances for both windows
-                AppWindow mainAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(mainWindowHandle));
-                AppWindow settingsAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(settingsWindowHandle));
-
-                // Disable the main window by setting it inactive
-                SetWindowEnabled(mainWindowHandle, false);
-
-                // Ensure settings window stays on top
-                WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
-
-                // Activate settings window
-                settingsWindow.Activate();
-
-                // Wait for settings window to close
-                await Task.Run(() =>
+                try
                 {
-                    while (settingsAppWindow != null && settingsAppWindow.IsVisible)
-                    {
-                        System.Threading.Thread.Sleep(100);
-                    }
-                });
+                    // Initialize if necessary
+                    SettingsWindow settingsWindow = new(mediator, this, surveyClass, report);
 
-                // Re-enable the main window after closing settings
-                SetWindowEnabled(mainWindowHandle, true);
+                    // Get the HWND (window handle) for both windows
+                    IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
+                    IntPtr settingsWindowHandle = WindowNative.GetWindowHandle(settingsWindow);
+
+                    // Get the AppWindow instances for both windows
+                    AppWindow mainAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(mainWindowHandle));
+                    AppWindow settingsAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(settingsWindowHandle));
+
+                    // Disable the main window by setting it inactive
+                    SetWindowEnabled(mainWindowHandle, false);
+
+                    // Ensure settings window stays on top
+                    WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
+
+                    // Activate settings window
+                    settingsWindow.Activate();
+
+                    // Wait for settings window to close
+                    await Task.Run(() =>
+                    {
+                        while (settingsAppWindow != null && settingsAppWindow.IsVisible)
+                        {
+                            System.Threading.Thread.Sleep(100);
+                        }
+                    });
+
+                    // Re-enable the main window after closing settings
+                    SetWindowEnabled(mainWindowHandle, true);
+                }
+                catch (Exception ex)
+                {
+                    // Handle any exceptions that occur during the process
+                    Debug.WriteLine($"MainWindow.ShowSettingsWindow Error showing settings window: {ex.Message}");
+                }
             }
 
             settingsWindowEntryCount--;

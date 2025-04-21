@@ -76,9 +76,9 @@ namespace Surveyor.Events
 
 
     /// <summary>
-    /// SurveyMarker class used on a SurveyStart and SurveyEnd event
+    /// TransectMarker class used on a SurveyStart and SurveyEnd event
     /// </summary>
-    public class SurveyMarker : IPointData
+    public class TransectMarker : IPointData
     {
         public string MarkerName { get; set; } = "";
     }
@@ -198,8 +198,8 @@ namespace Surveyor.Events
                 SurveyDataType.SurveyMeasurementPoints => new SurveyMeasurement(),
                 SurveyDataType.StereoCalibrationPoints => new StereoCalibrationPoints(),
                 SurveyDataType.StereoSyncPoint => new StereoCalibrationPoints(),
-                SurveyDataType.SurveyStart => new SurveyMarker(),
-                SurveyDataType.SurveyEnd => new SurveyMarker(),
+                SurveyDataType.SurveyStart => new TransectMarker(),
+                SurveyDataType.SurveyEnd => new TransectMarker(),
                 _ => throw new ArgumentOutOfRangeException()
             };
         }

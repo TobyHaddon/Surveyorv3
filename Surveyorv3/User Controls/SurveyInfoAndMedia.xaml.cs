@@ -236,6 +236,19 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Free resources
+        /// </summary>
+        public void Shutdown()
+        {
+            LeftMediaFileNames.ItemsSource = null;
+            RightMediaFileNames.ItemsSource = null;
+
+            LeftMediaFileItemList.Clear();
+            RightMediaFileItemList.Clear();
+        }
+
+
+        /// <summary>
         /// Save the values from the survey information fields and media into the surveyClass 
         /// object
         /// </summary>

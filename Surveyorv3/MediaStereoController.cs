@@ -163,12 +163,11 @@ namespace Surveyor
 
             // SpeciesSelector dialog class which contrains the Species code list
             speciesSelector = new();
-            speciesSelector.Load("species.txt");
+            speciesSelector.Load("species.txt", SettingsManagerLocal.ScientificNameOrderEnabled);
 
             // Initialize the species image cache
-            speciesImageCache = new(speciesSelector.speciesCodeList, mainWindow.downloadUploadManager, report);
-            _ = speciesImageCache.Load(); // Fire and forget / Load persistent SpeciesState from disk
-            speciesImageCache.Enable(SettingsManagerLocal.UseInternetEnabled);
+            speciesImageCache = new(speciesSelector.speciesCodeList, mainWindow.internetQueue, report);
+            _ = speciesImageCache.Load(SettingsManagerLocal.UseInternetEnabled && SettingsManagerLocal.SpeciesImageCacheEnabled); // Fire and forget / Load persistent SpeciesState from disk
 
             // Setup the Handler for the MainWindow
             mediaControllerHandler = new MediaControllerHandler(mediator, mainWindow, this);
@@ -272,37 +271,49 @@ namespace Surveyor
         {
             CheckIsUIThread();
 
-            // This is Pause the media if it is synchronized and playing
-            if (mediaSynchronized)                
-                await Pause(eCameraSide.None);
-            else
+            try
             {
-                await Pause(eCameraSide.Left);
-                await Pause(eCameraSide.Right);
+                // This is Pause the media if it is synchronized and playing
+                if (mediaSynchronized)
+                {
+                    if (mediaPlayerLeft.IsOpen() && mediaPlayerRight.IsOpen())
+                        await Pause(eCameraSide.None);
+                }
+                else
+                {
+                    if (mediaPlayerLeft.IsOpen())
+                        await Pause(eCameraSide.Left);
+                    if (mediaPlayerRight.IsOpen())
+                        await Pause(eCameraSide.Right);
+                }
+
+                // Wait to settle
+                await Task.Delay(500);
+
+
+                if (mediaPlayerLeft.IsOpen())
+                {
+                    await mediaPlayerLeft.Close();
+                    mediaControlPrimary.Clear();
+                }
+                if (mediaPlayerRight.IsOpen())
+                {
+                    await mediaPlayerRight.Close();
+                    mediaControlSecondary.Clear();
+                }
+
+                // Reset
+                mediaSynchronized = false;
+                mediaSynchronizedFrameOffset = TimeSpan.Zero;
+                mediaTimelineController = null;
+                _maxNaturalDurationForController = TimeSpan.Zero;
+                _frameRate = 0.0;
+                mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
             }
-
-            // Wait to settle
-            await Task.Delay(500);
-
-
-            if (mediaPlayerLeft.IsOpen())
+            catch (Exception ex)
             {
-                await mediaPlayerLeft.Close();
-                mediaControlPrimary.Clear();
+                Debug.WriteLine($"MediaStereoCOntroller.MediaClose: Exception: {ex.Message}");
             }
-            if (mediaPlayerRight.IsOpen())
-            {
-                await mediaPlayerRight.Close();
-                mediaControlSecondary.Clear();
-            }
-
-            // Reset
-            mediaSynchronized = false;
-            mediaSynchronizedFrameOffset = TimeSpan.Zero;
-            mediaTimelineController = null;
-            _maxNaturalDurationForController = TimeSpan.Zero;
-            _frameRate = 0.0;
-            mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
         }
 
 
@@ -980,7 +991,7 @@ namespace Surveyor
                     if (speciesInfo is not null)
                     {
                         // Assigned the species info via a user dialog box
-                        if (await speciesSelector.SpeciesEdit(mainWindow, speciesInfo) == true)
+                        if (await speciesSelector.SpeciesEdit(mainWindow, speciesInfo, speciesImageCache) == true)
                         {
                             eventsControl?.AddEvent(evt);
                         }
@@ -1634,7 +1645,7 @@ namespace Surveyor
 
                     // Assigned the species info via a user dialog box
                     SpeciesInfo specifiesInfo = new();
-                    if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo) == true)
+                    if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo, speciesImageCache) == true)
                     {
                         Event evt = new(SurveyDataType.SurveyMeasurementPoints)
                         {
@@ -1749,7 +1760,7 @@ namespace Surveyor
 
                 // Assigned the species info via a user dialog box
                 SpeciesInfo specifiesInfo = new();
-                if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo) == true)
+                if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo, speciesImageCache) == true)
                 {
                     if (eventDataType == SurveyDataType.SurveyStereoPoint && evt.EventData is not null)
                     {

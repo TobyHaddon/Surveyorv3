@@ -2,19 +2,21 @@
 // Manages the loaded and the selected species code list
 // 
 // Version 1.0
+//
+// Version 1.1 20 Apr 2025
+// Added the ability to new, update and delete species items (and write to disk)
 
 
-using System.IO;
+using MathNet.Numerics;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using static Surveyor.SpeciesItem;
-using System;
-using Windows.System.Profile;
-using System.Linq;
 using System.Diagnostics;
-using Microsoft.VisualBasic;
-using System.Reflection;
-using Windows.ApplicationModel.Background;
+using System.IO;
+using System.Linq;
+using Windows.System.Profile;
+using static Surveyor.SpeciesItem;
+using static System.Runtime.CompilerServices.RuntimeHelpers;
 
 namespace Surveyor
 {
@@ -49,7 +51,7 @@ namespace Surveyor
         {
             None,
             Unknown,
-            Fishbase
+            FishBase
         }
 
 
@@ -107,11 +109,11 @@ namespace Surveyor
 
         /// <summary>
         /// Splits the SpeciesItem.Code into the CodeType and the Code
-        /// e.g. Fishbase:3452 is CodeType.FishBase Code = 3452
+        /// e.g. FishBase:3452 is CodeType.FishBase Code = 3452
         /// </summary>
         /// <param name="item"></param>
         /// <returns></returns>
-        public (CodeType codeType, string code) GetCodeTypeAndCode()
+        public (CodeType codeType, string ID) ExtractCodeTypeAndID()
         {
             if (string.IsNullOrWhiteSpace(this.Code))
                 return (CodeType.None, string.Empty);
@@ -126,6 +128,28 @@ namespace Surveyor
             }
 
             return (CodeType.None, this.Code);
+        }
+
+
+        /// <summary>
+        /// Return the ID part of the code
+        /// </summary>
+        /// <returns></returns>
+        public string ExtractID()
+        {
+            ( _ , string ID) = ExtractCodeTypeAndID();
+            return ID;
+        }
+
+
+        /// <summary>
+        /// Return the ID part of the code
+        /// </summary>
+        /// <returns></returns>
+        public CodeType ExtractCodeType()
+        {
+            (CodeType codeType, string ID) = ExtractCodeTypeAndID();
+            return codeType;
         }
 
 
@@ -151,8 +175,14 @@ namespace Surveyor
 
     public class SpeciesCodeList
     {
+        // Species code list file name
+        public string SpeciesCodeListFileSpec = "";
+        private static readonly object _fileLock = new();
+
+
         // Hold the full species code list
-        public List<SpeciesItem> SpeciesItems { get; set; }
+        public ObservableCollection<SpeciesItem> SpeciesItems { get; /*set;*/ }
+
 
         // Search types
         public enum SearchType
@@ -170,14 +200,14 @@ namespace Surveyor
         DisplayType displayType = DisplayType.Scientific | DisplayType.Common;
 
         // Return the combo items for the Family, Genus, Species
-        public ObservableCollection<SpeciesItem> FamilyComboItems { get; } = new();
-        public ObservableCollection<SpeciesItem> GenusComboItems { get; } = new();
-        public ObservableCollection<SpeciesItem> SpeciesComboItems { get; } = new();
+        public ObservableCollection<SpeciesItem> FamilyComboItems { get; } = [];
+        public ObservableCollection<SpeciesItem> GenusComboItems { get; } = [];
+        public ObservableCollection<SpeciesItem> SpeciesComboItems { get; } = [];
 
 
         public SpeciesCodeList()
         {
-            SpeciesItems = new List<SpeciesItem>();
+            SpeciesItems = [];
         }
 
 
@@ -185,43 +215,64 @@ namespace Surveyor
         /// Load the species code list from a file
         /// </summary>
         /// <param name="fileName"></param>
-        public void Load(string fileName)
+        public bool Load(string fileName, bool trueScientificFalseCommonName)
         {
-            // Reset
-            SpeciesItems.Clear();
-            IsScientificAndCommonNamePresent = false;
+            bool ret = false;
 
-            // Assuming file is located in the output directory next to the executable
-            string? appDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-            string filePath = Path.Combine(appDirectory!, fileName);
-
-            try
+            lock (_fileLock)
             {
-                using var reader = new StreamReader(filePath);
+                // Reset
+                SpeciesItems.Clear();
+                IsScientificAndCommonNamePresent = false;
 
-                while (!reader.EndOfStream)
+                // Assuming file is located in the output directory next to the executable
+                string? appDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                string filePath = Path.Combine(appDirectory!, fileName);
+
+                // Remember the species code list file spec for saving
+                SpeciesCodeListFileSpec = filePath;
+
+                // Try to load all the species code list records
+                try
                 {
-                    var line = reader.ReadLine();
-                    if (string.IsNullOrWhiteSpace(line))
-                        continue;
+                    ret = true;
 
-                    SpeciesItem item = new();
+                    using var reader = new StreamReader(filePath);
 
-                    if (item.Load(line))
+                    while (!reader.EndOfStream)
                     {
-                        SpeciesItems.Add(item);
+                        var line = reader.ReadLine();
+                        if (string.IsNullOrWhiteSpace(line))
+                            continue;
 
-                        if (item.IsScientificAndCommonNamePresent)
-                            IsScientificAndCommonNamePresent = true;
+                        SpeciesItem item = new();
+
+                        if (item.Load(line))
+                        {
+                            SpeciesItems.Add(item);
+
+                            if (item.IsScientificAndCommonNamePresent)
+                                IsScientificAndCommonNamePresent = true;
+                        }
                     }
-                }
 
-                Debug.WriteLine($"SpeciesCodeList.Load: Loaded {SpeciesItems.Count} species items");
+                    // Sort the species code list
+                    if (Sort(trueScientificFalseCommonName))
+                    {
+                        // If the sort changed anything then save the new list
+                        Save();
+                    }
+
+                    Debug.WriteLine($"SpeciesCodeList.Load: Loaded {SpeciesItems.Count} species items");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"SpeciesCodeList.Load: Error loading species code list: {ex.Message}");
+                    ret = false;
+                }
             }
-            catch(Exception ex)
-            {
-                Debug.WriteLine($"SpeciesCodeList.Load: Error loading species code list: {ex.Message}");
-            }
+
+            return ret;
         }
 
 
@@ -230,6 +281,13 @@ namespace Surveyor
         /// </summary>
         public void Unload()
         {
+
+            FamilyComboItems.Clear();
+            GenusComboItems.Clear();
+            SpeciesComboItems.Clear();
+
+            SpeciesItems.Clear();
+
             return;
         }
 
@@ -441,10 +499,231 @@ namespace Surveyor
             return true;
         }
 
-        public SpeciesItem? GetSpeciesItem(string species)
+
+        /// <summary>
+        /// Using the actual species name get the SpeciesItem record
+        /// </summary>
+        /// <param name="species"></param>
+        /// <returns></returns>
+        public SpeciesItem? GetSpeciesItemBySpeciesName(string species)
         {
             return SpeciesItems.Where(item => item.Species.Equals(species, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
         }
 
+
+        /// <summary>
+        /// Using the species CodeType and ID get the SpeciesItem record
+        /// </summary>
+        /// <param name="CodeTypeAndID"></param>
+        /// <returns></returns>
+        public SpeciesItem? GetSpeciesItemByCodeTypeAndID(string code)
+        {
+            return SpeciesItems.Where(item => item.Code.Equals(code, StringComparison.OrdinalIgnoreCase)).FirstOrDefault();
+        }
+
+
+        /// <summary>
+        /// Delete the species item from the list and write adjusted list to the species text file
+        /// </summary>
+        /// <param name="speciesItem"></param>
+        /// <returns></returns>
+        public bool DeleteItem(SpeciesItem speciesItem)
+        {
+            bool ret = false;
+
+            try
+            {
+                SpeciesItems.Remove(speciesItem);
+
+                ret = Save();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"SpeciesCodeList.DeleteItem: Error deleting species item: {ex.Message}");
+                ret = false;
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Add the species item to the list, sort the list as requested and write adjusted list to the species text file
+        /// </summary>
+        /// <param name="speciesItem"></param>
+        /// <param name="trueScientificFalseCommonName"></param>
+        /// <returns></returns>
+        public bool AddItem(SpeciesItem speciesItem, bool trueScientificFalseCommonName)
+        {
+            bool ret = false;
+
+            try
+            {
+                // Add the new species code list item
+                SpeciesItems.Add(speciesItem);
+
+                // Sort the whole list as required
+                Sort(trueScientificFalseCommonName);
+
+                // Save back to disk
+                ret = Save();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"SpeciesCodeList.DeleteItem: Error deleting species item: {ex.Message}");
+                ret = false;
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Update the fields of an 
+        /// </summary>
+        /// <param name="speciesItem"></param>
+        /// <returns></returns>
+        public bool UpdateItem(SpeciesItem speciesItem, bool trueScientificFalseCommonName)
+        {
+            bool ret = false;
+
+            try
+            {
+                // Check that speciesItem is really an item from the SpeciesItems list (i.e. the reference matches an item in the list)
+                var item = SpeciesItems.Where(i => i == speciesItem).FirstOrDefault();
+
+                if (item is not null)
+                {
+                    // Sort the whole list as required
+                    Sort(trueScientificFalseCommonName);
+
+                    // The item has been updated so just save to disk
+                    return Save();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"SpeciesCodeList.UpdateItem: Error updating species item: {ex.Message}");
+                ret = false;
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Sort the species code list either by the Scientific(latin name) or Common name
+        /// </summary>
+        /// <param name="trueScientificFalseCommonName"></param>
+        /// <returns></returns>
+        public bool Sort(bool trueScientificFalseCommonName)
+        {
+            bool anyChanges = false;
+
+            // Create a new sorted list based on the flag
+            List<SpeciesItem> sorted;
+
+            if (trueScientificFalseCommonName)
+            {
+                sorted = SpeciesItems
+                    .OrderBy(item => item.FamilyScientific)
+                    .ThenBy(item => item.Genus)
+                    .ThenBy(item => item.SpeciesScientific)
+                    .ToList();
+            }
+            else
+            {
+                sorted = SpeciesItems
+                    .OrderBy(item => item.FamilyCommon)
+                    .ThenBy(item => item.Genus)
+                    .ThenBy(item => item.SpeciesCommon)
+                    .ToList();
+            }
+
+            // Check if the order has changed
+            if (!SpeciesItems.SequenceEqual(sorted))
+            {
+                SpeciesItems.Clear();
+                foreach (var item in sorted)
+                    SpeciesItems.Add(item);
+
+                anyChanges = true;
+            }
+
+            return anyChanges;
+        }
+
+
+        /// <summary>
+        /// Save the species code list to a file
+        /// </summary>
+        /// <returns></returns>
+        public bool Save()
+        {
+            lock (_fileLock)
+            {
+                // Save the species code list to a file
+                // Assuming file is located in the output directory next to the executable
+                string? appDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
+                string filePath = SpeciesCodeListFileSpec;
+                if (string.IsNullOrWhiteSpace(filePath))
+                {
+                    Debug.WriteLine($"SpeciesCodeList.Save: No file name specified");
+                    return false;
+                }
+
+                try
+                {
+                    using var writer = new StreamWriter(filePath);
+
+                    // Write the header line (this is do stay compatible with EventManager)
+                    writer.WriteLine($"family\tgenus\tspecies\tCAAB");
+                    
+                    foreach (var item in SpeciesItems)
+                    {
+                        string cleanFamily = Clean(item.Family);
+                        string cleanGenus = Clean(item.Genus);
+                        string cleanSpecies = Clean(item.Species);
+                        string cleanCode = Clean(item.Code);
+
+                        // Skip empty lines
+                        if (string.IsNullOrWhiteSpace(cleanFamily) || string.IsNullOrWhiteSpace(cleanGenus) || string.IsNullOrWhiteSpace(cleanSpecies))
+                            continue;
+
+                        writer.WriteLine($"{cleanFamily}\t{cleanGenus}\t{cleanSpecies}\t{cleanCode}");
+                    }
+                    Debug.WriteLine($"SpeciesCodeList.Save: Saved {SpeciesItems.Count} species items");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"SpeciesCodeList.Save: Error saving species code list: {ex.Message}");
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+
+
+        ///
+        /// PRIVATE
+        /// 
+
+
+        /// <summary>
+        /// Clean the input string by removing all new lines, tabs and spaces
+        /// Make the string save to use in a tab delimited CSV file
+        /// </summary>
+        /// <param name="input"></param>
+        /// <returns></returns>
+        private static string Clean(string input)
+        {
+            return input?
+                .Replace("\r", "")
+                .Replace("\n", "")
+                .Replace("\t", "")
+                .Trim() ?? string.Empty;
+        }
     }
 }

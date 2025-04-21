@@ -1,20 +1,24 @@
-﻿// DownloadUploadManager  Handle the list of requested download and upload pages and files
+﻿// InternetQueue  Handle the list of requested download and upload pages and files
 //
 // Version 1.0 11 Apr 2025
+//
+// Version 1.1 13 Apr 2025
+// Renames from DownloadUploadManager to InternetQueue
+
 
 using Surveyor.User_Controls;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Transactions;
 using Windows.Storage;
+
+
 
 namespace Surveyor
 {
@@ -22,26 +26,63 @@ namespace Surveyor
     public enum TransferType { Page, File }
     public enum Status { Required, Requested, Downloaded, Uploaded, Failed }
 
-
-    public class TransferItem
+    // Item in the internet queue
+    public class InternetQueueItem
     {
+        // Backing field for Status
+        private Status _status;
+
+        // Constructor sets CreatedDate
+        public InternetQueueItem()
+        {
+            CreatedDate = DateTime.Now;
+        }
+
+        // Download or Upload
         public Direction Direction { get; set; }
+
+        // Page or File
         public TransferType Type { get; set; }
+
+        // Url to download from/upload to
         public required string URL { get; set; }
-        public Status Status { get; set; }
+
+        // Current status of the request, with timestamp update
+        public Status Status
+        {
+            get => _status;
+            set
+            {
+                if (_status != value)
+                {
+                    _status = value;
+                    StatusDate = DateTime.Now;
+                }
+            }
+        }
+
+        // Time of the last status change (readonly outside)
+        public DateTime? StatusDate { get; private set; } = null;
+
+        // File name (only) in local storage
         public string LocalFileSpec { get; set; } = "";
+
+        // Priority of this request
         public Priority Priority { get; set; }
+
+        // Creation time, set once
+        public DateTime CreatedDate { get; }
     }
 
-    public class DownloadUploadManager
+    public class InternetQueue
     {
         private Reporter? Report { get; set; } = null;
 
-        private const int maxSessions = 4;
-        private readonly List<TransferItem> transferItems = [];
+        private const int maxSessions = 1;  // I think Fishbase only like 1 thread
+        private readonly List<InternetQueueItem> transferItems = [];
         private readonly SemaphoreSlim semaphore = new(maxSessions);
         private readonly HttpClient httpClient = new();
-        private readonly string storageFile = "DownloadUploadlist.json";
+        private readonly string storageFile = "InternetQueue.json";
         private bool isReady = false;
         private bool isProcessing = false;
         private readonly SemaphoreSlim saveLock = new(1, 1);
@@ -49,22 +90,24 @@ namespace Surveyor
         /// <summary>
         /// UI view of the download/upload list record
         /// </summary>
-        public class DownloadUploadViewItem
+        public class InternetQueueViewItem
         {
             public Direction Direction { get; set; }
             public TransferType TransferType { get; set; }
             public Status Status { get; set; }
             public Priority Priority { get; set; }
             public string LocalFileSpec { get; set; } = "";
+            public string StatusDate { get; set; } = "";
             public string URL { get; set; } = "";
+            public string CreatedDate { get; set; } = "";
         }
 
 
         // View call to bind to (updated via the RefreshView() method)
-        public ObservableCollection<DownloadUploadViewItem> DownloadUploadView { get; } = [];
+        public ObservableCollection<InternetQueueViewItem> InternetQueueView { get; } = [];
 
 
-        public DownloadUploadManager(Reporter? _report)
+        public InternetQueue(Reporter? _report)
         {
             Report = _report;
         }
@@ -81,16 +124,23 @@ namespace Surveyor
                 StorageFile file = await ApplicationData.Current.LocalFolder.GetFileAsync(storageFile);
                 string json = await FileIO.ReadTextAsync(file);
                 transferItems.Clear();
-                List<TransferItem>? transferItemList = System.Text.Json.JsonSerializer.Deserialize<List<TransferItem>>(json);
+                List<InternetQueueItem>? transferItemList = System.Text.Json.JsonSerializer.Deserialize<List<InternetQueueItem>>(json);
 
                 if (transferItemList is not null)
+                {
                     transferItems.AddRange(transferItemList);
+                    Report?.Info("", $"InternetQueue {transferItems.Count} item(s) loaded from disk");
+                }
 
                 isReady = true;
             }
             catch (FileNotFoundException)
             {
-                // No saved state yet
+                Report?.Warning("", $"InternetQueue.Load {storageFile} not found, not necessarily a problem, maybe first time the application has been ran.");
+            }
+            catch (Exception ex)
+            {
+                Report?.Error("", $"InternetQueue.Load Failed, {ex.Message}");
             }
         }
 
@@ -112,21 +162,30 @@ namespace Surveyor
             }
             catch (OperationCanceledException)
             {
-                Report?.Warning("", "DownloadUploadManager.Unload timed out waiting for processing to complete.");
+                Report?.Warning("", "InternetQueue.Unload timed out waiting for processing to complete.");
             }
 
 
             try
             {
                 // Dispose of HttpClient to free up resources
-                httpClient.Dispose();
+                if (httpClient is not null)
+                {
+                    httpClient.CancelPendingRequests();
+                    httpClient.Dispose();
+                }
 
                 // Dispose the semaphore
-                semaphore.Dispose();
+                if (semaphore is not null)
+                {
+                    semaphore.Dispose();
+                }
+
+                transferItems.Clear();
             }
             catch (Exception ex)
             {
-                Report?.Error("DownloadUploadManager", $"Error during resource cleanup: {ex.Message}");
+                Report?.Error("", $"InternetQueueItem.Unload Error during resource cleanup: {ex.Message}");
             }
 
             isReady = false;
@@ -189,7 +248,7 @@ namespace Surveyor
 
             if (!string.IsNullOrEmpty(localFileSpec))
             {
-                transferItems.Add(new TransferItem
+                transferItems.Add(new InternetQueueItem
                 {
                     Direction = Direction.Download,
                     Type = type,
@@ -218,7 +277,7 @@ namespace Surveyor
             StorageFile file = await ApplicationData.Current.LocalFolder.CreateFileAsync(localFile, CreationCollisionOption.ReplaceExisting);
             await FileIO.WriteTextAsync(file, payload);
 
-            transferItems.Add(new TransferItem
+            transferItems.Add(new InternetQueueItem
             {
                 Direction = Direction.Upload,
                 Type = type,
@@ -237,7 +296,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="item"></param>
         /// <returns></returns>
-        public async Task Remove(TransferItem item)
+        public async Task Remove(InternetQueueItem item)
         {
             transferItems.Remove(item);
             try
@@ -245,7 +304,11 @@ namespace Surveyor
                 StorageFile file = await ApplicationData.Current.LocalFolder.GetFileAsync(Path.GetFileName(item.LocalFileSpec));
                 await file.DeleteAsync();
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // File might not exist — ignore or log if needed
+                Report?.Warning("", $"InternetQueueItem.Remove Failed to delete file:{item.LocalFileSpec}, {ex.Message}");
+            }
 
             await Save();
         }
@@ -253,22 +316,29 @@ namespace Surveyor
 
         /// <summary>
         /// Removes all items from the list and tidies up
+        /// Called as RemoveAll() removes everything
+        /// Called as RemoveAll(Status.Download) will remove only the items with a status of Download
         /// </summary>
         /// <returns></returns>
-        public async Task RemoveAll()
+        public async Task RemoveAll(Status? queryStatus = null)
         {
             int itemCount = transferItems.Count;
 
             foreach (var item in transferItems.ToList())
             {
-                try
+                if (queryStatus is null || (queryStatus is not null && queryStatus == item.Status))
                 {
-                    StorageFile file = await ApplicationData.Current.LocalFolder.GetFileAsync(Path.GetFileName(item.LocalFileSpec));
-                    await file.DeleteAsync();
-                }
-                catch
-                {
-                    // File might not exist — ignore or log if needed
+                    transferItems.Remove(item);
+                    try
+                    {
+                        StorageFile file = await ApplicationData.Current.LocalFolder.GetFileAsync(Path.GetFileName(item.LocalFileSpec));
+                        await file.DeleteAsync();
+                    }
+                    catch (Exception ex) 
+                    {
+                        // File might not exist — ignore or log if needed
+                        Report?.Warning("", $"InternetQueueItem.RemoveAll Failed to delete file:{item.LocalFileSpec}, {ex.Message}");
+                    }
                 }
             }
 
@@ -284,7 +354,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="url"></param>
         /// <returns></returns>
-        public TransferItem? Find(string url)
+        public InternetQueueItem? Find(string url)
         {
             // Find an item in the transferItems list by searching on the url
             return transferItems.FirstOrDefault(item => item.URL == url);
@@ -332,7 +402,7 @@ namespace Surveyor
 
                                     StorageFile file = await ApplicationData.Current.LocalFolder.CreateFileAsync(item.LocalFileSpec, CreationCollisionOption.ReplaceExisting);
                                     await FileIO.WriteTextAsync(file, content);
-                                    //???item.LocalFileSpec = file.Path;
+
                                 }
                                 else if (item.Type == TransferType.File)
                                 {
@@ -343,7 +413,7 @@ namespace Surveyor
                                     {
                                         await stream.WriteAsync(imageBytes, 0, imageBytes.Length);
                                     }
-                                    //???item.LocalFileSpec = file.Path;
+
                                 }
 
                                 item.Status = Status.Downloaded;
@@ -363,9 +433,9 @@ namespace Surveyor
                                 Report?.Info("", $"{DateTime.Now:HH:mm:ss.ff} Uploaded file: {file.Path}");
                             }
                         }
-                        catch
+                        catch (Exception ex)
                         {
-                            // Log or handle error
+                            Report?.Warning("", $"Failed to get {item.URL}, {ex.Message}");
                         }
                         finally
                         {
@@ -387,23 +457,34 @@ namespace Surveyor
         /// <summary>
         /// Called by the SettingWindows to refresh the UI view of the download upload list
         /// </summary>
-        public void RefreshView()
+        public void RefreshView(bool reset = false)        
         {
-            DownloadUploadView.Clear();
-
-            foreach (var item in transferItems)
+            if (!reset)
             {
-                DownloadUploadView.Add(new DownloadUploadViewItem
+                InternetQueueView.Clear();
+
+                foreach (var item in transferItems)
                 {
-                    Direction = item.Direction,
-                    TransferType = item.Type,
-                    Status = item.Status,
-                    Priority = item.Priority,
-                    LocalFileSpec = item.LocalFileSpec,
-                    URL = item.URL
-                });
+                    InternetQueueView.Add(new InternetQueueViewItem
+                    {
+                        Direction = item.Direction,
+                        TransferType = item.Type,
+                        Status = item.Status,
+                        Priority = item.Priority,
+                        LocalFileSpec = item.LocalFileSpec,
+                        StatusDate = item.StatusDate?.ToString("yyyy-MM-dd HH:mm:ss") ?? "",
+                        URL = item.URL,
+                        CreatedDate = item.CreatedDate.ToString("yyyy-MM-dd hh:mm:ss")
+                    });
+                }
+            }
+            else
+            {
+                // Request to free resources
+                InternetQueueView.Clear();
             }
         }
+
 
 
         ///
@@ -416,7 +497,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="url"></param>
         /// <returns></returns>
-        private static string GetLocalFileName(string url, string extension = ".json")
+        private static string GetLocalFileName(string url, string extension = ".html")
         {
             return url.GetHashCode().ToString("X") + extension;
         }

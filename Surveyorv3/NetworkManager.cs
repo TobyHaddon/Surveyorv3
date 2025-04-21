@@ -2,9 +2,11 @@
 //
 // Version 1.0 10 Apr 2025
 
+using CommunityToolkit.WinUI.Helpers;
 using Surveyor.User_Controls;
 using System;
 using System.Collections.Concurrent;
+using System.Data.Common;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,7 +41,7 @@ namespace Surveyor
                 _registeredActions[p] = new ConcurrentBag<RegisteredAction>();
 
             _timer = new System.Timers.Timer(10_000); // 10 seconds
-            _timer.Elapsed += async (s, e) => await CheckConnectionAsync();
+            _timer.Elapsed +=  (s, e) => CheckConnection();
             _timer.AutoReset = true;
             _timer.Start();
         }
@@ -60,14 +62,25 @@ namespace Surveyor
         /// <summary>
         /// Dispose method to clean up resources.
         /// </summary>
-        public void Dispose()
+        public async void Dispose()
         {
-            if (_disposed) return;
+            await Dispose(true);
+            GC.SuppressFinalize(this);
+        }
 
-            _disposed = true;
-            _timer?.Stop();
-            _timer?.Dispose();
-            _httpClient?.Dispose();
+        protected async virtual Task Dispose(bool disposing)
+        {
+            if (disposing)
+            {
+                if (_disposed) return;
+
+                _disposed = true;
+                _timer?.Stop();
+
+                await Task.Delay(300);
+                _timer?.Dispose();
+                _httpClient?.Dispose();
+            }
         }
 
 
@@ -75,18 +88,23 @@ namespace Surveyor
         /// Check if connected to the internet by making a request to a known URL.
         /// </summary>
         /// <returns></returns>
-        public async Task<bool> IsConnectedToInternet()
+        public bool IsConnectedToInternet()
         {
+            bool ret;
+
             try
             {
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
-                using var response = await _httpClient.GetAsync("https://www.google.com/", cts.Token);
-                return response.IsSuccessStatusCode;
+                ret = NetworkHelper.Instance.ConnectionInformation.IsInternetAvailable;
+                //???using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                //???using var response = await _httpClient.GetAsync("https://www.google.com/", cts.Token);
+                //???return response.IsSuccessStatusCode;
             }
             catch
             {
                 return false;
             }
+
+            return ret;
         }
 
 
@@ -101,9 +119,9 @@ namespace Surveyor
         /// Check if connected to the internet and execute registered actions if idle.
         /// </summary>
         /// <returns></returns>
-        private async Task CheckConnectionAsync()
+        private void CheckConnection()
         {
-            bool isOnline = await IsConnectedToInternet();
+            bool isOnline = IsConnectedToInternet();
 
             foreach (Priority priority in Enum.GetValues(typeof(Priority)))
             {

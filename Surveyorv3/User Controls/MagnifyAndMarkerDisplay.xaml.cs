@@ -42,7 +42,6 @@
 // NewImageFrame receives the next frame via a mediator message
 // The canvasBitmap is written to an memory stream and portions read out and transformed for the Magnify Window
 
-using Microsoft.Graphics.Canvas;
 using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -52,22 +51,18 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Shapes;
+using Surveyor.Events;
+using Surveyor.Helper;
 using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
-using System.Threading.Tasks;
 using Windows.Foundation;               // Point class
 using Windows.Graphics.Imaging;         // BitmapTransform
-using Windows.Media;
 using Windows.Storage.Streams;
 using static Surveyor.User_Controls.SettingsWindowEventData;
-
-using Surveyor.Events;
-using Surveyor.Helper;
-using Emgu.CV.Dai;
 
 
 namespace Surveyor.User_Controls
@@ -134,8 +129,8 @@ namespace Surveyor.User_Controls
         private const uint magWidthDefaultLarge = 700;
         private const uint magHeightDefaultLarge = 350;
 
-        private uint magWidth = magWidthDefaultMedium;
-        private uint magHeight = magHeightDefaultMedium;
+        private uint magWidth = magWidthDefaultLarge;
+        private uint magHeight = magHeightDefaultLarge;
 
         // Marker icons 
         private readonly ImageBrush iconTargetLockA = new();
@@ -1368,9 +1363,8 @@ namespace Surveyor.User_Controls
             // Set the image loaded flag
             imageLoaded = true;
 
-            // Calulate the scale factor between the actual image and the screen image
-            //??? Checking we need this - may need to be re-enabled
-            //GridSizeChanged();
+            // Calulate the scale factor between the actual image and the screen image            
+            GridSizeChanged();
         }
 
 

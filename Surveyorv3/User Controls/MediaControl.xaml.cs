@@ -11,12 +11,10 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 using Surveyor.Helper;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading.Tasks;
 using Windows.System;
 using System.Text.RegularExpressions;
@@ -25,7 +23,6 @@ using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
 #endif
 using static Surveyor.User_Controls.MediaControlEventData;
-using static Surveyor.User_Controls.SettingsWindowEventData;
 using static Surveyor.User_Controls.SurveyorMediaPlayer;
 
 
@@ -53,7 +50,7 @@ namespace Surveyor.User_Controls
         private double canvasZoomFactor = 2;    // Must be set to the same initial value as 'canvasZoomFactor' in MagnifyAndMarkerDisplay.xaml.cs
 
         // Mag Window Size
-        private string magWindowSize = "Medium";  // Must be set to the same initial value as in MagnifyAndMarkerDisplay.xaml.cs
+        private string magWindowSize = "Large";  // Must be set to the same initial value as in MagnifyAndMarkerDisplay.xaml.cs
 
         // Layer Types Displayed
 #if !No_MagnifyAndMarkerDisplay

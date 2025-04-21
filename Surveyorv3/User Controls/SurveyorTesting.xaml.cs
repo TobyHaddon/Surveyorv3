@@ -270,7 +270,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Download some test images from Fishbase.se
+        /// Download some test images from Fishbase.org
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -559,23 +559,23 @@ namespace Surveyor.User_Controls
                 string url1 = "https://www.fishbase.se/photos/PicturesSummary.php?resultPage=1&ID=3651&what=species";
                 string url2 = "https://www.fishbase.se/photos/PicturesSummary.php?resultPage=2&ID=3651&what=species";
                 string url3 = "https://www.fishbase.se/photos/PicturesSummary.php?resultPage=2&ID=3602&what=species";
-                mainWindow?.downloadUploadManager.AddDownloadRequest(TransferType.Page, url1, Priority.Normal);
-                mainWindow?.downloadUploadManager.AddDownloadRequest(TransferType.Page, url2, Priority.Normal);
-                mainWindow?.downloadUploadManager.AddDownloadRequest(TransferType.Page, url3, Priority.Normal);
+                mainWindow?.internetQueue.AddDownloadRequest(TransferType.Page, url1, Priority.Normal);
+                mainWindow?.internetQueue.AddDownloadRequest(TransferType.Page, url2, Priority.Normal);
+                mainWindow?.internetQueue.AddDownloadRequest(TransferType.Page, url3, Priority.Normal);
                 SetProgressBarAndStatus(steps++, "Request 3 downloads");
 
                 long timeout = 20000;
                 bool allDownloaded = false;
-                TransferItem? item1 = null;
-                TransferItem? item2 = null;
-                TransferItem? item3 = null;
+                InternetQueueItem? item1 = null;
+                InternetQueueItem? item2 = null;
+                InternetQueueItem? item3 = null;
 
                 Stopwatch sw = Stopwatch.StartNew();
                 while (sw.ElapsedMilliseconds < timeout && !allDownloaded) // Timeout after 20 seconds
                 {
-                    item1 = mainWindow?.downloadUploadManager.Find(url1);
-                    item2 = mainWindow?.downloadUploadManager.Find(url2);
-                    item3 = mainWindow?.downloadUploadManager.Find(url3);
+                    item1 = mainWindow?.internetQueue.Find(url1);
+                    item2 = mainWindow?.internetQueue.Find(url2);
+                    item3 = mainWindow?.internetQueue.Find(url3);
 
                     // Check for passed test
                     if (item1 is not null && item1.Status == Status.Downloaded)
@@ -621,11 +621,11 @@ namespace Surveyor.User_Controls
 
                 // Clean up
                 if (item1 is not null)
-                    mainWindow?.downloadUploadManager.Remove(item1);
+                    mainWindow?.internetQueue.Remove(item1);
                 if (item2 is not null)
-                    mainWindow?.downloadUploadManager.Remove(item2);
+                    mainWindow?.internetQueue.Remove(item2);
                 if (item3 is not null)
-                    mainWindow?.downloadUploadManager.Remove(item3);
+                    mainWindow?.internetQueue.Remove(item3);
 
             }
             else

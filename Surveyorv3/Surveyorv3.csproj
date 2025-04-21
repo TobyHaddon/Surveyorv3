@@ -27,6 +27,7 @@
 	<HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="SpeciesRecordEdit.xaml" />
     <None Remove="Test Data\embeddedFrame_multiangle-right-back-offset-5-seconds[1].mp4" />
     <None Remove="Test Data\embeddedFrame_multiangle-right-back[1].mp4" />
     <None Remove="Test Data\Yoga-0m-1-2025-01-24.survey" />
@@ -135,6 +136,9 @@
     <None Update="Species.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <Page Update="SpeciesRecordEdit.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="User Controls\SurveyorTesting.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

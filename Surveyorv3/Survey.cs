@@ -1268,6 +1268,12 @@ namespace Surveyor
             _isAutoSaveRunning = true;
             _autoSaveStopped = false;
 
+            // Task naming for debugging
+            if (Thread.CurrentThread.Name == null)
+            {
+                Thread.CurrentThread.Name = "Survey.AutosaveWork()";
+            }
+
             try
             {
                 if (SettingsManagerLocal.AutoSaveEnabled)

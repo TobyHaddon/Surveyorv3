@@ -159,15 +159,15 @@ namespace Surveyor.User_Controls
                     EventDialog.Title = $"{evt.EventDataType}";
                     break;
             }
-            //???EventDialog.PrimaryButtonText = "Cancel";
+            
 
             // Create a string to display the event data
             StringBuilder sb = new();
 
             if (evt.EventData is not null)
             {
-                // Get the survey marker name for this event (if any)
-                string? surveyMarkerName = GetSurveyMarkerNameForEvent(evt);
+                // Get the survey transect marker name for this event (if any)
+                string? surveyTransectName = GetTransectMarkerNameForEvent(evt);
 
                 switch (evt.EventDataType)
                 {
@@ -183,8 +183,8 @@ namespace Surveyor.User_Controls
                         SurveyRulesCalc? surveyRulesCalc = null;
                         if (evt.EventData is SurveyMeasurement surveyMeasurement)
                         {
-                            if (surveyMarkerName is not null)
-                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Survey #{surveyMarkerName}\r\n");
+                            if (surveyTransectName is not null)
+                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Transect #{surveyTransectName}\r\n");
                             else
                                 sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
 
@@ -266,8 +266,8 @@ namespace Surveyor.User_Controls
                     case SurveyDataType.SurveyPoint:
                         if (evt.EventData is SurveyPoint surveyPoint)
                         {
-                            if (surveyMarkerName is not null)
-                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Survey #{surveyMarkerName}\r\n");
+                            if (surveyTransectName is not null)
+                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Transect #{surveyTransectName}\r\n");
                             else
                                 sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
 
@@ -282,10 +282,10 @@ namespace Surveyor.User_Controls
 
                     case SurveyDataType.SurveyStart:
                     case SurveyDataType.SurveyEnd:
-                        if (evt.EventData is SurveyMarker surveyMarker)
+                        if (evt.EventData is TransectMarker transectMarker)
                         {
-                            if (surveyMarker.MarkerName is not null)
-                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Survey #{surveyMarker.MarkerName}\r\n");
+                            if (transectMarker.MarkerName is not null)
+                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Transect #{transectMarker.MarkerName}\r\n");
                             else
                                 sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
                         }
@@ -323,8 +323,8 @@ namespace Surveyor.User_Controls
             EventDialog.PrimaryButtonText = "Ok";
 
             Event? newestEventStartMarker = null;
-            SurveyMarker? newestStartSurveyMarker = null;
-            SurveyMarker? newestEndSurveyMarker = null;
+            TransectMarker? newestStartTransectMarker = null;
+            TransectMarker? newestEndTransectMarker = null;
                         
 
             List<Event> startEndEvents = [.. GetEvents().Where(e => e.EventDataType == SurveyDataType.SurveyStart || e.EventDataType == SurveyDataType.SurveyEnd)
@@ -347,19 +347,19 @@ namespace Surveyor.User_Controls
 
 
             if (newestEventStartMarker is not null)
-                newestStartSurveyMarker = (SurveyMarker)newestEventStartMarker.EventData!;
+                newestStartTransectMarker = (TransectMarker)newestEventStartMarker.EventData!;
 
             if (newestEventEndMarker is not null)
-                newestEndSurveyMarker = (SurveyMarker)newestEventEndMarker.EventData!;
+                newestEndTransectMarker = (TransectMarker)newestEventEndMarker.EventData!;
             
 
             //??? Support full display of all values in all event types
             //??? Add a 'Copy' button using the standard copy gypth and format as tab delimited
             StringBuilder sb = new();
-            if (newestEndSurveyMarker is not null)
-                sb.Append($"A new survey start/end: survey #{newestEndSurveyMarker.MarkerName} has been defined\r\n");
+            if (newestEndTransectMarker is not null)
+                sb.Append($"A new survey transect start/end: Transect #{newestEndTransectMarker.MarkerName} has been defined\r\n");
             else
-                sb.Append($"A new survey start/end segment (Not named) has been defined:\r\n");
+                sb.Append($"A new survey transect start/end segment (Not named) has been defined:\r\n");
 
             if (newestEventStartMarker is not null)
                 sb.Append($"Start: {TimePositionHelper.Format(newestEventStartMarker.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
@@ -380,8 +380,8 @@ namespace Surveyor.User_Controls
 
                 Event? eventStartMarker = null;
                 Event? eventEndMarker = null;
-                SurveyMarker? startSurveyMarker = null;
-                SurveyMarker? endSurveyMarker = null;
+                TransectMarker? startTransectMarker = null;
+                TransectMarker? endTransectMarker = null;
 
                 for (int i = 0; i < startEndEvents.Count; i += 2)
                 {
@@ -392,13 +392,13 @@ namespace Surveyor.User_Controls
                     }
                     else
                     {
-                        // Odd number of start/end survey markers events, so no end marker
+                        // Odd number of start/end survey transect markers events, so no end marker
                         eventEndMarker = null;
                     }
 
                     if (eventStartMarker is not null)
                     {
-                        startSurveyMarker = (SurveyMarker)eventStartMarker.EventData!;
+                        startTransectMarker = (TransectMarker)eventStartMarker.EventData!;
                         sb.Append($"{TimePositionHelper.Format(eventStartMarker.TimeSpanTimelineController, displayToDecimalPlaces)} - ");
                     }
                     else
@@ -406,8 +406,8 @@ namespace Surveyor.User_Controls
 
                     if (eventEndMarker is not null)
                     {
-                        endSurveyMarker = (SurveyMarker)eventEndMarker.EventData!;
-                        sb.Append($"{TimePositionHelper.Format(eventEndMarker.TimeSpanTimelineController, displayToDecimalPlaces)} Survey #{endSurveyMarker.MarkerName} ");
+                        endTransectMarker = (TransectMarker)eventEndMarker.EventData!;
+                        sb.Append($"{TimePositionHelper.Format(eventEndMarker.TimeSpanTimelineController, displayToDecimalPlaces)} Transect #{endTransectMarker.MarkerName} ");
                     }
                     else
                         sb.Append($"End missing");
@@ -564,15 +564,15 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// For the passed targetEvent find the closest SurveyStart and SurveyEnd events then therefore return the SurveyMarker name
+        /// For the passed targetEvent find the closest SurveyStart and SurveyEnd events then therefore return the TransectMarker name
         /// </summary>
         /// <param name="targetEvent"></param>
         /// <returns></returns>
 
-        private string? GetSurveyMarkerNameForEvent(Event targetEvent)
+        private string? GetTransectMarkerNameForEvent(Event targetEvent)
         {
-            SurveyMarker? startMarker = null;
-            SurveyMarker? endMarker = null;
+            TransectMarker? startMarker = null;
+            TransectMarker? endMarker = null;
 
             if (targetEvent == null || events == null || events.Count == 0)
                 return null;
@@ -590,7 +590,7 @@ namespace Surveyor.User_Controls
                     break;
 
                 if (events[i].EventDataType == SurveyDataType.SurveyStart &&
-                    events[i].EventData is SurveyMarker marker)
+                    events[i].EventData is TransectMarker marker)
                 {
                     startMarker = marker;
                     break;
@@ -605,7 +605,7 @@ namespace Surveyor.User_Controls
                     break;
 
                 if (events[i].EventDataType == SurveyDataType.SurveyEnd &&
-                    events[i].EventData is SurveyMarker marker)
+                    events[i].EventData is TransectMarker marker)
                 {
                     endMarker = marker;
                     break;
@@ -826,9 +826,9 @@ namespace Surveyor.User_Controls
                 {
                     sb.Append($"Species: {surveyPoint.SpeciesInfo.Species}");
                 }
-                else if (eventItem.EventData is Surveyor.Events.SurveyMarker surveyMarker)
+                else if (eventItem.EventData is Surveyor.Events.TransectMarker transectMarker)
                 {
-                    sb.Append($"Survey #{surveyMarker.MarkerName}");
+                    sb.Append($"Transect #{transectMarker.MarkerName}");
                 }
 
                 // Add other conditions as necessary

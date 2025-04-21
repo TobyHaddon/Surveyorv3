@@ -1,20 +1,46 @@
-//using ExampleMagnifierWinUI;
+// SpeciesSelector  Used to assigned a species 
+//
+// Version 1.0 
+//
+// Version 1.1 18 Apr 2025
+// Added support for Fishbase fish images
+
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Data;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Surveyor.Events;
 using Surveyor.Helper;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Windows.Storage;
+using static Surveyor.SpeciesImageCache;
 
 
 namespace Surveyor.User_Controls
 {
+    public class ImageDataObject
+    {
+        public Uri? ImageLocation { get; set; } = null;
+        public string Author { get; set; } = "";
+    }
+
     public sealed partial class SpeciesSelector : UserControl
     {
         private string? fileSpecSpecies;
         private Reporter? report;
+        private SpeciesImageCache? speciesImageCache = null;
         internal SpeciesCodeList speciesCodeList { get; } = new() ;
+
+        private bool userSelectedGenus = false; // Set to true if the user selected a genus from the AutoSuggestBox or typed in a name as opposed to it being calculated from the species
+        private bool userSelectedFamily = false; // Set to true if the user selected a family from the AutoSuggestBox or typed in a name as opposed to it being calculated from the species or genus
+
+
+        // Updatable image list to hold the fish images. Dynamically bound to the GridView
+        public ObservableCollection<ImageDataObject> ImageList { get; set; } = [];
+
 
         public SpeciesSelector()
         {
@@ -40,18 +66,41 @@ namespace Surveyor.User_Controls
             report = _report;
         }
 
+
+        /// <summary>
+        /// Called to load the species code list
+        /// </summary>
+        /// <param name="fileSpec"></param>
+        public void Load(string fileSpec, bool trueScientificFalseCommonName)
+        {
+            fileSpecSpecies = fileSpec;
+
+            speciesCodeList.Load(fileSpec, trueScientificFalseCommonName);
+        }
+
+
+        /// <summary>
+        /// Called to unload the species code list
+        /// </summary>
+        public void Unload()
+        {
+            speciesCodeList.Unload();
+            fileSpecSpecies = null;
+        }
+
+
         /// <summary>
         /// Create a new species record
         /// </summary>
         /// <param name="mainWindow"></param>
         /// <param name="speciesInfo"></param>
         /// <returns></returns>
-        public async Task<bool> SpeciesNew(MainWindow mainWindow, SpeciesInfo speciesInfo)
+        internal async Task<bool> SpeciesNew(MainWindow mainWindow, SpeciesInfo speciesInfo, SpeciesImageCache speciesImageCache)
         {
             // Clear the speciesInfo instance as this is a New species assignment
             speciesInfo.Clear();
 
-            return await SpeciesEditorNew(mainWindow, speciesInfo, true/*removeButton*/);
+            return await SpeciesEditorNew(mainWindow, speciesInfo, false/*removeButton*/, speciesImageCache);
         }
 
 
@@ -61,9 +110,9 @@ namespace Surveyor.User_Controls
         /// <param name="mainWindow"></param>
         /// <param name="speciesInfo"></param>
         /// <returns></returns>
-        public async Task<bool> SpeciesEdit(MainWindow mainWindow, SpeciesInfo speciesInfo)
+        internal async Task<bool> SpeciesEdit(MainWindow mainWindow, SpeciesInfo speciesInfo, SpeciesImageCache speciesImageCache)
         {
-            return await SpeciesEditorNew(mainWindow, speciesInfo, true/*removeButton*/);
+            return await SpeciesEditorNew(mainWindow, speciesInfo, true/*removeButton*/, speciesImageCache);
         }
 
 
@@ -72,24 +121,56 @@ namespace Surveyor.User_Controls
         ///
 
         /// <summary>
+        /// Clear the UI controls
+        /// </summary>
+        private void ClearControls()
+        {
+            // Clear control values
+            AutoSuggestSpecies.Text = string.Empty;
+            AutoSuggestGenus.Text = string.Empty;
+            AutoSuggestFamily.Text = string.Empty;
+            TextBoxComment.Text = string.Empty;
+            NumberBoxNumberOfFish.Value = 1;
+            SourceGenusSpecies.Text = string.Empty;
+
+            // Clear ItemsSource bindings
+            AutoSuggestSpecies.ItemsSource = null;
+            AutoSuggestGenus.ItemsSource = null;
+            AutoSuggestFamily.ItemsSource = null;
+
+            // Clear image list
+            ImageList.Clear();
+        }
+
+
+        /// <summary>
         /// Handle the edit or new (create) species info dialog
         /// </summary>
         /// <param name="mainWindow"></param>
         /// <param name="speciesInfo"></param>
         /// <param name="editExisting"></param>
         /// <returns>true is the speciesInfo parameter has been changed</returns>
-
-        private async Task<bool> SpeciesEditorNew(MainWindow mainWindow, SpeciesInfo speciesInfo, bool editExisting)
+        private async Task<bool> SpeciesEditorNew(MainWindow mainWindow, SpeciesInfo speciesInfo, bool editExisting, SpeciesImageCache _speciesImageCache)
         {
             bool ret = false;
 
-            // Create the dialog
+            speciesImageCache = _speciesImageCache;
+
+            ClearControls();
+
+            userSelectedGenus = false;
+            userSelectedFamily = false;
+
+
+        // Create the dialog
             ContentDialog dialog = new()
             {
                 Content = this,
                 Title = "Assign Species",
                 CloseButtonText = "Cancel",
                 PrimaryButtonText = "Add",
+                MaxWidth = 800, // <-- important!
+                MinWidth = 400,
                 XamlRoot = mainWindow.Content.XamlRoot  // Set the XamlRoot property
             };
 
@@ -111,16 +192,17 @@ namespace Surveyor.User_Controls
             AutoSuggestGenus.DisplayMemberPath = "Genus";
             AutoSuggestFamily.DisplayMemberPath = "Family";
 
+
             // Load the Life Stage Combo AD - Adult , F - Female, J - Juvenal , M - Male
             // ???NOT NEEDED BY OPWALL - REMOVE
-            List<string> lifeStages = new()
-            {
-                "Adult",
-                "Juvenile",
-                "Female",
-                "Male"
-            };
-            ComboBoxLifeStage.ItemsSource = lifeStages;
+            //???List<string> lifeStages = new()
+            //{
+            //    "Adult",
+            //    "Juvenile",
+            //    "Female",
+            //    "Male"
+            //};
+            //ComboBoxLifeStage.ItemsSource = lifeStages;
            
 
             // If Edit mode, fill in the fields
@@ -130,9 +212,16 @@ namespace Surveyor.User_Controls
                 AutoSuggestGenus.Text = speciesInfo.Genus;
                 AutoSuggestFamily.Text = speciesInfo.Family;
                 NumberBoxNumberOfFish.Value = Convert.ToInt32(speciesInfo.Number);
-                ComboBoxLifeStage.SelectedItem = speciesInfo.Stage;
+                //???ComboBoxLifeStage.SelectedItem = speciesInfo.Stage;
                 TextBoxComment.Text = speciesInfo.Comment;
             }
+
+
+            // Hook up closed cleanup handler
+            dialog.Closed += (s, e) =>
+            {
+                ClearControls();
+            };
 
 
             // Show the dialog and handle the response
@@ -146,7 +235,7 @@ namespace Surveyor.User_Controls
                 string? species = AutoSuggestSpecies.Text;
                 if (species is not null)
                 {
-                    SpeciesItem? speciesItemLookup = speciesCodeList.GetSpeciesItem(species);
+                    SpeciesItem? speciesItemLookup = speciesCodeList.GetSpeciesItemBySpeciesName(species);
 
                     if (speciesItemLookup is not null)
                     {
@@ -206,11 +295,11 @@ namespace Surveyor.User_Controls
                 }
 
                 // Life stage of the fish
-                if (speciesInfo.Stage != ComboBoxLifeStage.SelectedItem as string)
-                {
-                    speciesInfo.Stage = ComboBoxLifeStage.SelectedItem as string;
-                    ret = true;
-                }
+                //???if (speciesInfo.Stage != ComboBoxLifeStage.SelectedItem as string)
+                //{
+                //    speciesInfo.Stage = ComboBoxLifeStage.SelectedItem as string;
+                //    ret = true;
+                //}
 
                 // Activity of the fish (not used yet)
 
@@ -230,29 +319,6 @@ namespace Surveyor.User_Controls
 
             return ret;
         }
-
-
-        /// <summary>
-        /// Called to load the species code list
-        /// </summary>
-        /// <param name="fileSpec"></param>
-        public void Load(string fileSpec)
-        {
-            fileSpecSpecies = fileSpec;
-
-            speciesCodeList.Load(fileSpec);
-        }
-
-
-        /// <summary>
-        /// Called to unload the species code list
-        /// </summary>
-        public void Unload()
-        {
-            speciesCodeList.Unload();
-            fileSpecSpecies = null;
-        }
-
 
 
         ///
@@ -286,6 +352,9 @@ namespace Surveyor.User_Controls
                 string genus = AutoSuggestGenus.Text;
                 string family = AutoSuggestFamily.Text;
 
+                userSelectedGenus = false;
+                userSelectedFamily = false;
+
                 // Search on the genus
                 if (speciesCodeList.SearchSpecies(sender.Text, genus, family) == true)
                 {
@@ -297,7 +366,7 @@ namespace Surveyor.User_Controls
             }
         }
 
-        private void AutoSuggestBoxSpecies_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+        private async void AutoSuggestBoxSpecies_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
         {
             if (args.ChosenSuggestion != null && args.ChosenSuggestion is SpeciesItem item)
             {
@@ -309,19 +378,52 @@ namespace Surveyor.User_Controls
                 string genus = AutoSuggestGenus.Text;
                 string family = AutoSuggestFamily.Text;
 
+                userSelectedGenus = false;
+                userSelectedFamily = false;
+
                 // Do a fuzzy search based on the text
                 if (speciesCodeList.SearchSpecies(args.QueryText, genus, family) == true)
+                {
                     AutoSuggestSpecies.ItemsSource = speciesCodeList.SpeciesComboItems;
+
+                    // If the search resulted in one result then use that result as the selection
+                    if (speciesCodeList.SpeciesComboItems.Count == 1)
+                    {
+                        SpeciesItem speciesItem = speciesCodeList.SpeciesComboItems[0];
+                        await SpeciesSelected(speciesItem, true/*setAutoSuggesat*/);
+                    }
+                }
             }
         }
 
-        private void AutoSuggestBoxSpecies_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+        private async void AutoSuggestBoxSpecies_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
         {
-            SpeciesItem item = (SpeciesItem)args.SelectedItem;
+            SpeciesItem speciesItem = (SpeciesItem)args.SelectedItem;
+
+            await SpeciesSelected(speciesItem, false/*setAutoSuggesat*/);
+        }
+
+
+        /// <summary>
+        /// Set the selected species item, displaying it's genus and family and fish images from the cache
+        /// </summary>
+        /// <param name="speciesItem"></param>
+        private async Task SpeciesSelected(SpeciesItem speciesItem, bool setAutoSuggestText = false)
+        {
+            WinUIGuards.CheckIsUIThread();
 
             // Set the genus and family
-            AutoSuggestGenus.Text = item.Genus;
-            AutoSuggestFamily.Text = item.Family;
+            if (setAutoSuggestText)
+            {
+                AutoSuggestGenus.Text = speciesItem.Genus;
+                AutoSuggestFamily.Text = speciesItem.Family;
+            }
+
+            userSelectedGenus = false;
+            userSelectedFamily = false;
+
+            // Display images of fish for this species to help fish ID
+            await DisplayCachedFishImages(speciesItem);
         }
 
 
@@ -337,6 +439,9 @@ namespace Surveyor.User_Controls
             if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
             {
                 string family = AutoSuggestFamily.Text;
+
+                userSelectedGenus = true;
+                userSelectedFamily = false;
 
                 // Search on the genus
                 if (speciesCodeList.SearchGenus(sender.Text, family) == true)
@@ -363,6 +468,9 @@ namespace Surveyor.User_Controls
                 // User typed text and pressed Enter without selecting a suggestion
                 string family = AutoSuggestFamily.Text;
 
+                userSelectedGenus = true;
+                userSelectedFamily = false;
+
                 // Do a fuzzy search based on the text
                 if (speciesCodeList.SearchGenus(sender.Text, family) == true)
                     AutoSuggestGenus.ItemsSource = speciesCodeList.GenusComboItems;
@@ -375,6 +483,9 @@ namespace Surveyor.User_Controls
 
             // Set the family
             AutoSuggestFamily.Text = item.Family;
+
+            userSelectedGenus = true;
+            userSelectedFamily = false;
         }
 
 
@@ -389,6 +500,9 @@ namespace Surveyor.User_Controls
             // only listen to changes caused by user entering text.
             if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
             {
+                userSelectedGenus = false;
+                userSelectedFamily = true;
+
                 // Search on the family
                 if (speciesCodeList.SearchFamily(sender.Text) == true)
                 {
@@ -411,6 +525,9 @@ namespace Surveyor.User_Controls
             }
             else if (!string.IsNullOrEmpty(args.QueryText) || sender.Text == "")
             {
+                userSelectedGenus = false;
+                userSelectedFamily = true;
+
                 // Do a fuzzy search based on the text
                 if (speciesCodeList.SearchFamily(sender.Text) == true)
                     AutoSuggestFamily.ItemsSource = speciesCodeList.FamilyComboItems;
@@ -477,5 +594,112 @@ namespace Surveyor.User_Controls
             else
                 autoSuggest.ItemsSource = new string[] { "No results found" };
         }
+
+
+        /// <summary>
+        /// Display the cached fish images in a GridView
+        /// </summary>
+        /// <param name="speciesItem"></param>
+        private async Task DisplayCachedFishImages(SpeciesItem speciesItem)
+        {
+            WinUIGuards.CheckIsUIThread();
+
+            try
+            {
+                // Populate image
+                string source = "";
+                string genusSpecies = "";
+
+                List<SpeciesImageItem>? SpeciesImageItemList = speciesImageCache?.GetImagesForSpecies(speciesItem.Code);
+
+                if (SpeciesImageItemList is not null && SpeciesImageItemList.Count > 0)
+                {
+                    if (speciesItem is not null)
+                    {
+                        SpeciesItem.CodeType codeType = speciesItem.ExtractCodeType();
+                        switch (codeType)
+                        {
+                            case SpeciesItem.CodeType.FishBase:
+                                source = "Fishbase";
+                                break;
+                            default:
+                                source = "Unknown";
+                                break;
+                        }
+                        genusSpecies = speciesItem.Genus + " - " + speciesItem.Species;
+
+                        SourceGenusSpecies.Text = $"Source: {source} {genusSpecies}";
+
+                        Debug.WriteLine($"SpeciesSelector: AutoSuggestBoxSpecies_SuggestionChosen: {genusSpecies} {source} {speciesItem.Code}");
+                    }
+
+                    ImageList.Clear();
+                    foreach (SpeciesImageItem speciesImageItem in SpeciesImageItemList)
+                    {
+                        var file = await ApplicationData.Current.LocalFolder.GetFileAsync(speciesImageItem.ImageFile);
+                        var fileUri = new Uri("file:///" + file.Path.Replace("\\", "/"));
+
+                        ImageList.Add(new ImageDataObject
+                        {
+                            ImageLocation = fileUri,
+                            Author = speciesImageItem.Author
+                        });
+                    }
+                }
+                else
+                {
+                    SourceGenusSpecies.Text = string.Empty;
+
+                    // Clear image list
+                    ImageList.Clear();
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"SpeciesSelector: DisplayCachedFishImages: {ex.Message}");
+                report?.Error("SpeciesSelector", $"DisplayCachedFishImages: {ex.Message}");
+            }
+        }
+
+        // *** End of SpeciesSelector ***
     }
+
+
+    /// <summary>
+    /// Used to convert the image Uri
+    /// </summary>
+    public class UriToImageSourceConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, string language)
+        {
+            if (value is Uri uri)
+            {
+                return new BitmapImage(uri);
+            }
+            return null!;
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, string language)
+            => throw new NotImplementedException();
+    }
+
+
+    /// <summary>
+    /// Add "by " as a prefix to the author is the Author proirity has a value
+    /// </summary>
+    public class AuthorDisplayConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, string language)
+        {
+            var author = value as string;
+            if (string.IsNullOrWhiteSpace(author))
+                return string.Empty;
+
+            return $"by {author}";
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, string language)
+            => throw new NotImplementedException();
+    }
+
 }

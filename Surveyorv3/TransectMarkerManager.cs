@@ -1,9 +1,12 @@
-﻿// Used to manage the survey start/stop markers in the events list
+﻿// Used to manage the surevey transect start/stop markers in the events list
 // Markers are just inserted at a points and this class looks through
 // the list of events to figure out if a marker should be a start or a stop 
 // marker. 
 //
-// Verion 1.0 13 Feb 2024
+// Verison 1.0 13 Feb 2025
+//
+// Version 1.1 13 Apr 2025
+// Rename from SurveryMarkerManager to TransectMarkerManager
 
 using Surveyor.Events;
 using Surveyor.User_Controls;
@@ -15,9 +18,9 @@ using System.Threading.Tasks;
 
 namespace Surveyor
 {
-    class SurveyMarkerManager
+    class TransectMarkerManager
     {
-        public SurveyMarkerManager() { }
+        public TransectMarkerManager() { }
 
 
         /// <summary>
@@ -127,24 +130,24 @@ namespace Surveyor
                                                                       .OrderBy(e => e.TimeSpanTimelineController)];
 
             bool expectingStart = true;
-            int surveyMarkerIndex = 1;
+            int transectMarkerIndex = 1;
 
             foreach (Event evt in startEndEvents)
             {
-                SurveyMarker surveyMarker = (SurveyMarker)evt.EventData!;
+                TransectMarker transectMarker = (TransectMarker)evt.EventData!;
 
                 if (expectingStart)
                 {
                     evt.EventDataType = SurveyDataType.SurveyStart;
-                    surveyMarker.MarkerName = $"{surveyMarkerIndex}";
+                    transectMarker.MarkerName = $"{transectMarkerIndex}";
                     expectingStart = false;
                 }
                 else
                 {
                     evt.EventDataType = SurveyDataType.SurveyEnd;
-                    surveyMarker.MarkerName = $"{surveyMarkerIndex}";
+                    transectMarker.MarkerName = $"{transectMarkerIndex}";
                     expectingStart = true;
-                    surveyMarkerIndex++;
+                    transectMarkerIndex++;
                 }
             }
 

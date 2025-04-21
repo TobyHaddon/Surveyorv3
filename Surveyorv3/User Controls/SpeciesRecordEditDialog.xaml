@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Surveyor.SpeciesRecordEditDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Surveyor"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row ="0" Grid.Column="0" Text="Species:" VerticalAlignment="Center"  Margin="0,15,0,0"/>
+            <StackPanel Grid.Row ="0" Grid.Column="1" Orientation="Horizontal"  HorizontalAlignment="Left"  Margin="10,15,0,0">
+                <TextBox x:Name="SpeciesLatin" TextChanged="SpeciesLatin_TextChanged" PlaceholderText="Latin Name" VerticalAlignment="Center"/>
+                <TextBlock Text="/" VerticalAlignment="Center"  Margin="10,0,10,0"/>
+                <TextBox x:Name="SpeciesCommon" TextChanged="SpeciesCommon_TextChanged" PlaceholderText="Common Name" VerticalAlignment="Center"/>
+            </StackPanel>
+
+
+            <TextBlock Grid.Row ="1" Grid.Column="0" Text="Genus:" VerticalAlignment="Center" Margin="0,15,0,0"/>
+            <StackPanel Grid.Row ="1" Grid.Column="1" Orientation="Horizontal"  HorizontalAlignment="Left"  Margin="10,15,0,0">
+                <TextBox x:Name="GenusLatin" TextChanged="GenusLatin_TextChanged" PlaceholderText="Latin Name" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <TextBlock Grid.Row ="2" Grid.Column="0" Text="Family:" VerticalAlignment="Center" Margin="0,10,0,0"/>
+            <StackPanel Grid.Row ="2" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" Margin="10,10,0,0">
+                <AutoSuggestBox x:Name="Family"
+                  PlaceholderText="Scientific Name/Common Name"
+                  Width="250"
+                  QueryIcon="Find"
+                  TextChanged="FamilyAutoSuggest_TextChanged"
+                  SuggestionChosen="FamilyAutoSuggest_SuggestionChosen"
+                  QuerySubmitted="FamilyAutoSuggest_QuerySubmitted"                   
+                  Margin="0,0,15,0" VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <TextBlock Grid.Row ="3" Grid.Column="0" Text="Code:" VerticalAlignment="Center"  Margin="0,15,0,0"/>
+            <StackPanel Grid.Row ="3" Grid.Column="1" Orientation="Horizontal"  HorizontalAlignment="Left"  Margin="10,15,0,0">
+                <TextBox x:Name="SpeciesCode" VerticalAlignment="Center" IsEnabled="False"/>
+            </StackPanel>
+        </Grid>
+
+        <TextBlock x:Name="SpeciesFishIDSetupOK" Grid.Row="1" 
+                    Text="This species if already linked to a FishBase ID.  Follow the steps below is you change the FishBase ID" 
+                    TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,30,0,0"/>
+
+        <TextBlock x:Name="SpeciesFishIDNoInternet" Grid.Row="2" 
+                    Text="The is no internet currently available.  Once you have internet return to this screen to complete connecting this species code list record to FishBase." 
+                    TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,30,0,0"/>
+
+        <TextBlock x:Name="SpeciesFishIDInstructionHeader" Grid.Row="3" Style="{StaticResource BodyStrongTextBlockStyle}"
+                    Text="Steps for linking this species to FishBase. This enables access to species images to help fish identification:" 
+                    TextWrapping="Wrap" VerticalAlignment="Center" Margin="0,30,0,0"/>
+
+        <Grid x:Name="LinkToFishBaseGrid" Grid.Row="4">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="30"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Step 1 (LinkToFishBaseGrid rows 0,1)-->
+            <TextBlock Grid.Row ="0" Grid.Column="0" Text="1." Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,20,0,0"/>
+            <TextBlock Grid.Row ="0" Grid.Column="1" Text="Find the page for this species on FishBase." VerticalAlignment="Top" Margin="0,20,0,0"/>
+            <Button Grid.Row ="1" Grid.Column="1" Click="FishbaseSearchButton_Click" Margin="0,10,0,0">
+                <StackPanel Orientation="Horizontal">
+                    <FontIcon Glyph="&#xF6FA;" Foreground="Green" FontSize="14"/>
+                    <TextBlock Text="Go to FishBase" Margin="4,0,0,0" />
+                </StackPanel>
+            </Button>
+
+            <!-- Step 2 (LinkToFishBaseGrid rows 2,3) -->
+            <TextBlock Grid.Row ="2" Grid.Column="0" Text="2." Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,20,0,0"/>
+            <TextBlock Grid.Row="2" Grid.Column="1"
+                        Margin="0,20,0,0" TextWrapping="Wrap" VerticalAlignment="Top">
+                    <Run Text="Once you have found the correct species page on FishBase, copy the URL from the browser address bar and paste it into this edit box and press the " />
+                    <Run Text="&#xE896;" FontFamily="Segoe MDL2 Assets" Foreground="Green" FontSize="14" />
+                    <Run Text=" button." />
+            </TextBlock>
+            <StackPanel Grid.Row ="3" Grid.Column="1" Orientation="Horizontal">
+                <TextBox x:Name="FishBaseURL" PlaceholderText="Paste the Fishbase URL here!" 
+                            TextChanged="FishbaseURL_TextChanged"
+                            HorizontalAlignment="Left" VerticalAlignment="Top" 
+                            Width="400" Margin="00,10,0,0"/>
+                <Button x:Name="FishBaseURLOKButton"  Click="FishbaseURLDownloadButton_Click" VerticalAlignment="Top" Margin="5,12,0,0">
+                    <FontIcon Glyph="&#xE896;" Foreground="Green" FontSize="14"/>
+                </Button>
+                <FontIcon x:Name="FishBaseURLValid" Glyph="&#xE8FB;" Foreground="Green" FontSize="14" VerticalAlignment="Top" Margin="5,17,0,0"/>
+            </StackPanel>
+
+            <!-- Step 3 (LinkToFishBaseGrid rows 4,5,6) -->
+            <TextBlock Grid.Row ="4" Grid.Column="0" Text="3." Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,20,0,0"/>
+            <TextBlock Grid.Row ="4" Grid.Column="1" Text="Confirm the genus and species below match the genus and species you entered above?" 
+                        Margin="0,20,0,0"
+                        TextWrapping="Wrap" VerticalAlignment="Top"/>
+            <TextBlock x:Name="GenusSpeciesConfirmText" Grid.Row ="5" Grid.Column="1" Text="" VerticalAlignment="Center"  Margin="0,10,0,0"/>
+            <Button Grid.Row ="6" Grid.Column="1" Click="GenusSpeciesConfirmButton_Click" Margin="0,10,0,0">
+                <StackPanel Orientation="Horizontal">
+                    <FontIcon Glyph="&#xE73E;" Foreground="Green" FontSize="14"/>
+                    <TextBlock Text="Confirm" Margin="4,0,0,0" />
+                </StackPanel>
+            </Button>
+
+            <!-- Step 4 (LinkToFishBaseGrid rows 7) -->
+            <TextBlock Grid.Row ="7" Grid.Column="0" Text="4." Style="{StaticResource BodyStrongTextBlockStyle}" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10,20,0,0"/>
+            <StackPanel Grid.Row ="7" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,20,0,0">
+                <TextBlock Text="The Fish ID for this fish is" VerticalAlignment="Center"/>
+                <TextBlock x:Name="FishBaseID" VerticalAlignment="Top"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+
+</UserControl>

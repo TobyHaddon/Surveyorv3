@@ -278,6 +278,48 @@ namespace Surveyor
                 localSettings.Values["AutoSaveEnabled"] = value;
             }
         }
+
+
+        /// <summary>
+        /// Use the species image cache to download stock fish species images to help fish ID
+        /// </summary>
+        public static bool SpeciesImageCacheEnabled
+        {
+            get
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                if (localSettings.Values["SpeciesImageCacheEnabled"] is not bool speciesImageCacheEnabled)
+                    speciesImageCacheEnabled = true;
+
+                return speciesImageCacheEnabled;
+            }
+            set
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                localSettings.Values["SpeciesImageCacheEnabled"] = value;
+            }
+        }
+
+
+        /// <summary>
+        /// Species code list order can be by common name or scientific name
+        /// </summary>
+        public static bool ScientificNameOrderEnabled
+        {
+            get
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                if (localSettings.Values["ScientificNameOrderEnabled"] is not bool scientificNameOrderEnabled)
+                    scientificNameOrderEnabled = true;
+                return scientificNameOrderEnabled;
+            }
+            set
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                localSettings.Values["ScientificNameOrderEnabled"] = value;
+            }
+        }
+
     }
 
     public class SettingsManagerApp

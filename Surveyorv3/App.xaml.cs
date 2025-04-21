@@ -53,7 +53,7 @@ namespace Surveyor
             
 
             // Attempt to force DirectX Force Hardware Rendering
-            var manager = Microsoft.Graphics.Canvas.CanvasDevice.GetSharedDevice();
+            //???var manager = Microsoft.Graphics.Canvas.CanvasDevice.GetSharedDevice();
         }
 
         
@@ -103,25 +103,25 @@ namespace Surveyor
                 throw new InvalidOperationException("Generic parameter 'TEnum' must be an enum.");
             }
             return (TEnum)Enum.Parse(typeof(TEnum), text);
-        }       
-    }
-
-    public static class TestAppHost
-    {
-        public static MainWindow? MainWindowRef { get; private set; }
-
-        public static async Task<MainWindow> EnsureMainWindowAsync()
-        {
-            if (MainWindowRef == null)
-            {
-                MainWindowRef = new MainWindow();
-                MainWindowRef.Activate();
-
-                // Wait briefly to ensure the DispatcherQueue is running
-                await Task.Delay(250);
-            }
-
-            return MainWindowRef;
         }
     }
+
+    //public static class TestAppHost
+    //{
+    //    public static MainWindow? MainWindowRef { get; private set; }
+
+    //    public static async Task<MainWindow> EnsureMainWindowAsync()
+    //    {
+    //        if (MainWindowRef == null)
+    //        {
+    //            MainWindowRef = new MainWindow();
+    //            MainWindowRef.Activate();
+
+    //            // Wait briefly to ensure the DispatcherQueue is running
+    //            await Task.Delay(250);
+    //        }
+
+    //        return MainWindowRef;
+    //    }
+    //}
 }

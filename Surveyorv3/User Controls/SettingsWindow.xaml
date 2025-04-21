@@ -81,15 +81,6 @@
                             <!--<ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="MagnifierWindowAutomatic_Toggled" />-->
                         </toolkit:SettingsCard>
 
-                        <!-- Species -->
-                        <toolkit:SettingsCard Header="Species"
-                                          ToolTipService.ToolTip="Species lookup list data">
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <BitmapIcon x:Name="SpeciesIcon" ShowAsMonochrome="False" UriSource="/Assets/fish-dark.png" />
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <!--<ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="MagnifierWindowAutomatic_Toggled" />-->
-                        </toolkit:SettingsCard>
-
                         <!--Survey Rules-->
                         <toolkit:SettingsExpander Header="Survey Rules" x:Name="SettingsExpanderSurveyRules">
                             <toolkit:SettingsExpander.HeaderIcon>
@@ -140,10 +131,7 @@
                             <toolkit:SettingsCard.HeaderIcon>
                                 <FontIcon Glyph="&#xE701;" ToolTipService.ToolTip="When the internet is available the application is allowed to download images and upload data."/>
                             </toolkit:SettingsCard.HeaderIcon>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button x:Name="UseInternetResetDownloadUploadList" Content="Reset Download/Upload List" Click="UseInternetResetDownloadUploadList_Click" Margin="0,0,10,0"/>
-                                <ToggleSwitch x:Name="UseInternet" Toggled="UseInternet_Toggled" />
-                            </StackPanel>
+                            <ToggleSwitch x:Name="UseInternet" Toggled="UseInternet_Toggled" />
                         </toolkit:SettingsCard>
 
                         <!-- Teaching Tips -->
@@ -154,6 +142,16 @@
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                 <Button x:Name="ReshowTeachingTips" Content="Reshow Tips" Click="ReshowTeachingTips_Click" Margin="0,0,10,0"/>
                                 <ToggleSwitch x:Name="TeachingTips" Toggled="TeachingTips_Toggled" />
+                            </StackPanel>
+                        </toolkit:SettingsCard>
+
+                        <!-- Species Image Cache -->
+                        <toolkit:SettingsCard Header="Use Species Images">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE8B9;" ToolTipService.ToolTip="The species image cache tries to download stock image for each fish species. This is used to help with fish ID."/>
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <ToggleSwitch x:Name="UseSpeciesImageCache" Toggled="UseSpeciesImageCache_Toggled" />
                             </StackPanel>
                         </toolkit:SettingsCard>
 
@@ -173,37 +171,62 @@
                                         <FontIcon Glyph="&#xE8B9;" ToolTipService.ToolTip="Display the species fish image cache table." />
                                     </toolkit:SettingsExpander.HeaderIcon>
 
-                                    <!-- Species Image Cache Refresh Button -->
-                                    <Button Click="RefreshSpeciesStateView_Click"
-                                                    HorizontalAlignment="Left"
-                                                    VerticalAlignment="Top"
-                                                    ToolTipService.ToolTip="Refresh Species Cache View"
-                                                    Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                        <StackPanel Orientation="Horizontal">
-                                            <FontIcon Glyph="&#xE72C;" />
-                                            <TextBlock Text="Refresh" Margin="4,0,0,0" />
-                                        </StackPanel>
-                                    </Button>
-                                    
+                                    <StackPanel Orientation="Horizontal">
+                                        <!-- Remove All Button -->
+                                        <Button Click="RemoveAllSpeciesCache_Click" Content="Remove All"
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Top"
+                                                            ToolTipService.ToolTip="Remove all records."
+                                                            Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
+                                        </Button>
+
+                                        <!-- Remove Record Button -->
+                                        <Button Click="RemoveRecordSpeciesCache_Click" Content="Remove"
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Top"
+                                                            ToolTipService.ToolTip="Remove single record."
+                                                            Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
+                                        </Button>
+
+                                        <!-- SpeciesImageCache Item Count-->
+                                        <TextBlock x:Name="SpeciesImageCacheItemCount" Text="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
+
+                                        <!-- Species Image Cache Refresh Button -->
+                                        <Button Click="RefreshSpeciesStateView_Click"
+                                                        HorizontalAlignment="Left"
+                                                        VerticalAlignment="Top"
+                                                        ToolTipService.ToolTip="Refresh Species Cache View"
+                                                        Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <FontIcon Glyph="&#xE72C;" />
+                                                <TextBlock Text="Refresh" Margin="4,0,0,0" />
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+
                                     <toolkit:SettingsExpander.Items>
                                         <StackPanel Spacing="8">
 
                                             <!-- Species Cache DataGrid -->
-                                            <dg:DataGrid ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView, Mode=OneWay}"
+                                            <dg:DataGrid x:Name="SpeciesImageCacheDataGrid"
+                                                     ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView, Mode=OneWay}"
                                                      AutoGenerateColumns="False"
                                                      HeadersVisibility="Column"
                                                      CanUserSortColumns="True"
                                                      IsReadOnly="True"
                                                      GridLinesVisibility="Horizontal"
+                                                     DoubleTapped="SpeciesImageCacheDataGrid_DoubleTapped"
                                                      Height="300">
                                                 <dg:DataGrid.Columns>
                                                     <dg:DataGridTextColumn Header="Genus" Binding="{Binding Genus}" />
                                                     <dg:DataGridTextColumn Header="Species" Binding="{Binding Species}" />
                                                     <dg:DataGridTextColumn Header="Code" Binding="{Binding Code}" />
-                                                    <dg:DataGridTextColumn Header="State" Binding="{Binding CurrentState}" />
+                                                    <dg:DataGridTextColumn Header="State" Binding="{Binding Status}" />
                                                     <dg:DataGridTextColumn Header="Total" Binding="{Binding TotalImages}" />
                                                     <dg:DataGridTextColumn Header="Count" Binding="{Binding ImageCount}" />
-                                                    <dg:DataGridTextColumn Header="Downloaded" Binding="{Binding DownloadDate}" />
+                                                    <dg:DataGridTextColumn Header="Date" Binding="{Binding StatusDate}" />
+                                                    <dg:DataGridTextColumn Header="Created" Binding="{Binding CreatedDate}" />
                                                 </dg:DataGrid.Columns>
                                             </dg:DataGrid>
 
@@ -211,29 +234,61 @@
                                     </toolkit:SettingsExpander.Items>
                                 </toolkit:SettingsExpander>
 
-                                <!-- Download / Upload Queue Subsection -->
-                                <toolkit:SettingsExpander x:Name="DownloadUploadExpander" Header="Download / Upload Queue">
+                                <!-- Internet Queue Subsection -->
+                                <toolkit:SettingsExpander x:Name="InternetQueueExpander" Header="Internet Queue">
                                     <toolkit:SettingsExpander.HeaderIcon>
-                                        <FontIcon Glyph="&#xEBD3;" ToolTipService.ToolTip="Display the internet download / upload queue." />
+                                        <FontIcon Glyph="&#xEBD3;" ToolTipService.ToolTip="Displays the internet download requests and upload requests." />
                                     </toolkit:SettingsExpander.HeaderIcon>
 
-                                    <!-- Species Image Cache Refresh Button -->
-                                    <Button Click="RefreshDownloadUploadView_Click"
-                                                    HorizontalAlignment="Left"
-                                                    VerticalAlignment="Top"
-                                                    ToolTipService.ToolTip="Refresh Download / Upload Queue View"
-                                                    Visibility="{Binding IsExpanded, ElementName=DownloadUploadExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                        <StackPanel Orientation="Horizontal">
-                                            <FontIcon Glyph="&#xE72C;" />
-                                            <TextBlock Text="Refresh" Margin="4,0,0,0" />
-                                        </StackPanel>
-                                    </Button>
+                                    <StackPanel Orientation="Horizontal">
+                                        <!-- Remove Downloaded / Uploaded Button -->
+                                        <Button Click="RemoveInternetQueue_Click" Content="Remove Downloaded/Uploaded"
+                                                        HorizontalAlignment="Left"
+                                                        VerticalAlignment="Top"
+                                                        ToolTipService.ToolTip="Remove all completed downloads and uploads."
+                                                        Visibility="{Binding IsExpanded, ElementName=InternetQueueExpander, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                        Margin="0,0,10,0">
+                                        </Button>
 
+                                        <!-- Remove All Button -->
+                                        <Button Click="RemoveAllInternetQueue_Click" Content="Remove All"
+                                                        HorizontalAlignment="Left"
+                                                        VerticalAlignment="Top"
+                                                        ToolTipService.ToolTip="Remove all records."
+                                                        Visibility="{Binding IsExpanded, ElementName=InternetQueueExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
+                                        </Button>
+
+                                        <!-- Remove Record Button -->
+                                        <Button Click="RemoveRecordInternetQueue_Click" Content="Remove"
+                                                        HorizontalAlignment="Left"
+                                                        VerticalAlignment="Top"
+                                                        ToolTipService.ToolTip="Remove single record."
+                                                        Visibility="{Binding IsExpanded, ElementName=InternetQueueExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
+                                        </Button>
+                                        
+                                        <!--Itemn Count-->
+                                        <TextBlock x:Name="InternetQueueItemCount" Text="{x:Bind mainWindow.internetQueue.InternetQueueView.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                                        <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                        
+                                        <!-- Internet Queue view Refresh Button -->
+                                        <Button Click="RefreshInternetQueueView_Click"
+                                                        HorizontalAlignment="Left"
+                                                        VerticalAlignment="Top"
+                                                        ToolTipService.ToolTip="Refresh Internet Queue View"
+                                                        Visibility="{Binding IsExpanded, ElementName=InternetQueueExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <FontIcon Glyph="&#xE72C;" />
+                                                <TextBlock Text="Refresh" Margin="4,0,0,0" />
+                                            </StackPanel>
+                                        </Button>
+                                    </StackPanel>
+                                    
                                     <toolkit:SettingsExpander.Items>
                                         <StackPanel Spacing="8">
 
-                                            <!-- Species Cache DataGrid -->
-                                            <dg:DataGrid ItemsSource="{x:Bind mainWindow.downloadUploadManager.DownloadUploadView, Mode=OneWay}"
+                                            <!-- Internet Queue View DataGrid -->
+                                            <dg:DataGrid x:Name="InternetQueueDataGrid"
+                                                     ItemsSource="{x:Bind mainWindow.internetQueue.InternetQueueView, Mode=OneWay}"
                                                      AutoGenerateColumns="False"
                                                      HeadersVisibility="Column"
                                                      CanUserSortColumns="True"
@@ -246,7 +301,9 @@
                                                     <dg:DataGridTextColumn Header="Status" Binding="{Binding Status}" />
                                                     <dg:DataGridTextColumn Header="Priority" Binding="{Binding Priority}" />
                                                     <dg:DataGridTextColumn Header="File" Binding="{Binding LocalFileSpec}" />
+                                                    <dg:DataGridTextColumn Header="Date" Binding="{Binding StatusDate}" />
                                                     <dg:DataGridTextColumn Header="URL" Binding="{Binding URL}" />
+                                                    <dg:DataGridTextColumn Header="Created" Binding="{Binding CreatedDate}" />
                                                 </dg:DataGrid.Columns>
                                             </dg:DataGrid>
 
@@ -258,6 +315,94 @@
                         </toolkit:SettingsExpander>
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
+
+                
+                <!-- SPECIES CODE LIST -->
+                <toolkit:SettingsExpander x:Name="SpeciesCodeListExpander" Header="Species List">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <BitmapIcon x:Name="SpeciesIcon" ShowAsMonochrome="False" UriSource="/Assets/fish-dark.png" />
+                    </toolkit:SettingsExpander.HeaderIcon>
+
+                    <StackPanel Orientation="Horizontal">
+                        <!-- SpeciesCodeList Search -->
+                        <AutoSuggestBox x:Name="SpeciesCodeListSearchBox"
+                                                PlaceholderText="Search"
+                                                Width="250"
+                                                QueryIcon="Find"
+                                                TextChanged="SpeciesCodeListSearchBox_TextChanged"
+                                                SuggestionChosen="SpeciesCodeListSearchBox_SuggestionChosen"
+                                                QuerySubmitted="SpeciesCodeListSearchBox_QuerySubmitted" 
+                                                Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" 
+                                                Margin="0,0,10,0" VerticalAlignment="Center"/>
+
+                        <!-- SpeciesCodeList Item Count-->
+                        <TextBlock x:Name="SpeciesCodeListItemCount" Text="{x:Bind mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
+
+
+                        <!-- SpeciesCodeList New Button -->
+                        <Button Click="SpeciesCodeListAdd_Click"
+                                        HorizontalAlignment="Left" VerticalAlignment="Top"
+                                        ToolTipService.ToolTip="Add a new species code list item."
+                                        Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
+                            <StackPanel Orientation="Horizontal">
+                                <FontIcon Glyph="&#xE710;" />
+                                <TextBlock Text="Add" Margin="4,0,0,0" />
+                            </StackPanel>
+                        </Button>
+
+                        <!-- SpeciesCodeList Edit Button -->
+                        <Button x:Name="SpeciesCodeListEditButton" Click="SpeciesCodeListEdit_Click"
+                                        HorizontalAlignment="Left" VerticalAlignment="Top"
+                                        ToolTipService.ToolTip="Edit existing species code list item."
+                                        Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
+                            <StackPanel Orientation="Horizontal">
+                                <FontIcon Glyph="&#xE70F;" />
+                                <TextBlock Text="Edit" Margin="4,0,0,0" />
+                            </StackPanel>
+                        </Button>
+
+                        <!-- SpeciesCodeList Delete Button -->
+                        <Button x:Name="SpeciesCodeListDeleteButton" Click="SpeciesCodeListDelete_Click" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                        ToolTipService.ToolTip="Delete species code list item."
+                                        Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <StackPanel Orientation="Horizontal">
+                                <FontIcon Glyph="&#xE738;" />
+                                <TextBlock Text="Delete" Margin="4,0,0,0" />
+                            </StackPanel>
+                        </Button>
+
+                        <TextBlock Text="Scientific Name Order" Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="10,0,10,0" VerticalAlignment="Center"/>
+                        <ToggleSwitch x:Name="SpeciesCodeListScientificNameOrder" Toggled="SpeciesCodeListSort_Toggled" Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                    </StackPanel>
+
+                    <toolkit:SettingsExpander.Items>
+                        <StackPanel Spacing="8">
+
+                            <!-- SpeciesCodeList DataGrid -->
+                            <dg:DataGrid x:Name="SpeciesCodeListDataGrid" 
+                                                 DoubleTapped="SpeciesCodeListDataGrid_DoubleTapped"
+                                                 SelectionChanged="SpeciesCodeListDataGrid_SelectionChanged"
+                                                 ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems, Mode=OneWay}"
+                                                 AutoGenerateColumns="False"
+                                                 HeadersVisibility="Column"
+                                                 CanUserSortColumns="False"                                               
+                                                 IsReadOnly="True"
+                                                 GridLinesVisibility="Horizontal"
+                                                 SelectionMode="Single"                                                
+                                                 Height="300">
+                                <dg:DataGrid.Columns>
+                                    <dg:DataGridTextColumn Header="Family" Binding="{Binding Family}" />
+                                    <dg:DataGridTextColumn Header="Genus" Binding="{Binding Genus}" />
+                                    <dg:DataGridTextColumn Header="Species" Binding="{Binding Species}" />
+                                    <dg:DataGridTextColumn Header="Code" Binding="{Binding Code}" />
+                                </dg:DataGrid.Columns>
+                            </dg:DataGrid>
+
+                        </StackPanel>
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
+
 
                 <!-- CAMERA -->
                 <toolkit:SettingsExpander Header="Camera" MaxWidth="1200">

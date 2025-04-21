@@ -2,12 +2,12 @@
 //
 // Version 1.0 11 Apr 2025
 
-using Microsoft.UI.Composition;
 using Surveyor.User_Controls;
+using Surveyor.Helper;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -15,15 +15,16 @@ using System.Threading;
 using System.Threading.Tasks;
 using Windows.Storage;
 using static Surveyor.SpeciesItem;
+using static Surveyor.User_Controls.SurveyorTesting;
 
 namespace Surveyor
 {
     internal class SpeciesImageCache
     {
         private readonly SpeciesCodeList speciesCodeList;
-        private readonly DownloadUploadManager downloadManager;
+        private readonly InternetQueue internetQueue;
         private readonly Reporter? report;
-        private readonly Dictionary<string, SpeciesCacheState> speciesStates = new();
+        private readonly Dictionary<string, SpeciesCacheState> speciesStates = [];
         private bool isReady = false;
 
         private Timer? timer;
@@ -50,12 +51,51 @@ namespace Surveyor
         /// </summary>
         private class SpeciesCacheState
         {
+            // Backing field for State
+            private State _status = State.None;
+
+            public SpeciesCacheState()
+            {
+                CreatedDate = DateTime.Now;
+            }
+
+            // This ache item pertains to this species record
             public required SpeciesItem SpeciesItem { get; set; }
-            public State CurrentState { get; set; } = State.None;
+
+            // Current status of the record
+            public State Status
+            {
+                get => _status;
+                set
+                {
+                    if (_status != value)
+                    {
+                        _status = value;
+                        StatusDate = DateTime.Now;
+                    }
+                }
+            }
+
+            // Date the status changed
+            public DateTime? StatusDate { get; private set; } = null;
+
+            // Total images available for this fish species
             public int TotalImages { get; set; } = 0;
-            public List<string> ImageUrlList { get; set; } = [];
-            public List<string> ImageFileList { get; set; } = [];
-            public DateOnly? DownloadDate { get; set; } = null;
+
+            // Parallel list of url and their corresponding files
+            public List<SpeciesImageItem> SpeciesImageItemList { get; set; } = [];
+
+            // Created date
+            public DateTime CreatedDate { get; }
+        }
+
+        public class SpeciesImageItem
+        {
+            public string Source { get; set; } = "";
+            public string ImageUrl { get; set; } = "";
+            public string ImageFile { get; set; } = "";
+            public string Author { get; set; } = "";
+            public string GenusSpecies { get; set; } = "";
         }
 
 
@@ -67,20 +107,21 @@ namespace Surveyor
             public string Genus => SpeciesItem.Genus;
             public string Species => SpeciesItem.Species;
             public string Code => SpeciesItem.Code;
-            public string CurrentState { get; set; } = "";
+            public string Status { get; set; } = "";
             public int TotalImages { get; set; }
             public int ImageCount { get; set; }
-            public string? DownloadDate { get; set; }
+            public string? StatusDate { get; set; }
             public SpeciesItem SpeciesItem { get; set; } = default!;
+            public string CreatedDate { get; set; } = "";
         }
 
         // View call to bind to (updated via the RefreshView() method)
         public ObservableCollection<SpeciesCacheViewItem> SpeciesStateView { get; } = [];
 
-        public SpeciesImageCache(SpeciesCodeList _speciesCodeList, DownloadUploadManager _downloadManager, Reporter? _report)
+        public SpeciesImageCache(SpeciesCodeList _speciesCodeList, InternetQueue _internetQueue, Reporter? _report)
         {
             speciesCodeList = _speciesCodeList;
-            downloadManager = _downloadManager;
+            internetQueue = _internetQueue;
             report = _report;
         }
 
@@ -90,13 +131,17 @@ namespace Surveyor
         /// This function must be called before using other methods
         /// </summary>
         /// <returns></returns>
-        public async Task<bool> Load()
+        public async Task<bool> Load(bool enableTimer)
         {
             bool ret = false;
 
             try
             {
                 await LoadSpeciesStates();
+
+                if (enableTimer)
+                    Enable(true);
+
                 isReady = true;
                 ret = true;
 
@@ -118,23 +163,32 @@ namespace Surveyor
         {
             isReady = false;
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            try
+            if (timerRunning)
             {
-                while (isProcessing)
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                try
                 {
-                    await Task.Delay(100, cts.Token);
+                    while (isProcessing)
+                    {
+                        await Task.Delay(100, cts.Token);
+                    }
                 }
+                catch (OperationCanceledException)
+                {
+                    report?.Warning("", "SpeciesImageCache.Unload timed out waiting for processing to complete.");
+                }
+
+                Enable(false);
+
             }
-            catch (OperationCanceledException)
+
+            if (timer != null)
             {
-                report?.Warning("", "SpeciesImageCache.Unload timed out waiting for processing to complete.");
+                timer?.Dispose();
+                timer = null;
             }
 
-            Enable(false);
-
-            timer?.Dispose();
-            timer = null;
+            speciesStates.Clear();
         }
 
 
@@ -149,7 +203,7 @@ namespace Surveyor
                 if (timer == null)
                 {
 #if DEBUG
-                    TimeSpan dueTime = TimeSpan.FromSeconds(10);        // Better to fire the inttial timer quickly if debugging 
+                    TimeSpan dueTime = TimeSpan.FromSeconds(5);        // Better to fire the initial timer quickly if debugging 
 #else
                     TimeSpan dueTime = TimeSpan.FromMinutes(1);
 #endif
@@ -170,36 +224,131 @@ namespace Surveyor
         /// </summary>
         /// <param name="speciesCode"></param>
         /// <returns></returns>
-        public List<string> GetImagesForSpecies(string speciesCode)
+        public List<SpeciesImageItem> GetImagesForSpecies(string speciesCode)
         {
             if (speciesStates.TryGetValue(speciesCode, out var state))
             {
-                return state.ImageFileList;
+                return state.SpeciesImageItemList;
             }
-            return new List<string>();
+            return [];
+        }
+
+
+        /// <summary>
+        /// Return the SpeciesItem for a given species code
+        /// </summary>
+        /// <param name="speciesCode"></param>
+        /// <returns></returns>
+        public SpeciesItem? GetSpeciesItem(string speciesCode)
+        {
+            if (speciesStates.TryGetValue(speciesCode, out var state))
+            {
+                return state.SpeciesItem;
+            }
+            return null;
+        }
+
+
+        /// <summary>
+        /// Remove item from the list and tidy up
+        /// </summary>
+        /// <param name="item"></param>
+        /// <returns></returns>
+        public async Task Remove(string code)
+        {
+            if (speciesStates.TryGetValue(code, out var item))            
+            {
+                List<SpeciesImageItem> speciesImageItemList = [.. item.SpeciesImageItemList];
+                speciesStates.Remove(code);
+                foreach (SpeciesImageItem speciesImageItem in speciesImageItemList)
+                {
+                    try
+                    {
+                        StorageFile file = await ApplicationData.Current.LocalFolder.GetFileAsync(Path.GetFileName(speciesImageItem.ImageFile));
+                        await file.DeleteAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        // File might not exist — ignore or log if needed
+                        report?.Warning("", $"SpeciesImageCache.Remove Failed to delete file:{speciesImageItem.ImageFile}, {ex.Message}");
+                    }
+                }
+
+                await SaveSpeciesStates();
+            }
+        }
+
+
+        /// <summary>
+        /// Removes all items from the list and tidies up
+        /// Called as RemoveAll() removes everything
+        /// </summary>
+        /// <returns></returns>
+        public async Task RemoveAll()
+        {
+            int itemCount = speciesStates.Count;
+
+            foreach (var item in speciesStates.ToList())
+            {
+                await Remove(item.Value.SpeciesItem.Code);
+            }
+
+            await SaveSpeciesStates();
+
+            report?.Info("", $"{itemCount} items removed from the Download/Upload list");
         }
 
 
         /// <summary>
         /// Called by the SettingWindows to refresh the UI view of the cache
         /// </summary>
-        public void RefreshView()
+        public void RefreshView(bool reset = false)
         {
             if (!isReady) return;
 
-            SpeciesStateView.Clear();
-            foreach (var state in speciesStates.Values)
+            if (!reset)
             {
-                SpeciesStateView.Add(new SpeciesCacheViewItem
+                SpeciesStateView.Clear();
+
+                foreach (var state in speciesStates.Values)
                 {
-                    SpeciesItem = state.SpeciesItem,
-                    CurrentState = state.CurrentState.ToString(),
-                    TotalImages = state.TotalImages,
-                    ImageCount = state.ImageFileList.Count,
-                    DownloadDate = state.DownloadDate?.ToString("yyyy-MM-dd")
-                });
+                    SpeciesStateView.Add(new SpeciesCacheViewItem
+                    {
+                        SpeciesItem = state.SpeciesItem,
+                        Status = state.Status.ToString(),
+                        TotalImages = state.TotalImages,
+                        ImageCount = state.SpeciesImageItemList.Count,
+                        StatusDate = state.StatusDate?.ToString("yyyy-MM-dd hh:mm:ss"),
+                        CreatedDate = state.CreatedDate.ToString("yyyy-MM-dd hh:mm:ss")
+                    });
+                }
+            }
+            else
+            {
+                // Request to free resources
+                SpeciesStateView.Clear();
             }
         }
+
+
+        /// <summary>
+        /// Triggers the next timer with a specified delay.
+        /// </summary>
+        /// <param name="timeSpanNextTimer">The delay before the next timer starts.</param>
+        public void TriggerNextTimer(TimeSpan timeSpanNextTimer)
+        {
+            timer?.Change(timeSpanNextTimer, timerInterval);
+        }
+
+
+        /// <summary>
+        /// Overload to trigger the next timer with a default delay of zero.
+        /// </summary>
+        public void TriggerNextTimer()
+        {
+            TriggerNextTimer(TimeSpan.Zero);
+        }
+
 
 
         ///
@@ -235,57 +384,98 @@ namespace Surveyor
         /// <returns></returns>
         private async Task ProcessAsync()
         {
-            // Get the before State totals
-            var beforeTotals = CountStates();
-
-            // Run the state machine
-            foreach (var state in speciesStates.Values)
+            try
             {
-                switch (state.CurrentState)
+                // Get the before State totals
+                var beforeTotals = CountStates();
+
+                // Run the state machine
+                foreach (var state in speciesStates.Values)
                 {
-                    case State.None:
-                        await RequestFirstPage(state);
-                        break;
+                    switch (state.Status)
+                    {
+                        case State.None:
+                            await RequestFirstPage(state);
+                            break;
 
-                    case State.WaitingForFirstPhotoPage:
-                        CheckFirstPhotoPageDownloaded(state);
-                        break;
+                        case State.WaitingForFirstPhotoPage:
+                            CheckFirstPhotoPageDownloaded(state);
+                            break;
 
-                    case State.ParsingFirstPhotoPage:
-                        await ParseFirstPhotoPage(state);
-                        break;
+                        case State.ParsingFirstPhotoPage:
+                            await ParseFirstPhotoPage(state);
+                            break;
 
-                    case State.RequestingAllPhotoPages:
-                        await RequestAllPhotoPages(state);
-                        break;
+                        case State.RequestingAllPhotoPages:
+                            await RequestAllPhotoPages(state);
+                            break;
 
-                    case State.WaitingForAllPhotoPages:
-                        CheckAllPhotoPageDownloaded(state);
-                        break;
+                        case State.WaitingForAllPhotoPages:
+                            CheckAllPhotoPageDownloaded(state);
+                            break;
 
-                    case State.ParsingAllPhotoPagesAndRequestImages:
-                        await ParseAllPhotoPagesAndRequestAllImages(state);
-                        break;
+                        case State.ParsingAllPhotoPagesAndRequestImages:
+                            await ParseAllPhotoPagesAndRequestAllImages(state);
+                            break;
 
-                    case State.WaitingForAllImages:
-                        CheckAllImagesDownloaded(state);
-                        break;
+                        case State.WaitingForAllImages:
+                            CheckAllImagesDownloaded(state);
+                            break;
+                    }
                 }
+
+                // Get the after State totals
+                var afterTotals = CountStates();
+
+                if (SettingsManagerLocal.DiagnosticInformation)
+                {
+                    // Report if changes to an key states
+                    int afterTotalsWaitingForFirstPhotoPage = afterTotals[State.WaitingForFirstPhotoPage];
+                    int beforeTotalsWaitingForFirstPhotoPage = beforeTotals[State.WaitingForFirstPhotoPage];
+                    int afterTotalsParsingFirstPhotoPage = afterTotals[State.ParsingFirstPhotoPage];
+                    int beforeTotalsParsingFirstPhotoPage = beforeTotals[State.ParsingFirstPhotoPage];
+                    int afterTotalsRequestingAllPhotoPages = afterTotals[State.RequestingAllPhotoPages];
+                    int beforeTotalsRequestingAllPhotoPages = beforeTotals[State.RequestingAllPhotoPages];
+                    int afterTotalsWaitingForAllPhotoPages = afterTotals[State.WaitingForAllPhotoPages];
+                    int beforeTotalsWaitingForAllPhotoPages = beforeTotals[State.WaitingForAllPhotoPages];
+                    int afterTotalsParsingAllPhotoPagesAndRequestImages = afterTotals[State.ParsingAllPhotoPagesAndRequestImages];
+                    int beforeTotalsParsingAllPhotoPagesAndRequestImages = afterTotals[State.ParsingAllPhotoPagesAndRequestImages];
+                    int afterTotalsWaitingForAllImages = afterTotals[State.WaitingForAllImages];
+                    int beforeTotalsWaitingForAllImages = beforeTotals[State.WaitingForAllImages];
+                    int afterTotalsDone = afterTotals[State.Done];
+                    int beforeTotalsDone = beforeTotals[State.Done];
+
+                    if (afterTotalsWaitingForFirstPhotoPage != beforeTotalsWaitingForFirstPhotoPage ||
+                        afterTotalsParsingFirstPhotoPage != beforeTotalsParsingFirstPhotoPage ||
+                        afterTotalsRequestingAllPhotoPages != beforeTotalsRequestingAllPhotoPages ||
+                        afterTotalsWaitingForAllPhotoPages != beforeTotalsWaitingForAllPhotoPages ||
+                        afterTotalsParsingAllPhotoPagesAndRequestImages != beforeTotalsParsingAllPhotoPagesAndRequestImages ||
+                        afterTotalsWaitingForAllImages != beforeTotalsWaitingForAllImages ||
+                        afterTotalsDone != beforeTotalsDone)
+                    {
+                        report?.Info("", $"Fish Image Cache staqte changes:");
+                        report?.Info("", $"    WaitingForFirstPhotoPage:             {beforeTotalsWaitingForFirstPhotoPage} > {afterTotalsWaitingForFirstPhotoPage}");
+                        report?.Info("", $"    ParsingFirstPhotoPage:                {beforeTotalsParsingFirstPhotoPage} > {afterTotalsParsingFirstPhotoPage}");
+                        report?.Info("", $"    RequestingAllPhotoPages:              {beforeTotalsRequestingAllPhotoPages} > {afterTotalsRequestingAllPhotoPages}");
+                        report?.Info("", $"    WaitingForAllPhotoPages:              {beforeTotalsWaitingForAllPhotoPages} > {afterTotalsWaitingForAllPhotoPages}");
+                        report?.Info("", $"    ParsingAllPhotoPagesAndRequestImages: {beforeTotalsParsingAllPhotoPagesAndRequestImages} > {afterTotalsParsingAllPhotoPagesAndRequestImages}");
+                        report?.Info("", $"    WaitingForAllImages:                  {beforeTotalsWaitingForAllImages} > {afterTotalsWaitingForAllImages}");
+                        report?.Info("", $"    Done:                                 {beforeTotalsDone} > {afterTotalsDone}");
+                    }
+                }
+
+                // Tigger the next timer in 3 secs time
+                TriggerNextTimer(TimeSpan.FromSeconds(3));
             }
-
-            // Get the after State totals
-            var afterTotals = CountStates();
-
-            // Report if changes to an key states
-            if (afterTotals[State.WaitingForFirstPhotoPage] != beforeTotals[State.WaitingForFirstPhotoPage] ||
-                afterTotals[State.WaitingForAllPhotoPages] != beforeTotals[State.WaitingForAllPhotoPages] ||
-                afterTotals[State.WaitingForAllImages] != beforeTotals[State.WaitingForAllImages])
+            catch (Exception ex)
             {
-                report?.Info("", $"Fish Image Cache changes: Waiting for first photo page ${beforeTotals[State.WaitingForFirstPhotoPage]}>${beforeTotals[State.WaitingForFirstPhotoPage]}, all photos pages ${beforeTotals[State.WaitingForAllPhotoPages]}>${beforeTotals[State.WaitingForAllPhotoPages]}, all iamges ${beforeTotals[State.WaitingForAllImages]}>${beforeTotals[State.WaitingForAllImages]}");
+                report?.Error("", $"SpeciesImageCache.ProcessAsync() Failed, {ex.Message}");
             }
-
-            // Save the persistent list
-            await SaveSpeciesStates();
+            finally
+            {
+                // Save the persistent list
+                await SaveSpeciesStates();
+            }
         }
 
 
@@ -300,10 +490,11 @@ namespace Surveyor
             foreach (var item in speciesCodeList.SpeciesItems)
             {
                 // If we have a code and it is a fishbase code that add to the speciesstates list
-                (CodeType codeType, string code) = item.GetCodeTypeAndCode();
-                if (codeType == CodeType.Fishbase && !string.IsNullOrEmpty(code))
+                (CodeType codeType, string SpeciesID) = item.ExtractCodeTypeAndID();
+                // Only supporting Fishbase.org ID currently
+                if (codeType == CodeType.FishBase && !string.IsNullOrEmpty(SpeciesID))
                 {                    
-                    if (!speciesStates.TryGetValue(code, out SpeciesCacheState? search))
+                    if (!speciesStates.TryGetValue(item.Code, out SpeciesCacheState? search))
                     { 
                         speciesStates[item.Code] = new SpeciesCacheState { SpeciesItem = item };
                         ret = true; // At least one found
@@ -324,10 +515,22 @@ namespace Surveyor
         /// <returns></returns>
         private async Task RequestFirstPage(SpeciesCacheState state)
         {
-            string url = MakePhotoPageUrl(state.SpeciesItem.Code, 1/*page*/);
+            string url = MakePhotoPageUrl(state.SpeciesItem.ExtractID(), 1/*page*/);
 
-            await downloadManager.AddDownloadRequest(TransferType.Page, url);
-            state.CurrentState = State.WaitingForFirstPhotoPage;
+            var item = internetQueue.Find(url);
+            if (item is null)
+            {
+                // Add a download request
+                await internetQueue.AddDownloadRequest(TransferType.Page, url);
+                state.Status = State.WaitingForFirstPhotoPage;
+            }
+            else if (item is not null && item.Status == Status.Downloaded)
+            {
+                // We already have this page cached, should normally happen but maybe there was a crash
+                // so just move the status on
+                state.Status = State.WaitingForFirstPhotoPage;
+            }
+            
         }
 
 
@@ -338,12 +541,12 @@ namespace Surveyor
         private void CheckFirstPhotoPageDownloaded(SpeciesCacheState state)
         {
             // Record key
-            string url = MakePhotoPageUrl(state.SpeciesItem.Code, 1/*page*/);
+            string url = MakePhotoPageUrl(state.SpeciesItem.ExtractID(), 1/*page*/);
 
-            var item = downloadManager.Find(url);
+            var item = internetQueue.Find(url);
             if (item != null && item.Status == Status.Downloaded)
             {
-                state.CurrentState = State.ParsingFirstPhotoPage;
+                state.Status = State.ParsingFirstPhotoPage;
             }
         }
 
@@ -357,10 +560,10 @@ namespace Surveyor
         private async Task ParseFirstPhotoPage(SpeciesCacheState state)
         {
             // Record key
-            string url = MakePhotoPageUrl(state.SpeciesItem.Code, 1/*page*/);
+            string url = MakePhotoPageUrl(state.SpeciesItem.ExtractID(), 1/*page*/);
 
             // Get the record of the download from the Download manager
-            var item = downloadManager.Find(url);
+            var item = internetQueue.Find(url);
             if (item != null)
             {
                 // Get the StorageFile of the downloaded page
@@ -368,17 +571,17 @@ namespace Surveyor
 
                 // Parse the first photo page for this species and extract the image url, genus+species, auther and the
                 // total number of photo pages available
-                var metadata = await HtmlParser.ParseHtmlFishbasePhotoPage(file);
+                var metadata = await HtmlFishBaseParser.ParseHtmlFishbasePhotoPage(file);
                 if (metadata.TotalImages.HasValue)
                 {
                     // Remember the total number of photo pages available for this fish species
                     state.TotalImages = metadata.TotalImages.Value;
 
-                    state.CurrentState = State.RequestingAllPhotoPages;
+                    state.Status = State.RequestingAllPhotoPages;
                 }
 
                 // Remove the page from the Download Manafer
-                await downloadManager.Remove(item);
+                await internetQueue.Remove(item);
             }
         }
 
@@ -391,10 +594,10 @@ namespace Surveyor
         {
             for (int page = 1; page <= state.TotalImages; page++)
             {
-                string url = MakePhotoPageUrl(state.SpeciesItem.Code, page);
-                await downloadManager.AddDownloadRequest(TransferType.Page, url);
+                string url = MakePhotoPageUrl(state.SpeciesItem.ExtractID(), page);
+                await internetQueue.AddDownloadRequest(TransferType.Page, url);
             }
-            state.CurrentState = State.WaitingForAllPhotoPages;
+            state.Status = State.WaitingForAllPhotoPages;
         }
 
 
@@ -409,9 +612,9 @@ namespace Surveyor
             for (int page = 1; page <= state.TotalImages; page++)
             {
                 // Record key
-                string url = MakePhotoPageUrl(state.SpeciesItem.Code, page);
+                string url = MakePhotoPageUrl(state.SpeciesItem.ExtractID(), page);
 
-                var item = downloadManager.Find(url);
+                var item = internetQueue.Find(url);
                 if (item != null && item.Status != Status.Downloaded)
                 {
                     allDownloaded = false;
@@ -420,7 +623,7 @@ namespace Surveyor
             }
 
             if (allDownloaded)
-                state.CurrentState = State.ParsingAllPhotoPagesAndRequestImages;
+                state.Status = State.ParsingAllPhotoPagesAndRequestImages;
         }
 
 
@@ -434,18 +637,18 @@ namespace Surveyor
             for (int page = 1; page <= state.TotalImages; page++)
             {
                 // Record key
-                string url = MakePhotoPageUrl(state.SpeciesItem.Code, page);
+                string url = MakePhotoPageUrl(state.SpeciesItem.ExtractID(), page);
 
                 // Get the record of the download from the Download manager
-                var item = downloadManager.Find(url);
+                var item = internetQueue.Find(url);
                 if (item != null)
                 {
                     // Get the StorageFile of the downloaded page
-                    StorageFile file = await ApplicationData.Current.LocalFolder.GetFileAsync(Path.GetFileName(item.LocalFileSpec));
+                    StorageFile file = await ApplicationData.Current.LocalFolder.GetFileAsync(item.LocalFileSpec);
 
                     // Parse the first photo page for this species and extract the image url, genus+species, auther and the
                     // total number of photo pages available
-                    var metadata = await HtmlParser.ParseHtmlFishbasePhotoPage(file);
+                    var metadata = await HtmlFishBaseParser.ParseHtmlFishbasePhotoPage(file);
                     if (!string.IsNullOrEmpty(metadata.ImageSrc))
                     {
                         var baseUri = new Uri(url);
@@ -453,18 +656,23 @@ namespace Surveyor
                         string fullUrl = fullUri.ToString();
 
                         // Remember the image url, this is the key record used in the following states
-                        state.ImageUrlList.Add(fullUrl);
-                        state.ImageFileList.Add("");
+                        SpeciesImageItem speciesImageItem = new()
+                        {
+                            ImageUrl = fullUrl,
+                            ImageFile = "",
+                            Author = metadata.Author ?? "",
+                        };
+                        state.SpeciesImageItemList.Add(speciesImageItem);
 
                         // Request the image file to be downloaded
-                        await downloadManager.AddDownloadRequest(TransferType.File, fullUrl);
+                        await internetQueue.AddDownloadRequest(TransferType.File, fullUrl);
                     }
 
                     // Remove the page from the Download Manafer
-                    await downloadManager.Remove(item);
+                    await internetQueue.Remove(item);
                 }
             }
-            state.CurrentState = State.WaitingForAllImages;
+            state.Status = State.WaitingForAllImages;
         }
 
 
@@ -476,12 +684,12 @@ namespace Surveyor
         {
             bool allDownloaded = true;
 
-            for (int page = 1; page <= state.TotalImages; page++)
+            for (int index =01; index < state.TotalImages; index++)
             {
                 // Record key
-                string url = state.ImageUrlList[page];
+                string url = state.SpeciesImageItemList[index].ImageUrl;
 
-                var item = downloadManager.Find(url);
+                var item = internetQueue.Find(url);
                 if (item != null && item.Status != Status.Downloaded)
                 {
                     allDownloaded = false;
@@ -492,23 +700,20 @@ namespace Surveyor
             if (allDownloaded)
             {
                 // Setup file name in cache
-                for (int page = 1; page <= state.TotalImages; page++)
+                for (int index = 0; index < state.TotalImages; index++)
                 {
                     // Record key
-                    string url = state.ImageUrlList[page];
+                    string url = state.SpeciesImageItemList[index].ImageUrl;
 
-                    var item = downloadManager.Find(url);
+                    var item = internetQueue.Find(url);
                     if (item != null)
                     {
-                        state.ImageUrlList[page] = item.LocalFileSpec;
-
+                        state.SpeciesImageItemList[index].ImageFile = item.LocalFileSpec;
                     }
                 }
-                // Remember the date this was downloaded
-                state.DownloadDate = DateOnly.FromDateTime(DateTime.Now);
 
                 // Mark as done and ready to use
-                state.CurrentState = State.Done;
+                state.Status = State.Done;
             }
         }
 
@@ -519,7 +724,7 @@ namespace Surveyor
         /// <param name="speciesID"></param>
         /// <param name="page"></param>
         /// <returns></returns>
-        private string MakePhotoPageUrl(string speciesID, int page)
+        private static string MakePhotoPageUrl(string speciesID, int page)
         {
             return $"https://www.fishbase.se/photos/PicturesSummary.php?resultPage={page}&ID={speciesID}&what=species";
         }
@@ -534,7 +739,7 @@ namespace Surveyor
         {
             var counts = speciesStates
                 .Values
-                .GroupBy(s => s.CurrentState)
+                .GroupBy(s => s.Status)
                 .ToDictionary(g => g.Key, g => g.Count());
 
             foreach (State state in Enum.GetValues<State>())
@@ -565,6 +770,16 @@ namespace Surveyor
             try
             {
                 StorageFile file = await ApplicationData.Current.LocalFolder.GetFileAsync("speciesStates.json");
+
+                var properties = await file.GetBasicPropertiesAsync();
+                if (properties.Size == 0)
+                {
+                    // File exists but is empty — delete it and skip
+                    await file.DeleteAsync();
+                    Debug.WriteLine($"SpeciesImageCache.LoadSpeciesStates  Zero byte 'speciesStates.json' found. Deleting file.");
+                    return;
+                }
+
                 string json = await FileIO.ReadTextAsync(file);
 
                 var loaded = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, SpeciesCacheState>>(json);
@@ -579,87 +794,14 @@ namespace Surveyor
             }
             catch (FileNotFoundException)
             {
+                Debug.WriteLine($"SpeciesImageCache.LoadSpeciesStates  No 'speciesStates.json' found.");
                 // No cache found — skip
             }
         }
 
 
+
         // *** End of SpeciesImageCache class
     }
 
-
-
-    public class HtmlImageMetadata
-    {
-        public string? ImageSrc { get; set; }
-        public string? GenusSpecies { get; set; }
-        public string? Author { get; set; }
-        public int? TotalImages { get; set; }
-    }
-
-    public class HtmlParser
-    {
-        /// <summary>
-        /// Extract the iamge url, the genus and species, the auther and the total number of images available for this species
-        /// </summary>
-        /// <param name="file"></param>
-        /// <returns></returns>
-        public static async Task<HtmlImageMetadata> ParseHtmlFishbasePhotoPage(StorageFile file)
-        {
-            string content = await FileIO.ReadTextAsync(file);
-
-            var result = new HtmlImageMetadata();
-
-            // Extract image src from <!--image section-->
-            var imageMatch = Regex.Match(content, "<!--image section-->.*?<img[^>]*src=\"(.*?)\"", RegexOptions.Singleline);
-            if (imageMatch.Success)
-            {
-                result.ImageSrc = imageMatch.Groups[1].Value;
-            }
-
-            // Extract genusSpecies in <i> inside <!--image caption section-->
-            var genusMatch = Regex.Match(content, @"<!--image caption section-->.*?<i>(.*?)</i>", RegexOptions.Singleline);
-            if (genusMatch.Success)
-            {
-                result.GenusSpecies = genusMatch.Groups[1].Value;
-            }
-
-            // Extract author in <a> after 'by' inside <!--image caption section-->
-            var authorMatch = Regex.Match(content, @"<!--image caption section-->.*?by\s*<a[^>]*>(.*?)</a>", RegexOptions.Singleline);
-            if (authorMatch.Success)
-            {
-                result.Author = authorMatch.Groups[1].Value;
-            }
-
-            // Extract totalImages from <!--page navigation--> x of n
-            var totalMatch = Regex.Match(content, @"<!--page navigation-->.*?(\d+)\s+of\s+(\d+)", RegexOptions.Singleline);
-            if (totalMatch.Success)
-            {
-                result.TotalImages = int.Parse(totalMatch.Groups[2].Value);
-            }
-
-            return result;
-        }
-
-
-        /// <summary>
-        /// Extract the SpeciesID from a species summary page the SpeciesID is found by
-        /// finding the speccode= value in the page
-        /// </summary>
-        /// <param name="file"></param>
-        /// <returns></returns>
-        public static async Task<int?> ParseHtmlFishbaseSummaryAndExtractSpeciesId(StorageFile file)
-        {
-            string content = await FileIO.ReadTextAsync(file);
-
-            // Match common speccode= pattern, found in many links and parameters
-            var speccodeMatch = Regex.Match(content, @"speccode=(\d+)", RegexOptions.IgnoreCase);
-            if (speccodeMatch.Success && int.TryParse(speccodeMatch.Groups[1].Value, out int speciesId))
-            {
-                return speciesId;
-            }
-
-            return null;
-        }
-    }
 }

@@ -9,23 +9,33 @@
 // 2025-01-25 Stop the flashing on load between themes
 
 using CommunityToolkit.WinUI;
+using CommunityToolkit.WinUI.UI.Controls;
 using Microsoft.UI;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Data;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
 using Windows.Graphics;
 using Windows.UI.ViewManagement;
+using static QRCoder.PayloadGenerator;
+using static Surveyor.InternetQueue;
+using static Surveyor.SpeciesImageCache;
 using static Surveyor.User_Controls.SettingsWindowEventData;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 
@@ -45,7 +55,7 @@ namespace Surveyor.User_Controls
         Reporter? report = null;
 
         // Copy of the mediator 
-        private readonly SurveyorMediator? mediator;
+        private SurveyorMediator? mediator;
 
         // Declare the mediator handler for MediaPlayer
         private readonly SettingsWindowHandler? settingsWindowHandler;
@@ -57,6 +67,11 @@ namespace Surveyor.User_Controls
         public string WinAppSdkRuntimeDetails => App.WinAppSdkRuntimeDetails;
 
         private readonly Survey? survey = null;
+
+        private bool _isInitializing = false;
+
+        // This is temporary filtered version of the species code list, used if the used searches the DataGrid
+        public ObservableCollection<SpeciesItem> FilteredSpeciesItems { get; } = [];
 
         public SettingsWindow(SurveyorMediator _mediator, MainWindow _mainWindow, Survey? surveyClass, Reporter? _report)
         {
@@ -205,35 +220,6 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Toggle theauto save survey feature
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void AutoSave_Toggled(object sender, RoutedEventArgs e)
-        {
-            bool settingValue;
-
-            if (this.AutoSave.IsOn)
-            {
-                // Enable auto save
-                settingValue = true;
-
-                report?.Info("", $"Auto save threaded enabled");
-            }
-            else
-            {
-                // Disable auto save
-                settingValue = false;
-
-                report?.Info("", $"Auto save threaded disabled");
-            }
-
-            // Remember the new state
-            SettingsManagerLocal.AutoSaveEnabled = settingValue;
-        }
-
-
-        /// <summary>
         /// Used to detect if the system theme has changed
         /// </summary>
         /// <param name="sender"></param>
@@ -271,38 +257,62 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="theme"></param>
         private void OnSettingsPageLoaded(ElementTheme theme)
-        {
-            if (mainWindow is not null)
+        {         
+            _isInitializing = true;
+
+            try
             {
-                // Auto Save
-                AutoSave.IsOn = SettingsManagerLocal.AutoSaveEnabled;
-
-                // Load the current theme
-                switch (theme)
+                if (mainWindow is not null)
                 {
-                    case ElementTheme.Light:
-                        themeMode.SelectedIndex = 0;
-                        break;
-                    case ElementTheme.Dark:
-                        themeMode.SelectedIndex = 1;
-                        break;
-                    case ElementTheme.Default:
-                        themeMode.SelectedIndex = 2;
-                        break;
+                    // Auto Save
+                    AutoSave.IsOn = SettingsManagerLocal.AutoSaveEnabled;
+
+                    // Load the current theme
+                    switch (theme)
+                    {
+                        case ElementTheme.Light:
+                            themeMode.SelectedIndex = 0;
+                            break;
+                        case ElementTheme.Dark:
+                            themeMode.SelectedIndex = 1;
+                            break;
+                        case ElementTheme.Default:
+                            themeMode.SelectedIndex = 2;
+                            break;
+                    }
+
+                    // Load the current diags info state
+                    DiagnosticInformation.IsOn = SettingsManagerLocal.DiagnosticInformation;
+
+                    // Load the SpeciesImageCache state
+                    UseSpeciesImageCache.IsOn = SettingsManagerLocal.SpeciesImageCacheEnabled;
+
+                    // Load the teaching tip enabled state
+                    TeachingTips.IsOn = SettingsManagerLocal.TeachingTipsEnabled;
+
+                    // Load the Use Internet enabled state
+                    UseInternet.IsOn = SettingsManagerLocal.UseInternetEnabled;
+
+                    // Hide the Edit/Delete buttons until an SpeciesCodeList item is selected
+                    SpeciesCodeListEditButton.IsEnabled = false;
+                    SpeciesCodeListDeleteButton.IsEnabled = false;
+
+                    // Load the Scientific Name Order enabled state
+                    SpeciesCodeListScientificNameOrder.IsOn = SettingsManagerLocal.ScientificNameOrderEnabled;
+
+                    // Refresh the Species State list
+                    mainWindow?.mediaStereoController.speciesImageCache.RefreshView();
+
+                    // Refresh the internet queue
+                    mainWindow?.internetQueue.RefreshView();
                 }
-
-                // Load the current diags indo state
-                DiagnosticInformation.IsOn = SettingsManagerLocal.DiagnosticInformation;
-
-                // Load the teaching tip enabled state
-                TeachingTips.IsOn = SettingsManagerLocal.TeachingTipsEnabled;
-
-                // Load the Use Internet enabled state
-                UseInternet.IsOn = SettingsManagerLocal.UseInternetEnabled;
-
-                // Refresh the Species State list
-                mainWindow.mediaStereoController.speciesImageCache.RefreshView();
             }
+            finally
+            {
+                _isInitializing = false;
+            }
+            
+
         }
 
 
@@ -313,6 +323,14 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void SettingsWindow_Closed(object sender, WindowEventArgs e)
         {
+            // Close things
+            GoProQRCode.Source = null;
+            SurveyInfoAndMedia.Shutdown();
+            SettingsSurveyRules.Shutdown();
+            mainWindow?.mediaStereoController.speciesImageCache.RefreshView(true/*reset*/);
+            mainWindow?.internetQueue.RefreshView(true/*reset*/);
+
+
             // Check if the theme has changed
             var rootElement = (FrameworkElement)(this.Content);
             if (rootThemeOriginal != rootElement.RequestedTheme && mainWindow is not null)
@@ -321,12 +339,55 @@ namespace Surveyor.User_Controls
             // Set the save theme
             SettingsManagerLocal.ApplicationTheme = rootElement.RequestedTheme;
 
+
+            // Optionally clear controls if they’re bound to static objects
+            SettingsCardSurveyInfoAndMedia.Content = null;
+            
+
             // Unregister the mediator handler
             if (mediator is not null && settingsWindowHandler is not null)
+            {
                 mediator.Unregister(settingsWindowHandler);
+                mediator = null;
+            }
+
+            uiSettings.ColorValuesChanged -= UiSettings_ColorValuesChanged;
+
+            report = null;
 
             // Pass focus to the main window
-           mainWindow?.Activate();
+            mainWindow?.Activate();
+        }
+
+
+        /// <summary>
+        /// Toggle theauto save survey feature
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void AutoSave_Toggled(object sender, RoutedEventArgs e)
+        {
+            bool settingValue;
+
+            if (_isInitializing) return;
+
+            if (this.AutoSave.IsOn)
+            {
+                // Enable auto save
+                settingValue = true;
+
+                report?.Info("", $"Auto save threaded enabled");
+            }
+            else
+            {
+                // Disable auto save
+                settingValue = false;
+
+                report?.Info("", $"Auto save threaded disabled");
+            }
+
+            // Remember the new state
+            SettingsManagerLocal.AutoSaveEnabled = settingValue;
         }
 
 
@@ -337,6 +398,8 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void ThemeMode_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            if (_isInitializing) return;
+
             var selectedTheme = ((ComboBoxItem)themeMode.SelectedItem)?.Tag?.ToString();
             
             if (selectedTheme != null)
@@ -367,6 +430,8 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void DiagnosticInformation_Toggled(object sender, RoutedEventArgs e)
         {
+            if (_isInitializing) return;
+
             if (DiagnosticInformation.IsOn)
             {
                 // Enable diagnostic information
@@ -403,6 +468,8 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void TeachingTips_Toggled(object sender, RoutedEventArgs e)
         {
+            if (_isInitializing) return;
+
             bool settingValue;
 
             if (this.TeachingTips.IsOn)
@@ -429,34 +496,24 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void UseInternet_Toggled(object sender, RoutedEventArgs e)
         {
+            if (_isInitializing) return;
+
             bool settingValue;
 
             if (this.UseInternet.IsOn)
             {
-                // Enable teaching tips
+                // Enable 
                 settingValue = true;
 
             }
             else
             {
-                // Disable teaching tips
+                // Disable
                 settingValue = false;
             }
 
             // Remember the new state
             SettingsManagerLocal.UseInternetEnabled = settingValue;
-        }
-
-
-        /// <summary>
-        /// Because internet can be intermittent on survey sites request for downloads and uploads can be batched up
-        /// This option allows that list to be reset
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void UseInternetResetDownloadUploadList_Click(object sender, RoutedEventArgs e)
-        {
-            mainWindow?.downloadUploadManager.RemoveAll();
         }
 
 
@@ -490,12 +547,391 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void RefreshDownloadUploadView_Click(object sender, RoutedEventArgs e)
+        private void RefreshInternetQueueView_Click(object sender, RoutedEventArgs e)
         {
-            mainWindow?.downloadUploadManager?.RefreshView();
+            mainWindow?.internetQueue?.RefreshView();
         }
 
 
+        /// <summary>
+        /// Remove the downadloed and the uploaded items in the internet queue and leave the other
+        /// states 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void RemoveInternetQueue_Click(object sender, RoutedEventArgs e)
+        {
+            bool somethingToDo = false;
+            int downloadedCount = mainWindow?.internetQueue.InternetQueueView.Count(item => item.Status == Status.Downloaded) ?? 0;
+            int uploadedCount = mainWindow?.internetQueue.InternetQueueView.Count(item => item.Status == Status.Uploaded) ?? 0;
+
+            string puralDownloaded = downloadedCount == 1 ? "" : "s";
+            string puralUploaded = uploadedCount == 1 ? "" : "s";
+
+            string contentString = "";
+
+            if (downloadedCount == 0 && uploadedCount == 0)
+            {
+                // do nothing
+                somethingToDo = false;
+            }
+            else if (downloadedCount > 0 && uploadedCount == 0)
+            {
+                contentString = $"There are {uploadedCount} uploaded record{puralUploaded}. Are you sure you want to remove them from the internet request queue?";
+                somethingToDo = true;
+            }
+            else if (downloadedCount == 0 && uploadedCount > 0)
+            {
+                contentString = $"There are {uploadedCount} uploaded record{puralUploaded}. Are you sure you want to remove them from the internet request queue?";
+                somethingToDo = true;
+            }
+            else
+            {
+                contentString = $"There are {downloadedCount} downloaded record{puralDownloaded} and {uploadedCount} uploaded record{puralUploaded}. Are you sure you want to remove them from the internet request queue?";
+                somethingToDo = true;
+            }
+
+            if (somethingToDo)
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "Confirm Remove",
+                    Content = contentString,
+                    PrimaryButtonText = "Yes",
+                    CloseButtonText = "Cancel",
+                    DefaultButton = ContentDialogButton.Close,
+                    XamlRoot = this.Content.XamlRoot // Required in WinUI 3 for non-windowed dialogs
+                };
+
+                var result = await dialog.ShowAsync();
+
+                if (result == ContentDialogResult.Primary)
+                {
+                    mainWindow?.internetQueue?.RemoveAll(Status.Downloaded);
+                    mainWindow?.internetQueue?.RemoveAll(Status.Uploaded);
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Remove all the records from the Internet Queue
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void RemoveAllInternetQueue_Click(object sender, RoutedEventArgs e)
+        {
+            int count = mainWindow?.internetQueue?.InternetQueueView.Count ?? 0;
+            string pural = count == 1 ? "" : "s";
+
+            var dialog = new ContentDialog
+            {
+                Title = "Confirm Remove",
+                Content = $"Are you sure you want to delete all {count} record{pural} from the internet request queue?",
+                PrimaryButtonText = "Yes",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = this.Content.XamlRoot // Required in WinUI 3 for non-windowed dialogs
+            };
+
+            var result = await dialog.ShowAsync();
+
+            if (result == ContentDialogResult.Primary)
+            {
+                mainWindow?.internetQueue?.RemoveAll();
+                mainWindow?.internetQueue?.RefreshView();
+            }
+        }
+
+
+        /// <summary>
+        /// Remove the currently selected record from the Internet Queue
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void RemoveRecordInternetQueue_Click(object sender, RoutedEventArgs e)
+        {
+            var selectedItem = InternetQueueDataGrid.SelectedItem as InternetQueueViewItem;
+
+            if (selectedItem is not null)
+            {
+                if (!string.IsNullOrEmpty(selectedItem.URL))
+                {
+                    InternetQueueItem? item = mainWindow?.internetQueue?.Find(selectedItem.URL);
+
+                    if (item is not null)
+                    {
+                        mainWindow?.internetQueue?.Remove(item);
+                        mainWindow?.internetQueue?.RefreshView();
+                    }
+                }
+            }
+        }
+
+
+
+        /// <summary>
+        /// Remove all the records from the species cache
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void RemoveAllSpeciesCache_Click(object sender, RoutedEventArgs e)
+        {
+            int count = mainWindow?.mediaStereoController.speciesImageCache?.SpeciesStateView.Count ?? 0;
+            string pural = count == 1 ? "" : "s";
+
+            var dialog = new ContentDialog
+            {
+                Title = "Confirm Remove",
+                Content = $"Are you sure you want to delete all {count} record{pural} from the species image cache. These are the images that help with fish ID?",
+                PrimaryButtonText = "Yes",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = this.Content.XamlRoot // Required in WinUI 3 for non-windowed dialogs
+            };
+
+            var result = await dialog.ShowAsync();
+
+            if (result == ContentDialogResult.Primary)
+            {
+                mainWindow?.mediaStereoController.speciesImageCache?.RemoveAll();
+                mainWindow?.mediaStereoController.speciesImageCache?.RefreshView();
+            }
+        }
+
+
+        /// <summary>
+        /// Removes a specific record by index from the species image cache
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void RemoveRecordSpeciesCache_Click(object sender, RoutedEventArgs e)
+        {
+            int index = SpeciesImageCacheDataGrid.SelectedIndex;
+
+            if (index != -1)
+            {
+                try
+                {
+                    var item = mainWindow?.mediaStereoController.speciesImageCache?.SpeciesStateView[index];
+                    if (item is not null)
+                    {
+                        mainWindow?.mediaStereoController.speciesImageCache?.Remove(item.Code);
+                        mainWindow?.mediaStereoController.speciesImageCache?.RefreshView();
+                    }
+                }
+                catch { }
+            }
+        }
+
+        /// <summary>
+        /// Species Image Cache Enabled
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void UseSpeciesImageCache_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+
+            bool settingValue;
+
+            if (this.UseSpeciesImageCache.IsOn)
+            {
+                // Enable
+                settingValue = true;
+
+            }
+            else
+            {
+                // Disable
+                settingValue = false;
+            }
+
+            // Remember the new state
+            SettingsManagerLocal.SpeciesImageCacheEnabled = settingValue;
+            mainWindow?.mediaStereoController.speciesImageCache.Enable(settingValue);
+        }
+
+        /// <summary>
+        /// Display the cached image photos
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        ///        
+        private void SpeciesImageCacheDataGrid_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+        {
+            // If we need an image viewer
+        }
+
+
+        /// <summary>
+        /// Add a new species code to the list
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void SpeciesCodeListAdd_Click(object sender, RoutedEventArgs e)
+        {
+            SpeciesItem speciesItemNew = new();
+
+            if (mainWindow is not null)
+            {
+                SpeciesRecordEditDialog dialog = new(report);
+
+                SpeciesCodeList speciesCodeList = mainWindow.mediaStereoController.speciesSelector.speciesCodeList;
+
+                if (await dialog.SpeciesRecordNew(this, speciesItemNew, speciesCodeList) == true)
+                {
+                    // Add the new species code to the list
+                    mainWindow?.mediaStereoController.speciesSelector.speciesCodeList.AddItem(speciesItemNew, SettingsManagerLocal.ScientificNameOrderEnabled);
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Edit the selected species code
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void SpeciesCodeListEdit_Click(object sender, RoutedEventArgs e)
+        {
+            if (SpeciesCodeListDataGrid.SelectedItem is not SpeciesItem speciesItem)
+                return;
+
+            await SpeciesCodeListEdit((SpeciesItem)speciesItem);
+        }
+
+
+        /// <summary>
+        /// Delete the selected species code
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void SpeciesCodeListDelete_Click(object sender, RoutedEventArgs e)
+        {
+            SpeciesItem? speciesItem = SpeciesCodeListDataGrid.SelectedItem as SpeciesItem;
+
+            if (speciesItem is not null)
+            {
+                // Are you sure?
+                var dialog = new ContentDialog
+                {
+                    Title = "Delete Species Code List Record",
+                    Content = "Are you sure you want to delete the selected species code list record?",
+                    PrimaryButtonText = "OK",
+                    CloseButtonText = "Cancel",
+                    DefaultButton = ContentDialogButton.Primary,
+                    XamlRoot = this.Content.XamlRoot
+                };
+
+                var result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    mainWindow?.mediaStereoController.speciesSelector.speciesCodeList.DeleteItem(speciesItem);
+                }
+            }                
+        }
+
+
+        /// <summary>
+        /// An item in the species code list data grid has been selected
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void SpeciesCodeListDataGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (SpeciesCodeListDataGrid.SelectedItem is SpeciesItem)
+            {
+                SpeciesCodeListEditButton.IsEnabled = true;
+                SpeciesCodeListDeleteButton.IsEnabled = true;
+            }
+        }
+
+
+        /// <summary>
+        /// User double tapped on a species code in the list to also edit the entry
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void SpeciesCodeListDataGrid_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+        {
+            if (SpeciesCodeListDataGrid.SelectedItem is not SpeciesItem speciesItem)
+                return;
+
+            await SpeciesCodeListEdit((SpeciesItem)speciesItem);
+        }
+
+
+        /// <summary>
+        /// Toggle sorting on the common name instead of the latin name
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void SpeciesCodeListSort_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+
+            bool settingValue;
+
+            if (this.SpeciesCodeListScientificNameOrder.IsOn)
+            {
+                // Enable 
+                settingValue = true;
+
+            }
+            else
+            {
+                // Disable
+                settingValue = false;
+            }
+
+            // Remember the new state
+            SettingsManagerLocal.ScientificNameOrderEnabled = settingValue;
+
+            // Re-sort
+            if (mainWindow is not null)
+            {
+                if (mainWindow.mediaStereoController.speciesSelector.speciesCodeList.Sort(settingValue))
+                    mainWindow.mediaStereoController.speciesSelector.speciesCodeList.Save();
+            }
+        }
+
+
+        /// <summary>
+        /// Text has changed in the SpeciesCodeList AutoSuggestBox search box
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void SpeciesCodeListSearchBox_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+        {
+            string searchText = SpeciesCodeListSearchBox.Text;
+
+            if (searchText.Length > 2 || searchText == string.Empty)
+                FilterSpeciesList(searchText);
+
+        }
+
+
+        /// <summary>
+        /// User selected a suggestion from the dropdown in SpeciesCodeList AutoSuggestBox
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void SpeciesCodeListSearchBox_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+        {
+            // Not used
+        }
+
+
+        /// <summary>
+        /// Enter pressed in the SpeciesCodeList AutoSuggestBox search box
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void SpeciesCodeListSearchBox_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+        {
+
+        }
 
 
         ///
@@ -614,6 +1050,72 @@ namespace Surveyor.User_Controls
                 GoProQRScript.Text = "Failed!";
             }
         }
+
+
+        /// <summary>
+        /// Handle the edit species info dialog
+        /// </summary>
+        /// <param name="speciesItem"></param>
+        /// <returns></returns>
+        private async Task SpeciesCodeListEdit(SpeciesItem speciesItem)
+        {
+            if (speciesItem is not null && mainWindow is not null )
+            {
+                SpeciesRecordEditDialog dialog = new(report);
+
+                SpeciesCodeList speciesCodeList = mainWindow.mediaStereoController.speciesSelector.speciesCodeList;
+
+                if (await dialog.SpeciesRecordEdit(this, speciesItem, speciesCodeList) == true)
+                {
+                    // Update the species code to the list
+                    mainWindow?.mediaStereoController.speciesSelector.speciesCodeList.UpdateItem(speciesItem, SettingsManagerLocal.ScientificNameOrderEnabled);
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Filter the species code list based on the search text
+        /// </summary>
+        /// <param name="searchText"></param>
+        private void FilterSpeciesList(string searchText)
+        {
+            if (mainWindow is not null)
+            {
+
+                FilteredSpeciesItems.Clear();
+
+                if (!string.IsNullOrEmpty(searchText))
+                {
+                    var lower = searchText?.ToLowerInvariant() ?? "";
+
+                    foreach (var item in mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems)
+                    {
+                        if (string.IsNullOrWhiteSpace(searchText) ||
+                            item.Genus?.ToLowerInvariant().Contains(lower) == true ||
+                            item.Species?.ToLowerInvariant().Contains(lower) == true ||
+                            item.Family?.ToLowerInvariant().Contains(lower) == true ||
+                            item.Code?.ToLowerInvariant().Contains(lower) == true)
+                        {
+                            FilteredSpeciesItems.Add(item);
+                        }
+                    }
+
+                    // Bind the DataGrid to the filtered list if necessary
+                    if (SpeciesCodeListDataGrid.ItemsSource != FilteredSpeciesItems)
+                        SpeciesCodeListDataGrid.ItemsSource = FilteredSpeciesItems;
+                }
+                else
+                {
+                    // No search text, show all items. Bind back to the full list if necessary
+                    if (SpeciesCodeListDataGrid.ItemsSource != mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems)
+                        SpeciesCodeListDataGrid.ItemsSource = mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems;
+
+                }
+            }        
+        }
+
+
 
 
         // ***END OF SettingsWindow***

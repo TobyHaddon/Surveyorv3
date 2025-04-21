@@ -110,7 +110,7 @@ namespace Surveyor.User_Controls
 
         public SurveyorMediaPlayer()
         {
-            this.InitializeComponent();
+            this.InitializeComponent();            
         }
 
 
@@ -167,6 +167,8 @@ namespace Surveyor.User_Controls
         /// <param name="mediaFileSpec"></param>
         internal async Task Open(string mediaFileSpec)
         {
+            WinUIGuards.CheckIsUIThread();
+
             Debug.WriteLine($"{CameraSide}: Open: Enter  (UIThread={DispatcherQueue.HasThreadAccess})");
 
             // Ensure we are not in a "closing" state when reopening media
@@ -268,6 +270,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         internal async Task Close()
         {
+            WinUIGuards.CheckIsUIThread();
+
             // Check the player is actually open
             if (IsOpen())
             {
@@ -343,7 +347,6 @@ namespace Surveyor.User_Controls
                     mediaOpen = false;
                     mediaUri = "";
                     mode = Mode.modeNone;
-                    //???_frameIndexCurrent = 0;
                     naturalDuration = TimeSpan.Zero;
                     frameWidth = 0;
                     frameHeight = 0;
@@ -369,7 +372,7 @@ namespace Surveyor.User_Controls
         /// <param name="mediaTimelineController">Either pass a MediaTimelineController instance or null to disable</param>
         internal void SetTimelineController(MediaTimelineController? mediaTimelineController, TimeSpan offset)
         {
-            CheckIsUIThread();
+            WinUIGuards.CheckIsUIThread();
 
             // In a TimelineController scenario, it is important to control the MediaPlayer via a single mechanism.
             MediaPlayerElement.MediaPlayer.CommandManager.IsEnabled = false;
@@ -398,7 +401,7 @@ namespace Surveyor.User_Controls
         { 
             get 
             {
-                CheckIsUIThread();
+                WinUIGuards.CheckIsUIThread();
 
                 TimeSpan? ret = null;
                 if (IsOpen())
@@ -409,7 +412,7 @@ namespace Surveyor.User_Controls
             } 
             set 
             {
-                CheckIsUIThread();
+                WinUIGuards.CheckIsUIThread();
 
                 if (value is not null && IsOpen())
                     if (MediaPlayerElement.MediaPlayer is not null && MediaPlayerElement.MediaPlayer.PlaybackSession is not null)
@@ -421,7 +424,7 @@ namespace Surveyor.User_Controls
         {
             get
             {
-                CheckIsUIThread();
+                WinUIGuards.CheckIsUIThread();
 
                 TimeSpan? ret = null;
                 if (IsOpen())
@@ -476,7 +479,7 @@ namespace Surveyor.User_Controls
         /// <returns></returns>
         internal bool IsPlaying()
         {
-            CheckIsUIThread();
+            WinUIGuards.CheckIsUIThread();
 
             if (IsOpen())
             {
@@ -491,7 +494,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         internal void Play()
         {
-            CheckIsUIThread();
+            WinUIGuards.CheckIsUIThread();
 
             if (IsOpen())
             {
@@ -524,6 +527,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         internal void SetPlayMode()
         {
+            WinUIGuards.CheckIsUIThread();
+
             if (IsOpen())
             {
                 // Can only use this function if the media is not synchronized
@@ -552,7 +557,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         internal async Task Pause()
         {
-            CheckIsUIThread();
+            WinUIGuards.CheckIsUIThread();
 
             if (IsOpen() && mode == Mode.modePlayer)
             {
@@ -626,9 +631,7 @@ namespace Surveyor.User_Controls
         /// </summary>        
         /// <param name="timeSpan"></param>
         internal async Task FrameMove(TimeSpan deltaPosition)
-        {
-            CheckIsUIThread();
-
+        {           
             if (IsOpen())
             {
                 // Can only use this function if the media is not synchronized
@@ -668,7 +671,7 @@ namespace Surveyor.User_Controls
         /// <param name="frames">negative move back, positive move forward</param>
         internal async Task FrameMove(int frames)
         {
-            CheckIsUIThread();
+            WinUIGuards.CheckIsUIThread();
 
             if (IsOpen())
             {
@@ -684,9 +687,9 @@ namespace Surveyor.User_Controls
         /// Move to the absolute position in the media
         /// </summary>
         /// <param name="timeSpan"></param>
-        internal void FrameJump(TimeSpan position)
+        internal async void FrameJump(TimeSpan position)
         {
-            CheckIsUIThread();
+            WinUIGuards.CheckIsUIThread();
 
             if (IsOpen())
             {
@@ -694,7 +697,8 @@ namespace Surveyor.User_Controls
                 if (!IsMediaSynchronized())
                 {
                     if (mode == Mode.modePlayer)
-                       MediaPlayerElement.MediaPlayer.Pause();
+                        //???MediaPlayerElement.MediaPlayer.Pause();  // Was using this but maybe need to use local Pause() instead
+                        await Pause();
 
                     // Check move is in bounds
                     if (position < TimeSpan.Zero)
@@ -718,6 +722,8 @@ namespace Surveyor.User_Controls
         /// <param name="enabled"></param>
         internal void FrameServerEnable(bool enabled)
         {
+            WinUIGuards.CheckIsUIThread();
+
             MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled = enabled;
 
             if (!enabled)
@@ -755,7 +761,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         internal void Mute()
         {
-            CheckIsUIThread();
+            WinUIGuards.CheckIsUIThread();
 
             // Mute this media player
             MediaPlayerElement.MediaPlayer.IsMuted = true;
@@ -771,7 +777,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         internal void Unmute()
         {
-            CheckIsUIThread();
+            WinUIGuards.CheckIsUIThread();
 
             // Unmute this media player
             MediaPlayerElement.MediaPlayer.IsMuted = false;
@@ -788,7 +794,7 @@ namespace Surveyor.User_Controls
         /// <param name="speed"></param>
         internal void SetSpeed(float speed)
         {
-            CheckIsUIThread();
+            WinUIGuards.CheckIsUIThread();
 
             MediaPlayerElement.MediaPlayer.PlaybackRate = speed;
             Debug.WriteLine($"{CameraSide}: Info SureyorMediaPlayer.SetSpeed  Playback rate set to {speed:F2}");
@@ -845,7 +851,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         internal void StartCasting()
         {
-            CheckIsUIThread();
+            WinUIGuards.CheckIsUIThread();
 
             // Check if casting is supported
             CastingDevicePicker castingPicker = new CastingDevicePicker();
@@ -932,7 +938,7 @@ namespace Surveyor.User_Controls
         internal void GrabAndDisplayFrame()
         {
             // ** Called from UI Thread**
-            CheckIsUIThread();
+            WinUIGuards.CheckIsUIThread();
             
             //???Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info GrabAndDisplayFrame Enter");
 
@@ -1044,42 +1050,6 @@ namespace Surveyor.User_Controls
                     switch (playbackSession.PlaybackState)
                     {
                     case MediaPlaybackState.Playing:
-                        // MOVED TO THE PLAY METHOD
-                        // Remember we are now in Player mode using the media player to render the video
-                        //???mode = Mode.modePlayer;
-
-                        //???try
-                        //{
-                        //    // Remember we are now in Player mode using the media player to render the video
-                        //    mode = Mode.modePlayer;
-
-                        //    // Exit Frame Server mode so the Media Player can render the frame
-                        //    DispatcherQueue.TryEnqueue(DispatcherQueuePriority.High, () =>
-                        //    {
-                        //        MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled = false;
-
-                        //        // Display the Media Player (Helps with screen refresh issues media player has)
-                        //        if (MediaPlayerElement.Visibility != Visibility.Visible)
-                        //            MediaPlayerElement.Visibility = Visibility.Visible;
-
-                        //        // Hide the frame image user control
-                        //        if (ImageFrame.Visibility != Visibility.Collapsed)
-                        //            ImageFrame.Visibility = Visibility.Collapsed;
-
-                        //        Debug.WriteLine($"{CameraSide}: Info PlaybackSession_PlaybackStateChanged: Make Player visible and collapse Image Frame.");
-
-                        //        // Inform the media control that the media is playing
-                        //        mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Playing, CameraSide, mode));
-
-                        //        Debug.WriteLine($"{CameraSide}: PlaybackSession_PlaybackStateChanged: Playing & video frame event disabled, IsVideoFrameServerEnabled ={MediaPlayerElement.MediaPlayer.IsVideoFrameServerEnabled}");
-                        //    });
-                        //}
-                        //catch (Exception ex)
-                        //{
-                        //    Debug.WriteLine($"  {CameraSide}: Error PlaybackSession_PlaybackStateChanged  {ex.Message}");
-                        //???}
-
-
                         // Inform the MediaControl that the media is playing
                         _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.High, () =>
                         {
@@ -1096,10 +1066,6 @@ namespace Surveyor.User_Controls
                         break;
 
                     case MediaPlaybackState.Paused:
-                        // MOVED TO THE PLAY METHOD
-                        // Remember we are now in Frame mode where we are responsible for rendering the frame
-                        //???mode = Mode.modeFrame;
-
                         // Rememmber the position in paused mode
                         positionPausedMode = playbackSession.Position;
                         Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} PlaybackSession_PlaybackStateChanged: PositionOffset: {positionPausedMode:hh\\:mm\\:ss\\.ff}");
@@ -1136,6 +1102,8 @@ namespace Surveyor.User_Controls
         /// <param name="args"></param>
         private void PlaybackSession_BufferingStarted(MediaPlaybackSession sender, object args)
         {
+            WinUIGuards.CheckIsUIThread();
+
             mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, /*async*/ () =>
                 ProgressRing_Buffering.IsActive = true);
 
@@ -1149,6 +1117,8 @@ namespace Surveyor.User_Controls
         /// <param name="args"></param>
         private void PlaybackSession_BufferingEnded(MediaPlaybackSession sender, object args)
         {
+            WinUIGuards.CheckIsUIThread();
+
             // Hide the progress ring
             mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, /*async*/ () =>
                 ProgressRing_Buffering.IsActive = false);
@@ -1437,6 +1407,8 @@ namespace Surveyor.User_Controls
             /// <returns></returns>
             public async Task<bool> SetupIfNecessary(MediaPlayer mp)
             {
+                WinUIGuards.CheckIsUIThread();
+
                 Debug.Assert(imageFrame != null, $"{DateTime.Now:HH:mm:ss.ff} Must call SetImage before calling SetupIfNecessary.");
 
                 if (!IsSetup)
@@ -1488,6 +1460,8 @@ namespace Surveyor.User_Controls
             /// <returns></returns>
             private async Task WaitForNonZeroFrameSizeAsync(MediaPlayer mp, int timeoutMs = 5000, int checkIntervalMs = 50)
             {
+                WinUIGuards.CheckIsUIThread();
+
                 var tcs = new TaskCompletionSource<bool>();
 
                 var cancellationTokenSource = new CancellationTokenSource(timeoutMs);
@@ -1538,6 +1512,8 @@ namespace Surveyor.User_Controls
             /// </summary>
             public void Release()
             {
+                WinUIGuards.CheckIsUIThread();
+
                 if (frameServerDest is not null)
                 {
                     frameServerDest.Dispose();
@@ -1777,6 +1753,8 @@ namespace Surveyor.User_Controls
             /// </summary>
             public bool DrawFrameOnImageControl()
             {
+                WinUIGuards.CheckIsUIThread();
+
                 bool ret = false;
 
                 try
@@ -1844,6 +1822,8 @@ namespace Surveyor.User_Controls
             /// <exception cref="InvalidOperationException"></exception>
             public (IRandomAccessStream? stream, uint imageSourceWidth, uint imageSourceHeight) CopyFrameToMemoryStreamAsync()
             {
+                WinUIGuards.CheckIsUIThread();
+
                 // Lightweight check 
                 if (IsSetup == false)
                 {
@@ -1889,6 +1869,8 @@ namespace Surveyor.User_Controls
             /// <returns></returns>
             public async Task<bool> SaveFrame(string fileSpec, CanvasBitmapFileFormat fileFormat)
             {
+                WinUIGuards.CheckIsUIThread();
+
                 bool ret = false;
 
                 if (inputBitmap is not null)
@@ -2152,7 +2134,7 @@ namespace Surveyor.User_Controls
         /// <param name="mediaPlayer"></param>
         private double GetCurrentFrameRate(MediaPlayer mediaPlayer)
         {
-            CheckIsUIThread();
+            WinUIGuards.CheckIsUIThread();
 
             double ret = -1;
             string subError = "";
@@ -2326,6 +2308,8 @@ namespace Surveyor.User_Controls
         /// <returns></returns>
         private async Task ShowOpenFailedDialog(string mediaFileSpec, Exception e)
         {
+            WinUIGuards.CheckIsUIThread();
+
             ContentDialog confirmationDialog = new()
             {
                 Title = "Failed to open media",
@@ -2347,6 +2331,8 @@ namespace Surveyor.User_Controls
         /// <returns></returns>
         private async Task ShowOpenFileNotFoundDialog(string mediaFileSpec)
         {
+            WinUIGuards.CheckIsUIThread();
+
             ContentDialog confirmationDialog = new()
             {
                 Title = "Failed to open media",
@@ -2377,16 +2363,6 @@ namespace Surveyor.User_Controls
             }
         }
 
-
-        /// <summary>
-        /// Use at the top of the function if that function is intended for use use only on the 
-        /// UI Thread.  This is to prevent the function being called from a non-UI thread.
-        /// </summary>
-        private void CheckIsUIThread()
-        {
-            if (!DispatcherQueue.HasThreadAccess)
-                throw new InvalidOperationException("This function must be called from the UI thread");
-        }
 
         // ***END OF SurveyorMediaPlayer***
     }

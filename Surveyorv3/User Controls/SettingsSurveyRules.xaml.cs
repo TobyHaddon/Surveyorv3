@@ -56,10 +56,22 @@ namespace Surveyor.User_Controls
         {
             // Remember the settings card for a survey (not the field trip)
             settingsSurveyRules = settings;
+            //???settingsFieldTripRules = null;
 
             // Remember the survey rules
             surveyRules = survey.Data.SurveyRules.SurveyRulesData;
+        }
 
+
+        /// <summary>
+        /// Close resources
+        /// </summary>
+        public void Shutdown()
+        {
+            settingsSurveyRules = null;
+            surveyRules = null;
+
+            report = null;
         }
 
 
