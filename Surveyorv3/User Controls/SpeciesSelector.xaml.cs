@@ -704,7 +704,6 @@ namespace Surveyor.User_Controls
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"SpeciesSelector: DisplayCachedFishImages: {ex.Message}");
                     report?.Error("SpeciesSelector", $"DisplayCachedFishImages: {ex.Message}");
                 }
             }
