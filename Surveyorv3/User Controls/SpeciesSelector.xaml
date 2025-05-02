@@ -83,7 +83,64 @@
         <TextBox x:Name="TextBoxComment" Grid.Row ="5" Grid.Column="0" Grid.ColumnSpan="2" />
 
 
-        <TextBlock x:Name="SourceGenusSpecies" Grid.Row ="6" Grid.Column="0" Grid.ColumnSpan="2" TextAlignment="Left" FontStyle="Italic" FontSize="12" Margin="0,15,0,0"/>
+        <!-- Shows the Source and genus/Species and when expanded the Environment, Distrubtion and Size info -->
+        <Expander x:Name="SpeciesInfoExpander" IsExpanded="False" Grid.Row ="6" Grid.ColumnSpan="2"  MaxWidth="460" 
+                  HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Margin="0,10,0,0">
+            <Expander.Header>
+                <Grid Height="Auto" VerticalAlignment="Center">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- GenusSpecies -->
+                    <TextBlock x:Name="GenusSpecies" Grid.Column="0"
+                                VerticalAlignment="Center" />
+                    
+                    <!-- Source Credit -->
+                    <TextBlock x:Name="SourceCredit" Grid.Column="1"
+                                    FontStyle="Italic"
+                                    FontSize="12"
+                                    VerticalAlignment="Center" Margin="12,0,0,0"/>
+                </Grid>
+            </Expander.Header>
+
+            <Grid x:Name="SpeciesInfoGrid" HorizontalAlignment="Stretch" MaxWidth="460">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Environment -->
+                <TextBlock Text="Environment:" Grid.Row="0" Grid.Column="0" 
+                           FontWeight="Bold" Margin="0,0,8,0" HorizontalAlignment="Right" />
+                <TextBlock x:Name="Environment" Grid.Row="0" Grid.Column="1"
+                           TextWrapping="Wrap"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+                <!-- Distribution -->
+                <TextBlock Text="Distribution:" Grid.Row="1" Grid.Column="0"
+                           FontWeight="Bold" Margin="0,12,8,0" HorizontalAlignment="Right" />
+                <TextBlock x:Name="Distribution" Grid.Row="1" Grid.Column="1"           
+                           TextWrapping="Wrap" Margin="0,12,0,0"                           
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+
+                <!-- Size -->
+                <TextBlock Text="Size:" Grid.Row="2" Grid.Column="0"
+                           FontWeight="Bold" Margin="0,12,8,0" HorizontalAlignment="Right" />
+                <TextBlock x:Name="SpeciesSize" Grid.Row="2" Grid.Column="1"
+                           TextWrapping="Wrap" Margin="0,12,0,0"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Grid>
+        </Expander>
+
+
+
 
         <GridView x:Name="ImageGridView"
                     Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" 

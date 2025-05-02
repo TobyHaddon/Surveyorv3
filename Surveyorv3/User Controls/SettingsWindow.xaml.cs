@@ -9,15 +9,13 @@
 // 2025-01-25 Stop the flashing on load between themes
 
 using CommunityToolkit.WinUI;
-using CommunityToolkit.WinUI.UI.Controls;
+using CommunityToolkit.WinUI.Controls;
 using Microsoft.UI;
-using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Navigation;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
 using System;
@@ -25,17 +23,15 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
-using Windows.Graphics;
-using Windows.UI.ViewManagement;
-using static QRCoder.PayloadGenerator;
+using Windows.ApplicationModel.DataTransfer;
+using Windows.Foundation;
+using WinUIEx;
 using static Surveyor.InternetQueue;
-using static Surveyor.SpeciesImageCache;
+using static Surveyor.SpeciesImageAndInfoCache;
 using static Surveyor.User_Controls.SettingsWindowEventData;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 
@@ -46,13 +42,16 @@ namespace Surveyor.User_Controls
     /// <summary>
     /// A page that displays the app's settings.
     /// </summary>
-    public sealed partial class SettingsWindow : Window
+    public sealed partial class SettingsWindow : WindowEx
     {
         // Copy of MainWindow
         private readonly MainWindow? mainWindow = null;
 
         // Reporter
-        Reporter? report = null;
+        private Reporter? report = null;
+
+        // Optional sectionto open
+        private string sectionToScrollTo = string.Empty;
 
         // Copy of the mediator 
         private SurveyorMediator? mediator;
@@ -73,14 +72,32 @@ namespace Surveyor.User_Controls
         // This is temporary filtered version of the species code list, used if the used searches the DataGrid
         public ObservableCollection<SpeciesItem> FilteredSpeciesItems { get; } = [];
 
-        public SettingsWindow(SurveyorMediator _mediator, MainWindow _mainWindow, Survey? surveyClass, Reporter? _report)
+        public SettingsWindow(SurveyorMediator _mediator, MainWindow _mainWindow, Survey? surveyClass, Reporter? _report, string section = "")
         {
             // Remember main window (needed for this method)
             mainWindow = _mainWindow;
 
+            // Remember the survey
+            survey = surveyClass;
+
+            // Remember the reporter
+            report = _report;
+
+            sectionToScrollTo = section;
+
+            // Restore the saved window state
+            PersistenceId = "SettingsWindow";
+
             this.InitializeComponent();
             this.Closed += SettingsWindow_Closed;
+
             
+            // Set min window size
+            MinHeight = 600;
+            MinWidth = 800;
+            MaxHeight = 800;
+            MaxWidth = 1200;
+
             // React to theme changes
             uiSettings.ColorValuesChanged += UiSettings_ColorValuesChanged;
 
@@ -88,11 +105,6 @@ namespace Surveyor.User_Controls
             mediator = _mediator;
             settingsWindowHandler = new SettingsWindowHandler(mediator, this, mainWindow);
 
-            // Remember the survey
-            survey = surveyClass;
-
-            // Remember the reporter
-            report = _report;
 
             // Set the current saved theme
             SetSettingsTheme(SettingsManagerLocal.ApplicationTheme);
@@ -107,30 +119,6 @@ namespace Surveyor.User_Controls
 
             // Remove the separate title bar from the window
             ExtendsContentIntoTitleBar = true;
-
-            // Get the AppWindow associated with this Window
-            var appWindow = GetAppWindowForCurrentWindow();
-            Debug.WriteLine($"SettingsWindow() Initial Size:({appWindow.ClientSize.Width},{appWindow.ClientSize.Height})");
-
-            // Get the scaling factor for the current display
-            double scalingFactor = GetScalingFactorForWindow();
-            Debug.WriteLine($"Scaling Factor: {scalingFactor}");
-
-            // Adjust the width and height based on the scaling factor
-            int adjustedWidth = (int)(1230 * scalingFactor);
-            int adjustedHeight = (int)(800 * scalingFactor);
-
-            // Set the size of the window
-            appWindow.Resize(new SizeInt32(adjustedWidth, adjustedHeight));
-            Debug.WriteLine($"SettingsWindow() Post resize Size:({appWindow.ClientSize.Width},{appWindow.ClientSize.Height})");
-
-            // Center the window on the screen
-            var displayArea = DisplayArea.GetFromWindowId(appWindow.Id, DisplayAreaFallback.Primary);
-            var workArea = displayArea.WorkArea;
-            appWindow.Move(new PointInt32(
-                (workArea.Width - adjustedWidth) / 2,
-                (workArea.Height - adjustedHeight) / 2
-            ));
 
             // Force QR Standard Setup
             _ = SetQRCodeSelection(null);  // null selects the first item in the list
@@ -293,6 +281,16 @@ namespace Surveyor.User_Controls
                     // Load the Use Internet enabled state
                     UseInternet.IsOn = SettingsManagerLocal.UseInternetEnabled;
 
+                    // Set the tooltip on the information icon on the Species image and information cache expander
+                    ToolTip tooltipSpeciesImageCacheFolder = new();
+                    try
+                    {
+                        string localFolderPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+                        tooltipSpeciesImageCacheFolder.Content = $"Species image and information folder: {localFolderPath}";
+                        ToolTipService.SetToolTip(SpeciesImageCacheFolder, tooltipSpeciesImageCacheFolder);
+                    }
+                    catch { }                
+
                     // Hide the Edit/Delete buttons until an SpeciesCodeList item is selected
                     SpeciesCodeListEditButton.IsEnabled = false;
                     SpeciesCodeListDeleteButton.IsEnabled = false;
@@ -300,21 +298,77 @@ namespace Surveyor.User_Controls
                     // Load the Scientific Name Order enabled state
                     SpeciesCodeListScientificNameOrder.IsOn = SettingsManagerLocal.ScientificNameOrderEnabled;
 
+                    // Set the tooltip on the information icon on the Species List expander
+                    ToolTip tooltipSpeciesCodeListFileSpec = new();
+                    try
+                    {
+                        tooltipSpeciesCodeListFileSpec.Content = $"Species file location: {mainWindow?.mediaStereoController.speciesSelector.speciesCodeList.SpeciesCodeListFileSpec}";
+                        ToolTipService.SetToolTip(SpeciesCodeListFileSpec, tooltipSpeciesCodeListFileSpec);
+                    }
+                    catch { }
+                    
                     // Refresh the Species State list
                     mainWindow?.mediaStereoController.speciesImageCache.RefreshView();
 
                     // Refresh the internet queue
                     mainWindow?.internetQueue.RefreshView();
                 }
+
+
+                // Open section if requested
+                if (sectionToScrollTo.Equals("Survey Settings", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Open the 'Survey Settings' section and bring into view
+                    ExpandAndSectionIntoView(SurveySettingsExpander);
+                }
+                else if (sectionToScrollTo.Equals("General Settings", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Open the 'General Settings' section and bring into view
+                    ExpandAndSectionIntoView(GeneralSettingsExpander);
+                }
+                else if (sectionToScrollTo.Equals("Species List", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Open the 'General Settings' section and bring into view
+                    ExpandAndSectionIntoView(SpeciesCodeListExpander);
+                }
+                else if (sectionToScrollTo.Equals("Camera", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Open the 'General Settings' section and bring into view
+                    ExpandAndSectionIntoView(CameraExpander);
+                }
+                else if (sectionToScrollTo.Equals("About", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Open the 'About' section and bring into view
+                    ExpandAndSectionIntoView(SettingsExpanderAbout);
+                }
+
             }
             finally
             {
                 _isInitializing = false;
-            }
-            
-
+            }           
         }
 
+
+        /// <summary>
+        /// Unloaded event for the root grid.  This is used to clean up the UI and close any open dialogs
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void RootGrid_Unloaded(object sender, RoutedEventArgs e)
+        {
+            // Close UI things
+            GoProQRCode.Source = null;
+            SurveyInfoAndMedia.Shutdown();
+            SettingsSurveyRules.Shutdown();
+            mainWindow?.mediaStereoController.speciesImageCache.RefreshView(true/*reset*/);
+            mainWindow?.internetQueue.RefreshView(true/*reset*/);
+
+            // Optionally clear controls if they’re bound to static objects
+            SettingsCardSurveyInfoAndMedia.Content = null;
+
+            uiSettings.ColorValuesChanged -= UiSettings_ColorValuesChanged;
+        }
 
         /// <summary>
         /// Apply the theme change to the main window when the settings window is closed
@@ -323,12 +377,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void SettingsWindow_Closed(object sender, WindowEventArgs e)
         {
-            // Close things
-            GoProQRCode.Source = null;
-            SurveyInfoAndMedia.Shutdown();
-            SettingsSurveyRules.Shutdown();
-            mainWindow?.mediaStereoController.speciesImageCache.RefreshView(true/*reset*/);
-            mainWindow?.internetQueue.RefreshView(true/*reset*/);
+            //  But: don't await anything directly here!
 
 
             // Check if the theme has changed
@@ -338,20 +387,13 @@ namespace Surveyor.User_Controls
 
             // Set the save theme
             SettingsManagerLocal.ApplicationTheme = rootElement.RequestedTheme;
-
-
-            // Optionally clear controls if they’re bound to static objects
-            SettingsCardSurveyInfoAndMedia.Content = null;
-            
-
+          
             // Unregister the mediator handler
             if (mediator is not null && settingsWindowHandler is not null)
             {
                 mediator.Unregister(settingsWindowHandler);
                 mediator = null;
             }
-
-            uiSettings.ColorValuesChanged -= UiSettings_ColorValuesChanged;
 
             report = null;
 
@@ -538,7 +580,31 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void RefreshSpeciesStateView_Click(object sender, RoutedEventArgs e)
         {
-            mainWindow?.mediaStereoController.speciesImageCache.RefreshView();
+            if (mainWindow is not null)
+            {
+                // Save the selected species name
+                string? selectedSpeciesName = (SpeciesImageCacheDataGrid.SelectedItem as SpeciesCacheViewItem)?.SpeciesItem.Species;
+
+                // Refresh the cache view                
+                mainWindow.mediaStereoController.speciesImageCache.RefreshView();
+
+                // Try to find the matching item based on Species name
+                if (!string.IsNullOrEmpty(selectedSpeciesName))
+                {
+                    var newSelectedItem = mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView
+                        .FirstOrDefault(item => string.Equals(item.SpeciesItem.Species, selectedSpeciesName, StringComparison.OrdinalIgnoreCase));
+
+                    if (newSelectedItem is not null)
+                    {
+                        SpeciesImageCacheDataGrid.SelectedItem = newSelectedItem;
+                        SpeciesImageCacheDataGrid.ScrollIntoView(newSelectedItem, null);
+                    }
+                }
+
+                SpeciesImageCacheItemImageCount.Text = $"{mainWindow.mediaStereoController.speciesImageCache.TotalImagesAvailable()} images of {mainWindow.mediaStereoController.speciesImageCache.TotalImagesRequired()} available";
+            }
+            else
+                SpeciesImageCacheItemImageCount.Text = string.Empty;
         }
 
 
@@ -549,7 +615,27 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void RefreshInternetQueueView_Click(object sender, RoutedEventArgs e)
         {
-            mainWindow?.internetQueue?.RefreshView();
+            if (mainWindow is not null)
+            {
+                // Save the selected url
+                string? selectedURL = (InternetQueueListView.SelectedItem as InternetQueueViewItem)?.URL;
+
+                // Refresh the internet queue view
+                mainWindow?.internetQueue?.RefreshView();
+
+                // Restore selection (if the item still exists in the refreshed collection)
+                if (!string.IsNullOrEmpty(selectedURL))
+                {
+                    var newSelectedItem = mainWindow?.internetQueue.InternetQueueView
+                        .FirstOrDefault(item => string.Equals(item.URL, selectedURL, StringComparison.OrdinalIgnoreCase));
+
+                    if (newSelectedItem is not null)
+                    {
+                        InternetQueueListView.SelectedItem = newSelectedItem;
+                        InternetQueueListView.ScrollIntoView(newSelectedItem, ScrollIntoViewAlignment.Default);
+                    }
+                }
+            }
         }
 
 
@@ -651,7 +737,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void RemoveRecordInternetQueue_Click(object sender, RoutedEventArgs e)
         {
-            var selectedItem = InternetQueueDataGrid.SelectedItem as InternetQueueViewItem;
+            var selectedItem = InternetQueueListView.SelectedItem as InternetQueueViewItem;
 
             if (selectedItem is not null)
             {
@@ -668,6 +754,23 @@ namespace Surveyor.User_Controls
             }
         }
 
+
+        /// <summary>
+        /// Show the folder where the species image and information cahce can be found
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void SpeciesImageCacheFolder_Click(object sender, RoutedEventArgs e)
+        {
+            string localFolderPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+
+            if (!string.IsNullOrEmpty(localFolderPath))
+            {
+                var dataPackage = new DataPackage();
+                dataPackage.SetText(localFolderPath);
+                Clipboard.SetContent(dataPackage);
+            }
+        }
 
 
         /// <summary>
@@ -765,6 +868,25 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// User can click the information icon to copy the species code list file path to the clipboard
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void SpeciesCodeListFileSpec_Click(object sender, RoutedEventArgs e)
+        {
+            string filePath = mainWindow?.mediaStereoController?.speciesSelector?.speciesCodeList?.SpeciesCodeListFileSpec ?? "";
+
+            if (!string.IsNullOrEmpty(filePath))
+            {
+                var dataPackage = new DataPackage();
+                dataPackage.SetText(filePath);
+                Clipboard.SetContent(dataPackage);
+            }
+        }
+
+
+
+        /// <summary>
         /// Add a new species code to the list
         /// </summary>
         /// <param name="sender"></param>
@@ -782,7 +904,22 @@ namespace Surveyor.User_Controls
                 if (await dialog.SpeciesRecordNew(this, speciesItemNew, speciesCodeList) == true)
                 {
                     // Add the new species code to the list
-                    mainWindow?.mediaStereoController.speciesSelector.speciesCodeList.AddItem(speciesItemNew, SettingsManagerLocal.ScientificNameOrderEnabled);
+                    bool ret = mainWindow?.mediaStereoController.speciesSelector.speciesCodeList.AddItem(speciesItemNew, SettingsManagerLocal.ScientificNameOrderEnabled) ?? false;
+
+                    if (!ret)
+                    {
+                        // Are you sure?
+                        var dialog2 = new ContentDialog
+                        {
+                            Title = "Add Species Code List Record",
+                            Content = "Failed to add a new species to species code list.",
+                            CloseButtonText = "Cancel",
+                            DefaultButton = ContentDialogButton.Close,
+                            XamlRoot = this.Content.XamlRoot
+                        };
+
+                        await dialog2.ShowAsync();
+                    }
                 }
             }
         }
@@ -949,12 +1086,12 @@ namespace Surveyor.User_Controls
         /// Get the AppWindow associated with the current window
         /// </summary>
         /// <returns></returns>
-        private AppWindow GetAppWindowForCurrentWindow()
-        {
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
-            return AppWindow.GetFromWindowId(windowId);
-        }
+        //???private AppWindow GetAppWindowForCurrentWindow()
+        //{
+        //    var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+        //    var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
+        //    return AppWindow.GetFromWindowId(windowId);
+        //}
 
 
         /// <summary>
@@ -982,21 +1119,6 @@ namespace Surveyor.User_Controls
                 return sb.ToString();
             }
         }
-
-
-        /// <summary>
-        /// Get the scaling factor for the display
-        /// </summary>
-        /// <returns></returns>
-        private double GetScalingFactorForWindow()
-        {
-            IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this); // Get the native window handle
-            uint dpi = GetDpiForWindow(hWnd); // Get DPI for the current window
-            return dpi / 96.0; // Calculate scaling factor (96 DPI = 100%)
-        }
-
-        [DllImport("User32.dll")]
-        private static extern uint GetDpiForWindow(IntPtr hWnd);
 
 
         /// <summary>
@@ -1069,6 +1191,12 @@ namespace Surveyor.User_Controls
                 {
                     // Update the species code to the list
                     mainWindow?.mediaStereoController.speciesSelector.speciesCodeList.UpdateItem(speciesItem, SettingsManagerLocal.ScientificNameOrderEnabled);
+
+                    // Because it is an existing item that has been editted we need to force an update
+                    // Note This is because INotifyPropertyChanged/OnPropertyChanged() isn't implemented
+                    // on the SpeciesItem class
+                    SpeciesCodeListDataGrid.UpdateLayout();
+                    SpeciesCodeListDataGrid.ScrollIntoView(speciesItem, null);
                 }
             }
         }
@@ -1092,10 +1220,10 @@ namespace Surveyor.User_Controls
                     foreach (var item in mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems)
                     {
                         if (string.IsNullOrWhiteSpace(searchText) ||
-                            item.Genus?.ToLowerInvariant().Contains(lower) == true ||
-                            item.Species?.ToLowerInvariant().Contains(lower) == true ||
-                            item.Family?.ToLowerInvariant().Contains(lower) == true ||
-                            item.Code?.ToLowerInvariant().Contains(lower) == true)
+                            item.Genus?.ToLowerInvariant().Contains(lower, StringComparison.InvariantCultureIgnoreCase) == true ||
+                            item.Species?.ToLowerInvariant().Contains(lower, StringComparison.InvariantCultureIgnoreCase) == true ||
+                            item.Family?.ToLowerInvariant().Contains(lower, StringComparison.InvariantCultureIgnoreCase) == true ||
+                            item.Code?.ToLowerInvariant().Contains(lower, StringComparison.InvariantCultureIgnoreCase) == true)
                         {
                             FilteredSpeciesItems.Add(item);
                         }
@@ -1115,6 +1243,35 @@ namespace Surveyor.User_Controls
             }        
         }
 
+
+        /// <summary>
+        /// Expand the expander and bring it into view
+        /// </summary>
+        /// <param name="expander"></param>
+        private void ExpandAndSectionIntoView(SettingsExpander expander)
+        {
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                expander.IsExpanded = true;
+
+                // Get position of the expander relative to the ScrollViewer
+                var transform = expander.TransformToVisual(contentSV);
+                var point = transform.TransformPoint(new Point(0, 0));
+                double expanderTop = point.Y;
+                double expanderHeight = expander.ActualHeight;
+
+                // Get the height of the visible viewport of the ScrollViewer
+                double viewportHeight = contentSV.ViewportHeight;
+
+                // Scroll so that the whole expander is visible if possible
+                double targetOffset = expanderTop + expanderHeight - viewportHeight;
+
+                // Clamp to 0 in case the expander fits already
+                double scrollTo = Math.Max(0, targetOffset);
+
+                contentSV.ChangeView(null, scrollTo, null);
+            });
+        }
 
 
 

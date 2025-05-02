@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
+using WinUIEx;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -41,7 +42,7 @@ using static Surveyor.User_Controls.SurveyorTesting;
 
 namespace Surveyor.User_Controls
 {
-    public sealed partial class SurveyorTesting : Window
+    public sealed partial class SurveyorTesting : WindowEx
     {
         // Copy of MainWindow
         private readonly MainWindow? mainWindow = null;
@@ -73,36 +74,22 @@ namespace Surveyor.User_Controls
             // Remember the reporter 
             Report = _Report;
 
+            // Restore the saved window state
+            PersistenceId = "TestingWindow";
+
+
             this.InitializeComponent();
             this.Closed += SettingsWindow_Closed;
 
+            // Set min window size
+            MinHeight = 600;
+            MinWidth = 800;
+            MaxHeight = 800;
+            MaxWidth = 1200;
+
+
             // Remove the separate title bar from the window
             ExtendsContentIntoTitleBar = true;
-
-            // Get the AppWindow associated with this Window
-            var appWindow = GetAppWindowForCurrentWindow();
-            Debug.WriteLine($"SettingsWindow() Initial Size:({appWindow.ClientSize.Width},{appWindow.ClientSize.Height})");
-
-            // Get the scaling factor for the current display
-            double scalingFactor = GetScalingFactorForWindow();
-            Debug.WriteLine($"Scaling Factor: {scalingFactor}");
-
-            // Adjust the width and height based on the scaling factor
-            int adjustedWidth = (int)(800 * scalingFactor);
-            int adjustedHeight = (int)(800 * scalingFactor);
-
-            // Set the size of the window
-            appWindow.Resize(new SizeInt32(adjustedWidth, adjustedHeight));
-            Debug.WriteLine($"SettingsWindow() Post resize Size:({appWindow.ClientSize.Width},{appWindow.ClientSize.Height})");
-
-            // Center the window on the screen
-            var displayArea = DisplayArea.GetFromWindowId(appWindow.Id, DisplayAreaFallback.Primary);
-            var workArea = displayArea.WorkArea;
-            appWindow.Move(new PointInt32(
-                (workArea.Width - adjustedWidth) / 2,
-                (workArea.Height - adjustedHeight) / 2
-            ));
-
         }
 
 
@@ -279,38 +266,21 @@ namespace Surveyor.User_Controls
             await DownloadUploadManagerTest();
         }
 
+        /// <summary>
+        /// Download a FishBase species summary page and extract information
+        /// This could fail if the FishBase website changes
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void FishBaseExtractTest_Click(object sender, RoutedEventArgs e)
+        {
+            await FishBaseExtractTest();
+        }
 
 
         ///
         /// PRIVATE
         ///
-
-
-        /// <summary>
-        /// Get the AppWindow associated with the current window
-        /// </summary>
-        /// <returns></returns>
-        private AppWindow GetAppWindowForCurrentWindow()
-        {
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
-            return AppWindow.GetFromWindowId(windowId);
-        }
-
-
-        /// <summary>
-        /// Get the scaling factor for the display
-        /// </summary>
-        /// <returns></returns>
-        private double GetScalingFactorForWindow()
-        {
-            IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this); // Get the native window handle
-            uint dpi = GetDpiForWindow(hWnd); // Get DPI for the current window
-            return dpi / 96.0; // Calculate scaling factor (96 DPI = 100%)
-        }
-
-        [DllImport("User32.dll")]
-        private static extern uint GetDpiForWindow(IntPtr hWnd);
 
 
         /// <summary>
@@ -559,9 +529,23 @@ namespace Surveyor.User_Controls
                 string url1 = "https://www.fishbase.se/photos/PicturesSummary.php?resultPage=1&ID=3651&what=species";
                 string url2 = "https://www.fishbase.se/photos/PicturesSummary.php?resultPage=2&ID=3651&what=species";
                 string url3 = "https://www.fishbase.se/photos/PicturesSummary.php?resultPage=2&ID=3602&what=species";
-                mainWindow?.internetQueue.AddDownloadRequest(TransferType.Page, url1, Priority.Normal);
-                mainWindow?.internetQueue.AddDownloadRequest(TransferType.Page, url2, Priority.Normal);
-                mainWindow?.internetQueue.AddDownloadRequest(TransferType.Page, url3, Priority.Normal);
+
+                // Remove if already present in the queue
+                var item = mainWindow?.internetQueue.Find(url1);
+                if (item is not null)
+                    mainWindow?.internetQueue.Remove(item);
+
+                item = mainWindow?.internetQueue.Find(url2);
+                if (item is not null)
+                    mainWindow?.internetQueue.Remove(item);
+
+                item = mainWindow?.internetQueue.Find(url3);
+                if (item is not null)
+                    mainWindow?.internetQueue.Remove(item);
+
+                mainWindow?.internetQueue.AddDownloadRequest(TransferType.Page, url1, "temp", Priority.Normal);
+                mainWindow?.internetQueue.AddDownloadRequest(TransferType.Page, url2, "temp", Priority.Normal);
+                mainWindow?.internetQueue.AddDownloadRequest(TransferType.Page, url3, "temp", Priority.Normal);
                 SetProgressBarAndStatus(steps++, "Request 3 downloads");
 
                 long timeout = 20000;
@@ -639,6 +623,147 @@ namespace Surveyor.User_Controls
             return ret;
         }
 
+
+
+        /// <summary>
+        /// Download a species summary page from FishBase and extract information
+        /// </summary>
+        /// <returns></returns>
+        private async Task<bool> FishBaseExtractTest()
+        {
+            bool ret = true;
+            string speciesID = "3604";
+
+            InTest(true/*inTest*/);
+
+            if (mainWindow is not null && Report is not null)
+            {
+                SetProgressBarMax(7);
+
+                int steps = 0;
+
+                string url1 = $"https://www.fishbase.se/summary/{speciesID}";
+                mainWindow?.internetQueue.AddDownloadRequest(TransferType.Page, url1, "temp", Priority.Normal);
+                SetProgressBarAndStatus(steps++, "Request species summary page");
+
+                long timeout = 20000;
+                bool allDownloaded = false;
+                InternetQueueItem? item1 = null;
+
+                Stopwatch sw = Stopwatch.StartNew();
+                while (sw.ElapsedMilliseconds < timeout && !allDownloaded) // Timeout after 20 seconds
+                {
+                    item1 = mainWindow?.internetQueue.Find(url1);
+                    
+                    // Check for passed test
+                    if (item1 is not null && item1.Status == Status.Downloaded)
+                    {
+                        bool passed = true;
+
+                        // Now extract information from the downloaded page
+                        // Get the StorageFile of the downloaded page
+                        StorageFile file = await ApplicationData.Current.LocalFolder.GetFileAsync(item1.RelativeLocalFileSpec);
+
+                        // Parse the species summary and extract species information for storage int the cache
+                        SetProgressBarAndStatus(steps++, "Extract summary information");
+                        var metadata = await HtmlFishBaseParser.ParseHtmlFishbaseSummaryAndExtractSpeciesMetadata(file.Path);
+
+                        // Check Fish ID
+                        if (metadata.FishID is not null)
+                        {
+                            SetProgressBarAndStatus(steps++, $"Fish ID found");
+                        }
+                        else
+                        {
+                            SetProgressBarAndStatus(steps++, $"Fish ID not found");
+                            passed = false;
+                        }
+
+                        // Check Species Latin 
+                        if (!string.IsNullOrWhiteSpace(metadata.SpeciesLatin))
+                        {
+                            SetProgressBarAndStatus(steps++, $"Species Latin name found");
+                        }
+                        else
+                        {
+                            SetProgressBarAndStatus(steps++, "Species Latin name not found");
+                            passed = false;
+                        }
+
+                        // Check Genus
+                        if (!string.IsNullOrWhiteSpace(metadata.Genus))
+                        {
+                            SetProgressBarAndStatus(steps++, $"Genus Latin name found");
+                        }
+                        else
+                        {
+                            SetProgressBarAndStatus(steps++, "Genus Latin name not found");
+                            passed = false;
+                        }
+
+                        // Check Family Latin 
+                        if (!string.IsNullOrWhiteSpace(metadata.FamilyLatin))
+                        {
+                            SetProgressBarAndStatus(steps++, $"Family Latin name found");
+                        }
+                        else
+                        {
+                            SetProgressBarAndStatus(steps++, "Family Latin name not found");
+                            passed = false;
+                        }
+
+                        // Check for environment, distribution and species size
+                        if (!string.IsNullOrWhiteSpace(metadata.Environment) &&
+                            !string.IsNullOrWhiteSpace(metadata.Distribution) &&
+                            !string.IsNullOrWhiteSpace(metadata.SpeciesSize))
+                        {
+                            SetProgressBarAndStatus(steps++, $"Environment, Distribution & SpeciesSize all found");
+                        }
+                        else
+                        {
+                            string foundEnvironment = string.IsNullOrWhiteSpace(metadata.Environment) ? "not found" : "found";
+                            string foundDistribution = string.IsNullOrWhiteSpace(metadata.Distribution) ? "not found" : "found";
+                            string foundSpeciesSize = string.IsNullOrWhiteSpace(metadata.SpeciesSize) ? "not found" : "found";
+                            SetProgressBarAndStatus(steps++, $"Environment {foundEnvironment}, Distribution {foundDistribution} & SpeciesSize {foundSpeciesSize}");
+                            passed = false;
+                        }
+
+                        // Mark test as Passed or Failed 
+                        TestCountIncrement(passed/*isPass*/);
+                    }
+
+                    if ((item1 is not null && item1.Status == Status.Downloaded))
+                    {
+                        allDownloaded = true;
+                    }
+
+                    if (item1 is not null)
+                    {
+                        SetProgressBarAndStatus(steps, $"Timeout:({((double)sw.ElapsedMilliseconds / 1000):F1}/{timeout / 1000})secs, Item1:{item1.Status}");
+                    }
+
+                    await Task.Delay(500);
+                }
+
+                // Check for failed tests
+                if (item1 is null || (item1 is not null && item1.Status == Status.Downloaded))
+                    TestCountIncrement(false/*isPass*/);
+
+                // Clean up
+                if (item1 is not null)
+                    mainWindow?.internetQueue.Remove(item1);
+
+            }
+            else
+            {
+                Debug.WriteLine("SimpleTest() MainWindow is null or Report is null");
+                ret = false;
+            }
+
+            InTest(false/*inTest*/);
+
+            return ret;
+        }
 
         /// <summary>
         /// Test script engine

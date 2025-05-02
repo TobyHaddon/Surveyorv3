@@ -7,7 +7,6 @@ using Microsoft.UI.Xaml.Controls;
 using Surveyor.User_Controls;
 using System;
 using System.Net.Http;
-using System.Threading;
 using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.System;
@@ -16,6 +15,10 @@ using static Surveyor.Helper.HtmlFishBaseParser;
 using static Surveyor.SpeciesItem;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI;
+using System.ComponentModel.Design;
+using System.Diagnostics;
+using Windows.UI.Core;
+using Microsoft.UI.Input;
 
 
 
@@ -30,9 +33,11 @@ namespace Surveyor
         private int atStepNumber = 0;
 
         private ContentDialog? dialog = null;
+        private ScrollViewer? contentWrapper = null;
+
         private HttpClient httpClient = new();
         private HtmlFishBaseSpeciesMetadata? fishBaseSpeciesMetadata = null;
-        private bool? pageDownloadedAndExtractedOk = null;
+        private bool? pageDownloadAttempted = null;
 
         public SpeciesRecordEditDialog(Reporter? _report)
         {
@@ -72,37 +77,105 @@ namespace Surveyor
         /// 
 
 
+        /// <summary>
+        /// The text in the new species FishBase URL textbox has changed
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void NewSpeciesFishbaseURL_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            string url = NewSpeciesFishBaseURL.Text;
+            if (IsValidUrl(url))
+                NewSpeciesFishBaseURLOKButton.IsEnabled = true;
+            else
+                NewSpeciesFishBaseURLOKButton.IsEnabled = false;
+        }
 
-        private void SpeciesLatin_TextChanged(object sender, TextChangedEventArgs e)
+
+        /// <summary>
+        /// In the New species dialog this button is used to populate the family/genus/species
+        /// Textboxes from the information on a FishBase species summary page
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void NewSpeciesFishBaseURLOKButton_Click(object sender, RoutedEventArgs e)
+        {
+            string url = NewSpeciesFishBaseURL.Text;
+
+            try
+            {
+                // Disable the download button so it can't be pressed twice
+                NewSpeciesFishBaseURLOKButton.IsEnabled = false;
+
+                // Download the page and extract the metadata
+                fishBaseSpeciesMetadata = await DownloadFishBaseSummaryPage(url);
+                pageDownloadAttempted = true;
+
+                if (fishBaseSpeciesMetadata is not null)
+                {
+                    SetFishBaseURLValid(true/*trueTickFalseCrossNullNothing*/);
+
+                    // Load the family, genus, species & fish ID
+                    SpeciesLatin.Text = fishBaseSpeciesMetadata.SpeciesLatin ?? "";
+                    SpeciesCommon.Text = fishBaseSpeciesMetadata.SpeciesCommon ?? "";
+                    GenusLatin.Text = fishBaseSpeciesMetadata.Genus ?? "";
+                    if (fishBaseSpeciesMetadata.FamilyLatin is not null && fishBaseSpeciesMetadata.FamilyCommon is not null)
+                        Family.Text = $"{fishBaseSpeciesMetadata.FamilyLatin}/{fishBaseSpeciesMetadata.FamilyCommon}";
+                    else if (fishBaseSpeciesMetadata.FamilyLatin is not null)
+                        Family.Text = $"{fishBaseSpeciesMetadata.FamilyLatin}";
+                    else
+                        Family.Text = string.Empty;
+
+                    if (fishBaseSpeciesMetadata.FishID is not null)
+                    {
+                        int fishID = (int)fishBaseSpeciesMetadata.FishID;
+                        SpeciesCode.Text = SpeciesItem.MakeCodeFromCodeTypeAndCode(CodeType.FishBase, fishID.ToString());
+                    }
+                    else
+                    {
+                        SpeciesCode.Text = string.Empty;
+                    }
+                }
+                await ManageControlVisability();
+            }
+            finally
+            {
+                // Reenable download button
+                NewSpeciesFishBaseURLOKButton.IsEnabled = true;
+            }
+        }
+
+
+        private async void SpeciesLatin_TextChanged(object sender, TextChangedEventArgs e)
         {
             EnforceLowercaseTextBox((TextBox)sender);
 
-            ManageControlVisability();
+            await ManageControlVisability();
         }
 
-        private void SpeciesCommon_TextChanged(object sender, TextChangedEventArgs e)
+        private async void SpeciesCommon_TextChanged(object sender, TextChangedEventArgs e)
         {
-            ManageControlVisability();
+            await ManageControlVisability();
         }
 
-        private void GenusLatin_TextChanged(object sender, TextChangedEventArgs e)
+        private async void GenusLatin_TextChanged(object sender, TextChangedEventArgs e)
         {
-            ManageControlVisability();
+            await ManageControlVisability();
         }
 
-        private void FamilyAutoSuggest_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+        private async void FamilyAutoSuggest_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
         {
-            ManageControlVisability();
+            await ManageControlVisability();
         }
 
-        private void FamilyAutoSuggest_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+        private async void FamilyAutoSuggest_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
         {
-            ManageControlVisability();
+            await ManageControlVisability();
         }
 
-        private void FamilyAutoSuggest_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+        private async void FamilyAutoSuggest_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
         {
-            ManageControlVisability();
+            await ManageControlVisability();
         }
 
         /// <summary>
@@ -111,81 +184,86 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void FishbaseSearchButton_Click(object sender, RoutedEventArgs e)
+        private async void EditSpeciesFishbaseSearchButton_Click(object sender, RoutedEventArgs e)
         {
             bool ret;
-            string genus = GenusLatin.Text;
-            string species = SpeciesLatin.Text;
+            string genus = GenusLatin.Text.Trim();
+            string species = SpeciesLatin.Text.Trim();
 
             FishBaseID.Text = "";
 
-            ret = await OpenFishBasePageAsync(genus, species);
-            if (ret == true)
+            try
             {
-                atStepNumber = 2;
-                ManageControlVisability();
+                // Disable the download button so it can't be pressed twice
+                EditSpeciesFishbaseSearchButton.IsEnabled = false;
+
+                ret = await OpenFishBasePageAsync(genus, species);
+                if (ret == true)
+                {
+                    atStepNumber = 2;                
+                }
+                await ManageControlVisability();
             }
+            finally
+            {
+                // Reenable download button
+                EditSpeciesFishbaseSearchButton.IsEnabled = true;
+            }
+
         }
 
-        private void FishbaseURL_TextChanged(object sender, TextChangedEventArgs e)
+
+
+        /// <summary>
+        /// The text in the edit species FishBase URL textbox has changed
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void EditSpeciesFishbaseURL_TextChanged(object sender, TextChangedEventArgs e)
         {
-            string url = FishBaseURL.Text;
+            string url = EditSpeciesFishBaseURL.Text;
             if (IsValidUrl(url))
-                FishBaseURLOKButton.IsEnabled = true;
+                EditSpeciesFishBaseURLOKButton.IsEnabled = true;
             else
-                FishBaseURLOKButton.IsEnabled = false;
+                EditSpeciesFishBaseURLOKButton.IsEnabled = false;
         }
 
-        private async void FishbaseURLDownloadButton_Click(object sender, RoutedEventArgs e)
-        {
-            // Download the provided URL. We'll assume is it a species summary page 
-            // and try to extract the FishBase ID (known as speccode in the html) and
-            // the family,genus and species names from the page
-            
-            string url = FishBaseURL.Text;
-            string localFileSpec = url.GetHashCode().ToString("X") + ".html";
+
+        /// <summary>
+        /// Download the provided URL. We'll assume is it a species summary page 
+        /// and try to extract the FishBase ID (known as speccode in the html) and
+        /// the family,genus and species names from the page
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void EditSpeciesFishbaseURLDownloadButton_Click(object sender, RoutedEventArgs e)
+        {            
+            string url = EditSpeciesFishBaseURL.Text;
 
             try
             {
-                var response = await httpClient.GetAsync(url);
-                response.EnsureSuccessStatusCode();
+                // Disable the download button so it can't be pressed twice
+                EditSpeciesFishBaseURLOKButton.IsEnabled = false;
 
-                var content = await response.Content.ReadAsStringAsync();
+                // Download the page and extract the metadata
+                fishBaseSpeciesMetadata = await DownloadFishBaseSummaryPage(url);
+                pageDownloadAttempted = true;
 
-                StorageFile file = await ApplicationData.Current.LocalFolder.CreateFileAsync(localFileSpec, CreationCollisionOption.ReplaceExisting);
-                await FileIO.WriteTextAsync(file, content);
-
-                try
+                if (fishBaseSpeciesMetadata is not null)
                 {
-                    HtmlFishBaseSpeciesMetadata? fishBaseSpeciesMetadata = await ParseHtmlFishbaseSummaryAndExtractSpeciesMetadata(file);
+                    GenusSpeciesConfirmText.Text = $"Family: {fishBaseSpeciesMetadata.FamilyLatin}\nGenus: {fishBaseSpeciesMetadata.Genus}\nSpecies: {fishBaseSpeciesMetadata.SpeciesLatin}";
 
-                    if (fishBaseSpeciesMetadata is not null)
-                    {
-                        GenusSpeciesConfirmText.Text = $"Family: {fishBaseSpeciesMetadata.FamilyLatin}\nGenus: {fishBaseSpeciesMetadata.Genus}\nSpecies: {fishBaseSpeciesMetadata.SpeciesLatin}";
+                    SetFishBaseURLValid(true/*trueTickFalseCrossNullNothing*/);
 
-                        if (fishBaseSpeciesMetadata.FishID is not null)
-                        {
-                            pageDownloadedAndExtractedOk = true;
-                            SetFishBaseURLValid(true/*trueTickFalseCrossNullNothing*/);
-                        }
-
-                        atStepNumber = 3;
-                        ManageControlVisability();
-
-                    }
-
-                    // Clean up
-                    await file.DeleteAsync();
+                    atStepNumber = 3;
                 }
-                catch (Exception ex)
-                {
-                    report?.Warning("", $"Failed to extract Fish ID fron the FishBase page {url}, {ex.Message}");
-                }
+                await ManageControlVisability();
             }
-            catch (Exception ex)
+            finally
             {
-                report?.Warning("", $"Failed to get FishBase page {url}, {ex.Message}");
-            }           
+                // Reenable download button
+                EditSpeciesFishBaseURLOKButton.IsEnabled = true;
+            }
         }
 
 
@@ -195,18 +273,19 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void GenusSpeciesConfirmButton_Click(object sender, RoutedEventArgs e)
+        private async void EditSpeciesGenusSpeciesConfirmButton_Click(object sender, RoutedEventArgs e)
         {
             if (fishBaseSpeciesMetadata is not null && fishBaseSpeciesMetadata.FishID is not null)
             {
                 int fishID = (int)fishBaseSpeciesMetadata.FishID;
 
                 speciesItem.Code = SpeciesItem.MakeCodeFromCodeTypeAndCode(CodeType.FishBase, fishID.ToString());
-                FishBaseID.Text = $"{fishBaseSpeciesMetadata.FishID}";
+                SpeciesCode.Text = speciesItem.Code;
+                FishBaseID.Text = $" {fishBaseSpeciesMetadata.FishID}";
 
-                atStepNumber = 4;
-                ManageControlVisability();
+                atStepNumber = 4;                
             }
+            await ManageControlVisability();
         }
 
 
@@ -231,6 +310,7 @@ namespace Surveyor
             try
             {
                 editExisting = _editExisting;
+                speciesItem = _speciesItem;
 
                 ClearControls();
 
@@ -238,27 +318,28 @@ namespace Surveyor
                 {
                     title = "Edit Species Record";
                     primaryButtonText = "Update";
-
-                    speciesItem = _speciesItem;
-
+                  
                     // Populate the controls with the existing species info
                     Family.Text = speciesItem.Family;
                     GenusLatin.Text = speciesItem.Genus;
                     SpeciesLatin.Text = speciesItem.SpeciesScientific;
                     SpeciesCommon.Text = speciesItem.SpeciesCommon;
-                    SpeciesCode.Text = speciesItem.Code;
-                    FishBaseURL.Text = string.Empty;
-                    FishBaseID.Text = string.Empty;
-                    pageDownloadedAndExtractedOk = null;
-
-                    if (IsFishBaseIDSetup(speciesItem.Code))
-                    {
-                        atStepNumber = 4;
-                    }
+                    if (string.Compare(speciesItem.Code, "FishBase:", true/*ignorecase*/) != 0)
+                        SpeciesCode.Text = speciesItem.Code;
                     else
-                    {
+                        SpeciesCode.Text = string.Empty;
+                    EditSpeciesFishBaseURL.Text = string.Empty;
+                    FishBaseID.Text = string.Empty;
+                    pageDownloadAttempted = null;
+
+                    //if (IsFishBaseIDSetup(speciesItem.Code))
+                    //{
+                    //    atStepNumber = 4;
+                    //}
+                    //else
+                    //{
                         atStepNumber = 1;
-                    }
+                    //}
                 }
                 else
                 {
@@ -270,9 +351,9 @@ namespace Surveyor
                     SpeciesLatin.Text = string.Empty;
                     SpeciesCommon.Text = string.Empty;
                     SpeciesCode.Text = string.Empty;
-                    FishBaseURL.Text = string.Empty;
+                    EditSpeciesFishBaseURL.Text = string.Empty;
                     FishBaseID.Text = string.Empty;
-                    pageDownloadedAndExtractedOk = null;
+                    pageDownloadAttempted = null;
 
                     atStepNumber = 0;
                 }
@@ -294,7 +375,7 @@ namespace Surveyor
                 };
 
                 // Wrap the control in a ScrollViewer here:
-                var contentWrapper = new ScrollViewer
+                contentWrapper = new ScrollViewer
                 {
                     VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
                     MaxHeight = 600, // or Window.Current.Bounds.Height * 0.8
@@ -311,7 +392,8 @@ namespace Surveyor
                 };
 
                 // Enable the buttons
-                ManageControlVisability();
+                await NetworkHelper.IsInternetAvailableHttpAsync(true/*force the underlying check*/);
+                await ManageControlVisability();
 
                 // Show the dialog and handle the response
                 var result = await dialog.ShowAsync();
@@ -320,11 +402,25 @@ namespace Surveyor
                 // Check if the Add button pressed
                 if (result == ContentDialogResult.Primary)
                 {
+                    // Transfer values form the UI controls
+                    speciesItem.Family = Family.Text;
+                    speciesItem.Genus = GenusLatin.Text;
+                    if (!string.IsNullOrWhiteSpace(SpeciesLatin.Text) && !string.IsNullOrWhiteSpace(SpeciesCommon.Text))
+                    {
+                        speciesItem.Species = $"{SpeciesLatin.Text}/{SpeciesCommon.Text}";
+                    }
+                    else if (!string.IsNullOrWhiteSpace(SpeciesLatin.Text))
+                    {
+                        speciesItem.Species = SpeciesLatin.Text;
+                    }
+                    else
+                        speciesItem.Species = string.Empty;
+                    speciesItem.Code = SpeciesCode.Text;
+
                     ret = true;
                 }
                 else
                 {
-
                     ret = false;
                 }
             }
@@ -339,8 +435,9 @@ namespace Surveyor
         }
 
 
-
-
+        /// <summary>
+        /// Clear UI COntrols
+        /// </summary>
         private void ClearControls()
         {
             fishBaseSpeciesMetadata = null;
@@ -350,95 +447,167 @@ namespace Surveyor
         /// <summary>
         /// Manage the states of the UIelements
         /// </summary>
-        private void ManageControlVisability()
+        private async Task ManageControlVisability()
         {
-            if (dialog is not null)
+            if (dialog is not null && editExisting is not null)
             {
-                // Check if enough data is entered to enable the Add or Update button
-                if (!string.IsNullOrEmpty(Family.Text) &&
-                    !string.IsNullOrEmpty(GenusLatin.Text) &&
-                    !string.IsNullOrEmpty(SpeciesLatin.Text))
-                {
-                    dialog.IsPrimaryButtonEnabled = true;
-                    if (atStepNumber == 0)
-                        atStepNumber = 1;
-                }
-                else
-                {
-                    dialog.IsPrimaryButtonEnabled = false;
-                    atStepNumber = 0;
-                }
+                bool isInternetAvailable = await NetworkHelper.IsInternetAvailableHttpAsync();
 
-                // Disable text to indicate that this record is connected to FishBase
-                if (IsFishBaseIDSetup(speciesItem.Code))
+                if ((bool)editExisting)
                 {
-                    SpeciesFishIDSetupOK.Visibility = Visibility.Visible;
-                }
-                else
-                {
-                    SpeciesFishIDSetupOK.Visibility = Visibility.Collapsed;
+                    // Edit existing species record
+                    EditExistingLinkToFishBaseGrid.Visibility = Visibility.Visible;
 
-                    if (System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable())
+                    // Check if enough data is entered to enable the Add or Update button
+                    if (!string.IsNullOrEmpty(Family.Text) &&
+                        !string.IsNullOrEmpty(GenusLatin.Text) &&
+                        !string.IsNullOrEmpty(SpeciesLatin.Text))
+                    {
+                        dialog.IsPrimaryButtonEnabled = true;
+                        if (atStepNumber == 0)
+                            atStepNumber = 1;
+                    }
+                    else
+                    {
+                        dialog.IsPrimaryButtonEnabled = false;
+                        atStepNumber = 0;
+                    }
+
+                    // Disable text to indicate that this record is connected to FishBase
+                    if (IsFishBaseIDSetup(speciesItem.Code))
+                    {
+                        EditSpeciesFishIDSetupOK.Visibility = Visibility.Visible;
+                    }
+                    else
+                    {
+                        EditSpeciesFishIDSetupOK.Visibility = Visibility.Collapsed;
+                    }
+
+                    // Internet available?
+                    if (isInternetAvailable)
                     {
                         // We have internet
-                        SpeciesFishIDNoInternet.Visibility = Visibility.Collapsed;
+                        EditSpeciesFishIDNoInternet.Visibility = Visibility.Collapsed;
+                        EditSpeciesFishbaseSearchButton.IsEnabled = true;
+
                     }
                     else
                     {
                         // No internet available to ask user to return to this dialog later
-                        SpeciesFishIDNoInternet.Visibility = Visibility.Visible;
+                        EditSpeciesFishIDNoInternet.Visibility = Visibility.Visible;
+                        EditSpeciesFishbaseSearchButton.IsEnabled = false;
                     }
-                }
 
 
-                // Show the steps to connect this species code list record to FishBase
-                if (atStepNumber == 0)
-                {
-                    // Nothing - no step shown
-                    SpeciesFishIDInstructionHeader.Visibility = Visibility.Collapsed;
-                    GridRowsVisibility(LinkToFishBaseGrid, Visibility.Collapsed, 0/*fromRowIndex*/, 7/*toRowIndex*/);
-                    SetFishBaseURLValid(null);
-                }
-                else if (atStepNumber == 1)
-                {
-                    // Step 1 - Try to open FishBase summary page
-                    SpeciesFishIDInstructionHeader.Visibility = Visibility.Visible;
-                    GridRowsVisibility(LinkToFishBaseGrid, Visibility.Visible, 0/*fromRowIndex*/, 1/*toRowIndex*/);
-                    GridRowsVisibility(LinkToFishBaseGrid, Visibility.Collapsed, 2/*fromRowIndex*/, 7/*toRowIndex*/);
-                    SetFishBaseURLValid(pageDownloadedAndExtractedOk);
-                }
-                else if (atStepNumber == 2)
-                {
-                    // Step 2 - Paste in the URL of the correct FishBase summary page. User press a button to download
-                    // the page and the software extracts key items of data including the FishBase ID
-                    SpeciesFishIDInstructionHeader.Visibility = Visibility.Visible;
-                    GridRowsVisibility(LinkToFishBaseGrid, Visibility.Visible, 0/*fromRowIndex*/, 3/*toRowIndex*/);
-                    GridRowsVisibility(LinkToFishBaseGrid, Visibility.Collapsed, 4/*fromRowIndex*/, 7/*toRowIndex*/);
-                    SetFishBaseURLValid(pageDownloadedAndExtractedOk);
-                }
-                else if (atStepNumber == 3)
-                {
-                    // Step 3 - User confirms the Fish's Species/Genus/Family from the FishBase summary page
-                    // matched the species we are setting up
-                    SpeciesFishIDInstructionHeader.Visibility = Visibility.Visible;
-                    GridRowsVisibility(LinkToFishBaseGrid, Visibility.Visible, 0/*fromRowIndex*/, 6/*toRowIndex*/);
-                    GridRowsVisibility(LinkToFishBaseGrid, Visibility.Collapsed, 7/*fromRowIndex*/, 7/*toRowIndex*/);
-                    SetFishBaseURLValid(pageDownloadedAndExtractedOk);
-                }
-                else if (atStepNumber == 4)
-                {
-                    // Step 4 - The acquired FishBase fishID is deplayed
-                    SpeciesFishIDInstructionHeader.Visibility = Visibility.Visible;
-                    GridRowsVisibility(LinkToFishBaseGrid, Visibility.Visible, 0/*fromRowIndex*/, 7/*toRowIndex*/);
-                    SetFishBaseURLValid(pageDownloadedAndExtractedOk);
-                }
+                    // Show the steps to connect this species code list record to FishBase
+                    if (atStepNumber == 0)
+                    {
+                        // Nothing - no step shown
+                        EditSpeciesFishIDInstructionHeader.Visibility = Visibility.Collapsed;
+                        GridRowsVisibility(EditExistingLinkToFishBaseGrid, Visibility.Collapsed, 3/*fromRowIndex*/, 10/*toRowIndex*/);
+                    }
+                    else if (atStepNumber == 1)
+                    {
+                        // Step 1 - Try to open FishBase summary page
+                        EditSpeciesFishIDInstructionHeader.Visibility = Visibility.Visible;
+                        GridRowsVisibility(EditExistingLinkToFishBaseGrid, Visibility.Visible, 3/*fromRowIndex*/, 4/*toRowIndex*/);
+                        GridRowsVisibility(EditExistingLinkToFishBaseGrid, Visibility.Collapsed, 5/*fromRowIndex*/, 10/*toRowIndex*/);
+
+                        // Scroll to bottom: offsetX=null, offsetY=max vertical offset, zoomFactor=null
+                        contentWrapper?.ChangeView(null, contentWrapper.ScrollableHeight, null);
+                    }
+                    else if (atStepNumber == 2)
+                    {
+                        // Step 2 - Paste in the URL of the correct FishBase summary page. User press a button to download
+                        // the page and the software extracts key items of data including the FishBase ID
+                        EditSpeciesFishIDInstructionHeader.Visibility = Visibility.Visible;
+                        GridRowsVisibility(EditExistingLinkToFishBaseGrid, Visibility.Visible, 3/*fromRowIndex*/, 6/*toRowIndex*/);
+                        GridRowsVisibility(EditExistingLinkToFishBaseGrid, Visibility.Collapsed, 7/*fromRowIndex*/, 10/*toRowIndex*/);
+
+                        // Scroll to bottom: offsetX=null, offsetY=max vertical offset, zoomFactor=null
+                        contentWrapper?.ChangeView(null, contentWrapper.ScrollableHeight, null);
+                    }
+                    else if (atStepNumber == 3)
+                    {
+                        // Step 3 - User confirms the Fish's Species/Genus/Family from the FishBase summary page
+                        // matched the species we are setting up
+                        EditSpeciesFishIDInstructionHeader.Visibility = Visibility.Visible;
+                        GridRowsVisibility(EditExistingLinkToFishBaseGrid, Visibility.Visible, 3/*fromRowIndex*/, 9/*toRowIndex*/);
+                        GridRowsVisibility(EditExistingLinkToFishBaseGrid, Visibility.Collapsed, 10/*fromRowIndex*/, 10/*toRowIndex*/);
+
+                        // Scroll to bottom: offsetX=null, offsetY=max vertical offset, zoomFactor=null
+                        contentWrapper?.ChangeView(null, contentWrapper.ScrollableHeight, null);
+                    }
+                    else if (atStepNumber == 4)
+                    {
+                        // Step 4 - The acquired FishBase fishID is deplayed
+                        EditSpeciesFishIDInstructionHeader.Visibility = Visibility.Visible;
+                        GridRowsVisibility(EditExistingLinkToFishBaseGrid, Visibility.Visible, 3/*fromRowIndex*/, 10/*toRowIndex*/);
+
+                        // Scroll to bottom: offsetX=null, offsetY=max vertical offset, zoomFactor=null
+                        contentWrapper?.ChangeView(null, contentWrapper.ScrollableHeight, null);
+                    }
+
+                    // Enable/Disable the FishBase URL download button
+                    string url = EditSpeciesFishBaseURL.Text;
+                    if (IsValidUrl(url) && isInternetAvailable)
+                        EditSpeciesFishBaseURLOKButton.IsEnabled = true;
+                    else
+                        EditSpeciesFishBaseURLOKButton.IsEnabled = false;
+
+                    // Set the success/failed indicator next to the FishBase URL download button
+                    if (pageDownloadAttempted is null)
+                        SetFishBaseURLValid(null);
+                    else
+                        SetFishBaseURLValid(fishBaseSpeciesMetadata != null);
 
 
-                string url = FishBaseURL.Text;
-                if (IsValidUrl(url) && System.Net.NetworkInformation.NetworkInterface.GetIsNetworkAvailable())
-                    FishBaseURLOKButton.IsEnabled = true;
-                else
-                    FishBaseURLOKButton.IsEnabled = false;
+                    // Hide the 'New SPecies Record' controls
+                    EditNewLinkToFishBaseGrid.Visibility = Visibility.Collapsed;
+                }
+                else 
+                {
+                    // New Species Record
+                    EditNewLinkToFishBaseGrid.Visibility = Visibility.Visible;
+
+                    // Check if enough data is entered to enable the Add or Update button
+                    if (!string.IsNullOrEmpty(Family.Text) &&
+                        !string.IsNullOrEmpty(GenusLatin.Text) &&
+                        !string.IsNullOrEmpty(SpeciesLatin.Text))
+                    {
+                        dialog.IsPrimaryButtonEnabled = true;
+                    }
+                    else
+                    {
+                        dialog.IsPrimaryButtonEnabled = false;
+                    }
+
+                    if (isInternetAvailable)
+                    {
+                        // We have internet
+                        NewSpeciesFishIDNoInternet.Visibility = Visibility.Collapsed;
+                        NewSpeciesFishBaseURL.IsEnabled = true;
+                    }
+                    else
+                    {
+                        // No internet available to ask user to return to this dialog later
+                        NewSpeciesFishIDNoInternet.Visibility = Visibility.Visible;
+                        NewSpeciesFishBaseURL.IsEnabled = false;
+                    }
+
+
+                    // Set the success/failed indicator next to the FishBase URL download button
+                    if (pageDownloadAttempted is null)
+                        SetFishBaseURLValid(null);
+                    else
+                        SetFishBaseURLValid(fishBaseSpeciesMetadata != null);
+
+                    NewSpeciesFishIDInstructionHeader.Visibility = Visibility.Visible;
+                    GridRowsVisibility(EditNewLinkToFishBaseGrid, Visibility.Visible, 2/*fromRowIndex*/, 3/*toRowIndex*/);
+
+                    // Hide to controls used to update an existing record
+                    EditExistingLinkToFishBaseGrid.Visibility = Visibility.Collapsed;
+                }
             }
         }
 
@@ -576,26 +745,110 @@ namespace Surveyor
         /// <param name="trueTickFalseCrossNullNothing"></param>
         private void SetFishBaseURLValid(bool? trueTickFalseCrossNullNothing)
         {
-            if (trueTickFalseCrossNullNothing is null)
+            FontIcon fontIcon;
+
+            if (editExisting is not null)
             {
-                FishBaseURLValid.Glyph = string.Empty;
-            }
-            else if ((bool)trueTickFalseCrossNullNothing)
-            {
-                // Tick
-                FishBaseURLValid.Glyph = "\uE73E"; // glyph 'Check'
-                FishBaseURLValid.Foreground = new SolidColorBrush(Colors.Green);
-                FishBaseURLValid.Visibility = Visibility.Visible;
-            }
-            else
-            {
-                // Cross
-                FishBaseURLValid.Glyph = "\uE711"; // glyph 'Close'
-                FishBaseURLValid.Foreground = new SolidColorBrush(Colors.Red);
-                FishBaseURLValid.Visibility = Visibility.Visible;
+                if ((bool)editExisting)
+                {
+                    fontIcon = EditSpeciesFishBaseURLValid;
+                }
+                else
+                {
+                    fontIcon = NewSpeciesFishBaseURLValid;
+                }
+
+                if (trueTickFalseCrossNullNothing is null)
+                {
+                    fontIcon.Glyph = string.Empty;
+                }
+                else if ((bool)trueTickFalseCrossNullNothing)
+                {
+                    // Tick
+                    fontIcon.Glyph = "\uE73E"; // glyph 'Check'
+                    fontIcon.Foreground = new SolidColorBrush(Colors.Green);
+                    fontIcon.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    // Cross
+                    fontIcon.Glyph = "\uE711"; // glyph 'Close'
+                    fontIcon.Foreground = new SolidColorBrush(Colors.Red);
+                    fontIcon.Visibility = Visibility.Visible;
+                }
             }
         }
 
+
+        /// <summary>
+        /// Download the URL which needs to be a FishBase summary page and
+        /// extract the Family latin and common names, the genus, the species laton
+        /// and common names, the unique FishBase ID, then environment text, distribution text
+        /// and the species size text
+        /// </summary>
+        /// <param name="url"></param>
+        /// <returns>FishBaseSpeciesMetadata or null is fails</returns>
+        private async Task<HtmlFishBaseSpeciesMetadata?> DownloadFishBaseSummaryPage(string url)
+        {
+            HtmlFishBaseSpeciesMetadata? fishBaseSpeciesMetadata = null;
+
+            string localFileSpec = url.GetHashCode().ToString("X") + "M.html";
+
+            try
+            {
+                try
+                {
+                    var response = await httpClient.GetAsync(url);
+                    response.EnsureSuccessStatusCode();
+
+                    var content = await response.Content.ReadAsStringAsync();
+
+                    StorageFile file = await ApplicationData.Current.LocalFolder.CreateFileAsync(localFileSpec, CreationCollisionOption.ReplaceExisting);
+                    await FileIO.WriteTextAsync(file, content);
+                }
+                catch (HttpRequestException ex)
+                {
+                    string reportText = $"Failed to download FishBase page {url}, {ex.Message}";
+                    report?.Warning("", reportText);
+                    Debug.WriteLine($"SpeciesRecordEditDialog.DownloadFishBaseSummaryPage {reportText}");
+                }
+
+                try
+                {
+                    StorageFile file = await ApplicationData.Current.LocalFolder.GetFileAsync(localFileSpec);
+                    fishBaseSpeciesMetadata = await ParseHtmlFishbaseSummaryAndExtractSpeciesMetadata(file.Path);
+
+                    if (fishBaseSpeciesMetadata is not null)
+                    {
+                        if (fishBaseSpeciesMetadata.FamilyLatin is null ||
+                            fishBaseSpeciesMetadata.Genus is null ||
+                            fishBaseSpeciesMetadata.SpeciesLatin is null ||
+                            fishBaseSpeciesMetadata.FishID is null)
+                        {
+                            // Must have a FishID to be valid
+                            fishBaseSpeciesMetadata = null;
+                        }
+                    }
+
+                    // Clean up
+                    await file.DeleteAsync();
+                }
+                catch (Exception ex)
+                {
+                    string reportText = $"Failed to extract Fish ID fron the FishBase page {url}, {ex.Message}";
+                    report?.Warning("", reportText);
+                    Debug.WriteLine($"SpeciesRecordEditDialog.DownloadFishBaseSummaryPage {reportText}");
+                }
+            }
+            catch (Exception ex)
+            {
+                string reportText = $"Failed to get FishBase page {url}, {ex.Message}";
+                report?.Warning("", reportText);
+                Debug.WriteLine($"SpeciesRecordEditDialog.DownloadFishBaseSummaryPage {reportText}");
+            }
+
+            return fishBaseSpeciesMetadata;
+        }
 
     }
 }

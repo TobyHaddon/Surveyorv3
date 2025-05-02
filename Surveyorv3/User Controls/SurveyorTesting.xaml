@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Window
+<ex:WindowEx
     x:Class="Surveyor.User_Controls.SurveyorTesting"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:toolkit="using:CommunityToolkit.WinUI.Controls" 
     xmlns:surveyor="using:Surveyor" 
+    xmlns:ex="using:WinUIEx"
     xmlns:surveyorControls="using:Surveyor.User_Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     Title="Settings">
@@ -104,8 +105,8 @@
                 </toolkit:SettingsCard>
 
                 <!--DownloadManager Test-->
-                <toolkit:SettingsCard x:Name="DownloadManagerTest" Header="Download data test"
-                                          ToolTipService.ToolTip="Downloads Fishbase.org images.">
+                <toolkit:SettingsCard Header="Download data test"
+                                          ToolTipService.ToolTip="Downloads Fishbase images.">
                     <toolkit:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE896;" />
                     </toolkit:SettingsCard.HeaderIcon>
@@ -114,6 +115,16 @@
                     </Button>
                 </toolkit:SettingsCard>
 
+                <!--FishBase Extract Test-->
+                <toolkit:SettingsCard Header="FishBase Extract Information Test"
+                                          ToolTipService.ToolTip="Download Fishbase and extract species summary information.">
+                    <toolkit:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE896;" />
+                    </toolkit:SettingsCard.HeaderIcon>
+                    <Button Click="FishBaseExtractTest_Click">
+                        <FontIcon Glyph="&#xF5B0;" Foreground="Green" FontSize="14"/>
+                    </Button>
+                </toolkit:SettingsCard>
 
             </StackPanel>
         </ScrollViewer>
@@ -180,4 +191,4 @@
             </StackPanel>
         </Grid>
     </Grid>
-</Window>
+</ex:WindowEx>

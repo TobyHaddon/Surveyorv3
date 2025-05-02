@@ -10,7 +10,7 @@
   <Identity
     Name="8c0e24ec-57ee-4dad-b96b-fdbe9463de8e"
     Publisher="CN=Toby Haddon"
-    Version="3.1.106.0" />
+    Version="3.1.115.0" />
 
   <mp:PhoneIdentity PhoneProductId="8c0e24ec-57ee-4dad-b96b-fdbe9463de8e" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
@@ -53,6 +53,10 @@
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
     <uap:Capability Name="userAccountInformation"/>
+    <Capability Name="internetClient"/>
+    <uap:Capability Name="objects3D"/>
+    <uap:Capability Name="removableStorage"/>
+    <uap:Capability Name="videosLibrary"/>
     <DeviceCapability Name="bluetooth"/>
   </Capabilities>
 </Package>

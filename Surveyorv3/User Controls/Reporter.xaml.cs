@@ -6,7 +6,9 @@ using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.IO;
 using Windows.ApplicationModel.DataTransfer;
+using System.Diagnostics;
 using static Surveyor.User_Controls.Reporter;
 
 namespace Surveyor.User_Controls
@@ -116,6 +118,77 @@ namespace Surveyor.User_Controls
             ListViewReporter.ItemsSource = ReportItems;
         }
 
+        /// <summary>
+        /// Dump the report lines to report.txt
+        /// </summary>
+        internal void Unload()
+        {
+            try
+            {
+                string folderPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+                string filePathCurrent = Path.Combine(folderPath, "reporter.txt");
+                string filePathPrevious1 = Path.Combine(folderPath, "reporter1.txt");
+                string filePathPrevious2 = Path.Combine(folderPath, "reporter2.txt");
+                string filePathPrevious3 = Path.Combine(folderPath, "reporter3.txt");
+
+                if (IsDirty())
+                { 
+                    // Delete reporter3.txt if it exists
+                    if (File.Exists(filePathPrevious3))
+                    {
+                        File.Delete(filePathPrevious3);
+                    }
+
+                    // Rename reporter2.txt reporter3.txt if reporter2.txt exists
+                    if (File.Exists(filePathPrevious2))
+                    {
+                        File.Move(filePathPrevious2, filePathPrevious3);
+                    }
+
+                    // Rename reporter1.txt reporter2.txt if reporter1.txt exists
+                    if (File.Exists(filePathPrevious1))
+                    {
+                        File.Move(filePathPrevious1, filePathPrevious2);
+                    }
+
+                    // Rename reporter.txt reporter1.txt if reporter.txt exists
+                    if (File.Exists(filePathCurrent))
+                    {
+                        File.Move(filePathCurrent, filePathPrevious1);
+                    }
+
+                    // Write the new report lines to reporter.txt
+                    using var writer = new StreamWriter(filePathCurrent);
+
+                    foreach (var item in ReportItems)
+                    {
+                        // Clean fields: replace tabs/newlines to avoid corrupting the TSV structure
+                        string Clean(string? text) =>
+                            text?.Replace("\t", " ").Replace("\n", " ").Replace("\r", " ") ?? string.Empty;
+
+                        string level = item.WarningLevel.ToString();
+                        string time = Clean(item.Time);
+                        string channel = Clean(item.Channel);
+                        string message = Clean(item.Message);
+
+                        writer.WriteLine($"{level}\t{time}\t{channel}\t{message}");
+                    }
+
+                    writer.Flush();
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Reporter.Unload Exception: {ex.Message}");
+                // Fail silently or log, depending on your logging setup
+            }
+            finally
+            {
+                // Always clear the list at the end
+                Clear();
+            }
+        }
+
         internal void SetDispatcherQueue(DispatcherQueue dispatcherQueue)
         {
             this.dispatcherQueue = dispatcherQueue;
@@ -155,6 +228,9 @@ namespace Surveyor.User_Controls
                 {
                     dispatcherQueue.TryEnqueue(() => AddReportItem(warningLevel, channel, message));
                 }
+                System.Diagnostics.Debug.WriteLine($"Reporter: {warningLevel} {channel} {message}");
+
+                bDirty = true;
             }
         }
 
@@ -239,7 +315,7 @@ namespace Surveyor.User_Controls
                 Title = "Report Line",
                 Content = display,
                 SecondaryButtonText = "Copy",
-                CloseButtonText = "OK",
+                CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Close,
 
                 // XamlRoot must be set in the case of a ContentDialog running in a Desktop app

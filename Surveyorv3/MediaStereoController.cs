@@ -77,7 +77,7 @@ namespace Surveyor
         private readonly EventsControl? eventsControl = null;
 
         // Species Image Cache (stock photos of fish species to help fish ID)
-        internal SpeciesImageCache speciesImageCache;  // Accessed by SettingsWindow
+        internal SpeciesImageAndInfoCache speciesImageCache;  // Accessed by SettingsWindow
 
         // Species Selector dialog class
         internal SpeciesSelector speciesSelector;  // Accessed by SettingsWindow
@@ -163,6 +163,7 @@ namespace Surveyor
 
             // SpeciesSelector dialog class which contrains the Species code list
             speciesSelector = new();
+            speciesSelector.SetReporter(report);
             speciesSelector.Load("species.txt", SettingsManagerLocal.ScientificNameOrderEnabled);
 
             // Initialize the species image cache
@@ -247,12 +248,26 @@ namespace Surveyor
                     tries++;
                 }
 
+                // Lock the media
                 await Task.Delay(100);
                 await MediaLockMediaPlayers((TimeSpan)timeSpanOffset);
+
+                // Move in one frame to engage frame server (i.e. display the pause frame in the ImageFrame
+                // instead of the MediaPlayer). This ensure all the code around the canvas and displaying
+                // things like dimensions get setup fully
+                await Task.Delay(100);
+                await FrameMove(eCameraSide.None, 1);
             }
             else
             {
                 MediaUnlockMediaPlayers();
+
+                // Move in one frame to engage frame server (i.e. display the pause frame in the ImageFrame
+                // instead of the MediaPlayer). This ensure all the code around the canvas and displaying
+                // things like dimensions get setup fully
+                await Task.Delay(100);
+                await FrameMove(eCameraSide.Left, 1);
+                await FrameMove(eCameraSide.Right, 1);
             }
 
             // Make sure the media players and controls are not in full screen mode

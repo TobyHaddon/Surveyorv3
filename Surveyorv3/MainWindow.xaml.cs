@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using WinUIEx;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Events;
 using Surveyor.Helper;
@@ -30,6 +31,10 @@ using Windows.Storage.Provider;
 using WinRT.Interop;
 using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.Survey.DataClass;
+using MathNet.Numerics;
+using System.Reflection.Metadata;
+using System.Threading;
+using static Emgu.CV.Stitching.Stitcher;
 #if !No_MagnifyAndMarkerDisplay
 #endif
 
@@ -38,7 +43,7 @@ namespace Surveyor
     /// <summary>
     /// An empty window that can be used on its own or navigated to within a Frame.
     /// </summary>
-    public sealed partial class MainWindow : Window
+    public sealed partial class MainWindow : WindowEx
     {
         // Create the Mediator
         private readonly SurveyorMediator mediator;
@@ -63,7 +68,8 @@ namespace Surveyor
 
         // Hidden controls to be shown dynamically
         private readonly EventsControl eventsControl = new();
-        private readonly Reporter report = new();
+        // Uses 'internal' so App class can access it to dump report in case of a crash
+        internal readonly Reporter report = new();
 
         private readonly TransectMarkerManager transectMarkerManager = new();
 
@@ -80,12 +86,13 @@ namespace Surveyor
         // Internet Download/Upload manager
         internal InternetQueue internetQueue;
 
+        // Help menu documents
+        private readonly HelpDocuments helpDocuments = new();
+
         public MainWindow()
         {
             this.InitializeComponent();
             
-            // Event fired after the main window is commited to closing
-            this.Closed += MainWindow_Closed;
             // Event first before the app window is commited to closing (i.e. can be cancelled)
             if (this.AppWindow is not null)
                 this.AppWindow.Closing += AppWindow_Closing;
@@ -125,9 +132,9 @@ namespace Surveyor
             mediator.SetReporter(report);
 
             // Restore the saved window state
-            //???Disabled as it need more work.  I think the multiple monitor setting and switching between monitors is causing the issue
-            //???The application can start off screen or too big for the monitor
-            //???WindowStateHelper.RestoreWindowState(hWnd, this.AppWindow);
+            PersistenceId = "MainWindow";
+            MinHeight = 600;
+            MinWidth = 800;
 
             // Setup the Handler for the MainWindow
             mainWindowHandler = new MainWindowHandler(mediator, this);
@@ -138,7 +145,7 @@ namespace Surveyor
             // Set the Network Connection title bar icon
             networkIndicatorIndictorText = NetworkConnectionIndicator.Text;
             NetworkConnectionIndicator.Text = "    ";
-            networkManager.RegisterAction((_isOnline) =>
+            networkManager.RegisterAction((_isOnline, _isMetered, _bars) =>
             {
                 if ((isOnlineRememberedStatus is null && _isOnline) ||      // If first time online state seen
                     (_isOnline && !(bool)isOnlineRememberedStatus!) ||      // If online status has changed
@@ -151,8 +158,27 @@ namespace Surveyor
                         {
                             // Signal change in network to online
                             Debug.WriteLine($"{DateTime.Now}  Application is connection to the internet and application is allowed to use the internet");
-                            NetworkConnectionIndicator.Text = networkIndicatorIndictorText;
-                            ToolTipService.SetToolTip(NetworkConnectionIndicator, "Connected to the internet");
+
+                            if (_isMetered)
+                            {
+                                if (_bars <= 0 )
+                                    NetworkConnectionIndicator.Text = "\uE1E5"; // Zero bars icon
+                                else if (_bars == 1)
+                                    NetworkConnectionIndicator.Text = "\uE1E6"; // One bar icon
+                                else if (_bars == 2)
+                                    NetworkConnectionIndicator.Text = "\uE1E7"; // Two bars icon
+                                else if (_bars == 3)
+                                    NetworkConnectionIndicator.Text = "\uE1E8"; // Three bars icon
+                                else // 4 or more bars
+                                    NetworkConnectionIndicator.Text = "\uE1E9"; // Four bars icon
+                            }
+                            else
+                                NetworkConnectionIndicator.Text = "\uE701";  // Normal WiFi
+
+                            if (_isMetered)
+                                ToolTipService.SetToolTip(NetworkConnectionIndicator, "Connected to metered internet");
+                            else
+                                ToolTipService.SetToolTip(NetworkConnectionIndicator, "Connected to the internet");
                         }
                         else
                         {
@@ -167,7 +193,7 @@ namespace Surveyor
                 {
                     _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
                     {
-                        // Signal change in network to offline
+                        // Internet state change in network to offline
                         Debug.WriteLine($"{DateTime.Now}  Application is disconnection to the internet");
 
                         // Show nothing (normally if no calibration is available)
@@ -188,16 +214,30 @@ namespace Surveyor
             // Initialize internet download/upload mananger
             internetQueue = new(report);
             _ = internetQueue.Load(); // fire-and-forget
-            networkManager.RegisterAction(async (_isOnline) =>
+            networkManager.RegisterAction(async (_isOnline, _isMetered, _bars) =>
             {
                 if (_isOnline)
                 {
-                    await internetQueue.DownloadUpload();
+                    await internetQueue.DownloadUpload(_isMetered);
                 }
 
                 return;
             }, Surveyor.Priority.Normal);
 
+            // Setup event to indicate if downloading/uploading
+            internetQueue.InternetActivityChanged += (sender, isActive) =>
+            {
+                if (isActive)
+                {
+                    UIHelper.SafeUICall(this, StartDownloadUploadSpinner);
+                    Debug.WriteLine("Internet activity started (event)...");
+                }
+                else
+                {
+                    UIHelper.SafeUICall(this, StopDownloadUploadSpinner);
+                    Debug.WriteLine("Internet activity stopped (event)...");
+                }
+            };
 
 
             // Create the MediaStereoController and pass it the Mediator
@@ -245,34 +285,30 @@ namespace Surveyor
 
             if (SettingsManagerLocal.DiagnosticInformation)
             {
-                // Debug Diags Dump keyboard shortcut (Ctrl+Shift+D)
-                var acceleratorDiagsDump = new KeyboardAccelerator
-                {
-                    Key = Windows.System.VirtualKey.D,
-                    Modifiers = Windows.System.VirtualKeyModifiers.Control | Windows.System.VirtualKeyModifiers.Shift
-                };
-                acceleratorDiagsDump.Invoked += AcceleratorDiagsDump_Invoked;
+                // Debug Diags Dump Help>Diags Dump 
+                MenuDiagsDump.IsEnabled = true;
 
-                // Attach to the root element of the Window (usually a Grid that isn't hovered)
-                RootGrid.KeyboardAccelerators.Add(acceleratorDiagsDump);
-
-
-                // Test Code keyboard shortcut (Ctrl+Shift+T)
-                var acceleratorTest = new KeyboardAccelerator
-                {
-                    Key = Windows.System.VirtualKey.T,
-                    Modifiers = Windows.System.VirtualKeyModifiers.Control | Windows.System.VirtualKeyModifiers.Shift
-                };
-                acceleratorTest.Invoked += AcceleratorTest_Invoked;
-
-                // Attach to the root element of the Window (usually a Grid that isn't hovered)
-                RootGrid.KeyboardAccelerators.Add(acceleratorTest);
-
-                report.Info("", "Diagnostic mode enabled. Ctrl+Shift+T for tests, Ctril+Shift+D to dump variables");
+                // Testing Help>Testing
+                MenuTesting.IsEnabled = true;
             }
 
+            // Add the help documents to the Help menu
+            // Fix for CS1503: Argument 1: cannot convert from 'System.Collections.Generic.IList<Microsoft.UI.Xaml.Controls.MenuFlyoutItemBase>' to 'Microsoft.UI.Xaml.Controls.ItemCollection'
+
+            // The issue arises because `MenuHelp.Items` is of type `IList<MenuFlyoutItemBase>`,
+            // but the `Initialize` method of `HelpDocuments` expects an `ItemCollection`.
+            // To fix this, we need to pass the correct type to the `Initialize` method.
+
+            helpDocuments.Initialize(MenuHelp.Items, // Pass the MenuFlyoutSubItem directly instead of its Items property
+                                     HelpDocumentsPDFSection,
+                                     HelpDocumentsVideosSection,
+                                     HelpDocumentsDOCSection,
+                                     HelpDocumentsXLSSection);
+       
+
             // Report that the app has loaded
-            report.Info("", $"App Loaded Ok (Local Path:{ApplicationData.Current.LocalFolder.Path})");
+            report.Info("", $"App Loaded Ok (Local Path:{ApplicationData.Current.LocalFolder.Path})");            
+            Debug.WriteLine($"Local Folder path:{ApplicationData.Current.LocalFolder.Path}");
 
         }
 
@@ -445,7 +481,7 @@ namespace Surveyor
         {
             if (x != -1)
             {
-                PointerCoordinates.Text = $"{Math.Round(x, 2)}, {Math.Round(y, 2)}";
+                PointerCoordinates.Text = $"{Math.Round(x, 1)}, {Math.Round(y, 1)}";
                 PointerCoordinatesIndicator.Visibility = Visibility.Visible;
             }
             else
@@ -525,22 +561,6 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Window is committed to closing. Save the current window state
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void MainWindow_Closed(object sender, WindowEventArgs e)
-        {
-            IntPtr hWnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-            var windowId = Win32Interop.GetWindowIdFromWindow(WinRT.Interop.WindowNative.GetWindowHandle(this));
-            var _appWindow = AppWindow.GetFromWindowId(windowId);
-
-            WindowStateHelper.SaveWindowState(hWnd, _appWindow);
-        }
-
-
-
-        /// <summary>
         /// Window close has been requested by user, check for open Surveys
         /// </summary>
         /// <returns></returns>
@@ -566,6 +586,9 @@ namespace Surveyor
                 Debug.WriteLine("AppWindow_Closing Entering this.Close");
                 this.Close(); // This will NOT retrigger AppWindow.Closing
                 Debug.WriteLine("AppWindow_Closing Exited this.Close");
+
+                // Dump the reporter content to disk
+                report.Unload();
             }
             else
             {
@@ -1540,7 +1563,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
-        private void AcceleratorDiagsDump_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+        private void HelpDiagsDump_Click(object sender, RoutedEventArgs e)
         {
             this.DumpAllProperties();
             mediaStereoController.DumpAllProperties();
@@ -1557,8 +1580,6 @@ namespace Surveyor
             //???eventsControl.DumpAllProperties();
             //???measurementPointControl.DumpAllProperties();
             //???stereoProjection.DumpAllProperties();
-
-            args.Handled = true;
         }
 
 
@@ -1567,12 +1588,10 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
-        private async void AcceleratorTest_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args)
+        private async void HelpTesting_Click(object sender, RoutedEventArgs e)
         {
-           
-           await ShowSurveyorTestingsWindow();
-
-            args.Handled = true;
+            // Show the testing window
+            await ShowSurveyorTestingsWindow();
         }
 
 
@@ -1583,38 +1602,43 @@ namespace Surveyor
         private async Task ShowSurveyorTestingsWindow()
         {
             try
-            { 
-                surveyorTestingEntryCount++;
+            {
+                // Atomic
+                int entryCount = Interlocked.Increment(ref surveyorTestingEntryCount);
+
                 // Make sure we only open the window once.
-                if (surveyorTestingEntryCount == 1)
+                if (entryCount == 1)
                 {
                     SurveyorTesting testingWindow = new(this, report);
 
                     // Get the HWND (window handle) for both windows
                     IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
-                    IntPtr settingsWindowHandle = WindowNative.GetWindowHandle(testingWindow);
+                    IntPtr testingWindowHandle = WindowNative.GetWindowHandle(testingWindow);
 
                     // Get the AppWindow instances for both windows
                     AppWindow mainAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(mainWindowHandle));
-                    AppWindow settingsAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(settingsWindowHandle));
-
+                   
                     // Disable the main window by setting it inactive
                     SetWindowEnabled(mainWindowHandle, false);
-
-                    // Ensure settings window stays on top
-                    WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
 
                     // Activate settings window
                     testingWindow.Activate();
 
-                    // Wait for settings window to close
-                    await Task.Run(() =>
+
+                    // Important not to block the UI thread.
+                    // We're still waiting for the Closed event.
+                    // The Closed handler runs on the UI thread, allowing WinUIEx to persist the window position.
+                    var tcs = new TaskCompletionSource();
+
+                    void OnClosed(object sender, WindowEventArgs args)
                     {
-                        while (settingsAppWindow != null && settingsAppWindow.IsVisible)
-                        {
-                            System.Threading.Thread.Sleep(100);
-                        }
-                    });
+                        testingWindow.Closed -= OnClosed;
+                        tcs.SetResult();
+                    }
+
+                    testingWindow.Closed += OnClosed;
+
+                    await tcs.Task;
 
                     // Re-enable the main window after closing settings
                     SetWindowEnabled(mainWindowHandle, true);
@@ -1625,10 +1649,54 @@ namespace Surveyor
                 // Log or handle the exception as needed
                 report.Error("", $"Error showing SurveyorTesting.RunTestingDialog: {ex.Message}");
             }
-
-    surveyorTestingEntryCount--;
+            finally
+            {
+                Interlocked.Decrement(ref surveyorTestingEntryCount);
+            }            
         }
 
+
+        /// <summary>
+        /// Keyboard accelerator to testing code
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private async void HelpAbout_Click(object sender, RoutedEventArgs e)
+        {
+            // Open the settings windows 'About' section
+            await ShowSettingsWindow("About");
+        }
+
+
+        private void DownloadIndicator_PointerEntered(object sender, PointerRoutedEventArgs e)
+        {
+            int? itemRequiredDownload = internetQueue?.GetCount(Direction.Download, null, Status.Required);
+            int? itemRequiredUpload = internetQueue?.GetCount(Direction.Upload, null, Status.Required);
+
+            if (itemRequiredDownload is null || itemRequiredUpload is null)
+            {
+                DownloadIndicatorToolTip.Content = $"Downloading/Uploading from internet";
+            }
+            else
+            {
+                string downloadText = itemRequiredDownload == 1 ? "1 download item" : $"{itemRequiredDownload} download items";
+                string uploadText = itemRequiredUpload == 1 ? "1 upload item" : $"{itemRequiredUpload} upload items";
+
+                if (itemRequiredDownload != 0 && itemRequiredUpload != 0)
+                {
+                    DownloadIndicatorToolTip.Content = $"{downloadText}/{uploadText} remaining";
+                }
+                else if (itemRequiredDownload != 0)
+                {
+                    DownloadIndicatorToolTip.Content = $"{downloadText} remaining";
+                }
+                else
+                {
+                    // Therefore itemRequiredUpload != 0
+                    DownloadIndicatorToolTip.Content = $"{uploadText} remaining";
+                }                
+            }
+        }
 
 
         ///
@@ -2786,17 +2854,17 @@ namespace Surveyor
         /// Display the settings window
         /// </summary>
         private int settingsWindowEntryCount = 0;
-        private async Task ShowSettingsWindow()
+        private async Task ShowSettingsWindow(string section = "")
         {
-            settingsWindowEntryCount++;
-            // Make sure we only open the settings window once.
-            // This can happen if the survey and movies are loaded and the user clicks the settings a few times.
-            if (settingsWindowEntryCount == 1)
+            try
             {
-                try
+                int entryCount = Interlocked.Increment(ref settingsWindowEntryCount);
+                // Make sure we only open the settings window once.
+                // This can happen if the survey and movies are loaded and the user clicks the settings a few times.
+                if (entryCount == 1)
                 {
                     // Initialize if necessary
-                    SettingsWindow settingsWindow = new(mediator, this, surveyClass, report);
+                    SettingsWindow settingsWindow = new(mediator, this, surveyClass, report, section);
 
                     // Get the HWND (window handle) for both windows
                     IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
@@ -2804,37 +2872,42 @@ namespace Surveyor
 
                     // Get the AppWindow instances for both windows
                     AppWindow mainAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(mainWindowHandle));
-                    AppWindow settingsAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(settingsWindowHandle));
 
                     // Disable the main window by setting it inactive
                     SetWindowEnabled(mainWindowHandle, false);
 
-                    // Ensure settings window stays on top
-                    WindowInteropHelper.SetWindowAlwaysOnTop(settingsWindowHandle, true);
-
                     // Activate settings window
                     settingsWindow.Activate();
 
-                    // Wait for settings window to close
-                    await Task.Run(() =>
+                    // Important not to block the UI thread.
+                    // We're still waiting for the Closed event.
+                    // The Closed handler runs on the UI thread, allowing WinUIEx to persist the window position.
+                    var tcs = new TaskCompletionSource();
+
+                    void OnClosed(object sender, WindowEventArgs args)
                     {
-                        while (settingsAppWindow != null && settingsAppWindow.IsVisible)
-                        {
-                            System.Threading.Thread.Sleep(100);
-                        }
-                    });
+                        settingsWindow.Closed -= OnClosed;
+                        tcs.SetResult();
+                    }
+
+                    settingsWindow.Closed += OnClosed;
+
+                    await tcs.Task;
+
 
                     // Re-enable the main window after closing settings
                     SetWindowEnabled(mainWindowHandle, true);
                 }
-                catch (Exception ex)
-                {
-                    // Handle any exceptions that occur during the process
-                    Debug.WriteLine($"MainWindow.ShowSettingsWindow Error showing settings window: {ex.Message}");
-                }
             }
-
-            settingsWindowEntryCount--;
+            catch (Exception ex)
+            {
+                // Handle any exceptions that occur during the process
+                Debug.WriteLine($"MainWindow.ShowSettingsWindow Error showing settings window: {ex.Message}");
+            }
+            finally 
+            {
+                Interlocked.Decrement(ref settingsWindowEntryCount);
+            }                        
         }
 
 
@@ -2911,7 +2984,7 @@ namespace Surveyor
         private void AddToRecentSurveys(string filePath)
         {
             var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
-            var recentSurveys = (localSettings.Values[RECENT_SURVEYS_KEY] as string[]) ?? new string[0];
+            var recentSurveys = (localSettings.Values[RECENT_SURVEYS_KEY] as string[]) ?? [];
 
             // Remove if already exists
             var list = new List<string>(recentSurveys);
@@ -2938,7 +3011,7 @@ namespace Surveyor
         private void RemoveToRecentSurveys(string filePath)
         {
             var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
-            var recentSurveys = (localSettings.Values[RECENT_SURVEYS_KEY] as string[]) ?? new string[0];
+            var recentSurveys = (localSettings.Values[RECENT_SURVEYS_KEY] as string[]) ?? [];
 
             // Remove if already exists
             var list = new List<string>(recentSurveys);
@@ -3006,8 +3079,36 @@ namespace Surveyor
         }
 
 
-        /// Called to signal a network connection change
-        /// 
+        /// <summary>
+        /// internet Downloading/uploading spinner
+        /// </summary>
+        private readonly string[] _brailleFrames =
+        [
+            "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"
+        ];
+        private DispatcherTimer _spinnerTimer = new();
+        private int _spinnerframeIndex = 0;
+
+        private void StartDownloadUploadSpinner()
+        {
+            _spinnerTimer.Interval = TimeSpan.FromMilliseconds(100);
+
+            _spinnerTimer.Tick += (sender, args) =>
+            {
+                DownloadIndicator.Glyph = _brailleFrames[_spinnerframeIndex];
+                _spinnerframeIndex = (_spinnerframeIndex + 1) % _brailleFrames.Length;
+            };
+
+            _spinnerTimer.Start();
+        }
+
+        private void StopDownloadUploadSpinner()
+        {
+            _spinnerTimer?.Stop();
+            DownloadIndicator.Glyph = ""; // or a finished icon
+        }
+
+
 
 
         // ** End of MainWindow **

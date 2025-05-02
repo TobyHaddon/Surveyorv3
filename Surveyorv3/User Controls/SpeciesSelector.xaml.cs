@@ -5,6 +5,7 @@
 // Version 1.1 18 Apr 2025
 // Added support for Fishbase fish images
 
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -16,7 +17,7 @@ using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Windows.Storage;
-using static Surveyor.SpeciesImageCache;
+using static Surveyor.SpeciesImageAndInfoCache;
 
 
 namespace Surveyor.User_Controls
@@ -24,14 +25,14 @@ namespace Surveyor.User_Controls
     public class ImageDataObject
     {
         public Uri? ImageLocation { get; set; } = null;
-        public string Author { get; set; } = "";
+        public string Author { get; set; } = string.Empty;
     }
 
     public sealed partial class SpeciesSelector : UserControl
     {
         private string? fileSpecSpecies;
         private Reporter? report;
-        private SpeciesImageCache? speciesImageCache = null;
+        private SpeciesImageAndInfoCache? speciesImageCache = null;
         internal SpeciesCodeList speciesCodeList { get; } = new() ;
 
         private bool userSelectedGenus = false; // Set to true if the user selected a genus from the AutoSuggestBox or typed in a name as opposed to it being calculated from the species
@@ -40,6 +41,15 @@ namespace Surveyor.User_Controls
 
         // Updatable image list to hold the fish images. Dynamically bound to the GridView
         public ObservableCollection<ImageDataObject> ImageList { get; set; } = [];
+
+        //???// Credit and genus/species
+        //public string SourceCredit { get; set; } = string.Empty;
+        //public string GenusSpecies { get; set; } = string.Empty;
+
+        //// Species environment, distribution and size info. Bound to the GridView
+        //public string Environment { get; set; } = string.Empty;
+        //public string Distribution { get; set; } = string.Empty;
+        //public string SpeciesSize { get; set; } = string.Empty;
 
 
         public SpeciesSelector()
@@ -75,7 +85,7 @@ namespace Surveyor.User_Controls
         {
             fileSpecSpecies = fileSpec;
 
-            speciesCodeList.Load(fileSpec, trueScientificFalseCommonName);
+            speciesCodeList.Load(fileSpec, report, trueScientificFalseCommonName);
         }
 
 
@@ -95,7 +105,7 @@ namespace Surveyor.User_Controls
         /// <param name="mainWindow"></param>
         /// <param name="speciesInfo"></param>
         /// <returns></returns>
-        internal async Task<bool> SpeciesNew(MainWindow mainWindow, SpeciesInfo speciesInfo, SpeciesImageCache speciesImageCache)
+        internal async Task<bool> SpeciesNew(MainWindow mainWindow, SpeciesInfo speciesInfo, SpeciesImageAndInfoCache speciesImageCache)
         {
             // Clear the speciesInfo instance as this is a New species assignment
             speciesInfo.Clear();
@@ -110,7 +120,7 @@ namespace Surveyor.User_Controls
         /// <param name="mainWindow"></param>
         /// <param name="speciesInfo"></param>
         /// <returns></returns>
-        internal async Task<bool> SpeciesEdit(MainWindow mainWindow, SpeciesInfo speciesInfo, SpeciesImageCache speciesImageCache)
+        internal async Task<bool> SpeciesEdit(MainWindow mainWindow, SpeciesInfo speciesInfo, SpeciesImageAndInfoCache speciesImageCache)
         {
             return await SpeciesEditorNew(mainWindow, speciesInfo, true/*removeButton*/, speciesImageCache);
         }
@@ -131,15 +141,25 @@ namespace Surveyor.User_Controls
             AutoSuggestFamily.Text = string.Empty;
             TextBoxComment.Text = string.Empty;
             NumberBoxNumberOfFish.Value = 1;
-            SourceGenusSpecies.Text = string.Empty;
+
 
             // Clear ItemsSource bindings
             AutoSuggestSpecies.ItemsSource = null;
             AutoSuggestGenus.ItemsSource = null;
             AutoSuggestFamily.ItemsSource = null;
 
-            // Clear image list
+            // Clear image list (bound to xaml)
             ImageList.Clear();
+
+            // Clear source credit and genus/species  (bound to xaml)
+            SourceCredit.Text = string.Empty;
+            GenusSpecies.Text = string.Empty;
+
+            // Clear environment, distrution and size (bound to xaml)
+            Environment.Text = string.Empty;
+            Distribution.Text = string.Empty;
+            SpeciesSize.Text = string.Empty;
+
         }
 
 
@@ -150,7 +170,7 @@ namespace Surveyor.User_Controls
         /// <param name="speciesInfo"></param>
         /// <param name="editExisting"></param>
         /// <returns>true is the speciesInfo parameter has been changed</returns>
-        private async Task<bool> SpeciesEditorNew(MainWindow mainWindow, SpeciesInfo speciesInfo, bool editExisting, SpeciesImageCache _speciesImageCache)
+        private async Task<bool> SpeciesEditorNew(MainWindow mainWindow, SpeciesInfo speciesInfo, bool editExisting, SpeciesImageAndInfoCache _speciesImageCache)
         {
             bool ret = false;
 
@@ -216,23 +236,25 @@ namespace Surveyor.User_Controls
                 TextBoxComment.Text = speciesInfo.Comment;
             }
 
+            // Hide the species info expander
+            SpeciesInfoExpander.Visibility = Visibility.Collapsed;
 
             // Hook up closed cleanup handler
-            dialog.Closed += (s, e) =>
-            {
-                ClearControls();
-            };
+            //dialog.Closed += (s, e) =>
+            //{
+            //    ClearControls();
+            //};
 
 
             // Show the dialog and handle the response
             var result = await dialog.ShowAsync();
-            dialog.Content = null;  // Detach the content after the dialog is closed
 
             // Check if the Add button pressed
             if (result == ContentDialogResult.Primary)
             {
-                // Check for selected Species
+                // Check for selected Species from the text
                 string? species = AutoSuggestSpecies.Text;
+
                 if (species is not null)
                 {
                     SpeciesItem? speciesItemLookup = speciesCodeList.GetSpeciesItemBySpeciesName(species);
@@ -317,6 +339,9 @@ namespace Surveyor.User_Controls
                 ret = true;
             }
 
+            ClearControls();
+            dialog.Content = null;  // Detach the content after the dialog is closed
+
             return ret;
         }
 
@@ -400,7 +425,7 @@ namespace Surveyor.User_Controls
         {
             SpeciesItem speciesItem = (SpeciesItem)args.SelectedItem;
 
-            await SpeciesSelected(speciesItem, false/*setAutoSuggesat*/);
+            await SpeciesSelected(speciesItem, true/*setAutoSuggesat*/);
         }
 
 
@@ -604,66 +629,114 @@ namespace Surveyor.User_Controls
         {
             WinUIGuards.CheckIsUIThread();
 
-            try
+            if (speciesImageCache is not null)
             {
-                // Populate image
-                string source = "";
-                string genusSpecies = "";
-
-                List<SpeciesImageItem>? SpeciesImageItemList = speciesImageCache?.GetImagesForSpecies(speciesItem.Code);
-
-                if (SpeciesImageItemList is not null && SpeciesImageItemList.Count > 0)
+                try
                 {
-                    if (speciesItem is not null)
+                    // Populate image
+                    string source = "";
+                    string genusSpecies = "";
+
+                    List<SpeciesImageItem>? SpeciesImageItemList = speciesImageCache.GetImagesForSpecies(speciesItem.Code);
+
+                    if (SpeciesImageItemList is not null && SpeciesImageItemList.Count > 0)
                     {
-                        SpeciesItem.CodeType codeType = speciesItem.ExtractCodeType();
-                        switch (codeType)
+                        if (speciesItem is not null)
                         {
-                            case SpeciesItem.CodeType.FishBase:
-                                source = "Fishbase";
-                                break;
-                            default:
-                                source = "Unknown";
-                                break;
+                            // Get the image source for accreditation 
+                            SpeciesItem.CodeType codeType = speciesItem.ExtractCodeType();
+                            source = codeType switch
+                            {
+                                SpeciesItem.CodeType.FishBase => "Fishbase",
+                                _ => "Unknown",
+                            };
+                            genusSpecies = speciesItem.Genus + " - " + speciesItem.Species;
+
+                            SourceCredit.Text = $"Source: {source}";
+                            GenusSpecies.Text = genusSpecies;
+                            SpeciesInfoExpander.Visibility = Visibility.Visible;
+                            //???SourceGenusSpecies.Text = $"Source: {source} {genusSpecies}";
+
+                            Debug.WriteLine($"SpeciesSelector: AutoSuggestBoxSpecies_SuggestionChosen: {genusSpecies} {source} {speciesItem.Code}");
                         }
-                        genusSpecies = speciesItem.Genus + " - " + speciesItem.Species;
 
-                        SourceGenusSpecies.Text = $"Source: {source} {genusSpecies}";
-
-                        Debug.WriteLine($"SpeciesSelector: AutoSuggestBoxSpecies_SuggestionChosen: {genusSpecies} {source} {speciesItem.Code}");
-                    }
-
-                    ImageList.Clear();
-                    foreach (SpeciesImageItem speciesImageItem in SpeciesImageItemList)
-                    {
-                        var file = await ApplicationData.Current.LocalFolder.GetFileAsync(speciesImageItem.ImageFile);
-                        var fileUri = new Uri("file:///" + file.Path.Replace("\\", "/"));
-
-                        ImageList.Add(new ImageDataObject
+                        // Make the fish image accessble to the XAML put loading into the
+                        // Image List
+                        ImageList.Clear();
+                        foreach (SpeciesImageItem speciesImageItem in SpeciesImageItemList)
                         {
-                            ImageLocation = fileUri,
-                            Author = speciesImageItem.Author
-                        });
+                            var file = await ApplicationData.Current.LocalFolder.GetFileAsync(speciesImageItem.ImageFile);
+                            var fileUri = new Uri("file:///" + file.Path.Replace("\\", "/"));
+
+                            ImageList.Add(new ImageDataObject
+                            {
+                                ImageLocation = fileUri,
+                                Author = speciesImageItem.Author
+                            });
+                        }
+
+                        // Get the species environment, distribution and species size information from the cache
+                        (string environment, string distribution, string speciesSize) = speciesImageCache.GetInfo(speciesItem!.Code);
+                        Environment.Text = environment;
+                        Distribution.Text = distribution;
+                        SpeciesSize.Text = speciesSize;
+
+                        // Hide any blank information rows (note there is no Visibility property on a grid row)
+                        GridRowsVisibility(SpeciesInfoGrid, string.IsNullOrEmpty(environment) ? Visibility.Collapsed : Visibility.Visible, 0/*fromRowIndex*/, 0/*toRowIndex*/);
+                        GridRowsVisibility(SpeciesInfoGrid, string.IsNullOrEmpty(distribution) ? Visibility.Collapsed : Visibility.Visible, 1/*fromRowIndex*/, 1/*toRowIndex*/);
+                        GridRowsVisibility(SpeciesInfoGrid, string.IsNullOrEmpty(speciesSize) ? Visibility.Collapsed : Visibility.Visible, 2/*fromRowIndex*/, 2/*toRowIndex*/);
+                    }
+                    else
+                    {
+                        // Clear image list (bound to xaml)
+                        ImageList.Clear();
+
+                        // Clear source credit and genus/species  (bound to xaml)
+                        SourceCredit.Text = string.Empty;
+                        GenusSpecies.Text = string.Empty;
+
+                        // Clear environment, distrution and size (bound to xaml)
+                        Environment.Text = string.Empty;
+                        Distribution.Text = string.Empty;
+                        SpeciesSize.Text = string.Empty;
+                        SpeciesInfoExpander.Visibility = Visibility.Collapsed;
                     }
                 }
-                else
+                catch (Exception ex)
                 {
-                    SourceGenusSpecies.Text = string.Empty;
-
-                    // Clear image list
-                    ImageList.Clear();
+                    Debug.WriteLine($"SpeciesSelector: DisplayCachedFishImages: {ex.Message}");
+                    report?.Error("SpeciesSelector", $"DisplayCachedFishImages: {ex.Message}");
                 }
             }
-            catch (Exception ex)
+        }
+
+        /// <summary>
+        /// Hide or show a range of rows in a grid
+        /// </summary>
+        /// <param name="grid"></param>
+        /// <param name="visibility"></param>
+        /// <param name="fromRowIndex"></param>
+        /// <param name="toRowIndex"></param>
+        private void GridRowsVisibility(Grid grid, Visibility visibility, int fromRowIndex, int toRowIndex)
+        {
+            foreach (var child in grid.Children)
             {
-                Debug.WriteLine($"SpeciesSelector: DisplayCachedFishImages: {ex.Message}");
-                report?.Error("SpeciesSelector", $"DisplayCachedFishImages: {ex.Message}");
+                if (child is FrameworkElement element)
+                {
+                    int rowIndex = Grid.GetRow(element);
+                    if (rowIndex >= fromRowIndex && rowIndex <= toRowIndex)
+                    {
+                        element.Visibility = visibility;
+                    }
+                }
             }
         }
 
         // *** End of SpeciesSelector ***
     }
 
+
+ 
 
     /// <summary>
     /// Used to convert the image Uri

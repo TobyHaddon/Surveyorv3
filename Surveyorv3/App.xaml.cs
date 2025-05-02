@@ -33,10 +33,17 @@ namespace Surveyor
         /// </summary>
         public App()
         {
+            Microsoft.UI.Xaml.Application.Current.UnhandledException += (sender, e) =>
+            {                
+                mainWindow?.report.Warning("", $"Unhandled XAML exception: {e.Message}");
+            };
+
             this.InitializeComponent();
 
             // Assuming m_window will be initialized later
             mainWindow = null!;                                   // TH:Added
+
+            this.UnhandledException += App_UnhandledException;    // TH:Added
         }
 
         /// <summary>
@@ -56,7 +63,21 @@ namespace Surveyor
             //???var manager = Microsoft.Graphics.Canvas.CanvasDevice.GetSharedDevice();
         }
 
-        
+
+        private void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
+        {
+            try
+            {
+                // Save crash report / persist important data
+                Debug.WriteLine($"Unhandled Exception: {e.Exception?.Message}");
+
+                mainWindow?.report.Unload(); // Unload the report to save any changes
+
+
+                e.Handled = true; // Optionally prevent app from crashing immediately
+            }
+            catch { }
+        }
 
 
         public static string WinAppSdkDetails

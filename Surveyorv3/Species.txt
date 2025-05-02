@@ -26,102 +26,102 @@ Pomacentridae/Damselfishes	Chromis	cyanea/Blue chromis	FishBase:3642
 Pomacentridae/Damselfishes	Stegastes	diencaeus/Longfin damselfish	FishBase:3649
 Pomacentridae/Damselfishes	Chromis	insolata/Sunshinefish	FishBase:3644
 Pomacentridae/Damselfishes	Stegastes	leucostictus/Beaugregory	FishBase:3651
-Pomacentridae/Damselfishes	Chromis	multilineata/Yellow-edge chromis	FishBase:
+Pomacentridae/Damselfishes	Azurina	multilineata/Yellow-edge chromis	FishBase:1121
 Pomacentridae/Damselfishes	Stegastes	partitus/Bicolor damselfish	FishBase:3652
 Pomacentridae/Damselfishes	Stegastes	planifrons/Threespot damselfish	FishBase:3653
-Pomacentridae/Damselfishes	Abudefduf	saxatilis/Sergeant major	FishBase:
-Pomacentridae/Damselfishes	Chromis	scotti/Purple chromis	FishBase:
-Pomacentridae/Damselfishes	Stegastes	xanthurus/Cocoa Damselfish	FishBase:
-Sciaenidae/Drumfishes	Equetus	lanceolatus/Jackknife-fish	FishBase:
-Sciaenidae/Drumfishes	Equetus	punctatus/Spotted drumfish	FishBase:
-Sciaenidae/Drumfishes	Pareques	acuminatus/High-hat	FishBase:
-Monacanthidae/Filefishes	Aluterus	scriptus/Scrawled filefish	FishBase:
-Monacanthidae/Filefishes	Cantherhines	pullus/Orange-spotted filefish	FishBase:
-Mullidae/Goatfishes	Mulloidichthys	martinicus/Yellow goatfish	FishBase:
-Mullidae/Goatfishes	Pseudupeneus	maculatus/Spotted goatfish	FishBase:
-Serranidae/Groupers	Cephalopholis	cruentata/Graysby grouper	FishBase:
-Serranidae/Groupers	Cephalopholis	fulva/Coney grouper	FishBase:
-Serranidae/Groupers	Epinephelus	adscensionis/Rockhind grouper	FishBase:
-Serranidae/Groupers	Mycteroperca	bonaci/Black grouper	FishBase:3333
-Serranidae/Groupers	Mycteroperca	interstitialis/Yellowmouth grouper	FishBase:
-Serranidae/Groupers	Mycteroperca	tigris/Tiger grouper	FishBase:
-Serranidae/Groupers	Mycteroperca	venenosa/Yellowfin grouper	FishBase:
-Haemulidae/Grunts	Anisotremus	surinamensis/Black margate	FishBase:
-Haemulidae/Grunts	Haemulon	aurolineatum/Tomtate	FishBase:
-Haemulidae/Grunts	Haemulon	bonariense/Black grunt	FishBase:
+Pomacentridae/Damselfishes	Abudefduf	saxatilis/Sergeant major	FishBase:1119
+Pomacentridae/Damselfishes	Chromis	scotti/Purple chromis	FishBase:3647
+Pomacentridae/Damselfishes	Stegastes	xanthurus/Cocoa Damselfish	FishBase:67997
+Sciaenidae/Drumfishes	Equetus	lanceolatus/Jackknife-fish	FishBase:3584
+Sciaenidae/Drumfishes	Equetus	punctatus/Spotted drumfish	FishBase:3585
+Sciaenidae/Drumfishes	Pareques	acuminatus/High-hat	FishBase:3583
+Monacanthidae/Filefishes	Aluterus	scriptus/Scrawled filefish	FishBase:4275
+Monacanthidae/Filefishes	Cantherhines	pullus/Orange-spotted filefish	FishBase:1082
+Mullidae/Goatfishes	Mulloidichthys	martinicus/Yellow goatfish	FishBase:1092
+Mullidae/Goatfishes	Pseudupeneus	maculatus/Spotted goatfish	FishBase:1094
+Serranidae/Groupers	Cephalopholis	cruentata/Graysby grouper	FishBase:12
+Serranidae/Groupers	Cephalopholis	fulva/Coney grouper	FishBase:8816
+Serranidae/Groupers	Epinephelus	adscensionis/Rockhind grouper	FishBase:14
+Serranidae/Groupers	Mycteroperca	bonaci/Black grouper	FishBase:1209
+Serranidae/Groupers	Mycteroperca	interstitialis/Yellowmouth grouper	FishBase:1211
+Serranidae/Groupers	Mycteroperca	tigris/Tiger grouper	FishBase:1215
+Serranidae/Groupers	Mycteroperca	venenosa/Yellowfin grouper	FishBase:1216
+Haemulidae/Grunts	Anisotremus	surinamensis/Black margate	FishBase:1123
+Haemulidae/Grunts	Haemulon	aurolineatum/Tomtate	FishBase:1128
+Haemulidae/Grunts	Haemulon	bonariense/Black grunt	FishBase:1129
 Haemulidae/Grunts	Haemulon	carbonarium/Caesar grunt	FishBase:1131
-Haemulidae/Grunts	Haemulon	flavolineatum/French grunt	FishBase:
-Haemulidae/Grunts	Haemulon	macrostomum/Spanish grunt	FishBase:
-Haemulidae/Grunts	Haemulon	plumierii/White grunt	FishBase:
-Haemulidae/Grunts	Haemulon	sciurus/Bluestriped grunt	FishBase:
-Haemulidae/Grunts	Haemulon	striatum/Striped grunt	FishBase:
-Haemulidae/Grunts	Haemulon	parra/Sailors choice	FishBase:
-Haemulidae/Grunts	Haemulon	melanurum/Cotton wick	FishBase:
-Haemulidae/Grunts	Haemulon	steindachneri/Latin grunt	FishBase:
-Haemulidae/Grunts	Anisotremus	virginicus/Porkfish	FishBase:
-Haemulidae/Grunts	Haemulon	chrysargyreum/Smallmouth grunt	FishBase:
-Serranidae/Hamlets 	Hypoplectrus 	randallorum/tan hamlet	FishBase:
-Serranidae/Hamlets	Hypoplectrus	indigo/Blue hamlet	FishBase:
-Serranidae/Hamlets	Hypoplectrus	nigricans/Black hamlet	FishBase:
-Serranidae/Hamlets	Hypoplectrus	puella/Barred hamlet	FishBase:
-Carangidae/Jacks	Caranx	bartholomaei/Yellow jack	FishBase:
-Carangidae/Jacks	Caranx	ruber/Bar jack	FishBase:
-Carangidae/Jacks	Trachinotus	falcatus/Permit	FishBase:
-Carangidae/Jacks	Caranx	crysos/Blue runner	FishBase:
-Carangidae/Jacks	Caranx	latus/Horse-eye jack	FishBase:
-Synodontidae/Lizardfishes	Synodus	saurus/Atlantic lizardfish	FishBase:
-Synodontidae/Lizardfishes	Synodus	synodus/Red lizardfish	FishBase:
-Synodontidae/Lizardfishes	Synodus	intermedius/Sand diver	FishBase:
-Scaridae/Parrotfishes	Scarus	coeruleus/Blue parrotfish	FishBase:
-Scaridae/Parrotfishes	Scarus	iseri/Striped parrotfish	FishBase:
-Scaridae/Parrotfishes	Scarus	taeniopterus/Princess parrotfish	FishBase:
-Scaridae/Parrotfishes	Scarus	vetula/Queen parrotfish	FishBase:
-Scaridae/Parrotfishes	Sparisoma	atomarium/Greenblotch parrotfish	FishBase:
-Scaridae/Parrotfishes	Sparisoma	aurofrenatum/Redband parrotfish	FishBase:
-Scaridae/Parrotfishes	Sparisoma	chrysopterum/Redtail parrotfish	FishBase:
-Scaridae/Parrotfishes	Sparisoma	rubripinne/Yellowtail parrotfish	FishBase:
-Scaridae/Parrotfishes	Sparisoma	viride/Stoplight parrotfish	FishBase:
-Sparidae/Porgy	Calamus	bajonado/Jolthead porgy	FishBase:
-Sparidae/Porgy	Calamus	calamus/Saucereye porgy	FishBase:
-Diodontidae/Pufferfishes	Diodon	hystrix/Porcupinefish	FishBase:
-Tetraodontidae/Pufferfishes	Canthigaster	rostrata/Sharpnose puffer	FishBase:
-Echeneidae/Remoras	Echeneis	neucratoides/Whitfin sharksucker	FishBase:
-Scorpaenidae/Scorpionfishes	Pterois	volitans/Lionfish	FishBase:
-Ginglymostomatidae/Sharks	Ginglymostoma	cirratum/Nurse shark	FishBase:
-Lutjanidae/Snappers	Apsilus	dentatus/Black snapper	FishBase:
-Lutjanidae/Snappers	Lutjanus	analis/Mutton snapper	FishBase:
-Lutjanidae/Snappers	Lutjanus	apodus/Schoolmaster snapper	FishBase:
-Lutjanidae/Snappers	Lutjanus	buccanella/Blackfin snapper	FishBase:
-Lutjanidae/Snappers	Lutjanus	griseus/Gray snapper	FishBase:
-Lutjanidae/Snappers	Lutjanus	jocu/Dog snapper	FishBase:
-Lutjanidae/Snappers	Lutjanus	mahogoni/Mahogany snapper	FishBase:
-Lutjanidae/Snappers	Lutjanus	synagris/Lane snapper	FishBase:
-Lutjanidae/Snappers	Ocyurus	chrysurus/Yellowtail snapper	FishBase:
-Holocentridae/Squirrelfishes	Holocentrus	adscensionis/Squirrelfish	FishBase:
-Holocentridae/Squirrelfishes	Holocentrus	rufus/Longspine squirrelfish	FishBase:
-Holocentridae/Squirrelfishes	Neoniphon	marianus/Longjaw squirrelfish	Fishb
+Haemulidae/Grunts	Haemulon	flavolineatum/French grunt	FishBase:1135
+Haemulidae/Grunts	Haemulon	macrostomum/Spanish grunt	FishBase:1136
+Haemulidae/Grunts	Haemulon	plumierii/White grunt	FishBase:1140
+Haemulidae/Grunts	Haemulon	sciurus/Bluestriped grunt	FishBase:1141
+Haemulidae/Grunts	Haemulon	striatum/Striped grunt	FishBase:1143
+Haemulidae/Grunts	Haemulon	parra/Sailors choice	FishBase:1139
+Haemulidae/Grunts	Haemulon	melanurum/Cotton wick	FishBase:1138
+Haemulidae/Grunts	Haemulon	steindachneri/Latin grunt	FishBase:1142
+Haemulidae/Grunts	Anisotremus	virginicus/Porkfish	FishBase:1124
+Haemulidae/Grunts	Haemulon	chrysargyreum/Smallmouth grunt	FishBase:1134
+Serranidae/Hamlets 	Hypoplectrus 	randallorum/tan hamlet	FishBase:66320
+Serranidae/Hamlets	Hypoplectrus	indigo/Blue hamlet	FishBase:12766
+Serranidae/Hamlets	Hypoplectrus	nigricans/Black hamlet	FishBase:16535
+Serranidae/Hamlets	Hypoplectrus	puella/Barred hamlet	FishBase:12759
+Carangidae/Jacks	Caranx	bartholomaei/Yellow jack	FishBase:1913
+Carangidae/Jacks	Caranx	ruber/Bar jack	FishBase:1918
+Carangidae/Jacks	Trachinotus	falcatus/Permit	FishBase:1010
+Carangidae/Jacks	Caranx	crysos/Blue runner	FishBase:1933
+Carangidae/Jacks	Caranx	latus/Horse-eye jack	FishBase:1935
+Synodontidae/Lizardfishes	Synodus	saurus/Atlantic lizardfish	FishBase:1771
+Synodontidae/Lizardfishes	Synodus	synodus/Red lizardfish	FishBase:2723
+Synodontidae/Lizardfishes	Synodus	intermedius/Sand diver	FishBase:2720
+Scaridae/Parrotfishes	Scarus	coeruleus/Blue parrotfish	FishBase:1153
+Scaridae/Parrotfishes	Scarus	iseri/Striped parrotfish	FishBase:1154
+Scaridae/Parrotfishes	Scarus	taeniopterus/Princess parrotfish	FishBase:1156
+Scaridae/Parrotfishes	Scarus	vetula/Queen parrotfish	FishBase:1157
+Scaridae/Parrotfishes	Sparisoma	atomarium/Greenblotch parrotfish	FishBase:3675
+Scaridae/Parrotfishes	Sparisoma	aurofrenatum/Redband parrotfish	FishBase:1158
+Scaridae/Parrotfishes	Sparisoma	chrysopterum/Redtail parrotfish	FishBase:1159
+Scaridae/Parrotfishes	Sparisoma	rubripinne/Yellowtail parrotfish	FishBase:1160
+Scaridae/Parrotfishes	Sparisoma	viride/Stoplight parrotfish	FishBase:1161
+Sparidae/Porgy	Calamus	bajonado/Jolthead porgy	FishBase:1221
+Sparidae/Porgy	Calamus	calamus/Saucereye porgy	FishBase:1222
+Diodontidae/Pufferfishes	Diodon	hystrix/Porcupinefish	FishBase:1022
+Tetraodontidae/Pufferfishes	Canthigaster	rostrata/Sharpnose puffer	FishBase:4291
+Echeneidae/Remoras	Echeneis	neucratoides/Whitfin sharksucker	FishBase:3543
+Scorpaenidae/Scorpionfishes	Pterois	volitans/Lionfish	FishBase:5195
+Ginglymostomatidae/Sharks	Ginglymostoma	cirratum/Nurse shark	FishBase:2532
+Lutjanidae/Snappers	Apsilus	dentatus/Black snapper	FishBase:85
+Lutjanidae/Snappers	Lutjanus	analis/Mutton snapper	FishBase:1403
+Lutjanidae/Snappers	Lutjanus	apodus/Schoolmaster snapper	FishBase:1404
+Lutjanidae/Snappers	Lutjanus	buccanella/Blackfin snapper	FishBase:1419
+Lutjanidae/Snappers	Lutjanus	griseus/Gray snapper	FishBase:266
+Lutjanidae/Snappers	Lutjanus	jocu/Dog snapper	FishBase:154
+Lutjanidae/Snappers	Lutjanus	mahogoni/Mahogany snapper	FishBase:161
+Lutjanidae/Snappers	Lutjanus	synagris/Lane snapper	FishBase:181
+Lutjanidae/Snappers	Ocyurus	chrysurus/Yellowtail snapper	FishBase:188
+Holocentridae/Squirrelfishes	Holocentrus	adscensionis/Squirrelfish	FishBase:1061
+Holocentridae/Squirrelfishes	Holocentrus	rufus/Longspine squirrelfish	FishBase:1062
+Holocentridae/Squirrelfishes	Neoniphon	marianus/Longjaw squirrelfish	Fishbase:3249
 Holocentridae/Squirrelfishes	Sargocentron	bullisi/Deepwater squirrelfish	FishBase:3622
-Acanthuridae/Surgeonfishes	Acanthurus	bahianus/Barber surgeonfish	FishBase
-Acanthuridae/Surgeonfishes	Acanthurus	chirurgus/Doctorfish	FishBase
-Acanthuridae/Surgeonfishes	Acanthurus	coeruleus/Caribbean blue tang	FishBase:
-Acanthuridae/Surgeonfishes	Acanthurus	tractus/Ocean Surgeonfish	FishBase:
-Pempheridae/Sweepers	Pempheris	schomburgkii/Glassy sweeper	FishBase:
-Elopidae/Tenpounders	Elops	saurus/Ladyfish	FishBase:
-Malacanthidae/Tilefishes	Malacanthus	plumieri/Sand tilefish	FishBase:
-Balistidae/Triggerfishes	Balistes	vetula/Queen triggerfish	FishBase:
-Balistidae/Triggerfishes	Canthidermis	sufflamen/Ocean triggerfish	FishBase:
-Balistidae/Triggerfishes	Melichthys	niger/Black durgeon	FishBase:
-Balistidae/Triggerfishes	Xanthichthys	ringens/Sargsassum triggerfish	FishBase:
-Aulostomidae/Trumpetfish	Aulostomus	maculatus/Atlantic Trumpetfish	FishBase:
-Ostraciidae/Trunkfishes	Acanthostracion	polygonius/Honeycomb cowfish	FishBase:
-Ostraciidae/Trunkfishes	Lactophrys	triqueter/Smooth trunkfish	FishBase:
-Labridae/Wrasses	Bodianus	rufus/Spanish hogfish	FishBase:
-Labridae/Wrasses	Clepticus	parrae/Creole wrasse	FishBase:
-Labridae/Wrasses	Halichoeres	bivittatus/Slippery dick	FishBase:
-Labridae/Wrasses	Halichoeres	cyanocephalus/Yellowcheek wrasse	FishBase:
-Labridae/Wrasses	Halichoeres	garnoti/Yellowhead wrasse	FishBase:
-Labridae/Wrasses	Halichoeres	maculipinna/Clown wrasse	FishBase:
-Labridae/Wrasses	Halichoeres	pictus/Rainbow wrasse	FishBase:
-Labridae/Wrasses	Halichoeres	radiatus/Puddingwife	FishBase:
-Labridae/Wrasses	Lachnolaimus	maximus/Hogfish	FishBase:
-Labridae/Wrasses	Thalassoma	bifasciatum/Blueheaded wrasse	FishBase:
+Acanthuridae/Surgeonfishes	Acanthurus	bahianus/Barber surgeonfish	FishBase:68792
+Acanthuridae/Surgeonfishes	Acanthurus	chirurgus/Doctorfish	FishBase:943
+Acanthuridae/Surgeonfishes	Acanthurus	coeruleus/Caribbean blue tang	FishBase:944
+Acanthuridae/Surgeonfishes	Acanthurus	tractus/Ocean Surgeonfish	FishBase:942
+Pempheridae/Sweepers	Pempheris	schomburgkii/Glassy sweeper	FishBase:3593
+Elopidae/Tenpounders	Elops	saurus/Ladyfish	FishBase:175
+Malacanthidae/Tilefishes	Malacanthus	plumieri/Sand tilefish	FishBase:3541
+Balistidae/Triggerfishes	Balistes	vetula/Queen triggerfish	FishBase:19
+Balistidae/Triggerfishes	Canthidermis	sufflamen/Ocean triggerfish	FishBase:4279
+Balistidae/Triggerfishes	Melichthys	niger/Black durgeon	FishBase:966
+Balistidae/Triggerfishes	Xanthichthys	ringens/Sargsassum triggerfish	FishBase:4285
+Aulostomidae/Trumpetfish	Aulostomus	maculatus/Atlantic Trumpetfish	FishBase:964
+Ostraciidae/Trunkfishes	Acanthostracion	polygonius/Honeycomb cowfish	FishBase:4287
+Ostraciidae/Trunkfishes	Lactophrys	triqueter/Smooth trunkfish	FishBase:1109
+Labridae/Wrasses	Bodianus	rufus/Spanish hogfish	FishBase:1067
+Labridae/Wrasses	Bodianus	parrae/Creole wrasse	FishBase:3656
+Labridae/Wrasses	Halichoeres	bivittatus/Slippery dick	FishBase:3660
+Labridae/Wrasses	Halichoeres	cyanocephalus/Yellowcheek wrasse	FishBase:3662
+Labridae/Wrasses	Halichoeres	garnoti/Yellowhead wrasse	FishBase:3663
+Labridae/Wrasses	Halichoeres	maculipinna/Clown wrasse	FishBase:3664
+Labridae/Wrasses	Halichoeres	pictus/Rainbow wrasse	FishBase:3665
+Labridae/Wrasses	Halichoeres	radiatus/Puddingwife	FishBase:1068
+Labridae/Wrasses	Lachnolaimus	maximus/Hogfish	FishBase:1071
+Labridae/Wrasses	Thalassoma	bifasciatum/Blueheaded wrasse	FishBase:3673

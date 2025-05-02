@@ -3,6 +3,7 @@
 // Version 1.0 10 Apr 2025
 
 using CommunityToolkit.WinUI.Helpers;
+using Microsoft.UI.Xaml.Documents;
 using Surveyor.User_Controls;
 using System;
 using System.Collections.Concurrent;
@@ -52,7 +53,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="action"></param>
         /// <param name="priority"></param>
-        public void RegisterAction(Func<bool, Task> action, Priority priority)
+        public void RegisterAction(Func<bool, bool, int, Task> action, Priority priority)
         {
             var registeredAction = new RegisteredAction(action);
             _registeredActions[priority].Add(registeredAction);
@@ -122,12 +123,15 @@ namespace Surveyor
         private void CheckConnection()
         {
             bool isOnline = IsConnectedToInternet();
+            bool isMetered = NetworkHelper.Instance.ConnectionInformation.IsInternetOnMeteredConnection;
+            int bars = NetworkHelper.Instance.ConnectionInformation.SignalStrength.GetValueOrDefault(0);
+
 
             foreach (Priority priority in Enum.GetValues(typeof(Priority)))
             {
                 foreach (var registeredAction in _registeredActions[priority])
-                {
-                    _ = ExecuteActionIfIdle(registeredAction, isOnline);
+                {                 
+                    _ = ExecuteActionIfIdle(registeredAction, isOnline, isMetered, bars);
                 }
             }
         }
@@ -138,14 +142,14 @@ namespace Surveyor
         /// </summary>
         /// <param name="action"></param>
         /// <returns></returns>
-        private async Task ExecuteActionIfIdle(RegisteredAction action, bool isOnline)
+        private async Task ExecuteActionIfIdle(RegisteredAction action, bool isOnline, bool isMetered, int bars)
         {
             if (action.IsRunning) return;
 
             try
             {
                 action.IsRunning = true;
-                await action.Action(isOnline);
+                await action.Action(isOnline, isMetered, bars);
             }
             finally
             {
@@ -159,10 +163,10 @@ namespace Surveyor
         /// </summary>
         private class RegisteredAction
         {
-            public Func<bool, Task> Action { get; }
+            public Func<bool, bool, int, Task> Action { get; }
             public volatile bool IsRunning;
 
-            public RegisteredAction(Func<bool, Task> action)
+            public RegisteredAction(Func<bool, bool, int, Task> action)
             {
                 Action = action;
                 IsRunning = false;

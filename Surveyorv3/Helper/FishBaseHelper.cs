@@ -4,11 +4,15 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Xml;
 using Windows.Storage;
+using HtmlAgilityPack;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.IO;
+
 
 namespace Surveyor.Helper
 {
-
 
     public class HtmlFishBaseImageMetadata
     {
@@ -25,44 +29,62 @@ namespace Surveyor.Helper
         /// </summary>
         /// <param name="file"></param>
         /// <returns></returns>
-        public static async Task<HtmlFishBaseImageMetadata> ParseHtmlFishbasePhotoPage(StorageFile file)
+        public static HtmlFishBaseImageMetadata ParseHtmlFishbasePhotoPage(string filePath)
         {
-            string content = await FileIO.ReadTextAsync(file);
+            using (var stream = File.OpenRead(filePath))
+            {
+                return ParseHtmlFishbasePhotoPage(stream);
+            }
+        }
 
+        public static HtmlFishBaseImageMetadata ParseHtmlFishbasePhotoPage(Stream stream)
+        {
             var result = new HtmlFishBaseImageMetadata();
 
-            // Extract image src from <!--image section-->
-            //???var imageMatch = Regex.Match(content, "<!--image section-->.*?<img[^>]*src=\"(.*?)\"", RegexOptions.Singleline);
-            var imageMatch = Regex.Match(content, @"<!--image section-->.*?<img[^>]*src=['""]([^'""]+)['""]", RegexOptions.Singleline);
 
-            if (imageMatch.Success)
+            var doc = new HtmlDocument();
+            doc.Load(stream);
+
+            // 1. Extract image src from <!--image section-->
+            var imageSection = doc.DocumentNode
+                .SelectSingleNode("//div[comment()[contains(.,'image section')]]//img");
+            if (imageSection != null)
             {
-                result.ImageSrc = imageMatch.Groups[1].Value;
+                result.ImageSrc = imageSection.GetAttributeValue("src", "");
             }
 
-            // Extract genusSpecies in <i> inside <!--image caption section-->
-            var genusMatch = Regex.Match(content, @"<!--image caption section-->.*?<i>(.*?)</i>", RegexOptions.Singleline);
-            if (genusMatch.Success)
+            // 2. Extract genusSpecies from <i> inside <!--image caption section-->
+            var captionSection = doc.DocumentNode
+                .SelectSingleNode("//div[comment()[contains(.,'image caption section')]]//i");
+            if (captionSection != null)
             {
-                result.GenusSpecies = genusMatch.Groups[1].Value;
+                result.GenusSpecies = captionSection.InnerText.Trim();
             }
 
-            // Extract author in <a> after 'by' inside <!--image caption section-->
-            var authorMatch = Regex.Match(content, @"<!--image caption section-->.*?by\s*<a[^>]*>(.*?)</a>", RegexOptions.Singleline);
-            if (authorMatch.Success)
+            // 3. Extract author (the <a> tag after 'by') inside <!--image caption section-->
+            var authorLink = doc.DocumentNode
+                .SelectSingleNode("//div[comment()[contains(.,'image caption section')]]//a[contains(@href,'CollaboratorSummary')]");
+            if (authorLink != null)
             {
-                result.Author = authorMatch.Groups[1].Value;
+                result.Author = authorLink.InnerText.Trim();
             }
 
-            // Extract totalImages from <!--page navigation--> x of n
-            var totalMatch = Regex.Match(content, @"<!--page navigation-->.*?(\d+)\s+of\s+(\d+)", RegexOptions.Singleline);
-            if (totalMatch.Success)
+            // 4. Extract total number of images from <!--page navigation-->
+            var pageNavTextNode = doc.DocumentNode
+                .SelectSingleNode("//div[comment()[contains(.,'page navigation')]]");
+            if (pageNavTextNode != null)
             {
-                result.TotalImages = int.Parse(totalMatch.Groups[2].Value);
+                var text = pageNavTextNode.InnerText;
+                var match = Regex.Match(text, @"(\d+)\s+of\s+(\d+)");
+                if (match.Success)
+                {
+                    result.TotalImages = int.Parse(match.Groups[2].Value);
+                }
             }
 
             return result;
         }
+
 
 
         /// <summary>
@@ -104,67 +126,131 @@ namespace Surveyor.Helper
         /// </summary>
         /// <param name="file"></param>
         /// <returns></returns>
-        public static async Task<HtmlFishBaseSpeciesMetadata> ParseHtmlFishbaseSummaryAndExtractSpeciesMetadata(StorageFile file)
+        public static async Task<HtmlFishBaseSpeciesMetadata> ParseHtmlFishbaseSummaryAndExtractSpeciesMetadata(string filePath)
         {
-            string content = await FileIO.ReadTextAsync(file);
+            using (var stream = File.OpenRead(filePath))
+            {
+                return await ParseHtmlFishbaseSummaryAndExtractSpeciesMetadata(stream);
+            }
+        }
+
+        public static async Task<HtmlFishBaseSpeciesMetadata> ParseHtmlFishbaseSummaryAndExtractSpeciesMetadata(Stream stream)
+        {
+            using var reader = new StreamReader(stream);
+
+            string content = await reader.ReadToEndAsync();
+
+            // Attempt to locate the start of the HTML document
+            int startIndex = content.IndexOf("<!DOCTYPE", StringComparison.OrdinalIgnoreCase);
+            if (startIndex > 0)
+            {
+                // Before loading the HTML into HtmlDocument, strip out any leading garbage
+                content = content.Substring(startIndex);
+            }
+
+            var doc = new HtmlDocument();
+            doc.LoadHtml(content);
 
             var result = new HtmlFishBaseSpeciesMetadata();
 
             // --- Genus, SpeciesLatin, SpeciesCommon ---
-            var genusSpeciesMatch = Regex.Match(content, @"<div id=""ss-sciname"".*?<span class=""sciname"">\s*<a[^>]*?>(.*?)</a>\s*</span>\s*<span class=""sciname"">\s*<a[^>]*?>(.*?)</a>\s*</span>.*?<span class=""sheader2"">\s*(.*?)\s*</span>", RegexOptions.Singleline);
-            if (genusSpeciesMatch.Success)
+            var genusSpeciesNodes = doc.DocumentNode.SelectNodes("//div[@id='ss-sciname']//span[@class='sciname']//a");
+            if (genusSpeciesNodes != null && genusSpeciesNodes.Count >= 2)
             {
-                result.Genus = genusSpeciesMatch.Groups[1].Value;
-                result.SpeciesLatin = genusSpeciesMatch.Groups[2].Value;
-                result.SpeciesCommon = genusSpeciesMatch.Groups[3].Value;
+                result.Genus = genusSpeciesNodes[0].InnerText.Trim();
+                result.SpeciesLatin = genusSpeciesNodes[1].InnerText.Trim();
             }
 
-            // --- FamilyLatin & FamilyCommon ---
-            var classificationSection = Regex.Match(content, @"<h1[^>]*?>\s*Classification\s*/\s*Names\s*</h1>.*?<div class=""smallSpace"".*?<span class=""slabel1 "">.*?</span>.*?<span class=""slabel1 "">.*?<a[^>]*>(.*?)</a>\s*</span>\s*\(([^)]*)\)", RegexOptions.Singleline);
-            if (classificationSection.Success)
+            // Common name
+            var commonNameNode = doc.DocumentNode.SelectSingleNode("//div[@id='ss-sciname']//span[contains(@class, 'sheader2')]");
+            if (commonNameNode != null)
             {
-                result.FamilyLatin = classificationSection.Groups[1].Value;
-                result.FamilyCommon = classificationSection.Groups[2].Value;
+                result.SpeciesCommon = HtmlEntity.DeEntitize(commonNameNode.InnerText.Trim());
+            }
+
+
+            // --- FamilyLatin & FamilyCommon ---
+            var classifcationNode = doc.DocumentNode.SelectSingleNode("//div[@id='ss-main']//div[contains(@class, 'smallSpace')]");
+            if (classifcationNode is not null)
+            {
+                // Extract the family latin name
+                var familyLatin = classifcationNode.SelectSingleNode("//a[contains(@href, '/summary/FamilySummary.php')]");
+                if (familyLatin is not null)
+                {
+                    result.FamilyLatin = familyLatin.InnerText.Trim();
+                }
+
+                // Find all <span class="slabel1 ">...</span> inside classificationNode
+                var spanNodes = classifcationNode.SelectNodes(".//span[@class='slabel1 ']");
+
+                if (spanNodes != null && spanNodes.Count >= 2)
+                {
+                    var secondSpan = spanNodes[1];
+
+                    // Get the sibling text node immediately after the second <span>
+                    var nextNode = secondSpan.NextSibling;
+                    while (nextNode != null && nextNode.NodeType != HtmlNodeType.Text)
+                    {
+                        nextNode = nextNode.NextSibling;
+                    }
+
+                    if (nextNode != null)
+                    {
+                        var rawText = HtmlEntity.DeEntitize(nextNode.InnerText); // e.g., " (Damselfishes) > Chrominae"
+
+                        if (rawText is not null)
+                        {
+                            // Extract the text inside the first pair of round brackets
+                            var match = Regex.Match(rawText, @"\(([^)]+)\)");
+                            if (match.Success)
+                            {
+                                result.FamilyCommon = match.Groups[1].Value.Trim(); // "Damselfishes"
+                            }
+                        }
+                    }
+                }
             }
 
             // --- FishID ---
-            var speccodeMatch = Regex.Match(content, @"speccode=(\d+)", RegexOptions.IgnoreCase);
-            if (speccodeMatch.Success && int.TryParse(speccodeMatch.Groups[1].Value, out int fishId))
+            var specCodeMatch = Regex.Match(content, @"speccode=(\d+)", RegexOptions.IgnoreCase);
+            if (specCodeMatch.Success && int.TryParse(specCodeMatch.Groups[1].Value, out int fishId))
             {
                 result.FishID = fishId;
             }
 
-            // Helper: Strip HTML tags and unescape
-            static string CleanHtml(string html)
+            // --- Helper: clean a div content ---
+            static string CleanSpanInnerText(HtmlNode? node)
             {
-                string noLinks = Regex.Replace(html, @"<a[^>]*?>.*?</a>", "", RegexOptions.Singleline);
-                string withLineBreaks = Regex.Replace(noLinks, @"<br\s*/?>", "\n", RegexOptions.IgnoreCase);
-                return Regex.Replace(withLineBreaks, "<.*?>", "").Trim();
+                string ret = string.Empty;
+                if (node == null) return string.Empty;
+
+                var clone = node.Clone();
+                if (clone is not null && clone.InnerText is not null)
+                {
+                    foreach (var a in clone.SelectNodes(".//a") ?? Enumerable.Empty<HtmlNode>())
+                        a.Remove();
+
+                    ret = HtmlEntity.DeEntitize(clone.InnerText)!.Trim();
+
+                    ret = ret.Replace("(Ref. )", "").TrimEnd();
+                }
+
+                return ret;
             }
 
             // --- Environment ---
-            var envMatch = Regex.Match(content, @"<h1[^>]*?>\s*Environment:\s*</h1>\s*<div class=""smallSpace"">\s*<span[^>]*?>(.*?)</span>", RegexOptions.Singleline);
-            if (envMatch.Success)
-            {
-                result.Environment = CleanHtml(envMatch.Groups[1].Value);
-            }
+            var envNode = doc.DocumentNode.SelectSingleNode("//h1[contains(text(), 'Environment')]/following-sibling::div[@class='smallSpace']//span");
+            result.Environment = CleanSpanInnerText(envNode);
 
             // --- Distribution ---
-            var distMatch = Regex.Match(content, @"<h1[^>]*?>\s*Distribution\s*</h1>\s*<div class=""smallSpace"">\s*<span[^>]*?>(.*?)</span>", RegexOptions.Singleline);
-            if (distMatch.Success)
-            {
-                result.Distribution = CleanHtml(distMatch.Groups[1].Value);
-            }
+            var distNode = doc.DocumentNode.SelectSingleNode("//h1[contains(text(), 'Distribution')]/following-sibling::div[@class='smallSpace']//span");
+            result.Distribution = CleanSpanInnerText(distNode);
 
             // --- SpeciesSize ---
-            var sizeMatch = Regex.Match(content, @"<h1[^>]*?>\s*Length at first maturity\s*</h1>\s*<div class=""smallSpace"">\s*<span[^>]*?>(.*?)</span>", RegexOptions.Singleline);
-            if (sizeMatch.Success)
-            {
-                result.SpeciesSize = CleanHtml(sizeMatch.Groups[1].Value);
-            }
+            var sizeNode = doc.DocumentNode.SelectSingleNode("//h1[contains(text(), 'Size')]/following-sibling::div[@class='smallSpace']//span");
+            result.SpeciesSize = CleanSpanInnerText(sizeNode);
 
             return result;
         }
-
     }
 }

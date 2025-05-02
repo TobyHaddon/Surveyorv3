@@ -5,27 +5,93 @@
 //
 // Version 1.1 20 Apr 2025
 // Added the ability to new, update and delete species items (and write to disk)
+//
+// Version 1.2 30 Apr 2025
+// Moved the species.txt file to be in the local folder (was in same directory as the executable)
+// The Load() funcion will copy the file from the executable directory to the local folder if
+// it doesn't exist
+// Added a GetHash() function 
 
 
-using MathNet.Numerics;
+using Surveyor.User_Controls;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using Windows.System.Profile;
+using System.Security.Cryptography;
+using System.Text;
 using static Surveyor.SpeciesItem;
-using static System.Runtime.CompilerServices.RuntimeHelpers;
 
 namespace Surveyor
 {
-    public class SpeciesItem
+    public partial class SpeciesItem : INotifyPropertyChanged
     {
-        public string Family { get; set; } = "";
-        public string Genus { get; set; } = "";
-        public string Species { get; set; } = "";
-        public string Code { get; set; } = "";
+        // The family of the species format: ScientificName/CommonName
+        private string _family = string.Empty;        
+        public string Family
+        {
+            get => _family;
+            set
+            {
+                if (_family != value)
+                {
+                    _family = value ?? string.Empty;
+                    (FamilyScientific, FamilyCommon) = SplitField(_family);
+                    UpdateIsScientificAndCommonNamePresent();
+                    OnPropertyChanged(nameof(Family));
+                }
+            }
+        }
+
+        // The Genus of the species format: ScientificName
+        private string _genus = string.Empty;
+        public string Genus
+        {
+            get => _genus;
+            set
+            {
+                if (_genus != value)
+                {
+                    _genus = value;
+                    OnPropertyChanged(nameof(Genus));
+                }
+            }
+        }
+
+        // The species of the species format: ScientificName/CommonName
+        private string _species = string.Empty;
+        public string Species
+        {
+            get => _species;
+            set
+            {
+                if (_species != value)
+                {
+                    _species = value ?? string.Empty;
+                    (SpeciesScientific, SpeciesCommon) = SplitField(_species);
+                    UpdateIsScientificAndCommonNamePresent();
+                    OnPropertyChanged(nameof(Species));
+                }
+            }
+        }
+
+        // The species code format: CodeType:ID
+        private string _code = string.Empty;
+        public string Code
+        {
+            get => _code;
+            set
+            {
+                if (_code != value)
+                {
+                    _code = value;
+                    OnPropertyChanged(nameof(Code));
+                }
+            }
+        }
 
         // Scientific name for Family, Species
         public string FamilyScientific { get; set; } = "";
@@ -64,28 +130,19 @@ namespace Surveyor
         {
             // Split the line into parts using a tab character
             var parts = itemLine.Split('\t');
-            if (parts.Length != 4)
+            if (parts.Length < 3)
                 return false;
 
 
-            Family = parts[0];
-            Genus = parts[1];
-            Species = parts[2];
-            Code = parts[3];
+            Family = parts[0].Trim();
+            Genus = parts[1].Trim();
+            Species = parts[2].Trim();
+            if (parts.Length >= 4)
+                Code = parts[3].Trim();
 
             if (string.Compare(Family, "Family", true) == 0)
                 return false; // Skip the header line
-
-            // Check for scientific and common names in the family
-            (FamilyScientific, FamilyCommon) = SplitField(Family);
-            if (FamilyScientific != null && FamilyCommon != null)
-                IsScientificAndCommonNamePresent = true;
-
-            // Check for scientific and common names in the species
-            (SpeciesScientific, SpeciesCommon) = SplitField(Species);
-            if (FamilyScientific != null && FamilyCommon != null)
-                IsScientificAndCommonNamePresent = true;
-
+          
             return true;
         }
 
@@ -100,10 +157,21 @@ namespace Surveyor
             var parts = field.Split('/');
             if (parts.Length == 2)
             {
-                return (parts[0], parts[1]);
+                return (parts[0].Trim(), parts[1].Trim());
             }
 
             return ("", "");
+        }
+
+
+        /// <summary>
+        /// Maintain the check value for the IsScientificAndCommonNamePresent feild
+        /// </summary>
+        private void UpdateIsScientificAndCommonNamePresent()
+        {
+            IsScientificAndCommonNamePresent =
+                (!string.IsNullOrWhiteSpace(FamilyScientific) && !string.IsNullOrWhiteSpace(FamilyCommon)) ||
+                (!string.IsNullOrWhiteSpace(SpeciesScientific) && !string.IsNullOrWhiteSpace(SpeciesCommon));
         }
 
 
@@ -163,6 +231,12 @@ namespace Surveyor
         {
             return $"{codeType}:{code}";
         }
+
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected void OnPropertyChanged(string propertyName) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
 
@@ -175,8 +249,12 @@ namespace Surveyor
 
     public class SpeciesCodeList
     {
+
+        // Report 
+        private Reporter? report = null;
+
         // Species code list file name
-        public string SpeciesCodeListFileSpec = "";
+        private string _speciesCodeListFileSpec = "";
         private static readonly object _fileLock = new();
 
 
@@ -210,14 +288,25 @@ namespace Surveyor
             SpeciesItems = [];
         }
 
+        /// <summary>
+        /// Allow access to the species list code file spec
+        /// </summary>
+        public string SpeciesCodeListFileSpec 
+        {
+            get => _speciesCodeListFileSpec;
+        }
 
         /// <summary>
         /// Load the species code list from a file
+        /// The species.txt file lives in the local folder. However if it isn't found there
+        /// a copy is made from the executable directory. 
         /// </summary>
         /// <param name="fileName"></param>
-        public bool Load(string fileName, bool trueScientificFalseCommonName)
+        public bool Load(string fileName, Reporter? _report, bool trueScientificFalseCommonName)
         {
             bool ret = false;
+
+            report = _report;
 
             lock (_fileLock)
             {
@@ -225,49 +314,83 @@ namespace Surveyor
                 SpeciesItems.Clear();
                 IsScientificAndCommonNamePresent = false;
 
-                // Assuming file is located in the output directory next to the executable
-                string? appDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                string filePath = Path.Combine(appDirectory!, fileName);
+                // Make and remember the species code list file spec for saving
+                string folderPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+                _speciesCodeListFileSpec = Path.Combine(folderPath, fileName);
 
-                // Remember the species code list file spec for saving
-                SpeciesCodeListFileSpec = filePath;
+                // Check the species code list file exists
+                if (!File.Exists(_speciesCodeListFileSpec))
+                {
+                    // Copy the file from the executable directory
+                    string speciesCodeListExecutablePathFileSpec = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, fileName);
+                    File.Copy(speciesCodeListExecutablePathFileSpec, _speciesCodeListFileSpec, true);
+                    Debug.WriteLine($"SpeciesCodeList.Load: Species file not found in the local folder. The default version was copied from the executable path.");
+                }
 
+                           
                 // Try to load all the species code list records
                 try
                 {
                     ret = true;
 
-                    using var reader = new StreamReader(filePath);
-
-                    while (!reader.EndOfStream)
+                    using (var reader = new StreamReader(_speciesCodeListFileSpec))
                     {
-                        var line = reader.ReadLine();
-                        if (string.IsNullOrWhiteSpace(line))
-                            continue;
 
-                        SpeciesItem item = new();
-
-                        if (item.Load(line))
+                        while (!reader.EndOfStream)
                         {
-                            SpeciesItems.Add(item);
+                            var line = reader.ReadLine();
+                            if (string.IsNullOrWhiteSpace(line))
+                                continue;
 
-                            if (item.IsScientificAndCommonNamePresent)
-                                IsScientificAndCommonNamePresent = true;
+                            SpeciesItem item = new();
+
+                            if (item.Load(line))
+                            {
+                                SpeciesItems.Add(item);
+
+                                if (item.IsScientificAndCommonNamePresent)
+                                    IsScientificAndCommonNamePresent = true;
+                            }
                         }
-                    }
+                    } // <-- file is fully closed here
 
                     // Sort the species code list
+                    string sortedAndSaved = "";
                     if (Sort(trueScientificFalseCommonName))
                     {
                         // If the sort changed anything then save the new list
                         Save();
+                        sortedAndSaved = "sorted and saved ";
                     }
 
-                    Debug.WriteLine($"SpeciesCodeList.Load: Loaded {SpeciesItems.Count} species items");
+                    // Check for duplicates codes
+                    var duplicates = GetDuplicateSpeciesCodes();
+                    if (duplicates.Count > 0)
+                    {
+                        string reportText2 = $"SpeciesCodeList.Load: WARNING - Found {duplicates.Count} species items with duplicate codes:";
+                        report?.Warning("", reportText2);
+                        Debug.WriteLine(reportText2);
+                        foreach (var dup in duplicates)
+                        {
+                            reportText2 = $"Duplicate Code: {dup.Code} | Family: {dup.Family} | Genus: {dup.Genus} | Species: {dup.Species}";
+                            report?.Warning("", reportText2);
+                            Debug.WriteLine(reportText2);
+                        }
+                    }
+
+                    // Check for item with missing codes
+                    ReportMissingCodesIfOverThreshold(5.0/*5%*/);
+
+                    // Report number of species item loaded
+                    string reportText = $"SpeciesCodeList.Load: Loaded {sortedAndSaved}{SpeciesItems.Count} species items";
+                    report?.Info("", reportText);
+                    Debug.WriteLine(reportText);
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"SpeciesCodeList.Load: Error loading species code list: {ex.Message}");
+                    string reportText = $"SpeciesCodeList.Load: Error loading species code list: {ex.Message}";
+                    Debug.WriteLine(reportText);
+                    report?.Error("", reportText);
                     ret = false;
                 }
             }
@@ -559,18 +682,32 @@ namespace Surveyor
 
             try
             {
-                // Add the new species code list item
-                SpeciesItems.Add(speciesItem);
+                if (!string.IsNullOrWhiteSpace(speciesItem.Family) && !string.IsNullOrWhiteSpace(speciesItem.Genus) && !string.IsNullOrWhiteSpace(speciesItem.Species))
+                {
+                    // Add the new species code list item
+                    SpeciesItems.Add(speciesItem);
 
-                // Sort the whole list as required
-                Sort(trueScientificFalseCommonName);
+                    // Sort the whole list as required
+                    Sort(trueScientificFalseCommonName);
 
-                // Save back to disk
-                ret = Save();
+                    // Save back to disk
+                    ret = Save();
+                    if (ret)
+                        Debug.WriteLine($"SpeciesCodeList.AddItem: Updated and saved species item: {speciesItem.Species} {speciesItem.Code}");
+                    else
+                        Debug.WriteLine($"SpeciesCodeList.AddItem: Updated and failed to save species item: {speciesItem.Species} {speciesItem.Code}");
+                }
+                else
+                {
+                    string report = $"SpeciesCodeList.AddItem: A new species record must have at less a Family, Genus and Species. Family={speciesItem.Family}, Genus={speciesItem.Genus} and Species={speciesItem.Species}";
+
+                    Debug.WriteLine(report);
+                    ret = false;
+                }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"SpeciesCodeList.DeleteItem: Error deleting species item: {ex.Message}");
+                Debug.WriteLine($"SpeciesCodeList.AddItem: Error adding species item: {ex.Message}");
                 ret = false;
             }
 
@@ -598,7 +735,11 @@ namespace Surveyor
                     Sort(trueScientificFalseCommonName);
 
                     // The item has been updated so just save to disk
-                    return Save();
+                    ret = Save();
+                    if (ret)
+                        Debug.WriteLine($"SpeciesCodeList.UpdateItem: Updated and saved species item: {speciesItem.Species} {speciesItem.Code}");
+                    else
+                        Debug.WriteLine($"SpeciesCodeList.UpdateItem: Updated and failed to save species item: {speciesItem.Species} {speciesItem.Code}");
                 }
             }
             catch (Exception ex)
@@ -623,6 +764,15 @@ namespace Surveyor
             // Create a new sorted list based on the flag
             List<SpeciesItem> sorted;
 
+            //??? Debug.WriteLine the current list fo species name
+            //???int i = 0;
+            //Debug.WriteLine($"BEFORE SORT");
+            //foreach (var item in SpeciesItems)
+            //{
+            //    Debug.WriteLine($"{i}: {item.Species}");
+            //    i++;
+            //}
+
             if (trueScientificFalseCommonName)
             {
                 sorted = SpeciesItems
@@ -639,6 +789,14 @@ namespace Surveyor
                     .ThenBy(item => item.SpeciesCommon)
                     .ToList();
             }
+
+            //???i = 0;
+            //Debug.WriteLine($"AFTER SORT");
+            //foreach (var item in sorted)
+            //{
+            //    Debug.WriteLine($"{i}: {item.Species}");
+            //    i++;
+            //}
 
             // Check if the order has changed
             if (!SpeciesItems.SequenceEqual(sorted))
@@ -665,7 +823,7 @@ namespace Surveyor
                 // Save the species code list to a file
                 // Assuming file is located in the output directory next to the executable
                 string? appDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
-                string filePath = SpeciesCodeListFileSpec;
+                string filePath = _speciesCodeListFileSpec;
                 if (string.IsNullOrWhiteSpace(filePath))
                 {
                     Debug.WriteLine($"SpeciesCodeList.Save: No file name specified");
@@ -677,14 +835,14 @@ namespace Surveyor
                     using var writer = new StreamWriter(filePath);
 
                     // Write the header line (this is do stay compatible with EventManager)
-                    writer.WriteLine($"family\tgenus\tspecies\tCAAB");
+                    writer.WriteLine($"family\tgenus\tspecies\tID\t");
                     
                     foreach (var item in SpeciesItems)
                     {
-                        string cleanFamily = Clean(item.Family);
-                        string cleanGenus = Clean(item.Genus);
-                        string cleanSpecies = Clean(item.Species);
-                        string cleanCode = Clean(item.Code);
+                        string cleanFamily = Clean(item.Family ?? "");
+                        string cleanGenus = Clean(item.Genus ?? "");
+                        string cleanSpecies = Clean(item.Species ?? "");
+                        string cleanCode = Clean(item.Code ?? "");
 
                         // Skip empty lines
                         if (string.IsNullOrWhiteSpace(cleanFamily) || string.IsNullOrWhiteSpace(cleanGenus) || string.IsNullOrWhiteSpace(cleanSpecies))
@@ -705,6 +863,32 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// Generate a hash for the list
+        /// </summary>
+        /// <returns></returns>
+        public string GetHash()
+        {
+            // Order items consistently and project key fields to a single string per item
+            var lines = SpeciesItems
+                .OrderBy(item => item.Family)
+                .ThenBy(item => item.Genus)
+                .ThenBy(item => item.Species)
+                .ThenBy(item => item.Code)
+                .Select(item =>
+                    $"{item.Family}|{item.Genus}|{item.Species}|{item.Code}");
+
+            // Concatenate all lines with a line separator
+            string combined = string.Join('\n', lines);
+
+            // Compute SHA256 hash
+            using var sha256 = SHA256.Create();
+            byte[] hashBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(combined));
+
+            // Convert to hex string
+            return Convert.ToHexString(hashBytes); // or BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
+        }
+
 
         ///
         /// PRIVATE
@@ -724,6 +908,61 @@ namespace Surveyor
                 .Replace("\n", "")
                 .Replace("\t", "")
                 .Trim() ?? string.Empty;
+        }
+
+
+        /// <summary>
+        /// Returns a list of duplicate species codes
+        /// </summary>
+        /// <returns></returns>
+        private List<SpeciesItem> GetDuplicateSpeciesCodes()
+        {
+            return SpeciesItems
+                .Where(item =>
+                    !string.IsNullOrWhiteSpace(item.Code) &&
+                    item.Code.Contains(':') &&
+                    !string.IsNullOrWhiteSpace(item.Code.Split(':', 2)[1]) // part after the colon
+                )
+                .GroupBy(item => item.Code, StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() > 1)
+                .SelectMany(g => g)
+                .ToList();
+        }
+
+
+        /// <summary>
+        /// Report missing codes if the percentage of missing codes is over the threshold
+        /// This is sode we don't genenrate too many messages
+        /// </summary>
+        /// <param name="percentThreshold"></param>
+        private void ReportMissingCodesIfOverThreshold(double percentThreshold = 5.0)
+        {
+            // A code is considered missing if:
+            // - it's null or empty
+            // - or it's in the format "XXX:" (i.e., ends with colon and nothing after)
+            var missingCodes = SpeciesItems
+                .Where(item =>
+                    string.IsNullOrWhiteSpace(item.Code) ||
+                    (item.Code.Contains(':') && string.IsNullOrWhiteSpace(item.Code.Split(':', 2)[1]))
+                )
+                .ToList();
+
+            int total = SpeciesItems.Count;
+            int missingCount = missingCodes.Count;
+            double missingPercentage = (total == 0) ? 0 : (missingCount * 100.0 / total);
+
+            string reportText = $"WARNING: {missingCount} of {total} species items ({missingPercentage:F2}%) have missing codes";
+            report?.Warning("", reportText);
+            Debug.WriteLine(reportText);
+            if (missingPercentage < percentThreshold)
+            {
+                foreach (var item in missingCodes)
+                {
+                    reportText = $"Missing Code -> Family: {item.Family}, Genus: {item.Genus}, Species: {item.Species}, Code: \"{item.Code}\"";
+                    report?.Warning("", reportText);
+                    Debug.WriteLine(reportText);
+                }
+            }
         }
     }
 }

@@ -27,6 +27,14 @@
 	<HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
   </PropertyGroup>
   <ItemGroup>
+    <None Remove="Help Documents\1. Opwall SVS User Manual Part I - Calibration.pdf" />
+    <None Remove="Help Documents\2. Opwall SVS User Manual Part III - Data Analysis.pdf" />
+    <None Remove="Help Documents\3. Opwall SVS User Manual Part II - Data Collection.pdf" />
+    <None Remove="Help Documents\Benthic_Master_Template.xlsm" />
+    <None Remove="Help Documents\Opwall SVS User Manual Part I - Calibration.pdf" />
+    <None Remove="Help Documents\Opwall SVS User Manual Part II - Data Collection.pdf" />
+    <None Remove="Help Documents\Opwall SVS User Manual Part III - Data Analysis.pdf" />
+    <None Remove="Help Documents\SVS Part 1 - Calibration.mp4" />
     <None Remove="SpeciesRecordEdit.xaml" />
     <None Remove="Test Data\embeddedFrame_multiangle-right-back-offset-5-seconds[1].mp4" />
     <None Remove="Test Data\embeddedFrame_multiangle-right-back[1].mp4" />
@@ -44,6 +52,21 @@
     <Content Include="Assets\Square44x44Logo.targetsize-24_altform-unplated.png" />
     <Content Include="Assets\StoreLogo.png" />
     <Content Include="Assets\Wide310x150Logo.scale-200.png" />
+    <Content Include="Help Documents\1. Opwall SVS User Manual Part I - Calibration.pdf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help Documents\2. Opwall SVS User Manual Part III - Data Analysis.pdf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help Documents\3. Opwall SVS User Manual Part II - Data Collection.pdf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help Documents\Benthic_Master_Template.xlsm">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Help Documents\SVS Part 1 - Calibration.mp4">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
     <Content Include="Test Data\embeddedFrame_multiangle-right-back-offset-5-seconds[1].mp4">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
@@ -63,12 +86,14 @@
     <PackageReference Include="CommunityToolkit.WinUI.UI.Controls.DataGrid" Version="7.1.2" />
     <PackageReference Include="Emgu.CV" Version="4.10.0.5680" />
     <PackageReference Include="Emgu.CV.runtime.windows" Version="4.10.0.5680" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.12.1" />
     <PackageReference Include="MathNet.Numerics" Version="5.0.0" />
     <PackageReference Include="Microsoft.Graphics.Win2D" Version="1.3.2" />
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.1742" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.7.250401001" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="QRCoder" Version="1.6.0" />
+    <PackageReference Include="WinUIEx" Version="2.5.1" />
     <Manifest Include="$(ApplicationManifest)" />
   </ItemGroup>
 

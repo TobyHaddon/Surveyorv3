@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Media;
 using Windows.Storage;
+using Microsoft.UI.Input;
 
 namespace Surveyor.Helper
 {
@@ -71,5 +72,26 @@ namespace Surveyor.Helper
                 peer.RaiseNotificationEvent(AutomationNotificationKind.ActionCompleted,
                                             AutomationNotificationProcessing.ImportantMostRecent, annoucement, activityID);
         }
+
+
+
+        static public void SafeUICall(MainWindow mainWindow, Action action)
+        {
+            var dispatcher = mainWindow.DispatcherQueue;
+            if (dispatcher.HasThreadAccess)
+            {
+                // We are on the UI thread, execute the action directly
+                action();
+            }
+            else
+            {
+                // We are not on the UI thread, use TryEnqueue
+                dispatcher.TryEnqueue(() =>
+                {
+                    action();
+                });
+            }
+        }
+
     }
 }

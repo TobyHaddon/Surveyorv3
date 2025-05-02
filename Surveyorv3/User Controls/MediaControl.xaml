@@ -3,7 +3,7 @@
     x:Class="Surveyor.User_Controls.SurveyorMediaControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:Surveyor.User_Controls"
+    xmlns:local="using:Surveyor.User_Controls"    
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
@@ -44,7 +44,7 @@
 
                             <!-- Media position Slider -->
                             <Slider Grid.ColumnSpan="3" x:Name="ControlPosition" Minimum="0" Maximum="100" Value="0" Width="300" 
-                                    Padding="10,0,10,0" Margin="0,0,0,1" 
+                                    Padding="10,0,10,0" Margin="0,0,0,0" 
                                     ValueChanged="ControlSlider_ValueChanged"                                     
                                     PointerPressed="ControlPosition_PointerPressed" 
                                     PointerReleased="ControlPosition_PointerReleased" 
