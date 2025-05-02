@@ -29,6 +29,25 @@ using static Surveyor.SpeciesItem;
 
 namespace Surveyor
 {
+
+    /// <summary>
+    /// UI view of the cache record
+    /// </summary>
+    public class SpeciesCacheViewItem
+    {
+        public string Genus => SpeciesItem.Genus;
+        public string Species => SpeciesItem.Species;
+        public string Code => SpeciesItem.Code;
+        public string Status { get; set; } = "";
+        public int TotalImages { get; set; }
+        public int ImageCount { get; set; }
+        public string? StatusDate { get; set; }
+        public SpeciesItem SpeciesItem { get; set; } = default!;
+        public string CreatedDate { get; set; } = "";
+    }
+
+
+
     internal class SpeciesImageAndInfoCache
     {
         private readonly SpeciesCodeList speciesCodeList;
@@ -59,6 +78,7 @@ namespace Surveyor
             Done,
             Error
         }
+
 
         /// <summary>
         /// Underlaying cache record structure
@@ -120,22 +140,6 @@ namespace Surveyor
             public string GenusSpecies { get; set; } = "";
         }
 
-
-        /// <summary>
-        /// UI view of the cache record
-        /// </summary>
-        public class SpeciesCacheViewItem
-        {
-            public string Genus => SpeciesItem.Genus;
-            public string Species => SpeciesItem.Species;
-            public string Code => SpeciesItem.Code;
-            public string Status { get; set; } = "";
-            public int TotalImages { get; set; }
-            public int ImageCount { get; set; }
-            public string? StatusDate { get; set; }
-            public SpeciesItem SpeciesItem { get; set; } = default!;
-            public string CreatedDate { get; set; } = "";
-        }
 
         // View call to bind to (updated via the RefreshView() method)
         public ObservableCollection<SpeciesCacheViewItem> SpeciesStateView { get; } = [];

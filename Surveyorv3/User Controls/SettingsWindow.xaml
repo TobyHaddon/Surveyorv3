@@ -377,47 +377,14 @@
                     </StackPanel>
 
                     <toolkit:SettingsExpander.Items>
-                        <toolkit:SettingsCard HorizontalContentAlignment="Stretch"  HorizontalAlignment="Stretch" Padding="0">
-                            <Grid MaxWidth="1200" HorizontalAlignment="Stretch" Margin="0">
-                                <!-- ScrollViewer only around the DataGrid --><!--
-                                <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                                            VerticalScrollBarVisibility="Auto">
-
-                                    --><!-- Internet Queue View DataGrid --><!--
-                                    <dg:DataGrid x:Name="InternetQueueDataGrid"
-                                                                        ItemsSource="{x:Bind mainWindow.internetQueue.InternetQueueView, Mode=OneWay}"
-                                                                        AutoGenerateColumns="False"
-                                                                        HeadersVisibility="Column"
-                                                                        CanUserSortColumns="True"
-                                                                        IsReadOnly="True"
-                                                                        GridLinesVisibility="Horizontal"
-                                                                        Height="300"
-                                                                        HorizontalAlignment="Stretch"
-                                                                        MinWidth="0" MaxWidth="1200">
-                                        <dg:DataGrid.Columns>
-                                            <dg:DataGridTextColumn Header="Direction" Binding="{Binding Direction}" />
-                                            <dg:DataGridTextColumn Header="Transfer Type" Binding="{Binding TransferType}" />
-                                            <dg:DataGridTextColumn Header="Status" Binding="{Binding Status}" />
-                                            <dg:DataGridTextColumn Header="Priority" Binding="{Binding Priority}" />
-                                            <dg:DataGridTextColumn Header="File" Binding="{Binding LocalFileSpec}" />
-                                            <dg:DataGridTextColumn Header="Date" Binding="{Binding StatusDate}" />
-                                            <dg:DataGridTextColumn Header="URL" Binding="{Binding URL}" />
-                                            <dg:DataGridTextColumn Header="Created" Binding="{Binding CreatedDate}" />
-                                        </dg:DataGrid.Columns>
-                                    </dg:DataGrid>
-                                </ScrollViewer>-->
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <!-- Headers -->
-                                    <RowDefinition Height="*"/>
-                                    <!-- ListView -->
-                                </Grid.RowDefinitions>
-
+                        <toolkit:SettingsCard HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" MaxWidth="1200">
+                            <StackPanel>
+                                
                                 <!-- Column Headers -->
-                                <Grid Grid.Row="0" Padding="8" Background="{ThemeResource SystemControlBackgroundBaseLowBrush}">
+                                <Grid Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" MaxWidth="1200">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="60"/>
+                                        <ColumnDefinition Width="100"/>
                                         <ColumnDefinition Width="100"/>
                                         <ColumnDefinition Width="100"/>
                                         <ColumnDefinition Width="200"/>
@@ -426,33 +393,32 @@
                                         <ColumnDefinition Width="150"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <TextBlock Text="Direction" FontWeight="Bold" Grid.Column="0"/>
-                                    <TextBlock Text="Type" FontWeight="Bold" Grid.Column="1"/>
-                                    <TextBlock Text="Status" FontWeight="Bold" Grid.Column="2"/>
-                                    <TextBlock Text="Priority" FontWeight="Bold" Grid.Column="3"/>
-                                    <TextBlock Text="File" FontWeight="Bold" Grid.Column="4"/>
-                                    <TextBlock Text="Date" FontWeight="Bold" Grid.Column="5"/>
-                                    <TextBlock Text="URL" FontWeight="Bold" Grid.Column="6"/>
-                                    <TextBlock Text="Created" FontWeight="Bold" Grid.Column="7"/>
+                                    <TextBlock Text="Direction" FontWeight="Bold" Grid.Column="0" Padding="2"/>
+                                    <TextBlock Text="Type" FontWeight="Bold" Grid.Column="1" Padding="2"/>
+                                    <TextBlock Text="Status" FontWeight="Bold" Grid.Column="2" Padding="2"/>
+                                    <TextBlock Text="Priority" FontWeight="Bold" Grid.Column="3" Padding="2"/>
+                                    <TextBlock Text="File" FontWeight="Bold" Grid.Column="4" Padding="2"/>
+                                    <TextBlock Text="Date" FontWeight="Bold" Grid.Column="5" Padding="2"/>
+                                    <TextBlock Text="URL" FontWeight="Bold" Grid.Column="6" Padding="2"/>
+                                    <TextBlock Text="Created" FontWeight="Bold" Grid.Column="7" Padding="2"/>
                                 </Grid>
 
-                                <!-- ListView with selection -->
-                                <ListView Grid.Row="1"
-                                          x:Name="InternetQueueListView"
-                                          ItemsSource="{x:Bind mainWindow.internetQueue.InternetQueueView, Mode=OneWay}"
-                                          SelectionMode="Single"                                          
-                                          ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                                          ScrollViewer.VerticalScrollBarVisibility="Auto"
-                                          Height="300"
-                                          MinWidth="1000"
-                                          HorizontalAlignment="Stretch">
+                                <!-- Scrollable + Selectable ListView -->
+                                <ListView x:Name="InternetQueueListView"
+                                            ItemsSource="{x:Bind mainWindow.internetQueue.InternetQueueView, Mode=OneWay}"
+                                            SelectionMode="Single"
+                                            HorizontalAlignment="Stretch"
+                                            MaxWidth="1200"                                              
+                                            Height="300"
+                                            ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                            ScrollViewer.VerticalScrollBarVisibility="Auto">
 
                                     <ListView.ItemTemplate>
                                         <DataTemplate x:DataType="surveyor:InternetQueueViewItem">
-                                            <Grid Padding="2">
+                                            <Grid Padding="0" MinHeight="24">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="60"/>
+                                                    <ColumnDefinition Width="100"/>
                                                     <ColumnDefinition Width="100"/>
                                                     <ColumnDefinition Width="100"/>
                                                     <ColumnDefinition Width="200"/>
@@ -461,129 +427,155 @@
                                                     <ColumnDefinition Width="150"/>
                                                 </Grid.ColumnDefinitions>
 
-                                                <TextBlock Text="{x:Bind Direction}" Grid.Column="0"/>
-                                                <TextBlock Text="{x:Bind TransferType}" Grid.Column="1"/>
-                                                <TextBlock Text="{x:Bind Status}" Grid.Column="2"/>
-                                                <TextBlock Text="{x:Bind Priority}" Grid.Column="3"/>
-                                                <TextBlock Text="{x:Bind LocalFileSpec}" Grid.Column="4"/>
-                                                <TextBlock Text="{x:Bind StatusDate}" Grid.Column="5"/>
-                                                <TextBlock Text="{x:Bind URL}" Grid.Column="6" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{x:Bind CreatedDate}" Grid.Column="7"/>
+                                                <TextBlock Text="{x:Bind Direction}" Grid.Column="0" Padding="2"/>
+                                                <TextBlock Text="{x:Bind TransferType}" Grid.Column="1" Padding="2"/>
+                                                <TextBlock Text="{x:Bind Status}" Grid.Column="2" Padding="2"/>
+                                                <TextBlock Text="{x:Bind Priority}" Grid.Column="3" Padding="2"/>
+                                                <TextBlock Text="{x:Bind LocalFileSpec}" Grid.Column="4" Padding="2"/>
+                                                <TextBlock Text="{x:Bind StatusDate}" Grid.Column="5" Padding="2"/>
+                                                <TextBlock Text="{x:Bind URL}" Grid.Column="6" Padding="2" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{x:Bind CreatedDate}" Grid.Column="7" Padding="2"/>
                                             </Grid>
                                         </DataTemplate>
                                     </ListView.ItemTemplate>
                                 </ListView>
-                            </Grid>
+                                
+                            </StackPanel>
                         </toolkit:SettingsCard>
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
                 
-                <toolkit:SettingsExpander x:Name="SettingsExpanderAdvanced" Header="Advanced Diagnostic Features" MaxWidth="1200">
-                    <toolkit:SettingsExpander.HeaderIcon>
-                        <FontIcon Glyph="&#xEC7A;" />
-                    </toolkit:SettingsExpander.HeaderIcon>
-                    
-                    <toolkit:SettingsExpander.Items>
-
-
-
                         
-                        <!-- Species Image Cache Viewer -->
-                        <toolkit:SettingsExpander x:Name="SpeciesCacheExpander" Header="Species Image Cache">
-                            <toolkit:SettingsExpander.HeaderIcon>
-                                <FontIcon Glyph="&#xE8B9;" ToolTipService.ToolTip="Display the species fish image cache table." />
-                            </toolkit:SettingsExpander.HeaderIcon>
+                <!-- Species Image Cache Viewer -->
+                <toolkit:SettingsExpander x:Name="SpeciesCacheExpander" Header="Species Image Cache">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE8B9;" ToolTipService.ToolTip="Display the species fish image cache table." />
+                    </toolkit:SettingsExpander.HeaderIcon>
 
+                    <StackPanel Orientation="Horizontal">
+
+                        <!-- Cache Folder information-->
+                        <Button Click="SpeciesImageCacheFolder_Click"
+                                                ToolTipService.ToolTip="Folder for the species image and information cache (folder has been copied to the clipboard)"
+                                                Background="Transparent"
+                                                BorderBrush="{x:Null}"
+                                                Padding="0"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
+                            <FontIcon x:Name="SpeciesImageCacheFolder"
+                                                    Glyph="&#xE946;"
+                                                    Margin="0,0,10,0"
+                                                    VerticalAlignment="Center" />
+                        </Button>
+
+                        <!-- Image count -->
+                        <TextBlock x:Name="SpeciesImageCacheItemImageCount" Margin="0,0,10,0" VerticalAlignment="Center"/>
+
+                        <!-- Remove All Button -->
+                        <Button Click="RemoveAllSpeciesCache_Click" Content="Remove All"
+                                                        HorizontalAlignment="Left"
+                                                        VerticalAlignment="Top"
+                                                        ToolTipService.ToolTip="Remove all records."
+                                                        Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
+                        </Button>
+
+                        <!-- Remove Record Button -->
+                        <Button Click="RemoveRecordSpeciesCache_Click" Content="Remove"
+                                                        HorizontalAlignment="Left"
+                                                        VerticalAlignment="Top"
+                                                        ToolTipService.ToolTip="Remove single record."
+                                                        Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
+                        </Button>
+
+                        <!-- SpeciesImageCache Item Count-->
+                        <TextBlock x:Name="SpeciesImageCacheItemCount" Text="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
+
+                        <!-- Species Image Cache Refresh Button -->
+                        <Button Click="RefreshSpeciesStateView_Click"
+                                                    HorizontalAlignment="Left"
+                                                    VerticalAlignment="Top"
+                                                    ToolTipService.ToolTip="Refresh Species Cache View"
+                                                    Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <StackPanel Orientation="Horizontal">
-
-                                <!-- Cache Folder information-->
-                                <Button Click="SpeciesImageCacheFolder_Click"
-                                                        ToolTipService.ToolTip="Folder for the species image and information cache (folder has been copied to the clipboard)"
-                                                        Background="Transparent"
-                                                        BorderBrush="{x:Null}"
-                                                        Padding="0"
-                                                        HorizontalAlignment="Center"
-                                                        VerticalAlignment="Center"
-                                                        Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                    <FontIcon x:Name="SpeciesImageCacheFolder"
-                                                          Glyph="&#xE946;"
-                                                          Margin="0,0,10,0"
-                                                          VerticalAlignment="Center" />
-                                </Button>
-
-                                <!-- Image count -->
-                                <TextBlock x:Name="SpeciesImageCacheItemImageCount" Margin="0,0,10,0" VerticalAlignment="Center"/>
-
-                                <!-- Remove All Button -->
-                                <Button Click="RemoveAllSpeciesCache_Click" Content="Remove All"
-                                                                HorizontalAlignment="Left"
-                                                                VerticalAlignment="Top"
-                                                                ToolTipService.ToolTip="Remove all records."
-                                                                Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
-                                </Button>
-
-                                <!-- Remove Record Button -->
-                                <Button Click="RemoveRecordSpeciesCache_Click" Content="Remove"
-                                                                HorizontalAlignment="Left"
-                                                                VerticalAlignment="Top"
-                                                                ToolTipService.ToolTip="Remove single record."
-                                                                Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
-                                </Button>
-
-                                <!-- SpeciesImageCache Item Count-->
-                                <TextBlock x:Name="SpeciesImageCacheItemCount" Text="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
-                                <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
-
-                                <!-- Species Image Cache Refresh Button -->
-                                <Button Click="RefreshSpeciesStateView_Click"
-                                                            HorizontalAlignment="Left"
-                                                            VerticalAlignment="Top"
-                                                            ToolTipService.ToolTip="Refresh Species Cache View"
-                                                            Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                    <StackPanel Orientation="Horizontal">
-                                        <FontIcon Glyph="&#xE72C;" />
-                                        <TextBlock Text="Refresh" Margin="4,0,0,0" />
-                                    </StackPanel>
-                                </Button>
+                                <FontIcon Glyph="&#xE72C;" />
+                                <TextBlock Text="Refresh" Margin="4,0,0,0" />
                             </StackPanel>
+                        </Button>
+                    </StackPanel>
 
-                            <toolkit:SettingsExpander.Items>
-                                <toolkit:SettingsCard HorizontalContentAlignment="Left"  HorizontalAlignment="Left">
-                                    <StackPanel Spacing="8">
-                                        <!-- ScrollViewer only around the DataGrid -->
-                                        <ScrollViewer 
-                                                        HorizontalScrollBarVisibility="Auto"
-                                                        VerticalScrollBarVisibility="Auto">
-                                            <!-- Species Cache DataGrid -->
-                                            <dg:DataGrid x:Name="SpeciesImageCacheDataGrid"
-                                                                 ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView, Mode=OneWay}"
-                                                                 AutoGenerateColumns="False"
-                                                                 HeadersVisibility="Column"
-                                                                 CanUserSortColumns="True"
-                                                                 IsReadOnly="True"
-                                                                 GridLinesVisibility="Horizontal"
-                                                                 DoubleTapped="SpeciesImageCacheDataGrid_DoubleTapped"
-                                                                 Height="300">
-                                                <dg:DataGrid.Columns>
-                                                    <dg:DataGridTextColumn Header="Genus" Binding="{Binding Genus}" />
-                                                    <dg:DataGridTextColumn Header="Species" Binding="{Binding Species}" />
-                                                    <dg:DataGridTextColumn Header="Code" Binding="{Binding Code}" />
-                                                    <dg:DataGridTextColumn Header="State" Binding="{Binding Status}" />
-                                                    <dg:DataGridTextColumn Header="Total" Binding="{Binding TotalImages}" />
-                                                    <dg:DataGridTextColumn Header="Count" Binding="{Binding ImageCount}" />
-                                                    <dg:DataGridTextColumn Header="Date" Binding="{Binding StatusDate}" />
-                                                    <dg:DataGridTextColumn Header="Created" Binding="{Binding CreatedDate}" />
-                                                </dg:DataGrid.Columns>
-                                            </dg:DataGrid>
-                                        </ScrollViewer>
-                                    </StackPanel>
-                                </toolkit:SettingsCard>
-                            </toolkit:SettingsExpander.Items>
-                        </toolkit:SettingsExpander>
+                    <toolkit:SettingsExpander.Items>
+                        <toolkit:SettingsCard HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" MaxWidth="1200">
+                            <StackPanel>
+
+                                <!-- Column Headers -->
+                                <Grid Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" MaxWidth="1200">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="20"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="250"/>
+                                        <ColumnDefinition Width="100"/>
+                                        <ColumnDefinition Width="120"/>
+                                        <ColumnDefinition Width="80"/>
+                                        <ColumnDefinition Width="80"/>
+                                        <ColumnDefinition Width="110"/>
+                                        <ColumnDefinition Width="110"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Text="Genus" FontWeight="Bold" Grid.Column="1" Padding="2"/>
+                                    <TextBlock Text="Species" FontWeight="Bold" Grid.Column="2" Padding="2"/>
+                                    <TextBlock Text="Code" FontWeight="Bold" Grid.Column="3" Padding="2"/>
+                                    <TextBlock Text="State" FontWeight="Bold" Grid.Column="4" Padding="2"/>
+                                    <TextBlock Text="Total" FontWeight="Bold" Grid.Column="5" Padding="2"/>
+                                    <TextBlock Text="Available" FontWeight="Bold" Grid.Column="6" Padding="2"/>
+                                    <TextBlock Text="Date" FontWeight="Bold" Grid.Column="7" Padding="2"/>
+                                    <TextBlock Text="Created" FontWeight="Bold" Grid.Column="8" Padding="2"/>
+                                </Grid>
+
+                                <!-- Scrollable + Selectable ListView -->
+                                <ListView x:Name="SpeciesImageCacheListView"
+                                            ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView, Mode=OneWay}"
+                                            SelectionMode="Single"
+                                            HorizontalAlignment="Stretch"
+                                            MaxWidth="1200"                                              
+                                            Height="300"
+                                            ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                            ScrollViewer.VerticalScrollBarVisibility="Auto">
+
+                                    <ListView.ItemTemplate>
+                                        <DataTemplate x:DataType="surveyor:SpeciesCacheViewItem">
+                                            <Grid Padding="0" MinHeight="16" Height="16">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="70*"/>
+                                                    <ColumnDefinition Width="30*"/>
+                                                    <ColumnDefinition Width="250"/>
+                                                    <ColumnDefinition Width="100"/>
+                                                    <ColumnDefinition Width="120"/>
+                                                    <ColumnDefinition Width="80"/>
+                                                    <ColumnDefinition Width="80"/>
+                                                    <ColumnDefinition Width="110"/>
+                                                    <ColumnDefinition Width="110"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <TextBlock Text="{x:Bind Genus}" Grid.Column="1" Padding="0"/>
+                                                <TextBlock Text="{x:Bind Species}" Grid.Column="2" Padding="0"/>
+                                                <TextBlock Text="{x:Bind Code}" Grid.Column="3" Padding="0"/>
+                                                <TextBlock Text="{x:Bind Status}" Grid.Column="4" Padding="0"/>
+                                                <TextBlock Text="{x:Bind TotalImages}" Grid.Column="5" Padding="0"/>
+                                                <TextBlock Text="{x:Bind ImageCount}" Grid.Column="6" Padding="0"/>
+                                                <TextBlock Text="{x:Bind StatusDate}" Grid.Column="7" Padding="0"/>
+                                                <TextBlock Text="{x:Bind CreatedDate}" Grid.Column="8" Padding="0"/>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListView.ItemTemplate>
+                                </ListView>
+
+                            </StackPanel>
+                        </toolkit:SettingsCard>
 
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
-
 
                 <!--  ABOUT  -->
                 <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="About"  MaxWidth="1200"/>

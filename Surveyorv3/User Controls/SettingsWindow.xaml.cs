@@ -583,7 +583,7 @@ namespace Surveyor.User_Controls
             if (mainWindow is not null)
             {
                 // Save the selected species name
-                string? selectedSpeciesName = (SpeciesImageCacheDataGrid.SelectedItem as SpeciesCacheViewItem)?.SpeciesItem.Species;
+                string? selectedSpeciesName = (SpeciesImageCacheListView.SelectedItem as SpeciesCacheViewItem)?.SpeciesItem.Species;
 
                 // Refresh the cache view                
                 mainWindow.mediaStereoController.speciesImageCache.RefreshView();
@@ -596,8 +596,8 @@ namespace Surveyor.User_Controls
 
                     if (newSelectedItem is not null)
                     {
-                        SpeciesImageCacheDataGrid.SelectedItem = newSelectedItem;
-                        SpeciesImageCacheDataGrid.ScrollIntoView(newSelectedItem, null);
+                        SpeciesImageCacheListView.SelectedItem = newSelectedItem;
+                        SpeciesImageCacheListView.ScrollIntoView(newSelectedItem, ScrollIntoViewAlignment.Default);
                     }
                 }
 
@@ -810,7 +810,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void RemoveRecordSpeciesCache_Click(object sender, RoutedEventArgs e)
         {
-            int index = SpeciesImageCacheDataGrid.SelectedIndex;
+            int index = SpeciesImageCacheListView.SelectedIndex;
 
             if (index != -1)
             {

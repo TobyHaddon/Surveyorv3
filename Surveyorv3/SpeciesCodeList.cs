@@ -951,16 +951,21 @@ namespace Surveyor
             int missingCount = missingCodes.Count;
             double missingPercentage = (total == 0) ? 0 : (missingCount * 100.0 / total);
 
-            string reportText = $"WARNING: {missingCount} of {total} species items ({missingPercentage:F2}%) have missing codes";
-            report?.Warning("", reportText);
-            Debug.WriteLine(reportText);
-            if (missingPercentage < percentThreshold)
+            // If there are species items missing a code then record the number of item
+            // if there aren't too many that list them all
+            if (missingCount > 0)
             {
-                foreach (var item in missingCodes)
+                string reportText = $"WARNING: {missingCount} of {total} species items ({missingPercentage:F2}%) have missing codes";
+                report?.Warning("", reportText);
+                Debug.WriteLine(reportText);
+                if (missingPercentage < percentThreshold)
                 {
-                    reportText = $"Missing Code -> Family: {item.Family}, Genus: {item.Genus}, Species: {item.Species}, Code: \"{item.Code}\"";
-                    report?.Warning("", reportText);
-                    Debug.WriteLine(reportText);
+                    foreach (var item in missingCodes)
+                    {
+                        reportText = $"Missing Code -> Family: {item.Family}, Genus: {item.Genus}, Species: {item.Species}, Code: \"{item.Code}\"";
+                        report?.Warning("", reportText);
+                        Debug.WriteLine(reportText);
+                    }
                 }
             }
         }
