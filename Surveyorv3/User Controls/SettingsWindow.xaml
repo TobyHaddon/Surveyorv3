@@ -359,7 +359,7 @@
                                     Visibility="{Binding IsExpanded, ElementName=InternetQueueExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
                         </Button>
 
-                        <!--Itemn Count-->
+                        <!--Item Count-->
                         <TextBlock x:Name="InternetQueueItemCount" Text="{x:Bind mainWindow.internetQueue.InternetQueueView.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
                         <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
 
@@ -508,31 +508,7 @@
                     <toolkit:SettingsExpander.Items>
                         <toolkit:SettingsCard HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" MaxWidth="1200">
                             <StackPanel>
-
-                                <!-- Column Headers -->
-                                <Grid Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" MaxWidth="1200">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="20"/>
-                                        <ColumnDefinition Width="120"/>
-                                        <ColumnDefinition Width="250"/>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="120"/>
-                                        <ColumnDefinition Width="80"/>
-                                        <ColumnDefinition Width="80"/>
-                                        <ColumnDefinition Width="110"/>
-                                        <ColumnDefinition Width="110"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <TextBlock Text="Genus" FontWeight="Bold" Grid.Column="1" Padding="2"/>
-                                    <TextBlock Text="Species" FontWeight="Bold" Grid.Column="2" Padding="2"/>
-                                    <TextBlock Text="Code" FontWeight="Bold" Grid.Column="3" Padding="2"/>
-                                    <TextBlock Text="State" FontWeight="Bold" Grid.Column="4" Padding="2"/>
-                                    <TextBlock Text="Total" FontWeight="Bold" Grid.Column="5" Padding="2"/>
-                                    <TextBlock Text="Available" FontWeight="Bold" Grid.Column="6" Padding="2"/>
-                                    <TextBlock Text="Date" FontWeight="Bold" Grid.Column="7" Padding="2"/>
-                                    <TextBlock Text="Created" FontWeight="Bold" Grid.Column="8" Padding="2"/>
-                                </Grid>
-
+                              
                                 <!-- Scrollable + Selectable ListView -->
                                 <ListView x:Name="SpeciesImageCacheListView"
                                             ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView, Mode=OneWay}"
@@ -545,27 +521,66 @@
 
                                     <ListView.ItemTemplate>
                                         <DataTemplate x:DataType="surveyor:SpeciesCacheViewItem">
-                                            <Grid Padding="0" MinHeight="16" Height="16">
+                                            <Grid HorizontalAlignment="Stretch" Margin="0,0,5,0">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="70*"/>
-                                                    <ColumnDefinition Width="30*"/>
-                                                    <ColumnDefinition Width="250"/>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="120"/>
-                                                    <ColumnDefinition Width="80"/>
-                                                    <ColumnDefinition Width="80"/>
-                                                    <ColumnDefinition Width="110"/>
-                                                    <ColumnDefinition Width="110"/>
+                                                    <ColumnDefinition Width="50"/>
+                                                    <ColumnDefinition Width="600"/>
+                                                    <ColumnDefinition Width="180"/>
+                                                    <ColumnDefinition Width="200"/>
                                                 </Grid.ColumnDefinitions>
+                                                
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
 
-                                                <TextBlock Text="{x:Bind Genus}" Grid.Column="1" Padding="0"/>
-                                                <TextBlock Text="{x:Bind Species}" Grid.Column="2" Padding="0"/>
-                                                <TextBlock Text="{x:Bind Code}" Grid.Column="3" Padding="0"/>
-                                                <TextBlock Text="{x:Bind Status}" Grid.Column="4" Padding="0"/>
-                                                <TextBlock Text="{x:Bind TotalImages}" Grid.Column="5" Padding="0"/>
-                                                <TextBlock Text="{x:Bind ImageCount}" Grid.Column="6" Padding="0"/>
-                                                <TextBlock Text="{x:Bind StatusDate}" Grid.Column="7" Padding="0"/>
-                                                <TextBlock Text="{x:Bind CreatedDate}" Grid.Column="8" Padding="0"/>
+                                                <BitmapIcon UriSource="/Assets/fish-dark.png"
+                                                    Width="16"
+                                                    Height="16"
+                                                    ShowAsMonochrome="False"
+                                                    VerticalAlignment="Center"
+                                                    HorizontalAlignment="Center"
+                                                    ToolTipService.ToolTip="Species icon"/>
+                                                <TextBlock Grid.Row="0" Grid.Column="1">
+                                                    <TextBlock.Inlines>
+                                                        <Run Text="{x:Bind Family}"/>
+                                                        <Run Text=" > "/>
+                                                        <Run Text="{x:Bind Genus}"/>
+                                                        <Run Text=" "/>
+                                                        <Run Text="{x:Bind Species}"/>
+                                                    </TextBlock.Inlines>
+                                                </TextBlock>
+                                                <TextBlock Grid.Column="2" Style="{ThemeResource CaptionTextBlockStyle}">
+                                                    <TextBlock.Inlines>
+                                                        <Run Text="{x:Bind Code}"/>
+                                                    </TextBlock.Inlines>
+                                                </TextBlock>
+                                                <TextBlock  Grid.Row="1" Grid.Column="1" Style="{ThemeResource CaptionTextBlockStyle}">
+                                                    <TextBlock.Inlines>
+                                                        <Run Text="Image Status: "/>
+                                                        <Run Text="{x:Bind Status}"/>
+                                                    </TextBlock.Inlines>
+                                                </TextBlock>
+                                                <TextBlock  Grid.Row="1" Grid.Column="2" Style="{ThemeResource CaptionTextBlockStyle}">
+                                                    <TextBlock.Inlines>
+                                                        <Run Text="Downloaded: "/>
+                                                        <Run Text="{x:Bind ImageCount}"/>
+                                                        <Run Text="/"/>
+                                                        <Run Text="{x:Bind TotalImages}"/>
+                                                    </TextBlock.Inlines>
+                                                </TextBlock>
+                                                <TextBlock Grid.Row="0" Grid.Column="3" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}">
+                                                    <TextBlock.Inlines>
+                                                        <Run Text="Last Action: "/>
+                                                        <Run Text="{x:Bind StatusDate}"/>
+                                                    </TextBlock.Inlines>
+                                                </TextBlock>
+                                                <TextBlock Grid.Row="1" Grid.Column="3" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}">
+                                                    <TextBlock.Inlines>
+                                                        <Run Text="Created: "/>
+                                                        <Run Text="{x:Bind CreatedDate}"/>
+                                                    </TextBlock.Inlines>
+                                                </TextBlock>
                                             </Grid>
                                         </DataTemplate>
                                     </ListView.ItemTemplate>

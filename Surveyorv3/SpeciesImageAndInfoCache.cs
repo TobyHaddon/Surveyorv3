@@ -35,6 +35,7 @@ namespace Surveyor
     /// </summary>
     public class SpeciesCacheViewItem
     {
+        public string Family => SpeciesItem.Family;
         public string Genus => SpeciesItem.Genus;
         public string Species => SpeciesItem.Species;
         public string Code => SpeciesItem.Code;
