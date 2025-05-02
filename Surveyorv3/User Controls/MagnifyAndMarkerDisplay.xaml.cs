@@ -1713,44 +1713,51 @@ namespace Surveyor.User_Controls
 
 
                             //***CHANGE_ORIGNAL***
-                            //// Define the magnified portion of the image to extact from the bitmap
-                            //var transform = new BitmapTransform()
-                            //{
-                            //    ScaledWidth = decoder.PixelWidth,
-                            //    ScaledHeight = decoder.PixelHeight,
-                            //    Bounds = new BitmapBounds()
-                            //    {
-                            //        X = (uint)Math.Round(rectMagWindowSource.X),
-                            //        Y = (uint)Math.Round(rectMagWindowSource.Y),
-                            //        Width = (uint)Math.Round(rectMagWindowSource.Width),
-                            //        Height = (uint)Math.Round(rectMagWindowSource.Height)
-                            //    }
-                            //};
-                            //***CHANGE_ORIGNAL***
-                            //***CHANGE1
-                            var boundsX = Math.Clamp((int)Math.Round(rectMagWindowSource.X), 0, (int)decoder.PixelWidth - 1);
-                            var boundsY = Math.Clamp((int)Math.Round(rectMagWindowSource.Y), 0, (int)decoder.PixelHeight - 1);
-                            var boundsWidth = Math.Clamp((int)Math.Round(rectMagWindowSource.Width), 1, (int)decoder.PixelWidth - boundsX);
-                            var boundsHeight = Math.Clamp((int)Math.Round(rectMagWindowSource.Height), 1, (int)decoder.PixelHeight - boundsY);
-
+                            // Define the magnified portion of the image to extact from the bitmap
                             var transform = new BitmapTransform()
                             {
-                                // If you zoom out too far (zoom < 1), ScaledWidth or ScaledHeight might round to zero.
-                                // Fix: Clamp to minimum 1:
-                                ScaledWidth = (uint)Math.Max(1, Math.Round(rectMagWindowScreen.Width)),
-                                ScaledHeight = (uint)Math.Max(1, Math.Round(rectMagWindowScreen.Height)),
-
-                                // The Bounds rectangle must be fully inside the dimensions of the original
-                                // image(decoder.PixelWidth and decoder.PixelHeight).
+                                ScaledWidth = decoder.PixelWidth,
+                                ScaledHeight = decoder.PixelHeight,
                                 Bounds = new BitmapBounds()
                                 {
-                                    X = (uint)boundsX,
-                                    Y = (uint)boundsY,
-                                    Width = (uint)boundsWidth,
-                                    Height = (uint)boundsHeight
+                                    X = (uint)Math.Round(rectMagWindowSource.X),
+                                    Y = (uint)Math.Round(rectMagWindowSource.Y),
+                                    Width = (uint)Math.Round(rectMagWindowSource.Width),
+                                    Height = (uint)Math.Round(rectMagWindowSource.Height)
                                 }
                             };
+                            //***CHANGE_ORIGNAL***
                             //***CHANGE1
+                            //var boundsX = Math.Clamp((int)Math.Round(rectMagWindowSource.X), 0, (int)decoder.PixelWidth - 1);
+                            //var boundsY = Math.Clamp((int)Math.Round(rectMagWindowSource.Y), 0, (int)decoder.PixelHeight - 1);
+                            //var boundsWidth = Math.Clamp((int)Math.Round(rectMagWindowSource.Width), 1, (int)decoder.PixelWidth - boundsX);
+                            //var boundsHeight = Math.Clamp((int)Math.Round(rectMagWindowSource.Height), 1, (int)decoder.PixelHeight - boundsY);
+
+                            //var transform = new BitmapTransform()
+                            //{
+                            //    // If you zoom out too far (zoom < 1), ScaledWidth or ScaledHeight might round to zero.
+                            //    // Fix: Clamp to minimum 1:
+                            //    ScaledWidth = (uint)Math.Max(1, Math.Round(rectMagWindowScreen.Width)),
+                            //    ScaledHeight = (uint)Math.Max(1, Math.Round(rectMagWindowScreen.Height)),
+
+                            //    // The Bounds rectangle must be fully inside the dimensions of the original
+                            //    // image(decoder.PixelWidth and decoder.PixelHeight).
+                            //    Bounds = new BitmapBounds()
+                            //    {
+                            //        X = (uint)boundsX,
+                            //        Y = (uint)boundsY,
+                            //        Width = (uint)boundsWidth,
+                            //        Height = (uint)boundsHeight
+                            //    }
+                            //};
+                            //***CHANGE1
+
+                            // Debug reporting
+                            //???Debug.WriteLine($"Pointer ({pointerPosition.X:F1},{pointerPosition.Y:F1}) ImageFrame cx={imageUIElement.ActualWidth:F1}, cy={imageUIElement.ActualHeight:F1}, Source Image cx,cy {imageSourceWidth},{imageSourceHeight}, Mag Zoom:{canvasZoomFactor:F1}");
+                            Debug.WriteLine($"Image size: {decoder.PixelWidth}x{decoder.PixelHeight}");
+                            Debug.WriteLine($"Mag Window Coords left,top=({rectMagWindowScreen.X:F1},{rectMagWindowScreen.Y:F1}), cx,cy {rectMagWindowScreen.Width:F1},{rectMagWindowScreen.Height:F1}");
+                            Debug.WriteLine($"Mag Window Source Coords left,top=({rectMagWindowSource.X:F1},{rectMagWindowSource.Y:F1}), cx,cy {rectMagWindowSource.Width:F1},{rectMagWindowSource.Height:F1}, Zoom={zoom:F2}");
+
 
                             // Get the pixel data for the zoomed region.
                             var pixelProvider = await decoder.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied, transform, ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
@@ -1760,25 +1767,20 @@ namespace Surveyor.User_Controls
                             pixelProvider.DetachPixelData().CopyTo(magImageBitmap.PixelBuffer);
 
                             //***CHANGE_ORIGNAL***
-                            //// Update ImageMag's source and scaling
-                            //ImageMag.Source = magImageBitmap;
-                            //ImageMag.RenderTransform = new ScaleTransform()
-                            //{
-                            //    ScaleX = zoom,
-                            //    ScaleY = zoom
-                            //};
-                            //CanvasMag.RenderTransform = new ScaleTransform()
-                            //{
-                            //    ScaleX = zoom,
-                            //    ScaleY = zoom
-                            //};
+                            // Update ImageMag's source and scaling
+                            ImageMag.Source = magImageBitmap;
+                            ImageMag.RenderTransform = new ScaleTransform()
+                            {
+                                ScaleX = zoom,
+                                ScaleY = zoom
+                            };
+                            CanvasMag.RenderTransform = new ScaleTransform()
+                            {
+                                ScaleX = zoom,
+                                ScaleY = zoom
+                            };
                             //***CHANGE_ORIGNAL***
 
-                            // Debug reporting
-                            //???Debug.WriteLine($"Pointer ({pointerPosition.X:F1},{pointerPosition.Y:F1}) ImageFrame cx={imageUIElement.ActualWidth:F1}, cy={imageUIElement.ActualHeight:F1}, Source Image cx,cy {imageSourceWidth},{imageSourceHeight}, Mag Zoom:{canvasZoomFactor:F1}");
-                            Debug.WriteLine($"Image size: {decoder.PixelWidth}x{decoder.PixelHeight}");
-                            Debug.WriteLine($"Mag Window Coords left,top=({rectMagWindowScreen.X:F1},{rectMagWindowScreen.Y:F1}), cx,cy {rectMagWindowScreen.Width:F1},{rectMagWindowScreen.Height:F1}");
-                            Debug.WriteLine($"Mag Window Source Coords left,top=({rectMagWindowSource.X:F1},{rectMagWindowSource.Y:F1}), cx,cy {rectMagWindowSource.Width:F1},{rectMagWindowSource.Height:F1}, Zoom={zoom:F2}");
 
                             // Discover exactly where the XAML rendering engine placed the ImageFrame (given
                             // it was Stretch="Uniform") within it's parent grid
