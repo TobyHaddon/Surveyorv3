@@ -64,14 +64,20 @@
         <StackPanel>
             <!--Survey code-->
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,8,0,0">
-                <TextBox x:Name="SurveyCode" Width="480" PlaceholderText="[ReefCode]-[Depth]-[TransetNo]-[YYYY-MM-DD]" HorizontalAlignment="Left" TextChanged="SurveyCode_TextChanged" ToolTipService.ToolTip="[ReefCode]-[Depth]-[TransetNo]-[YYYY-MM-DD]"/>
+                <TextBox x:Name="SurveyCode" Width="480" 
+                         PlaceholderText="[ReefCode]-[Depth]-[TransetNo]-[YYYY-MM-DD]" 
+                         HorizontalAlignment="Left" 
+                         TextChanged="SurveyCode_TextChanged" 
+                         ToolTipService.ToolTip="[ReefCode]-[Depth]-[TransetNo]-[YYYY-MM-DD]"/>
                 <FontIcon x:Name="SurveyCodeValidationGlyph" FontSize="16" VerticalAlignment="Center" Margin="8,0,0,0"/>
                 <TextBlock x:Name="SurveyCodeValidationText"  VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
             <!--Survey Depth-->
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,8,0,0">
-                <ComboBox x:Name="SurveyDepth" Width="250" IsEditable="True" PlaceholderText="Survey depth"             
-                        SelectionChanged="SurveyDepth_SelectionChanged">
+                <ComboBox x:Name="SurveyDepth" Width="250" IsEditable="True" 
+                          PlaceholderText="Survey depth"
+                          SelectionChanged="SurveyDepth_SelectionChanged"
+                          TextSubmitted="SurveyDepth_TextSubmitted">
                         <ComboBoxItem Content="5" />
                         <ComboBoxItem Content="6" />
                         <ComboBoxItem Content="7" />
@@ -93,9 +99,13 @@
                 <FontIcon x:Name="SurveyDepthValidationGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
                 <TextBlock x:Name="SurveyDepthValidationText"  VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
+            
             <!--Survey Analyst Name-->
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,8,0,0">
-                <TextBox x:Name="SurveyAnalystName" Width="250" PlaceholderText="Your Name" HorizontalAlignment="Left" TextChanged="SurveyAnalystName_TextChanged" />
+                <TextBox x:Name="SurveyAnalystName" Width="250" 
+                         PlaceholderText="Your Name" 
+                         HorizontalAlignment="Left" 
+                         TextChanged="SurveyAnalystName_TextChanged" />
                 <FontIcon x:Name="SurveyAnalystNameValidationGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
                 <TextBlock x:Name="SurveyAnalystNameValidationText"  VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>

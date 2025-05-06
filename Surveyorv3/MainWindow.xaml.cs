@@ -35,6 +35,10 @@ using MathNet.Numerics;
 using System.Reflection.Metadata;
 using System.Threading;
 using static Emgu.CV.Stitching.Stitcher;
+using static Surveyor.User_Controls.SettingsWindowEventData;
+using Windows.UI.ViewManagement;
+using Emgu.CV;
+using Windows.Media;
 #if !No_MagnifyAndMarkerDisplay
 #endif
 
@@ -283,14 +287,8 @@ namespace Surveyor
             UpdateRecentSurveysMenu();
 
 
-            if (SettingsManagerLocal.DiagnosticInformation)
-            {
-                // Debug Diags Dump Help>Diags Dump 
-                MenuDiagsDump.IsEnabled = true;
-
-                // Testing Help>Testing
-                MenuTesting.IsEnabled = true;
-            }
+            // Set-up any controls that depend on the diagnostic information state 
+            _SetDiagnosticInformation(SettingsManagerLocal.DiagnosticInformation);
 
             // Add the help documents to the Help menu
             // Fix for CS1503: Argument 1: cannot convert from 'System.Collections.Generic.IList<Microsoft.UI.Xaml.Controls.MenuFlyoutItemBase>' to 'Microsoft.UI.Xaml.Controls.ItemCollection'
@@ -307,9 +305,18 @@ namespace Surveyor
        
 
             // Report that the app has loaded
-            report.Info("", $"App Loaded Ok (Local Path:{ApplicationData.Current.LocalFolder.Path})");            
-            Debug.WriteLine($"Local Folder path:{ApplicationData.Current.LocalFolder.Path}");
-
+            
+            //Debug.WriteLine($"Local Folder path:{ApplicationData.Current.LocalFolder.Path}");
+            if (!SettingsManagerLocal.DiagnosticInformation)
+            {
+                report.Info("", $"App Loaded Ok (Local Path:{ApplicationData.Current.LocalFolder.Path})");
+            }
+            else
+            {
+                report.Info("", $"App Loaded Ok");
+                report.Info("", $"Local Path:{ApplicationData.Current.LocalFolder.Path}");
+                report.Info("", $"Exec Path:{Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!}");
+            }
         }
 
 
@@ -460,13 +467,21 @@ namespace Surveyor
 
                 if (controlType == SurveyorMediaControl.eControlType.Both)
                 {
-                    await MediaPlayerLeft.SaveCurrentFrame(framesPath);
-                    await MediaPlayerRight.SaveCurrentFrame(framesPath);
+                    // Write a pair of stereo frames, used the timestamp of the media timeline controller
+                    mediaStereoController.GetFullMediaPosition(out TimeSpan positionTimelineController, out _, out _);
+                    await MediaPlayerLeft.SaveCurrentFrame(framesPath, positionTimelineController/*time stamp*/, true/*syncdPair*/);
+                    await MediaPlayerRight.SaveCurrentFrame(framesPath, positionTimelineController/*time stamp*/, true/*syncdPair*/);
                 }
-                else if (controlType == SurveyorMediaControl.eControlType.Primary)
-                    await MediaPlayerLeft.SaveCurrentFrame(framesPath);
-                else if (controlType == SurveyorMediaControl.eControlType.Secondary)
-                    await MediaPlayerRight.SaveCurrentFrame(framesPath);
+                else if (controlType == SurveyorMediaControl.eControlType.Primary && MediaPlayerLeft.Position is not null)
+                {
+                    // Save the left media player frame, use the timestamp of the media player
+                    await MediaPlayerLeft.SaveCurrentFrame(framesPath, (TimeSpan)MediaPlayerLeft.Position/*time stamp*/, false/*syncdPair*/);
+                }
+                else if (controlType == SurveyorMediaControl.eControlType.Secondary && MediaPlayerRight.Position is not null)
+                {
+                    // Save the right media player frame, use the timestamp of the media player
+                    await MediaPlayerRight.SaveCurrentFrame(framesPath, (TimeSpan)MediaPlayerRight.Position/*time stamp*/, false/*syncdPair*/);
+                }
             }
         }
 
@@ -1609,7 +1624,7 @@ namespace Surveyor
                 // Make sure we only open the window once.
                 if (entryCount == 1)
                 {
-                    SurveyorTesting testingWindow = new(this, report);
+                    SurveyorTesting testingWindow = new(mediator, this, report);
 
                     // Get the HWND (window handle) for both windows
                     IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
@@ -2806,6 +2821,25 @@ namespace Surveyor
             MenuLockUnlockMediaPlayers.Text = "Lock Media Players";
         }
 
+
+        /// <summary>
+        /// Diagnostic information state has changed (or is being initially set)
+        /// Setup can MainWindow thing are controlled by the diagnostic information
+        /// </summary>
+        /// <param name="diagnosticInformation"></param>
+        internal void _SetDiagnosticInformation(bool diagnosticInformation)
+        {
+            if (diagnosticInformation)
+            {
+                // Debug Diags Dump Help>Diags Dump 
+                MenuDiagsDump.IsEnabled = true;
+
+                // Testing Help>Testing
+                MenuTesting.IsEnabled = true;
+            }
+        }
+
+
         /// <summary>
         /// Used to display any exceptions during the Open() function
         /// </summary>
@@ -3144,6 +3178,22 @@ namespace Surveyor
                         break;
                 }
             }
+            else if (message is SettingsWindowEventData)
+            {
+                SettingsWindowEventData data = (SettingsWindowEventData)message;
+
+                switch (data.settingsWindowEvent)
+                {
+                    // The user has changed the Diagnostic Information settings
+                    case eSettingsWindowEvent.DiagnosticInformation:
+                        if (data.diagnosticInformation is not null)
+                        {
+                            _mainWindow._SetDiagnosticInformation((bool)data!.diagnosticInformation);
+                        }
+                        break;
+                }
+            }
+
         }
     }
 

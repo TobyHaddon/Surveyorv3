@@ -193,7 +193,7 @@
                                     <ToggleMenuFlyoutItem x:Name="ControlMagZoom3_00" Text="3x" Click="ControlMagZoom_Click"/>
                                     <ToggleMenuFlyoutItem x:Name="ControlMagZoom2_00" Text="2x" Click="ControlMagZoom_Click"/>
                                     <ToggleMenuFlyoutItem x:Name="ControlMagZoom1_00" Text="1x" Click="ControlMagZoom_Click"/>
-                                    <ToggleMenuFlyoutItem x:Name="ControlMagZoom0_50" Text="0.5x" Click="ControlMagZoom_Click"/>
+                                    <!--<ToggleMenuFlyoutItem x:Name="ControlMagZoom0_50" Text="0.5x" Click="ControlMagZoom_Click"/>-->
                                 </MenuFlyout>
                             </AppBarButton.Flyout>
                         </AppBarButton>

@@ -174,7 +174,7 @@
                 <!-- SPECIES CODE LIST -->
                 <toolkit:SettingsExpander x:Name="SpeciesCodeListExpander" Header="Species List" MaxWidth="1200">
                     <toolkit:SettingsExpander.HeaderIcon>
-                        <BitmapIcon x:Name="SpeciesIcon" ShowAsMonochrome="False" UriSource="/Assets/fish-dark.png" />
+                        <BitmapIcon x:Name="SpeciesCodeListIcon" ShowAsMonochrome="False" UriSource="/Assets/fish-dark.png" />
                     </toolkit:SettingsExpander.HeaderIcon>
 
                     <StackPanel Orientation="Horizontal">
@@ -309,13 +309,29 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <StackPanel Orientation="Vertical" VerticalAlignment="Top" HorizontalAlignment="Left">
+                                        <!-- Selection GoPro Script-->
                                         <DropDownButton x:Name="GoProQRSelection" Grid.Column="0" HorizontalAlignment="Left"  VerticalAlignment="Top" Content="Standard Setup">
                                             <DropDownButton.Flyout>
                                                 <MenuFlyout x:Name="GoProQRSelectionFlyout"/>
                                             </DropDownButton.Flyout>
                                         </DropDownButton>
-                                        <TextBlock x:Name="GoProQRScript" Text="" Grid.Column="0" Style="{StaticResource CaptionTextBlockStyle}" Margin="0,10,0,0" TextWrapping="WrapWholeWords"/>
+
+                                        <!-- DisplayGoPro Script-->
+                                        <TextBlock Text="Script:" Style="{StaticResource CaptionTextBlockStyle}" Margin="0,10,20,0" TextWrapping="WrapWholeWords"/>
+                                        <TextBox x:Name="GoProQRScript"
+                                                 Text="" 
+                                                 IsReadOnly="True"
+                                                 TextWrapping="Wrap"
+                                                 AcceptsReturn="True"
+                                                 FontFamily="Consolas"
+                                                 FontSize="14"
+                                                 Padding="10"
+                                                 BorderThickness="1"
+                                                 BorderBrush="Gray" Margin="0,5,20,0"/>
+
                                     </StackPanel>
+                                    
+                                    <!-- Display Scrip QR Code-->
                                     <Image x:Name="GoProQRCode"  HorizontalAlignment="Right" Grid.Column="1" Width="400" Height="400" Margin="10,0,00,0"/>
                                 </Grid>
                             </StackPanel>
@@ -534,13 +550,15 @@
                                                     <RowDefinition Height="Auto"/>
                                                 </Grid.RowDefinitions>
 
-                                                <BitmapIcon UriSource="/Assets/fish-dark.png"
-                                                    Width="16"
-                                                    Height="16"
-                                                    ShowAsMonochrome="False"
-                                                    VerticalAlignment="Center"
-                                                    HorizontalAlignment="Center"
-                                                    ToolTipService.ToolTip="Species icon"/>
+                                                <Ellipse x:Name="Ellipse"
+                                                         Grid.RowSpan="2"
+                                                         Width ="32"
+                                                         Height="32"
+                                                         Margin="6"
+                                                         VerticalAlignment="Center"
+                                                         HorizontalAlignment="Center"
+                                                         Fill="{ThemeResource SystemControlBackgroundBaseMediumBrush}"/>
+
                                                 <TextBlock Grid.Row="0" Grid.Column="1">
                                                     <TextBlock.Inlines>
                                                         <Run Text="{x:Bind Family}"/>

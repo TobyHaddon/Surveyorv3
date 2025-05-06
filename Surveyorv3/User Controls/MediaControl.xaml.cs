@@ -148,12 +148,12 @@ namespace Surveyor.User_Controls
         /// </summary>
         public void Clear()
         {
-            ControlPositionText.Text = "";
-            ControlFrameText.Text = "";
-            ControlFrameEdit.Text = "";
-            ControlDurationText.Text = "";
-            ControlSpeedText.Text = "";
-            ControlSpeedText.Text = "";
+            ControlPositionText.Text = string.Empty;
+            ControlFrameText.Text = string.Empty;
+            ControlFrameEdit.Text = string.Empty;
+            ControlDurationText.Text = string.Empty;
+            ControlSpeedText.Text = string.Empty;
+            ControlSpeedText.Text = string.Empty;
             _duration = TimeSpan.Zero;
             _userIsInteractingWithSlider = false;
 
@@ -192,10 +192,10 @@ namespace Surveyor.User_Controls
             }
             else
             {
-                ControlPositionText.Text = "";
-                ControlDurationText.Text = "";
-                ControlSpeedText.Text = "";
-                ControlSpeedText.Text = "";
+                ControlPositionText.Text = string.Empty;
+                ControlDurationText.Text = string.Empty;
+                ControlSpeedText.Text = string.Empty;
+                ControlSpeedText.Text = string.Empty;
                 ControlFrameBack.IsEnabled = false;
                 ControlFrameForward.IsEnabled = false;
                 ControlPlayPause.IsEnabled = false;
@@ -1506,7 +1506,7 @@ namespace Surveyor.User_Controls
                 TimeSpan position2 = TimeSpan.FromTicks((long)Math.Round(ticksPerFrameDouble * frameIndex, MidpointRounding.AwayFromZero));
 
                 // Signal eMediaControlEvent.UserReqFrameJump with position
-                mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameJump, ControlType) { positionJump = position });
+                mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameJump, ControlType) { positionJump = position2 });
 
                 string controls = ControlType.ToString();
                 Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {controls}: User requested to frame jump to position {TimePositionHelper.Format(position2, displayToDecimalPlaces)}");

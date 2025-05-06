@@ -51,6 +51,7 @@ using Windows.Media.MediaProperties;
 using Windows.Media.Playback;
 using Windows.Storage.Streams;
 using Windows.System.Display;
+using WinUIEx.Messaging;
 using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
 using static Surveyor.User_Controls.SurveyorMediaPlayer;
 
@@ -893,40 +894,38 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Save the current frame to a file in the 'MediaFrameFolder'
         /// This method uses the last frame saved _vfar instance(VideoFrameAvailableResources)
-        /// to save the frame to a file
+        /// to save the frame to a file.
+        /// Note we pass the timeStamp (instead of just using the class Position property) to
+        /// allow either the media timeline controller position or the media player position to
+        /// be used as the time stamp in the file name
         /// </summary>
-        internal async Task SaveCurrentFrame(string framesPath)
+        /// <param name="framesPath">Save path</param>
+        /// <param name="timeStamp">Time stamp used in the file name</param>
+        /// <param name="syncdPair">Is this part of a stereo pair?</param>
+        /// <returns></returns>
+        internal async Task SaveCurrentFrame(string framesPath, TimeSpan timeStamp, bool syncdPair)
         {
             // Check if the players if loaded and paused
             if (IsOpen() && MediaPlayerElement.MediaPlayer.PlaybackSession.PlaybackState == MediaPlaybackState.Paused)
             {
-                if (Position is not null)
+                // Create the file name using the media name and the current timespan offset
+                string formattedTime = "0000" + TimePositionHelper.Format((TimeSpan)timeStamp, 2);
+                string paired = syncdPair ? "_Pair" : "";
+                string fileName = Path.GetFileNameWithoutExtension(mediaUri) + paired + $"_{formattedTime.Substring(Math.Max(0, formattedTime.Length - 12))}.png";
+                string fileSpec = Path.Combine(framesPath, fileName);
+
+                // Save the frame to .png:
+                if (await vidFrameMgr.SaveFrame(fileSpec, CanvasBitmapFileFormat.Png))
                 {
-                    // Create the file name using the media name and the current timespan offset
-                    string formattedTime = ((TimeSpan)Position).ToString(@"hh\_mm\_ss\_fff");
-                    string fileSpec = Path.Combine(framesPath, Path.GetFileNameWithoutExtension(mediaUri) + $"_{formattedTime}.png");
-
-
-                    // Save the frame to .png:
-                    if (await vidFrameMgr.SaveFrame(fileSpec, CanvasBitmapFileFormat.Png))
-                    {
-                        report?.Info(CameraSide.ToString(), $"Frame saved to: {fileSpec}");                        
-                    }
-                    else
-                    {
-                        report?.Error(CameraSide.ToString(), $"SurveyorMediaPlayer.SaveCurrentFrame  Failed to saved to: {fileSpec}");
-                        // Note SaveFrame calls Debug.WriteLine() and reports the exception
-                    }
+                    report?.Info(CameraSide.ToString(), $"Frame saved to: {fileSpec}");                        
                 }
                 else
                 {
-                    Debug.WriteLine($"{CameraSide}: Error SurveyorMediaPlayer.SaveCurrentFrame  Position not set, nothing to write!");
-                    report?.Error(CameraSide.ToString(), "SurveyorMediaPlayer.SaveCurrentFrame  Position not set, nothing to write!");
+                    report?.Error(CameraSide.ToString(), $"SurveyorMediaPlayer.SaveCurrentFrame  Failed to saved to: {fileSpec}");
                 }
             }
             else
             {
-                Debug.WriteLine($"{CameraSide}: Error SurveyorMediaPlayer.SaveCurrentFrame  Media not open or not in frame mode");
                 report?.Error(CameraSide.ToString(), "SurveyorMediaPlayer.SaveCurrentFrame  Media not open or not in frame mode");
             }
         }
@@ -1879,6 +1878,7 @@ namespace Surveyor.User_Controls
                     {
                         await inputBitmap.SaveAsync(fileSpec, fileFormat);
                         Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide}: SaveFrame Saved: {fileSpec}");
+                        ret = true;
                     }
                     catch (Exception ex)
                     {

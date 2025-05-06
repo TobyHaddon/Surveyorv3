@@ -174,7 +174,7 @@ namespace Surveyor
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
                 if (localSettings.Values["TeachingTipsEnabled"] is not bool teachingTipsEnabled)
-                    teachingTipsEnabled = true;     // Default teaching tip to enabled
+                    teachingTipsEnabled = false;     // Default teaching tip to disabled
 
                 return teachingTipsEnabled;
             }
@@ -247,7 +247,7 @@ namespace Surveyor
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
                 if (localSettings.Values["UseInternetEnabled"] is not bool useInternetEnabled)
-                    useInternetEnabled = true;
+                    useInternetEnabled = false;
 
                 return useInternetEnabled;
             }

@@ -275,7 +275,8 @@ namespace Surveyor
         {
             if (speciesStates.TryGetValue(speciesCode, out var state))
             {
-                return state.SpeciesImageItemList;
+                if (state.Status == State.Done) // Image all downloaded
+                    return state.SpeciesImageItemList;
             }
             return [];
         }
@@ -507,7 +508,7 @@ namespace Surveyor
                                 break;
 
                             case State.WaitingForAllImages:
-                                await CheckAllImagesDownloaded(state);
+                                await WaitingForAllImages(state);
                                 break;
 
                             case State.RequestingSpeciesInformationPage:
@@ -713,6 +714,7 @@ namespace Surveyor
         private void CheckAllPhotoPageDownloaded(SpeciesCacheState state)
         {
             bool allDownloaded = true;
+            bool setErrorState = false;
 
             for (int page = 1; page <= state.TotalImages; page++)
             {
@@ -728,13 +730,23 @@ namespace Surveyor
                 else if (item is null)
                 {
                     string reportMessage = $"SpeciesImageAndInfoCache.CheckAllPhotoPageDownloaded Download request missing from internet queue. Suggest removing the FishID:{state.SpeciesItem.Code} from the Species Image Cache";
-                    Debug.WriteLine(reportMessage);
+                    //???Debug.WriteLine(reportMessage);
                     report?.Warning("", reportMessage);
+                    allDownloaded = false;
+                    setErrorState = true;
+                    break;
                 }
             }
 
             if (allDownloaded)
                 state.Status = State.ParsingAllPhotoPagesAndRequestImages;
+
+            // Error the species
+            if (setErrorState)
+            {
+                state.Status = State.Error;
+            }
+
         }
 
 
@@ -796,8 +808,10 @@ namespace Surveyor
         /// Check that all the image files for this species have been downloaded
         /// </summary>
         /// <param name="state"></param>
-        private async Task CheckAllImagesDownloaded(SpeciesCacheState state)
+        private async Task WaitingForAllImages(SpeciesCacheState state)
         {
+            bool setErrorState = false;
+
             // Check the SpeciesImageItemList size matches the indicated TotalImages
             if (state.SpeciesImageItemList.Count == state.TotalImages)
             {
@@ -816,6 +830,16 @@ namespace Surveyor
                         allDownloaded = false;
                         break;
                     }
+                    else if (item is null)
+                    {
+                        string reportMessage = $"SpeciesImageAndInfoCache.CheckAllImagesDownloaded Download request missing from internet queue. Suggest removing the FishID:{state.SpeciesItem.Code} from the Species Image Cache";
+                        //???Debug.WriteLine(reportMessage);
+                        report?.Warning("", reportMessage);
+                        allDownloaded = false;
+                        setErrorState = true;
+                        break;
+                    }
+
                 }
 
                 // If all downloaded ok proceed
@@ -839,6 +863,12 @@ namespace Surveyor
 
                     // Move to the state of requesting a species info page
                     state.Status = State.RequestingSpeciesInformationPage;
+                }
+
+                // Error the species
+                if (setErrorState)
+                {
+                    state.Status = State.Error;
                 }
             }
             else

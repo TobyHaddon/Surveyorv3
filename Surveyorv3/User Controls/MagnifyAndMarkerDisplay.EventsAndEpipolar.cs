@@ -168,7 +168,7 @@ namespace Surveyor.User_Controls
             }
 
             // Draw the text
-            DrawDimensionAndSpecifies(distance, fishID,
+            DrawDimensionAndSpecies(distance, fishID,
                 new Point((textPoint1.X + textPoint2.X) / 2, (textPoint1.Y + textPoint2.Y) / 2),
                 eventDimensionTextColour, canvasTagDetails);
         }
@@ -221,15 +221,17 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Write the distance and optionally the specifies text on the CanvasFrame
+        /// Write the distance and optionally the species text on the CanvasFrame
         /// </summary>
         /// <param name="distance"></param>
-        /// <param name="specifies"></param>
+        /// <param name="species"></param>
         /// <param name="at"></param>
         /// <param name="brush"></param>
         /// <param name="tag"></param>
-        private void DrawDimensionAndSpecifies(double distance, string specifies, Point at, Brush brush, CanvasTag canvasTag)
+        private void DrawDimensionAndSpecies(double distance, string species, Point at, Brush brush, CanvasTag canvasTag)
         {
+            bool addTestBlock = false;
+
             TextBlock textBlock = new()
             {
                 Foreground = brush,
@@ -237,36 +239,61 @@ namespace Surveyor.User_Controls
                 Tag = canvasTag
             };
 
-            // Create and configure the Run
-            Run run = new()
+            //// Create and configure the Run
+            //Run run = new()
+            //{
+            //    Text = $"{Math.Round(distance * 1000, 0)}mm"
+            //};
+
+            //if (species != "")
+            //{
+            //    // Create a LineBreak
+            //    LineBreak lineBreak = new();
+
+            //    // Create and configure the Span
+            //    Span span = new();
+            //    span.Inlines.Add(new Italic { Inlines = { new Run { Text = species } } });
+
+            //    // Add inlines to TextBlock
+            //    textBlock.Inlines.Add(run);
+            //    textBlock.Inlines.Add(lineBreak);
+            //    textBlock.Inlines.Add(span);
+            //}
+            //else
+            //    textBlock.Inlines.Add(run);
+
+            if (distance != -1 && !string.IsNullOrWhiteSpace(species))
             {
-                Text = $"{Math.Round(distance * 1000, 0)}mm"
-            };
+                // Display length and species
+                textBlock.Inlines.Add(new Run() { Text = $"{Math.Round(distance * 1000, 0)}mm" });
+                textBlock.Inlines.Add(new LineBreak());
+                textBlock.Inlines.Add(new Italic { Inlines = { new Run { Text = species } } });
 
-            if (specifies != "")
-            {
-                // Create a LineBreak
-                LineBreak lineBreak = new();
-
-                // Create and configure the Span
-                Span span = new();
-                span.Inlines.Add(new Italic { Inlines = { new Run { Text = specifies } } });
-
-                // Add inlines to TextBlock
-                textBlock.Inlines.Add(run);
-                textBlock.Inlines.Add(lineBreak);
-                textBlock.Inlines.Add(span);
+                addTestBlock = true;
             }
-            else
-                textBlock.Inlines.Add(run);
+            else if (distance == -1 && !string.IsNullOrWhiteSpace(species))
+            {
+                // Display the species only
+                textBlock.Inlines.Add(new Italic { Inlines = { new Run { Text = species } } });
+                addTestBlock = true;
+            }
+            else if (distance != -1)
+            {
+                // Display the distance only
+                textBlock.Inlines.Add(new Run() { Text = $"{Math.Round(distance * 1000, 0)}mm" });
+                addTestBlock = true;
+            }
 
-            textBlock.PointerMoved += EventElement_PointerMoved;
-            textBlock.PointerPressed += EventElement_PointerPressed;
 
+            if (addTestBlock)
+            {
+                textBlock.PointerMoved += EventElement_PointerMoved;
+                textBlock.PointerPressed += EventElement_PointerPressed;
 
-            Canvas.SetLeft(textBlock, at.X);
-            Canvas.SetTop(textBlock, at.Y);
-            CanvasFrame.Children.Add(textBlock);
+                Canvas.SetLeft(textBlock, at.X);
+                Canvas.SetTop(textBlock, at.Y);
+                CanvasFrame.Children.Add(textBlock);
+            }
         }
 
 

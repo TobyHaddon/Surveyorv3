@@ -19,6 +19,8 @@ using Windows.Foundation;
 using Windows.Media;
 using static Surveyor.MediaStereoControllerEventData;
 using Surveyor.Helper;
+using WinRT;
+
 
 
 
@@ -1338,7 +1340,37 @@ namespace Surveyor
                     // Call to the MainWindow so a) we have access to the Projectclass and b) we
                     // can do some UI work if necessary (no UI world in this class)
                     if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Both)
-                        await mainWindow.SaveCurrentFrame(SurveyorMediaControl.eControlType.Both);
+                    {
+                        // Sync check //???--> I think this needs to go into the MediaStereoCOntroller.Pause
+                        if (mediaPlayerLeft.Position is not null && mediaPlayerRight.Position is not null)
+                        {
+                            TimeSpan leftPositionActual = (TimeSpan)mediaPlayerLeft.Position;
+                            TimeSpan rightPositionActual = (TimeSpan)mediaPlayerRight.Position;
+
+                            // Correct on frame boundaries (rounding down is ok)
+                            long leftFrame = (long)(leftPositionActual.TotalMilliseconds * _frameRate / 1000.0);
+                            long rightFrame = (long)(rightPositionActual.TotalMilliseconds * _frameRate / 1000.0);
+                            TimeSpan leftPositionRounded = TimeSpan.FromMilliseconds(leftFrame * 1000 / _frameRate);
+                            TimeSpan rightPositionRounded = TimeSpan.FromMilliseconds(rightFrame * 1000 / _frameRate);
+                            TimeSpan mediaSynchronizedFrameOffsetCheck = (TimeSpan)rightPositionRounded - (TimeSpan)leftPositionRounded;
+
+                            // Calculate 1/10 of a frame duration
+                            TimeSpan frameTolerance = TimeSpan.FromSeconds(1.0 / (_frameRate * 10));
+
+                            // Calculate absolute difference between the TimeSpans
+                            TimeSpan timeDiff = mediaSynchronizedFrameOffsetCheck - mediaSynchronizedFrameOffset;
+
+                            if (timeDiff.Duration() > frameTolerance)
+                            {
+                                Debug.WriteLine($"MediaStereoController.UserReqSaveFrame: Warning Synchronization Offset: Required:{mediaSynchronizedFrameOffset.TotalMilliseconds / 1000.0:F3}s, Actual:{mediaSynchronizedFrameOffsetCheck.TotalMilliseconds / 1000.0:F3})");
+
+                                //??? TO DO Maybe try to resync the two player with a frame back/forward?
+                            }
+                        }
+
+                        // Save the current frame
+                        await mainWindow.SaveCurrentFrame(SurveyorMediaControl.eControlType.Both);                                    
+                    }
                     else if (controlType != SurveyorMediaControl.eControlType.None)
                         await mainWindow.SaveCurrentFrame(controlType);
                 }
@@ -1356,13 +1388,14 @@ namespace Surveyor
         /// <param name="controlType"></param>
         /// <param name="magWindowSize"></param>
 #if !No_MagnifyAndMarkerDisplay
-        internal void UserReqMagWindowSizeSelect(SurveyorMediaControl.eControlType controlType, string magWindowSize)
+        internal void UserReqMagWindowSizeSelect(bool trueLeftfalseRight, string magWindowSize)
         {
-            // Thread Safe/UI Check not required
-            if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Primary)
+            // MagWindowSizeSelect is thread Safe/UI Check not required
+
+            if (mediaSynchronized || trueLeftfalseRight == true)
                 magnifyAndMarkerDisplayLeft.MagWindowSizeSelect(magWindowSize);
 
-            if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Secondary)
+            if (mediaSynchronized || trueLeftfalseRight == false)
                 magnifyAndMarkerDisplayRight.MagWindowSizeSelect(magWindowSize);
         }
 #endif
@@ -1374,14 +1407,14 @@ namespace Surveyor
         /// <param name="controlType"></param>
         /// <param name="_canvasZoomFactor"></param>
 #if !No_MagnifyAndMarkerDisplay
-        internal void UserReqMagZoomSelect(SurveyorMediaControl.eControlType controlType, double canvasZoomFactor)
+        internal void UserReqMagZoomSelect(bool trueLeftfalseRight, double canvasZoomFactor)
         {
             // Thread Safe/UI Check not 
 
-            if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Primary)
+            if (mediaSynchronized || trueLeftfalseRight == true)
                 magnifyAndMarkerDisplayLeft.MagWindowZoomFactor(canvasZoomFactor);
 
-            if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Secondary)
+            if (mediaSynchronized || trueLeftfalseRight == false)
                 magnifyAndMarkerDisplayRight.MagWindowZoomFactor(canvasZoomFactor);
         }
 #endif
@@ -1673,33 +1706,35 @@ namespace Surveyor
                         bool isReady = await mainWindow.CheckIfMeasurementSetupIsReady();
                         if (isReady)
                         {
-
                             // This call calculates the distance, range, X & Y offset between the camera system mid-point and the measurement point mid-point
-                            if (mediaTimelineController is not null && mainWindow.DoMeasurementAndRulesCalculations(surveyMeasurement) == true)
+                            mainWindow.DoMeasurementAndRulesCalculations(surveyMeasurement);
+                        }
+
+                        // Log the event (even if no measurement done)
+                        if (mediaTimelineController is not null)
+                        {
+                            TimeSpan? timelineConntrollerPoistion = mediaTimelineController.Position;
+                            TimeSpan? leftPosition = mediaPlayerLeft.Position;
+                            TimeSpan? rightPosition = mediaPlayerRight.Position;
+
+                            if (surveyMeasurement.Measurment != 0 && leftPosition is not null && rightPosition is not null)
                             {
-                                TimeSpan? timelineConntrollerPoistion = mediaTimelineController.Position;
-                                TimeSpan? leftPosition = mediaPlayerLeft.Position;
-                                TimeSpan? rightPosition = mediaPlayerRight.Position;
+                                evt.TimeSpanTimelineController = (TimeSpan)timelineConntrollerPoistion;
+                                evt.TimeSpanLeftFrame = (TimeSpan)leftPosition;
+                                evt.TimeSpanRightFrame = (TimeSpan)rightPosition;
 
-                                if (surveyMeasurement.Measurment != 0 && leftPosition is not null && rightPosition is not null)
-                                {
-                                    evt.TimeSpanTimelineController = (TimeSpan)timelineConntrollerPoistion;
-                                    evt.TimeSpanLeftFrame = (TimeSpan)leftPosition;
-                                    evt.TimeSpanRightFrame = (TimeSpan)rightPosition;
+                                // Add the species info to the Events list
+                                eventsControl?.AddEvent(evt);
 
-                                    // Add the species info to the Events list
-                                    eventsControl?.AddEvent(evt);
-
-                                    // Remove targets
-                                    ClearCachedTargets();
+                                // Remove targets
+                                ClearCachedTargets();
 #if !No_MagnifyAndMarkerDisplay
-                                    magnifyAndMarkerDisplayLeft.SetTargets(null, null);
-                                    magnifyAndMarkerDisplayRight.SetTargets(null, null);
+                                magnifyAndMarkerDisplayLeft.SetTargets(null, null);
+                                magnifyAndMarkerDisplayRight.SetTargets(null, null);
 #endif
-                                }
-
-                                stereoProjection.PointsClear();
                             }
+
+                            stereoProjection.PointsClear();
                         }
                     }
                 }
@@ -2048,7 +2083,10 @@ namespace Surveyor
 #if !No_MagnifyAndMarkerDisplay
                         case MediaControlEventData.eMediaControlEvent.UserReqMagWindowSizeSelect:
                             if (data.magWindowSize is not null)
-                                mediaStereoController.UserReqMagWindowSizeSelect(data.controlType, data.magWindowSize);
+                            {
+                                bool trueLeftfalseRight = data.controlType == SurveyorMediaControl.eControlType.Primary ? true : false;
+                                mediaStereoController.UserReqMagWindowSizeSelect(trueLeftfalseRight, data.magWindowSize);
+                            }
                             break;
 #endif
 
@@ -2056,7 +2094,10 @@ namespace Surveyor
 #if !No_MagnifyAndMarkerDisplay
                         case MediaControlEventData.eMediaControlEvent.UserReqMagZoomSelect:
                             if (data.canvasZoomFactor is not null)
-                                mediaStereoController.UserReqMagZoomSelect(data.controlType, (double)data.canvasZoomFactor);
+                            {
+                                bool trueLeftfalseRight = data.controlType == SurveyorMediaControl.eControlType.Primary ? true : false;
+                                mediaStereoController.UserReqMagZoomSelect(trueLeftfalseRight, (double)data.canvasZoomFactor);
+                            }
                             break;
 #endif
 
@@ -2119,6 +2160,22 @@ namespace Surveyor
                         {
                             SafeUICall(async () => await mediaStereoController._EditSpeciesInfo((Guid)data.eventGuid));
                             Debug.WriteLine($"***EditSpeciesInfo");
+                        }
+                        break;
+                    case MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect:
+                        if (data.magWindowSize is not null)
+                        {
+                            // Set the opposite camera side
+                            bool trueLeftfalseRight = data.cameraSide == SurveyorMediaPlayer.eCameraSide.Left ? false : true;
+                            mediaStereoController.UserReqMagWindowSizeSelect(trueLeftfalseRight, data.magWindowSize);
+                        }
+                        break;
+                    case MagnifyAndMarkerControlEvent.UserReqMagZoomSelect:
+                        if (data.canvasZoomFactor is not null)
+                        {
+                            // Set the opposite camera side
+                            bool trueLeftfalseRight = data.cameraSide == SurveyorMediaPlayer.eCameraSide.Left ? false : true;
+                            mediaStereoController.UserReqMagZoomSelect(trueLeftfalseRight, (double)data.canvasZoomFactor);
                         }
                         break;
                 }

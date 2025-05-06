@@ -159,7 +159,7 @@ namespace Surveyor.User_Controls
                 rootElement.RequestedTheme = ElementTheme.Dark;
 
                 AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Dark.png");
-                SpeciesIcon.UriSource = new Uri($"ms-appx:///Assets/Fish-Dark.png");
+                SpeciesCodeListIcon.UriSource = new Uri($"ms-appx:///Assets/Fish-Dark.png");
 
                 TitleBarHelper.SetCaptionButtonColors(this, Colors.White);
 
@@ -170,7 +170,7 @@ namespace Surveyor.User_Controls
                 rootElement.RequestedTheme = ElementTheme.Light;
 
                 AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Light.png");
-                SpeciesIcon.UriSource = new Uri($"ms-appx:///Assets/Fish-Light.png");
+                SpeciesCodeListIcon.UriSource = new Uri($"ms-appx:///Assets/Fish-Light.png");
 
                 TitleBarHelper.SetCaptionButtonColors(this, Colors.Black);
             }
@@ -186,12 +186,12 @@ namespace Surveyor.User_Controls
                 if (color == "Dark")
                 {
                     AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Dark.png");
-                    SpeciesIcon.UriSource = new Uri($"ms-appx:///Assets/Fish-Dark.png");
+                    SpeciesCodeListIcon.UriSource = new Uri($"ms-appx:///Assets/Fish-Dark.png");
                 }
                 else
                 {
                     AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Light.png");
-                    SpeciesIcon.UriSource = new Uri($"ms-appx:///Assets/Fish-Light.png");
+                    SpeciesCodeListIcon.UriSource = new Uri($"ms-appx:///Assets/Fish-Light.png");
                 }
             }
 
@@ -1162,7 +1162,7 @@ namespace Surveyor.User_Controls
                 {
                     // Update the QR Code and script
                     GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(script);
-                    GoProQRScript.Text = $"Script:\n{script}";
+                    GoProQRScript.Text = $"{script}";
                 }
             }
             else

@@ -290,6 +290,17 @@
             <!-- TextBlock in the PaneFooter -->
             <NavigationView.PaneFooter>
                 <StackPanel Orientation="Horizontal">
+                    <!-- Pointer coordinates -->
+                    <TextBlock x:Name="PointerCoordinates" FontSize="12" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="PointerCoordinatesIndicator"
+                           Visibility="Collapsed"
+                           FontFamily="Segoe Fluent Icons"
+                           FontSize="12" 
+                           Text="&#xE65A;"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0">
+                    </TextBlock>
+
                     <!-- Internet download indicator -->
                     <FontIcon x:Name="DownloadIndicator" PointerEntered="DownloadIndicator_PointerEntered"
                                 FontFamily="Segoe UI"
@@ -297,22 +308,13 @@
                                 Glyph=""
                                 HorizontalAlignment="Center" VerticalAlignment="Center"
                                 Margin="0,0,10,0">
-                        
+
                         <ToolTipService.ToolTip>
                             <ToolTip x:Name="DownloadIndicatorToolTip"/>
                         </ToolTipService.ToolTip>
                     </FontIcon>
-
-                    <!-- Pointer coordinates -->
-                    <TextBlock x:Name="PointerCoordinatesIndicator"
-                           Visibility="Collapsed"
-                           FontFamily="Segoe Fluent Icons"
-                           FontSize="12" 
-                           Text="&#xE65A;"
-                           VerticalAlignment="Center">
-                    </TextBlock>
-                    <TextBlock x:Name="PointerCoordinates" FontSize="12" VerticalAlignment="Center" Margin="0,0,10,0"/>
                 </StackPanel>
+                
             </NavigationView.PaneFooter>
             
             <!-- Frame to display content based on navigation -->

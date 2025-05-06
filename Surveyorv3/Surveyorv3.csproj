@@ -16,7 +16,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	<PublishTrimmed>false</PublishTrimmed>
 	<GenerateAppInstallerFile>False</GenerateAppInstallerFile>
-	<AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
+	<AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
 	<PackageCertificateThumbprint>3ABA6CB3F657912FFAF12F407853CAB61413360B</PackageCertificateThumbprint>
 	<AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
 	<AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
@@ -25,14 +25,19 @@
 	<AppxBundle>Auto</AppxBundle>
 	<AppxBundlePlatforms>x64</AppxBundlePlatforms>
 	<HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
+	<GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Help Documents\Opwall SVS User Manual Part I - Calibration.pdf" />
     <None Remove="Help Documents\Opwall SVS User Manual Part II - Data Collection.pdf" />
     <None Remove="Help Documents\Opwall SVS User Manual Part III - Data Analysis.pdf" />
     <None Remove="SpeciesRecordEdit.xaml" />
+    <None Remove="Test Data\154L %28Short Test%29.MP4" />
+    <None Remove="Test Data\154R %28Short Test%29.MP4" />
     <None Remove="Test Data\embeddedFrame_multiangle-right-back-offset-5-seconds[1].mp4" />
     <None Remove="Test Data\embeddedFrame_multiangle-right-back[1].mp4" />
+    <None Remove="Test Data\Short Test - Right Camera.MP4" />
+    <None Remove="Test Data\Short Test - Stereo Calibration.json" />
     <None Remove="Test Data\Yoga-0m-1-2025-01-24.survey" />
     <None Remove="User Controls\SettingsSurveyRules.xaml" />
     <None Remove="User Controls\SurveyInfoAndMedia.xaml" />
@@ -51,6 +56,15 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Test Data\embeddedFrame_multiangle-right-back[1].mp4">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Test Data\Short Test - Left Camera.MP4">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Test Data\Short Test - Right Camera.MP4">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Test Data\Short Test - Stereo Calibration.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Test Data\Yoga-0m-1-2025-01-24.survey">
@@ -86,7 +100,6 @@
     <ProjectCapability Include="Msix" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\EMObsReaderCLR\EMObsReaderCLR.vcxproj" />
     <ProjectReference Include="..\GoProMP4MetadataExtraction\GoProMP4MetadataExtraction.csproj" />
   </ItemGroup>
   <ItemGroup>
@@ -161,6 +174,12 @@
     <Folder Include="Help Documents\" />
   </ItemGroup>
 
+	<ItemGroup>
+		<Reference Include="EMObsReaderCLR">
+			<HintPath>$(SolutionDir)x64\Release\EMObsReaderCLR.dll</HintPath>
+			<Private>true</Private>
+		</Reference>
+	</ItemGroup>
   <!--
     Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
     Explorer "Package and Publish" context menu entry to be enabled for this project even if

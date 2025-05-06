@@ -8,16 +8,16 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="8c0e24ec-57ee-4dad-b96b-fdbe9463de8e"
-    Publisher="CN=Toby Haddon"
-    Version="3.1.117.0" />
+    Name="TobySolo.312674E3C56F2"
+    Publisher="CN=BBFC9555-B064-4A94-B7B3-FE2E887C0C99"
+    Version="3.1.132.0" />
 
-  <mp:PhoneIdentity PhoneProductId="8c0e24ec-57ee-4dad-b96b-fdbe9463de8e" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+  <mp:PhoneIdentity PhoneProductId="039429cf-883f-432e-bf0a-0535a25f37e9" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>Surveyorv3</DisplayName>
-    <PublisherDisplayName>Toby Haddon</PublisherDisplayName>
-    <Logo>Assets\surveyor-dark.png</Logo>
+    <DisplayName>Underwater Surveyor</DisplayName>
+    <PublisherDisplayName>TobySolo</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
   <Dependencies>
@@ -33,20 +33,23 @@
     <Application Id="App"
       Executable="$targetnametoken$.exe"
       EntryPoint="$targetentrypoint$">
-      <uap:VisualElements
-        DisplayName="Surveyor"
-        Description="Fish measurement survey software.  This software is used to process videos from a sterographic camera rig."
-        BackgroundColor="transparent"
-        Square150x150Logo="Assets\surveyor-dark.png"
-        Square44x44Logo="Assets\surveyor-dark.png">
-        <uap:DefaultTile  Wide310x150Logo="Assets\surveyor-dark.png">
-          <uap:ShowNameOnTiles>
-            <uap:ShowOn Tile="square150x150Logo"/>
-            <uap:ShowOn Tile="wide310x150Logo"/>
-          </uap:ShowNameOnTiles>
-        </uap:DefaultTile >
-        <uap:SplashScreen Image="Assets\SplashScreen.png" />
-      </uap:VisualElements>
+		<uap:VisualElements
+		  DisplayName="Underwater Surveyor"
+		  Description="Fish measurement survey software.  This software is used to process videos from a sterographic camera rig."
+		  BackgroundColor="transparent"
+		  Square44x44Logo="Assets\Logo.png"
+		  Square150x150Logo="Assets\SquareLogo.png">
+			<uap:DefaultTile Wide310x150Logo="Assets\WideLogo.png">
+				<uap:ShowNameOnTiles>
+					<uap:ShowOn Tile="square150x150Logo"/>
+					<uap:ShowOn Tile="wide310x150Logo"/>
+				</uap:ShowNameOnTiles>
+			</uap:DefaultTile >
+			<uap:SplashScreen Image="Assets\SplashScreen.png" />
+			<uap:InitialRotationPreference>
+				<uap:Rotation Preference="landscape"/>
+			</uap:InitialRotationPreference>
+		</uap:VisualElements>
     </Application>
   </Applications>
 

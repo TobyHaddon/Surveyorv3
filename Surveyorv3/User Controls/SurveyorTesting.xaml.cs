@@ -31,6 +31,7 @@ using Windows.Storage;
 using Emgu.CV.CvEnum;
 using static QRCoder.PayloadGenerator;
 using static Surveyor.User_Controls.SurveyorTesting;
+using Windows.Storage.Streams;
 
 
 
@@ -49,6 +50,14 @@ namespace Surveyor.User_Controls
 
         private Reporter? Report { get; set; } = null;
 
+        // Copy of the mediator 
+        private SurveyorMediator? mediator;
+
+        // Declare the mediator handler for MediaPlayer
+        private readonly TestingWindowHandler? testingWindowHandler;
+
+
+
         // Test controlling variables
         //???private bool isTestRunning = false;
         private bool isTestAbortRequest = false;
@@ -66,7 +75,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="_mainWindow"></param>
         /// <param name="_Report"></param>
-        public SurveyorTesting(MainWindow _mainWindow, Reporter? _Report)
+        public SurveyorTesting(SurveyorMediator _mediator, MainWindow _mainWindow, Reporter? _Report)
         {
             // Remember main window (needed for this method)
             mainWindow = _mainWindow;
@@ -80,6 +89,11 @@ namespace Surveyor.User_Controls
 
             this.InitializeComponent();
             this.Closed += SettingsWindow_Closed;
+
+            // Initialize mediator handler for SurveyorMediaControl
+            mediator = _mediator;
+            testingWindowHandler = new TestingWindowHandler(mediator, this, mainWindow);
+
 
             // Set min window size
             MinHeight = 600;
@@ -1126,6 +1140,42 @@ namespace Surveyor.User_Controls
             TestFailedCount.Text = testFailedCount.ToString();
         }
 
+
+        /// <summary>        
+        /// This function resets all value associated with the previous frame and 
+        /// setups up for the new frame.  It is called from the mediator message
+        /// Other frame setup functions like SetTargets and SetEvents must be called
+        /// AFTER NewImageFrame is called
+        /// </summary>       
+        // Converted BitmapImage from the Image control
+        private IRandomAccessStream? streamSource = null;
+        private uint imageSourceWidth = 0;
+        private uint imageSourceHeight = 0;
+        private bool imageLoaded;
+        // Image poistion (which frame in the video as a TimeSpace)
+        private TimeSpan? position = null;
+        internal void _NewImageFrame(IRandomAccessStream? frameStream, TimeSpan _position, uint _imageSourceWidth, uint _imageSourceHeight)
+        {
+
+            // Check the ImageFrame is setup 
+            //Debug.Assert(imageUIElement is not null, $"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
+
+            //Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: _NewImageFrame: Position:{_position}, Width:{_imageSourceWidth}, Height:{_imageSourceHeight}");
+
+            // Remember the frame position
+            // Used to know what Events are applicable to this frame
+            position = _position;
+            streamSource = frameStream;
+            imageSourceWidth = _imageSourceWidth;
+            imageSourceHeight = _imageSourceHeight;
+
+
+            // Set the image loaded flag
+            imageLoaded = true;
+        }
+
+
+
     }
 
     /// <summary>
@@ -1147,6 +1197,57 @@ namespace Surveyor.User_Controls
 
             StorageFile file = await picker.PickSingleFileAsync();
             return file?.Path;
+        }
+    }
+
+
+
+    /// <summary>
+    /// Used by the SettingsWindow User Control to inform other components of settings changes
+    /// </summary>
+    public class TestingWindowEventData
+    {
+        public TestingWindowEventData(eTestingWindowEvent e)
+        {
+            testingWindowEvent = e;
+        }
+
+        public enum eTestingWindowEvent
+        {
+            MagnifierWindow,        // The Magnifier Window has been toggled
+            DiagnosticInformation   // Diagnostic Information has changed
+        }
+
+        public readonly eTestingWindowEvent testingWindowEvent;
+
+
+    }
+
+
+
+    public class TestingWindowHandler : TListener
+    {
+        private readonly SurveyorTesting _testingWindow;
+
+        public TestingWindowHandler(IMediator mediator, SurveyorTesting testingWindow, MainWindow mainWindow) : base(mediator, mainWindow)
+        {
+            _testingWindow = testingWindow;
+        }
+
+        public override void Receive(TListener listenerFrom, object message)
+        {
+            if (message is MediaPlayerEventData)
+            {
+                MediaPlayerEventData data = (MediaPlayerEventData)message;
+
+                switch (data.mediaPlayerEvent)
+                {
+                    case MediaPlayerEventData.eMediaPlayerEvent.FrameRendered:
+                        if (data.frameStream is not null && data.position is not null)
+                            SafeUICall(() => _testingWindow._NewImageFrame(data.frameStream, (TimeSpan)data.position, data.imageSourceWidth, data.imageSourceHeight));
+                        break;
+                }
+            }
         }
     }
 }

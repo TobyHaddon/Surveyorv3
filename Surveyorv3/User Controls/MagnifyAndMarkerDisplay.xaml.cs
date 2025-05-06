@@ -1035,7 +1035,15 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void ButtonMagEnlarge_Click(object sender, RoutedEventArgs e)
         {
-            MagWindowSizeEnlargeOrReduce(true/*TrueEnargeFalseReduce*/);
+            MagWindowSizeEnlargeOrReduce(true/*TrueEnargeFalseReduce*/, true/*trueHideIfLocked*/);
+
+            // Message MediaStereoController so the other instance can update the size of the mag window
+            MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect,
+                                            CameraLeftRight == CameraSide.Left ? SurveyorMediaPlayer.eCameraSide.Left : SurveyorMediaPlayer.eCameraSide.Right)
+            {
+                magWindowSize = MagWindowGetSizeName()
+            };
+            _magnifyAndMarkerControlHandler?.Send(data);
         }
 
 
@@ -1046,7 +1054,16 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void ButtonMagReduce_Click(object sender, RoutedEventArgs e)
         {
-            MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/);
+            MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/, true/*trueHideIfLocked*/);
+
+
+            // Message MediaStereoController so the other instance can update the size of the mag window
+            MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect,
+                                            CameraLeftRight == CameraSide.Left ? SurveyorMediaPlayer.eCameraSide.Left : SurveyorMediaPlayer.eCameraSide.Right)
+            {
+                magWindowSize = MagWindowGetSizeName()
+            };
+            _magnifyAndMarkerControlHandler?.Send(data);
         }
 
 
@@ -1058,6 +1075,14 @@ namespace Surveyor.User_Controls
         private void ButtonMagZoomIn_Click(object sender, RoutedEventArgs e)
         {
             MagWindowZoomFactorEnlargeOrReduce(true/*TrueZoomInFalseZoomOut*/);
+
+            // Message MediaStereoController so the other instance can update the zoom factor
+            MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect,
+                                            CameraLeftRight == CameraSide.Left ? SurveyorMediaPlayer.eCameraSide.Left : SurveyorMediaPlayer.eCameraSide.Right)
+            {
+                canvasZoomFactor = canvasZoomFactor
+            };
+            _magnifyAndMarkerControlHandler?.Send(data);
         }
 
 
@@ -1069,6 +1094,14 @@ namespace Surveyor.User_Controls
         private void ButtonMagZoomOut_Click(object sender, RoutedEventArgs e)
         {
             MagWindowZoomFactorEnlargeOrReduce(false/*TrueZoomInFalseZoomOut*/);
+
+            // Message MediaStereoController so the other instance can update the zoom factor
+            MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect,
+                                            CameraLeftRight == CameraSide.Left ? SurveyorMediaPlayer.eCameraSide.Left : SurveyorMediaPlayer.eCameraSide.Right)
+            {
+                canvasZoomFactor = canvasZoomFactor
+            };
+            _magnifyAndMarkerControlHandler?.Send(data);
         }
 
 
@@ -1655,228 +1688,268 @@ namespace Surveyor.User_Controls
             // Check the ImageFrame is setup 
             Debug.Assert(imageUIElement is not null, $"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: Error MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
 
-            // Atomic
-            int entryCounter = Interlocked.Increment(ref magIntoImageSquare_EntryCounter);
 
+            // Atomic entry counter
             // Discard this message if there are more queued up
-            if (entryCounter == 1)
+            try
             {
-                // Reset rectMagPointerBounds for safty, not strictly necessary
-                rectMagPointerBounds = new Rect(0, 0, 0, 0);
-
-                // Calculate the actual zoom
-                double zoom = canvasZoomFactor;
-
-                // Check if ImageFrame's source is a BitmapImage and has a valid UriSource.
-                if (imageUIElement is not null && streamSource is not null &&
-                    imageUIElement.Parent is Grid gridParentImageFrame)
+                int entryCounter = Interlocked.Increment(ref magIntoImageSquare_EntryCounter);
+                if (entryCounter == 1)
                 {
-                    // Get the BitmapDecoder for the ImageFrame
-                    try
+
+                    // Reset rectMagPointerBounds for safty, not strictly necessary
+                    rectMagPointerBounds = new Rect(0, 0, 0, 0);
+
+                    // Check if ImageFrame's source is a BitmapImage and has a valid UriSource.
+                    if (imageUIElement is not null && streamSource is not null &&
+                        imageUIElement.Parent is Grid gridParentImageFrame)
                     {
-                        streamSource.Seek(0);
-                        var decoder = await BitmapDecoder.CreateAsync(streamSource);
-
-                        // Check if the pointer if still on the Image (because the Image maybe not exactly fit the Grid Cell
-                        if (pointerPosition.X >= 0 && pointerPosition.Y >= 0 &&
-                            pointerPosition.X < CanvasFrame.ActualWidth &&
-                            pointerPosition.Y < CanvasFrame.ActualHeight)
+                        // Get the BitmapDecoder for the ImageFrame
+                        try
                         {
+                            streamSource.Seek(0);
+                            var decoder = await BitmapDecoder.CreateAsync(streamSource);
 
-                            // Calculate the Mag Window screen rectangle. That is the rectangle that the Mag Window
-                            // actually appears within on the CanvasFrame (excluding the border)
-                            { // Putting this in braces so that variable go out of scope and not used by mistake
-                                double magWindowLeft = Math.Clamp(pointerPosition.X - (magWidth / 2), 0/*min*/, CanvasFrame.ActualWidth - magWidth/*max*/);
-                                double magWindowTop = Math.Clamp(pointerPosition.Y - (magHeight / 2), 0/*min*/, CanvasFrame.ActualHeight - magHeight/*max*/);
-                                double magWindowWidth = Math.Min(magWidth, CanvasFrame.ActualWidth - magWindowLeft);
-                                double magWindowHeight = Math.Min(magHeight, decoder.PixelHeight - magWindowTop);
-                                rectMagWindowScreen = new Rect(magWindowLeft, magWindowTop, magWindowWidth, magWindowHeight);
-                            }
-
-                            // Calcaulte the source rectangle from the ImageFrame that is used to fill
-                            // the Mag Window.                         
-                            { // Putting this in braces so that variable go out of scope and not used by mistake
-                                double magWidthZoomed = magWidth / zoom;
-                                double magHeightZoomed = magHeight / zoom;
-                                double magSourceLeft = Math.Clamp(pointerPosition.X - (magWidthZoomed / 2), 0/*min*/, CanvasFrame.ActualWidth - magWidthZoomed/*max*/);
-                                double magSourceTop = Math.Clamp(pointerPosition.Y - (magHeightZoomed / 2), 0/*min*/, CanvasFrame.ActualHeight - magHeightZoomed/*max*/);
-                                double magSourceWidth = Math.Min(magWidthZoomed, decoder.PixelWidth - magSourceLeft);
-                                double magSourceHeight = Math.Min(magHeightZoomed, decoder.PixelHeight - magSourceTop);
-
-                                rectMagWindowSource = new Rect(magSourceLeft, magSourceTop, magSourceWidth, magSourceHeight);
-                            }
-
-
-                            // Definate the ImageMag Rect for pointer bounds checking in 
-                            // PointerMoved events
-                            rectMagPointerBounds = new Rect(0.0, 0.0, rectMagWindowSource.Width, rectMagWindowSource.Height);
-
-
-                            //***CHANGE_ORIGNAL***
-                            // Define the magnified portion of the image to extact from the bitmap
-                            var transform = new BitmapTransform()
+                            // Check if the pointer if still on the Image (because the Image maybe not exactly fit the Grid Cell
+                            if (pointerPosition.X >= 0 && pointerPosition.Y >= 0 &&
+                                pointerPosition.X < CanvasFrame.ActualWidth &&
+                                pointerPosition.Y < CanvasFrame.ActualHeight)
                             {
-                                ScaledWidth = decoder.PixelWidth,
-                                ScaledHeight = decoder.PixelHeight,
-                                Bounds = new BitmapBounds()
+                                // *** TEST CODE START ***
                                 {
-                                    X = (uint)Math.Round(rectMagWindowSource.X),
-                                    Y = (uint)Math.Round(rectMagWindowSource.Y),
-                                    Width = (uint)Math.Round(rectMagWindowSource.Width),
-                                    Height = (uint)Math.Round(rectMagWindowSource.Height)
+                                    Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: CanvasFrame Size ({CanvasFrame.ActualWidth:F1}x{CanvasFrame.ActualHeight:F1}, ImageFrame Size:({imageUIElement.ActualWidth}x{imageUIElement.ActualHeight})");
+                                    if (imageUIElement.ActualWidth < magWidth || imageUIElement.ActualHeight < magHeight)
+                                    {
+                                        Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, ImageFrame ({imageUIElement.ActualWidth:F1}x{imageUIElement.ActualHeight:F1}), MagWindow ({magWidth}x{magHeight}), first attempt to reduce window size automatically.");
+
+                                        MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/, false/*trueHideIfLocked*/);
+
+                                        if (imageUIElement.ActualWidth < magWidth || imageUIElement.ActualHeight < magHeight)
+                                        {
+                                            Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1}x{CanvasFrame.ActualHeight:F1}), MagWindow ({magWidth}x{magHeight}), second attempt to reduce window size automatically.");
+
+                                            MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/, false/*trueHideIfLocked*/);
+
+                                            if (imageUIElement.ActualWidth < magWidth || imageUIElement.ActualHeight < magHeight)
+                                            {
+                                                Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1}x{CanvasFrame.ActualHeight:F1}), MagWindow ({magWidth}x{magHeight}), can't display MagWindow, try maximising the main window.");
+                                            }
+                                        }
+                                    }
+
+                                    // First check that the mag windows will phyiscally fit in the size the CanvasFrame/ImageFrame has
+                                    double magWindowLeftCheck = Math.Clamp(pointerPosition.X - (magWidth / 2), 0/*min*/, CanvasFrame.ActualWidth - magWidth/*max*/);
+                                    double magWindowTopCheck = Math.Clamp(pointerPosition.Y - (magHeight / 2), 0/*min*/, CanvasFrame.ActualHeight - magHeight/*max*/);
+                                    double magWindowWidthCheck = Math.Min(magWidth, CanvasFrame.ActualWidth - magWindowLeftCheck);
+                                    double magWindowHeightCheck = Math.Min(magHeight, decoder.PixelHeight - magWindowTopCheck);
+
+                                    if (imageUIElement.ActualHeight < magWindowHeightCheck ||
+                                        imageUIElement.ActualWidth < magWindowWidthCheck)
+                                    {
+                                        Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, ImageFrame ({imageUIElement.ActualWidth}x{imageUIElement.ActualHeight}), MagWindow ({magWindowWidthCheck}x{magWindowHeightCheck})");
+                                    }
                                 }
-                            };
-                            //***CHANGE_ORIGNAL***
-                            //***CHANGE1
-                            //var boundsX = Math.Clamp((int)Math.Round(rectMagWindowSource.X), 0, (int)decoder.PixelWidth - 1);
-                            //var boundsY = Math.Clamp((int)Math.Round(rectMagWindowSource.Y), 0, (int)decoder.PixelHeight - 1);
-                            //var boundsWidth = Math.Clamp((int)Math.Round(rectMagWindowSource.Width), 1, (int)decoder.PixelWidth - boundsX);
-                            //var boundsHeight = Math.Clamp((int)Math.Round(rectMagWindowSource.Height), 1, (int)decoder.PixelHeight - boundsY);
+                                // *** TEST CODE ENDT ***
 
-                            //var transform = new BitmapTransform()
-                            //{
-                            //    // If you zoom out too far (zoom < 1), ScaledWidth or ScaledHeight might round to zero.
-                            //    // Fix: Clamp to minimum 1:
-                            //    ScaledWidth = (uint)Math.Max(1, Math.Round(rectMagWindowScreen.Width)),
-                            //    ScaledHeight = (uint)Math.Max(1, Math.Round(rectMagWindowScreen.Height)),
+                                // Calculate the Mag Window screen rectangle. That is the rectangle that the Mag Window
+                                // actually appears within on the CanvasFrame (excluding the border)
+                                { // Putting this in braces so that variable go out of scope and not used by mistake
+                                    double magWindowLeft = Math.Clamp(pointerPosition.X - (magWidth / 2), 0/*min*/, CanvasFrame.ActualWidth - magWidth/*max*/);
+                                    double magWindowTop = Math.Clamp(pointerPosition.Y - (magHeight / 2), 0/*min*/, CanvasFrame.ActualHeight - magHeight/*max*/);
+                                    double magWindowWidth = Math.Min(magWidth, CanvasFrame.ActualWidth - magWindowLeft);
+                                    double magWindowHeight = Math.Min(magHeight, decoder.PixelHeight - magWindowTop);
+                                    rectMagWindowScreen = new Rect(magWindowLeft, magWindowTop, magWindowWidth, magWindowHeight);
+                                }
 
-                            //    // The Bounds rectangle must be fully inside the dimensions of the original
-                            //    // image(decoder.PixelWidth and decoder.PixelHeight).
-                            //    Bounds = new BitmapBounds()
-                            //    {
-                            //        X = (uint)boundsX,
-                            //        Y = (uint)boundsY,
-                            //        Width = (uint)boundsWidth,
-                            //        Height = (uint)boundsHeight
-                            //    }
-                            //};
-                            //***CHANGE1
+                                // Calcaulte the source rectangle from the ImageFrame that is used to fill
+                                // the Mag Window.                         
+                                { // Putting this in braces so that variable go out of scope and not used by mistake
+                                    double magWidthZoomed = magWidth / canvasZoomFactor;
+                                    double magHeightZoomed = magHeight / canvasZoomFactor;
+                                    double magSourceLeft = Math.Clamp(pointerPosition.X - (magWidthZoomed / 2), 0/*min*/, CanvasFrame.ActualWidth - magWidthZoomed/*max*/);
+                                    double magSourceTop = Math.Clamp(pointerPosition.Y - (magHeightZoomed / 2), 0/*min*/, CanvasFrame.ActualHeight - magHeightZoomed/*max*/);
+                                    double magSourceWidth = Math.Min(magWidthZoomed, decoder.PixelWidth - magSourceLeft);
+                                    double magSourceHeight = Math.Min(magHeightZoomed, decoder.PixelHeight - magSourceTop);
 
-                            // Debug reporting
-                            //???Debug.WriteLine($"Pointer ({pointerPosition.X:F1},{pointerPosition.Y:F1}) ImageFrame cx={imageUIElement.ActualWidth:F1}, cy={imageUIElement.ActualHeight:F1}, Source Image cx,cy {imageSourceWidth},{imageSourceHeight}, Mag Zoom:{canvasZoomFactor:F1}");
-                            Debug.WriteLine($"Image size: {decoder.PixelWidth}x{decoder.PixelHeight}");
-                            Debug.WriteLine($"Mag Window Coords left,top=({rectMagWindowScreen.X:F1},{rectMagWindowScreen.Y:F1}), cx,cy {rectMagWindowScreen.Width:F1},{rectMagWindowScreen.Height:F1}");
-                            Debug.WriteLine($"Mag Window Source Coords left,top=({rectMagWindowSource.X:F1},{rectMagWindowSource.Y:F1}), cx,cy {rectMagWindowSource.Width:F1},{rectMagWindowSource.Height:F1}, Zoom={zoom:F2}");
+                                    rectMagWindowSource = new Rect(magSourceLeft, magSourceTop, magSourceWidth, magSourceHeight);
+                                }
 
 
-                            // Get the pixel data for the zoomed region.
-                            var pixelProvider = await decoder.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied, transform, ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
 
-                            // Create a new WriteableBitmap for ImageMag
-                            WriteableBitmap magImageBitmap = new WriteableBitmap((int)Math.Round(rectMagWindowSource.Width), (int)Math.Round(rectMagWindowSource.Height));
-                            pixelProvider.DetachPixelData().CopyTo(magImageBitmap.PixelBuffer);
-
-                            //***CHANGE_ORIGNAL***
-                            // Update ImageMag's source and scaling
-                            ImageMag.Source = magImageBitmap;
-                            ImageMag.RenderTransform = new ScaleTransform()
-                            {
-                                ScaleX = zoom,
-                                ScaleY = zoom
-                            };
-                            CanvasMag.RenderTransform = new ScaleTransform()
-                            {
-                                ScaleX = zoom,
-                                ScaleY = zoom
-                            };
-                            //***CHANGE_ORIGNAL***
+                                // Definate the ImageMag Rect for pointer bounds checking in 
+                                // PointerMoved events
+                                rectMagPointerBounds = new Rect(0.0, 0.0, rectMagWindowSource.Width, rectMagWindowSource.Height);
 
 
-                            // Discover exactly where the XAML rendering engine placed the ImageFrame (given
-                            // it was Stretch="Uniform") within it's parent grid
-                            var transformImageFrame = imageUIElement.TransformToVisual(gridParentImageFrame);
-                            Point relativePositionImageFrame = transformImageFrame.TransformPoint(new Point(0, 0));
-
-                            // Constrain the Mag Window with the ImageFrame space
-                            double magHalfWidthScreen = rectMagWindowScreen.Width / 2;
-                            double magHalfHeightScreen = rectMagWindowScreen.Height / 2;
-                            double magCentreXSource = Math.Clamp(pointerPosition.X, magHalfWidthScreen / canvasFrameScaleX, decoder.PixelWidth - (magHalfWidthScreen / canvasFrameScaleX));
-                            double magCentreYSource = Math.Clamp(pointerPosition.Y, magHalfHeightScreen / canvasFrameScaleY, decoder.PixelHeight - (magHalfHeightScreen / canvasFrameScaleX));
-
-                            double magOffsetXScreen = (magCentreXSource * canvasFrameScaleX) - magHalfWidthScreen;
-                            double magOffsetYScreen = (magCentreYSource * canvasFrameScaleY) - magHalfHeightScreen;
-
-
-                            //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    MagOffset left,top=({magOffsetXScreen:F1},{magOffsetYScreen:F1})");
-
-                            // Move the CanvasMag to the correct position vs the ImageFrame 
-                            // Doing a ScaleTransform on a Canvas seems to move its origin. We need it to be
-                            // exactly aligned with the ImageFrame.  If the ImageFrame and the Canvas are
-                            // within a Grid container the only way to do this is to put a margin either on the
-                            // left/right or the up/down side as required
-                            BorderMag.Margin = new Thickness(relativePositionImageFrame.X + magOffsetXScreen - 1,
-                                relativePositionImageFrame.Y + magOffsetYScreen - 1, 0, 0);
-
-                            BorderMag.Width = rectMagWindowScreen.Width + 2;
-                            BorderMag.Height = rectMagWindowScreen.Height + 2;
-                            BorderMag.Visibility = Visibility.Visible;
-
-
-                            // Check if Target A is in the scope of the Mag Window                        
-                            if (pointTargetA is not null)
-                            {
-                                if (rectMagWindowSource.Contains((Point)pointTargetA))
+                                //***CHANGE_ORIGNAL START***
+                                // Define the magnified portion of the image to extact from the bitmap
+                                var transform = new BitmapTransform()
                                 {
-                                    // Place Target A on the Mag Window in the correct position
-                                    TransferTargetsBetweenVariableAndCanvasMag(true/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
-                                    //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target A Centre ({pointTargetA.Value.X:F1},{pointTargetA.Value.Y:F1})*");
+                                    ScaledWidth = decoder.PixelWidth,
+                                    ScaledHeight = decoder.PixelHeight,
+                                    Bounds = new BitmapBounds()
+                                    {
+                                        X = (uint)Math.Round(rectMagWindowSource.X),
+                                        Y = (uint)Math.Round(rectMagWindowSource.Y),
+                                        Width = (uint)Math.Round(rectMagWindowSource.Width),
+                                        Height = (uint)Math.Round(rectMagWindowSource.Height)
+                                    }
+                                };
+                                //***CHANGE_ORIGNAL END***
+                                //***CHANGE1 START
+                                //var boundsX = Math.Clamp((int)Math.Round(rectMagWindowSource.X), 0, (int)decoder.PixelWidth - 1);
+                                //var boundsY = Math.Clamp((int)Math.Round(rectMagWindowSource.Y), 0, (int)decoder.PixelHeight - 1);
+                                //var boundsWidth = Math.Clamp((int)Math.Round(rectMagWindowSource.Width), 1, (int)decoder.PixelWidth - boundsX);
+                                //var boundsHeight = Math.Clamp((int)Math.Round(rectMagWindowSource.Height), 1, (int)decoder.PixelHeight - boundsY);
+
+                                //var transform = new BitmapTransform()
+                                //{
+                                //    // If you zoom out too far (zoom < 1), ScaledWidth or ScaledHeight might round to zero.
+                                //    // Fix: Clamp to minimum 1:
+                                //    ScaledWidth = (uint)Math.Max(1, Math.Round(rectMagWindowScreen.Width)),
+                                //    ScaledHeight = (uint)Math.Max(1, Math.Round(rectMagWindowScreen.Height)),
+
+                                //    // The Bounds rectangle must be fully inside the dimensions of the original
+                                //    // image(decoder.PixelWidth and decoder.PixelHeight).
+                                //    Bounds = new BitmapBounds()
+                                //    {
+                                //        X = (uint)boundsX,
+                                //        Y = (uint)boundsY,
+                                //        Width = (uint)boundsWidth,
+                                //        Height = (uint)boundsHeight
+                                //    }
+                                //};
+                                //***CHANGE1 END
+
+                                // Debug reporting
+                                //???Debug.WriteLine($"Pointer ({pointerPosition.X:F1},{pointerPosition.Y:F1}) ImageFrame cx={imageUIElement.ActualWidth:F1}, cy={imageUIElement.ActualHeight:F1}, Source Image cx,cy {imageSourceWidth},{imageSourceHeight}, Mag Zoom:{canvasZoomFactor:F1}");
+                                Debug.WriteLine($"Image size: {decoder.PixelWidth}x{decoder.PixelHeight}");
+                                Debug.WriteLine($"Mag Window Coords left,top=({rectMagWindowScreen.X:F1},{rectMagWindowScreen.Y:F1}), cx,cy {rectMagWindowScreen.Width:F1},{rectMagWindowScreen.Height:F1}");
+                                Debug.WriteLine($"Mag Window Source Coords left,top=({rectMagWindowSource.X:F1},{rectMagWindowSource.Y:F1}), cx,cy {rectMagWindowSource.Width:F1},{rectMagWindowSource.Height:F1}, Zoom={canvasZoomFactor:F2}");
+
+
+                                // Get the pixel data for the zoomed region.
+                                var pixelProvider = await decoder.GetPixelDataAsync(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied, transform, ExifOrientationMode.IgnoreExifOrientation, ColorManagementMode.DoNotColorManage);
+
+                                // Create a new WriteableBitmap for ImageMag
+                                WriteableBitmap magImageBitmap = new WriteableBitmap((int)Math.Round(rectMagWindowSource.Width), (int)Math.Round(rectMagWindowSource.Height));
+                                pixelProvider.DetachPixelData().CopyTo(magImageBitmap.PixelBuffer);
+
+                                //***CHANGE_ORIGNAL START***
+                                // Update ImageMag's source and scaling
+                                ImageMag.Source = magImageBitmap;
+                                ImageMag.RenderTransform = new ScaleTransform()
+                                {
+                                    ScaleX = canvasZoomFactor,
+                                    ScaleY = canvasZoomFactor
+                                };
+                                CanvasMag.RenderTransform = new ScaleTransform()
+                                {
+                                    ScaleX = canvasZoomFactor,
+                                    ScaleY = canvasZoomFactor
+                                };
+                                //***CHANGE_ORIGNAL END***
+
+
+                                // Discover exactly where the XAML rendering engine placed the ImageFrame (given
+                                // it was Stretch="Uniform") within it's parent grid
+                                var transformImageFrame = imageUIElement.TransformToVisual(gridParentImageFrame);
+                                Point relativePositionImageFrame = transformImageFrame.TransformPoint(new Point(0, 0));
+
+                                // Constrain the Mag Window with the ImageFrame space
+                                double magHalfWidthScreen = rectMagWindowScreen.Width / 2;
+                                double magHalfHeightScreen = rectMagWindowScreen.Height / 2;
+                                double magCentreXSource = Math.Clamp(pointerPosition.X, magHalfWidthScreen / canvasFrameScaleX, decoder.PixelWidth - (magHalfWidthScreen / canvasFrameScaleX));
+                                double magCentreYSource = Math.Clamp(pointerPosition.Y, magHalfHeightScreen / canvasFrameScaleY, decoder.PixelHeight - (magHalfHeightScreen / canvasFrameScaleX));
+
+                                double magOffsetXScreen = (magCentreXSource * canvasFrameScaleX) - magHalfWidthScreen;
+                                double magOffsetYScreen = (magCentreYSource * canvasFrameScaleY) - magHalfHeightScreen;
+
+
+                                //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    MagOffset left,top=({magOffsetXScreen:F1},{magOffsetYScreen:F1})");
+
+                                // Move the CanvasMag to the correct position vs the ImageFrame 
+                                // Doing a ScaleTransform on a Canvas seems to move its origin. We need it to be
+                                // exactly aligned with the ImageFrame.  If the ImageFrame and the Canvas are
+                                // within a Grid container the only way to do this is to put a margin either on the
+                                // left/right or the up/down side as required
+                                BorderMag.Margin = new Thickness(relativePositionImageFrame.X + magOffsetXScreen - 1,
+                                    relativePositionImageFrame.Y + magOffsetYScreen - 1, 0, 0);
+
+                                BorderMag.Width = rectMagWindowScreen.Width + 2;
+                                BorderMag.Height = rectMagWindowScreen.Height + 2;
+                                BorderMag.Visibility = Visibility.Visible;
+
+
+                                // Check if Target A is in the scope of the Mag Window                        
+                                if (pointTargetA is not null)
+                                {
+                                    if (rectMagWindowSource.Contains((Point)pointTargetA))
+                                    {
+                                        // Place Target A on the Mag Window in the correct position
+                                        TransferTargetsBetweenVariableAndCanvasMag(true/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
+                                        //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target A Centre ({pointTargetA.Value.X:F1},{pointTargetA.Value.Y:F1})*");
+                                    }
+                                    else
+                                    {
+                                        ResetTargetIconOnCanvas(TargetAMag);    // Just hides the MagWindow target icon
+                                        //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target A Centre ({pointTargetA.Value.X:F1},{pointTargetA.Value.Y:F1})");
+                                    }
                                 }
                                 else
-                                {
                                     ResetTargetIconOnCanvas(TargetAMag);    // Just hides the MagWindow target icon
-                                    //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target A Centre ({pointTargetA.Value.X:F1},{pointTargetA.Value.Y:F1})");
-                                }
-                            }
-                            else
-                                ResetTargetIconOnCanvas(TargetAMag);    // Just hides the MagWindow target icon
 
-                            // Check if Target B is in the scope of the Mag Window                        
-                            if (pointTargetB is not null)
-                            {
-                                if (rectMagWindowSource.Contains((Point)pointTargetB))
+                                // Check if Target B is in the scope of the Mag Window                        
+                                if (pointTargetB is not null)
                                 {
-                                    // Place Target B on the Mag Window in the correct position                              
-                                    TransferTargetsBetweenVariableAndCanvasMag(false/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
-                                    //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target B Centre ({pointTargetB.Value.X:F1},{pointTargetB.Value.Y:F1})*");
+                                    if (rectMagWindowSource.Contains((Point)pointTargetB))
+                                    {
+                                        // Place Target B on the Mag Window in the correct position                              
+                                        TransferTargetsBetweenVariableAndCanvasMag(false/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
+                                        //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target B Centre ({pointTargetB.Value.X:F1},{pointTargetB.Value.Y:F1})*");
+                                    }
+                                    else
+                                    {
+                                        ResetTargetIconOnCanvas(TargetBMag);    // Just hides the MagWindow target icon
+                                        //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target B Centre ({pointTargetB.Value.X:F1},{pointTargetB.Value.Y:F1})");
+                                    }
                                 }
                                 else
-                                {
                                     ResetTargetIconOnCanvas(TargetBMag);    // Just hides the MagWindow target icon
-                                    //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target B Centre ({pointTargetB.Value.X:F1},{pointTargetB.Value.Y:F1})");
+
+                                // Check for epipolar line for Target A
+                                if (epipolarLineTargetActiveA)
+                                {
+                                    SetMagWindowEpipolarLine(true/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
+                                                                rectMagWindowSource,
+                                                                0 /*draw line*/);
+                                }
+                                // Check for epipolar line for Target B
+                                if (epipolarLineTargetActiveB)
+                                {
+                                    SetMagWindowEpipolarLine(false/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
+                                                                rectMagWindowSource,
+                                                                0 /*draw line*/);
                                 }
                             }
                             else
-                                ResetTargetIconOnCanvas(TargetBMag);    // Just hides the MagWindow target icon
-
-                            // Check for epipolar line for Target A
-                            if (epipolarLineTargetActiveA)
                             {
-                                SetMagWindowEpipolarLine(true/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
-                                                         rectMagWindowSource, 
-                                                         0 /*draw line*/);
-                            }
-                            // Check for epipolar line for Target B
-                            if (epipolarLineTargetActiveB)
-                            {
-                                SetMagWindowEpipolarLine(false/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
-                                                         rectMagWindowSource,
-                                                         0 /*draw line*/);
+                                MagHide();
                             }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            MagHide();
+                            // Seen BitmapDecoder.CreateAsync(streamSource) cause a COM exception
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: Error MagWindow display: {ex.Message}");
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        // Seen BitmapDecoder.CreateAsync(streamSource) cause a COM exception
-                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: Error MagWindow display: {ex.Message}");
                     }
                 }
             }
+            finally
+            {
+                Interlocked.Decrement(ref magIntoImageSquare_EntryCounter); // Atomic
+            }
 
-            Interlocked.Decrement(ref magIntoImageSquare_EntryCounter); // Atomic
         }
 
 
@@ -2571,10 +2644,14 @@ namespace Surveyor.User_Controls
         }
 
 
-        private void MagWindowSizeEnlargeOrReduce(bool TrueEnargeFalseReduce)
+        /// <summary>
+        /// Returns the size of the current mag window setting as a string
+        /// </summary>
+        /// <param name="magWidth"></param>
+        /// <returns></returns>
+        private string MagWindowGetSizeName()
         {
             string magWindowSize;
-
             if (magWidth == magWidthDefaultSmall)
                 magWindowSize = "Small";
             else if (magWidth == magWidthDefaultMedium)
@@ -2583,6 +2660,19 @@ namespace Surveyor.User_Controls
                 magWindowSize = "Large";
             else
                 magWindowSize = "";
+            return magWindowSize;
+        }
+
+
+        /// <summary>
+        /// Increase or decrease the size of the mag windiw
+        /// </summary>
+        /// <param name="TrueEnargeFalseReduce"></param>
+        /// <param name="trueHideIfLocked"></param>
+        private void MagWindowSizeEnlargeOrReduce(bool TrueEnargeFalseReduce, bool trueHideIfLocked)
+        {
+            // Get the current mag window size
+            string magWindowSize = MagWindowGetSizeName();
 
             if (TrueEnargeFalseReduce)
             {
@@ -2600,7 +2690,8 @@ namespace Surveyor.User_Controls
             }
 
             // Next remove and re-display the mag window at the new size
-            if (isMagLocked)
+            // Note this method is also called by MagWindow() method with trueHideIfLocked=false
+            if (trueHideIfLocked && isMagLocked)
             {
                 //??? TO DO get the original mag window centre point (if any)
 
@@ -2624,7 +2715,7 @@ namespace Surveyor.User_Controls
         /// <param name="TrueZoomInFalseZoomOut"></param>
         private void MagWindowZoomFactorEnlargeOrReduce(bool TrueZoomInFalseZoomOut)
         {
-            // Zoom levels 5,3,2,1,0.5
+            // Zoom levels 5,3,2,1
             // The logic in this function needs to align with the MediaControl zoom factor menu options
             // see MediaControl.xaml
 
@@ -2647,8 +2738,9 @@ namespace Surveyor.User_Controls
                     MagWindowZoomFactor(2.0);
                 else if (canvasZoomFactor == 2.0)
                     MagWindowZoomFactor(1.0);
-                else if (canvasZoomFactor == 1.0)
-                    MagWindowZoomFactor(0.5);
+                // 0.5 current not supported by MagWindow()
+                //else if (canvasZoomFactor == 1.0)
+                //    MagWindowZoomFactor(0.5);
             }
 
             // Next remove and re-display the mag window at the new size
@@ -2760,6 +2852,8 @@ namespace Surveyor.User_Controls
             SurveyMeasurementPairSelected,
             SurveyPointSelected,
             EditSpeciesInfoRequest,
+            UserReqMagWindowSizeSelect,
+            UserReqMagZoomSelect,
             Error
         }
 
@@ -2779,6 +2873,12 @@ namespace Surveyor.User_Controls
 
         // Used by EditSpeciesInfoRequest
         public Guid? eventGuid;
+
+        // Used by UserReqMagWindowSizeSelect
+        public string? magWindowSize;
+
+        // Used by UserReqMagZoomSelect
+        public double? canvasZoomFactor;
     }
 
 

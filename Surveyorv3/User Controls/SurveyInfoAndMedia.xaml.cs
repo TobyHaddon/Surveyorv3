@@ -319,23 +319,50 @@ namespace Surveyor.User_Controls
         /// EVENTS
         /// 
 
-
+        /// <summary>
+        /// Validate the buttons if the user has editted value in the dialog
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void SurveyCode_TextChanged(object sender, Microsoft.UI.Xaml.Controls.TextChangedEventArgs e)
         {
             EntryFieldsValid(false/*no reporting*/);
         }
 
 
+        /// <summary>
+        /// Validate the buttons if the user has editted value in the dialog
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void SurveyDepth_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             EntryFieldsValid(false/*no reporting*/);
         }
 
-      
-        private void SurveyAnalystName_TextChanged(object sender, Microsoft.UI.Xaml.Controls.TextChangedEventArgs e)
+
+        /// <summary>
+        /// Validate the buttons if the user has editted value in the dialog
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void SurveyDepth_TextSubmitted(object sender, Microsoft.UI.Xaml.Controls.ComboBoxTextSubmittedEventArgs e)
         {
             EntryFieldsValid(false/*no reporting*/);
         }
+
+
+        /// <summary>
+        /// Validate the buttons if the user has editted value in the dialog
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void SurveyAnalystName_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            EntryFieldsValid(false/*no reporting*/);
+        }
+
+
 
         /// <summary>
         /// Move the selected item up in it's list
@@ -1472,6 +1499,7 @@ namespace Surveyor.User_Controls
             if (!DispatcherQueue.HasThreadAccess)
                 throw new InvalidOperationException("This function must be called from the UI thread");
         }
+
 
         // **END OF SurveyInfoAndMedia**
     }
