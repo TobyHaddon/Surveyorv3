@@ -10,9 +10,9 @@ The app allows the user to:
 - Open two `.MP4` files from a stereo camera rig
 - Sync the videos at a known point (usually a flashlight flash)
 - Attach stereo calibration data
-- Measure fish length using 3D projection
+- Measure fish length using stereo projection
 - Assign species identity to each measurement
-- Save survey results for biomass analysis
+- Save survey results 
 
 ---
 
