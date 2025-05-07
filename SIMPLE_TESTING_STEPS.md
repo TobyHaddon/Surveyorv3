@@ -20,7 +20,7 @@ The app allows the user to:
 
 All test files are included in the app’s installation folder.  
 Navigate to something like:
-C:\Program Files\WindowsApps\TobySolo.312674E3C56F2_<version>x64_*
+C:\Program Files\WindowsApps\TobySolo.312674E3C56F2_<version>_x64__jnmfm9npxby6c\TestData
 
 
 Look for these files:
