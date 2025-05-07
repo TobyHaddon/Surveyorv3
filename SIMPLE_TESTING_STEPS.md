@@ -16,17 +16,11 @@ The app allows the user to:
 
 ---
 
-## 📂 Required Test Data
+### 🔗 Download Test Files (Public Links)
 
-All test files are included in the app’s installation folder.  
-Navigate to something like:
-C:\Program Files\WindowsApps\TobySolo.312674E3C56F2_<version>_x64__jnmfm9npxby6c\TestData
-
-
-Look for these files:
-- `Short Test - Left Camera.mp4`
-- `Short Test - Right Camera.mp4`
-- `Short Test - Stereo Calibration.json`
+- 🎥 [Short Test - Left Camera.mp4](https://raw.githubusercontent.com/TobyHaddon/Surveyorv3/master/Surveyorv3/Test%20Data/Short%20Test%20-%20Left%20Camera.mp4)
+- 🎥 [Short Test - Right Camera.mp4](https://raw.githubusercontent.com/TobyHaddon/Surveyorv3/master/Surveyorv3/Test%20Data/Short%20Test%20-%20Right%20Camera.mp4)
+- 📐 [Short Test - Stereo Calibration.json](https://raw.githubusercontent.com/TobyHaddon/Surveyorv3/master/Surveyorv3/Test%20Data/Short%20Test%20-%20Stereo%20Calibration.json)
 
 ---
 
