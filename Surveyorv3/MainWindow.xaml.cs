@@ -1,5 +1,4 @@
 ﻿using CommunityToolkit.WinUI;
-using MathNet.Numerics.Distributions;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
@@ -9,7 +8,6 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
-using WinUIEx;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Events;
 using Surveyor.Helper;
@@ -22,23 +20,17 @@ using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Provider;
 using WinRT.Interop;
+using WinUIEx;
 using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.Survey.DataClass;
-using MathNet.Numerics;
-using System.Reflection.Metadata;
-using System.Threading;
-using static Emgu.CV.Stitching.Stitcher;
 using static Surveyor.User_Controls.SettingsWindowEventData;
-using Windows.UI.ViewManagement;
-using Emgu.CV;
-using Windows.Media;
 #if !No_MagnifyAndMarkerDisplay
 #endif
 
