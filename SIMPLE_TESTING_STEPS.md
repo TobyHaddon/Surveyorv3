@@ -28,7 +28,7 @@ The app allows the user to:
 
 1. Launch the app
 2. Go to **File > New Survey**
-3. Browse to the test data folder above and multi-select:
+3. Browse to the test data downloaded above and multi-select:
    - `Short Test - Left Camera.mp4`
    - `Short Test - Right Camera.mp4`
 4. When prompted:
