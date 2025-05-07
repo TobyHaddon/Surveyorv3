@@ -58,12 +58,6 @@
     <Content Include="Test Data\embeddedFrame_multiangle-right-back[1].mp4">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Test Data\Short Test - Left Camera.MP4">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
-    <Content Include="Test Data\Short Test - Right Camera.MP4">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
     <Content Include="Test Data\Short Test - Stereo Calibration.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
