@@ -36,7 +36,8 @@
     <None Remove="Test Data\154R %28Short Test%29.MP4" />
     <None Remove="Test Data\embeddedFrame_multiangle-right-back-offset-5-seconds[1].mp4" />
     <None Remove="Test Data\embeddedFrame_multiangle-right-back[1].mp4" />
-    <None Remove="Test Data\Short Test - Right Camera.MP4" />
+    <None Remove="Test Data\Short Test - Left Camera.mp4" />
+    <None Remove="Test Data\Short Test - Right Camera.mp4" />
     <None Remove="Test Data\Short Test - Stereo Calibration.json" />
     <None Remove="Test Data\Yoga-0m-1-2025-01-24.survey" />
     <None Remove="User Controls\SettingsSurveyRules.xaml" />
@@ -56,6 +57,12 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Test Data\embeddedFrame_multiangle-right-back[1].mp4">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Test Data\Short Test - Left Camera.mp4">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Test Data\Short Test - Right Camera.mp4">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Content Include="Test Data\Short Test - Stereo Calibration.json">
