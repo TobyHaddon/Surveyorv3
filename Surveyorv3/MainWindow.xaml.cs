@@ -34,6 +34,7 @@ using static Surveyor.User_Controls.SettingsWindowEventData;
 #if !No_MagnifyAndMarkerDisplay
 #endif
 
+
 namespace Surveyor
 {
     /// <summary>
