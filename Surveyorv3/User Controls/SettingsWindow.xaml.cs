@@ -8,6 +8,7 @@
 // Version 1.2
 // 2025-01-25 Stop the flashing on load between themes
 
+
 using CommunityToolkit.WinUI;
 using CommunityToolkit.WinUI.Controls;
 using Microsoft.UI;
