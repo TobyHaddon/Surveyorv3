@@ -60,23 +60,24 @@ _(Right-click the link and choose “Save link as…” to download.)_
 
 ## 🎯 Mark Target Points
 
-1. Advance the synced video to about frame **400**
+1. Advance the synced video to about frame **130**
 2. In the **left media player**:
-   - Click the center of the hanging board
+   - Click the center of the left hanging board
    - Select **top yellow marker** → red target
    - Select **bottom yellow marker** → green target
 3. In the **right media player**:
+   - Click the center of the left hanging board
    - Click corresponding marker points
-4. A ✅ tick icon will appear. Click it to confirm the measurement
+5. A ✅ tick icon will appear in the top of the right magnifier window. Click it to confirm the measurement
 
 ---
 
 ## 🐟 Select Fish Species
 
 - A dialog appears after marking points
-- Type `blue`, select a species from dropdown, click **Add**
+- Type `blue` for example, select a species from dropdown, click **Add**
 
-Markers and dimensions should now appear on both players.
+Markers, dimensions and species should now appear on both players.
 
 ---
 
