@@ -10,31 +10,25 @@ The app allows the user to:
 - Open two `.MP4` files from a stereo camera rig
 - Sync the videos at a known point (usually a flashlight flash)
 - Attach stereo calibration data
-- Measure fish length using 3D projection
+- Measure fish length using stereo projection
 - Assign species identity to each measurement
-- Save survey results for biomass analysis
+- Save survey results 
 
 ---
 
-## 📂 Required Test Data
+### 🔗 Download Test Files (Public Links)
 
-All test files are included in the app’s installation folder.  
-Navigate to something like:
-C:\Program Files\WindowsApps\TobySolo.312674E3C56F2_<version>x64_*
-
-
-Look for these files:
-- `Short Test - Left Camera.mp4`
-- `Short Test - Right Camera.mp4`
-- `Short Test - Stereo Calibration.json`
-
+- 🎥 [Short Test - Left Camera.mp4](https://raw.githubusercontent.com/TobyHaddon/Surveyorv3/master/Surveyorv3/Test%20Data/Short%20Test%20-%20Left%20Camera.mp4)
+- 🎥 [Short Test - Right Camera.mp4](https://raw.githubusercontent.com/TobyHaddon/Surveyorv3/master/Surveyorv3/Test%20Data/Short%20Test%20-%20Right%20Camera.mp4)
+- 📐 [Short Test - Stereo Calibration.json](https://raw.githubusercontent.com/TobyHaddon/Surveyorv3/master/Surveyorv3/Test%20Data/Short%20Test%20-%20Stereo%20Calibration.json)
+_(Right-click the link and choose “Save link as…” to download.)_
 ---
 
 ## 🧪 Step-by-Step Instructions
 
 1. Launch the app
 2. Go to **File > New Survey**
-3. Browse to the test data folder above and multi-select:
+3. Browse to the test data downloaded above and multi-select:
    - `Short Test - Left Camera.mp4`
    - `Short Test - Right Camera.mp4`
 4. When prompted:
@@ -48,8 +42,9 @@ Look for these files:
 
 ## 🔁 Sync Videos
 
-1. In the **left video**, pause on frame **172** (torch flash frame)
-2. In the **right video**, pause on frame **179**
+1. In the **left video**, go to rame **16** (the first flashlight flash frame)
+   Best way to do this is to click the frame forward button 16 times or click on the frame index number and enter 16
+2. In the **right video**, pause on frame **17**
 3. Go to **Insert > Lock Media Players**  
    Both players should now sync to one controller
 
@@ -58,29 +53,31 @@ Look for these files:
 ## 📷 Load Calibration File
 
 1. Go to **File > Import Calibration**
-2. Select `Short Test - Stereo Calibration.json` from the test folder
+2. Browse to the test data downloaded in the earlier step
+3. Select `Short Test - Stereo Calibration.json` 
 
 ---
 
 ## 🎯 Mark Target Points
 
-1. Advance the synced video to about frame **400**
+1. Advance the synced video to about frame **130**
 2. In the **left media player**:
-   - Click the center of the hanging board
+   - Click the center of the left hanging board
    - Select **top yellow marker** → red target
    - Select **bottom yellow marker** → green target
 3. In the **right media player**:
+   - Click the center of the left hanging board
    - Click corresponding marker points
-4. A ✅ tick icon will appear. Click it to confirm the measurement
+5. A ✅ tick icon will appear in the top of the right magnifier window. Click it to confirm the measurement
 
 ---
 
 ## 🐟 Select Fish Species
 
 - A dialog appears after marking points
-- Type `blue`, select a species from dropdown, click **Add**
+- Type `blue` for example, select a species from dropdown, click **Add**
 
-Markers and dimensions should now appear on both players.
+Markers, dimensions and species should now appear on both players.
 
 ---
 
