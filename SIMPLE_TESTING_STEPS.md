@@ -21,7 +21,7 @@ The app allows the user to:
 - 🎥 [Short Test - Left Camera.mp4](https://raw.githubusercontent.com/TobyHaddon/Surveyorv3/master/Surveyorv3/Test%20Data/Short%20Test%20-%20Left%20Camera.mp4)
 - 🎥 [Short Test - Right Camera.mp4](https://raw.githubusercontent.com/TobyHaddon/Surveyorv3/master/Surveyorv3/Test%20Data/Short%20Test%20-%20Right%20Camera.mp4)
 - 📐 [Short Test - Stereo Calibration.json](https://raw.githubusercontent.com/TobyHaddon/Surveyorv3/master/Surveyorv3/Test%20Data/Short%20Test%20-%20Stereo%20Calibration.json)
-_(For the .json file right-click the link and choose “Save link as…” to download.)_
+_(Right-click the link and choose “Save link as…” to download.)_
 ---
 
 ## 🧪 Step-by-Step Instructions
