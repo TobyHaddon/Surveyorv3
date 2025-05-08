@@ -53,7 +53,8 @@ _(Right-click the link and choose “Save link as…” to download.)_
 ## 📷 Load Calibration File
 
 1. Go to **File > Import Calibration**
-2. Select `Short Test - Stereo Calibration.json` from the test folder
+2. Browse to the test data downloaded in the earlier step
+3. Select `Short Test - Stereo Calibration.json` 
 
 ---
 
