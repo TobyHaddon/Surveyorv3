@@ -915,8 +915,8 @@ namespace Surveyor.User_Controls
                             }
                             else if (element is TextBlock textBlock)
                             {
-                                if (textBlock.Foreground != eventDimensionLineColour)
-                                    textBlock.Foreground = eventDimensionLineColour;
+                                if (textBlock.Foreground != eventDimensionTextColour)
+                                    textBlock.Foreground = eventDimensionTextColour;
                             }
                         }
                     }
@@ -1026,7 +1026,7 @@ namespace Surveyor.User_Controls
                                     {
                                         eventGuid = targetGuid
                                     };
-                                    _magnifyAndMarkerControlHandler?.Send(data);
+                                    magnifyAndMarkerControlHandler?.Send(data);
                                 }
                             }
                         }

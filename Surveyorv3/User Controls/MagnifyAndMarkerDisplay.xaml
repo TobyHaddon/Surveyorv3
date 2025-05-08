@@ -28,9 +28,10 @@
             <MenuFlyoutItem x:Name="CanvasFrameMenuAddSinglePoint" Text="Add Single Point" Click="CanvasFrameContextMenu_Click"/>
             <MenuFlyoutSeparator/>
             <MenuFlyoutItem x:Name="CanvasFrameMenuDeleteTarget" Text="Delete Target"  Click="CanvasFrameContextMenu_Click"/>
+            <MenuFlyoutItem x:Name="CanvasFrameMenuDeleteAllTargets" Text="Delete All Targets"  Click="CanvasFrameContextMenu_Click"/>
             <MenuFlyoutItem x:Name="CanvasFrameMenuDeleteMeasurement" Text="Delete Measurement"  Click="CanvasFrameContextMenu_Click"/>
             <MenuFlyoutItem x:Name="CanvasFrameMenuDelete3DPoint" Text="Delete 3D Point"  Click="CanvasFrameContextMenu_Click"/>
-            <MenuFlyoutItem x:Name="CanvasFrameMenuDeleteSinglePoint" Text="Delete Point" Click="CanvasFrameContextMenu_Click"/>
+            <MenuFlyoutItem x:Name="CanvasFrameMenuDeleteSinglePoint" Text="Delete Single Point" Click="CanvasFrameContextMenu_Click"/>
             <MenuFlyoutSeparator/>
             <MenuFlyoutItem x:Name="CanvasFrameMenuEditSpeciesInfo" Text="Edit Species Info"  Click="CanvasFrameContextMenu_Click"/>
             <MenuFlyoutItem x:Name="CanvasFrameMenuEditMeasurementTargets" Text="Edit Measurement Targets"  Click="CanvasFrameContextMenu_Click"/>

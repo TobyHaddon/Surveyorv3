@@ -125,7 +125,23 @@ namespace Surveyor.User_Controls
             _ = SetQRCodeSelection(null);  // null selects the first item in the list
 
             // Hide the Survey Settings if the Survey is null
-            SurveySettingsExpander.Visibility = survey is null ? Visibility.Collapsed : Visibility.Visible;
+            if (surveyClass is null)
+            {
+                // Hide the survey settings section
+                SurveySettingsTitle.Visibility = Visibility.Collapsed;
+                SurveyInfoAndMediaExpander.Visibility = Visibility.Collapsed;
+                CalibrationExpander.Visibility = Visibility.Collapsed;
+                SettingsExpanderSurveyRules.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                // Show the survey settings section
+                SurveySettingsTitle.Visibility = Visibility.Visible;
+                SurveyInfoAndMediaExpander.Visibility = Visibility.Visible;
+                CalibrationExpander.Visibility = Visibility.Visible;
+                SettingsExpanderSurveyRules.Visibility = Visibility.Visible;
+            }
+
 
             // Setup the Setting page
             OnSettingsPageLoaded(SettingsManagerLocal.ApplicationTheme);
@@ -317,12 +333,7 @@ namespace Surveyor.User_Controls
 
 
                 // Open section if requested
-                if (sectionToScrollTo.Equals("Survey Settings", StringComparison.OrdinalIgnoreCase))
-                {
-                    // Open the 'Survey Settings' section and bring into view
-                    ExpandAndSectionIntoView(SurveySettingsExpander);
-                }
-                else if (sectionToScrollTo.Equals("General Settings", StringComparison.OrdinalIgnoreCase))
+                if (sectionToScrollTo.Equals("General Settings", StringComparison.OrdinalIgnoreCase))
                 {
                     // Open the 'General Settings' section and bring into view
                     ExpandAndSectionIntoView(GeneralSettingsExpander);

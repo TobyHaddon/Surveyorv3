@@ -42,64 +42,67 @@
                     <RepositionThemeTransition IsStaggeringEnabled="False" />
                 </StackPanel.ChildrenTransitions>
 
-                <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Settings"  MaxWidth="1200"/>
-
-                
                 <!--SURVEY SETTINGS-->
-                <toolkit:SettingsExpander x:Name="SurveySettingsExpander" Header="Survey Settings" MaxWidth="1200">
+                <TextBlock x:Name="SurveySettingsTitle" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Survey Settings"  MaxWidth="1200"/>
+                
+                <!--SURVEY SETTINGS > -->
+                <!--<toolkit:SettingsExpander x:Name="SurveySettingsExpander" Header="Survey Settings" MaxWidth="1200">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE160;" />
                     </toolkit:SettingsExpander.HeaderIcon>
                     
-                    <toolkit:SettingsExpander.Items>
+                    <toolkit:SettingsExpander.Items>-->
                         <!--Survey Info and Media-->
-                        <toolkit:SettingsExpander Header="Survey Info &amp; Media">
-                            <toolkit:SettingsExpander.HeaderIcon>
-                                <FontIcon Glyph="&#xF0E3;" ToolTipService.ToolTip="Survey setup information and survey media"/>
-                            </toolkit:SettingsExpander.HeaderIcon>
+                <toolkit:SettingsExpander x:Name="SurveyInfoAndMediaExpander" Header="Survey Info &amp; Media">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xF0E3;" ToolTipService.ToolTip="Survey setup information and survey media"/>
+                    </toolkit:SettingsExpander.HeaderIcon>
 
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button x:Name="ReCalculate" Content="Re-Calculate" Click="ReCalculate_Click" Margin="0,0,10,0"/>
-                                <TextBlock
-                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                                    IsTextSelectionEnabled="True"
-                                    Text="{x:Bind SettingsExpanderInfoText}" 
-                                    VerticalAlignment="Center"/>
-                            </StackPanel>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <Button x:Name="ReCalculate" Content="Re-Calculate" Click="ReCalculate_Click" Margin="0,0,10,0"/>
+                        <TextBlock
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            IsTextSelectionEnabled="True"
+                            Text="{x:Bind SettingsExpanderInfoText}" 
+                            VerticalAlignment="Center"/>
+                    </StackPanel>
                             
-                            <toolkit:SettingsExpander.Items>
-                                <toolkit:SettingsCard x:Name="SettingsCardSurveyInfoAndMedia">
-                                    <surveyorControls:SurveyInfoAndMedia x:Name="SurveyInfoAndMedia"/>
-                                </toolkit:SettingsCard>
-                            </toolkit:SettingsExpander.Items>
-                        </toolkit:SettingsExpander>
-                       
-                        <!--Calibration-->
-                        <toolkit:SettingsCard Header="Calibration"
-                                          ToolTipService.ToolTip="Calibration information for the stereo camera rig.">
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xEB3C;" />
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <!--<ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="MagnifierWindowAutomatic_Toggled" />-->
+                    <toolkit:SettingsExpander.Items>
+                        <toolkit:SettingsCard x:Name="SettingsCardSurveyInfoAndMedia">
+                            <surveyorControls:SurveyInfoAndMedia x:Name="SurveyInfoAndMedia"/>
                         </toolkit:SettingsCard>
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
+                       
+                <!--Calibration-->
+                <toolkit:SettingsCard x:Name="CalibrationExpander" Header="Calibration"
+                                    ToolTipService.ToolTip="Calibration information for the stereo camera rig.">
+                    <toolkit:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xEB3C;" />
+                    </toolkit:SettingsCard.HeaderIcon>
+                    <!--<ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="MagnifierWindowAutomatic_Toggled" />-->
+                </toolkit:SettingsCard>
 
-                        <!--Survey Rules-->
-                        <toolkit:SettingsExpander Header="Survey Rules" x:Name="SettingsExpanderSurveyRules">
-                            <toolkit:SettingsExpander.HeaderIcon>
-                                <FontIcon Glyph="&#xE73E;" />
-                            </toolkit:SettingsExpander.HeaderIcon>
-                            <ToggleSwitch x:Name="surveyRulesActive" IsOn="{x:Bind survey.Data.SurveyRules.SurveyRulesActive, Mode=TwoWay}"/>
+                <!--Survey Rules-->
+                <toolkit:SettingsExpander  x:Name="SettingsExpanderSurveyRules" Header="Survey Rules">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE73E;" />
+                    </toolkit:SettingsExpander.HeaderIcon>
+                    <ToggleSwitch x:Name="surveyRulesActive" IsOn="{x:Bind survey.Data.SurveyRules.SurveyRulesActive, Mode=TwoWay}"/>
                             
-                            <toolkit:SettingsExpander.Items>
-                                <surveyorControls:SettingsSurveyRules x:Name="SettingsSurveyRules"/>
-                            </toolkit:SettingsExpander.Items>
-                        </toolkit:SettingsExpander>
-
+                    <toolkit:SettingsExpander.Items>
+                        <surveyorControls:SettingsSurveyRules x:Name="SettingsSurveyRules"/>
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
 
+                    <!--</toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>-->
 
-                <!--GENERAL SETTINGS-->
+
+                <!--SYSTEM SETTINGS-->
+                <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="System Settings"  MaxWidth="1200"/>
+
+                <!--SYSTEM SETTINGS > GENERAL SETTINGS-->
                 <toolkit:SettingsExpander x:Name="GeneralSettingsExpander" Header="General Settings" MaxWidth="1200">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE115;" />
@@ -170,8 +173,8 @@
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
 
-                
-                <!-- SPECIES CODE LIST -->
+
+                <!-- SYSTEM SETTINGS > SPECIES CODE LIST -->
                 <toolkit:SettingsExpander x:Name="SpeciesCodeListExpander" Header="Species List" MaxWidth="1200">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <BitmapIcon x:Name="SpeciesCodeListIcon" ShowAsMonochrome="False" UriSource="/Assets/fish-dark.png" />
@@ -278,7 +281,7 @@
                 </toolkit:SettingsExpander>
 
 
-                <!-- CAMERA -->
+                <!-- SYSTEM SETTINGS > CAMERA -->
                 <toolkit:SettingsExpander x:Name="CameraExpander" Header="Camera" Description="GoPro setup instructions" MaxWidth="1200">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE722;" />

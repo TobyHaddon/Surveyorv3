@@ -77,7 +77,6 @@ namespace Surveyor
         // Internet connection status and management
         internal NetworkManager networkManager;
         private bool? isOnlineRememberedStatus = null;
-        private readonly string? networkIndicatorIndictorText = null;
         private bool? useInternetRememberedEnabled = null;
 
         // Internet Download/Upload manager
@@ -140,7 +139,6 @@ namespace Surveyor
             networkManager = new(report);
 
             // Set the Network Connection title bar icon
-            networkIndicatorIndictorText = NetworkConnectionIndicator.Text;
             NetworkConnectionIndicator.Text = "    ";
             networkManager.RegisterAction((_isOnline, _isMetered, _bars) =>
             {

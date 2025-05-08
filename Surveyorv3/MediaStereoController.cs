@@ -1801,10 +1801,14 @@ namespace Surveyor
                 // Setup the coord of a Survey Point (point on left camera only)
                 else if (eventDataType == SurveyDataType.SurveyPoint && evt.EventData is not null)
                 {
-                    SurveyPoint surveyPoint = (SurveyPoint)evt.EventData;
+                    if (cameraSide != eCameraSide.None)
+                    {
+                        SurveyPoint surveyPoint = (SurveyPoint)evt.EventData;
 
-                    surveyPoint.X = TruePointAFalsePointB ? pointA!.Value.X : pointB!.Value.X;
-                    surveyPoint.Y = TruePointAFalsePointB ? pointA!.Value.Y : pointB!.Value.Y;                    
+                        surveyPoint.X = TruePointAFalsePointB ? pointA!.Value.X : pointB!.Value.X;
+                        surveyPoint.Y = TruePointAFalsePointB ? pointA!.Value.Y : pointB!.Value.Y;
+                        surveyPoint.TrueLeftfalseRight = cameraSide == eCameraSide.Left;
+                    }
                 }
 
 
@@ -1812,6 +1816,23 @@ namespace Surveyor
                 SpeciesInfo specifiesInfo = new();
                 if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo, speciesImageCache) == true)
                 {
+                    bool add = false;
+
+                    if (mediaTimelineController is not null)
+                    {
+                        // Assign the media poistions
+                        TimeSpan? timelineConntrollerPoistion = mediaTimelineController.Position;
+                        TimeSpan? leftPosition = mediaPlayerLeft.Position;
+                        TimeSpan? rightPosition = mediaPlayerRight.Position;
+
+                        if (leftPosition is not null && rightPosition is not null)
+                        {
+                            evt.TimeSpanTimelineController = (TimeSpan)timelineConntrollerPoistion;
+                            evt.TimeSpanLeftFrame = (TimeSpan)leftPosition;
+                            evt.TimeSpanRightFrame = (TimeSpan)rightPosition;
+                        }
+                    }
+
                     if (eventDataType == SurveyDataType.SurveyStereoPoint && evt.EventData is not null)
                     {
                         SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
@@ -1821,48 +1842,42 @@ namespace Surveyor
                         bool isReady = await mainWindow.CheckIfMeasurementSetupIsReady();
                         if (isReady)
                         {
+                            // This call calculates the distance, range, X & Y offset between
+                            // the camera system mid-point and the measurement point mid-point
+                            // Note false is returned if there is an error (i.e. it's not that a rules was broken)
+                            if (mainWindow.DoRulesCalculations(surveyStereoPoint) == true)
+                                add = true;
 
-                            // This call calculates the distance, range, X & Y offset between the camera system mid-point and the measurement point mid-point
-                            if (mediaTimelineController is not null && mainWindow.DoRulesCalculations(surveyStereoPoint) == true)
-                            {
-
-                                TimeSpan? timelineConntrollerPoistion = mediaTimelineController.Position;
-                                TimeSpan? leftPosition = mediaPlayerLeft.Position;
-                                TimeSpan? rightPosition = mediaPlayerRight.Position;
-
-                                if (leftPosition is not null && rightPosition is not null)
-                                {
-                                    evt.TimeSpanTimelineController = (TimeSpan)timelineConntrollerPoistion;
-                                    evt.TimeSpanLeftFrame = (TimeSpan)leftPosition;
-                                    evt.TimeSpanRightFrame = (TimeSpan)rightPosition;
-
-                                    // Add the species info to the Events list
-                                    //EventCo
-                                    eventsControl?.AddEvent(evt);
-
-                                    // Remove targets
-                                    ClearCachedTargets();
-#if !No_MagnifyAndMarkerDisplay
-                                    magnifyAndMarkerDisplayLeft.SetTargets(null, null);
-                                    magnifyAndMarkerDisplayRight.SetTargets(null, null);
-#endif
-                                }
-
-                                stereoProjection.PointsClear();
-                            }
+                            stereoProjection.PointsClear();
                         }
 
                     }
                     else if (eventDataType == SurveyDataType.SurveyPoint && evt.EventData is not null)
                     {
+                        // There are no rules for a single point so just add it to the events list
                         SurveyPoint surveyPoint = (SurveyPoint)evt.EventData;
                         surveyPoint.SpeciesInfo = specifiesInfo;
+
+                        add = true;
                     }
 
-                }                
+                    // Add the event to the Events list
+                    if (add)
+                    {
+                        // Add measurement to the Events list
+                        eventsControl?.AddEvent(evt);
+
+                        // Remove targets
+                        ClearCachedTargets();
+#if !No_MagnifyAndMarkerDisplay
+                        magnifyAndMarkerDisplayLeft.SetTargets(null, null);
+                        magnifyAndMarkerDisplayRight.SetTargets(null, null);
+#endif
+
+                    }
+                }
             }
         }
-
 
 
         /// <summary>

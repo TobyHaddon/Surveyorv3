@@ -47,6 +47,7 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -54,6 +55,7 @@ using Microsoft.UI.Xaml.Shapes;
 using Surveyor.Events;
 using Surveyor.Helper;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Diagnostics;
@@ -63,7 +65,9 @@ using System.Threading;
 using Windows.Foundation;               // Point class
 using Windows.Graphics.Imaging;         // BitmapTransform
 using Windows.Storage.Streams;
+using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.User_Controls.SettingsWindowEventData;
+//???using static System.Net.Mime.MediaTypeNames;
 
 
 namespace Surveyor.User_Controls
@@ -78,7 +82,7 @@ namespace Surveyor.User_Controls
         private SurveyorMediator? _mediator;
 
         // Declare the mediator handler
-        private MagnifyAndMarkerControlHandler? _magnifyAndMarkerControlHandler;
+        private MagnifyAndMarkerControlHandler? magnifyAndMarkerControlHandler;
 
         // Which camera side 'L' or 'R'
         public enum CameraSide { None, Left, Right };
@@ -162,9 +166,13 @@ namespace Surveyor.User_Controls
         private readonly Brush epipolarBLineColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 10, 228, 30));
 
 
-        // Selected measurement markers
+        // Selected targets set by this UserControl instance
         private Point? pointTargetA = null;
         private Point? pointTargetB = null;
+
+        // If targets have been selected on the other UserControl instance
+        private bool otherInstanceTargetASet = false;
+        private bool otherInstanceTargetBSet = false;
 
         // Events (existing measurements etc)
         private ObservableCollection<Event>? events = null;
@@ -205,10 +213,6 @@ namespace Surveyor.User_Controls
             All = Events | EventsDetail | Epipolar
         };
         private LayerType layerTypesDisplayed = LayerType.All;
-
-        // Targets status of the other instance
-        private bool otherInstanceTargetASet = false;
-        private bool otherInstanceTargetBSet = false;
 
         // Context Menu status        
         private bool canvasMagContextMenuOpen = false;
@@ -256,9 +260,9 @@ namespace Surveyor.User_Controls
             _mediator = __mediator;
             _mainWindow = __mainWindow;
 
-            _magnifyAndMarkerControlHandler = new MagnifyAndMarkerControlHandler(_mediator, this, _mainWindow);
+            magnifyAndMarkerControlHandler = new MagnifyAndMarkerControlHandler(_mediator, this, _mainWindow);
 
-            return _magnifyAndMarkerControlHandler;
+            return magnifyAndMarkerControlHandler;
         }
 
 
@@ -550,74 +554,249 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void DisplayCanvasContextMenu(object sender, PointerRoutedEventArgs e)
+        private async void DisplayCanvasContextMenu(object sender, PointerRoutedEventArgs e)
         {
-            Debug.WriteLine($"hoveringOver:  TargetTrueAFalseB = {hoveringOverTargetTrueAFalseB},  MeasurementEnd={hoveringOverMeasurementEnd}, MeasurementLine={hoveringOverMeasurementLine}, Details={hoveringOverDetails}, Point={hoveringOverPoint}");
-            Debug.WriteLine($"otherInstance TargetASet = {otherInstanceTargetASet},  TargetBSet = {otherInstanceTargetBSet}");
+            // Get a list of events than for for the current frame
+            // If there is only one event we know all context menu options relate to that event
+            // If there are multiple events then we need to check which event the user is hovering over
+            List<Event> eventsForThisFrame = GetEventsForThisFrame();
 
+            Debug.WriteLine($"DisplayCanvasContextMenu HoveringOver:  TargetTrueAFalseB = {hoveringOverTargetTrueAFalseB},  MeasurementEnd={hoveringOverMeasurementEnd}, MeasurementLine={hoveringOverMeasurementLine}, Details={hoveringOverDetails}, Point={hoveringOverPoint}");
+            Debug.WriteLine($"DisplayCanvasContextMenu OtherInstance TargetASet = {otherInstanceTargetASet},  TargetBSet = {otherInstanceTargetBSet}");
+            Debug.WriteLine($"DisplayCanvasContextMenu Count event for this frame = {eventsForThisFrame.Count}");
+
+            // Find the context menu in the resources
             if (this.Resources.TryGetValue("CanvasContextMenu", out object obj) && obj is MenuFlyout menuFlyout)
             {
-                // Enable/Disable menu items
-                if (hoveringOverTargetTrueAFalseB is not null)
+                // Add Measurement Point
+                // Requirement: There is a pair of targets set on this instance and the other instance
+                if (pointTargetA is not null && pointTargetB is not null && otherInstanceTargetASet && otherInstanceTargetBSet)
+                {
+                    CanvasFrameMenuAddMeasurement.IsEnabled = true;
+                }
+                else
+                {
+                    CanvasFrameMenuAddMeasurement.IsEnabled = false;
+                }
+
+                // Add 3D Point
+                // Requirement: There is at least one target set on this instance and the other instance
+                //              If their is two target points set on this instance we must be hovering over
+                //              one of them (so we know which one to use)
+                // Simple case one target set on this instance and the corresponding one on other instance
+                if (pointTargetA is not null && pointTargetB is null && otherInstanceTargetASet)
+                {
+                    CanvasFrameMenuAdd3DPoint.IsEnabled = true;
+                }
+                else if (pointTargetB is not null && pointTargetA is null && otherInstanceTargetBSet)
+                {
+                    CanvasFrameMenuAdd3DPoint.IsEnabled = true;
+                }
+                // Hovering over Target A and their is a corresponding point on the other instance
+                else if (hoveringOverTargetTrueAFalseB == true && pointTargetA is not null && otherInstanceTargetASet)
+                {
+                    CanvasFrameMenuAdd3DPoint.IsEnabled = true;
+                }
+                // Hovering over Target B and their is a corresponding point on the other instance
+                else if (hoveringOverTargetTrueAFalseB == false && pointTargetB is not null && otherInstanceTargetBSet)
+                {
+                    CanvasFrameMenuAdd3DPoint.IsEnabled = true;
+                }
+                else
+                {
+                    CanvasFrameMenuAdd3DPoint.IsEnabled = false;
+                }
+
+                // Add Single Point
+                // Requirement: There is at least one target set on this instance 
+                // Simple case one target set on this instance 
+                if (pointTargetA is not null & pointTargetB is null)
                 {
                     CanvasFrameMenuAddSinglePoint.IsEnabled = true;
-                    CanvasFrameMenuDeleteTarget.IsEnabled = true;
+                }
+                else if (pointTargetA is null & pointTargetB is not null)
+                {
+                    CanvasFrameMenuAddSinglePoint.IsEnabled = true;
+                }
+                // Hovering over Target A 
+                else if (hoveringOverTargetTrueAFalseB == true && pointTargetA is not null)
+                {
+                    CanvasFrameMenuAddSinglePoint.IsEnabled = true;
+                }
+                // Hovering over Target B 
+                else if (hoveringOverTargetTrueAFalseB == false && pointTargetB is not null)
+                {
+                    CanvasFrameMenuAddSinglePoint.IsEnabled = true;
                 }
                 else
                 {
                     CanvasFrameMenuAddSinglePoint.IsEnabled = false;
-                    CanvasFrameMenuDeleteTarget.IsEnabled = false;
                 }
 
-                // Enable the Add Stereo Point menu item if the other instance has a target set
-                if ((hoveringOverTargetTrueAFalseB == true && otherInstanceTargetASet == true) || (hoveringOverTargetTrueAFalseB == false && otherInstanceTargetBSet == true))
-                    CanvasFrameMenuAdd3DPoint.IsEnabled = true;
-                else
-                    CanvasFrameMenuAdd3DPoint.IsEnabled = false;
-
-                // Hovering over the dimension line
-                if (hoveringOverMeasurementEnd == true || hoveringOverMeasurementLine == true)
-                    CanvasFrameMenuDeleteMeasurement.IsEnabled = true;
-                else
-                    CanvasFrameMenuDeleteMeasurement.IsEnabled = false;
-
-                // Hovering over a point 
-                if (hoveringOverPoint == true)
-                    CanvasFrameMenuDeleteTarget.IsEnabled = true;
-                else
-                    CanvasFrameMenuDeleteTarget.IsEnabled = false;
-
-                // Hovering over a measurement line or end
-                if (hoveringOverMeasurementEnd == true || hoveringOverMeasurementLine == true)
-                    CanvasFrameMenuEditMeasurementTargets.IsEnabled = true;
-                else
-                    CanvasFrameMenuEditMeasurementTargets.IsEnabled = false;
-
-                // Are we hovering over the species info details
-                if (hoveringOverDetails == true)
+                // Delete Target
+                // Requirement: There is at least one target set on this instance
+                // Simple case one target set on this instance
+                if (pointTargetA is not null && pointTargetB is null)
                 {
-                    // Enable the Edit Species Info menu item
-                    CanvasFrameMenuEditSpeciesInfo.IsEnabled = true;
-
-                    // Check which event data type we are hovering over
-                    Event? targetEvent = events?.FirstOrDefault(e => e.Guid == hoveringOverGuid);
-                    if (targetEvent is not null)
-                    {
-                        // If the species info details is a point then enable the delete point menu item
-                        if (targetEvent.EventDataType == SurveyDataType.SurveyPoint || targetEvent.EventDataType == SurveyDataType.SurveyStereoPoint)
-                            CanvasFrameMenuDeleteTarget.IsEnabled = true;
-                        else
-                            CanvasFrameMenuDeleteTarget.IsEnabled = false;
-
-                        // If the species info details is a measurement then enable the delete measurement menu item
-                        if (targetEvent.EventDataType == SurveyDataType.SurveyMeasurementPoints)
-                            CanvasFrameMenuDeleteMeasurement.IsEnabled = true;
-                        else
-                            CanvasFrameMenuDeleteMeasurement.IsEnabled = false;
-                    }
+                    CanvasFrameMenuDeleteTarget.IsEnabled = true;
+                }
+                else if (pointTargetA is null && pointTargetB is not null)
+                {
+                    CanvasFrameMenuDeleteTarget.IsEnabled = true;
+                }
+                // Hovering over Target A 
+                else if (hoveringOverTargetTrueAFalseB == true && pointTargetA is not null)
+                {
+                    CanvasFrameMenuDeleteTarget.IsEnabled = true;
+                }
+                // Hovering over Target B 
+                else if (hoveringOverTargetTrueAFalseB == false && pointTargetB is not null)
+                {
+                    CanvasFrameMenuDeleteTarget.IsEnabled = true;
                 }
                 else
+                {
+                    CanvasFrameMenuDeleteTarget.IsEnabled = false;
+                }
+
+                // Delete All Targets
+                // Requirement: There is at least one target set on this instance or the other instance
+                CanvasFrameMenuDeleteAllTargets.IsEnabled = false;
+                if (pointTargetA is not null || pointTargetB is not null || otherInstanceTargetASet || otherInstanceTargetBSet)
+                {
+                    CanvasFrameMenuDeleteAllTargets.IsEnabled = true;
+                }
+                else
+                {
+                    CanvasFrameMenuDeleteAllTargets.IsEnabled = false;
+                }
+
+                // Delete Measurement
+                // Reqirement: There is at least one measurement event set on this instance
+                // Check events list for an existing measurement event of type Meassurment
+                int countMeasurements = eventsForThisFrame.Count(e => e.EventDataType == SurveyDataType.SurveyMeasurementPoints);
+
+                if (countMeasurements > 0)
+                {
+                    CanvasFrameMenuDeleteMeasurement.IsEnabled = true;
+                }
+                else
+                {
+                    CanvasFrameMenuDeleteMeasurement.IsEnabled = false;
+                }
+
+                // Delete 3D Point
+                // Reqirement: There is at least one 3D Point set on this instance
+                int count3DPoints = eventsForThisFrame.Count(e => e.EventDataType == SurveyDataType.SurveyStereoPoint);
+
+                if (count3DPoints > 0)
+                {
+                    CanvasFrameMenuDelete3DPoint.IsEnabled = true;
+                }
+                else
+                {
+                    CanvasFrameMenuDelete3DPoint.IsEnabled = false;
+                }
+
+                // Delete Single Point
+                // Requirement: There is at least one point set on this instance
+                int countSinglePoints = eventsForThisFrame.Count(e => e.EventDataType == SurveyDataType.SurveyPoint);
+                if (countSinglePoints > 0)
+                {
+                    CanvasFrameMenuDeleteSinglePoint.IsEnabled = true;
+                }
+                else
+                {
+                    CanvasFrameMenuDeleteSinglePoint.IsEnabled = false;
+                }
+
+                // Edit Species Info
+                // Requirement: There is at least one Measurement, 3D Point or Single Point set on this instance
+                // i.e. any Event that can have a Species Info
+                if (countMeasurements > 0 || count3DPoints > 0 || countSinglePoints > 0)
+                {
+                    CanvasFrameMenuEditSpeciesInfo.IsEnabled = true;
+                }
+                else
+                {
                     CanvasFrameMenuEditSpeciesInfo.IsEnabled = false;
+                }
+
+                // Edit Measurement Targets
+                // Requirement: There is at least one Measurement event set on this instance
+                if (countMeasurements > 0)
+                {
+                    CanvasFrameMenuEditMeasurementTargets.IsEnabled = true;
+                }
+                else
+                {
+                    CanvasFrameMenuEditMeasurementTargets.IsEnabled = false;
+                }
+
+
+
+                //???// Enable/Disable menu items
+                //if (hoveringOverTargetTrueAFalseB is not null)
+                //{
+                //    CanvasFrameMenuAddSinglePoint.IsEnabled = true;
+                //    CanvasFrameMenuDeleteTarget.IsEnabled = true;
+                //}
+                //else
+                //{
+                //    CanvasFrameMenuAddSinglePoint.IsEnabled = false;
+                //    CanvasFrameMenuDeleteTarget.IsEnabled = false;
+                //}
+
+                //// Enable the Add Stereo Point menu item if the other instance has a target set
+                //if ((hoveringOverTargetTrueAFalseB == true && otherInstanceTargetASet == true) || (hoveringOverTargetTrueAFalseB == false && otherInstanceTargetBSet == true))
+                //    CanvasFrameMenuAdd3DPoint.IsEnabled = true;
+                //else
+                //    CanvasFrameMenuAdd3DPoint.IsEnabled = false;
+
+                //// Hovering over the dimension line
+                //if (hoveringOverMeasurementEnd == true || hoveringOverMeasurementLine == true)
+                //    CanvasFrameMenuDeleteMeasurement.IsEnabled = true;
+                //else
+                //    CanvasFrameMenuDeleteMeasurement.IsEnabled = false;
+
+                //// Hovering over a point 
+                //if (hoveringOverPoint == true)
+                //    CanvasFrameMenuDeleteTarget.IsEnabled = true;
+                //else
+                //    CanvasFrameMenuDeleteTarget.IsEnabled = false;
+
+                //// Hovering over a measurement line or end
+                //if (hoveringOverMeasurementEnd == true || hoveringOverMeasurementLine == true)
+                //    CanvasFrameMenuEditMeasurementTargets.IsEnabled = true;
+                //else
+                //    CanvasFrameMenuEditMeasurementTargets.IsEnabled = false;
+
+                //// Are we hovering over the species info details
+                //if (hoveringOverDetails == true)
+                //{
+                //    // Enable the Edit Species Info menu item
+                //    CanvasFrameMenuEditSpeciesInfo.IsEnabled = true;
+
+                //    // Check which event data type we are hovering over
+                //    Event? targetEvent = events?.FirstOrDefault(e => e.Guid == hoveringOverGuid);
+                //    if (targetEvent is not null)
+                //    {
+                //        // If the species info details is a point then enable the delete point menu item
+                //        if (targetEvent.EventDataType == SurveyDataType.SurveyPoint || targetEvent.EventDataType == SurveyDataType.SurveyStereoPoint)
+                //            CanvasFrameMenuDeleteTarget.IsEnabled = true;
+                //        else
+                //            CanvasFrameMenuDeleteTarget.IsEnabled = false;
+
+                //        // If the species info details is a measurement then enable the delete measurement menu item
+                //        if (targetEvent.EventDataType == SurveyDataType.SurveyMeasurementPoints)
+                //            CanvasFrameMenuDeleteMeasurement.IsEnabled = true;
+                //        else
+                //            CanvasFrameMenuDeleteMeasurement.IsEnabled = false;
+                //    }
+                //}
+                //else
+                //    CanvasFrameMenuEditSpeciesInfo.IsEnabled = false;
+
 
                 // Show the context menu
                 menuFlyout.ShowAt(sender as FrameworkElement, new FlyoutShowOptions
@@ -953,7 +1132,7 @@ namespace Surveyor.User_Controls
                     pointA = pointTargetA,
                     pointB = pointTargetB
                 };
-                _magnifyAndMarkerControlHandler?.Send(data);
+                magnifyAndMarkerControlHandler?.Send(data);
             }
 
 
@@ -1043,7 +1222,7 @@ namespace Surveyor.User_Controls
             {
                 magWindowSize = MagWindowGetSizeName()
             };
-            _magnifyAndMarkerControlHandler?.Send(data);
+            magnifyAndMarkerControlHandler?.Send(data);
         }
 
 
@@ -1063,7 +1242,7 @@ namespace Surveyor.User_Controls
             {
                 magWindowSize = MagWindowGetSizeName()
             };
-            _magnifyAndMarkerControlHandler?.Send(data);
+            magnifyAndMarkerControlHandler?.Send(data);
         }
 
 
@@ -1082,7 +1261,7 @@ namespace Surveyor.User_Controls
             {
                 canvasZoomFactor = canvasZoomFactor
             };
-            _magnifyAndMarkerControlHandler?.Send(data);
+            magnifyAndMarkerControlHandler?.Send(data);
         }
 
 
@@ -1101,7 +1280,7 @@ namespace Surveyor.User_Controls
             {
                 canvasZoomFactor = canvasZoomFactor
             };
-            _magnifyAndMarkerControlHandler?.Send(data);
+            magnifyAndMarkerControlHandler?.Send(data);
         }
 
 
@@ -1128,7 +1307,8 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Canvas Frame Context Menu
+        /// Canvas Context Menu (Add measurement, add 3D point, edit species etc etc)
+        /// Use if any of the Canvas Context Menu items are selected
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -1158,7 +1338,7 @@ namespace Surveyor.User_Controls
                             data.pointA = null;
                             data.pointB = hoveringOverTargetPoint;
                         }
-                        _magnifyAndMarkerControlHandler?.Send(data);
+                        magnifyAndMarkerControlHandler?.Send(data);
                     }
                 }
                 // Context menu - Delete the Target on the Canvas Frame we are hoving over
@@ -1179,7 +1359,7 @@ namespace Surveyor.User_Controls
 
                         if (hoveringOverGuid is not null && events is not null)
                         {
-                            // Loop through the events and draw them on the canvas
+                            // Loop through the events and remove them from the canvas
                             foreach (Event evt in events)
                             {
                                 if (evt.Guid == hoveringOverGuid)
@@ -1192,6 +1372,16 @@ namespace Surveyor.User_Controls
 
                         hoveringOverTargetTrueAFalseB = null;
                     }
+                }
+                // Context meu - Delete all targets
+                else if (item == CanvasFrameMenuDeleteAllTargets)
+                {
+                    // Reset the targets
+                    ResetAllTargets();
+
+                    // Signal to the other instance to delete all their targets
+                    magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.TargetDeleteAll,
+                                                            CameraLeftRight == CameraSide.Left ? SurveyorMediaPlayer.eCameraSide.Left : SurveyorMediaPlayer.eCameraSide.Right));
                 }
                 // Context menu request to delete a measurement or point from the events list
                 else if (item == CanvasFrameMenuDeleteMeasurement || item == CanvasFrameMenuDelete3DPoint || item == CanvasFrameMenuDeleteSinglePoint) 
@@ -1220,7 +1410,7 @@ namespace Surveyor.User_Controls
                         {
                             eventGuid = hoveringOverGuid
                         };
-                        _magnifyAndMarkerControlHandler?.Send(data);
+                        magnifyAndMarkerControlHandler?.Send(data);
                     }
                 }
                 else if (item == CanvasFrameMenuEditMeasurementTargets) 
@@ -2181,66 +2371,86 @@ namespace Surveyor.User_Controls
             // Check if the events are to be displayed
             if ((layerTypesDisplayed & LayerType.Events) != 0)
             {
-                if (events is not null && events.Count > 0 && position is not null)
+                List<Event> eventsForThisFrame = GetEventsForThisFrame();
+
+                // Loop through the events and draw them on the canvas
+                foreach (Event evt in eventsForThisFrame)
                 {
-                    // Loop through the events and draw them on the canvas
-                    foreach (Event evt in events)
+                    // Draw the SurveyMeasurement
+                    if (evt.EventData is SurveyMeasurement surveyMeasurement)
                     {
-                        // Is the event for this frame?
-                        if ((CameraLeftRight == CameraSide.Left && evt.TimeSpanLeftFrame == position) ||
-                            (CameraLeftRight == CameraSide.Right&& evt.TimeSpanRightFrame == position))
+                        Point pointA;
+                        Point pointB;
+
+                        // Points definition
+                        if (CameraLeftRight == CameraSide.Left)
                         {
-                            // Draw the SurveyMeasurement
-                            if (evt.EventData is SurveyMeasurement surveyMeasurement)
-                            {
-                                Point pointA;
-                                Point pointB;
-
-                                // Points definition
-                                if (CameraLeftRight == CameraSide.Left)
-                                {
-                                    pointA = new(surveyMeasurement.LeftXA, surveyMeasurement.LeftYA);
-                                    pointB = new(surveyMeasurement.LeftXB, surveyMeasurement.LeftYB);
-                                }
-                                else
-                                {
-                                    pointA = new(surveyMeasurement.RightXA, surveyMeasurement.RightYA);
-                                    pointB = new(surveyMeasurement.RightXB, surveyMeasurement.RightYB);
-                                }
+                            pointA = new(surveyMeasurement.LeftXA, surveyMeasurement.LeftYA);
+                            pointB = new(surveyMeasurement.LeftXB, surveyMeasurement.LeftYB);
+                        }
+                        else
+                        {
+                            pointA = new(surveyMeasurement.RightXA, surveyMeasurement.RightYA);
+                            pointB = new(surveyMeasurement.RightXB, surveyMeasurement.RightYB);
+                        }
 
 
-                                if (surveyMeasurement is not null && surveyMeasurement.Measurment is not null)
-                                    DrawEventStereoMeasurementPoints(evt.Guid, pointA, pointB, surveyMeasurement.SpeciesInfo, (double)surveyMeasurement.Measurment);
-                            }
-                            // Draw the SurveyStereoPoint
-                            else if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
-                            {
-                                Point point;
+                        if (surveyMeasurement is not null && surveyMeasurement.Measurment is not null)
+                            DrawEventStereoMeasurementPoints(evt.Guid, pointA, pointB, surveyMeasurement.SpeciesInfo, (double)surveyMeasurement.Measurment);
+                    }
+                    // Draw the SurveyStereoPoint
+                    else if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
+                    {
+                        Point point;
 
-                                // Point definition
-                                if (CameraLeftRight == CameraSide.Left)
-                                    point = new(surveyStereoPoint.LeftX, surveyStereoPoint.LeftY);
-                                else
-                                    point = new(surveyStereoPoint.RightX, surveyStereoPoint.RightY);
+                        // Point definition
+                        if (CameraLeftRight == CameraSide.Left)
+                            point = new(surveyStereoPoint.LeftX, surveyStereoPoint.LeftY);
+                        else
+                            point = new(surveyStereoPoint.RightX, surveyStereoPoint.RightY);
 
 
-                                if (surveyStereoPoint is not null)
-                                    DrawEventPoint(evt.Guid, point, surveyStereoPoint.SpeciesInfo);
-                            }
-                            // Draw the SurveyPoint
-                            else if (evt.EventData is SurveyPoint surveyPoint)
-                            {
-                                // Point definition on left side only
-                                if (CameraLeftRight == CameraSide.Left)
-                                {
-                                    Point point = new(surveyPoint.X, surveyPoint.Y);
-                                    DrawEventPoint(evt.Guid, point, surveyPoint.SpeciesInfo);
-                                }
-                            }
+                        if (surveyStereoPoint is not null)
+                            DrawEventPoint(evt.Guid, point, surveyStereoPoint.SpeciesInfo);
+                    }
+                    // Draw the SurveyPoint
+                    else if (evt.EventData is SurveyPoint surveyPoint)
+                    {
+                        // Point definition on left side only
+                        if (CameraLeftRight == CameraSide.Left)
+                        {
+                            Point point = new(surveyPoint.X, surveyPoint.Y);
+                            DrawEventPoint(evt.Guid, point, surveyPoint.SpeciesInfo);
                         }
                     }
                 }
             }
+        }
+
+
+        /// <summary>
+        /// Return a list of events for this frame
+        /// </summary>
+        /// <returns></returns>
+        private List<Event> GetEventsForThisFrame()
+        {
+            List<Event> eventsForThisFrame = [];
+
+            if (events is not null && events.Count > 0 && position is not null)
+            {
+                // Loop through the events and draw them on the canvas
+                foreach (Event evt in events)
+                {
+                    // Is the event for this frame?
+                    if ((CameraLeftRight == CameraSide.Left && evt.TimeSpanLeftFrame == position) ||
+                        (CameraLeftRight == CameraSide.Right && evt.TimeSpanRightFrame == position))
+                    {
+                        eventsForThisFrame.Add(evt);
+                    }
+                }
+            }
+
+            return eventsForThisFrame;
         }
 
 
@@ -2283,7 +2493,7 @@ namespace Surveyor.User_Controls
                     data.pointA = pointTargetA;
                 else
                     data.pointB = pointTargetB;
-                _magnifyAndMarkerControlHandler?.Send(data);
+                magnifyAndMarkerControlHandler?.Send(data);
 
                 
             }
@@ -2396,8 +2606,23 @@ namespace Surveyor.User_Controls
                     pointA = null,
                     pointB = null
                 };
-                _magnifyAndMarkerControlHandler?.Send(data);
+                magnifyAndMarkerControlHandler?.Send(data);
             }
+        }
+
+
+        /// <summary>
+        /// Reset all the target 
+        /// Called from this instance and via mediator from the sibling instnace
+        /// </summary>
+        internal void  ResetAllTargets()
+        {
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraLeftRight}: ResetAllTargets");
+
+            ResetTargetOnCanvasFrame(TargetA);
+            ResetTargetOnCanvasMag(TargetAMag);
+            ResetTargetOnCanvasFrame(TargetB);
+            ResetTargetOnCanvasMag(TargetBMag);
         }
 
 
@@ -2849,6 +3074,7 @@ namespace Surveyor.User_Controls
         public enum MagnifyAndMarkerControlEvent
         {
             TargetPointSelected,
+            TargetDeleteAll,
             SurveyMeasurementPairSelected,
             SurveyPointSelected,
             EditSpeciesInfoRequest,
@@ -2913,6 +3139,19 @@ namespace Surveyor.User_Controls
                             //SafeUICall(() => _magnifyAndMarkerControl.SetEpipolarPoints(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
                             //                                                            data.pointNear, data.pointMiddle, data.pointFar,
                             //                                                            data.channelWidth));
+                            break;                        
+                    }
+                }
+            }
+            else if (message is MagnifyAndMarkerControlEventData)
+            {
+                MagnifyAndMarkerControlEventData data = (MagnifyAndMarkerControlEventData)message;
+                {
+                    // Message from the sibling control
+                    switch (data.magnifyAndMarkerControlEvent)
+                    {
+                        case MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.TargetDeleteAll:
+                            SafeUICall(() => _magnifyAndMarkerControl.ResetAllTargets());
                             break;
                     }
                 }
@@ -2942,13 +3181,13 @@ namespace Surveyor.User_Controls
 
                 switch (data.settingsWindowEvent)
                 {
-                // The user has changed the Diagnostic Information settings
-                case eSettingsWindowEvent.DiagnosticInformation:
-                    if (data.diagnosticInformation is not null)
-                    {
-                        _magnifyAndMarkerControl._SetDiagnosticInformation((bool)data!.diagnosticInformation);
-                    }
-                    break;
+                    // The user has changed the Diagnostic Information settings
+                    case eSettingsWindowEvent.DiagnosticInformation:
+                        if (data.diagnosticInformation is not null)
+                        {
+                            _magnifyAndMarkerControl._SetDiagnosticInformation((bool)data!.diagnosticInformation);
+                        }
+                        break;
                 }
             }
         }

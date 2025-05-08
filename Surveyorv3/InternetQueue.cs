@@ -141,6 +141,7 @@ namespace Surveyor
         {
             try
             {
+                // Get StoreageItem
                 IStorageItem item = await ApplicationData.Current.LocalFolder.TryGetItemAsync(storageFile);
                 if (item is not StorageFile file)
                 {
@@ -149,9 +150,23 @@ namespace Surveyor
                     return;
                 }
 
+                // Check if data file is zero bytes. If so delete.
+                var fileProperties = await file.GetBasicPropertiesAsync();
+                if (fileProperties.Size == 0)
+                {
+                    Debug.WriteLine($"InternetQueue.Load '{storageFile}' is zero-length, deleting...");
+                    await file.DeleteAsync();
+
+                    // Mark the class as ready
+                    isReady = true;
+                    return;
+                }
+
+                // Read the json data file from the local folder
                 string json = await FileIO.ReadTextAsync(file);
                 transferItems.Clear();
 
+                // Parse the json
                 List<InternetQueueItem>? transferItemList = System.Text.Json.JsonSerializer.Deserialize<List<InternetQueueItem>>(json, CachedJsonSerializerOptions);
 
                 if (transferItemList is not null)
@@ -160,6 +175,7 @@ namespace Surveyor
                     Report?.Info("", $"InternetQueue {transferItems.Count} item(s) loaded from disk");
                 }
 
+                // Mark the class as ready
                 isReady = true;
             }
             catch (FileNotFoundException)
