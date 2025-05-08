@@ -21,7 +21,7 @@ The app allows the user to:
 - 🎥 [Short Test - Left Camera.mp4](https://raw.githubusercontent.com/TobyHaddon/Surveyorv3/master/Surveyorv3/Test%20Data/Short%20Test%20-%20Left%20Camera.mp4)
 - 🎥 [Short Test - Right Camera.mp4](https://raw.githubusercontent.com/TobyHaddon/Surveyorv3/master/Surveyorv3/Test%20Data/Short%20Test%20-%20Right%20Camera.mp4)
 - 📐 [Short Test - Stereo Calibration.json](https://raw.githubusercontent.com/TobyHaddon/Surveyorv3/master/Surveyorv3/Test%20Data/Short%20Test%20-%20Stereo%20Calibration.json)
-
+_(For the .json file right-click the link and choose “Save link as…” to download.)_
 ---
 
 ## 🧪 Step-by-Step Instructions
@@ -42,8 +42,9 @@ The app allows the user to:
 
 ## 🔁 Sync Videos
 
-1. In the **left video**, pause on frame **172** (torch flash frame)
-2. In the **right video**, pause on frame **179**
+1. In the **left video**, go to rame **16** (the first flashlight flash frame)
+   Best way to do this is to click the frame forward button 16 times or click on the frame index number and enter 16
+2. In the **right video**, pause on frame **17**
 3. Go to **Insert > Lock Media Players**  
    Both players should now sync to one controller
 
