@@ -9,16 +9,56 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-        
-        <!-- RANGE RULE -->
-        <StackPanel Grid.Row="0">
+
+    <toolkit:SettingsExpander  x:Name="SettingsExpanderSurveyRules" Header="Survey Rules">
+        <toolkit:SettingsExpander.HeaderIcon>
+            <FontIcon Glyph="&#xE73E;" />
+        </toolkit:SettingsExpander.HeaderIcon>
+        <ToggleSwitch x:Name="surveyRulesActive" IsOn="{x:Bind surveyRules.SurveyRulesActive, Mode=TwoWay}"/>
+
+        <toolkit:SettingsExpander.Items>
+            <!-- RANGE RULE -->
+            <toolkit:SettingsCard>
+                <Grid HorizontalAlignment="Stretch">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="200" />
+                        <ColumnDefinition Width="200" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock Grid.Row="0" Grid.Column="0" 
+                               Text="Range Rule Active" 
+                               VerticalAlignment="Center"/>
+                    <ToggleSwitch Grid.Row="0" Grid.Column="1" 
+                                  IsOn="{x:Bind surveyRules.SurveyRulesData.RangeRuleActive, Mode=TwoWay}" 
+                                  HorizontalAlignment="Right"/>
+
+                    <TextBlock Grid.Row="1" Grid.Column="0" 
+                               Text="Range Min: " 
+                               VerticalAlignment="Center"/>
+                    
+                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBox Text="{x:Bind surveyRules.SurveyRulesData.RangeMin, Mode=TwoWay}" Width="20" 
+                                 Margin="0,0,0,4"
+                                 TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
+                        <TextBlock Text="m" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                    </StackPanel>
+                    
+                    <TextBlock Grid.Row="2" Grid.Column="0" 
+                               Text="Range Max: " 
+                               VerticalAlignment="Center"/>
+                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBox Text="{x:Bind surveyRules.SurveyRulesData.RangeMax, Mode=TwoWay}" Width="20" TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
+                        <TextBlock Text="m" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                    </StackPanel>
+                </Grid>
+            </toolkit:SettingsCard>
+
+            <!-- RMS RULE -->
             <toolkit:SettingsCard>
                 <Grid>
                     <Grid.RowDefinitions>
@@ -27,56 +67,23 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="525" />
-                        <ColumnDefinition Width="525" />
+                        <ColumnDefinition Width="200" />
+                        <ColumnDefinition Width="200" />
                     </Grid.ColumnDefinitions>
-                                   
-                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Range Rule Active" VerticalAlignment="Center" HorizontalAlignment="left"/>
-                    <ToggleSwitch Grid.Row="0" Grid.Column="1" IsOn="{x:Bind surveyRules.RangeRuleActive, Mode=TwoWay}" HorizontalAlignment="Right"/>
-                    
-                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Range Min: " VerticalAlignment="Center"/>
-                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
-                        <TextBox Text="{x:Bind surveyRules.RangeMin, Mode=TwoWay}" Width="20" TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
-                        <TextBlock Text="m" VerticalAlignment="Center"/>
-                    </StackPanel>
-                    <TextBlock Grid.Row="2" Grid.Column="0" Text="Range Max: " VerticalAlignment="Center"/>
-                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal"  HorizontalAlignment="Right">
-                        <TextBox Text="{x:Bind surveyRules.RangeMax, Mode=TwoWay}" Width="20" TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
-                        <TextBlock Text="m" VerticalAlignment="Center"/>
-                    </StackPanel>
-                </Grid>
-            </toolkit:SettingsCard>
-        </StackPanel>
 
-        <!-- RMS RULE -->
-        <StackPanel  Grid.Row="1" Spacing="16">
-             <toolkit:SettingsCard>
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="525" />
-                        <ColumnDefinition Width="525" />
-                    </Grid.ColumnDefinitions>
-                                        
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="RMS Rule Active" VerticalAlignment="Center" HorizontalAlignment="left"/>
-                    <ToggleSwitch Grid.Row="0" Grid.Column="1" IsOn="{x:Bind surveyRules.RMSRuleActive, Mode=TwoWay}" HorizontalAlignment="Right"/>
+                    <ToggleSwitch Grid.Row="0" Grid.Column="1" IsOn="{x:Bind surveyRules.SurveyRulesData.RMSRuleActive, Mode=TwoWay}" HorizontalAlignment="Right"/>
 
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="RMS Max: " VerticalAlignment="Center"/>
 
                     <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal"   HorizontalAlignment="Right">
-                        <TextBox Text="{x:Bind surveyRules.RMSMax, Mode=TwoWay}" Width="50" TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"/>
-                        <TextBlock Text="mm" VerticalAlignment="Center"/>
+                        <TextBox Text="{x:Bind surveyRules.SurveyRulesData.RMSMax, Mode=TwoWay}" Width="35" TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"/>
+                        <TextBlock Text="mm" VerticalAlignment="Center" Margin="5,0,0,0"/>
                     </StackPanel>
                 </Grid>
             </toolkit:SettingsCard>
-        </StackPanel>
 
-        <!-- HORIZONTAL RANGE RULE -->
-        <StackPanel  Grid.Row="2" Spacing="16">
+            <!-- HORIZONTAL RANGE RULE -->
             <toolkit:SettingsCard>
                 <Grid>
                     <Grid.RowDefinitions>
@@ -85,30 +92,31 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="525" />
-                        <ColumnDefinition Width="525" />
+                        <ColumnDefinition Width="200" />
+                        <ColumnDefinition Width="200" />
                     </Grid.ColumnDefinitions>
-                    
+
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Horizontal Range Rule Active" VerticalAlignment="Center" HorizontalAlignment="left"/>
-                    <ToggleSwitch Grid.Row="0" Grid.Column="1" IsOn="{x:Bind surveyRules.HorizontalRangeRuleActive, Mode=TwoWay}" HorizontalAlignment="Right"/>
+                    <ToggleSwitch Grid.Row="0" Grid.Column="1" IsOn="{x:Bind surveyRules.SurveyRulesData.HorizontalRangeRuleActive, Mode=TwoWay}" HorizontalAlignment="Right"/>
 
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Horizontal Range Left: " VerticalAlignment="Center"/>
                     <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal"   HorizontalAlignment="Right">
-                        <TextBox Text="{x:Bind surveyRules.HorizontalRangeLeft, Mode=TwoWay}" Width="50" TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
-                        <TextBlock Text="m" VerticalAlignment="Center"/>
+                        <TextBox Text="{x:Bind surveyRules.SurveyRulesData.HorizontalRangeLeft, Mode=TwoWay}" Width="50" 
+                                 Margin="0,0,0,4"
+                                 TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
+                        <TextBlock Text="m" VerticalAlignment="Center" Margin="5,0,0,0"/>
                     </StackPanel>
 
                     <TextBlock Grid.Row="2" Grid.Column="0" Text="Horizontal Range Right: " VerticalAlignment="Center"/>
                     <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal"   HorizontalAlignment="Right">
-                        <TextBox Text="{x:Bind surveyRules.HorizontalRangeRight, Mode=TwoWay}" Width="50" TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
-                        <TextBlock Text="m" VerticalAlignment="Center"/>
+                        <TextBox Text="{x:Bind surveyRules.SurveyRulesData.HorizontalRangeRight, Mode=TwoWay}" Width="50"                                  
+                                 TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
+                        <TextBlock Text="m" VerticalAlignment="Center" Margin="5,0,0,0"/>
                     </StackPanel>
                 </Grid>
             </toolkit:SettingsCard>
-        </StackPanel>
 
-        <!-- VERTICAL RANGE RULE -->
-        <StackPanel  Grid.Row="3" Spacing="16">
+            <!-- VERTICAL RANGE RULE -->
             <toolkit:SettingsCard>
                 <Grid>
                     <Grid.RowDefinitions>
@@ -117,27 +125,33 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="525" />
-                        <ColumnDefinition Width="525" />
+                        <ColumnDefinition Width="200" />
+                        <ColumnDefinition Width="200" />
                     </Grid.ColumnDefinitions>
 
                     <TextBlock Grid.Row="0" Grid.Column="0" Text="Vertical Range Rule Active" VerticalAlignment="Center" HorizontalAlignment="left"/>
-                    <ToggleSwitch Grid.Row="0" Grid.Column="1" IsOn="{x:Bind surveyRules.VerticalRangeRuleActive, Mode=TwoWay}" HorizontalAlignment="Right"/>
+                    <ToggleSwitch Grid.Row="0" Grid.Column="1" IsOn="{x:Bind surveyRules.SurveyRulesData.VerticalRangeRuleActive, Mode=TwoWay}" HorizontalAlignment="Right"/>
 
                     <TextBlock Grid.Row="1" Grid.Column="0" Text="Vertical Range Top: " VerticalAlignment="Center"/>
                     <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal"  HorizontalAlignment="Right">
-                        <TextBox Text="{x:Bind surveyRules.VerticalRangeTop, Mode=TwoWay}" Width="50" TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
-                        <TextBlock Text="m" VerticalAlignment="Center"/>
+                        <TextBox Text="{x:Bind surveyRules.SurveyRulesData.VerticalRangeTop, Mode=TwoWay}" Width="50" 
+                                 Margin="0,0,0,4"
+                                 TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
+                        <TextBlock Text="m" VerticalAlignment="Center" Margin="5,0,0,0"/>
                     </StackPanel>
 
                     <TextBlock Grid.Row="2" Grid.Column="0" Text="Vertical Range Bottom: " VerticalAlignment="Center"/>
                     <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal"  HorizontalAlignment="Right">
-                        <TextBox Text="{x:Bind surveyRules.VerticalRangeBottom, Mode=TwoWay}" Width="50" TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
-                        <TextBlock Text="m" VerticalAlignment="Center"/>
+                        <TextBox Text="{x:Bind surveyRules.SurveyRulesData.VerticalRangeBottom, Mode=TwoWay}" Width="50" 
+                                 TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
+                        <TextBlock Text="m" VerticalAlignment="Center" Margin="5,0,0,0"/>
                     </StackPanel>
-            
+
                 </Grid>
             </toolkit:SettingsCard>
-        </StackPanel>
-    </Grid>
+
+        </toolkit:SettingsExpander.Items>
+    </toolkit:SettingsExpander>
+
+
 </UserControl>

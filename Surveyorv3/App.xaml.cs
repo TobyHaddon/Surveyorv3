@@ -1,19 +1,19 @@
-﻿using Microsoft.UI;
-using Microsoft.UI.Windowing;
+﻿using Emgu.CV.Ocl;
+using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
+using Surveyor.Helper;
 using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-using Windows.ApplicationModel;
-
-
 // Top of App.xaml.cs (before any namespace or class)
 // This is to allow the UnitTestApp to access internal members 
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
-[assembly: InternalsVisibleTo("Surveyor3")]  
+using Windows.ApplicationModel;
+using static Surveyor.Helper.TelemetryLogger;
+[assembly: InternalsVisibleTo("Surveyor3")]
 
 
 namespace Surveyor
@@ -26,6 +26,8 @@ namespace Surveyor
         // Needs to be 'internal' for Unit Testing
         static internal MainWindow? mainWindow;
 
+        // Insights telemetry client
+        private TelemetryClient _telemetryClient;
 
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code
@@ -33,18 +35,37 @@ namespace Surveyor
         /// </summary>
         public App()
         {
-            Microsoft.UI.Xaml.Application.Current.UnhandledException += (sender, e) =>
-            {                
-                mainWindow?.report.Warning("", $"Unhandled XAML exception: {e.Message}");
-            };
+            // Catch unhandled exceptions
+            this.UnhandledException += App_UnhandledException;    
 
             this.InitializeComponent();
 
             // Assuming m_window will be initialized later
-            mainWindow = null!;                                   // TH:Added
+            mainWindow = null!;                                   
 
-            this.UnhandledException += App_UnhandledException;    // TH:Added
+
+#if !DEBUG
+            // Setup Application Insights
+            var telemetryConfiguration = TelemetryConfiguration.CreateDefault();
+
+            // Use your full connection string from Azure here:
+            telemetryConfiguration.ConnectionString = "InstrumentationKey=7054862f-6fba-495a-b6e8-b7f2d765f679;IngestionEndpoint=https://northeurope-2.in.applicationinsights.azure.com/;LiveEndpoint=https://northeurope.livediagnostics.monitor.azure.com/;ApplicationId=85e44611-f20c-4bf1-ba80-9c05a9de8c15";
+
+            _telemetryClient = new TelemetryClient(telemetryConfiguration);
+            TelemetryLogger.Client = _telemetryClient;  // Setup the TelemetryLogger helper class to use this telemetry client
+
+            // Check if the user has requested no telemetry
+            if (SettingsManagerLocal.TelemetryEnabled == false)
+            {
+                telemetryConfiguration.DisableTelemetry = true;
+            }
+
+            // Track app start event
+            TelemetryLogger.TrackAppStartStop(TrackAppStartStopType.AppStart);
+
+#endif
         }
+
 
         /// <summary>
         /// Invoked when the application is launched.
@@ -53,14 +74,22 @@ namespace Surveyor
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             mainWindow = new MainWindow();
-            if (mainWindow is not null)                           // TH:Added
-            {                                                   // TH:Added
+            if (mainWindow is not null)     
+            {
+                mainWindow.Closed += (sender, e) =>
+                {
+                    _telemetryClient?.Flush();
+                    System.Threading.Thread.Sleep(1000); // Give time to send
+                };
                 mainWindow.Activate();
-            }                                                   // TH:Added
-            
+            }                               
+        }
 
-            // Attempt to force DirectX Force Hardware Rendering
-            //???var manager = Microsoft.Graphics.Canvas.CanvasDevice.GetSharedDevice();
+        private void OnSuspending(object sender, SuspendingEventArgs e)
+        {
+            _telemetryClient?.Flush();
+            // Allow time for flushing before shutdown
+            Task.Delay(1000).Wait();
         }
 
 
@@ -68,17 +97,22 @@ namespace Surveyor
         {
             try
             {
-                // Save crash report / persist important data
-                Debug.WriteLine($"Unhandled Exception: {e.Exception?.Message}");
+                TelemetryLogger.TrackAppStartStop(TrackAppStartStopType.AppStopCrash);
 
-                mainWindow?.report.Unload(); // Unload the report to save any changes
+                string message = e.Exception?.Message ?? "Unknown error";
 
+                Debug.WriteLine($"Unhandled Exception: {message}");
+                mainWindow?.report.Warning("", $"Unhandled XAML exception: {message}");
 
-                e.Handled = true; // Optionally prevent app from crashing immediately
+                mainWindow?.report.Unload(); // Save changes safely
+
+                e.Handled = true; // Prevent the app from crashing immediately (optional)
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error while handling unhandled exception: {ex.Message}");
+            }
         }
-
 
         public static string WinAppSdkDetails
         {
@@ -126,23 +160,4 @@ namespace Surveyor
             return (TEnum)Enum.Parse(typeof(TEnum), text);
         }
     }
-
-    //public static class TestAppHost
-    //{
-    //    public static MainWindow? MainWindowRef { get; private set; }
-
-    //    public static async Task<MainWindow> EnsureMainWindowAsync()
-    //    {
-    //        if (MainWindowRef == null)
-    //        {
-    //            MainWindowRef = new MainWindow();
-    //            MainWindowRef.Activate();
-
-    //            // Wait briefly to ensure the DispatcherQueue is running
-    //            await Task.Delay(250);
-    //        }
-
-    //        return MainWindowRef;
-    //    }
-    //}
 }

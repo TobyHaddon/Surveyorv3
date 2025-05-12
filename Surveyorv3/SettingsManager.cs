@@ -101,7 +101,7 @@ namespace Surveyor
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
                 if (localSettings.Values["DiagnosticInformation"] is not bool displayPointerCoordinates)
-                    displayPointerCoordinates = false;
+                    displayPointerCoordinates = false;          // Default telemetry to off
 
                 return displayPointerCoordinates;
             }
@@ -111,6 +111,26 @@ namespace Surveyor
                 localSettings.Values["DiagnosticInformation"] = value;
             }
         }
+
+
+        // Telemetry can be automatically uploaded
+        public static bool TelemetryEnabled
+        {
+            get
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                if (localSettings.Values["Telemetry"] is not bool telemetryEnabled)
+                    telemetryEnabled = true;        // Default telemetry to on
+
+                return telemetryEnabled;
+            }
+            set
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                localSettings.Values["Telemetry"] = value;
+            }
+        }
+
 
         // Application theme Light, Dark or Default
         public static ElementTheme ApplicationTheme
@@ -247,7 +267,7 @@ namespace Surveyor
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
                 if (localSettings.Values["UseInternetEnabled"] is not bool useInternetEnabled)
-                    useInternetEnabled = false;
+                    useInternetEnabled = false;         // Default telemetry to off
 
                 return useInternetEnabled;
             }
@@ -268,7 +288,7 @@ namespace Surveyor
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
                 if (localSettings.Values["AutoSaveEnabled"] is not bool autoSaveEnabled)
-                    autoSaveEnabled = true;
+                    autoSaveEnabled = true;             // Default telemetry to on
 
                 return autoSaveEnabled;
             }
@@ -289,7 +309,7 @@ namespace Surveyor
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
                 if (localSettings.Values["SpeciesImageCacheEnabled"] is not bool speciesImageCacheEnabled)
-                    speciesImageCacheEnabled = true;
+                    speciesImageCacheEnabled = true;            // Default telemetry to on
 
                 return speciesImageCacheEnabled;
             }

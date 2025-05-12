@@ -11,6 +11,8 @@
 
 using CommunityToolkit.WinUI;
 using CommunityToolkit.WinUI.Controls;
+using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -92,13 +94,7 @@ namespace Surveyor.User_Controls
             this.InitializeComponent();
             this.Closed += SettingsWindow_Closed;
 
-            
-            // Set min window size
-            MinHeight = 600;
-            MinWidth = 800;
-            MaxHeight = 800;
-            MaxWidth = 1200;
-
+           
             // React to theme changes
             uiSettings.ColorValuesChanged += UiSettings_ColorValuesChanged;
 
@@ -116,7 +112,7 @@ namespace Surveyor.User_Controls
 
             // Inform the SettingsSurveyRules user control that it is being used in the SettingsWindow for a survey (as opposed to a Field Trip)
             if (surveyClass is not null)
-                SettingsSurveyRules.SetupForSurveySettingWindow(SettingsExpanderSurveyRules, surveyClass);
+                SettingsSurveyRules.SetupForSurveySettingWindow(surveyClass);
 
             // Remove the separate title bar from the window
             ExtendsContentIntoTitleBar = true;
@@ -131,17 +127,17 @@ namespace Surveyor.User_Controls
                 SurveySettingsTitle.Visibility = Visibility.Collapsed;
                 SurveyInfoAndMediaExpander.Visibility = Visibility.Collapsed;
                 CalibrationExpander.Visibility = Visibility.Collapsed;
-                SettingsExpanderSurveyRules.Visibility = Visibility.Collapsed;
+                SettingsSurveyRules.Visibility = Visibility.Collapsed;
             }
             else
             {
                 // Show the survey settings section
                 SurveySettingsTitle.Visibility = Visibility.Visible;
                 SurveyInfoAndMediaExpander.Visibility = Visibility.Visible;
-                CalibrationExpander.Visibility = Visibility.Visible;
-                SettingsExpanderSurveyRules.Visibility = Visibility.Visible;
+                CalibrationExpander.Visibility = Visibility.Collapsed;   //???Not Implimented
+                SettingsSurveyRules.Visibility = Visibility.Visible;
             }
-
+            
 
             // Setup the Setting page
             OnSettingsPageLoaded(SettingsManagerLocal.ApplicationTheme);
@@ -329,6 +325,9 @@ namespace Surveyor.User_Controls
 
                     // Refresh the internet queue
                     mainWindow?.internetQueue.RefreshView();
+
+                    // Load the Telemtry status
+                    Telemetry.IsOn = SettingsManagerLocal.TelemetryEnabled;
                 }
 
 
@@ -477,34 +476,7 @@ namespace Surveyor.User_Controls
         }
 
 
-        /// <summary>
-        /// Toggle the diagnostic information on or off
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void DiagnosticInformation_Toggled(object sender, RoutedEventArgs e)
-        {
-            if (_isInitializing) return;
-
-            if (DiagnosticInformation.IsOn)
-            {
-                // Enable diagnostic information
-                SettingsManagerLocal.DiagnosticInformation = true;
-            }
-            else
-            {
-                // Disable diagnostic information
-                SettingsManagerLocal.DiagnosticInformation = false;
-            }
-
-            // Inform everyone of the state change
-            settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.DiagnosticInformation)
-            {
-                diagnosticInformation = DiagnosticInformation.IsOn
-            });
-        }
-
-
+        
         /// <summary>
         /// Any traching tips that had been marked not to be shown again will be shown again
         /// </summary>
@@ -514,6 +486,35 @@ namespace Surveyor.User_Controls
         {
             SettingsManagerLocal.RemoveAllTeachingTipShown();
         }
+
+        
+        /// <summary>
+        /// Toggle the allowed to use interst
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void UseInternet_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+
+            bool settingValue;
+
+            if (this.UseInternet.IsOn)
+            {
+                // Enable 
+                settingValue = true;
+
+            }
+            else
+            {
+                // Disable
+                settingValue = false;
+            }
+
+            // Remember the new state
+            SettingsManagerLocal.UseInternetEnabled = settingValue;
+        }
+
 
         /// <summary>
         /// Toggle the teaching tips on or off
@@ -543,31 +544,76 @@ namespace Surveyor.User_Controls
         }
 
 
-        /// <summary>
-        /// Toggle the allowed to use interst
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void UseInternet_Toggled(object sender, RoutedEventArgs e)
+        private void Telemetry_Toggled(object sender, RoutedEventArgs e)
         {
             if (_isInitializing) return;
 
             bool settingValue;
 
-            if (this.UseInternet.IsOn)
+            if (this.Telemetry.IsOn)
             {
-                // Enable 
+                // Enable Microsoft Insights Telemetry
                 settingValue = true;
 
             }
             else
             {
-                // Disable
+                // Disable Microsoft Insights Telemetry
                 settingValue = false;
             }
 
+
+            var telemetryConfiguration = TelemetryConfiguration.CreateDefault();
+
+            // Report the change to Insights (before if switching off)
+            if (telemetryConfiguration.DisableTelemetry != !settingValue/*Check it really changed before reporting*/ && 
+                settingValue == false/*switching off*/)
+            {
+                TelemetryLogger.TrackTrace("User switching telemetry off");
+                TelemetryLogger.TrackSettingTelemetry(settingValue);
+            }
+
+            // Switch on/off the Insights telemetry as required by the user                    
+            telemetryConfiguration.DisableTelemetry = !settingValue;
+
+            // Report the change to Insights (after if switching on)
+            if (telemetryConfiguration.DisableTelemetry != !settingValue/*Check it really changed before reporting*/ &&
+                settingValue == true/*switching on*/)
+            {
+                TelemetryLogger.TrackTrace("User switching telemetry on");
+                TelemetryLogger.TrackSettingTelemetry(settingValue);
+            }
+
             // Remember the new state
-            SettingsManagerLocal.UseInternetEnabled = settingValue;
+            SettingsManagerLocal.TelemetryEnabled = settingValue;
+        }
+
+
+        /// <summary>
+        /// Toggle the diagnostic information on or off
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void DiagnosticInformation_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+
+            if (DiagnosticInformation.IsOn)
+            {
+                // Enable diagnostic information
+                SettingsManagerLocal.DiagnosticInformation = true;
+            }
+            else
+            {
+                // Disable diagnostic information
+                SettingsManagerLocal.DiagnosticInformation = false;
+            }
+
+            // Inform everyone of the state change
+            settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.DiagnosticInformation)
+            {
+                diagnosticInformation = DiagnosticInformation.IsOn
+            });
         }
 
 

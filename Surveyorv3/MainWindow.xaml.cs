@@ -5,6 +5,7 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -18,6 +19,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
@@ -28,6 +30,7 @@ using Windows.Storage.Pickers;
 using Windows.Storage.Provider;
 using WinRT.Interop;
 using WinUIEx;
+using static Surveyor.Helper.TelemetryLogger;
 using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.Survey.DataClass;
 using static Surveyor.User_Controls.SettingsWindowEventData;
@@ -84,6 +87,11 @@ namespace Surveyor
 
         // Help menu documents
         private readonly HelpDocuments helpDocuments = new();
+
+        // InfoBar Dismissed Status
+        private bool infoBarCalibrationMissingDismissed = false;
+        private bool infoBarSpeciesInfoMissingDismissed = false;
+
 
         public MainWindow()
         {
@@ -247,13 +255,14 @@ namespace Surveyor
                                                             stereoProjection                                                            
                                                             /*MediaInfoLeft, MediaInfoRight */);
 
-            // Inform the Events Control of the MediaStereoController
+            // Inform the Events Control of MainWindow and MediaStereoController
+            eventsControl.SetMainWindow(this);
             eventsControl.SetMediaStereoController(mediaStereoController);
 
             // Setup and magnify and marker controls by linking that to the each media players ImageFrame
 #if !No_MagnifyAndMarkerDisplay
-            MagnifyAndMarkerDisplayLeft.Setup(MediaPlayerLeft.GetImageFrame(), MagnifyAndMarkerDisplay.CameraSide.Left);
-            MagnifyAndMarkerDisplayRight.Setup(MediaPlayerRight.GetImageFrame(), MagnifyAndMarkerDisplay.CameraSide.Right);
+            MagnifyAndMarkerDisplayLeft.Setup(MediaPlayerLeft.GetImageFrame(), SurveyorMediaPlayer.eCameraSide.Left);
+            MagnifyAndMarkerDisplayRight.Setup(MediaPlayerRight.GetImageFrame(), SurveyorMediaPlayer.eCameraSide.Right);
 #endif
 
             // Allows the menu bar to extend into the title bar
@@ -297,7 +306,7 @@ namespace Surveyor
 
             // Report that the app has loaded
             
-            //Debug.WriteLine($"Local Folder path:{ApplicationData.Current.LocalFolder.Path}");
+            // Debug.WriteLine($"Local Folder path:{ApplicationData.Current.LocalFolder.Path}");
             if (!SettingsManagerLocal.DiagnosticInformation)
             {
                 report.Info("", $"App Loaded Ok (Local Path:{ApplicationData.Current.LocalFolder.Path})");
@@ -309,7 +318,6 @@ namespace Surveyor
                 report.Info("", $"Exec Path:{Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!}");
             }
         }
-
 
 
         /// <summary>
@@ -509,6 +517,99 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// The method is called to display the 'Calibration missing' info bar if necessary
+        /// i.e. survey is open and has Measurement events and calibration is not ready
+        /// </summary>
+        public void SetInfoBarCalibrationMissing()
+        {
+            bool showMissingCalibrationInfoBar = false;
+
+            if (surveyClass is not null)
+            {
+                CalibrationClass calibrationClass = surveyClass.Data.Calibration;
+                int frameWidth = MediaPlayerLeft.FrameWidth;
+                int frameHeight = MediaPlayerLeft.FrameHeight;
+
+                // Get the preferred calibration data ensuring it is for this frame size
+                CalibrationData? calibrationDataPreferred = calibrationClass.GetPreferredCalibationData(frameWidth, frameHeight);
+                if (calibrationDataPreferred is null)
+                    showMissingCalibrationInfoBar = true;
+            }
+
+            if (!infoBarCalibrationMissingDismissed/*User Dismissed Already*/ && showMissingCalibrationInfoBar)
+            {
+                // Show the info bar
+                InfoBarCalibrationMissing.IsOpen = true;
+                InfoBarCalibrationMissing.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                // Hide the info bar
+                InfoBarCalibrationMissing.IsOpen = false;
+                InfoBarCalibrationMissing.Visibility = Visibility.Collapsed;
+            }
+        }
+
+        /// <summary>
+        /// The method is called to display the 'Species Info missing' info bar if necessary
+        /// i.e. one of more Measurement, 3d Point or Single Point events are missing species
+        /// information
+        /// </summary>
+        public void SetInfoBarSpeciesInfoMissing()
+        {
+            bool showMissingSpeciesInfoInfoBar = false;
+
+            if (surveyClass is not null)
+            {
+                int countMeasurementPointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
+                    .Where(e => e.EventDataType == SurveyDataType.SurveyMeasurementPoints)
+                    .Select(e => e.EventData as SurveyMeasurement)
+                    .Count(m => m != null && m.SpeciesInfo?.Species == null);
+
+                if (countMeasurementPointsMissingSpecies > 0)
+                {
+                    showMissingSpeciesInfoInfoBar = true;
+                }
+                else
+                {
+                    int countStereoPointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
+                        .Where(e => e.EventDataType == SurveyDataType.SurveyStereoPoint)
+                        .Select(e => e.EventData as SurveyStereoPoint)
+                        .Count(s => s != null && s.SpeciesInfo?.Species == null);
+                    if (countStereoPointsMissingSpecies > 0)
+                    {
+                        showMissingSpeciesInfoInfoBar = true;
+                    }
+                    else
+                    {
+                        int countSinglePointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
+                            .Where(e => e.EventDataType == SurveyDataType.SurveyPoint)
+                            .Select(e => e.EventData as SurveyPoint)
+                            .Count(p => p != null && p.SpeciesInfo?.Species == null);
+                        if (countSinglePointsMissingSpecies > 0)
+                        {
+                            showMissingSpeciesInfoInfoBar = true;
+                        }
+                    }
+                }
+            }
+
+            if (!infoBarSpeciesInfoMissingDismissed/*User Dismissed Already*/  && showMissingSpeciesInfoInfoBar)
+            {
+                // Show the info bar
+                InfoBarSpeciesInfoMissing.IsOpen = true;
+                InfoBarSpeciesInfoMissing.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                // Hide the info bar
+                InfoBarSpeciesInfoMissing.IsOpen = false;
+                InfoBarSpeciesInfoMissing.Visibility = Visibility.Collapsed;
+            }
+        }
+
+
         ///
         /// EVENTS
         /// 
@@ -581,20 +682,27 @@ namespace Surveyor
             // Check if there is an unsaved survey
             if (await CheckForOpenSurveyAndClose() == true)
             {
-                Debug.WriteLine("AppWindow_Closing Closing DownloadUploadManager");
                 await internetQueue.Unload();
 
-
-                Debug.WriteLine("AppWindow_Closing Closing MediaStereoController");
                 await mediaStereoController.Unload();
 
+                // Full Mag Window UserControl clean up
+                await MagnifyAndMarkerDisplayLeft.DisposeAsync();
+                await MagnifyAndMarkerDisplayRight.DisposeAsync();
+                MagnifyAndMarkerDisplayLeft = null;
+                MagnifyAndMarkerDisplayRight = null;
 
-                Debug.WriteLine("AppWindow_Closing Entering this.Close");
+
                 this.Close(); // This will NOT retrigger AppWindow.Closing
                 Debug.WriteLine("AppWindow_Closing Exited this.Close");
 
                 // Dump the reporter content to disk
                 report.Unload();
+
+                // Remove listener for theme changes
+                var rootElement = (FrameworkElement)Content;
+                rootElement.ActualThemeChanged -= OnActualThemeChanged;
+
             }
             else
             {
@@ -602,6 +710,7 @@ namespace Surveyor
                 e.Cancel = true;
             }
 
+            TelemetryLogger.TrackAppStartStop(TrackAppStartStopType.AppStopOk);
             Debug.WriteLine("AppWindow_Closing Exit");
         }
 
@@ -636,21 +745,6 @@ namespace Surveyor
             // First check if an existing survey is already open
             if (await CheckForOpenSurveyAndClose() == true)
             {
-                // Create a new empty survey
-                surveyClass = new Survey(report);
-                surveyClass.PropertyChanged += Survey_PropertyChanged;
-
-                // Inform the MagnifyAndMarkerDisplays of the new survey events
-#if !No_MagnifyAndMarkerDisplay
-                MagnifyAndMarkerDisplayLeft.SetEvents(surveyClass.Data.Events.EventList);
-                MagnifyAndMarkerDisplayRight.SetEvents(surveyClass.Data.Events.EventList);
-#endif
-
-                // Inform the EventControl of the new survey events
-                eventsControl.SetEvents(surveyClass.Data.Events.EventList);
-
-                SetMenuStatusBasedOnProjectState();
-
                 // Get to use to select media files for the survey
                 FileOpenPicker openPicker = new()
                 {
@@ -672,9 +766,26 @@ namespace Surveyor
                     return await openPicker.PickMultipleFilesAsync();
                 });
 
-
+                // Proceed is files selected
                 if (mediaFilesSelected.Count > 0)
                 {
+                    // Create a new empty survey
+                    surveyClass = new Survey(report);
+                    surveyClass.PropertyChanged += Survey_PropertyChanged;
+
+
+#if !No_MagnifyAndMarkerDisplay
+                    // Inform the MagnifyAndMarkerDisplays of the new survey events
+                    MagnifyAndMarkerDisplayLeft.SetEvents(surveyClass.Data.Events.EventList);
+                    MagnifyAndMarkerDisplayRight.SetEvents(surveyClass.Data.Events.EventList);
+#endif
+
+                    // Inform the EventControl of the new survey events
+                    eventsControl.SetEvents(surveyClass.Data.Events.EventList);
+
+                    //???At the bottom, I assume not needed there
+                    // SetMenuStatusBasedOnProjectState();
+
                     // Load the Info and Media user control to setup the survey
                     SurveyInfoAndMediaUserControl.SetupForContentDialog(SurveyInfoAndMediaContentDialog, mediaFilesSelected);
                     SurveyInfoAndMediaUserControl.SetReporter(report);
@@ -707,8 +818,12 @@ namespace Surveyor
                     }
                 }
             }
-
+            
             SetMenuStatusBasedOnProjectState();
+
+            // Reset Info Bar dismissed status
+            infoBarCalibrationMissingDismissed = false;
+            infoBarSpeciesInfoMissingDismissed = false;
         }
 
 
@@ -759,6 +874,7 @@ namespace Surveyor
                     await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
                 }
 
+                // Enable/Disable menu items based on the current project state
                 SetMenuStatusBasedOnProjectState();
             }
         }
@@ -800,6 +916,77 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Used to open a selected recent survey file from the 'Recent Surveys' sub menu
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void FileRecentSurvey_Click(object sender, RoutedEventArgs e)
+        {
+            var menuItem = sender as MenuFlyoutItem;
+            if (menuItem is not null)
+            {
+                if (menuItem.Tag is string filePath)
+                {
+                    // First check if an existing survey is already open
+                    if (await CheckForOpenSurveyAndClose() == true)
+                    {
+                        // Open survey in the regular way
+                        int ret = await OpenSurvey(filePath);
+
+                        if (ret == 0)
+                        {
+                            // Check if the preferred calibration data is the one being using for
+                            // the current event measurements calculations
+                            await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
+                        }
+                        else if (ret != -999/*User aborted*/)
+                        {
+                            // Report the missing survey file
+                            // Survey needs to be saved before a frame can be saved
+                            var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
+
+                            // Create the ContentDialog instance
+                            var dialog = new ContentDialog
+                            {
+                                Title = $"Survey file missing",
+                                Content = new StackPanel
+                                {
+                                    Orientation = Orientation.Horizontal,
+                                    Spacing = 10,
+                                    Children =
+                                    {
+                                        warningIcon, // Add the exclamation icon to the dialog content
+                                        new TextBlock
+                                        {
+                                            Text = $"{filePath}",
+                                            TextWrapping = TextWrapping.Wrap,
+                                            MaxWidth = 400 // Adjust based on your app's layout
+                                        }
+                                    }
+                                },
+
+                                CloseButtonText = "Cancel",
+                                DefaultButton = ContentDialogButton.Close, // Set "Cancel" as the default button
+
+                                // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
+                                XamlRoot = this.Content.XamlRoot
+                            };
+
+                            // Show the dialog and await the result
+                            await dialog.ShowAsync();
+
+                            // Recent survey file is missing, remove from the recent file list
+                            RemoveToRecentSurveys(filePath);
+                        }
+                    }
+                }
+
+                // Enable/Disable menu items based on the current project state
+                SetMenuStatusBasedOnProjectState();
+            }
+        }
+
+        /// <summary>
         /// Close the currently open survey file
         /// </summary>
         /// <param name="sender"></param>
@@ -807,270 +994,7 @@ namespace Surveyor
         private async void FileSurveyClose_Click(object sender, RoutedEventArgs e)
         {
             await CheckForOpenSurveyAndClose();
-
         }
-
-
-        /// <summary>
-        /// Used to open a selected recent survey file from the 'Recent Surveys' sub menu
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private async void RecentSurvey_Click(object sender, RoutedEventArgs e)
-        {
-            var menuItem = sender as MenuFlyoutItem;
-            if (menuItem is not null)
-            {
-                if (menuItem.Tag is string filePath)
-                {
-                    // Open survey in the regular way
-                    int ret = await OpenSurvey(filePath);
-
-                    if (ret == 0)
-                    {
-                        // Check if the preferred calibration data is the one being using for
-                        // the current event measurements calculations
-                        await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
-                    }
-                    else if (ret != -999/*User aborted*/)
-                    {
-                        // Report the missing survey file
-                        // Survey needs to be saved before a frame can be saved
-                        var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
-
-                        // Create the ContentDialog instance
-                        var dialog = new ContentDialog
-                        {
-                            Title = $"Survey file missing",
-                            Content = new StackPanel
-                            {
-                                Orientation = Orientation.Horizontal,
-                                Spacing = 10,
-                                Children =
-                                {
-                                    warningIcon, // Add the exclamation icon to the dialog content
-                                    new TextBlock 
-                                    { 
-                                        Text = $"{filePath}",
-                                        TextWrapping = TextWrapping.Wrap,
-                                        MaxWidth = 400 // Adjust based on your app's layout
-                                    }
-                                }
-                            },
-
-                            CloseButtonText = "Cancel",
-                            DefaultButton = ContentDialogButton.Close, // Set "Cancel" as the default button
-
-                            // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
-                            XamlRoot = this.Content.XamlRoot
-                        };
-
-                        // Show the dialog and await the result
-                        await dialog.ShowAsync();
-
-                        // Recent survey file is missing, remove from the recent file list
-                        RemoveToRecentSurveys(filePath);
-                    }
-                }
-
-                SetMenuStatusBasedOnProjectState();
-
-            }
-        }
-
-
-
-        /// <summary>
-        /// Users wants to lock or unlock the media players. 
-        /// i.e. synchronize or unsynchronize the media
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private async void InsertLockUnlockMediaPlayers_Click(object sender, RoutedEventArgs e)
-        {
-            if (!mediaStereoController.IsPlaying())
-            {
-                if (MenuLockUnlockMediaPlayers.IsChecked)
-                {
-                    // Wait for things to settle i.e. any pending MediPlayer directed plays or pauses to have completed
-                    // note. calling MediaPlayer.Play or Pause with the MediaTimelineController engaged will cause an
-                    // exception
-                    await Task.Delay(500);
-
-                    // Action flags
-                    bool reEnable = false;
-                    bool newPosition = false;
-
-                    // Check if sync offset is already present and just needs enabling
-                    if (surveyClass is not null)
-                    {
-                        if (surveyClass.Data.Sync.ActualTimeSpanOffsetLeft != TimeSpan.Zero || 
-                            surveyClass.Data.Sync.ActualTimeSpanOffsetRight != TimeSpan.Zero)
-                        {
-                            // Create a SymbolIcon with an exclamation mark
-                            var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
-                           
-                            var dialog = new ContentDialog
-                            {
-                                Title = "Lock Media Players",
-                                Content = new Grid
-                                {
-                                    Width = 400, // Set the width of the dialog content
-                                    Children =
-                                    {
-                                        new StackPanel
-                                        {
-                                            Orientation = Orientation.Horizontal,
-                                            Spacing = 10,
-                                            Children =
-                                            {
-                                                warningIcon, // Add the exclamation icon to the dialog content
-                                                new TextBlock
-                                                {
-                                                    Text = "There is synchronization information already in this survey that is currently disabled. Do you want to re-enable it or do you want to lock the players at their current position?",
-                                                    TextWrapping = TextWrapping.Wrap,
-                                                    MaxWidth = 320, // Limit width to allow wrapping
-                                                    HorizontalAlignment = HorizontalAlignment.Left
-                                                }
-                                            }
-                                        }
-                                    }
-                                },
-                                PrimaryButtonText = "Enable",
-                                SecondaryButtonText = "Current Position",
-                                CloseButtonText = "Cancel",
-                                DefaultButton = ContentDialogButton.Primary,
-                                XamlRoot = this.Content.XamlRoot // Ensure this points to the correct XamlRoot
-                            };
-
-                            var result = await dialog.ShowAsync();
-
-                            switch (result)
-                            {
-                                case ContentDialogResult.Primary:
-                                    // Handle Enable action
-                                    reEnable = true;
-                                    break;
-
-                                case ContentDialogResult.Secondary:
-                                    // Handle Current Position action
-                                    newPosition = true;
-                                    break;
-                            }
-                        }
-                        else
-                        {
-                            // No sync information present so use the current position
-                            newPosition = true;
-                        }
-
-                    }
-
-                    // Lock the left and right media controlers
-                    if (surveyClass is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
-                        MediaPlayerLeft.Position is not null && MediaPlayerRight.Position is not null)
-                    {
-                        if (reEnable)
-                        {
-                            surveyClass.Data.Sync.IsSynchronized = true;
-                        }
-                        else if (newPosition)
-                        {
-                            surveyClass.Data.Sync.IsSynchronized = true;
-                            surveyClass.Data.Sync.TimeSpanOffset = (TimeSpan)MediaPlayerRight.Position - (TimeSpan)MediaPlayerLeft.Position;
-                            surveyClass.Data.Sync.ActualTimeSpanOffsetLeft = (TimeSpan)MediaPlayerLeft.Position;
-                            surveyClass.Data.Sync.ActualTimeSpanOffsetRight = (TimeSpan)MediaPlayerRight.Position;
-
-                        }
-                    }
-
-                    // Engage to the MediaTimelineController
-                    if (reEnable || newPosition)
-                        await mediaStereoController.MediaLockMediaPlayers();
-                }
-                else
-                {
-                    // Check user is sure they want to unlock the media players
-
-
-                    // Lock the left and right media controlers
-                    if (surveyClass is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
-                        MediaPlayerLeft.Position is not null && MediaPlayerRight.Position is not null)
-                    {
-                        surveyClass.Data.Sync.IsSynchronized = false;
-
-                        // Don't remove the TimeSpanOffset, ActualTimeSpanOffsetLeft & ActualTimeSpanOffsetRight
-                        // in case the user wants to sync again
-                    }
-
-
-                    mediaStereoController.MediaUnlockMediaPlayers();
-                }
-            }
-            else
-            {
-                // DON'T await this method. I don't understand why but it causes the
-                // dialog to be non-modal
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                await ShowCannotSynchronizedDialog();
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-
-                // Undo the check
-                MenuLockUnlockMediaPlayers.IsChecked = !MenuLockUnlockMediaPlayers.IsChecked;
-            }
-
-        }
-
-
-        /// <summary>
-        /// Insert a marker (as an Event) to indicate either the start or end of a survey within the movies
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void InsertSurveyStartStopMarker_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                mediaStereoController.GetFullMediaPosition(out TimeSpan positionTimelineController, out TimeSpan leftPosition, out TimeSpan rightPosition);
-
-                transectMarkerManager.AddMarker(eventsControl,
-                                              positionTimelineController,
-                                              leftPosition,
-                                              rightPosition);
-            }
-            catch(Exception ex)
-            {
-                Debug.WriteLine($"InsertSurveyStartStopMarker_Click(): Failed to insert a survey transect marker, {ex.Message}");
-            }
-        }
-
-
-        /// <summary>
-        /// Display the settings windows
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private async void FileSettings_Click(object sender, RoutedEventArgs e)
-        {
-            await ShowSettingsWindow();
-        }
-
-
-        /// <summary>
-        /// Exit the app
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private async void FileExit_Click(object sender, RoutedEventArgs e)
-        {
-            await mediaStereoController.MediaClose();
-
-            SetTitle("");
-            SetLockUnlockIndicator(null, null);
-
-            Application.Current.Exit();
-        }
-
 
         /// <summary>
         /// Import calibration data into the survey
@@ -1144,7 +1068,7 @@ namespace Surveyor
 
                     string text = "";
                     bool warnUser = false;
-                    if (leftCameraIDMatch is not null && rightCameraIDMatch is not null && 
+                    if (leftCameraIDMatch is not null && rightCameraIDMatch is not null &&
                         !(bool)leftCameraIDMatch && !(bool)rightCameraIDMatch)
                     {
                         // Check if camera are the wrong way round
@@ -1206,7 +1130,7 @@ namespace Surveyor
                         };
                         // Display the dialog
                         ContentDialogResult resultDlg = await confirmationDialog.ShowAsync();
-                    
+
                         if (resultDlg == ContentDialogResult.None)
                         {
                             ret = -1;
@@ -1447,9 +1371,238 @@ namespace Surveyor
                 await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
 
 
+                // Display the missing calibration warning InfoBar if necessary
+                SetInfoBarCalibrationMissing();
+
                 //// Inform the two media players of the MeasurementPointControl instances that allow the user to add measurement points to the media
                 //LMediaPlayer.SetMeasurementPointControl(measurementPointControl);
                 //RMediaPlayer.SetMeasurementPointControl(measurementPointControl);
+            }
+        }
+
+
+        /// <summary>
+        /// Display the settings windows
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void FileSettings_Click(object sender, RoutedEventArgs e)
+        {
+            await ShowSettingsWindow();
+        }
+
+
+        /// <summary>
+        /// Exit the app
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void FileExit_Click(object sender, RoutedEventArgs e)
+        {
+            await CheckForOpenSurveyAndClose();
+            //???await mediaStereoController.MediaClose();
+
+            SetTitle("");
+            SetLockUnlockIndicator(null, null);
+
+            Application.Current.Exit();
+        }
+
+
+        /// <summary>
+        /// Users wants to lock or unlock the media players. 
+        /// i.e. synchronize or unsynchronize the media
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void InsertLockUnlockMediaPlayers_Click(object sender, RoutedEventArgs e)
+        {
+            if (!mediaStereoController.IsPlaying())
+            {
+                if (surveyClass is not null && surveyClass.Data.Sync.IsSynchronized == false)
+                {
+                    // Wait for things to settle i.e. any pending MediPlayer directed plays or pauses to have completed
+                    // note. calling MediaPlayer.Play or Pause with the MediaTimelineController engaged will cause an
+                    // exception
+                    await Task.Delay(500);
+
+                    // Action flags
+                    bool reEnable = false;
+                    bool newPosition = false;
+
+                    // Check if sync offset is already present and just needs enabling
+                    if (surveyClass is not null)
+                    {
+                        if (surveyClass.Data.Sync.ActualTimeSpanOffsetLeft != TimeSpan.Zero || 
+                            surveyClass.Data.Sync.ActualTimeSpanOffsetRight != TimeSpan.Zero)
+                        {
+                            // Create a SymbolIcon with an exclamation mark
+                            var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
+                           
+                            var dialog = new ContentDialog
+                            {
+                                Title = "Lock Media Players",
+                                Content = new Grid
+                                {
+                                    Width = 400, // Set the width of the dialog content
+                                    Children =
+                                    {
+                                        new StackPanel
+                                        {
+                                            Orientation = Orientation.Horizontal,
+                                            Spacing = 10,
+                                            Children =
+                                            {
+                                                warningIcon, // Add the exclamation icon to the dialog content
+                                                new TextBlock
+                                                {
+                                                    Text = "There is synchronization information already in this survey that is currently disabled. Do you want to re-enable it or do you want to lock the players at their current position?",
+                                                    TextWrapping = TextWrapping.Wrap,
+                                                    MaxWidth = 320, // Limit width to allow wrapping
+                                                    HorizontalAlignment = HorizontalAlignment.Left
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                PrimaryButtonText = "Enable",
+                                SecondaryButtonText = "Current Position",
+                                CloseButtonText = "Cancel",
+                                DefaultButton = ContentDialogButton.Primary,
+                                XamlRoot = this.Content.XamlRoot // Ensure this points to the correct XamlRoot
+                            };
+
+                            var result = await dialog.ShowAsync();
+
+                            switch (result)
+                            {
+                                case ContentDialogResult.Primary:
+                                    // Handle Enable action
+                                    reEnable = true;
+                                    break;
+
+                                case ContentDialogResult.Secondary:
+                                    // Handle Current Position action
+                                    newPosition = true;
+                                    break;
+                            }
+                        }
+                        else
+                        {
+                            // No sync information present so use the current position
+                            newPosition = true;
+                        }
+
+                    }
+
+                    // Lock the left and right media controlers
+                    if (surveyClass is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
+                        MediaPlayerLeft.Position is not null && MediaPlayerRight.Position is not null)
+                    {
+                        if (reEnable)
+                        {
+                            surveyClass.Data.Sync.IsSynchronized = true;
+                        }
+                        else if (newPosition)
+                        {
+                            surveyClass.Data.Sync.IsSynchronized = true;
+                            surveyClass.Data.Sync.TimeSpanOffset = (TimeSpan)MediaPlayerRight.Position - (TimeSpan)MediaPlayerLeft.Position;
+                            surveyClass.Data.Sync.ActualTimeSpanOffsetLeft = (TimeSpan)MediaPlayerLeft.Position;
+                            surveyClass.Data.Sync.ActualTimeSpanOffsetRight = (TimeSpan)MediaPlayerRight.Position;
+
+                        }
+                    }
+
+                    // Engage to the MediaTimelineController
+                    if (reEnable || newPosition)
+                        await mediaStereoController.MediaLockMediaPlayers();
+                }
+                else
+                {
+                    // Check user is sure they want to unlock the media players
+
+
+                    // Lock the left and right media controlers
+                    if (surveyClass is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
+                        MediaPlayerLeft.Position is not null && MediaPlayerRight.Position is not null)
+                    {
+                        surveyClass.Data.Sync.IsSynchronized = false;
+
+                        // Don't remove the TimeSpanOffset, ActualTimeSpanOffsetLeft & ActualTimeSpanOffsetRight
+                        // in case the user wants to sync again
+                    }
+
+
+                    mediaStereoController.MediaUnlockMediaPlayers();
+                }
+            }
+            else
+            {
+                // DON'T await this method. I don't understand why but it causes the
+                // dialog to be non-modal
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+                await ShowCannotSynchronizedDialog();
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+            }
+
+        }
+
+
+        /// <summary>
+        /// Insert a marker (as an Event) to indicate either the start or end of a survey within the movies
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void InsertSurveyStartStopMarker_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                mediaStereoController.GetFullMediaPosition(out TimeSpan positionTimelineController, out TimeSpan leftPosition, out TimeSpan rightPosition);
+
+                transectMarkerManager.AddMarker(eventsControl,
+                                              positionTimelineController,
+                                              leftPosition,
+                                              rightPosition);
+            }
+            catch(Exception ex)
+            {
+                Debug.WriteLine($"InsertSurveyStartStopMarker_Click(): Failed to insert a survey transect marker, {ex.Message}");
+            }
+        }
+
+
+        /// <summary>
+        /// InfoBar import calibration button click event
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ImportCalibrationButton_Click(object sender, RoutedEventArgs e)
+        {
+            FileImportCalibration_Click(null!, null!);
+        }
+
+
+        /// <summary>
+        /// InfoBar Go To first event with missing species info
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void GoToFirstMissingSpeciesEvent_Click(object sender, RoutedEventArgs e)
+        {
+            if (surveyClass is not null)
+            {
+                Event? firstMissingSpeciesEvent = surveyClass.Data.Events.EventList
+                                .Cast<Event>() // or .AsEnumerable()/.ToList() depending on your context
+                                .FirstOrDefault(e =>
+                                    (e.EventDataType == SurveyDataType.SurveyMeasurementPoints && (e.EventData as SurveyMeasurement)?.SpeciesInfo?.Species == null) ||
+                                    (e.EventDataType == SurveyDataType.SurveyStereoPoint && (e.EventData as SurveyStereoPoint)?.SpeciesInfo?.Species == null) ||
+                                    (e.EventDataType == SurveyDataType.SurveyPoint && (e.EventData as SurveyPoint)?.SpeciesInfo?.Species == null));
+
+                if (firstMissingSpeciesEvent is not null)
+                {
+                    // Jump to frame of this event
+                    mediaStereoController?.UserReqFrameJump(SurveyorMediaControl.eControlType.Primary, firstMissingSpeciesEvent.TimeSpanTimelineController);
+                }
             }
         }
 
@@ -1576,8 +1729,8 @@ namespace Surveyor
             MediaPlayerLeft.DumpAllProperties();
             MediaPlayerRight.DumpAllProperties();
 #if !No_MagnifyAndMarkerDisplay
-            MagnifyAndMarkerDisplayLeft.Setup(MediaPlayerLeft.GetImageFrame(), MagnifyAndMarkerDisplay.CameraSide.Left);
-            MagnifyAndMarkerDisplayRight.Setup(MediaPlayerRight.GetImageFrame(), MagnifyAndMarkerDisplay.CameraSide.Right);
+            MagnifyAndMarkerDisplayLeft.Setup(MediaPlayerLeft.GetImageFrame(), SurveyorMediaPlayer.eCameraSide.Left);
+            MagnifyAndMarkerDisplayRight.Setup(MediaPlayerRight.GetImageFrame(), SurveyorMediaPlayer.eCameraSide.Right);
 #endif
             surveyClass?.Data.DumpAllProperties();
 
@@ -1705,6 +1858,38 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// User dismissed the InfoBar warning about missing calibration data
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void InfoBarCalibrationMissing_Closed(InfoBar sender, InfoBarClosedEventArgs args)
+        {
+            // Remember the user dismissed the warning
+            if (args.Reason == InfoBarCloseReason.CloseButton)
+            {
+                infoBarCalibrationMissingDismissed = true;
+            }
+        }
+
+
+        /// <summary>
+        /// User dismissed the InfoBar warning about missing species info
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void InfoBarSpeciesInfoMissing_Closed(InfoBar sender, InfoBarClosedEventArgs args)
+        {
+            // Remember the user dismissed the warning
+            if (args.Reason == InfoBarCloseReason.CloseButton)
+            {
+                infoBarSpeciesInfoMissingDismissed = true;
+            }
+        }
+
+
+
+
         ///
         /// PRIVATE METHODS
         /// 
@@ -1763,10 +1948,6 @@ namespace Surveyor
                     // Open Media Files and bind the MediaPlayers if IsSynchronized is true
                     if (await OpenSVSMediaFiles() == true)
                     {
-                        // Set the lock/unlock media files 
-                        if (surveyClass.Data.Sync.IsSynchronized == true)
-                            MenuLockUnlockMediaPlayers.IsChecked = true;
-
                         // Enable the insert survey transect marker menu item
                         MenuTransectStartStopMarker.IsEnabled = true;
 
@@ -1810,6 +1991,14 @@ namespace Surveyor
                 report.Warning("", $"Failed to open survey file:{projectFileName}, error = {ret}");
                 surveyClass = null;
             }
+
+            // Display the missing calibration warning InfoBar if necessary
+            infoBarCalibrationMissingDismissed = false;
+            SetInfoBarCalibrationMissing();
+
+            // Display the missing species warnung InfoBar if necessary
+            infoBarSpeciesInfoMissingDismissed = false;
+            SetInfoBarSpeciesInfoMissing();
 
             return ret;
         }
@@ -1954,12 +2143,13 @@ namespace Surveyor
                 if (closeProject == true)
                 {
 #if !No_MagnifyAndMarkerDisplay
+                    // Clean up from last frame
                     MagnifyAndMarkerDisplayLeft.Close();
                     MagnifyAndMarkerDisplayRight.Close();
 #endif
 
                     // Wait for things to settle
-                    await Task.Delay(500);
+                    await Task.Delay(200);
 
                     // Closes the StereoMediaController, clears the title and the sync indicator
                     await CloseSVSMediaFiles();
@@ -1990,6 +2180,14 @@ namespace Surveyor
                 ret = true;
 
             SetMenuStatusBasedOnProjectState();
+
+            // Display the missing calibration warning InfoBar if necessary
+            infoBarCalibrationMissingDismissed = false;
+            SetInfoBarCalibrationMissing();
+
+            // Display the missing species warnung InfoBar if necessary
+            infoBarSpeciesInfoMissingDismissed = false;
+            SetInfoBarSpeciesInfoMissing();
 
             return ret;
         }
@@ -2247,7 +2445,6 @@ namespace Surveyor
                 MenuImportCalibration.IsEnabled = false;
                 // Media lock
                 MenuLockUnlockMediaPlayers.IsEnabled = false;
-                MenuLockUnlockMediaPlayers.IsChecked = false;
                 // Settings
                 MenuSettings.IsEnabled = true;      // Always allow settings and setting will adjust of no survey is open
                 // Survey Transect Marker
@@ -2794,6 +2991,7 @@ namespace Surveyor
 
             // Adjust the File menu item text 
             MenuLockUnlockMediaPlayers.Text = "Unlock Media Players";
+            MenuLockUnlockMediaPlayersIcon.Glyph = "\uE1F7"; // Unlock icon
         }
 
 
@@ -2810,6 +3008,7 @@ namespace Surveyor
 
             // Adjust the File menu item text 
             MenuLockUnlockMediaPlayers.Text = "Lock Media Players";
+            MenuLockUnlockMediaPlayersIcon.Glyph = "\uE1F6"; // Lock icon
         }
 
 
@@ -3087,7 +3286,7 @@ namespace Surveyor
                     };
 
                     // Optionally add a click event handler for the menu item
-                    menuItem.Click += RecentSurvey_Click;
+                    menuItem.Click += FileRecentSurvey_Click;
 
                     MenuRecentSurveys.Items.Add(menuItem);
                 }
@@ -3132,7 +3331,6 @@ namespace Surveyor
             _spinnerTimer?.Stop();
             DownloadIndicator.Glyph = ""; // or a finished icon
         }
-
 
 
 

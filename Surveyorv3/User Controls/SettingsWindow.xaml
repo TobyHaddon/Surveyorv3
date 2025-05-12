@@ -8,6 +8,10 @@
     xmlns:ex="using:WinUIEx"
     xmlns:surveyorControls="using:Surveyor.User_Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    MinWidth="1100"
+    MinHeight="800"
+    MaxHeight="1000"
+    MaxWidth="1200"
     Title="Settings">
 
 
@@ -44,22 +48,15 @@
 
                 <!--SURVEY SETTINGS-->
                 <TextBlock x:Name="SurveySettingsTitle" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Survey Settings"  MaxWidth="1200"/>
-                
-                <!--SURVEY SETTINGS > -->
-                <!--<toolkit:SettingsExpander x:Name="SurveySettingsExpander" Header="Survey Settings" MaxWidth="1200">
-                    <toolkit:SettingsExpander.HeaderIcon>
-                        <FontIcon Glyph="&#xE160;" />
-                    </toolkit:SettingsExpander.HeaderIcon>
-                    
-                    <toolkit:SettingsExpander.Items>-->
-                        <!--Survey Info and Media-->
+
+                <!--SURVEY SETTINGS > SURVEY INFO AND MEDIA-->
                 <toolkit:SettingsExpander x:Name="SurveyInfoAndMediaExpander" Header="Survey Info &amp; Media">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xF0E3;" ToolTipService.ToolTip="Survey setup information and survey media"/>
                     </toolkit:SettingsExpander.HeaderIcon>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button x:Name="ReCalculate" Content="Re-Calculate" Click="ReCalculate_Click" Margin="0,0,10,0"/>
+                        <Button x:Name="ReCalculate" Content="Re-Calculate Measurements" Click="ReCalculate_Click" Margin="0,0,10,0"/>
                         <TextBlock
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             IsTextSelectionEnabled="True"
@@ -73,8 +70,8 @@
                         </toolkit:SettingsCard>
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
-                       
-                <!--Calibration-->
+
+                <!--SURVEY SETTINGS > CALIBRATION-->
                 <toolkit:SettingsCard x:Name="CalibrationExpander" Header="Calibration"
                                     ToolTipService.ToolTip="Calibration information for the stereo camera rig.">
                     <toolkit:SettingsCard.HeaderIcon>
@@ -83,20 +80,8 @@
                     <!--<ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="MagnifierWindowAutomatic_Toggled" />-->
                 </toolkit:SettingsCard>
 
-                <!--Survey Rules-->
-                <toolkit:SettingsExpander  x:Name="SettingsExpanderSurveyRules" Header="Survey Rules">
-                    <toolkit:SettingsExpander.HeaderIcon>
-                        <FontIcon Glyph="&#xE73E;" />
-                    </toolkit:SettingsExpander.HeaderIcon>
-                    <ToggleSwitch x:Name="surveyRulesActive" IsOn="{x:Bind survey.Data.SurveyRules.SurveyRulesActive, Mode=TwoWay}"/>
-                            
-                    <toolkit:SettingsExpander.Items>
-                        <surveyorControls:SettingsSurveyRules x:Name="SettingsSurveyRules"/>
-                    </toolkit:SettingsExpander.Items>
-                </toolkit:SettingsExpander>
-
-                    <!--</toolkit:SettingsExpander.Items>
-                </toolkit:SettingsExpander>-->
+                <!--SURVEY SETTINGS > SURVEY RULES-->
+                <surveyorControls:SettingsSurveyRules x:Name="SettingsSurveyRules"/>
 
 
                 <!--SYSTEM SETTINGS-->
@@ -160,13 +145,12 @@
                             </StackPanel>
                         </toolkit:SettingsCard>
 
-                        <!-- Diagnostic Info -->
-                        <toolkit:SettingsCard Header="Diagnostic Information" Description="Increase the level of information sent to the Output window" >
+                        <!-- Microsoft Insights Telemetry -->
+                        <toolkit:SettingsCard Header="Telemetry" Description="Enable telemetry to be uploaded" >
                             <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xEBE8;" ToolTipService.ToolTip="Enable diagnostic information and features. Some features need the application to be restarted." />
+                                <FontIcon Glyph="&#xE82F;" ToolTipService.ToolTip="Usage, crash and diagnostic information can be automatically uploaded. This is indepentant of the 'Use Internet' setting." />
                             </toolkit:SettingsCard.HeaderIcon>
-
-                            <ToggleSwitch x:Name="DiagnosticInformation" Toggled="DiagnosticInformation_Toggled" />
+                            <ToggleSwitch x:Name="Telemetry" Toggled="Telemetry_Toggled" />
                         </toolkit:SettingsCard>
 
                         
@@ -245,7 +229,7 @@
                             </StackPanel>
                         </Button>
 
-                        <TextBlock Text="Scientific Name Order" Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="10,0,10,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="Scientific Order" Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="10,0,10,0" VerticalAlignment="Center"/>
                         <ToggleSwitch x:Name="SpeciesCodeListScientificNameOrder" Toggled="SpeciesCodeListSort_Toggled" Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                     </StackPanel>
 
@@ -266,7 +250,7 @@
                                                             IsReadOnly="True"
                                                             GridLinesVisibility="Horizontal"
                                                             SelectionMode="Single"                                                
-                                                            Height="300">
+                                                            MaxHeight="300">
                                         <dg:DataGrid.Columns>
                                             <dg:DataGridTextColumn Header="Family" Binding="{Binding Family}" />
                                             <dg:DataGridTextColumn Header="Genus" Binding="{Binding Genus}" />
@@ -345,6 +329,14 @@
 
                 <!--  ADVANCED  -->
                 <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Advanced"  MaxWidth="1200"/>
+
+                <!-- Diagnostic Info -->
+                <toolkit:SettingsCard Header="Diagnostic Information" Description="Increase the level of information sent to the Output window" >
+                    <toolkit:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xEBE8;" ToolTipService.ToolTip="Enable diagnostic information and features. Some features need the application to be restarted." />
+                    </toolkit:SettingsCard.HeaderIcon>
+                    <ToggleSwitch x:Name="DiagnosticInformation" Toggled="DiagnosticInformation_Toggled" />
+                </toolkit:SettingsCard>
 
                 <!-- Internet Queue Viewer -->
                 <toolkit:SettingsExpander x:Name="InternetQueueExpander" Header="Internet Queue">

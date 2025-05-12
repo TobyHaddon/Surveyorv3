@@ -120,7 +120,7 @@
                 
                 <!--Left Camera Media Files-->
                 <ListView x:Name="LeftMediaFileNames" Grid.Column="0" ItemsSource="{x:Bind LeftMediaFileItemList}" ItemTemplate="{StaticResource MediaFileTemplate}"
-                         Height="300" MinWidth="400" MaxHeight="400"
+                         Height="300" MinWidth="400" MaxHeight="200"
                          BorderThickness="1" BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}" Margin="0,0,10,0"
                          SelectionChanged="LeftMediaFileNames_SelectionChanged"/>
                 
@@ -160,7 +160,7 @@
 
                 <!--Right Camera Media Files-->
                 <ListView x:Name="RightMediaFileNames"  Grid.Column="2" ItemsSource="{x:Bind RightMediaFileItemList}" ItemTemplate="{StaticResource MediaFileTemplate}"
-                         Height="300" MinWidth="400" MaxHeight="400" 
+                         Height="300" MinWidth="400" MaxHeight="200" 
                          BorderThickness="1" BorderBrush="{ThemeResource ControlStrongStrokeColorDefaultBrush}"
                          SelectionChanged="RightMediaFileNames_SelectionChanged"/>
 

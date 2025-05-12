@@ -203,7 +203,9 @@ namespace Surveyor.User_Controls
         public void Clear()
         {
             ReportItems.Clear();
-            ListViewReporter.ItemsSource = null;
+
+            // Don't reset the ItemSource as it means the reported is broken is a prior survey is loaded and closed
+            //???ListViewReporter.ItemsSource = null;
 
             if (textBoxWarning is not null)
                 textBoxWarning.Text = "";

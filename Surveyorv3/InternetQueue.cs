@@ -193,28 +193,6 @@ namespace Surveyor
         /// Save the presistent download/upload list
         /// </summary>
         /// <returns></returns>
-        //public async Task Save()
-        //{
-        //    await saveLock.WaitAsync();
-        //    try
-        //    {
-        //        string json = System.Text.Json.JsonSerializer.Serialize(transferItems, CachedJsonSerializerOptions);
-        //        string tempFileName = storageFile + ".tmp";
-
-        //        StorageFile tempFile = await ApplicationData.Current.LocalFolder.CreateFileAsync(tempFileName, CreationCollisionOption.ReplaceExisting);
-        //        using (var stream = await tempFile.OpenStreamForWriteAsync())
-        //        using (var writer = new StreamWriter(stream))
-        //        {
-        //            await writer.WriteAsync(json);
-        //        }
-
-        //        await tempFile.RenameAsync(storageFile, NameCollisionOption.ReplaceExisting);
-        //    }
-        //    finally
-        //    {
-        //        saveLock.Release();
-        //    }
-        //}
         public async Task Save()
         {
             StorageFile? file = null;

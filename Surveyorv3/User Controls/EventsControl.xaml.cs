@@ -25,8 +25,11 @@ namespace Surveyor.User_Controls
         private DispatcherQueue? dispatcherQueue;
         private ObservableCollection<Event> events = [];
 
-        // Copy of left mediaplayer
-        MediaStereoController? mediaStereoController = null;
+        // Copy of main window
+        private MainWindow? mainWindow = null;
+
+        // Copy of MediaStereoController
+        private MediaStereoController? mediaStereoController = null;
 
         private readonly int displayToDecimalPlaces = 2;     // If we start using frame rate of 120fps then we will need to increase this to 3dp
 
@@ -48,6 +51,11 @@ namespace Surveyor.User_Controls
         {
             events = eventItems;
             ListViewEvent.ItemsSource = events;
+        }
+
+        internal void SetMainWindow(MainWindow _mainWindow)
+        {
+            mainWindow = _mainWindow;
         }
 
         internal void SetMediaStereoController(MediaStereoController _mediaStereoController)
@@ -74,10 +82,18 @@ namespace Surveyor.User_Controls
                 await Task.Delay(100);
             }
             events.Add(evt);
-
-            // Assuming your ListView is named "myListView"
+            
             // Set the SelectedItem property to the newly added event
             ListViewEvent.SelectedItem = evt;
+
+            // If the event type could contain SpeciesInfo then set the info bar
+            // to show missing species info if necessary
+            if (evt.EventData is SurveyMeasurement ||
+                evt.EventData is SurveyStereoPoint ||
+                evt.EventData is SurveyPoint )
+            {
+                mainWindow?.SetInfoBarSpeciesInfoMissing();
+            }
         }
 
 
@@ -88,6 +104,15 @@ namespace Surveyor.User_Controls
         public void DeleteEvent(Event evt)
         {
             events.Remove(evt);
+
+            // If the event type could contain SpeciesInfo then set the info bar
+            // to show missing species info if necessary
+            if (evt.EventData is SurveyMeasurement ||
+                evt.EventData is SurveyStereoPoint ||
+                evt.EventData is SurveyPoint)
+            {
+                mainWindow?.SetInfoBarSpeciesInfoMissing();
+            }
         }
 
 
@@ -190,7 +215,7 @@ namespace Surveyor.User_Controls
 
                             // Measurement
                             sb.AppendLine($"Species: {surveyMeasurement.SpeciesInfo.Species}\r\n");
-                            if (surveyMeasurement.Measurment is not null)
+                            if (surveyMeasurement.Measurment is not null && surveyMeasurement.Measurment != -1)
                                 sb.AppendLine($"Measurement: {Math.Round((double)surveyMeasurement.Measurment * 1000, 0)}mm");
                             else
                                 sb.AppendLine($"Measurement: missing");
@@ -497,7 +522,7 @@ namespace Surveyor.User_Controls
                     var result = await dialog.ShowAsync();
                     if (result == ContentDialogResult.Primary)
                     {
-                        eventItems.Remove(selectedItem);
+                        DeleteEvent(selectedItem);
                     }
                 }
             }
@@ -696,11 +721,11 @@ namespace Surveyor.User_Controls
             {
                 switch (eventType)
                 {
-                    case Surveyor.Events.SurveyDataType.SurveyPoint:
+                    case Surveyor.Events.SurveyDataType.SurveyPoint:              // Single Point
                         return "\uE139";
-                    case Surveyor.Events.SurveyDataType.SurveyStereoPoint:
+                    case Surveyor.Events.SurveyDataType.SurveyStereoPoint:        // 3D Point
                         return "\uECAF";
-                    case Surveyor.Events.SurveyDataType.SurveyMeasurementPoints:
+                    case Surveyor.Events.SurveyDataType.SurveyMeasurementPoints:  // Measurement
                         return "\uE1D9";
                     case Surveyor.Events.SurveyDataType.StereoCalibrationPoints:
                         return "\uEB3C";
@@ -797,15 +822,22 @@ namespace Surveyor.User_Controls
 
 
                     // Length of the fish
-                    if (measurment is not null && measurment != 0)
+                    if (measurment is not null && (measurment != -1/*no measurement*/ && measurment > 0))
                     {
                         if (sb.Length > 0)
                             sb.Append(", ");
                         sb.Append($"{Math.Round((double)measurment * 1000, 0)}mm "); // Round up to the nearest whole number
                     }
+                    else if (eventItem.EventData is Surveyor.Events.SurveyMeasurement)
+                    {
+                        // Report that this is a measurement event but no measurement was taken
+                        if (sb.Length > 0)
+                            sb.Append(", ");
+                        sb.Append($"*No Measurement "); 
+                    }
 
                     // Species/Genus/Family
-                    if (speciesInfo is not null)
+                    if (speciesInfo is not null && (speciesInfo.Species is not null || speciesInfo.Genus is not null))
                     {
                         if (!string.IsNullOrEmpty(speciesInfo.Species))
                             sb.Append($"{speciesInfo.Species}");
@@ -813,6 +845,10 @@ namespace Surveyor.User_Controls
                             sb.Append($"{speciesInfo.Genus}");
                         else if (!string.IsNullOrEmpty(speciesInfo.Family))
                             sb.Append($"{speciesInfo.Family}");
+                    }
+                    else
+                    {
+                        sb.Append($"*No Species");
                     }
 
                     // Survey rules passed or failed
@@ -824,7 +860,22 @@ namespace Surveyor.User_Controls
                 }
                 else if (eventItem.EventData is Surveyor.Events.SurveyPoint surveyPoint)
                 {
-                    sb.Append($"Species: {surveyPoint.SpeciesInfo.Species}");
+                    // Species/Genus/Family
+                    SpeciesInfo speciesInfo = surveyPoint.SpeciesInfo;
+
+                    if (speciesInfo.Species is not null || speciesInfo.Genus is not null)
+                    {
+                        if (!string.IsNullOrEmpty(speciesInfo.Species))
+                            sb.Append($"{speciesInfo.Species}");
+                        else if (!string.IsNullOrEmpty(speciesInfo.Genus))
+                            sb.Append($"{speciesInfo.Genus}");
+                        else if (!string.IsNullOrEmpty(speciesInfo.Family))
+                            sb.Append($"{speciesInfo.Family}");
+                    }
+                    else
+                    {
+                        sb.Append($"*No Species");
+                    }
                 }
                 else if (eventItem.EventData is Surveyor.Events.TransectMarker transectMarker)
                 {

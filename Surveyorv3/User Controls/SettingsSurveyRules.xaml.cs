@@ -14,6 +14,7 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text.RegularExpressions;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using static Surveyor.Survey.DataClass;
 
 
 namespace Surveyor.User_Controls
@@ -25,10 +26,10 @@ namespace Surveyor.User_Controls
 
         // Survey Rules
         //private Survey.DataClass.SurveyRulesClass? surveyRulesClass = null;     // This is the container class in Survey.DataClass for SurveyRulesData
-        private SurveyRulesData? surveyRules = null;
+        private SurveyRulesClass? surveyRules = null;
 
         // Called from
-        SettingsExpander? settingsSurveyRules = null;
+        //SettingsExpander? settingsSurveyRules = null;
         //SettingsExpander? settingsFieldTripRules = null;  // To be implemented once Field Trip are supported
 
 
@@ -52,14 +53,14 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="settings"></param>
         /// <param name="survey"></param>
-        public void SetupForSurveySettingWindow(SettingsExpander settings, Survey survey)
+        public void SetupForSurveySettingWindow(Survey survey)
         {
             // Remember the settings card for a survey (not the field trip)
-            settingsSurveyRules = settings;
+            //???settingsSurveyRules = settings;
             //???settingsFieldTripRules = null;
 
             // Remember the survey rules
-            surveyRules = survey.Data.SurveyRules.SurveyRulesData;
+            surveyRules = survey.Data.SurveyRules;
         }
 
 
@@ -68,7 +69,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         public void Shutdown()
         {
-            settingsSurveyRules = null;
+            //settingsSurveyRules = null;
             surveyRules = null;
 
             report = null;

@@ -95,13 +95,6 @@ namespace Surveyor.User_Controls
             testingWindowHandler = new TestingWindowHandler(mediator, this, mainWindow);
 
 
-            // Set min window size
-            MinHeight = 600;
-            MinWidth = 800;
-            MaxHeight = 800;
-            MaxWidth = 1200;
-
-
             // Remove the separate title bar from the window
             ExtendsContentIntoTitleBar = true;
         }

@@ -12,12 +12,9 @@ using Surveyor.Events;
 using Surveyor.Helper;
 using Surveyor.User_Controls;
 using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
-using System.ComponentModel.Design;
-using System.Data;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -961,7 +958,7 @@ namespace Surveyor
                         IsLoaded = true;
 
                         // Start the autosave task in background
-                        _ = Task.Run(() => AutosaveWork());
+                        _ = Task.Run(() => AutoSaveWork());
                     }
                 }
             }
@@ -1088,7 +1085,7 @@ namespace Surveyor
         /// <returns></returns>
         public async Task<int> SurveyClose()
         {
-            await StopAutosave();
+            await StopAutoSave();
 
             Clear();
 
@@ -1263,7 +1260,7 @@ namespace Surveyor
         /// Start the auto save task
         /// </summary>
         /// <returns></returns>
-        public async Task AutosaveWork()
+        public async Task AutoSaveWork()
         {
             _isAutoSaveRunning = true;
             _autoSaveStopped = false;
@@ -1311,7 +1308,7 @@ namespace Surveyor
         /// <summary>
         /// Request the autosave task to stop
         /// </summary>
-        public async Task StopAutosave()
+        public async Task StopAutoSave()
         {
             if (_isAutoSaveRunning)
             {

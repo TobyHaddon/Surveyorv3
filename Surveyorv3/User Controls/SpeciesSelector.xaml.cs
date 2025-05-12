@@ -42,14 +42,6 @@ namespace Surveyor.User_Controls
         // Updatable image list to hold the fish images. Dynamically bound to the GridView
         public ObservableCollection<ImageDataObject> ImageList { get; set; } = [];
 
-        //???// Credit and genus/species
-        //public string SourceCredit { get; set; } = string.Empty;
-        //public string GenusSpecies { get; set; } = string.Empty;
-
-        //// Species environment, distribution and size info. Bound to the GridView
-        //public string Environment { get; set; } = string.Empty;
-        //public string Distribution { get; set; } = string.Empty;
-        //public string SpeciesSize { get; set; } = string.Empty;
 
 
         public SpeciesSelector()
@@ -317,6 +309,7 @@ namespace Surveyor.User_Controls
                 }
 
                 // Life stage of the fish
+                //???Not used by Opwall
                 //???if (speciesInfo.Stage != ComboBoxLifeStage.SelectedItem as string)
                 //{
                 //    speciesInfo.Stage = ComboBoxLifeStage.SelectedItem as string;

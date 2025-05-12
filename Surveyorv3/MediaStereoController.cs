@@ -19,8 +19,11 @@ using Windows.Foundation;
 using Windows.Media;
 using static Surveyor.MediaStereoControllerEventData;
 using Surveyor.Helper;
-using WinRT;
-
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml;
+using Windows.Media.Playback;
+using MathNet.Numerics.LinearAlgebra.Factorization;
+using System.Diagnostics.Metrics;
 
 
 
@@ -87,6 +90,9 @@ namespace Surveyor
         // StereoProjection class        
         public StereoProjection stereoProjection;
 
+        // Used to allow the user not to see the dialog that appears if the user adds a
+        // Measurement Point, 3D Point or a Single Point and doesn't setup the species info
+        private bool justSaveEventDoAsk = false;    
 
 
         public MediaStereoController(MainWindow _mainWindow, Reporter _report, 
@@ -227,6 +233,9 @@ namespace Surveyor
             _maxNaturalDurationForController = TimeSpan.Zero;
             _frameRate = 0.0;
             mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
+
+            // This is an are you sure dialog if the user has not set the species info
+            justSaveEventDoAsk = false;
 
             // Open both files
             if (!string.IsNullOrEmpty(mediaFileSpecLeft))
@@ -749,10 +758,16 @@ namespace Surveyor
                     else if (position > _maxNaturalDurationForController)
                         position = _maxNaturalDurationForController;
 
-                    // Move to the relative position
-                    mediaTimelineControllerPositionPausedMode = position;
-                    mediaTimelineController.Position = mediaTimelineControllerPositionPausedMode;
-
+                    try
+                    {
+                        // Move to the relative position
+                        mediaTimelineControllerPositionPausedMode = position;
+                        mediaTimelineController.Position = mediaTimelineControllerPositionPausedMode;
+                    }
+                    catch (Exception ex)
+                    {
+                        report?.Error(cameraSide.ToString(), $"MediaStereoController.FrameJump: Frame failed to jump to PositionOffset: {mediaTimelineControllerPositionPausedMode:hh\\:mm\\:ss\\.ff}, {ex.Message}");
+                    }
                 }
             }
             else
@@ -827,9 +842,17 @@ namespace Surveyor
                     mediaPlayerRight.FrameServerEnable(true);
                 }
 
-                // Move to the absolute position
-                mediaTimelineControllerPositionPausedMode = position;
-                mediaTimelineController.Position = mediaTimelineControllerPositionPausedMode;
+
+                try
+                {
+                    // Move to the absolute position
+                    mediaTimelineControllerPositionPausedMode = position;
+                    mediaTimelineController.Position = mediaTimelineControllerPositionPausedMode;
+                }
+                catch (Exception ex)
+                {
+                    report?.Error(cameraSide.ToString(), $"MediaStereoController.FrameJump: Frame failed to jump to PositionOffset: {mediaTimelineControllerPositionPausedMode:hh\\:mm\\:ss\\.ff}, {ex.Message}");
+                }
             }
             else
             {
@@ -1628,255 +1651,508 @@ namespace Surveyor
         }
 #endif
 
-
         /// <summary>
-        /// Mediator massage received for the stereo controler 
-        /// to indicate that a pair of targets have been selected on that instance
+        /// Users requested a new measurement is added
         /// </summary>
         /// <param name="pointA"></param>
         /// <param name="pointB"></param>
         /// <returns></returns>
-        internal async Task SurveyMeasurementPairSelected(SurveyorMediaPlayer.eCameraSide cameraSide, Point pointA, Point pointB)
+        internal async Task AddMeasurementRequest()
         {
-            // Check if the Events list is null and the stereo projection is not null (normally
-            // stereoProject is not null if we have calibration data)
-            if (eventsControl is not null && stereoProjection is not null)
+            SurveyMeasurement surveyMeasurement = new();
+
+            // Check we have two sets of corresponding points from both cameras
+            if (TargetALeft is null || TargetBLeft is null || TargetARight is null || TargetBRight is null)
+                return;
+            else
             {
-                bool fullSetOfMeasurementPoints = false;
-                SurveyMeasurement surveyMeasurement = new();
+                surveyMeasurement.LeftXA = TargetALeft!.Value.X;
+                surveyMeasurement.LeftYA = TargetALeft!.Value.Y;
+                surveyMeasurement.LeftXB = TargetBLeft!.Value.X;
+                surveyMeasurement.LeftYB = TargetBLeft!.Value.Y;
+                surveyMeasurement.RightXA = TargetARight!.Value.X;
+                surveyMeasurement.RightYA = TargetARight!.Value.Y;
+                surveyMeasurement.RightXB = TargetBRight!.Value.X;
+                surveyMeasurement.RightYB = TargetBRight!.Value.Y;
 
-                // Check if we have a complete set of measurement points from both cameras
-                if (cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
-                {
-                    // We just received a pair of points from the left camera so check
-                    // if we previously have a pair from the right camera
-                    if (TargetARight is null || TargetBRight is null)
-                        return;
-                    else
-                    {
-                        surveyMeasurement.LeftXA = pointA.X;
-                        surveyMeasurement.LeftYA = pointA.Y;
-                        surveyMeasurement.LeftXB = pointB.X;
-                        surveyMeasurement.LeftYB = pointB.Y;
-                        surveyMeasurement.RightXA = TargetARight!.Value.X;
-                        surveyMeasurement.RightYA = TargetARight!.Value.Y;
-                        surveyMeasurement.RightXB = TargetBRight!.Value.X;
-                        surveyMeasurement.RightYB = TargetBRight!.Value.Y;
-                        fullSetOfMeasurementPoints = true;
-                    }
-                }
-                else if (cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
-                {
-                    // We just received a pair of points from the right camera so check
-                    // if we previously have a pair from the left camera
-                    if (TargetALeft is null || TargetBLeft is null)
-                        return;
-                    else
-                    {
-                        surveyMeasurement.LeftXA = TargetALeft!.Value.X;
-                        surveyMeasurement.LeftYA = TargetALeft!.Value.Y;
-                        surveyMeasurement.LeftXB = TargetBLeft!.Value.X;
-                        surveyMeasurement.LeftYB = TargetBLeft!.Value.Y;
-                        surveyMeasurement.RightXA = pointA.X;
-                        surveyMeasurement.RightYA = pointA.Y;
-                        surveyMeasurement.RightXB = pointB.X;
-                        surveyMeasurement.RightYB = pointB.Y;
-                        fullSetOfMeasurementPoints = true;
-                    }
-                }
+                // Check that logically Target Left A correponds to Target Right A and Target Left B is correponds to Target Right B
+                // This is incase the user selected the points the wrong way around. If so the target will be swapped
+                SurveyMeasurementHelper.EnsureCorrectCorrespondence(surveyMeasurement);
 
-                if (fullSetOfMeasurementPoints)
-                {
-                    // Check that logically Target Left A correponds to Target Right A and Target Left B is correponds to Target Right B
-                    // This is incase the user selected the points the wrong way around. If so the target will be swapped
-                    SurveyMeasurementHelper.EnsureCorrectCorrespondence(surveyMeasurement);
-
-                    // Assigned the species info via a user dialog box
-                    SpeciesInfo specifiesInfo = new();
-                    if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo, speciesImageCache) == true)
-                    {
-                        Event evt = new(SurveyDataType.SurveyMeasurementPoints)
-                        {
-                            EventData = surveyMeasurement
-                        };
-
-                        surveyMeasurement.SpeciesInfo = specifiesInfo;
-
-                        // Check if suitable calibration data is available for this frame size
-                        bool isReady = await mainWindow.CheckIfMeasurementSetupIsReady();
-                        if (isReady)
-                        {
-                            // This call calculates the distance, range, X & Y offset between the camera system mid-point and the measurement point mid-point
-                            mainWindow.DoMeasurementAndRulesCalculations(surveyMeasurement);
-                        }
-
-                        // Log the event (even if no measurement done)
-                        if (mediaTimelineController is not null)
-                        {
-                            TimeSpan? timelineConntrollerPoistion = mediaTimelineController.Position;
-                            TimeSpan? leftPosition = mediaPlayerLeft.Position;
-                            TimeSpan? rightPosition = mediaPlayerRight.Position;
-
-                            if (surveyMeasurement.Measurment != 0 && leftPosition is not null && rightPosition is not null)
-                            {
-                                evt.TimeSpanTimelineController = (TimeSpan)timelineConntrollerPoistion;
-                                evt.TimeSpanLeftFrame = (TimeSpan)leftPosition;
-                                evt.TimeSpanRightFrame = (TimeSpan)rightPosition;
-
-                                // Add the species info to the Events list
-                                eventsControl?.AddEvent(evt);
-
-                                // Remove targets
-                                ClearCachedTargets();
-#if !No_MagnifyAndMarkerDisplay
-                                magnifyAndMarkerDisplayLeft.SetTargets(null, null);
-                                magnifyAndMarkerDisplayRight.SetTargets(null, null);
-#endif
-                            }
-
-                            stereoProjection.PointsClear();
-                        }
-                    }
-                }
+                await AddMeasurementOr3DPointOrSinglePointRequest(surveyMeasurement);
             }
         }
 
 
-
         /// <summary>
-        /// Received a request to add either a SurveyStereoPoint or a SurveyPoint
+        /// Received a request to add a 3D Point (SurveyStereoPoint)
         /// A SurveyStereoPoint is a corresponding point on both the left and right camera
         /// A SurveyPoint is a point on the left camera only
         /// </summary>
         /// <param name="cameraSide"></param>
         /// <param name="TruePointAFalsePointB"></param>
+        /// <returns></returns>
+        internal async Task Add3DPointRequest(bool TruePointAFalsePointB)
+        {
+            SurveyStereoPoint surveyStereoPoint = new();
+
+            if (TruePointAFalsePointB)
+            {
+                // Check we have a corresponding point from both cameras
+                if (TargetALeft is null || TargetARight is null)
+                    return;
+
+                surveyStereoPoint.LeftX = TargetALeft.Value.X;
+                surveyStereoPoint.LeftY = TargetALeft.Value.Y;
+                surveyStereoPoint.RightX = TargetARight.Value.X;
+                surveyStereoPoint.RightY = TargetARight.Value.Y;
+            }
+            else
+            {
+                // Check we have a corresponding point from both cameras
+                if (TargetBLeft is null || TargetBRight is null)
+                    return;
+
+                surveyStereoPoint.LeftX = TargetBLeft!.Value.X;
+                surveyStereoPoint.LeftY = TargetBLeft!.Value.Y;
+                surveyStereoPoint.RightX = TargetBRight!.Value.X;
+                surveyStereoPoint.RightY = TargetBRight!.Value.Y;
+            }
+
+            await AddMeasurementOr3DPointOrSinglePointRequest(surveyStereoPoint);
+        }
+
+
+        /// <summary>
+        /// Received a request to add a Sibngle Point (SurveyPoint)
+        /// A SurveyPoint is a single point on either left and right camera
+        /// </summary>
+        /// <param name="cameraSide"></param>
+        /// <param name="TruePointAFalsePointB"></param>
+        /// <returns></returns>
+        internal async Task AddSinglePointRequest(SurveyorMediaPlayer.eCameraSide cameraSide, bool TruePointAFalsePointB)
+        {
+            if (cameraSide != eCameraSide.None)
+            {
+                SurveyPoint surveyPoint = new();
+                surveyPoint.TrueLeftfalseRight = cameraSide == eCameraSide.Left;
+
+                if (cameraSide == eCameraSide.Left && TruePointAFalsePointB)
+                {
+                    // Check we have a valid point
+                    if (TargetALeft is null)
+                        return;
+
+                    surveyPoint.X = TargetALeft.Value.X;
+                    surveyPoint.Y = TargetALeft.Value.Y;                    
+                }
+                else if (cameraSide == eCameraSide.Left && !TruePointAFalsePointB)
+                {
+                    // Check we have a valid point
+                    if (TargetBLeft is null)
+                        return;
+
+                    surveyPoint.X = TargetBLeft.Value.X;
+                    surveyPoint.Y = TargetBLeft.Value.Y;
+                }
+                else if (cameraSide == eCameraSide.Right && TruePointAFalsePointB)
+                {
+                    // Check we have a valid point
+                    if (TargetARight is null)
+                        return;
+
+                    surveyPoint.X = TargetARight.Value.X;
+                    surveyPoint.Y = TargetARight.Value.Y;
+                }
+                else if (cameraSide == eCameraSide.Right && !TruePointAFalsePointB)
+                {
+                    // Check we have a valid point
+                    if (TargetBRight is null)
+                        return;
+
+                    surveyPoint.X = TargetBRight.Value.X;
+                    surveyPoint.Y = TargetBRight.Value.Y;
+                }
+
+                await AddMeasurementOr3DPointOrSinglePointRequest(surveyPoint);
+            }
+        }
+
+
+        /// <summary>
+        /// Users requested a new measurement is added
+        /// </summary>
         /// <param name="pointA"></param>
         /// <param name="pointB"></param>
         /// <returns></returns>
-        internal async Task SurveyPointSelected(SurveyorMediaPlayer.eCameraSide cameraSide, bool TruePointAFalsePointB, Point? pointA, Point? pointB)
+        private async Task AddMeasurementOr3DPointOrSinglePointRequest(IPointData pointData)
         {
+            // Check if the Events is setup and the stereo projection is not null (normally
+            // stereoProject is not null if we have calibration data)
             if (eventsControl is not null && stereoProjection is not null)
             {
-                SurveyDataType eventDataType = SurveyDataType.SurveyPoint;   // Default event type to a single point until we confirm there are stereo point
-
-                if (cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
-                {
-                    if (TruePointAFalsePointB == true && TargetARight is not null)
-                        eventDataType = SurveyDataType.SurveyStereoPoint;
-                    else if (TruePointAFalsePointB == false && TargetBRight is not null)
-                        eventDataType = SurveyDataType.SurveyStereoPoint;
-                }
-                else if (cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
-                {
-                    if (TruePointAFalsePointB == true && TargetALeft is not null)
-                        eventDataType = SurveyDataType.SurveyStereoPoint;
-                    else if (TruePointAFalsePointB == false && TargetBLeft is not null)
-                        eventDataType = SurveyDataType.SurveyStereoPoint;
-                }
-
-                // Declare a new event with the right event data type
-                Event evt = new();
-                evt.SetData(eventDataType);
-
-                // Setup the coord of a Survey Stereo Point (corresponding point on the left and right camera)
-                if (eventDataType == SurveyDataType.SurveyStereoPoint && evt.EventData is not null)
-                {
-                    SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
-
-                    if (cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
-                    {
-                        surveyStereoPoint.LeftX = TruePointAFalsePointB ? pointA!.Value.X : pointB!.Value.X;
-                        surveyStereoPoint.LeftY = TruePointAFalsePointB ? pointA!.Value.Y : pointB!.Value.Y;
-                        surveyStereoPoint.RightX = TruePointAFalsePointB ? TargetARight!.Value.X : TargetBRight!.Value.X;
-                        surveyStereoPoint.RightY = TruePointAFalsePointB ? TargetARight!.Value.Y : TargetBRight!.Value.Y;
-                    }
-                    else
-                    {
-                        surveyStereoPoint.LeftX = TruePointAFalsePointB ? TargetALeft!.Value.X : TargetBLeft!.Value.X;
-                        surveyStereoPoint.LeftY = TruePointAFalsePointB ? TargetALeft!.Value.Y : TargetBLeft!.Value.Y;
-                        surveyStereoPoint.RightX = TruePointAFalsePointB ? pointA!.Value.X : pointB!.Value.X;
-                        surveyStereoPoint.RightY = TruePointAFalsePointB ? pointA!.Value.Y : pointB!.Value.Y;
-                    }                    
-                }
-                // Setup the coord of a Survey Point (point on left camera only)
-                else if (eventDataType == SurveyDataType.SurveyPoint && evt.EventData is not null)
-                {
-                    if (cameraSide != eCameraSide.None)
-                    {
-                        SurveyPoint surveyPoint = (SurveyPoint)evt.EventData;
-
-                        surveyPoint.X = TruePointAFalsePointB ? pointA!.Value.X : pointB!.Value.X;
-                        surveyPoint.Y = TruePointAFalsePointB ? pointA!.Value.Y : pointB!.Value.Y;
-                        surveyPoint.TrueLeftfalseRight = cameraSide == eCameraSide.Left;
-                    }
-                }
-
 
                 // Assigned the species info via a user dialog box
+                bool add = true;
+
                 SpeciesInfo specifiesInfo = new();
-                if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo, speciesImageCache) == true)
+                if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo, speciesImageCache) == false)
                 {
-                    bool add = false;
+                    // Species info cancelled, check the user still want to add the measurement
+                    add = await SpeciesInfoMissingWarningDialog(true/*isMeasurement*/, false/*is3DPoint*/, false/*isSinglePoint*/);
+                }
 
-                    if (mediaTimelineController is not null)
+                if (add)
+                {
+                    SurveyDataType surveyDataType;
+
+                    if (pointData is SurveyMeasurement)
                     {
-                        // Assign the media poistions
-                        TimeSpan? timelineConntrollerPoistion = mediaTimelineController.Position;
-                        TimeSpan? leftPosition = mediaPlayerLeft.Position;
-                        TimeSpan? rightPosition = mediaPlayerRight.Position;
+                        surveyDataType = SurveyDataType.SurveyMeasurementPoints;
+                    }
+                    else if (pointData is SurveyStereoPoint)
+                    {
+                        surveyDataType = SurveyDataType.SurveyStereoPoint;
+                    }
+                    else if (pointData is SurveyPoint)
+                    {
+                        surveyDataType = SurveyDataType.SurveyPoint;
+                    }
+                    else
+                        throw new Exception("MediaStereoController.AddMeasurementOr3DPointRequest: Unknown point data type");
 
-                        if (leftPosition is not null && rightPosition is not null)
-                        {
-                            evt.TimeSpanTimelineController = (TimeSpan)timelineConntrollerPoistion;
-                            evt.TimeSpanLeftFrame = (TimeSpan)leftPosition;
-                            evt.TimeSpanRightFrame = (TimeSpan)rightPosition;
-                        }
+                    Event evt = new(surveyDataType)
+                    {
+                        EventData = pointData
+                    };
+
+                    // This maybe empty if the user cancelled the species selector dialog
+                    // but that is ok.  It maybe that someone is doing the measuring and someone
+                    // else the fish ID
+                    if (pointData is SurveyMeasurement surveyMeasurement)
+                    {
+                        surveyMeasurement.SpeciesInfo = specifiesInfo;
+                    }
+                    else if (pointData is SurveyStereoPoint surveyStereoPoint)
+                    {
+                        surveyStereoPoint.SpeciesInfo = specifiesInfo;
+                    }
+                    else if (pointData is SurveyPoint surveyPoint)
+                    {
+                        surveyPoint.SpeciesInfo = specifiesInfo;
                     }
 
-                    if (eventDataType == SurveyDataType.SurveyStereoPoint && evt.EventData is not null)
+                    // If stereo point do the measurement calculations
+                    if (surveyDataType == SurveyDataType.SurveyMeasurementPoints ||
+                        surveyDataType == SurveyDataType.SurveyStereoPoint)
                     {
-                        SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
-                        surveyStereoPoint.SpeciesInfo = specifiesInfo;
-
                         // Check if suitable calibration data is available for this frame size
                         bool isReady = await mainWindow.CheckIfMeasurementSetupIsReady();
                         if (isReady)
                         {
-                            // This call calculates the distance, range, X & Y offset between
-                            // the camera system mid-point and the measurement point mid-point
-                            // Note false is returned if there is an error (i.e. it's not that a rules was broken)
-                            if (mainWindow.DoRulesCalculations(surveyStereoPoint) == true)
-                                add = true;
+                            if (pointData is SurveyMeasurement surveyMeasurement2)
+                            {
+                                // This call calculates the distance, range, X & Y offset between the camera system mid-point and the measurement point mid-point
+                                mainWindow.DoMeasurementAndRulesCalculations(surveyMeasurement2);
+                            }
+                            else if (pointData is SurveyStereoPoint surveyStereoPoint2)
+                            {
 
-                            stereoProjection.PointsClear();
+                                // This call calculates the distance, range, X & Y offset between
+                                // the camera system mid-point and the measurement point mid-point
+                                // Note false is returned if there is an error (i.e. it's not that a rules was broken)
+                                mainWindow.DoRulesCalculations(surveyStereoPoint2);
+                            }
                         }
-
-                    }
-                    else if (eventDataType == SurveyDataType.SurveyPoint && evt.EventData is not null)
-                    {
-                        // There are no rules for a single point so just add it to the events list
-                        SurveyPoint surveyPoint = (SurveyPoint)evt.EventData;
-                        surveyPoint.SpeciesInfo = specifiesInfo;
-
-                        add = true;
+                        // Note. We still log the event even if no measurement done
+                        // Calibration data may not be available at this time but when
+                        // calibration data is available all measurements will be recalculated
                     }
 
-                    // Add the event to the Events list
-                    if (add)
-                    {
-                        // Add measurement to the Events list
-                        eventsControl?.AddEvent(evt);
 
-                        // Remove targets
-                        ClearCachedTargets();
-#if !No_MagnifyAndMarkerDisplay
-                        magnifyAndMarkerDisplayLeft.SetTargets(null, null);
-                        magnifyAndMarkerDisplayRight.SetTargets(null, null);
-#endif
+                    // Add the event to the list and clear down
+                    SetMediaPoistionAddEventClearTargets(evt);
 
-                    }
+                    // Clear stereo projection calculation class
+                    stereoProjection.PointsClear();
+
+                    // Display the missing calibration warning InfoBar if necessary
+                    mainWindow.SetInfoBarCalibrationMissing();
                 }
             }
+        }
+
+
+        /// <summary>
+        /// Received a request to add a 3D Point (SurveyStereoPoint)
+        /// A SurveyStereoPoint is a corresponding point on both the left and right camera
+        /// A SurveyPoint is a point on the left camera only
+        /// </summary>
+        /// <param name="cameraSide"></param>
+        /// <param name="TruePointAFalsePointB"></param>
+        /// <returns></returns>
+        //??? Delete
+//        internal async Task Add3DPointRequest(SurveyorMediaPlayer.eCameraSide cameraSide, bool TruePointAFalsePointB)
+//        {
+//            if (eventsControl is not null && stereoProjection is not null)
+//            {
+//                SurveyDataType eventDataType = SurveyDataType.SurveyPoint;   // Default event type to a single point until we confirm there are stereo point
+
+//                if (cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
+//                {
+//                    if (TruePointAFalsePointB == true && TargetARight is not null)
+//                        eventDataType = SurveyDataType.SurveyStereoPoint;
+//                    else if (TruePointAFalsePointB == false && TargetBRight is not null)
+//                        eventDataType = SurveyDataType.SurveyStereoPoint;
+//                }
+//                else if (cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
+//                {
+//                    if (TruePointAFalsePointB == true && TargetALeft is not null)
+//                        eventDataType = SurveyDataType.SurveyStereoPoint;
+//                    else if (TruePointAFalsePointB == false && TargetBLeft is not null)
+//                        eventDataType = SurveyDataType.SurveyStereoPoint;
+//                }
+
+//                // Declare a new event with the right event data type
+//                Event evt = new();
+//                evt.SetData(eventDataType);
+
+//                // Setup the coord of a Survey Stereo Point (corresponding point on the left and right camera)
+//                if (eventDataType == SurveyDataType.SurveyStereoPoint && evt.EventData is not null)
+//                {
+//                    SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
+
+//                    if (cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
+//                    {
+//                        surveyStereoPoint.LeftX = TruePointAFalsePointB ? pointA!.Value.X : pointB!.Value.X;
+//                        surveyStereoPoint.LeftY = TruePointAFalsePointB ? pointA!.Value.Y : pointB!.Value.Y;
+//                        surveyStereoPoint.RightX = TruePointAFalsePointB ? TargetARight!.Value.X : TargetBRight!.Value.X;
+//                        surveyStereoPoint.RightY = TruePointAFalsePointB ? TargetARight!.Value.Y : TargetBRight!.Value.Y;
+//                    }
+//                    else
+//                    {
+//                        surveyStereoPoint.LeftX = TruePointAFalsePointB ? TargetALeft!.Value.X : TargetBLeft!.Value.X;
+//                        surveyStereoPoint.LeftY = TruePointAFalsePointB ? TargetALeft!.Value.Y : TargetBLeft!.Value.Y;
+//                        surveyStereoPoint.RightX = TruePointAFalsePointB ? pointA!.Value.X : pointB!.Value.X;
+//                        surveyStereoPoint.RightY = TruePointAFalsePointB ? pointA!.Value.Y : pointB!.Value.Y;
+//                    }                    
+//                }
+//                // Setup the coord of a Survey Point (point on left camera only)
+//                else if (eventDataType == SurveyDataType.SurveyPoint && evt.EventData is not null)
+//                {
+//                    if (cameraSide != eCameraSide.None)
+//                    {
+//                        SurveyPoint surveyPoint = (SurveyPoint)evt.EventData;
+
+//                        surveyPoint.X = TruePointAFalsePointB ? pointA!.Value.X : pointB!.Value.X;
+//                        surveyPoint.Y = TruePointAFalsePointB ? pointA!.Value.Y : pointB!.Value.Y;
+//                        surveyPoint.TrueLeftfalseRight = cameraSide == eCameraSide.Left;
+//                    }
+//                }
+
+
+//                // Assigned the species info via a user dialog box
+//                SpeciesInfo specifiesInfo = new();
+//                if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo, speciesImageCache) == true)
+//                {
+//                    bool add = false;
+
+//                    if (mediaTimelineController is not null)
+//                    {
+//                        // Assign the media poistions
+//                        TimeSpan? timelineConntrollerPoistion = mediaTimelineController.Position;
+//                        TimeSpan? leftPosition = mediaPlayerLeft.Position;
+//                        TimeSpan? rightPosition = mediaPlayerRight.Position;
+
+//                        if (leftPosition is not null && rightPosition is not null)
+//                        {
+//                            evt.TimeSpanTimelineController = (TimeSpan)timelineConntrollerPoistion;
+//                            evt.TimeSpanLeftFrame = (TimeSpan)leftPosition;
+//                            evt.TimeSpanRightFrame = (TimeSpan)rightPosition;
+//                        }
+//                    }
+
+//                    if (eventDataType == SurveyDataType.SurveyStereoPoint && evt.EventData is not null)
+//                    {
+//                        SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
+//                        surveyStereoPoint.SpeciesInfo = specifiesInfo;
+
+//                        // Check if suitable calibration data is available for this frame size
+//                        bool isReady = await mainWindow.CheckIfMeasurementSetupIsReady();
+//                        if (isReady)
+//                        {
+//                            // This call calculates the distance, range, X & Y offset between
+//                            // the camera system mid-point and the measurement point mid-point
+//                            // Note false is returned if there is an error (i.e. it's not that a rules was broken)
+//                            if (mainWindow.DoRulesCalculations(surveyStereoPoint) == true)
+//                                add = true;
+
+//                            stereoProjection.PointsClear();
+//                        }
+
+//                    }
+//                    else if (eventDataType == SurveyDataType.SurveyPoint && evt.EventData is not null)
+//                    {
+//                        // There are no rules for a single point so just add it to the events list
+//                        SurveyPoint surveyPoint = (SurveyPoint)evt.EventData;
+//                        surveyPoint.SpeciesInfo = specifiesInfo;
+
+//                        add = true;
+//                    }
+
+//                    // Add the event to the Events list
+//                    if (add)
+//                    {
+//                        // Add measurement to the Events list
+//                        eventsControl?.AddEvent(evt);
+
+//                        // Remove targets
+//                        ClearCachedTargets();
+//#if !No_MagnifyAndMarkerDisplay
+//                        magnifyAndMarkerDisplayLeft.SetTargets(null, null);
+//                        magnifyAndMarkerDisplayRight.SetTargets(null, null);
+//#endif
+
+//                    }
+//                }
+//            }
+//        }
+
+
+        /// <summary>
+        /// Used by AddMeasurementRequest, Add3DPointRequest and AddSinglePointRequest to do
+        /// the work common to all three:
+        /// Load the event with the correct media poistion
+        /// Add the event to the event list
+        /// Clear the targets in memory and on the screen
+        /// </summary>
+        /// <param name="evt"></param>
+        private void SetMediaPoistionAddEventClearTargets(Event evt)
+        {
+            // Log the event (even if no measurement done)
+            if (mediaTimelineController is not null)
+            {
+                TimeSpan? timelineConntrollerPoistion = mediaTimelineController.Position;
+                TimeSpan? leftPosition = mediaPlayerLeft.Position;
+                TimeSpan? rightPosition = mediaPlayerRight.Position;
+
+                if (leftPosition is not null && rightPosition is not null)
+                {
+                    evt.TimeSpanTimelineController = (TimeSpan)timelineConntrollerPoistion;
+                    evt.TimeSpanLeftFrame = (TimeSpan)leftPosition;
+                    evt.TimeSpanRightFrame = (TimeSpan)rightPosition;
+
+                    // Add the species info to the Events list
+                    eventsControl?.AddEvent(evt);
+
+                    // Remove targets from memory
+                    ClearCachedTargets();
+
+                    // Remove targets from the canvas
+#if !No_MagnifyAndMarkerDisplay
+                    magnifyAndMarkerDisplayLeft.SetTargets(null, null);
+                    magnifyAndMarkerDisplayRight.SetTargets(null, null);
+#endif
+
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Called because the user don't setup the species info but may still want to save the 
+        /// Measurement Point, 3D Point or Single Point
+        /// The user has a do not ask again option.  
+        /// </summary>
+        /// <param name="isMeasurement"></param>
+        /// <param name="is3DPoint"></param>
+        /// <param name="isSinglePoint"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        private async Task<bool> SpeciesInfoMissingWarningDialog(bool isMeasurement, bool is3DPoint, bool isSinglePoint)
+        {
+            bool ret = false;
+
+            if (!justSaveEventDoAsk)
+            {
+                // Prepare the contents text
+                string bodyText;
+                string doNotAskAgainText;
+                if (isMeasurement)
+                {
+                    bodyText = "Do you want to save the Measurement Point anyway? Species information can be added later.";
+                    doNotAskAgainText = "Do not show me this again, just save the measurement points";
+                }
+                else if (is3DPoint)
+                {
+                    bodyText = "Do you want to save the 3D Point anyway? Species information can be added later.";
+                    doNotAskAgainText = "Do not show me this again, just save the 3D point";
+                }
+                else if (isSinglePoint)
+                {
+                    bodyText = "Do you want to save the Single Point anyway? Species information can be added later.";
+                    doNotAskAgainText = "Do not show me this again, just save the single point";
+                }
+                else
+                {
+                    // Bad parameters three exception
+                    throw new ArgumentException("SpeciesInfoMissingWarningDialog: Bad parameters");
+                }
+
+                ContentDialog dialog = new()
+                {
+                    Title = "No Species Selected",
+                    PrimaryButtonText = "Yes",
+                    CloseButtonText = "No",
+                    DefaultButton = ContentDialogButton.Primary,
+                    XamlRoot = mainWindow.Content.XamlRoot // Ensure dialog attaches to correct visual tree
+                };
+
+                var contentText = new TextBlock
+                {
+                    Text = bodyText,
+                    TextWrapping = TextWrapping.WrapWholeWords
+                };
+
+                CheckBox suppressCheckbox = new CheckBox
+                {
+                    Content = doNotAskAgainText
+                };
+
+                var stackPanel = new StackPanel
+                {
+                    Spacing = 12,
+                    Children =
+                    {
+                        contentText,
+                        suppressCheckbox
+                    }
+                };
+
+                dialog.Content = stackPanel;
+
+                // Show the dialog and await the result
+                var result = await dialog.ShowAsync();
+
+                // Handle the dialog result
+                if (result == ContentDialogResult.Primary)
+                {
+                    ret = true;
+                }
+
+                if (suppressCheckbox.IsChecked == true)
+                {
+                    // User has selected to not be asked again
+                    justSaveEventDoAsk = true;
+                }
+            }
+            else
+            {
+                // Just save the event without asking
+                ret = true;
+            }
+
+            return ret;
         }
 
 
@@ -2154,19 +2430,21 @@ namespace Surveyor
                         }
                         break;
 
-                    case MagnifyAndMarkerControlEvent.SurveyMeasurementPairSelected:
-                        if (data.pointA is not null && data.pointB is not null)
+                    case MagnifyAndMarkerControlEvent.AddMeasurementRequest:
+                        SafeUICall(async () => await mediaStereoController.AddMeasurementRequest());
+                        break;
+
+                    case MagnifyAndMarkerControlEvent.Add3DPointRequest:
+                        if (data.TruePointAFalsePointB is not null)
                         {
-                            SafeUICall(async () => await mediaStereoController.SurveyMeasurementPairSelected(data.cameraSide, (Point)data.pointA, (Point)data.pointB));
-                            Debug.WriteLine($"***SurveyMeasurementPairSelected");
+                            SafeUICall(async () => await mediaStereoController.Add3DPointRequest((bool)data.TruePointAFalsePointB));
                         }
                         break;
 
-                    case MagnifyAndMarkerControlEvent.SurveyPointSelected:
+                    case MagnifyAndMarkerControlEvent.AddSinglePointRequest:
                         if (data.TruePointAFalsePointB is not null)
                         {
-                            SafeUICall(async () => await mediaStereoController.SurveyPointSelected(data.cameraSide, (bool)data.TruePointAFalsePointB, data.pointA, data.pointB));
-                            Debug.WriteLine($"***SurveyPointSelected");
+                            SafeUICall(async () => await mediaStereoController.AddSinglePointRequest(data.cameraSide, (bool)data.TruePointAFalsePointB));
                         }
                         break;
 

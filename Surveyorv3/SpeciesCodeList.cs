@@ -346,10 +346,14 @@ namespace Surveyor
 
                             if (item.Load(line))
                             {
-                                SpeciesItems.Add(item);
+                                // Only load items with the Species not blank                                
+                                if (!string.IsNullOrWhiteSpace(item.Species))
+                                {
+                                    SpeciesItems.Add(item);
 
-                                if (item.IsScientificAndCommonNamePresent)
-                                    IsScientificAndCommonNamePresent = true;
+                                    if (item.IsScientificAndCommonNamePresent)
+                                        IsScientificAndCommonNamePresent = true;
+                                }
                             }
                         }
                     } // <-- file is fully closed here

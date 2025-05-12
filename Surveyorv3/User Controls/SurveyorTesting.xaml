@@ -8,6 +8,10 @@
     xmlns:ex="using:WinUIEx"
     xmlns:surveyorControls="using:Surveyor.User_Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    MinWidth="1100"
+    MinHeight="800"
+    MaxHeight="1000"
+    MaxWidth="1200"
     Title="Settings">
 
     <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
