@@ -26,8 +26,10 @@ namespace Surveyor
         // Needs to be 'internal' for Unit Testing
         static internal MainWindow? mainWindow;
 
+#if !DEBUG
         // Insights telemetry client
         private TelemetryClient _telemetryClient;
+#endif
 
         /// <summary>
         /// Initializes the singleton application object.  This is the first line of authored code
@@ -62,7 +64,6 @@ namespace Surveyor
 
             // Track app start event
             TelemetryLogger.TrackAppStartStop(TrackAppStartStopType.AppStart);
-
 #endif
         }
 
@@ -78,8 +79,10 @@ namespace Surveyor
             {
                 mainWindow.Closed += (sender, e) =>
                 {
+#if !DEBUG
                     _telemetryClient?.Flush();
                     System.Threading.Thread.Sleep(1000); // Give time to send
+#endif
                 };
                 mainWindow.Activate();
             }                               
@@ -87,9 +90,11 @@ namespace Surveyor
 
         private void OnSuspending(object sender, SuspendingEventArgs e)
         {
+#if !DEBUG
             _telemetryClient?.Flush();
             // Allow time for flushing before shutdown
             Task.Delay(1000).Wait();
+#endif
         }
 
 

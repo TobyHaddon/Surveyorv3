@@ -92,6 +92,9 @@ namespace Surveyor
         private bool infoBarCalibrationMissingDismissed = false;
         private bool infoBarSpeciesInfoMissingDismissed = false;
 
+        // Experimental
+        private bool experimentalEnabled = false;
+
 
         public MainWindow()
         {
@@ -289,6 +292,10 @@ namespace Surveyor
 
             // Set-up any controls that depend on the diagnostic information state 
             _SetDiagnosticInformation(SettingsManagerLocal.DiagnosticInformation);
+
+            // Load the experimental settings
+            _SetExperimental(SettingsManagerLocal.ExperimentalEnabled);
+
 
             // Add the help documents to the Help menu
             // Fix for CS1503: Argument 1: cannot convert from 'System.Collections.Generic.IList<Microsoft.UI.Xaml.Controls.MenuFlyoutItemBase>' to 'Microsoft.UI.Xaml.Controls.ItemCollection'
@@ -693,16 +700,15 @@ namespace Surveyor
                 MagnifyAndMarkerDisplayRight = null;
 
 
+                // Remove listener for theme changes
+                var rootElement = (FrameworkElement)Content;
+                rootElement.ActualThemeChanged -= OnActualThemeChanged;
+
                 this.Close(); // This will NOT retrigger AppWindow.Closing
                 Debug.WriteLine("AppWindow_Closing Exited this.Close");
 
                 // Dump the reporter content to disk
                 report.Unload();
-
-                // Remove listener for theme changes
-                var rootElement = (FrameworkElement)Content;
-                rootElement.ActualThemeChanged -= OnActualThemeChanged;
-
             }
             else
             {
@@ -712,6 +718,7 @@ namespace Surveyor
 
             TelemetryLogger.TrackAppStartStop(TrackAppStartStopType.AppStopOk);
             Debug.WriteLine("AppWindow_Closing Exit");
+
         }
 
 
@@ -2039,7 +2046,7 @@ namespace Surveyor
 
                     // Write data to the file
                     // Save As
-                    surveyClass.SurveySaveAs(file.Path);
+                    await surveyClass.SurveySaveAs(file.Path);
 
 
                     // Let Windows know that we're finished changing the file so the other app can update the remote version of the file.
@@ -3031,6 +3038,16 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Experimental setting has changed (or is being initially set)
+        /// </summary>
+        /// <param name="_experimentalEnabled"></param>
+        internal void _SetExperimental(bool _experimentalEnabled)
+        {
+            experimentalEnabled = _experimentalEnabled;
+        }
+
+
+        /// <summary>
         /// Used to display any exceptions during the Open() function
         /// </summary>
         /// <param name="mediaFileSpec"></param>
@@ -3380,6 +3397,14 @@ namespace Surveyor
                             _mainWindow._SetDiagnosticInformation((bool)data!.diagnosticInformation);
                         }
                         break;
+                    // The user has changed the Experimental settings
+                    case eSettingsWindowEvent.Experimental:
+                        if (data.experimentialEnabled is not null)
+                        {
+                            _mainWindow._SetExperimental((bool)data!.experimentialEnabled);
+                        }
+                        break;
+
                 }
             }
 

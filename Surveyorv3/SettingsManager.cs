@@ -132,6 +132,26 @@ namespace Surveyor
         }
 
 
+        // Experimental features can be used
+        public static bool ExperimentalEnabled
+        {
+            get
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                if (localSettings.Values["Experimental"] is not bool experimentalEnabled)
+                    experimentalEnabled = false;        // Default experimental codeto off
+
+                return experimentalEnabled;
+            }
+            set
+            {
+                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
+                localSettings.Values["Experimental"] = value;
+            }
+        }
+
+
+
         // Application theme Light, Dark or Default
         public static ElementTheme ApplicationTheme
         {

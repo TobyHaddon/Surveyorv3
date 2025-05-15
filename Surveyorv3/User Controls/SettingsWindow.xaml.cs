@@ -326,8 +326,11 @@ namespace Surveyor.User_Controls
                     // Refresh the internet queue
                     mainWindow?.internetQueue.RefreshView();
 
-                    // Load the Telemtry status
+                    // Load the Telemtry setting
                     Telemetry.IsOn = SettingsManagerLocal.TelemetryEnabled;
+
+                    // Load the Experimental setting
+                    Experimental.IsOn = SettingsManagerLocal.ExperimentalEnabled;
                 }
 
 
@@ -612,7 +615,35 @@ namespace Surveyor.User_Controls
             // Inform everyone of the state change
             settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.DiagnosticInformation)
             {
-                diagnosticInformation = DiagnosticInformation.IsOn
+                diagnosticInformation = SettingsManagerLocal.DiagnosticInformation
+            });
+        }
+
+
+        /// <summary>
+        /// Eanbled or disable beat release code
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void Experimental_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+
+            if (Experimental.IsOn)
+            {
+                // Enable diagnostic information
+                SettingsManagerLocal.ExperimentalEnabled = true;
+            }
+            else
+            {
+                // Disable diagnostic information
+                SettingsManagerLocal.ExperimentalEnabled = false;
+            }
+
+            // Inform everyone of the state change
+            settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.Experimental)
+            {
+                experimentialEnabled = SettingsManagerLocal.ExperimentalEnabled
             });
         }
 
@@ -1333,6 +1364,7 @@ namespace Surveyor.User_Controls
 
 
 
+
         // ***END OF SettingsWindow***
     }
 
@@ -1375,7 +1407,8 @@ namespace Surveyor.User_Controls
         public enum eSettingsWindowEvent
         {
             MagnifierWindow,        // The Magnifier Window has been toggled
-            DiagnosticInformation   // Diagnostic Information has changed
+            DiagnosticInformation,  // Diagnostic Information has changed
+            Experimental            // Allow experimental features setting has changed
         }
 
         public readonly eSettingsWindowEvent settingsWindowEvent;
@@ -1386,6 +1419,8 @@ namespace Surveyor.User_Controls
         // Only used for settingsWindowEvent.DiagnosticInformation
         public bool? diagnosticInformation;
 
+        // Only used for settingsWindowEvent.Experimental
+        public bool? experimentialEnabled;
     }
 
 

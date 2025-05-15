@@ -218,25 +218,40 @@ namespace Surveyor.Helper
                 result.FishID = fishId;
             }
 
+
             // --- Helper: clean a div content ---
             static string CleanSpanInnerText(HtmlNode? node)
             {
-                string ret = string.Empty;
                 if (node == null) return string.Empty;
 
                 var clone = node.Clone();
-                if (clone is not null && clone.InnerText is not null)
+                if (clone is null || clone.InnerText is null)
+                    return string.Empty;
+
+                foreach (var a in clone.SelectNodes(".//a") ?? Enumerable.Empty<HtmlNode>())
+                    a.Remove();
+                
+                string? ret = HtmlEntity.DeEntitize(clone.InnerText);
+                if (ret is not null)
                 {
-                    foreach (var a in clone.SelectNodes(".//a") ?? Enumerable.Empty<HtmlNode>())
-                        a.Remove();
+                    // Remove &nbsp
+                    ret = ret.Replace("&nbsp", " ");
 
-                    ret = HtmlEntity.DeEntitize(clone.InnerText)!.Trim();
+                    // Replace non-breaking spaces (\u00A0) with regular space
+                    ret = ret.Replace('\u00A0', ' ');
 
+                    // Optionally, normalize multiple whitespace (tabs, newlines, etc.) into single spaces
+                    ret = Regex.Replace(ret, @"\s+", " ").Trim();
+
+                    // Remove unwanted trailing text
                     ret = ret.Replace("(Ref. )", "").TrimEnd();
                 }
+                else
+                    return string.Empty;
 
                 return ret;
             }
+
 
             // --- Environment ---
             var envNode = doc.DocumentNode.SelectSingleNode("//h1[contains(text(), 'Environment')]/following-sibling::div[@class='smallSpace']//span");

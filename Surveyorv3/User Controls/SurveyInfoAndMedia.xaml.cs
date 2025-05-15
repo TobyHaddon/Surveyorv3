@@ -1,6 +1,6 @@
 ///
 /// *** Remember when editting this User Control code that it is used from both   ***
-/// *** the context of a ContentDialog (for a new Survey) and from a SettingCard ***
+/// *** the context of a ContentDialog (for a new Survey) and from a SettingCard  ***
 /// *** from the SettingsWindow.                                                  ***  
 ///
 // SurveyInfoAndMedia  
@@ -60,8 +60,6 @@ namespace Surveyor.User_Controls
             // Initialize the collection
             LeftMediaFileItemList = [];
             RightMediaFileItemList = [];
-
-
         }
 
 
@@ -88,6 +86,17 @@ namespace Surveyor.User_Controls
 
             // Reset Fields
             ResetDialogFields();
+
+            // Inherit from prior Survey
+            if (SettingsManagerLocal.ExperimentalEnabled)
+            {
+                //??? TO DO
+                InheritSurveyData.Visibility = Visibility.Visible;
+                //InheritSurveyData.IsChecked = true;
+
+                
+            }
+
 
             // Create a exception if not running from the ContentDialog context
             if (/*!dialog.IsLoaded || */!dialog.IsEnabled)
@@ -304,10 +313,10 @@ namespace Surveyor.User_Controls
                 if (surveyClass.Data.Media.RightMediaFileNames.Count > 0)
                     surveyClass.Data.Media.RightCameraID = ((MediaFileItem)RightMediaFileNames.Items[0]).GoProSerialNumber;
 
-        }
+            }
 
-        // Remember the last used analyst name
-        SettingsManagerLocal.UserName = SurveyAnalystName.Text;
+            // Remember the last used analyst name
+            SettingsManagerLocal.UserName = SurveyAnalystName.Text;
 
             // Report any issues with the data
             EntryFieldsValid(true/*report*/);

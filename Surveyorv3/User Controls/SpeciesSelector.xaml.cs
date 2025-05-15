@@ -15,6 +15,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading.Tasks;
 using Windows.Storage;
 using static Surveyor.SpeciesImageAndInfoCache;
@@ -147,7 +148,7 @@ namespace Surveyor.User_Controls
             SourceCredit.Text = string.Empty;
             GenusSpecies.Text = string.Empty;
 
-            // Clear environment, distrution and size (bound to xaml)
+            // Clear environment, distrution and size (bound to xaml)            
             Environment.Text = string.Empty;
             Distribution.Text = string.Empty;
             SpeciesSize.Text = string.Empty;
@@ -174,7 +175,7 @@ namespace Surveyor.User_Controls
             userSelectedFamily = false;
 
 
-        // Create the dialog
+            // Create the dialog
             ContentDialog dialog = new()
             {
                 Content = this,
@@ -215,27 +216,38 @@ namespace Surveyor.User_Controls
             //    "Male"
             //};
             //ComboBoxLifeStage.ItemsSource = lifeStages;
-           
+
+            // Hide the species info expander
+            SpeciesInfoExpander.Visibility = Visibility.Collapsed;
 
             // If Edit mode, fill in the fields
             if (editExisting)
             {
-                AutoSuggestSpecies.Text = speciesInfo.Species;
+                // First set the species and select the equivalent item in the pick list 
+                // This is so the images are displayed (if available)
+                if (speciesInfo.Species is not null)
+                {
+                    AutoSuggestSpecies.Text = speciesInfo.Species;
+                    if (speciesCodeList.SearchSpecies(speciesInfo.Species, ""/*genus*/, ""/*family*/) == true)
+                    {
+                        AutoSuggestSpecies.ItemsSource = speciesCodeList.SpeciesComboItems;
+
+                        // If the search resulted in one result then use that result as the selection
+                        if (speciesCodeList.SpeciesComboItems.Count == 1)
+                        {
+                            SpeciesItem speciesItem = speciesCodeList.SpeciesComboItems[0];
+                            await SpeciesSelected(speciesItem, true/*setAutoSuggest*/);
+                        }
+                    }
+                }
+
+                // Set the genus, family, fish count and comment
                 AutoSuggestGenus.Text = speciesInfo.Genus;
                 AutoSuggestFamily.Text = speciesInfo.Family;
                 NumberBoxNumberOfFish.Value = Convert.ToInt32(speciesInfo.Number);
                 //???ComboBoxLifeStage.SelectedItem = speciesInfo.Stage;
                 TextBoxComment.Text = speciesInfo.Comment;
             }
-
-            // Hide the species info expander
-            SpeciesInfoExpander.Visibility = Visibility.Collapsed;
-
-            // Hook up closed cleanup handler
-            //dialog.Closed += (s, e) =>
-            //{
-            //    ClearControls();
-            //};
 
 
             // Show the dialog and handle the response
@@ -396,11 +408,14 @@ namespace Surveyor.User_Controls
                 string genus = AutoSuggestGenus.Text;
                 string family = AutoSuggestFamily.Text;
 
-                userSelectedGenus = false;
-                userSelectedFamily = false;
-
                 // Do a fuzzy search based on the text
-                if (speciesCodeList.SearchSpecies(args.QueryText, genus, family) == true)
+                // If the actually selected or typed genus or family values then use
+                // those in the search as well (that is as opposed to the values being
+                // calculated from the species)
+                string genusSearch  = userSelectedGenus == true ? genus : string.Empty;
+                string familySearch = userSelectedFamily == true ? family : string.Empty;
+
+                if (speciesCodeList.SearchSpecies(args.QueryText, genusSearch, familySearch) == true)
                 {
                     AutoSuggestSpecies.ItemsSource = speciesCodeList.SpeciesComboItems;
 
@@ -408,7 +423,7 @@ namespace Surveyor.User_Controls
                     if (speciesCodeList.SpeciesComboItems.Count == 1)
                     {
                         SpeciesItem speciesItem = speciesCodeList.SpeciesComboItems[0];
-                        await SpeciesSelected(speciesItem, true/*setAutoSuggesat*/);
+                        await SpeciesSelected(speciesItem, true/*setAutoSuggest*/);
                     }
                 }
             }
@@ -437,9 +452,6 @@ namespace Surveyor.User_Controls
                 AutoSuggestFamily.Text = speciesItem.Family;
             }
 
-            userSelectedGenus = false;
-            userSelectedFamily = false;
-
             // Display images of fish for this species to help fish ID
             await DisplayCachedFishImages(speciesItem);
         }
@@ -459,7 +471,6 @@ namespace Surveyor.User_Controls
                 string family = AutoSuggestFamily.Text;
 
                 userSelectedGenus = true;
-                userSelectedFamily = false;
 
                 // Search on the genus
                 if (speciesCodeList.SearchGenus(sender.Text, family) == true)
@@ -487,7 +498,6 @@ namespace Surveyor.User_Controls
                 string family = AutoSuggestFamily.Text;
 
                 userSelectedGenus = true;
-                userSelectedFamily = false;
 
                 // Do a fuzzy search based on the text
                 if (speciesCodeList.SearchGenus(sender.Text, family) == true)
@@ -503,7 +513,6 @@ namespace Surveyor.User_Controls
             AutoSuggestFamily.Text = item.Family;
 
             userSelectedGenus = true;
-            userSelectedFamily = false;
         }
 
 
@@ -518,7 +527,6 @@ namespace Surveyor.User_Controls
             // only listen to changes caused by user entering text.
             if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
             {
-                userSelectedGenus = false;
                 userSelectedFamily = true;
 
                 // Search on the family
@@ -543,7 +551,6 @@ namespace Surveyor.User_Controls
             }
             else if (!string.IsNullOrEmpty(args.QueryText) || sender.Text == "")
             {
-                userSelectedGenus = false;
                 userSelectedFamily = true;
 
                 // Do a fuzzy search based on the text
@@ -648,7 +655,12 @@ namespace Surveyor.User_Controls
                             SourceCredit.Text = $"Source: {source}";
                             GenusSpecies.Text = genusSpecies;
                             SpeciesInfoExpander.Visibility = Visibility.Visible;
-                            //???SourceGenusSpecies.Text = $"Source: {source} {genusSpecies}";
+                            // The state of a .XAML based dialog is remembered. Therefore you need to close
+                            // the expander in case the user left it open last time the Assign Species dialog
+                            // box was displayed
+                            SpeciesInfoExpander.IsExpanded = false;
+
+                            //???TOBEDELELTED SourceGenusSpecies.Text = $"Source: {source} {genusSpecies}";
 
                             Debug.WriteLine($"SpeciesSelector: AutoSuggestBoxSpecies_SuggestionChosen: {genusSpecies} {source} {speciesItem.Code}");
                         }

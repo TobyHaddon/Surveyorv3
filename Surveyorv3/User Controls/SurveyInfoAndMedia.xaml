@@ -209,6 +209,9 @@
                 <TextBlock x:Name="SurveyMediaContiguousValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
 
+            <CheckBox x:Name="InheritSurveyData" Content="Inherit Calibration &amp; Rules from a prior survey?" 
+                     HorizontalAlignment="Left" Margin="0,8,0,0"                       
+                     Visibility="Collapsed"/>
         </StackPanel>
     </Grid>
 </UserControl>

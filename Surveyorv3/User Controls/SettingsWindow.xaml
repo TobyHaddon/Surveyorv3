@@ -338,6 +338,14 @@
                     <ToggleSwitch x:Name="DiagnosticInformation" Toggled="DiagnosticInformation_Toggled" />
                 </toolkit:SettingsCard>
 
+                <!-- Experimental Code -->
+                <toolkit:SettingsCard Header="Experimental Features" Description="Experimental code, should not be used for real surveys" >
+                    <toolkit:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xF196;" ToolTipService.ToolTip="These features are experimental or in test and may produce incorrect results." />
+                    </toolkit:SettingsCard.HeaderIcon>
+                    <ToggleSwitch x:Name="Experimental" Toggled="Experimental_Toggled" />
+                </toolkit:SettingsCard>
+
                 <!-- Internet Queue Viewer -->
                 <toolkit:SettingsExpander x:Name="InternetQueueExpander" Header="Internet Queue">
                     <toolkit:SettingsExpander.HeaderIcon>

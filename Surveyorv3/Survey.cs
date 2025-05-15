@@ -30,10 +30,15 @@ namespace Surveyor
 
 
         // Auto Save variables
-        private readonly SemaphoreSlim _autoSaveSemaphore = new(0, 1); // Semaphore to signal stop
-        private bool _isAutoSaveRunning = true;
-        private bool _autoSaveStopped = false;
-        private readonly TimeSpan _autosaveInterval = TimeSpan.FromSeconds(20); 
+        //???OLD AUTOSAVE
+        /// <summary>
+        //private readonly SemaphoreSlim _autoSaveSemaphore = new(0, 1); // Semaphore to signal stop
+        //private bool _isAutoSaveRunning = true;
+        //private bool _autoSaveStopped = false;
+        //private readonly TimeSpan _autosaveInterval = TimeSpan.FromSeconds(20); 
+        private readonly TimeSpan autosaveInterval = TimeSpan.FromSeconds(20);
+        private CancellationTokenSource? _autosaveCts;
+        private Task? _autosaveTask;
 
         // Lock object for thread safety
         // Use to stop the auto save and save methods from being called at the same time
@@ -958,7 +963,9 @@ namespace Surveyor
                         IsLoaded = true;
 
                         // Start the autosave task in background
-                        _ = Task.Run(() => AutoSaveWork());
+                        //????OLD AUTOSAVE
+                        //_ = Task.Run(() => AutoSaveWork());
+                        await StartAutoSave();
                     }
                 }
             }
@@ -1050,10 +1057,11 @@ namespace Surveyor
 
         /// <summary>
         /// Save a survey to a json file using passed file spec
+        /// Start an autosave task
         /// </summary>
         /// <param name="surveyFileSpec"></param>
         /// <returns></returns>
-        public int SurveySaveAs(string surveyFileSpec)
+        public async Task<int> SurveySaveAs(string surveyFileSpec)
         {
             int ret = -1;
 
@@ -1072,6 +1080,7 @@ namespace Surveyor
 
                     // A Save As could be the first save of a new survey to set IsLoaded to true
                     IsLoaded = true;
+                    await StartAutoSave();
                 }
             }
 
@@ -1260,48 +1269,116 @@ namespace Surveyor
         /// Start the auto save task
         /// </summary>
         /// <returns></returns>
-        public async Task AutoSaveWork()
+        //???OLD AUTOSAVE
+        //public async Task AutoSaveWork()
+        //{
+        //    _isAutoSaveRunning = true;
+        //    _autoSaveStopped = false;
+
+        //    // Task naming for debugging
+        //    if (Thread.CurrentThread.Name == null)
+        //    {
+        //        Thread.CurrentThread.Name = "Survey.AutosaveWork()";
+        //    }
+
+        //    try
+        //    {
+        //        if (SettingsManagerLocal.AutoSaveEnabled)
+        //            Report?.Info("", $"Auto save threaded started");
+
+        //        while (_isAutoSaveRunning)
+        //        {
+        //            try
+        //            {
+        //                if (SettingsManagerLocal.AutoSaveEnabled && IsDirty)
+        //                {
+        //                    // Your logic to save the current work state
+        //                    SurveySave();
+        //                    Report?.Out(Reporter.WarningLevel.Debug, "", $"Autosave completed");
+        //                }
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                // Log the exception using your preferred logging approach
+        //                Report?.Warning("", $"Error during autosave: {ex.Message}");
+        //            }
+
+        //            // Wait for either the autosave interval or a signal to stop
+        //            await Task.WhenAny(Task.Delay(_autosaveInterval), _autoSaveSemaphore.WaitAsync());
+        //        }
+        //    }
+        //    finally
+        //    {
+        //        Report?.Info("", $"Auto save threaded stopped on request");
+        //        _autoSaveStopped = true;
+        //    }
+        //}
+
+
+        //OLD AUTOSAVE
+        //public async Task StopAutoSave()
+        //{
+        //    if (_isAutoSaveRunning)
+        //    {
+        //        _isAutoSaveRunning = false;
+
+        //        // Signal the semaphore to allow the autosave loop to exit
+        //        _autoSaveSemaphore.Release();
+
+        //        // Wait for the autosave task to stop
+        //        int maxTryCount = 50; // Maximum 5 seconds (50 * 100ms)
+        //        while (!_autoSaveStopped && maxTryCount > 0)
+        //        {
+        //            await Task.Delay(100);
+        //            maxTryCount--;
+        //        }
+
+        //        if (!_autoSaveStopped)
+        //            Report?.Warning("", "Autosave task failed to stop.");
+        //    }
+        //}
+
+
+        /// <summary>
+        /// Start the auto save task
+        /// <summary>
+        private async Task StartAutoSave()
         {
-            _isAutoSaveRunning = true;
-            _autoSaveStopped = false;
+            await StopAutoSave(); // Ensure any previous autosave task is stopped
 
-            // Task naming for debugging
-            if (Thread.CurrentThread.Name == null)
+            _autosaveCts = new CancellationTokenSource();
+            _autosaveTask = Task.Run(async () =>
             {
-                Thread.CurrentThread.Name = "Survey.AutosaveWork()";
-            }
+                // Task naming for debugging
+                if (Thread.CurrentThread.Name == null)
+                {
+                        Thread.CurrentThread.Name = "Survey.AutosaveWork()";
+                }
 
-            try
-            {
-                if (SettingsManagerLocal.AutoSaveEnabled)
-                    Report?.Info("", $"Auto save threaded started");
+                var token = _autosaveCts.Token;
 
-                while (_isAutoSaveRunning)
+                while (!token.IsCancellationRequested)
                 {
                     try
                     {
-                        if (SettingsManagerLocal.AutoSaveEnabled && IsDirty)
+                        await Task.Delay(autosaveInterval, token);
+                        if (!token.IsCancellationRequested)
                         {
-                            // Your logic to save the current work state
-                            SurveySave();
-                            Report?.Out(Reporter.WarningLevel.Debug, "", $"Autosave completed");
+                            if (SettingsManagerLocal.AutoSaveEnabled && IsDirty)
+                            {
+                                SurveySave();
+                                Report?.Debug("", $"Autosave completed");
+                            }
                         }
                     }
-                    catch (Exception ex)
+                    catch (TaskCanceledException)
                     {
-                        // Log the exception using your preferred logging approach
-                        Report?.Warning("", $"Error during autosave: {ex.Message}");
+                        // Graceful cancellation
+                        break;
                     }
-
-                    // Wait for either the autosave interval or a signal to stop
-                    await Task.WhenAny(Task.Delay(_autosaveInterval), _autoSaveSemaphore.WaitAsync());
                 }
-            }
-            finally
-            {
                 Report?.Info("", $"Auto save threaded stopped on request");
-                _autoSaveStopped = true;
-            }
+            });
         }
 
 
@@ -1310,25 +1387,26 @@ namespace Surveyor
         /// </summary>
         public async Task StopAutoSave()
         {
-            if (_isAutoSaveRunning)
+            if (_autosaveCts != null)
             {
-                _isAutoSaveRunning = false;
+                _autosaveCts.Cancel();
 
-                // Signal the semaphore to allow the autosave loop to exit
-                _autoSaveSemaphore.Release();
-
-                // Wait for the autosave task to stop
-                int maxTryCount = 50; // Maximum 5 seconds (50 * 100ms)
-                while (!_autoSaveStopped && maxTryCount > 0)
+                try
                 {
-                    await Task.Delay(100);
-                    maxTryCount--;
+                    if (_autosaveTask != null)
+                        await _autosaveTask;
+                }
+                catch (TaskCanceledException)
+                {
+                    // Expected on cancellation
                 }
 
-                if (!_autoSaveStopped)
-                    Report?.Warning("", "Autosave task failed to stop.");
+                _autosaveCts.Dispose();
+                _autosaveCts = null;
+                _autosaveTask = null;
             }
         }
+        
 
 
         ///
