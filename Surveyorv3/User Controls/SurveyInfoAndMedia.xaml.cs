@@ -517,6 +517,50 @@ namespace Surveyor.User_Controls
             EnableDisableControlButtons();
         }
 
+        
+        /// <summary>
+        /// Enter has been pressed on the combo after text entry, update the Ok button is necessary
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void SurveyDepth_TextSubmitted(ComboBox sender, ComboBoxTextSubmittedEventArgs args)
+        {
+            // Setup the buttons
+            EntryFieldsValid(false/*no reporting*/);
+        }
+
+
+        /// <summary>
+        /// Wire up the TextChanged on the child TextBox. 
+        /// Note. I tried to use the Loaded event but SurveyDepthTextBox_TextChanged 
+        /// was never called so I switch to GotFocus
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void SurveyDepth_GettingFocus(object sender, RoutedEventArgs e)
+        {
+            var comboBox = sender as ComboBox;
+            var textBox = UIHelper.FindDescendant<TextBox>(SurveyDepth);
+            if (textBox is not null)
+            {
+                textBox.TextChanged -= SurveyDepthTextBox_TextChanged;
+                textBox.TextChanged += SurveyDepthTextBox_TextChanged;
+            }
+        }
+
+
+        /// <summary>
+        /// This had to be manually wired up because there is currently no TextChanged event on a Combo UIControl
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void SurveyDepthTextBox_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            // Setup the buttons
+            EntryFieldsValid(false/*no reporting*/);
+        }
+
+
 
         ///
         /// PRIVATE

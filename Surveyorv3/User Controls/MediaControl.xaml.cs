@@ -69,6 +69,9 @@ namespace Surveyor.User_Controls
 
         // Duration and frame rate of the media (last received from the MediaPlayer)
         private TimeSpan _duration = TimeSpan.Zero;
+        private bool durationSetFromStereoController = false;  // If true can't be overridden by receiving duration 
+                                                               // via mediator from the Media Players
+
         private double _frameRate = 0;
         private int displayToDecimalPlaces = 2;     // If we start using frame rate of 120fps then we will need to increase this to 3dp
 
@@ -155,6 +158,7 @@ namespace Surveyor.User_Controls
             ControlSpeedText.Text = string.Empty;
             ControlSpeedText.Text = string.Empty;
             _duration = TimeSpan.Zero;
+            durationSetFromStereoController = false;
             _userIsInteractingWithSlider = false;
 
             // Turn off and on the event handler to prevent the slider from sending a message to
@@ -306,7 +310,38 @@ namespace Surveyor.User_Controls
         /// Update the duration under the slider on the right side and remembers the frame rate
         /// </summary>
         /// <param name="message"></param>
-        internal void UpdateDurationAndFrameRate(MediaPlayerEventData message)
+        internal void UpdateDurationAndFrameRateFromMediaPlayer(MediaPlayerEventData message)
+        {
+            if (message is not null)
+            {
+                if (!durationSetFromStereoController)
+                {
+                    if (message.duration is not null)
+                    {
+                        _duration = (TimeSpan)message.duration;
+                        string durationText = TimePositionHelper.Format(_duration, displayToDecimalPlaces);
+
+                        ControlDurationText.Text = durationText;
+
+                        // Set the slider maximum to the duration in seconds
+                        // Note the video position is zero based so technically the maximum should be duration - 1 frame. However this looks odd so we will leave it as the duration
+                        ControlPosition.Maximum = TimePositionHelper.ToSeconds(_duration, displayToDecimalPlaces);
+                    }
+                }
+
+                if (message.frameRate is not null)
+                {
+                    // Remember the media frame rate
+                    _frameRate = (double)message.frameRate;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Update the duration under the slider on the right side and remembers the frame rate
+        /// </summary>
+        /// <param name="message"></param>
+        internal void UpdateDurationFromStereoController(MediaStereoControllerEventData message)
         {
             if (message is not null)
             {
@@ -319,17 +354,11 @@ namespace Surveyor.User_Controls
 
                     // Set the slider maximum to the duration in seconds
                     // Note the video position is zero based so technically the maximum should be duration - 1 frame. However this looks odd so we will leave it as the duration
-                    ControlPosition.Maximum = TimePositionHelper.ToSeconds(_duration, displayToDecimalPlaces); 
+                    ControlPosition.Maximum = TimePositionHelper.ToSeconds(_duration, displayToDecimalPlaces);
                 }
 
-                if (message.frameRate is not null)
-                {
-                    // Remember the media frame rate
-                    _frameRate = (double)message.frameRate;
-                }
             }
         }
-
 
         /// <summary>
         /// Update the position under the slider on the left side
@@ -1687,7 +1716,7 @@ namespace Surveyor.User_Controls
                             break;
 
                         case MediaPlayerEventData.eMediaPlayerEvent.DurationAndFrameRate:
-                            SafeUICall(() => _mediaControl.UpdateDurationAndFrameRate(mpData));
+                            SafeUICall(() => _mediaControl.UpdateDurationAndFrameRateFromMediaPlayer(mpData));
                             break;
 
                         case MediaPlayerEventData.eMediaPlayerEvent.Position:
@@ -1720,6 +1749,9 @@ namespace Surveyor.User_Controls
                             _mediaControl.SetMediaSynchronized(false);
                             break;
 
+                        case eMediaStereoControllerEvent.Duration:
+                            SafeUICall(() => _mediaControl.UpdateDurationFromStereoController(mscData));
+                            break;
                     }
                 }
             }

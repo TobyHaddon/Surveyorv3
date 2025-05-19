@@ -8,17 +8,11 @@
 
 //using Emgu.CV;
 //using Emgu.CV.Structure;
-using MathNet.Numerics.Optimization;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
-using System.Diagnostics;
-using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using Windows.Web.Http;
 
 
 namespace Surveyor
@@ -462,6 +456,37 @@ namespace Surveyor
             if (sb.Length > 0)
                 sb.Append(", ");
             sb.Append(ruleText);
+        }
+
+
+        /// <summary>
+        /// Allows to SurveyRulesCalc instance to be compared
+        /// </summary>
+        /// <param name="obj"></param>
+        /// <returns></returns>
+        public override bool Equals(object? obj)
+        {
+            if (obj is not SurveyRulesCalc other)
+                return false;
+
+            return Nullable.Equals(SurveyRules, other.SurveyRules) &&
+                   string.Equals(SurveyRulesText, other.SurveyRulesText, StringComparison.Ordinal) &&
+                   Nullable.Equals(Range, other.Range) &&
+                   Nullable.Equals(XOffset, other.XOffset) &&
+                   Nullable.Equals(YOffset, other.YOffset) &&
+                   Nullable.Equals(RMS, other.RMS);
+        }
+
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(
+                SurveyRules,
+                SurveyRulesText,
+                Range,
+                XOffset,
+                YOffset,
+                RMS
+            );
         }
     }
 }

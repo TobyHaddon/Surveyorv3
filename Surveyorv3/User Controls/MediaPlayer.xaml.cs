@@ -24,8 +24,6 @@
 // approach to grab the frame
 
 using CommunityToolkit.WinUI;
-using Emgu.CV.Dai;
-using MathNet.Numerics;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Text;
 using Microsoft.Graphics.Canvas.UI.Xaml;
@@ -51,9 +49,6 @@ using Windows.Media.MediaProperties;
 using Windows.Media.Playback;
 using Windows.Storage.Streams;
 using Windows.System.Display;
-using WinUIEx.Messaging;
-using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
-using static Surveyor.User_Controls.SurveyorMediaPlayer;
 
 namespace Surveyor.User_Controls
 {
@@ -421,6 +416,29 @@ namespace Surveyor.User_Controls
             }
         }
 
+        /// <summary>
+        /// Returns the duration of the media (total length). 
+        /// null if not ready 
+        /// </summary>
+        internal TimeSpan? NaturalDuration
+        {
+            get
+            {
+                WinUIGuards.CheckIsUIThread();
+
+                TimeSpan? ret = null;
+                if (IsOpen())
+                    if (MediaPlayerElement.MediaPlayer is not null)
+                        ret = MediaPlayerElement.MediaPlayer.NaturalDuration;
+
+                return ret;
+            }
+        }
+
+
+        /// <summary>
+        /// Return the offset this media player has against the any other media player join via a media timeline controller
+        /// </summary>
         internal TimeSpan? TimelineControllerPositionOffset
         {
             get
@@ -1349,7 +1367,7 @@ namespace Surveyor.User_Controls
         {
             MediaPlayer mediaPlayer = sender as MediaPlayer;
 
-            mode = Mode.modeNone;
+            mode = Mode.modeFrame;
 
             Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info MediaPlayer_MediaEnded");
         }

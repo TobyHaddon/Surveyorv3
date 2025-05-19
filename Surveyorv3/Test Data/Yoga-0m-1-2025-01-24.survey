@@ -2,14 +2,14 @@
   "Info": {
     "Version": 1.0,
     "SurveyFileName": "Yoga-0m-1-2025-01-24.survey",
-    "SurveyPath": "C:\\Users\\tobyh\\OneDrive\\Docs\\Training\\Opwall\\SVS2\\SVS2 Media\\Survey Files",
+    "SurveyPath": "C:\\Users\\tobyh\\source\\repos\\Surveyorv3\\Surveyorv3\\Test Data",
     "SurveyCode": "Yoga-0m-1-2025-01-24",
     "SurveyAnalystName": "Toby Haddon",
     "SurveyDepth": "5"
   },
   "Media": {
     "Version": 2.0,
-    "MediaPath": "C:\\Users\\tobyh\\OneDrive\\Docs\\Training\\Opwall\\SVS2\\SVS2 Media",
+    "MediaPath": ".\\",
     "LeftMediaFileNames": [
       "embeddedFrame_multiangle-right-back[1].mp4"
     ],
@@ -39,6 +39,44 @@
         "EventData": {
           "LeftPoints": null,
           "RightPoints": null
+        }
+      },
+      {
+        "Guid": "9643ddf4-c178-49cf-98e7-f5ae0bf61e03",
+        "DateTimeCreate": "2025-05-19T15:14:13.857337+02:00",
+        "TimeSpanLeftFrame": "00:00:00.1666665",
+        "TimeSpanTimelineController": "00:00:00.1666665",
+        "TimeSpanRightFrame": "00:00:05.2666665",
+        "EventDataType": "SurveyMeasurementPoints",
+        "EventData": {
+          "SpeciesInfo": {
+            "Family": null,
+            "Genus": null,
+            "Species": null,
+            "Code": null,
+            "Number": null,
+            "Stage": null,
+            "Activity": null,
+            "Comment": null
+          },
+          "Measurment": -1.0,
+          "SurveyRulesCalc": {
+            "SurveyRules": null,
+            "SurveyRulesText": "",
+            "Range": null,
+            "XOffset": null,
+            "YOffset": null,
+            "RMS": null
+          },
+          "CalibrationID": null,
+          "LeftXA": 452.2154235839844,
+          "LeftYA": 364.63848876953125,
+          "LeftXB": 532.882080078125,
+          "LeftYB": 362.3051452636719,
+          "RightXA": 452.3182678222656,
+          "RightYA": 364.9063720703125,
+          "RightXB": 531.651611328125,
+          "RightYB": 362.572998046875
         }
       }
     ]

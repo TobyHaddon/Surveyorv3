@@ -5,7 +5,6 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -1908,7 +1907,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="surveyFileName"></param>
         /// <returns>-999 If user aborts</returns>
-        internal async Task<int> OpenSurvey(string projectFileName)
+        internal async Task<int> OpenSurvey(string surveyFileSpec)
         {
             int ret = 0;
 
@@ -1927,15 +1926,15 @@ namespace Surveyor
             }
 
 
-            ret = await surveyClass.SurveyLoad(projectFileName);
+            ret = await surveyClass.SurveyLoad(surveyFileSpec);
 
             if (ret == 0 &&
                 surveyClass.Data is not null && surveyClass.Data.Media is not null && surveyClass.Data.Media.MediaPath is not null)
             {
                 // Check if the left media file(s) exist
-                ret = await CheckIfMediaFileExists(true/*trueLeftFalseRight*/, surveyClass.Data.Media);
+                ret = await CheckIfMediaFileExists(true/*trueLeftFalseRight*/, surveyClass.Data.Media, surveyFileSpec);
                 if (ret == 0)
-                    ret = await CheckIfMediaFileExists(false/*trueLeftFalseRight*/, surveyClass.Data.Media);
+                    ret = await CheckIfMediaFileExists(false/*trueLeftFalseRight*/, surveyClass.Data.Media, surveyFileSpec);
 
                 if (ret == 0)
                 {
@@ -1959,7 +1958,7 @@ namespace Surveyor
                         MenuTransectStartStopMarker.IsEnabled = true;
 
                         // Remember the survey folder
-                        SettingsManagerLocal.SurveyFolder = Path.GetDirectoryName(projectFileName);
+                        SettingsManagerLocal.SurveyFolder = Path.GetDirectoryName(surveyFileSpec);
 
 
                         //// Inform the two media players of the MeasurementPointControl instances that allow the user to add measurement points to the media
@@ -1995,7 +1994,7 @@ namespace Surveyor
             }
             else
             {
-                report.Warning("", $"Failed to open survey file:{projectFileName}, error = {ret}");
+                report.Warning("", $"Failed to open survey file:{surveyFileSpec}, error = {ret}");
                 surveyClass = null;
             }
 
@@ -2209,7 +2208,7 @@ namespace Surveyor
         /// <param name="mediaPath"></param>
         /// <param name="mediaFileNames"></param>
         /// <returns></returns>
-        private async Task<int> CheckIfMediaFileExists(bool trueLeftFalseRight, MediaClass mediaClass)
+        private async Task<int> CheckIfMediaFileExists(bool trueLeftFalseRight, MediaClass mediaClass, string surveyFileSpec)
         {
             int ret = 0;
             ObservableCollection<string> mediaFileNames = trueLeftFalseRight ? mediaClass.LeftMediaFileNames : mediaClass.RightMediaFileNames;
@@ -2224,6 +2223,16 @@ namespace Surveyor
                 if (mediaClass.MediaPath is not null)
                 {
                     fileSpec = Path.Combine(mediaClass.MediaPath, fileName);
+
+                    // If fileSpec a relative path then use the path from the survey file spec
+                    if (!Path.IsPathRooted(fileSpec))
+                    {
+                        // Get the directory portion of the fully qualified surveyFileSpec
+                        string baseDirectory = Path.GetDirectoryName(surveyFileSpec) ?? "";
+
+                        // Combine the base directory with the relative fileSpec
+                        fileSpec = Path.GetFullPath(Path.Combine(baseDirectory, fileSpec));
+                    }
 
                     if (File.Exists(fileSpec) == false)
                         promptForMediaFile = true;
@@ -2362,6 +2371,18 @@ namespace Surveyor
                     mediaFileLeft = Path.Combine(surveyClass.Data.Media.MediaPath, surveyClass.Data.Media.LeftMediaFileNames[0]);
                 if (surveyClass.Data.Media.RightMediaFileNames.Count > 0)
                     mediaFileRight = Path.Combine(surveyClass.Data.Media.MediaPath, surveyClass.Data.Media.RightMediaFileNames[0]);
+                
+                // If fileSpec a relative path then use the path from the survey file spec
+                if (!Path.IsPathRooted(mediaFileLeft) && surveyClass.Data.Info.SurveyPath is not null)
+                {
+                    // Combine the base directory with the relative fileSpec
+                    mediaFileLeft = Path.GetFullPath(Path.Combine(surveyClass.Data.Info.SurveyPath, mediaFileLeft));
+                }
+                if (!Path.IsPathRooted(mediaFileRight) && surveyClass.Data.Info.SurveyPath is not null)
+                {
+                    // Combine the base directory with the relative fileSpec
+                    mediaFileRight = Path.GetFullPath(Path.Combine(surveyClass.Data.Info.SurveyPath, mediaFileRight));
+                }
 
 
                 // Open left camera media
@@ -2666,7 +2687,7 @@ namespace Surveyor
                             // Ask the user
                             ContentDialog confirmationDialog = new()
                             {
-                                Title = "Update Event Measurements",
+                                Title = "Update Measurements",
                                 Content = message,
                                 PrimaryButtonText = primaryButtonText,
                                 SecondaryButtonText = secondaryButtonText,
@@ -2703,8 +2724,12 @@ namespace Surveyor
                                         if (surveyMeasurement.CalibrationID != calibrationID || surveyMeasurement.Measurment == -1 || forceReCalc)
                                         {
                                             // Recalculate for a measurement
-                                            DoMeasurementAndRulesCalculations(surveyMeasurement);
-                                            ret = true;
+                                            if (DoMeasurementAndRulesCalculations(surveyMeasurement))
+                                            {
+                                                // Updates were make to the event
+                                                ret = true;
+                                                surveyClass.Data.Events.IsDirty = true;
+                                            }
                                         }
                                     }
                                     else if (evt.EventDataType == SurveyDataType.SurveyStereoPoint)
@@ -2713,8 +2738,12 @@ namespace Surveyor
                                         if (surveyStereoPoint.CalibrationID != calibrationID || forceReCalc)
                                         {
                                             // Recalculate for a stero point
-                                            DoRulesCalculations(surveyStereoPoint);
-                                            ret = true;
+                                            if (DoRulesCalculations(surveyStereoPoint))
+                                            {
+                                                // Updates were make to the event
+                                                ret = true;
+                                                surveyClass.Data.Events.IsDirty = true;
+                                            }
                                         }
                                     }
                                 }
@@ -2749,6 +2778,8 @@ namespace Surveyor
         /// <returns></returns>
         public bool DoMeasurementAndRulesCalculations(SurveyMeasurement surveyMeasurement)
         {
+            bool updated = false;
+
             if (stereoProjection.PointsLoad(
                 new Point(surveyMeasurement.LeftXA, surveyMeasurement.LeftYA),
                 new Point(surveyMeasurement.LeftXB, surveyMeasurement.LeftYB),
@@ -2757,29 +2788,41 @@ namespace Surveyor
             {
 
                 // Calculate fish length
-                surveyMeasurement.Measurment = stereoProjection.Measurement();
+                double? measurement = stereoProjection.Measurement();
+                surveyMeasurement.Measurment = measurement;
 
+                SurveyRulesCalc newRules = new();
 
                 // Apply the survey rules
                 if (surveyClass is not null &&                     
                     surveyClass.Data.SurveyRules.SurveyRulesActive == true)
                 {
-                    surveyMeasurement.SurveyRulesCalc.ApplyRules(surveyClass.Data.SurveyRules.SurveyRulesData, stereoProjection);
+                    newRules.ApplyRules(surveyClass.Data.SurveyRules.SurveyRulesData, stereoProjection);
                 }
                 else
                 {
                     // No rules applied
-                    surveyMeasurement.SurveyRulesCalc.Clear();
+                    newRules.Clear();
+                }
+
+                if (!newRules.Equals(surveyMeasurement.SurveyRulesCalc))
+                {
+                    surveyMeasurement.SurveyRulesCalc = newRules;
+                    updated = true;
                 }
 
                 // Record the calidation data Guid used to calculate the measurement
                 // This is used to enable recalulation of the measurement if the calibration data is changed
-                surveyMeasurement.CalibrationID = stereoProjection.GetCalibrationID();
-
-                return true;
+                Guid? newCalibrationID = stereoProjection.GetCalibrationID();
+                Guid? currentCalibrationID = surveyMeasurement.CalibrationID;
+                if (!Nullable.Equals(currentCalibrationID, newCalibrationID))
+                {
+                    surveyMeasurement.CalibrationID = newCalibrationID;
+                    updated = true;
+                }
             }
 
-            return false;
+            return updated;
         }
 
 
@@ -2793,30 +2836,45 @@ namespace Surveyor
         /// <returns></returns>
         public bool DoRulesCalculations(SurveyStereoPoint surveyStereoPoint)
         {
+            bool updated = false;
+
             if (stereoProjection.PointsLoad(
                 new Point(surveyStereoPoint.LeftX, surveyStereoPoint.LeftY),
                 new Point(surveyStereoPoint.RightX, surveyStereoPoint.RightY)) == true)
             {
+                SurveyRulesCalc newRules = new();
+
                 // Apply the survey rules
-                if (surveyClass is not null &&                  
+                if (surveyClass is not null &&
                     surveyClass.Data.SurveyRules.SurveyRulesActive == true)
                 {
-                    surveyStereoPoint.SurveyRulesCalc.ApplyRules(surveyClass.Data.SurveyRules.SurveyRulesData, stereoProjection);
+
+                    newRules.ApplyRules(surveyClass.Data.SurveyRules.SurveyRulesData, stereoProjection);
                 }
                 else
                 {
-                    // No rules applied
-                    surveyStereoPoint.SurveyRulesCalc.Clear();
+                    // No rules to apply
+                    newRules.Clear();
+                }
+
+                if (!newRules.Equals(surveyStereoPoint.SurveyRulesCalc))
+                {
+                    surveyStereoPoint.SurveyRulesCalc = newRules;
+                    updated = true;
                 }
 
                 // Record the calidation data Guid used to calculate the measurement
                 // This is used to enable recalulation of the measurement if the calibration data is changed
-                surveyStereoPoint.CalibrationID = stereoProjection.GetCalibrationID();
-
-                return true;
+                Guid? newCalibrationID = stereoProjection.GetCalibrationID();
+                Guid? currentCalibrationID = surveyStereoPoint.CalibrationID;
+                if (!Nullable.Equals(currentCalibrationID, newCalibrationID))
+                {
+                    surveyStereoPoint.CalibrationID = newCalibrationID;
+                    updated = true;
+                }
             }
 
-            return false;
+            return updated;
         }
 
         /// <summary>

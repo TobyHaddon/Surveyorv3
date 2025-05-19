@@ -77,7 +77,9 @@
                 <ComboBox x:Name="SurveyDepth" Width="250" IsEditable="True" 
                           PlaceholderText="Survey depth"
                           SelectionChanged="SurveyDepth_SelectionChanged"
-                          TextSubmitted="SurveyDepth_TextSubmitted">
+                          TextSubmitted="SurveyDepth_TextSubmitted"
+                          GettingFocus="SurveyDepth_GettingFocus"
+                          ToolTipService.ToolTip="Survey depth can be 5m to 18m or Flat, Crest or Slope which is used in some regions">
                         <ComboBoxItem Content="5" />
                         <ComboBoxItem Content="6" />
                         <ComboBoxItem Content="7" />

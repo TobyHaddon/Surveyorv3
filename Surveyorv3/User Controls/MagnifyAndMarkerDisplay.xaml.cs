@@ -1277,21 +1277,6 @@ namespace Surveyor.User_Controls
 
                         hoveringOverTargetTrueAFalseB = null;
                     }
-
-                    //??? NOT SURE WHAT THIS IS FOR
-                    //??? IT MAKE SENSE FOR DELETE AN EXISTING EVENT BE NOT A TARGET POINT
-                    //if (hoveringOverGuid is not null && events is not null)
-                    //{
-                    //    // Loop through the events and remove them from the canvas
-                    //    foreach (Event evt in events)
-                    //    {
-                    //        if (evt.Guid == hoveringOverGuid)
-                    //        {
-                    //            events.Remove(evt);
-                    //            break;
-                    //        }
-                    //    }
-                    //}
                 }
 
                 // Delete All Targets
@@ -1309,17 +1294,13 @@ namespace Surveyor.User_Controls
                 // Delete Single Point
                 else if (item == CanvasFrameMenuDeleteMeasurement || item == CanvasFrameMenuDelete3DPoint || item == CanvasFrameMenuDeleteSinglePoint) 
                 {
-                    if (hoveringOverGuid is not null && events is not null)
+                    if (hoveringOverGuid is not null)
                     { 
-                        // Loop through the events and draw them on the canvas
-                        foreach (Event evt in events)
+                        // Signal delete Measurement, 3D point or Single Point
+                        magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.DeleteMeasure3DPointOrSinglePoint, CameraSide)
                         {
-                            if (evt.Guid == hoveringOverGuid)
-                            {
-                                events.Remove(evt);
-                                break;
-                            }
-                        }
+                            eventGuid = hoveringOverGuid
+                        });
                     }
                 }
 
@@ -1837,7 +1818,7 @@ namespace Surveyor.User_Controls
                 // it was Stretch="Uniform") within it's parent grid
                 var transformImageFrame = imageUIElement.TransformToVisual(gridParentImageFrame);
                 Point relativePositionImageFrame = transformImageFrame.TransformPoint(new Point(0, 0));
-                //???Debug.WriteLine($"***ImageFrame origin relative to Grid ({relativePositionImageFrame.X:F1},{relativePositionImageFrame.Y:F1})");
+                Debug.WriteLine($"***ImageFrame origin relative to Grid ({relativePositionImageFrame.X:F1},{relativePositionImageFrame.Y:F1})");
 
                 // Doing a ScaleTransform on a Canvas seems to move it origin. We need it to be
                 // exactly aligned with the ImageFrame.  If the ImageFrame and the Canvas are
@@ -1859,6 +1840,13 @@ namespace Surveyor.User_Controls
                 TargetBMag.Height = targetIconOriginalHeight / canvasZoomFactor;
                 targetMagIconOffsetToCentre.X = (TargetAMag.Width - 1) / 2;
                 targetMagIconOffsetToCentre.Y = (TargetAMag.Height - 1) / 2;
+
+                //??? Temp
+                Brush colour = new SolidColorBrush(Microsoft.UI.Colors.PaleVioletRed);
+                CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(0,0), new Point(0, CanvasFrame.Height - 1), colour, new CanvasTag("", ""), null, null);
+                CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(0, CanvasFrame.Height - 1), new Point(CanvasFrame.Width - 1, CanvasFrame.Height - 1), colour, new CanvasTag("", ""), null, null);
+                CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(CanvasFrame.Width - 1, CanvasFrame.Height - 1), new Point(CanvasFrame.Width - 1, 0), colour, new CanvasTag("", ""), null, null);
+                CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(CanvasFrame.Width - 1, 0), new Point(0, 0), colour, new CanvasTag("", ""), null, null);
             }
             else
             {
@@ -3223,6 +3211,7 @@ namespace Surveyor.User_Controls
         {
             TargetPointSelected,
             TargetDeleteAll,
+            DeleteMeasure3DPointOrSinglePoint,
             AddMeasurementRequest,
             Add3DPointRequest,
             AddSinglePointRequest,
@@ -3246,7 +3235,7 @@ namespace Surveyor.User_Controls
         // Used by MeasurementPairSelected
         public Point? pointB;
 
-        // Used by EditSpeciesInfoRequest
+        // Used by EditSpeciesInfoRequest or DeleteMeasure3DPointOrSinglePoint
         public Guid? eventGuid;
 
         // Used by UserReqMagWindowSizeSelect

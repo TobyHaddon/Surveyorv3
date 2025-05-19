@@ -21,10 +21,6 @@ using static Surveyor.MediaStereoControllerEventData;
 using Surveyor.Helper;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml;
-using Windows.Media.Playback;
-using MathNet.Numerics.LinearAlgebra.Factorization;
-using System.Diagnostics.Metrics;
-using System.Net;
 
 
 
@@ -74,7 +70,9 @@ namespace Surveyor
         private bool mediaSynchronized = false;                                // Set if the Left and Right players are now controlled via the MediaTimelineControler
         private TimeSpan mediaSynchronizedFrameOffset = TimeSpan.Zero;         // Position: Left is started before Right. Negative Left is started after Right
         private MediaTimelineController? mediaTimelineController = null;       // The MediaTimelineController that is controlling the Left and Right MediaPlayers
-        private TimeSpan _maxNaturalDurationForController = TimeSpan.Zero;
+        private TimeSpan maxNaturalDurationForController = TimeSpan.Zero;
+        private bool durationSetByThisClass = false;  // If true can't be overridden by receiving duration 
+                                                      // via mediator from the Media Players
         private double _frameRate = 0.0;
 
         // Position of the MediaTimelineController whilst paused and moving frame by frame
@@ -232,7 +230,8 @@ namespace Surveyor
             mediaSynchronized = false;
             mediaSynchronizedFrameOffset = TimeSpan.Zero;
             mediaTimelineController = null;
-            _maxNaturalDurationForController = TimeSpan.Zero;
+            maxNaturalDurationForController = TimeSpan.Zero;
+            durationSetByThisClass = false;
             _frameRate = 0.0;
             mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
 
@@ -334,7 +333,8 @@ namespace Surveyor
                 mediaSynchronized = false;
                 mediaSynchronizedFrameOffset = TimeSpan.Zero;
                 mediaTimelineController = null;
-                _maxNaturalDurationForController = TimeSpan.Zero;
+                maxNaturalDurationForController = TimeSpan.Zero;
+                durationSetByThisClass = false;
                 _frameRate = 0.0;
                 mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
             }
@@ -436,7 +436,6 @@ namespace Surveyor
                         else
                             mediaTimelineController.Position = rightPositionRounded;
 
-
                         // Save the sync point as an event so the user can return to this point
                         if (mediaSynchronizedFrameOffset >= TimeSpan.Zero)
                             SurveyStereoSyncPointSelected(leftPositionRounded/*MediaTimelineController*/, leftPositionRounded, rightPositionRounded);
@@ -472,6 +471,35 @@ namespace Surveyor
                     }
                 }
 
+                // Limit the duration so one mediaplayer doesn't play longer than the other
+                if (mediaPlayerLeft.NaturalDuration is TimeSpan leftDuration &&
+                    mediaPlayerRight.NaturalDuration is TimeSpan rightDuration)
+                {
+                    TimeSpan leftOffset = mediaSynchronizedFrameOffset > TimeSpan.Zero ? TimeSpan.Zero : -mediaSynchronizedFrameOffset;
+                    TimeSpan rightOffset = mediaSynchronizedFrameOffset > TimeSpan.Zero ? mediaSynchronizedFrameOffset : TimeSpan.Zero;
+
+                    var leftRemaining = leftDuration - leftOffset;
+                    var rightRemaining = rightDuration - rightOffset;
+
+                    if (leftRemaining < TimeSpan.Zero || rightRemaining < TimeSpan.Zero)
+                        Debug.WriteLine($"MediaLockMediaPlayers: Offsets cannot exceed video durations, left remaining:{leftRemaining:hh\\:mm\\:ss\\.ff}, right remaining:{rightRemaining:hh\\:mm\\:ss\\.ff}.");
+
+                    TimeSpan newDuration = TimeSpan.FromTicks(Math.Min(leftRemaining.Ticks, rightRemaining.Ticks));
+                    mediaTimelineController!.Duration = newDuration;
+                    durationSetByThisClass = true;  // Can't be overriden
+                    maxNaturalDurationForController = newDuration;
+            
+                    // Signal the adjusted media duration via mediator (used by the MediaStereoController and MediaControl)
+                    MediaStereoControllerEventData data = new(MediaStereoControllerEventData.eMediaStereoControllerEvent.Duration)
+                    {
+                        duration = newDuration,
+                    };
+                    mediaControllerHandler?.Send(data);                    
+
+                    Debug.WriteLine($"MediaLockMediaPlayers: MediaTimelineController.Duration set to {newDuration.TotalSeconds:F2}s");
+                }
+
+
                 // Wait to settle players
                 await Task.Delay(250);
 
@@ -504,8 +532,9 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Wait for the media players to have a valid Position (non-null). This is used to wait for the media players to
-        /// be ready
+        /// Wait for the media players to have a valid Position (non-null) and
+        /// for the NaturalDuration to be (non-null).
+        /// This is used to wait for the media players to be totally ready
         /// </summary>
         /// <param name="mediaPlayerLeft"></param>
         /// <param name="mediaPlayerRight"></param>
@@ -522,11 +551,14 @@ namespace Surveyor
             {
                 var leftPos = mediaPlayerLeft.Position;
                 var rightPos = mediaPlayerRight.Position;
+                var leftDur = mediaPlayerLeft.NaturalDuration;
+                var rightDur = mediaPlayerRight.NaturalDuration;
 
                 // Wait until both positions have advanced from zero
-                if (leftPos is not null && rightPos is not null)
+                if (leftPos is not null && rightPos is not null &&
+                    leftDur is not null && rightDur is not null)
                 {
-                    Debug.WriteLine($"WaitForPlayersToHaveValidPosition Ready waited {stopwatch.ElapsedMilliseconds}ms");
+                    Debug.WriteLine($"WaitForPlayersToHaveValidPosition: Ready waited {stopwatch.ElapsedMilliseconds}ms");
                     return;
                 }
 
@@ -757,8 +789,8 @@ namespace Surveyor
                     // Check move is in bounds
                     if (position < TimeSpan.Zero)
                         position = TimeSpan.Zero;
-                    else if (position > _maxNaturalDurationForController)
-                        position = _maxNaturalDurationForController;
+                    else if (position > maxNaturalDurationForController)
+                        position = maxNaturalDurationForController;
 
                     try
                     {
@@ -834,8 +866,8 @@ namespace Surveyor
                 // Check move is in bounds
                 if (position < TimeSpan.Zero)
                     position = TimeSpan.Zero;
-                else if (position > _maxNaturalDurationForController)
-                    position = _maxNaturalDurationForController;
+                else if (position > maxNaturalDurationForController)
+                    position = maxNaturalDurationForController;
 
                 if (mediaTimelineController!.State == MediaTimelineControllerState.Paused)
                 {
@@ -945,7 +977,7 @@ namespace Surveyor
         private void MediaTimelineController_PositionChanged(MediaTimelineController sender, object args)
         {
             // Pause when playback reaches the maximum duration.
-            if (_maxNaturalDurationForController != TimeSpan.Zero && sender.Position > _maxNaturalDurationForController)
+            if (maxNaturalDurationForController != TimeSpan.Zero && sender.Position > maxNaturalDurationForController)
             {
                 sender.Pause();
             }
@@ -986,11 +1018,15 @@ namespace Surveyor
         /// </summary>
         /// <param name="cameraSide">Indicate which player send the information</param>
         /// <param name="naturalDuration">TimeSpan indicating the length of the media</param>
-        internal void _UpdateDurationAndFrameRate(eCameraSide cameraSide, TimeSpan naturalDuration, double frameRate)
+        internal void _UpdateDurationAndFrameRateFromMediaPlayer(eCameraSide cameraSide, TimeSpan naturalDuration, double frameRate)
         {
-            // Maintain _maxNaturalDurationForController so it is as long as the longest media source.
-            if (naturalDuration > _maxNaturalDurationForController)
-                _maxNaturalDurationForController = naturalDuration;
+            if (!durationSetByThisClass)
+            {
+                // Maintain _maxNaturalDurationForController so it is as long as the longest media source.
+                // ??? Is this correct, surely we want the shortest of the two durations
+                if (naturalDuration > maxNaturalDurationForController)
+                    maxNaturalDurationForController = naturalDuration;
+            }
 
             if (cameraSide == eCameraSide.Left)
                 _frameRate = frameRate;
@@ -1007,7 +1043,7 @@ namespace Surveyor
             ClearCachedTargets();
         }
 
-//=========================
+
         /// <summary>
         /// Receive a request to edit an existing SpeciesInfo record
         /// </summary>
@@ -1042,6 +1078,17 @@ namespace Surveyor
             }
         }
 
+
+        internal async Task _DeleteMeasure3DPointOrSinglePoint(Guid eventGuid)
+        {
+            if (eventsControl is not null)
+            {
+                Event? evt = eventsControl.FindEvent(eventGuid);
+
+                if (evt is not null)
+                    eventsControl.DeleteEvent(evt);          
+            }
+        }
 
 
         ///
@@ -1861,6 +1908,8 @@ namespace Surveyor
                             {
                                 // This call calculates the distance, range, X & Y offset between the camera system mid-point and the measurement point mid-point
                                 mainWindow.DoMeasurementAndRulesCalculations(surveyMeasurement2);
+                                // No need to check if IsDirty needs to be set as this is a event item and
+                                // as such adding to the event list will set the IsDirty flag
                             }
                             else if (pointData is SurveyStereoPoint surveyStereoPoint2)
                             {
@@ -1869,6 +1918,8 @@ namespace Surveyor
                                 // the camera system mid-point and the measurement point mid-point
                                 // Note false is returned if there is an error (i.e. it's not that a rules was broken)
                                 mainWindow.DoRulesCalculations(surveyStereoPoint2);
+                                // No need to check if IsDirty needs to be set as this is a event item and
+                                // as such adding to the event list will set the IsDirty flag
                             }
                         }
                         // Note. We still log the event even if no measurement done
@@ -2107,13 +2158,17 @@ namespace Surveyor
         {
             MediaSynchronized,
             MediaUnsynchronized,
-            Poistion
+            Poistion,
+            Duration
         }
 
         public eMediaStereoControllerEvent mediaStereoControllerEvent;
 
         // Used for Mediasynchronized
         public TimeSpan? positionOffset;
+
+        // Used for Duration
+        public TimeSpan? duration;
     }
 
 
@@ -2149,7 +2204,7 @@ namespace Surveyor
 
                         case MediaPlayerEventData.eMediaPlayerEvent.DurationAndFrameRate:
                             if (data.duration is not null && data.frameRate is not null)
-                                mediaStereoController._UpdateDurationAndFrameRate(data.cameraSide, (TimeSpan)data.duration, (double)data.frameRate);
+                                mediaStereoController._UpdateDurationAndFrameRateFromMediaPlayer(data.cameraSide, (TimeSpan)data.duration, (double)data.frameRate);
                             break;
 
                         case MediaPlayerEventData.eMediaPlayerEvent.EndOfMedia:
@@ -2324,6 +2379,13 @@ namespace Surveyor
                         {
                             SafeUICall(async () => await mediaStereoController._EditSpeciesInfo((Guid)data.eventGuid));
                             Debug.WriteLine($"***EditSpeciesInfo");
+                        }
+                        break;
+                    case MagnifyAndMarkerControlEvent.DeleteMeasure3DPointOrSinglePoint:
+                        if (data.eventGuid is not null)
+                        {
+                            SafeUICall(async () => await mediaStereoController._DeleteMeasure3DPointOrSinglePoint((Guid)data.eventGuid));
+                            Debug.WriteLine($"***DeleteMeasure3DPointOrSinglePoint");
                         }
                         break;
                     case MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect:
