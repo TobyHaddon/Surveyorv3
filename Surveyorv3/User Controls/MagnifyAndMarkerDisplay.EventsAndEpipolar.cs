@@ -48,11 +48,11 @@ namespace Surveyor.User_Controls
         private double epipolarLine_cTargetB = 0.0;
 
         // Remember Epipolar Points
-        private bool epipolarPointsActiveA = false;
+        //???private bool epipolarPointsActiveA = false;
         private Point? epipolarPointNearA = null;
         private Point? epipolarPointMiddleA = null;
         private Point? epipolarPointFarA = null;
-        private bool epipolarPointsActiveB = false;
+        //???private bool epipolarPointsActiveB = false;
         private Point? epipolarPointNearB = null;
         private Point? epipolarPointMiddleB = null;
         private Point? epipolarPointFarB = null;
@@ -79,12 +79,12 @@ namespace Surveyor.User_Controls
             epipolarLine_aTargetB = 0.0;
             epipolarLine_bTargetB = 0.0;
             epipolarLine_cTargetB = 0.0;
-        
-            epipolarPointsActiveA = false;
+
+            //???epipolarPointsActiveA = false;
             epipolarPointNearA = null;
             epipolarPointMiddleA = null;
             epipolarPointFarA = null;
-            epipolarPointsActiveB = false;
+            //???epipolarPointsActiveB = false;
             epipolarPointNearB = null;
             epipolarPointMiddleB = null;
             epipolarPointFarB = null;
@@ -117,7 +117,7 @@ namespace Surveyor.User_Controls
             bool TrueIfTextBestAboveFalseIfBelow = (angleRadians >= 0) && (angleRadians <= Math.PI);
 
             // Caculate the offset for the dimension line either above or below
-            double offset = (20 / canvasFrameScaleX) * (TrueIfTextBestAboveFalseIfBelow ? -1 : 1);
+            double offset = (20 * labelScaleFactor ) * (TrueIfTextBestAboveFalseIfBelow ? -1 : 1);
 
             // Parallel line 1
             Point p1Start = new(pointA.X, pointA.Y);
@@ -186,7 +186,7 @@ namespace Surveyor.User_Controls
             CanvasTag canvasTagPoint = new("Event", "Point", guid);
             CanvasTag canvasTagDetails = new("Event", "Details", guid);
 
-            CanvasDrawingHelper.DrawDot(CanvasFrame, point, 10 / canvasFrameScaleX/*diameter*/, eventDimensionLineColour, canvasTagPoint, EventElement_PointerMoved, EventElement_PointerPressed);
+            CanvasDrawingHelper.DrawDot(CanvasFrame, point, 10 * labelScaleFactor/*diameter*/, eventDimensionLineColour, canvasTagPoint, EventElement_PointerMoved, EventElement_PointerPressed);
 
             // Draw species text
             string fishID = "";
@@ -235,33 +235,11 @@ namespace Surveyor.User_Controls
             TextBlock textBlock = new()
             {
                 Foreground = brush,
-                FontSize = eventFontSize / canvasFrameScaleX,
+                FontSize = eventFontSize * labelScaleFactor,
                 Tag = canvasTag
             };
 
-            //// Create and configure the Run
-            //Run run = new()
-            //{
-            //    Text = $"{Math.Round(distance * 1000, 0)}mm"
-            //};
-
-            //if (species != "")
-            //{
-            //    // Create a LineBreak
-            //    LineBreak lineBreak = new();
-
-            //    // Create and configure the Span
-            //    Span span = new();
-            //    span.Inlines.Add(new Italic { Inlines = { new Run { Text = species } } });
-
-            //    // Add inlines to TextBlock
-            //    textBlock.Inlines.Add(run);
-            //    textBlock.Inlines.Add(lineBreak);
-            //    textBlock.Inlines.Add(span);
-            //}
-            //else
-            //    textBlock.Inlines.Add(run);
-
+            // Create and configure the Run
             if (distance != -1 && !string.IsNullOrWhiteSpace(species))
             {
                 // Display length and species
@@ -312,7 +290,7 @@ namespace Surveyor.User_Controls
                 TextBlock textBlock = new()
                 {
                     Foreground = brush,
-                    FontSize = eventFontSize / canvasFrameScaleX,
+                    FontSize = eventFontSize * labelScaleFactor,
                     Tag = canvasTag
                 };
 
@@ -719,14 +697,14 @@ namespace Surveyor.User_Controls
                 // Remember the epipolar line
                 if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
                 {
-                    epipolarPointsActiveA = true;
+                    //???epipolarPointsActiveA = true;
                     epipolarPointNearA = pointNear;
                     epipolarPointMiddleA = pointMiddle;
                     epipolarPointFarA = pointFar;
                 }
                 else
                 {
-                    epipolarPointsActiveB = true;
+                    //???epipolarPointsActiveB = true;
                     epipolarPointNearB = pointNear;
                     epipolarPointMiddleB = pointMiddle;
                     epipolarPointFarB = pointFar;
@@ -738,14 +716,14 @@ namespace Surveyor.User_Controls
                 // Remove the epipolar line
                 if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
                 {
-                    epipolarPointsActiveA = true;
+                    //???epipolarPointsActiveA = true;
                     epipolarPointNearA = null;
                     epipolarPointMiddleA = null;
                     epipolarPointFarA = null;
                 }
                 else
                 {
-                    epipolarPointsActiveB = true;
+                    //???epipolarPointsActiveB = true;
                     epipolarPointNearB = null;
                     epipolarPointMiddleB = null;
                     epipolarPointFarB = null;

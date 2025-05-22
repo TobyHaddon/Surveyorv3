@@ -74,9 +74,9 @@ namespace Surveyor
         /// <summary>
         /// Diags dump of class information
         /// </summary>
-        public void DumpAllProperties()
+        public void DumpAllProperties(Reporter? report)
         {
-            DumpClassPropertiesHelper.DumpAllProperties(this);
+            DumpClassPropertiesHelper.DumpAllProperties(this, report);
         }
 
 

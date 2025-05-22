@@ -41,8 +41,10 @@
 // Version 1.1
 // NewImageFrame receives the next frame via a mediator message
 // The canvasBitmap is written to an memory stream and portions read out and transformed for the Magnify Window
+// Version 1.2 20 May 2025
+// Move the MagnifyAndMarkerDisplay to be a child of the MediaPlayer control
 
-using CommunityToolkit.WinUI.Animations;
+
 using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -87,6 +89,9 @@ namespace Surveyor.User_Controls
         // Declare the mediator handler
         private MagnifyAndMarkerControlHandler? magnifyAndMarkerControlHandler;
 
+        // Reporter
+        private Reporter? report = null;
+
         // Which camera side 
         private SurveyorMediaPlayer.eCameraSide CameraSide = SurveyorMediaPlayer.eCameraSide.None;
 
@@ -108,6 +113,7 @@ namespace Surveyor.User_Controls
         // ImageFrame is 1600x900 then the scale factor X would be 1600/3840 = 0.4167
         private double canvasFrameScaleX = -1;
         private double canvasFrameScaleY = -1;
+        private double labelScaleFactor = 1;
 
         // The scaling of the image in the ImageMag where 1 is scales to full image source size 
         private double canvasZoomFactor = 2;    // Must be set to the same initial value as 'canvasZoomFactor' in MediaControl.xaml.cs
@@ -126,10 +132,10 @@ namespace Surveyor.User_Controls
         private DateTime draggingInitialPressTime;
 
         // Default Magnifier Window dimensions
-        private const uint magWidthDefaultSmall = 350;
-        private const uint magHeightDefaultSmall = 150;
-        private const uint magWidthDefaultMedium = 500;
-        private const uint magHeightDefaultMedium = 250;
+        private const uint magWidthDefaultSmall = 350 * 3;
+        private const uint magHeightDefaultSmall = 150 * 3;
+        private const uint magWidthDefaultMedium = 500 * 3;
+        private const uint magHeightDefaultMedium = 250 * 3;
         private const uint magWidthDefaultLarge = 700;
         private const uint magHeightDefaultLarge = 350;
 
@@ -146,7 +152,7 @@ namespace Surveyor.User_Controls
         private readonly double targetIconOriginalWidth = -1;
         private readonly double targetIconOriginalHeight = -1;
         private bool? hoveringOverTargetTrueAFalseB = null;
-        private Point? hoveringOverTargetPoint;
+        private Point? hoveringOverTargetPoint = null;
 
         // Border colours
         private readonly Brush magColourUnlocked = new SolidColorBrush(Microsoft.UI.Colors.Black);
@@ -157,7 +163,7 @@ namespace Surveyor.User_Controls
         private readonly Brush eventDimensionHighLightLineColour = new SolidColorBrush(Microsoft.UI.Colors.OrangeRed);
         private readonly Brush eventArrowLineColour = new SolidColorBrush(Microsoft.UI.Colors.Orange);
         private readonly Brush eventDimensionTextColour = new SolidColorBrush(ColorHelper.FromArgb(255/*alpha*/, 255/*red*/, 93/*green*/, 89/*blue*/));
-        private const double eventFontSize = 12.0;
+        private const double eventFontSize = 14.0;
 
         // Epipolar line colours
         private readonly Brush epipolarALineColour = new SolidColorBrush(Microsoft.UI.Colors.Red);
@@ -227,6 +233,10 @@ namespace Surveyor.User_Controls
         // Pointer tracking in the Mag Window (time last seen)
         private DateTime lastTimePointerSeenInMagWindow = DateTime.Now;
         private double inactivityMagWindowClose = 2000; // 2 seconds
+
+        // Cached diagnostic information flag
+        private bool diagnosticInformation = false;
+
 
 
         public MagnifyAndMarkerDisplay()
@@ -309,7 +319,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         public void DumpAllProperties()
         {
-            DumpClassPropertiesHelper.DumpAllProperties(this);
+            DumpClassPropertiesHelper.DumpAllProperties(this, report);
         }
 
 
@@ -337,8 +347,11 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="imageFrame"></param>
         /// <param name="cameraside"></param>
-        public void Setup(Image imageFrame, SurveyorMediaPlayer.eCameraSide cameraside)
+        public void Setup(Reporter _report, Image imageFrame, SurveyorMediaPlayer.eCameraSide cameraside)
         {
+            // Remember the Report
+            report = _report;
+
             // Remember the Image control we are serving
             imageUIElement = imageFrame;
             CameraSide = cameraside;
@@ -369,7 +382,10 @@ namespace Surveyor.User_Controls
             imageLoaded = false;
 
             // Clear in memory image stream
-            streamSource?.Dispose();         
+            streamSource?.Dispose();
+
+            // Clear events
+            events = null;
         }
 
 
@@ -471,10 +487,10 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Set the zoom factor of the Mag window where 1 is the full resolution of the image
         /// </summary>
-        /// <param name="_zoomFactor"></param>
-        public void MagWindowZoomFactor(double _zoomFactor)
+        /// <param name="zoomFactor"></param>
+        public void MagWindowZoomFactor(double zoomFactor)
         {
-            canvasZoomFactor = _zoomFactor;
+            canvasZoomFactor = zoomFactor;
         }
 
 
@@ -503,9 +519,9 @@ namespace Surveyor.User_Controls
         /// Used to set the layer type for display (i.e set absolutely the layer)
         /// </summary>
         /// <param name="layeType"></param>
-        public void SetLayerType(LayerType layeType)
+        public void SetLayerType(LayerType layeTyper)
         {
-            layerTypesDisplayed = layeType;
+            layerTypesDisplayed = layeTyper;
 
             // Refresh on screen display
             TransferExistingEvents();
@@ -562,6 +578,28 @@ namespace Surveyor.User_Controls
             }
             else
                 throw new Exception("MagWindowSizeSelect: Unknown mag window size");
+        }
+
+
+
+        /// <summary>
+        /// ViewPort size changed
+        /// </summary>
+        /// <param name="newWidth"></param>
+        /// <param name="newHeight"></param>
+        public void RenderedPixelScreenSizeChanged(double newWidth, double newHeight)
+        {
+            if (!double.IsNaN(CanvasFrame.ActualWidth))
+            {
+                labelScaleFactor = CanvasFrame.ActualWidth / newWidth;
+            }
+            else
+            {
+                labelScaleFactor = 1;
+            }
+
+            if (imageLoaded && newWidth != 0)
+                GridSizeChanged();
         }
 
 
@@ -1492,11 +1530,9 @@ namespace Surveyor.User_Controls
 
             // Clear the canvas
             _ResetCanvas();
-            
 
             // Do coordinate need to be displayed
-            DisplayPointerCoords = SettingsManagerLocal.DiagnosticInformation;
-
+            DisplayPointerCoords = true;   // Force on always not part of SettingsManagerLocal.DiagnosticInformation
 
             // Set the image loaded flag
             imageLoaded = true;
@@ -1546,13 +1582,9 @@ namespace Surveyor.User_Controls
         /// The user changes the Diagnostic Information setting
         /// </summary>
         /// <param name="diagnosticInformation"></param>
-        internal void _SetDiagnosticInformation(bool diagnosticInformation)
-        {
-            DisplayPointerCoords = diagnosticInformation;
-            if (diagnosticInformation)
-
-                // Hide pointer coords
-                _mainWindow?.DisplayPointerCoordinates(-1, -1);
+        internal void _SetDiagnosticInformation(bool _diagnosticInformation)
+        {        
+            diagnosticInformation = _diagnosticInformation;
         }
 
 
@@ -1574,9 +1606,30 @@ namespace Surveyor.User_Controls
             // If there are multiple events then we need to check which event the user is hovering over
             List<Event> eventsForThisFrame = GetEventsForThisFrame();
 
-            Debug.WriteLine($"DisplayCanvasContextMenu HoveringOver:  TargetTrueAFalseB = {hoveringOverTargetTrueAFalseB},  MeasurementEnd={hoveringOverMeasurementEnd}, MeasurementLine={hoveringOverMeasurementLine}, Details={hoveringOverDetails}, Point={hoveringOverPoint}");
-            Debug.WriteLine($"DisplayCanvasContextMenu OtherInstance TargetASet = {otherInstanceTargetASet},  TargetBSet = {otherInstanceTargetBSet}");
-            Debug.WriteLine($"DisplayCanvasContextMenu Count event for this frame = {eventsForThisFrame.Count}");
+            if (diagnosticInformation)
+            {
+                // Target points in this instance
+                string testPointTargetA = "(null,null)";
+                string testPointTargetB = "(null,null)";
+                if (pointTargetA is not null) testPointTargetA = $"({pointTargetA.Value.X:F1},{pointTargetA.Value.Y:F1})";
+                if (pointTargetB is not null) testPointTargetB = $"({pointTargetB.Value.X:F1},{pointTargetB.Value.Y:F1})";
+                report?.Info(CameraSide.ToString(), $"DisplayCanvasContextMenu: PointA:{testPointTargetA}, PointB:{testPointTargetB}");
+                // Hovering info
+                string texthoveringOverTargetTrueAFalseB = hoveringOverTargetTrueAFalseB?.ToString() ?? "null";
+                string textMeasurementEnd = hoveringOverMeasurementEnd?.ToString() ?? "null";                
+                string textMeasurementLine = hoveringOverMeasurementLine?.ToString() ?? "null";
+                string textDetails = hoveringOverDetails?.ToString() ?? "null";
+                string textPoint = hoveringOverPoint?.ToString() ?? "null";
+                report?.Info(CameraSide.ToString(), $"DisplayCanvasContextMenu: HoveringOver:  TargetTrueAFalseB={texthoveringOverTargetTrueAFalseB},  MeasurementEnd={textMeasurementEnd}, MeasurementLine={textMeasurementLine}, Details={textDetails}, Point={textPoint}");
+                // Other instance info
+                report?.Info(CameraSide.ToString(), $"DisplayCanvasContextMenu: OtherInstance: TargetASet={otherInstanceTargetASet},  TargetBSet={otherInstanceTargetBSet}");
+                // Events info
+                report?.Info(CameraSide.ToString(), $"DisplayCanvasContextMenu: Count event for this frame={eventsForThisFrame.Count}");
+                int countMeasurements = eventsForThisFrame.Count(e => e.EventDataType == SurveyDataType.SurveyMeasurementPoints);
+                int count3DPoints = eventsForThisFrame.Count(e => e.EventDataType == SurveyDataType.SurveyStereoPoint);
+                int countSinglePoints = eventsForThisFrame.Count(e => e.EventDataType == SurveyDataType.SurveyPoint);
+                report?.Info(CameraSide.ToString(), $"DisplayCanvasContextMenu: Counts: Measurements={countMeasurements}, 3DPoints={count3DPoints}, SinglePoints={countSinglePoints}");
+            }
 
             // Find the context menu in the resources
             if (this.Resources.TryGetValue("CanvasContextMenu", out object obj) && obj is MenuFlyout menuFlyout)
@@ -1674,7 +1727,6 @@ namespace Surveyor.User_Controls
 
                 // Delete All Targets
                 // Requirement: There is at least one target set on this instance or the other instance
-                CanvasFrameMenuDeleteAllTargets.IsEnabled = false;
                 if (pointTargetA is not null || pointTargetB is not null || otherInstanceTargetASet || otherInstanceTargetBSet)
                 {
                     CanvasFrameMenuDeleteAllTargets.IsEnabled = true;
@@ -1795,18 +1847,24 @@ namespace Surveyor.User_Controls
             // actual image size.  Store this for translating point on the image 
             // between screen between corrdinates to image based coordinates
             if (imageUIElement is not null &&
-                imageUIElement.Parent is Grid gridParentImageFrame && imageUIElement.ActualWidth != 0)
+                imageUIElement.Parent is Grid gridParentImageFrame /*????&& imageUIElement.ActualWidth != 0*/)
             {
                 // Calulate the scale factor between the actual image and the screen image
-                canvasFrameScaleX = imageUIElement.ActualWidth / imageSourceWidth;
-                canvasFrameScaleY = imageUIElement.ActualHeight / imageSourceHeight;
+                //canvasFrameScaleX = imageUIElement.ActualWidth / imageSourceWidth;
+                //canvasFrameScaleY = imageUIElement.ActualHeight / imageSourceHeight;
+                // NEW CODE START
+                canvasFrameScaleX = 1;
+                canvasFrameScaleY = 1;
+                // NEW CODE END
 
                 // Scale Canvas to the same resolution as the actual source image
-                CanvasFrame.RenderTransform = new ScaleTransform
-                {
-                    ScaleX = (double)canvasFrameScaleX,
-                    ScaleY = (double)canvasFrameScaleY,
-                };
+                //????CanvasFrame.RenderTransform = new ScaleTransform
+                //????{
+                //????    ScaleX = (double)canvasFrameScaleX,
+                //????    ScaleY = (double)canvasFrameScaleY,
+                //????};
+
+                //***** WE SHOULD MOVE THIS SETUP STUFF INTO A MESSAGE HANDLE FOR THE FRAMESIZE CHANGE ******
 
                 // Save the CanvasFrame to same dimensions as the actual source image (as
                 // opposed to the ImageFrame control dimensions). This keeps the calculations
@@ -1814,17 +1872,18 @@ namespace Surveyor.User_Controls
                 CanvasFrame.Width = imageSourceWidth;
                 CanvasFrame.Height = imageSourceHeight;
 
+
                 // Discover exactly where the XAML rendering engine placed the ImageFrame (given
                 // it was Stretch="Uniform") within it's parent grid
-                var transformImageFrame = imageUIElement.TransformToVisual(gridParentImageFrame);
-                Point relativePositionImageFrame = transformImageFrame.TransformPoint(new Point(0, 0));
-                Debug.WriteLine($"***ImageFrame origin relative to Grid ({relativePositionImageFrame.X:F1},{relativePositionImageFrame.Y:F1})");
+                //????var transformImageFrame = imageUIElement.TransformToVisual(gridParentImageFrame);
+                //????Point relativePositionImageFrame = transformImageFrame.TransformPoint(new Point(0, 0));
+                //????Debug.WriteLine($"***ImageFrame origin relative to Grid ({relativePositionImageFrame.X:F1},{relativePositionImageFrame.Y:F1})");
 
                 // Doing a ScaleTransform on a Canvas seems to move it origin. We need it to be
                 // exactly aligned with the ImageFrame.  If the ImageFrame and the Canvas are
                 // within a Grid container the only way to do this is to put a margin either on the
                 // left/right or the up/down side as required
-                CanvasFrame.Margin = new Thickness(relativePositionImageFrame.X, relativePositionImageFrame.Y, relativePositionImageFrame.X, relativePositionImageFrame.Y);
+                //????CanvasFrame.Margin = new Thickness(relativePositionImageFrame.X, relativePositionImageFrame.Y, relativePositionImageFrame.X, relativePositionImageFrame.Y);
 
                 // Next scale the targets so they take up 31x31 pixels on the screen
                 TargetA.Width = targetIconOriginalWidth / canvasFrameScaleX;
@@ -1841,12 +1900,16 @@ namespace Surveyor.User_Controls
                 targetMagIconOffsetToCentre.X = (TargetAMag.Width - 1) / 2;
                 targetMagIconOffsetToCentre.Y = (TargetAMag.Height - 1) / 2;
 
-                //??? Temp
-                Brush colour = new SolidColorBrush(Microsoft.UI.Colors.PaleVioletRed);
-                CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(0,0), new Point(0, CanvasFrame.Height - 1), colour, new CanvasTag("", ""), null, null);
-                CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(0, CanvasFrame.Height - 1), new Point(CanvasFrame.Width - 1, CanvasFrame.Height - 1), colour, new CanvasTag("", ""), null, null);
-                CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(CanvasFrame.Width - 1, CanvasFrame.Height - 1), new Point(CanvasFrame.Width - 1, 0), colour, new CanvasTag("", ""), null, null);
-                CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(CanvasFrame.Width - 1, 0), new Point(0, 0), colour, new CanvasTag("", ""), null, null);
+
+                // In diags mode display a pink box around the canvas to check for alignment with the media player/ImageFrame
+                if (diagnosticInformation)
+                {
+                    Brush colour = new SolidColorBrush(Microsoft.UI.Colors.PaleVioletRed);
+                    CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(0, 0), new Point(0, CanvasFrame.Height - 1), colour, new CanvasTag("", ""), null, null);
+                    CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(0, CanvasFrame.Height - 1), new Point(CanvasFrame.Width - 1, CanvasFrame.Height - 1), colour, new CanvasTag("", ""), null, null);
+                    CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(CanvasFrame.Width - 1, CanvasFrame.Height - 1), new Point(CanvasFrame.Width - 1, 0), colour, new CanvasTag("", ""), null, null);
+                    CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(CanvasFrame.Width - 1, 0), new Point(0, 0), colour, new CanvasTag("", ""), null, null);
+                }
             }
             else
             {
@@ -2060,7 +2123,7 @@ namespace Surveyor.User_Controls
                                         Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, ImageFrame ({imageUIElement.ActualWidth}x{imageUIElement.ActualHeight}), MagWindow ({magWindowWidthCheck}x{magWindowHeightCheck})");
                                     }
                                 }
-                                // *** TEST CODE ENDT ***
+                                // *** TEST CODE END ***
 
                                 // Calculate the Mag Window screen rectangle. That is the rectangle that the Mag Window
                                 // actually appears within on the CanvasFrame (excluding the border)
@@ -2778,6 +2841,7 @@ namespace Surveyor.User_Controls
                 }
             }
         }
+
 
 
         /// <summary>

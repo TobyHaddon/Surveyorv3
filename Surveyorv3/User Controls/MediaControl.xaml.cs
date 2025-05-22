@@ -19,9 +19,7 @@ using System.Threading.Tasks;
 using Windows.System;
 using System.Text.RegularExpressions;
 using static Surveyor.MediaStereoControllerEventData;
-#if !No_MagnifyAndMarkerDisplay
 using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
-#endif
 using static Surveyor.User_Controls.MediaControlEventData;
 using static Surveyor.User_Controls.SurveyorMediaPlayer;
 
@@ -53,9 +51,7 @@ namespace Surveyor.User_Controls
         private string magWindowSize = "Large";  // Must be set to the same initial value as in MagnifyAndMarkerDisplay.xaml.cs
 
         // Layer Types Displayed
-#if !No_MagnifyAndMarkerDisplay
         private LayerType layerTypesDisplayed = LayerType.All;    // Must be set to the same initial value as in MagnifyAndMarkerDisplay.xaml.cs
-#endif
 
         // Mute/Unmute - this status is change via a mediator message from MediaPlayer
         public bool Mute { get; set; } = true;
@@ -117,7 +113,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         public void DumpAllProperties()
         {
-            DumpClassPropertiesHelper.DumpAllProperties(this);
+            DumpClassPropertiesHelper.DumpAllProperties(this, report);
         }
 
 
@@ -951,7 +947,6 @@ namespace Surveyor.User_Controls
 
         private void ControlLayers_Opening(object sender, object e)
         {
-#if !No_MagnifyAndMarkerDisplay
             // Retrieve the parent MenuFlyout
             MenuFlyout? parentFlyout = sender as MenuFlyout;
 
@@ -973,7 +968,6 @@ namespace Surveyor.User_Controls
                             flyoutItem.IsChecked = false;
                 }
             }
-#endif
         }
 
 
@@ -985,7 +979,6 @@ namespace Surveyor.User_Controls
 
         private void ControlLayers_Click(object sender, RoutedEventArgs e)
         {
-#if !No_MagnifyAndMarkerDisplay
             ToggleMenuFlyoutItem? selectedFlyoutItem = sender as ToggleMenuFlyoutItem;
 
             if (selectedFlyoutItem is not null)
@@ -1033,7 +1026,6 @@ namespace Surveyor.User_Controls
                     });
                 }
             }
-#endif
         }
 
 
@@ -1664,9 +1656,7 @@ namespace Surveyor.User_Controls
         public bool? isAutoMagnify;
 
         // User for UserReqLayersDisplayed to change the layers displayed
-#if !No_MagnifyAndMarkerDisplay
         public LayerType? layerTypesDisplayed;
-#endif
 
         // Used for UserReqMutedOrUmuted true == mute
         public bool? mute;

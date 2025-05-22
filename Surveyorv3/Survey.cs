@@ -30,12 +30,6 @@ namespace Surveyor
 
 
         // Auto Save variables
-        //???OLD AUTOSAVE
-        /// <summary>
-        //private readonly SemaphoreSlim _autoSaveSemaphore = new(0, 1); // Semaphore to signal stop
-        //private bool _isAutoSaveRunning = true;
-        //private bool _autoSaveStopped = false;
-        //private readonly TimeSpan _autosaveInterval = TimeSpan.FromSeconds(20); 
         private readonly TimeSpan autosaveInterval = TimeSpan.FromSeconds(20);
         private CancellationTokenSource? _autosaveCts;
         private Task? _autosaveTask;
@@ -67,17 +61,17 @@ namespace Surveyor
             /// <summary>
             /// Diags dump of class information
             /// </summary>
-            public void DumpAllProperties()
+            public void DumpAllProperties(Reporter? report)
             {
-                DumpClassPropertiesHelper.DumpAllProperties(Info, /*ignore*/"<Version>k__BackingField,_surveyFileName,_surveyPath,_surveyCode,_surveyAnalystName,_surveyDepth,_isDirty,PropertyChanged");
-                DumpClassPropertiesHelper.DumpAllProperties(Media, /*ignore*/"<Version>k__BackingField,_mediaPath,_leftMediaFileNames,_rightMediaFileNames,_leftCameraID,_rightCameraID,_isDirty,PropertyChanged,LeftMediaFileNames,RightMediaFileNames");
+                DumpClassPropertiesHelper.DumpAllProperties(Info, report, /*ignore*/"<Version>k__BackingField,_surveyFileName,_surveyPath,_surveyCode,_surveyAnalystName,_surveyDepth,_isDirty,PropertyChanged");
+                DumpClassPropertiesHelper.DumpAllProperties(Media, report, /*ignore*/"<Version>k__BackingField,_mediaPath,_leftMediaFileNames,_rightMediaFileNames,_leftCameraID,_rightCameraID,_isDirty,PropertyChanged,LeftMediaFileNames,RightMediaFileNames");
                 //DumpClassPropertiesHelper.DumpAllProperties(Media.LeftMediaFileNames);
                 //DumpClassPropertiesHelper.DumpAllProperties(Media.RightMediaFileNames);
-                DumpClassPropertiesHelper.DumpAllProperties(Sync, /*ignore*/"PropertyChanged,<Version>k__BackingField,_isSynchronized,_timeSpanOffset,_actualTimeSpanOffsetLeft,_actualTimeSpanOffsetRight,_isDirty");
-                DumpClassPropertiesHelper.DumpAllProperties(Events, /*ignore*/"PropertyChanged,<Version>k__BackingField,_eventList,_isDirty,EventList");
-                DumpClassPropertiesHelper.DumpAllProperties(Calibration, /*ignore*/"PropertyChanged,<Version>k__BackingField,_allowMultipleCalibrationData,_preferredCalibrationDataIndex,_calibrationDataList,_isDirty,CalibrationDataList");
-                DumpClassPropertiesHelper.DumpAllProperties(SurveyRules, /*ignore*/"PropertyChanged,<Version>k__BackingField,_surveyRulesActive,_surveyRulesInherited,_surveyRulesData,_isDirty,SurveyRulesData");
-                DumpClassPropertiesHelper.DumpAllProperties(SurveyRules.SurveyRulesData, /*ignore*/"PropertyChanged,<Version>k__BackingField,_rangeRuleActive,_rangeMin,_rangeMax,_rmsRuleActive,_rmsMax,_horizontalRangeRuleActive,_horizontalRangeLeft,\r\n_horizontalRangeRight,_verticalRangeRuleActive,_verticalRangeTop,_verticalRangeBottom,_isDirty");
+                DumpClassPropertiesHelper.DumpAllProperties(Sync, report, /*ignore*/"PropertyChanged,<Version>k__BackingField,_isSynchronized,_timeSpanOffset,_actualTimeSpanOffsetLeft,_actualTimeSpanOffsetRight,_isDirty");
+                DumpClassPropertiesHelper.DumpAllProperties(Events, report, /*ignore*/"PropertyChanged,<Version>k__BackingField,_eventList,_isDirty,EventList");
+                DumpClassPropertiesHelper.DumpAllProperties(Calibration, report, /*ignore*/"PropertyChanged,<Version>k__BackingField,_allowMultipleCalibrationData,_preferredCalibrationDataIndex,_calibrationDataList,_isDirty,CalibrationDataList");
+                DumpClassPropertiesHelper.DumpAllProperties(SurveyRules, report, /*ignore*/"PropertyChanged,<Version>k__BackingField,_surveyRulesActive,_surveyRulesInherited,_surveyRulesData,_isDirty,SurveyRulesData");
+                DumpClassPropertiesHelper.DumpAllProperties(SurveyRules.SurveyRulesData, report, /*ignore*/"PropertyChanged,<Version>k__BackingField,_rangeRuleActive,_rangeMin,_rangeMax,_rmsRuleActive,_rmsMax,_horizontalRangeRuleActive,_horizontalRangeLeft,\r\n_horizontalRangeRight,_verticalRangeRuleActive,_verticalRangeTop,_verticalRangeBottom,_isDirty");
             }
 
 
@@ -1263,80 +1257,6 @@ namespace Surveyor
 
             return result;
         }
-
-
-        /// <summary>
-        /// Start the auto save task
-        /// </summary>
-        /// <returns></returns>
-        //???OLD AUTOSAVE
-        //public async Task AutoSaveWork()
-        //{
-        //    _isAutoSaveRunning = true;
-        //    _autoSaveStopped = false;
-
-        //    // Task naming for debugging
-        //    if (Thread.CurrentThread.Name == null)
-        //    {
-        //        Thread.CurrentThread.Name = "Survey.AutosaveWork()";
-        //    }
-
-        //    try
-        //    {
-        //        if (SettingsManagerLocal.AutoSaveEnabled)
-        //            Report?.Info("", $"Auto save threaded started");
-
-        //        while (_isAutoSaveRunning)
-        //        {
-        //            try
-        //            {
-        //                if (SettingsManagerLocal.AutoSaveEnabled && IsDirty)
-        //                {
-        //                    // Your logic to save the current work state
-        //                    SurveySave();
-        //                    Report?.Out(Reporter.WarningLevel.Debug, "", $"Autosave completed");
-        //                }
-        //            }
-        //            catch (Exception ex)
-        //            {
-        //                // Log the exception using your preferred logging approach
-        //                Report?.Warning("", $"Error during autosave: {ex.Message}");
-        //            }
-
-        //            // Wait for either the autosave interval or a signal to stop
-        //            await Task.WhenAny(Task.Delay(_autosaveInterval), _autoSaveSemaphore.WaitAsync());
-        //        }
-        //    }
-        //    finally
-        //    {
-        //        Report?.Info("", $"Auto save threaded stopped on request");
-        //        _autoSaveStopped = true;
-        //    }
-        //}
-
-
-        //OLD AUTOSAVE
-        //public async Task StopAutoSave()
-        //{
-        //    if (_isAutoSaveRunning)
-        //    {
-        //        _isAutoSaveRunning = false;
-
-        //        // Signal the semaphore to allow the autosave loop to exit
-        //        _autoSaveSemaphore.Release();
-
-        //        // Wait for the autosave task to stop
-        //        int maxTryCount = 50; // Maximum 5 seconds (50 * 100ms)
-        //        while (!_autoSaveStopped && maxTryCount > 0)
-        //        {
-        //            await Task.Delay(100);
-        //            maxTryCount--;
-        //        }
-
-        //        if (!_autoSaveStopped)
-        //            Report?.Warning("", "Autosave task failed to stop.");
-        //    }
-        //}
 
 
         /// <summary>

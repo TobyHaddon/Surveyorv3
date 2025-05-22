@@ -33,8 +33,7 @@ using static Surveyor.Helper.TelemetryLogger;
 using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.Survey.DataClass;
 using static Surveyor.User_Controls.SettingsWindowEventData;
-#if !No_MagnifyAndMarkerDisplay
-#endif
+
 
 
 namespace Surveyor
@@ -247,25 +246,16 @@ namespace Surveyor
 
             // Create the MediaStereoController and pass it the Mediator
             mediaStereoController = new MediaStereoController(this, report,
-                                                            mediator,
-                                                            MediaPlayerLeft, MediaPlayerRight,
-                                                            MediaControlPrimary, MediaControlSecondary,
-#if !No_MagnifyAndMarkerDisplay
-                                                            MagnifyAndMarkerDisplayLeft, MagnifyAndMarkerDisplayRight,
-#endif
-                                                            eventsControl,
-                                                            stereoProjection                                                            
-                                                            /*MediaInfoLeft, MediaInfoRight */);
+                                                              mediator,
+                                                              MediaPlayerLeft, MediaPlayerRight,
+                                                              MediaControlPrimary, MediaControlSecondary,
+                                                              eventsControl,                                                              
+                                                              stereoProjection                                                            
+                                                              /*MediaInfoLeft, MediaInfoRight */);
 
             // Inform the Events Control of MainWindow and MediaStereoController
             eventsControl.SetMainWindow(this);
             eventsControl.SetMediaStereoController(mediaStereoController);
-
-            // Setup and magnify and marker controls by linking that to the each media players ImageFrame
-#if !No_MagnifyAndMarkerDisplay
-            MagnifyAndMarkerDisplayLeft.Setup(MediaPlayerLeft.GetImageFrame(), SurveyorMediaPlayer.eCameraSide.Left);
-            MagnifyAndMarkerDisplayRight.Setup(MediaPlayerRight.GetImageFrame(), SurveyorMediaPlayer.eCameraSide.Right);
-#endif
 
             // Allows the menu bar to extend into the title bar
             // Assumes "this" is a XAML Window. In projects that don't use 
@@ -368,6 +358,7 @@ namespace Surveyor
             else if (theme == ElementTheme.Light)
             {
                 // Set the RequestedTheme of the root element to Light
+                rootElement.RequestedTheme = ElementTheme.Light;
                 rootElement.RequestedTheme = ElementTheme.Light;
 
                 // Use a light theme icon
@@ -692,13 +683,6 @@ namespace Surveyor
 
                 await mediaStereoController.Unload();
 
-                // Full Mag Window UserControl clean up
-                await MagnifyAndMarkerDisplayLeft.DisposeAsync();
-                await MagnifyAndMarkerDisplayRight.DisposeAsync();
-                MagnifyAndMarkerDisplayLeft = null;
-                MagnifyAndMarkerDisplayRight = null;
-
-
                 // Remove listener for theme changes
                 var rootElement = (FrameworkElement)Content;
                 rootElement.ActualThemeChanged -= OnActualThemeChanged;
@@ -779,18 +763,8 @@ namespace Surveyor
                     surveyClass = new Survey(report);
                     surveyClass.PropertyChanged += Survey_PropertyChanged;
 
-
-#if !No_MagnifyAndMarkerDisplay
-                    // Inform the MagnifyAndMarkerDisplays of the new survey events
-                    MagnifyAndMarkerDisplayLeft.SetEvents(surveyClass.Data.Events.EventList);
-                    MagnifyAndMarkerDisplayRight.SetEvents(surveyClass.Data.Events.EventList);
-#endif
-
                     // Inform the EventControl of the new survey events
                     eventsControl.SetEvents(surveyClass.Data.Events.EventList);
-
-                    //???At the bottom, I assume not needed there
-                    // SetMenuStatusBasedOnProjectState();
 
                     // Load the Info and Media user control to setup the survey
                     SurveyInfoAndMediaUserControl.SetupForContentDialog(SurveyInfoAndMediaContentDialog, mediaFilesSelected);
@@ -1712,7 +1686,7 @@ namespace Surveyor
         /// media controls area
         /// </summary>
         /// <param name="sender"></param>
-        /// <param name="e"></param>
+        /// <param name="e"></param>        
         private void LeftSubGrid_MouseWheel(object sender, PointerRoutedEventArgs e)
         {
             MediaControlPrimary.MouseWheelEvent(sender, e);
@@ -1734,17 +1708,14 @@ namespace Surveyor
             mediaStereoController.DumpAllProperties();
             MediaPlayerLeft.DumpAllProperties();
             MediaPlayerRight.DumpAllProperties();
-#if !No_MagnifyAndMarkerDisplay
-            MagnifyAndMarkerDisplayLeft.Setup(MediaPlayerLeft.GetImageFrame(), SurveyorMediaPlayer.eCameraSide.Left);
-            MagnifyAndMarkerDisplayRight.Setup(MediaPlayerRight.GetImageFrame(), SurveyorMediaPlayer.eCameraSide.Right);
-#endif
-            surveyClass?.Data.DumpAllProperties();
+            surveyClass?.Data.DumpAllProperties(report);
 
-            //???SpeciesSelector.AccessKeyProperty
-
+            // To Be Completed            
             //???eventsControl.DumpAllProperties();
             //???measurementPointControl.DumpAllProperties();
             //???stereoProjection.DumpAllProperties();
+
+            report?.Save();
         }
 
 
@@ -1894,6 +1865,31 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// The ViewPorts that control the area the MediaPlayer/ImageFrame/CanvasFrame 
+        /// changed physical dimensions
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void LeftViewbox_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // Get the new size of the Viewbox
+            double newWidth = e.NewSize.Width;
+            double newHeight = e.NewSize.Height;
+
+            Debug.WriteLine($"[{DateTime.Now:hh:MM:yyyy HH:mm:sd.ff}] LeftViewbox_SizeChanged:{newWidth:F1}x{newHeight:F1}");
+            MediaPlayerLeft.RenderedPixelScreenSizeChanged(newWidth, newHeight);
+        }
+
+        private void RightViewbox_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // Get the new size of the Viewbox
+            double newWidth = e.NewSize.Width;
+            double newHeight = e.NewSize.Height;
+
+            Debug.WriteLine($"[{DateTime.Now:hh:MM:yyyy HH:mm:sd.ff}] RightViewbox_SizeChanged:{newWidth:F1}x{newHeight:F1}");
+            MediaPlayerRight.RenderedPixelScreenSizeChanged(newWidth, newHeight);
+        }
 
 
         ///
@@ -1918,10 +1914,11 @@ namespace Surveyor
             }
             else
             {
-#if !No_MagnifyAndMarkerDisplay
-                MagnifyAndMarkerDisplayLeft.Close();
-                MagnifyAndMarkerDisplayRight.Close();
-#endif
+//??? TOBEDELETED
+//#if !No_MagnifyAndMarkerDisplay
+//                MagnifyAndMarkerDisplayLeft.Close();
+//                MagnifyAndMarkerDisplayRight.Close();
+//#endif
                 await surveyClass.SurveyClose();
             }
 
@@ -1939,10 +1936,11 @@ namespace Surveyor
                 if (ret == 0)
                 {
                     // Setup the events
-#if !No_MagnifyAndMarkerDisplay
-                    MagnifyAndMarkerDisplayLeft.SetEvents(surveyClass.Data.Events.EventList);
-                    MagnifyAndMarkerDisplayRight.SetEvents(surveyClass.Data.Events.EventList);
-#endif
+//??? TOBEDELETED
+//#if !No_MagnifyAndMarkerDisplay
+//                    MagnifyAndMarkerDisplayLeft.SetEvents(surveyClass.Data.Events.EventList);
+//                    MagnifyAndMarkerDisplayRight.SetEvents(surveyClass.Data.Events.EventList);
+//#endif
                     eventsControl.SetEvents(surveyClass.Data.Events.EventList);
 
 
@@ -2148,12 +2146,6 @@ namespace Surveyor
 
                 if (closeProject == true)
                 {
-#if !No_MagnifyAndMarkerDisplay
-                    // Clean up from last frame
-                    MagnifyAndMarkerDisplayLeft.Close();
-                    MagnifyAndMarkerDisplayRight.Close();
-#endif
-
                     // Wait for things to settle
                     await Task.Delay(200);
 
@@ -2390,8 +2382,9 @@ namespace Surveyor
                 {
                     // Open the new media
                     retOpen = await mediaStereoController.MediaOpen(mediaFileLeft,
-                        mediaFileRight,
-                        surveyClass.Data.Sync.IsSynchronized == true ? surveyClass.Data.Sync.TimeSpanOffset : null);
+                                                                    mediaFileRight,
+                                                                    surveyClass.Data.Events.EventList,
+                                                                    surveyClass.Data.Sync.IsSynchronized == true ? surveyClass.Data.Sync.TimeSpanOffset : null);
 
                     if (retOpen == 0)
                     {
@@ -3092,6 +3085,14 @@ namespace Surveyor
                 // Testing Help>Testing
                 MenuTesting.IsEnabled = true;
             }
+
+            // Inform everyone of the state change
+            // Use eSettingsWindowEvent.DiagnosticInformation
+            mainWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.DiagnosticInformation)
+            {
+                diagnosticInformation = SettingsManagerLocal.DiagnosticInformation
+            });
+
         }
 
 
@@ -3374,7 +3375,7 @@ namespace Surveyor
         /// </summary>
         private void DumpAllProperties()
         {
-            // DumpClassPropertiesHelper.DumpAllProperties(object obj, string? ignorePropertiesCsv = null, string? includePropertiesCsv = null)
+            DumpClassPropertiesHelper.DumpAllProperties(this, report, /*ignore*/"mediator,report,mediaControllerHandler,mediaStereoController,MediaPlayerLeft,MediaPlayerRight,surveyClass,stereoProjection,eventsControl");
         }
 
 
@@ -3406,6 +3407,8 @@ namespace Surveyor
             _spinnerTimer?.Stop();
             DownloadIndicator.Glyph = ""; // or a finished icon
         }
+
+
 
 
 

@@ -8,14 +8,32 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-    <Grid>
+    <Grid x:Name="OverlayRoot" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+
         <!-- Media player -->
-        <MediaPlayerElement x:Name="MediaPlayerElement" Visibility="Visible" AreTransportControlsEnabled="False" AutoPlay="False"/>
+        <MediaPlayerElement x:Name="MediaPlayerElement" 
+                            Visibility="Visible" 
+                            AreTransportControlsEnabled="False" 
+                            Stretch="Fill"
+                            AutoPlay="False"/>
 
         <!-- Image for Frame -->
-        <Image x:Name="ImageFrame" Visibility="Collapsed"/>
+        <Image x:Name="ImageFrame" 
+               Visibility="Collapsed"
+               Stretch="Fill"/>
 
+        <!-- Magnifier Window-->
+        <local:MagnifyAndMarkerDisplay x:Name="MagnifyAndMarkerDisplay"/>
+        
         <!-- Buffering -->
-        <ProgressRing Name="ProgressRing_Buffering" IsActive="false" Background="Transparent"/>
+        <ProgressRing Name="ProgressRing_Buffering" 
+                      IsActive="false" 
+                      Background=
+                      "Transparent" 
+                      HorizontalAlignment="Center"
+                      VerticalAlignment="Center"
+                      Width="100" Height="100"/>
     </Grid>
 </UserControl>
+
+

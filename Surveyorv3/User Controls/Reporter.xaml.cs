@@ -116,13 +116,8 @@ namespace Surveyor.User_Controls
             imageDataDebug = new BitmapImage(new Uri($"ms-appx:///Assets/rptdbg.png", UriKind.Absolute));
 
             ListViewReporter.ItemsSource = ReportItems;
-        }
 
-        /// <summary>
-        /// Dump the report lines to report.txt
-        /// </summary>
-        internal void Unload()
-        {
+            // Clear (rename) any existing reporter.txt file
             try
             {
                 string folderPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
@@ -131,32 +126,57 @@ namespace Surveyor.User_Controls
                 string filePathPrevious2 = Path.Combine(folderPath, "reporter2.txt");
                 string filePathPrevious3 = Path.Combine(folderPath, "reporter3.txt");
 
+                // Delete reporter3.txt if it exists
+                if (File.Exists(filePathPrevious3))
+                {
+                    File.Delete(filePathPrevious3);
+                }
+
+                // Rename reporter2.txt reporter3.txt if reporter2.txt exists
+                if (File.Exists(filePathPrevious2))
+                {
+                    File.Move(filePathPrevious2, filePathPrevious3);
+                }
+
+                // Rename reporter1.txt reporter2.txt if reporter1.txt exists
+                if (File.Exists(filePathPrevious1))
+                {
+                    File.Move(filePathPrevious1, filePathPrevious2);
+                }
+
+                // Rename reporter.txt reporter1.txt if reporter.txt exists
+                if (File.Exists(filePathCurrent))
+                {
+                    File.Move(filePathCurrent, filePathPrevious1);
+                }
+
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Reporter Exception: {ex.Message}");
+                // Fail silently or log, depending on your logging setup
+            }
+            finally
+            {
+                // Always clear the list at the end
+                Clear();
+            }
+
+        }
+
+
+        /// <summary>
+        /// Dump the report lines to report.txt
+        /// </summary>
+        internal void Save()
+        {
+            try
+            {
+                string folderPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+                string filePathCurrent = Path.Combine(folderPath, "reporter.txt");
+
                 if (IsDirty())
-                { 
-                    // Delete reporter3.txt if it exists
-                    if (File.Exists(filePathPrevious3))
-                    {
-                        File.Delete(filePathPrevious3);
-                    }
-
-                    // Rename reporter2.txt reporter3.txt if reporter2.txt exists
-                    if (File.Exists(filePathPrevious2))
-                    {
-                        File.Move(filePathPrevious2, filePathPrevious3);
-                    }
-
-                    // Rename reporter1.txt reporter2.txt if reporter1.txt exists
-                    if (File.Exists(filePathPrevious1))
-                    {
-                        File.Move(filePathPrevious1, filePathPrevious2);
-                    }
-
-                    // Rename reporter.txt reporter1.txt if reporter.txt exists
-                    if (File.Exists(filePathCurrent))
-                    {
-                        File.Move(filePathCurrent, filePathPrevious1);
-                    }
-
+                {
                     // Write the new report lines to reporter.txt
                     using var writer = new StreamWriter(filePathCurrent);
 
@@ -188,6 +208,29 @@ namespace Surveyor.User_Controls
                 Clear();
             }
         }
+
+
+        /// <summary>
+        /// Dump the report lines to report.txt
+        /// </summary>
+        internal void Unload()
+        {
+            try
+            {
+                Save();
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Reporter.Unload Exception: {ex.Message}");
+                // Fail silently or log, depending on your logging setup
+            }
+            finally
+            {
+                // Always clear the list at the end
+                Clear();
+            }
+        }
+
 
         internal void SetDispatcherQueue(DispatcherQueue dispatcherQueue)
         {

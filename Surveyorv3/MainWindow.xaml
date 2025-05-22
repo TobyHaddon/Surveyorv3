@@ -278,10 +278,13 @@
 
             <!-- Left player and it's media controls, each in a grid to allow WheelChanged event      -->
             <!-- to be added while still allowing RowSpanning for Full Screen and Primary MediaControls only -->
-            <Grid Grid.Column="0" Grid.Row="0"  Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" PointerWheelChanged="LeftSubGrid_MouseWheel">
-                <surveyorControls:SurveyorMediaPlayer x:Name="MediaPlayerLeft"/>
-                <surveyorControls:MagnifyAndMarkerDisplay x:Name="MagnifyAndMarkerDisplayLeft"/>
-            </Grid>
+            <Viewbox Grid.Column="0" Grid.Row="0" Stretch="Uniform" 
+                     PointerWheelChanged="LeftSubGrid_MouseWheel"
+                     SizeChanged="LeftViewbox_SizeChanged">
+                <!--<Grid x:Name="OverlayRootLefxt" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">-->
+                    <surveyorControls:SurveyorMediaPlayer x:Name="MediaPlayerLeft"/>
+                <!--</Grid>-->
+            </Viewbox>
             <Grid Grid.Column="0" Grid.Row="1" x:Name="MediaControlsLeftGrid" PointerWheelChanged="LeftSubGrid_MouseWheel">
                 <surveyorControls:SurveyorMediaControl Grid.Column="0" Grid.Row="0" x:Name="MediaControlPrimary"/>
             </Grid>
@@ -292,10 +295,13 @@
             </Grid>
 
             <!-- Right player and it's media controls-->
-            <Grid Grid.Column="2" Grid.Row="0" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" PointerWheelChanged="RightSubGrid_MouseWheel">
-                <surveyorControls:SurveyorMediaPlayer x:Name="MediaPlayerRight"/>
-                <surveyorControls:MagnifyAndMarkerDisplay x:Name="MagnifyAndMarkerDisplayRight"/>
-            </Grid>
+            <Viewbox Grid.Column="2" Grid.Row="0" Stretch="Uniform"  
+                     PointerWheelChanged="RightSubGrid_MouseWheel"
+                     SizeChanged="RightViewbox_SizeChanged">
+                <!--<Grid  x:Name="OverlayRootRight" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">-->
+                    <surveyorControls:SurveyorMediaPlayer x:Name="MediaPlayerRight"/>
+                <!--</Grid>-->
+            </Viewbox>
             <Grid Grid.Column="2" Grid.Row="1" PointerWheelChanged="RightSubGrid_MouseWheel">
                 <surveyorControls:SurveyorMediaControl Grid.Column="0" Grid.Row="0" x:Name="MediaControlSecondary"/>
             </Grid>

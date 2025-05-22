@@ -7,15 +7,17 @@
 // Version 1.0
 // Verison 1.1  26 Feb 2025
 // Added SettingsManagerApp 
+// Version 1.2  21 May 2025
+// Simplified the code 
+
 
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Media;
+using System;
 using System.Collections.Generic;
-using Windows.Storage;
+using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using System;
-using System.IO;
+using Windows.Storage;
 
 namespace Surveyor
 {
@@ -24,56 +26,44 @@ namespace Surveyor
     /// </summary>
     public class SettingsManagerLocal
     {
+        private static readonly ApplicationDataContainer _localSettings = ApplicationData.Current.LocalSettings;
+        private const string MediaImportFolderKey = "MediaImportFolder";
+        private const string CalibrationImportFolderKey = "CalibrationImportFolder";
+        private const string SurveyFolderKey = "SurveyFolder";
+        private const string MediaFrameFolderKey = "MediaFrameFolder";
+        private const string DiagnosticInformationKey = "DiagnosticInformation";
+        private const string TelemetryKey = "Telemetry";
+        private const string ExperimentalKey = "Experimental";
+        private const string ApplicationThemeKey = "ApplicationTheme";
+        private const string UserNameKey = "UserName";
+        private const string TeachingTipsEnabledKey = "TeachingTipsEnabled";
+        private const string UseInternetEnabledKey = "UseInternetEnabled";
+        private const string AutoSaveEnabledKey = "AutoSaveEnabled";
+        private const string SpeciesImageCacheEnabledKey = "SpeciesImageCacheEnabled";
+        private const string ScientificNameOrderEnabledKey = "ScientificNameOrderEnabled";
+
+
         // Path where new media (MP4) are typically imported from
         public static string? MediaImportFolder
         {
-            get
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                return localSettings.Values["MediaImportFolder"] as string;
-            }
-            set
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                localSettings.Values["MediaImportFolder"] = value;
-            }
+            get => GetString(MediaImportFolderKey);
+            set => SetString(MediaImportFolderKey, value);
         }
 
 
         // Path where new calibration files are typically imported from
         public static string? CalibrationImportFolder
         {
-            get
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                return localSettings.Values["CalibrationImportFolder"] as string;
-            }
-            set
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                localSettings.Values["CalibrationImportFolder"] = value;
-            }
+            get => GetString(CalibrationImportFolderKey);
+            set => SetString(CalibrationImportFolderKey, value);
         }
 
 
         // Retrieve or set the survey folder path.  This is where the Survey files and the media files are stored.
         public static string? SurveyFolder
         {
-            get
-            {
-                // Accessing the local settings storage
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-
-                // Retrieve the setting, or provide a default value if not present
-                return localSettings.Values["SurveyFolder"] as string;
-            }
-            set
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-
-                // Save the value in the settings container
-                localSettings.Values["SurveyFolder"] = value;
-            }
+            get => GetString(SurveyFolderKey);
+            set => SetString(SurveyFolderKey, value);
         }
 
         // Path where media frames are saved to
@@ -82,7 +72,7 @@ namespace Surveyor
             get
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                if (localSettings.Values["MediaFrameFolder"] is not string mediaFrameFolder)
+                if (localSettings.Values[MediaFrameFolderKey] is not string mediaFrameFolder)
                     mediaFrameFolder = SurveyFolder + "\\MediaFrames";
 
                 return mediaFrameFolder;
@@ -90,64 +80,31 @@ namespace Surveyor
             set
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                localSettings.Values["MediaFrameFolder"] = value;
+                localSettings.Values[MediaFrameFolderKey] = value;
             }
         }
 
         // Display Pointer Coordinates on screen
         public static bool DiagnosticInformation
         {
-            get
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                if (localSettings.Values["DiagnosticInformation"] is not bool displayPointerCoordinates)
-                    displayPointerCoordinates = false;          // Default telemetry to off
-
-                return displayPointerCoordinates;
-            }
-            set
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                localSettings.Values["DiagnosticInformation"] = value;
-            }
+            get => GetBool(DiagnosticInformationKey, false/*default*/);
+            set => SetBool(DiagnosticInformationKey, value);
         }
 
 
         // Telemetry can be automatically uploaded
         public static bool TelemetryEnabled
         {
-            get
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                if (localSettings.Values["Telemetry"] is not bool telemetryEnabled)
-                    telemetryEnabled = true;        // Default telemetry to on
-
-                return telemetryEnabled;
-            }
-            set
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                localSettings.Values["Telemetry"] = value;
-            }
+            get => GetBool(TelemetryKey, true/*default*/);
+            set => SetBool(TelemetryKey, value);
         }
 
 
         // Experimental features can be used
         public static bool ExperimentalEnabled
         {
-            get
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                if (localSettings.Values["Experimental"] is not bool experimentalEnabled)
-                    experimentalEnabled = false;        // Default experimental codeto off
-
-                return experimentalEnabled;
-            }
-            set
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                localSettings.Values["Experimental"] = value;
-            }
+            get => GetBool(ExperimentalKey, false/*default*/);
+            set => SetBool(ExperimentalKey, value);
         }
 
 
@@ -160,9 +117,9 @@ namespace Surveyor
                 ElementTheme applicationTheme = ElementTheme.Default;
 
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                if (localSettings.Values["ApplicationTheme"] is string)
+                if (localSettings.Values[ApplicationThemeKey] is string)
                 {
-                    string applicationThemeName = (string)localSettings.Values["ApplicationTheme"];
+                    string applicationThemeName = (string)localSettings.Values[ApplicationThemeKey];
 
                     if (applicationThemeName == "Dark")
                         applicationTheme = ElementTheme.Dark;
@@ -182,7 +139,7 @@ namespace Surveyor
                     applicationThemeName = "Light";
 
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                localSettings.Values["ApplicationTheme"] = applicationThemeName;
+                localSettings.Values[ApplicationThemeKey] = applicationThemeName;
             }
         }
 
@@ -190,39 +147,15 @@ namespace Surveyor
         // User name 
         public static string? UserName
         {
-            get
-            {
-                // Accessing the local settings storage
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-
-                // Retrieve the setting, or provide a default value if not present
-                return localSettings.Values["UserName"] as string;
-            }
-            set
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-
-                // Save the value in the settings container
-                localSettings.Values["UserName"] = value;
-            }
+            get => GetString(UserNameKey);
+            set => SetString(UserNameKey, value);
         }
 
         // Teaching Tips Enabled
         public static bool TeachingTipsEnabled
         {
-            get
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                if (localSettings.Values["TeachingTipsEnabled"] is not bool teachingTipsEnabled)
-                    teachingTipsEnabled = false;     // Default teaching tip to disabled
-
-                return teachingTipsEnabled;
-            }
-            set
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                localSettings.Values["TeachingTipsEnabled"] = value;
-            }
+            get => GetBool(TeachingTipsEnabledKey, false/*default*/);
+            set => SetBool(TeachingTipsEnabledKey, value);
         }
 
 
@@ -283,19 +216,8 @@ namespace Surveyor
         /// </summary>
         public static bool UseInternetEnabled
         {
-            get
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                if (localSettings.Values["UseInternetEnabled"] is not bool useInternetEnabled)
-                    useInternetEnabled = false;         // Default telemetry to off
-
-                return useInternetEnabled;
-            }
-            set
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                localSettings.Values["UseInternetEnabled"] = value;
-            }
+            get => GetBool(UseInternetEnabledKey, false/*default*/);
+            set => SetBool(UseInternetEnabledKey, value);
         }
 
 
@@ -304,19 +226,8 @@ namespace Surveyor
         /// </summary>
         public static bool AutoSaveEnabled
         {
-            get
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                if (localSettings.Values["AutoSaveEnabled"] is not bool autoSaveEnabled)
-                    autoSaveEnabled = true;             // Default telemetry to on
-
-                return autoSaveEnabled;
-            }
-            set
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                localSettings.Values["AutoSaveEnabled"] = value;
-            }
+            get => GetBool(AutoSaveEnabledKey, true/*default*/);
+            set => SetBool(AutoSaveEnabledKey, value);
         }
 
 
@@ -325,19 +236,8 @@ namespace Surveyor
         /// </summary>
         public static bool SpeciesImageCacheEnabled
         {
-            get
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                if (localSettings.Values["SpeciesImageCacheEnabled"] is not bool speciesImageCacheEnabled)
-                    speciesImageCacheEnabled = true;            // Default telemetry to on
-
-                return speciesImageCacheEnabled;
-            }
-            set
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                localSettings.Values["SpeciesImageCacheEnabled"] = value;
-            }
+            get => GetBool(SpeciesImageCacheEnabledKey, true/*default*/);
+            set => SetBool(SpeciesImageCacheEnabledKey, value);
         }
 
 
@@ -346,19 +246,30 @@ namespace Surveyor
         /// </summary>
         public static bool ScientificNameOrderEnabled
         {
-            get
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                if (localSettings.Values["ScientificNameOrderEnabled"] is not bool scientificNameOrderEnabled)
-                    scientificNameOrderEnabled = true;
-                return scientificNameOrderEnabled;
-            }
-            set
-            {
-                ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
-                localSettings.Values["ScientificNameOrderEnabled"] = value;
-            }
+            get => GetBool(ScientificNameOrderEnabledKey, true/*default*/);
+            set => SetBool(ScientificNameOrderEnabledKey, value);
+
         }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="key"></param>
+        /// <param name="defaultValue"></param>
+        /// <returns></returns>
+        private static bool GetBool(string key, bool defaultValue)
+        {
+            return _localSettings.Values[key] is bool value ? value : defaultValue;
+        }
+
+        private static void SetBool(string key, bool value)
+        {
+            _localSettings.Values[key] = value;
+        }
+
+        private static string? GetString(string key) => _localSettings.Values[key] as string;
+        private static void SetString(string key, string? value) => _localSettings.Values[key] = value;
 
     }
 

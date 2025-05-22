@@ -1000,16 +1000,39 @@ namespace Surveyor
         {
             try
             {
-                string json = System.Text.Json.JsonSerializer.Serialize(speciesStates, CachedJsonSerializerOptions);
-                StorageFile file = await ApplicationData.Current.LocalFolder.CreateFileAsync("speciesStates.json", CreationCollisionOption.ReplaceExisting);
-                await FileIO.WriteTextAsync(file, json);
+                string json = JsonSerializer.Serialize(speciesStates, CachedJsonSerializerOptions);
+
+                // Write to a temporary file first
+                string tempFileName = "speciesStates_tmp.json";
+                StorageFile tempFile = await ApplicationData.Current.LocalFolder.CreateFileAsync(tempFileName, CreationCollisionOption.ReplaceExisting);
+                await FileIO.WriteTextAsync(tempFile, json);
+
+                // Flush is implicit in FileIO.WriteTextAsync, but you could optionally verify file size if needed
+
+                // Rename the temp file to the actual file (replace if it exists)
+                await tempFile.RenameAsync("speciesStates.json", NameCollisionOption.ReplaceExisting);
             }
             catch (Exception ex)
             {
-                report?.Error("", $"SpeciesImageCache.SaveSpeciesStates Failed {ex.Message}");
-                Debug.WriteLine($"SpeciesImageCache.SaveSpeciesStates Failed {ex.Message}");
+                report?.Error("", $"SpeciesImageCache.SaveSpeciesStates (temp-write strategy) failed: {ex.Message}");
             }
         }
+
+        //private async Task SaveSpeciesStates()
+        //{
+        //    try
+        //    {
+        //        string json = System.Text.Json.JsonSerializer.Serialize(speciesStates, CachedJsonSerializerOptions);
+        //        StorageFile file = await ApplicationData.Current.LocalFolder.CreateFileAsync("speciesStates.json", CreationCollisionOption.ReplaceExisting);
+        //        await FileIO.WriteTextAsync(file, json);
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        report?.Error("", $"SpeciesImageCache.SaveSpeciesStates Failed {ex.Message}");
+        //    }
+        //}
+
+
 
         /// <summary>
         /// Save speciesStates to disk
@@ -1031,7 +1054,7 @@ namespace Surveyor
                 {
                     // File exists but is empty — delete it and skip
                     await file.DeleteAsync();
-                    Debug.WriteLine($"SpeciesImageCache.LoadSpeciesStates  Zero byte 'speciesStates.json' found. Deleting file.");
+                    report?.Warning("", $"SpeciesImageCache.LoadSpeciesStates  Zero byte 'speciesStates.json' found. Deleting file.");
                     return;
                 }
 
@@ -1049,13 +1072,12 @@ namespace Surveyor
             }
             catch (FileNotFoundException)
             {
-                Debug.WriteLine($"SpeciesImageCache.LoadSpeciesStates  No 'speciesStates.json' found.");
+                report?.Warning("", $"SpeciesImageCache.LoadSpeciesStates  No 'speciesStates.json' found.");
                 // No cache found — skip
             }
             catch (Exception ex)
             {
                 report?.Error("", $"SpeciesImageCache.LoadSpeciesStates Failed {ex.Message}");
-                Debug.WriteLine($"SpeciesImageCache.LoadSpeciesStates Failed {ex.Message}");
             }
         }
 

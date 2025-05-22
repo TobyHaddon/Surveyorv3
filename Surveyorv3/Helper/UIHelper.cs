@@ -7,6 +7,8 @@ using Microsoft.UI.Xaml.Automation.Peers;
 using Microsoft.UI.Xaml.Media;
 using Windows.Storage;
 using Microsoft.UI.Input;
+using System.Diagnostics;
+using Windows.Foundation;
 
 namespace Surveyor.Helper
 {
@@ -108,6 +110,31 @@ namespace Surveyor.Helper
 
             peer?.RaiseNotificationEvent(AutomationNotificationKind.ActionCompleted,
                                             AutomationNotificationProcessing.ImportantMostRecent, annoucement, activityID);
+        }
+
+
+
+        /// <summary>
+        /// Return the actual screen space used by a WinUI3 FrameworkElement myElement
+        /// </summary>
+        /// <param name="element"></param>
+        /// <returns></returns>
+        static public (double screenPixelX, double screenPixelY) GetRenderedPixelScreenSize(FrameworkElement element)
+        {
+            var scale = element.XamlRoot.RasterizationScale;
+
+            // Get visual bounds in DIPs
+            GeneralTransform transform = element.TransformToVisual(null);
+            Rect bounds = transform.TransformBounds(
+                new Rect(0, 0, element.ActualWidth, element.ActualHeight));
+
+            // Convert to physical pixels
+            double pixelWidth = bounds.Width * scale;
+            double pixelHeight = bounds.Height * scale;
+
+            Debug.WriteLine($"Rendered size in physical pixels: {pixelWidth} x {pixelHeight}");
+
+            return (pixelWidth, pixelHeight);
         }
 
 

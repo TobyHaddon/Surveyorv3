@@ -6,16 +6,18 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
+using Surveyor.User_Controls;
 
 namespace Surveyor.Helper
 {
     public class DumpClassPropertiesHelper
     {
-        public static void DumpAllProperties(object obj, string? ignorePropertiesCsv = null, string? includePropertiesCsv = null, int indentLevel = 0)
+        public static void DumpAllProperties(object obj, Reporter? report, string? ignorePropertiesCsv = null, string? includePropertiesCsv = null, int indentLevel = 0)
         {
             var indent = new string(' ', indentLevel * 2);
             var type = obj.GetType();
-            Debug.WriteLine($"{indent}--- Start Dumping members for {type.Name} ---");
+
+            report?.Info("", $"{indent}--- Start Dumping members for {type.Name} ---");
 
             HashSet<string>? ignoreList = null;
             HashSet<string>? includeList = null;
@@ -29,7 +31,7 @@ namespace Surveyor.Helper
 
                 if (!string.IsNullOrWhiteSpace(ignorePropertiesCsv))
                 {
-                    Debug.WriteLine($"{indent}[Warning] Both include and ignore lists provided. 'include' list takes precedence.");
+                    report?.Info("", $"{indent}[Warning] Both include and ignore lists provided. 'include' list takes precedence.");
                 }
             }
             else if (!string.IsNullOrWhiteSpace(ignorePropertiesCsv))
@@ -60,7 +62,7 @@ namespace Surveyor.Helper
                 try
                 {
                     var value = prop.GetValue(obj, null);
-                    Debug.WriteLine($"{indent}{name} (Property) = {value ?? "null"}");
+                    report?.Info("", $"{indent}{name} (Property) = {value ?? "null"}");
 
                     // Recursive Dump
                     //var method = value?.GetType().GetMethod("DumpAllProperties", BindingFlags.Public | BindingFlags.Instance);
@@ -72,7 +74,7 @@ namespace Surveyor.Helper
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"{indent}{name} (Property) = [Error reading: {ex.Message}]");
+                    report?.Warning("", $"{indent}{name} (Property) = [Error reading: {ex.Message}]");
                 }
             }
 
@@ -101,7 +103,7 @@ namespace Surveyor.Helper
                     if (value?.GetType().FullName?.StartsWith("Microsoft.UI.Xaml.") == true)
                         continue;
 
-                    Debug.WriteLine($"{indent}{name} (Field) = {value ?? "null"}");
+                    report?.Info("", $"{indent}{name} (Field) = {value ?? "null"}");
 
                     // Recursive Dump
                     //var method = value?.GetType().GetMethod("DumpAllProperties", BindingFlags.Public | BindingFlags.Instance);
@@ -113,11 +115,12 @@ namespace Surveyor.Helper
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"{indent}{name} (Field) = [Error reading: {ex.Message}]");
+                    report?.Warning("", $"{indent}{name} (Field) = [Error reading: {ex.Message}]");
                 }
             }
 
-            Debug.WriteLine($"{indent}--- End Dumping members for {type.Name} ---");
+            report?.Info("", $"{indent}--- End Dumping members for {type.Name} ---");
+
         }
 
     }

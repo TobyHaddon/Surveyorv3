@@ -22,6 +22,8 @@
 // On pause request, pause timeline controller, wait for pause, grab frame directly from media player
 // On frame forward/backward request, because the is no pause state change to wait on we use the VideoFrameAvailable event
 // approach to grab the frame
+// Version 1.5 20 May 2025
+// Move the MagnifyAndMarkerDisplay to be a child of the MediaPlayer control
 
 using CommunityToolkit.WinUI;
 using Microsoft.Graphics.Canvas;
@@ -31,8 +33,10 @@ using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Surveyor.Events;
 using Surveyor.Helper;
 using System;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -49,6 +53,8 @@ using Windows.Media.MediaProperties;
 using Windows.Media.Playback;
 using Windows.Storage.Streams;
 using Windows.System.Display;
+using Windows.Foundation;
+using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
 
 namespace Surveyor.User_Controls
 {
@@ -106,7 +112,17 @@ namespace Surveyor.User_Controls
 
         public SurveyorMediaPlayer()
         {
-            this.InitializeComponent();            
+            this.InitializeComponent();
+        }
+
+
+        /// <summary>
+        /// Clean up
+        /// </summary>
+        /// <returns></returns>
+        public async Task Unload()
+        {
+            await MagnifyAndMarkerDisplay.DisposeAsync();
         }
 
 
@@ -115,8 +131,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         public void DumpAllProperties()
         {
-            DumpClassPropertiesHelper.DumpAllProperties(this, /*ignore*/"report,mainWindow,mediator,mediaPlayerHandler,<CameraSide>k__BackingField,appDisplayRequest,vidFrameMgr,_contentLoaded");
-            DumpClassPropertiesHelper.DumpAllProperties(vidFrameMgr, /*ignore*/"<cameraSide>k__BackingField,frameServerDest,canvasImageSource,inputBitmap,taskOneMoreFrameCompletion,_frameLock,<IsSetup>k__BackingField");
+            DumpClassPropertiesHelper.DumpAllProperties(this, report, /*ignore*/"report,mainWindow,mediator,mediaPlayerHandler,<CameraSide>k__BackingField,appDisplayRequest,vidFrameMgr,_contentLoaded");
+            DumpClassPropertiesHelper.DumpAllProperties(vidFrameMgr, report, /*ignore*/"<cameraSide>k__BackingField,frameServerDest,canvasImageSource,inputBitmap,taskOneMoreFrameCompletion,_frameLock,<IsSetup>k__BackingField");
         }
 
 
@@ -143,17 +159,10 @@ namespace Surveyor.User_Controls
 
             mediaPlayerHandler = new MediaPlayerHandler(mediator, this, mainWindow);
 
+            // And initialize the mediator in the child control
+            MagnifyAndMarkerDisplay.InitializeMediator(mediator, mainWindow);
+
             return mediaPlayerHandler;
-        }
-
-
-        /// <summary>
-        /// Returned the ImageFrame control
-        /// The Magnification control is used to zoom in on the image
-        /// </summary>
-        public Image GetImageFrame()
-        {
-            return ImageFrame;
         }
 
 
@@ -193,6 +202,9 @@ namespace Surveyor.User_Controls
 
                         // Create a corresponding MediaPlayer for the MediaPlayerElement
                         MediaPlayerElement.SetMediaPlayer(new MediaPlayer());
+
+                        // Setup the Magnifier and Marker Diaplay instance
+                        MagnifyAndMarkerDisplay.Setup(report!, ImageFrame, CameraSide);
 
                         // Event subscriptions MediaPlayer 
                         MediaPlayer mp = MediaPlayerElement.MediaPlayer;
@@ -277,6 +289,10 @@ namespace Surveyor.User_Controls
 
                     // Indicate closing in progress
                     isClosing = true;
+
+                    // Clean up 
+                    MagnifyAndMarkerDisplay.Close();
+
 
                     // First detach the TimelineController if necessary
                     // This is so we can control the MediaPlayer directly
@@ -1004,7 +1020,7 @@ namespace Surveyor.User_Controls
                         Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide} Info GrabAndDisplayFrame: Make Image frame visible and collapse player, mode={mode}.");
                     }
 
-#if !No_MagnifyAndMarkerDisplay
+
                     // Get the image frame in memory for the Magnify Window
                     var (_frameStream, _imageSourceWidth, _imageSourceHeight) = vidFrameMgr.CopyFrameToMemoryStreamAsync();
 
@@ -1019,7 +1035,6 @@ namespace Surveyor.User_Controls
                             imageSourceHeight = _imageSourceHeight
                         });
                     }
-#endif
                 }
             }
             catch (Exception ex)
@@ -1035,6 +1050,85 @@ namespace Surveyor.User_Controls
             }
 
             //???Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: GrabAndDisplayFrame Exit");
+        }
+
+
+
+        ///
+        /// PUBLIC Passthroughs To MagnifyAndMarkerDisplay
+        ///
+
+        /// <summary>
+        /// Set any existing events. This is just a passthrough to the
+        /// MagnifyAndMarkerDisplay instance
+        /// </summary>
+        /// <param name="existingEvents"></param>
+        public void SetEvents(ObservableCollection<Event>? existingEvents)
+        {
+            MagnifyAndMarkerDisplay.SetEvents(existingEvents);
+        }
+
+
+        /// <summary>
+        /// User requested a change to the size of the mag window passthrough
+        /// </summary>
+        /// <param name="magWindowSize"></param>
+        public void MagWindowSizeSelect(string magWindowSize)
+        {
+            MagnifyAndMarkerDisplay.MagWindowSizeSelect(magWindowSize);
+        }
+
+
+        /// <summary>
+        /// Set the zoom factor of the Mag window where 1 is the full resolution of the image passthrough
+        /// </summary>
+        /// <param name="zoomFactor"></param>
+        public void MagWindowZoomFactor(double zoomFactor)
+        {
+            MagnifyAndMarkerDisplay.MagWindowZoomFactor(zoomFactor);
+        }
+
+
+        /// <summary>
+        /// Used to set the layer type for display (i.e set absolutely the layer) passthrough
+        /// </summary>
+        /// <param name="layeType"></param>
+        public void SetLayerType(LayerType layerType)
+        {
+            MagnifyAndMarkerDisplay.SetLayerType(layerType);
+        }
+
+
+        /// <summary>
+        /// Called by the stereo controller to inform this instance of what targets are set on the other instance
+        /// </summary>
+        /// <param name="targetASet"></param>
+        /// <param name="targetBSet"></param>
+        public void OtherInstanceTargetSet(bool? targetASet, bool? targetBSet)
+        {
+            MagnifyAndMarkerDisplay.OtherInstanceTargetSet(targetASet, targetBSet);
+        }
+
+
+        /// <summary>
+        /// Set any existing targets. This function must be called after NewIamgeFrame(). Passthrough
+        /// </summary>
+        /// <param name="existingTargetA"></param>
+        /// <param name="existingTargetB"></param>
+        public void SetTargets(Point? existingTargetA, Point? existingTargetB)
+        {
+            MagnifyAndMarkerDisplay.SetTargets(existingTargetA, existingTargetB);
+        }
+
+
+        /// <summary>
+        /// ViewPort size changed
+        /// </summary>
+        /// <param name="newWidth"></param>
+        /// <param name="newHeight"></param>
+        public void RenderedPixelScreenSizeChanged(double newWidth, double newHeight)
+        {
+            MagnifyAndMarkerDisplay.RenderedPixelScreenSizeChanged(newWidth, newHeight);
         }
 
 
@@ -1296,6 +1390,12 @@ namespace Surveyor.User_Controls
                         frameHeight = (int?)frameHeight
                     });
 
+                    // Size the overlay root grid to the media size. This ensure the canvas frame
+                    // gets the correct size. Note Canvas frame itself is set inside
+                    // MagnifyAndWindowMarkerDisplay class each time a frame is drawn but
+                    // for the ViewPort to be correct we need to set the OverlayRoot size here
+                    OverlayRoot.Width = frameWidth;
+                    OverlayRoot.Height = frameHeight;
 
                     // Get the natural duration of the media
                     naturalDuration = sender.PlaybackSession.NaturalDuration - sender.TimelineControllerPositionOffset;
@@ -2055,7 +2155,6 @@ namespace Surveyor.User_Controls
                                         Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide} Info MediaPlayer_VideoFrameAvailable: Make Image frame visible and collapse player, mode={mode}.");
                                     }
 
-#if !No_MagnifyAndMarkerDisplay
                                     // Get the image frame in memory for the Magnify Window
                                     var (_frameStream, _imageSourceWidth, _imageSourceHeight) = vidFrameMgr.CopyFrameToMemoryStreamAsync();
 
@@ -2070,7 +2169,6 @@ namespace Surveyor.User_Controls
                                             imageSourceHeight = _imageSourceHeight
                                         });
                                     }
-#endif
 
                                     //???Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MediaPlayer_VideoFrameAvailable Before DoWeNeedToSignalForOneMoreFrameReceived {functionTime.ElapsedMilliseconds}m/s.");
 
@@ -2138,6 +2236,9 @@ namespace Surveyor.User_Controls
 
             //???Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MediaPlayer_VideoFrameAvailable Exit");
         }
+
+
+
 
 
         ///

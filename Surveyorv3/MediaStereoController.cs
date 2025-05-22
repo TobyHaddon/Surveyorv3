@@ -21,14 +21,9 @@ using static Surveyor.MediaStereoControllerEventData;
 using Surveyor.Helper;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml;
-
-
-
-
-#if !No_MagnifyAndMarkerDisplay
+using System.Collections.ObjectModel;
 using static Surveyor.User_Controls.MagnifyAndMarkerControlEventData;
 using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
-#endif
 using static Surveyor.User_Controls.SurveyorMediaPlayer;
 
 
@@ -57,10 +52,11 @@ namespace Surveyor
         private readonly SurveyorMediaControl mediaControlSecondary;
 
         // Copy of the left and right Magnify and Marker controls
-#if !No_MagnifyAndMarkerDisplay
-        private readonly MagnifyAndMarkerDisplay magnifyAndMarkerDisplayLeft;
-        private readonly MagnifyAndMarkerDisplay magnifyAndMarkerDisplayRight;
-#endif
+//???TOBEDELETE
+//#if !No_MagnifyAndMarkerDisplay
+//        private readonly MagnifyAndMarkerDisplay magnifyAndMarkerDisplayLeft;
+//        private readonly MagnifyAndMarkerDisplay magnifyAndMarkerDisplayRight;
+//#endif
 
         // Copy of the left and right MediaInfo controls
         //???private readonly MediaInfo _mediaInfoLeft;
@@ -79,7 +75,7 @@ namespace Surveyor
         TimeSpan mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
 
         // EventControl (existing measurements etc)
-        private readonly EventsControl? eventsControl = null;
+        private EventsControl? eventsControl = null;
 
         // Species Image Cache (stock photos of fish species to help fish ID)
         internal SpeciesImageAndInfoCache speciesImageCache;  // Accessed by SettingsWindow
@@ -99,10 +95,7 @@ namespace Surveyor
                                      SurveyorMediator _mediator, 
                                      SurveyorMediaPlayer _mediaPlayerLeft, SurveyorMediaPlayer _mediaPlayerRight, 
                                      SurveyorMediaControl _mediaControlPrimary, SurveyorMediaControl _mediaControlSecondary,
-#if !No_MagnifyAndMarkerDisplay
-                                     MagnifyAndMarkerDisplay _magnifyAndMarkerDisplayLeft, MagnifyAndMarkerDisplay _magnifyAndMarkerDisplayRight,
-#endif
-                                     EventsControl _eventsControl,
+                                     EventsControl? _eventsControl,
                                      StereoProjection _stereoProjection/*,
                                      SurveyorMediaInfo mediaInfoLeft, SurveyorMediaInfo mediaInfoRight*/)
         {
@@ -131,12 +124,6 @@ namespace Surveyor
             mediaControlSecondary.ControlType = SurveyorMediaControl.eControlType.Secondary;
             mediaControlSecondary.SetReporter(report);
 
-            // Remember the Magnify and Marker controls and set the reporter
-#if !No_MagnifyAndMarkerDisplay
-            magnifyAndMarkerDisplayLeft = _magnifyAndMarkerDisplayLeft;
-            magnifyAndMarkerDisplayRight = _magnifyAndMarkerDisplayRight;
-#endif
-
             // Remember the EventControl
             eventsControl = _eventsControl;
 
@@ -156,10 +143,11 @@ namespace Surveyor
             mediaControlSecondary.InitializeMediator(mediator, mainWindow);
 
             // Initialize mediator for both Magnify and Marker controls
-#if !No_MagnifyAndMarkerDisplay
-            magnifyAndMarkerDisplayLeft.InitializeMediator(mediator, mainWindow);
-            magnifyAndMarkerDisplayRight.InitializeMediator(mediator, mainWindow);
-#endif
+//???TOBEDELETED
+//#if !No_MagnifyAndMarkerDisplay
+//            magnifyAndMarkerDisplayLeft.InitializeMediator(mediator, mainWindow);
+//            magnifyAndMarkerDisplayRight.InitializeMediator(mediator, mainWindow);
+//#endif
 
             // Initialize mediator for both media info controls
             //???_mediaInfoLeft.InitializeMediator(mediator, mainWindow);
@@ -195,6 +183,8 @@ namespace Surveyor
         /// </summary>
         public async Task Unload()
         {
+            await mediaPlayerLeft.Unload();
+            await mediaPlayerRight.Unload();
             await speciesImageCache.Unload();
             speciesSelector.Unload();
         }
@@ -204,8 +194,8 @@ namespace Surveyor
         /// </summary>
         public void DumpAllProperties()
         {
-            DumpClassPropertiesHelper.DumpAllProperties(this, /*ignore*/"mediator,report,mediaControllerHandler,mainWindow,mediaPlayerLeft,mediaPlayerRight,mediaControlPrimary,mediaControlSecondary,magnifyAndMarkerDisplayLeft,magnifyAndMarkerDisplayRight,mediaTimelineController,eventsControl,speciesSelector,stereoProjection");
-            DumpClassPropertiesHelper.DumpAllProperties(speciesSelector, /*ignore*/"_contentLoaded");
+            DumpClassPropertiesHelper.DumpAllProperties(this, report, /*ignore*/"mediator,report,mediaControllerHandler,mainWindow,mediaPlayerLeft,mediaPlayerRight,mediaControlPrimary,mediaControlSecondary,magnifyAndMarkerDisplayLeft,magnifyAndMarkerDisplayRight,mediaTimelineController,eventsControl,speciesSelector,stereoProjection");
+            DumpClassPropertiesHelper.DumpAllProperties(speciesSelector, report, /*ignore*/"_contentLoaded,<speciesCodeList>k__BackingField,<ImageList>k__BackingField,Bindings");
         }
 
 
@@ -220,7 +210,7 @@ namespace Surveyor
         /// <param name="mediaFileSpecRight"></param>
         /// <param name="tempSpanOffset"></param>
         /// <returns></returns>
-        public async Task<int> MediaOpen(string mediaFileSpecLeft, string mediaFileSpecRight, TimeSpan? timeSpanOffset)
+        public async Task<int> MediaOpen(string mediaFileSpecLeft, string mediaFileSpecRight, ObservableCollection<Event>? existingEvents, TimeSpan? timeSpanOffset)
         {
             CheckIsUIThread();
 
@@ -269,6 +259,11 @@ namespace Surveyor
                 // things like dimensions get setup fully
                 await Task.Delay(100);
                 await FrameMove(eCameraSide.None, 1);
+
+                // Set the events if the players are locked
+                mediaPlayerLeft.SetEvents(existingEvents);
+                mediaPlayerRight.SetEvents(existingEvents);
+
             }
             else
             {
@@ -1079,7 +1074,12 @@ namespace Surveyor
         }
 
 
-        internal async Task _DeleteMeasure3DPointOrSinglePoint(Guid eventGuid)
+        /// <summary>
+        /// Received from the MediaPlayers to delete a Measurement, 3DPoint or SinglePoint 
+        /// </summary>
+        /// <param name="eventGuid"></param>
+        internal void _DeleteMeasure3DPointOrSinglePoint(Guid eventGuid)
+
         {
             if (eventsControl is not null)
             {
@@ -1459,18 +1459,16 @@ namespace Surveyor
         /// </summary>
         /// <param name="controlType"></param>
         /// <param name="magWindowSize"></param>
-#if !No_MagnifyAndMarkerDisplay
         internal void UserReqMagWindowSizeSelect(bool trueLeftfalseRight, string magWindowSize)
         {
             // MagWindowSizeSelect is thread Safe/UI Check not required
 
             if (mediaSynchronized || trueLeftfalseRight == true)
-                magnifyAndMarkerDisplayLeft.MagWindowSizeSelect(magWindowSize);
+                mediaPlayerLeft.MagWindowSizeSelect(magWindowSize);            
 
             if (mediaSynchronized || trueLeftfalseRight == false)
-                magnifyAndMarkerDisplayRight.MagWindowSizeSelect(magWindowSize);
+                mediaPlayerRight.MagWindowSizeSelect(magWindowSize);
         }
-#endif
 
 
         /// <summary>
@@ -1478,18 +1476,16 @@ namespace Surveyor
         /// </summary>
         /// <param name="controlType"></param>
         /// <param name="_canvasZoomFactor"></param>
-#if !No_MagnifyAndMarkerDisplay
         internal void UserReqMagZoomSelect(bool trueLeftfalseRight, double canvasZoomFactor)
         {
-            // Thread Safe/UI Check not 
+            // MagWindowZoomFactor is thread Safe/UI Check not required
 
             if (mediaSynchronized || trueLeftfalseRight == true)
-                magnifyAndMarkerDisplayLeft.MagWindowZoomFactor(canvasZoomFactor);
+                mediaPlayerLeft.MagWindowZoomFactor(canvasZoomFactor);
 
             if (mediaSynchronized || trueLeftfalseRight == false)
-                magnifyAndMarkerDisplayRight.MagWindowZoomFactor(canvasZoomFactor);
+                mediaPlayerRight.MagWindowZoomFactor(canvasZoomFactor);
         }
-#endif
 
 
         /// <summary>
@@ -1497,16 +1493,14 @@ namespace Surveyor
         /// </summary>
         /// <param name="controlType"></param>
         /// <param name="layertype"></param>
-#if !No_MagnifyAndMarkerDisplay
         internal void UserReqLayersDisplayed(SurveyorMediaControl.eControlType controlType, LayerType layertype)
         {
             if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Primary)
-                magnifyAndMarkerDisplayLeft.SetLayerType(layertype);
+                mediaPlayerLeft.SetLayerType(layertype);
 
             if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Secondary)
-                magnifyAndMarkerDisplayRight.SetLayerType(layertype);
+                mediaPlayerRight.SetLayerType(layertype);
         }
-#endif
 
 
         /// <summary>
@@ -1523,7 +1517,6 @@ namespace Surveyor
         private Point? TargetARight = null;
         private Point? TargetBRight = null;
 
-#if !No_MagnifyAndMarkerDisplay
         internal void TargetPointSelected(SurveyorMediaPlayer.eCameraSide cameraSide, bool TruePointAFalsePointB, Point? pointA, Point? pointB)
         {
             if (cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
@@ -1531,16 +1524,16 @@ namespace Surveyor
                 if (TruePointAFalsePointB)
                 {
                     if (pointA is not null)
-                        magnifyAndMarkerDisplayRight.OtherInstanceTargetSet(true, null);
+                        mediaPlayerRight.OtherInstanceTargetSet(true, null);
                     else
-                        magnifyAndMarkerDisplayRight.OtherInstanceTargetSet(false, null);
+                        mediaPlayerRight.OtherInstanceTargetSet(false, null);
                 }
                 else
                 {
                     if (pointB is not null)
-                        magnifyAndMarkerDisplayRight.OtherInstanceTargetSet(null, true);
+                        mediaPlayerRight.OtherInstanceTargetSet(null, true);
                     else
-                        magnifyAndMarkerDisplayRight.OtherInstanceTargetSet(null, false);
+                        mediaPlayerRight.OtherInstanceTargetSet(null, false);
                 }
             }
             else if (cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
@@ -1548,16 +1541,16 @@ namespace Surveyor
                 if (TruePointAFalsePointB)
                 {
                     if (pointA is not null)
-                        magnifyAndMarkerDisplayLeft.OtherInstanceTargetSet(true, null);
+                        mediaPlayerLeft.OtherInstanceTargetSet(true, null);
                     else
-                        magnifyAndMarkerDisplayLeft.OtherInstanceTargetSet(false, null);
+                        mediaPlayerLeft.OtherInstanceTargetSet(false, null);
                 }
                 else
                 {
                     if (pointB is not null)
-                        magnifyAndMarkerDisplayLeft.OtherInstanceTargetSet(null, true);
+                        mediaPlayerLeft.OtherInstanceTargetSet(null, true);
                     else
-                        magnifyAndMarkerDisplayLeft.OtherInstanceTargetSet(null, false);
+                        mediaPlayerLeft.OtherInstanceTargetSet(null, false);
                 }
             }
 
@@ -1698,7 +1691,7 @@ namespace Surveyor
                 }
             }
         }
-#endif
+
 
         /// <summary>
         /// Users requested a new measurement is added
@@ -1971,11 +1964,8 @@ namespace Surveyor
                     ClearCachedTargets();
 
                     // Remove targets from the canvas
-#if !No_MagnifyAndMarkerDisplay
-                    magnifyAndMarkerDisplayLeft.SetTargets(null, null);
-                    magnifyAndMarkerDisplayRight.SetTargets(null, null);
-#endif
-
+                    mediaPlayerLeft.SetTargets(null, null);
+                    mediaPlayerRight.SetTargets(null, null);
                 }
             }
         }
@@ -2297,7 +2287,6 @@ namespace Surveyor
                             break;
 
                         // Mag Window size change request
-#if !No_MagnifyAndMarkerDisplay
                         case MediaControlEventData.eMediaControlEvent.UserReqMagWindowSizeSelect:
                             if (data.magWindowSize is not null)
                             {
@@ -2305,10 +2294,8 @@ namespace Surveyor
                                 mediaStereoController.UserReqMagWindowSizeSelect(trueLeftfalseRight, data.magWindowSize);
                             }
                             break;
-#endif
 
                         // Mag window zoom factor change request
-#if !No_MagnifyAndMarkerDisplay
                         case MediaControlEventData.eMediaControlEvent.UserReqMagZoomSelect:
                             if (data.canvasZoomFactor is not null)
                             {
@@ -2316,19 +2303,15 @@ namespace Surveyor
                                 mediaStereoController.UserReqMagZoomSelect(trueLeftfalseRight, (double)data.canvasZoomFactor);
                             }
                             break;
-#endif
 
-#if !No_MagnifyAndMarkerDisplay
                         // Layer type displayed
                         case MediaControlEventData.eMediaControlEvent.UserReqLayersDisplayed:
                             if (data.layerTypesDisplayed is not null)
                                 mediaStereoController.UserReqLayersDisplayed(data.controlType, (LayerType)data.layerTypesDisplayed);
                             break;  
-#endif
                     }
                 }
             }
-#if !No_MagnifyAndMarkerDisplay
             else if (message is not null && message is MagnifyAndMarkerControlEventData)
             {
                 MagnifyAndMarkerControlEventData data = (MagnifyAndMarkerControlEventData)message;
@@ -2384,7 +2367,7 @@ namespace Surveyor
                     case MagnifyAndMarkerControlEvent.DeleteMeasure3DPointOrSinglePoint:
                         if (data.eventGuid is not null)
                         {
-                            SafeUICall(async () => await mediaStereoController._DeleteMeasure3DPointOrSinglePoint((Guid)data.eventGuid));
+                            SafeUICall(() => mediaStereoController._DeleteMeasure3DPointOrSinglePoint((Guid)data.eventGuid));
                             Debug.WriteLine($"***DeleteMeasure3DPointOrSinglePoint");
                         }
                         break;
@@ -2406,7 +2389,6 @@ namespace Surveyor
                         break;
                 }
             }
-#endif
         }
     }
 }

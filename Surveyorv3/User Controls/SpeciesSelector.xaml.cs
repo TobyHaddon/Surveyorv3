@@ -56,7 +56,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         public void DumpAllProperties()
         {
-            DumpClassPropertiesHelper.DumpAllProperties(this);
+            DumpClassPropertiesHelper.DumpAllProperties(this, report);
         }
 
         /// <summary>
