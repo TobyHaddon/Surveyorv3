@@ -33,6 +33,7 @@ using static Surveyor.Helper.TelemetryLogger;
 using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.Survey.DataClass;
 using static Surveyor.User_Controls.SettingsWindowEventData;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 
@@ -92,6 +93,9 @@ namespace Surveyor
 
         // Experimental
         private bool experimentalEnabled = false;
+        private bool experimentalFeatureSetAEnabled = false;
+        private bool experimentalFeatureSetBEnabled = false;
+        private bool experimentalFeatureSetCEnabled = false;
 
 
         public MainWindow()
@@ -283,7 +287,8 @@ namespace Surveyor
             _SetDiagnosticInformation(SettingsManagerLocal.DiagnosticInformation);
 
             // Load the experimental settings
-            _SetExperimental(SettingsManagerLocal.ExperimentalEnabled);
+            _SetExperimental(SettingsManagerLocal.ExperimentalEnabled, 
+                SettingsManagerLocal.ExperimentalFeatureSetAEnabled, SettingsManagerLocal.ExperimentalFeatureSetBEnabled, SettingsManagerLocal.ExperimentalFeatureSetCEnabled);
 
 
             // Add the help documents to the Help menu
@@ -675,6 +680,7 @@ namespace Surveyor
             // Cancel the close in case we don't want it
             e.Cancel = true;
 
+            report.Save();
 
             // Check if there is an unsaved survey
             if (await CheckForOpenSurveyAndClose() == true)
@@ -880,6 +886,8 @@ namespace Surveyor
                 }
             }
 
+            report.Save();
+
             SetMenuStatusBasedOnProjectState();
         }
 
@@ -891,6 +899,9 @@ namespace Surveyor
         private async void FileSurveySaveAs_Click(object? sender, RoutedEventArgs? e)
         {
             await SaveAsSurvey();
+
+            report.Save();
+
             SetMenuStatusBasedOnProjectState();
         }
 
@@ -1689,11 +1700,29 @@ namespace Surveyor
         /// <param name="e"></param>        
         private void LeftSubGrid_MouseWheel(object sender, PointerRoutedEventArgs e)
         {
-            MediaControlPrimary.MouseWheelEvent(sender, e);
+            if (experimentalEnabled &&  experimentalFeatureSetBEnabled)
+            {
+                MediaPlayerLeft.MouseWheelEvent(sender, e);
+                if (e.Handled == true)
+                    return;
+            }
+            if (experimentalEnabled && experimentalFeatureSetAEnabled)
+            {
+                MediaControlPrimary.MouseWheelEvent(sender, e);
+            }
         }
         private void RightSubGrid_MouseWheel(object sender, PointerRoutedEventArgs e)
         {
-            MediaControlSecondary.MouseWheelEvent(sender, e);
+            if (experimentalEnabled && experimentalFeatureSetBEnabled)
+            {
+                MediaPlayerRight.MouseWheelEvent(sender, e);
+                if (e.Handled == true)
+                    return;
+            }
+            if (experimentalEnabled && experimentalFeatureSetAEnabled)
+            {
+                MediaControlSecondary.MouseWheelEvent(sender, e);
+            }
         }
 
 
@@ -3100,9 +3129,15 @@ namespace Surveyor
         /// Experimental setting has changed (or is being initially set)
         /// </summary>
         /// <param name="_experimentalEnabled"></param>
-        internal void _SetExperimental(bool _experimentalEnabled)
+        internal void _SetExperimental(bool _experimentalEnabled, 
+                                       bool _experimentalFeatureSetAEnabled, 
+                                       bool _experimentalFeatureSetBEnabled, 
+                                       bool _experimentalFeatureSetCEnabled)
         {
             experimentalEnabled = _experimentalEnabled;
+            experimentalFeatureSetAEnabled = _experimentalFeatureSetAEnabled;
+            experimentalFeatureSetBEnabled = _experimentalFeatureSetBEnabled;
+            experimentalFeatureSetCEnabled = _experimentalFeatureSetCEnabled;            
         }
 
 
@@ -3460,9 +3495,15 @@ namespace Surveyor
                         break;
                     // The user has changed the Experimental settings
                     case eSettingsWindowEvent.Experimental:
-                        if (data.experimentialEnabled is not null)
+                        if (data.experimentalEnabled is not null &&
+                            data.experimentalFeatureSetAEnabled is not null &&
+                            data.experimentalFeatureSetBEnabled is not null &&
+                            data.experimentalFeatureSetCEnabled is not null)
                         {
-                            _mainWindow._SetExperimental((bool)data!.experimentialEnabled);
+                            _mainWindow._SetExperimental((bool)data!.experimentalEnabled, 
+                                                         (bool)data.experimentalFeatureSetAEnabled,
+                                                         (bool)data.experimentalFeatureSetBEnabled,
+                                                         (bool)data.experimentalFeatureSetCEnabled);
                         }
                         break;
 

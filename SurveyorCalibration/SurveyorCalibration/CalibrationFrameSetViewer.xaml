@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+    <UserControl
+    x:Class="Surveyor.Controls.CalibrationFrameSetViewer"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Surveyor.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d"
+    d:DesignHeight="800"
+    d:DesignWidth="600">
+
+    <UserControl.Content>
+        <Grid>
+            <ScrollViewer HorizontalScrollBarVisibility="Visible">
+                <StackPanel x:Name="MainPanel" Orientation="Horizontal" Padding="0" Spacing="0">
+                    <!-- Box 1: Line graphs -->
+                    <Border BorderThickness="1" BorderBrush="Gray">
+                        <Grid Width="300">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="*"/>
+                                <RowDefinition Height="*"/>
+                            </Grid.RowDefinitions>
+                            <Canvas x:Name="MovementCanvas" Grid.Row="0"/>
+                            <Canvas x:Name="BlurCanvas" Grid.Row="1"/>
+                        </Grid>
+                    </Border>
+                        
+
+                <GridView x:Name="BinGridItemsControl" IsItemClickEnabled="False" SelectionMode="None">
+                    <GridView.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <ItemsWrapGrid Orientation="Vertical" MaximumRowsOrColumns="1"/>
+                        </ItemsPanelTemplate>
+                    </GridView.ItemsPanel>
+
+                        
+                    <GridView.ItemContainerStyle>
+                        <Style TargetType="GridViewItem">
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="0"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                            </Style>
+                    </GridView.ItemContainerStyle>
+                </GridView>
+            </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </UserControl.Content>
+</UserControl>
+

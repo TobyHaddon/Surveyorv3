@@ -331,19 +331,74 @@
                 <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Advanced"  MaxWidth="1200"/>
 
                 <!-- Diagnostic Info -->
-                <toolkit:SettingsCard Header="Diagnostic Information" Description="Increase the level of information sent to the Output window" >
-                    <toolkit:SettingsCard.HeaderIcon>
-                        <FontIcon Glyph="&#xEBE8;" ToolTipService.ToolTip="Enable diagnostic information and features. Some features need the application to be restarted." />
-                    </toolkit:SettingsCard.HeaderIcon>
-                    <ToggleSwitch x:Name="DiagnosticInformation" Toggled="DiagnosticInformation_Toggled" />
-                </toolkit:SettingsCard>
+                <toolkit:SettingsExpander x:Name="DiagnosticsExpander" Header="Diagnostics">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xEBD3;"/>
+                    </toolkit:SettingsExpander.HeaderIcon>
 
+                    <toolkit:SettingsExpander.Items>
+                        <toolkit:SettingsCard Header="Diagnostic Information" Description="Increase the level of information sent to the Output window" >
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xEBE8;" ToolTipService.ToolTip="Enable diagnostic information and features. Some features need the application to be restarted." />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <ToggleSwitch x:Name="DiagnosticInformation" Toggled="DiagnosticInformation_Toggled" />
+                        </toolkit:SettingsCard>
+
+                        <toolkit:SettingsCard Header="Logging" Description="Log storage location" >
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE8A5;" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            
+                            <StackPanel Orientation="Horizontal">
+
+                                <!-- Cache Folder information-->
+                                <Button Click="ReporterFolder_Click"
+                                                ToolTipService.ToolTip="Folder for the report files (folder has been copied to the clipboard)"
+                                                BorderBrush="{x:Null}"
+                                                Padding="3"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center"
+                                                Margin="0,0,10,0">
+                                    <FontIcon x:Name="ReporterFolder"
+                                                    Glyph="&#xE946;"                                                    
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center" />
+                                </Button>
+
+                                <!-- Copy Reporter Files to Clipboard -->
+                                <Button Click="ReporterFilesToClipboard_Click" Content="Reporter Files to Clipboard"
+                                                        HorizontalAlignment="Left"
+                                                        VerticalAlignment="Top"
+                                                        ToolTipService.ToolTip="Remove all records."
+                                                        Margin="0,0,10,0">
+                                </Button>
+
+                            </StackPanel>
+
+                        </toolkit:SettingsCard>
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
+                
                 <!-- Experimental Code -->
                 <toolkit:SettingsCard Header="Experimental Features" Description="Experimental code, should not be used for real surveys" >
                     <toolkit:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xF196;" ToolTipService.ToolTip="These features are experimental or in test and may produce incorrect results." />
                     </toolkit:SettingsCard.HeaderIcon>
-                    <ToggleSwitch x:Name="Experimental" Toggled="Experimental_Toggled" />
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Select Feature Sets" Margin="0,0,10,0">
+                            <Button.Flyout>
+                                <Flyout>
+                                    <StackPanel>
+                                        <CheckBox x:Name="ExperimentalFeatureSetA" Content="Feature Set A" Click="ExperimentalFeatureSetA_Click"/>
+                                        <CheckBox x:Name="ExperimentalFeatureSetB" Content="Feature Set B" Click="ExperimentalFeatureSetB_Click"/>
+                                        <CheckBox x:Name="ExperimentalFeatureSetC" Content="Feature Set C" Click="ExperimentalFeatureSetC_Click"/>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                        <ToggleSwitch x:Name="Experimental" Toggled="Experimental_Toggled" />
+                    </StackPanel>
                 </toolkit:SettingsCard>
 
                 <!-- Internet Queue Viewer -->
@@ -478,14 +533,15 @@
                                                 ToolTipService.ToolTip="Folder for the species image and information cache (folder has been copied to the clipboard)"
                                                 Background="Transparent"
                                                 BorderBrush="{x:Null}"
-                                                Padding="0"
+                                                Padding="3"
+                                                Margin="0,0,10,0"
                                                 HorizontalAlignment="Center"
                                                 VerticalAlignment="Center"
                                                 Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
                             <FontIcon x:Name="SpeciesImageCacheFolder"
-                                                    Glyph="&#xE946;"
-                                                    Margin="0,0,10,0"
-                                                    VerticalAlignment="Center" />
+                                                    Glyph="&#xE946;"                                                    
+                                                    VerticalAlignment="Center"
+                                                    HorizontalAlignment="Center"/>
                         </Button>
 
                         <!-- Image count -->

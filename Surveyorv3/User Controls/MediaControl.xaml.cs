@@ -45,7 +45,7 @@ namespace Surveyor.User_Controls
         private float _speed = 1.0f;
 
         // The scaling of the image in the ImageMag where 1 is scales to full image source size 
-        private double canvasZoomFactor = 2;    // Must be set to the same initial value as 'canvasZoomFactor' in MagnifyAndMarkerDisplay.xaml.cs
+        private double canvasZoomFactor = MagnifyAndMarkerDisplay.CanvasZoomFactorInitialValue;    // Must be set to the same initial value as 'canvasZoomFactor' in MagnifyAndMarkerDisplay.xaml.cs
 
         // Mag Window Size
         private string magWindowSize = "Large";  // Must be set to the same initial value as in MagnifyAndMarkerDisplay.xaml.cs

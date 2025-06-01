@@ -55,10 +55,12 @@ using Windows.Storage.Streams;
 using Windows.System.Display;
 using Windows.Foundation;
 using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
+using Microsoft.UI.Xaml.Input;
+using System.ComponentModel;
 
 namespace Surveyor.User_Controls
 {
-    public sealed partial class SurveyorMediaPlayer : UserControl
+    public sealed partial class SurveyorMediaPlayer : UserControl, INotifyPropertyChanged
     {
         // Reporter
         private Reporter? report = null;
@@ -102,13 +104,16 @@ namespace Surveyor.User_Controls
         // Calculated frame rate
         private double frameRate = -1;
         private TimeSpan frameRateTimeSpan = TimeSpan.Zero;
-        private int displayToDecimalPlaces = 2;     // If we start using frame rate of 120fps then we will need to increase this to 3dp
+        private readonly int displayToDecimalPlaces = 2;     // If we start using frame rate of 120fps then we will need to increase this to 3dp
 
         // Used in the redenering of a frame to the screen
         private readonly VideoFrameManager vidFrameMgr = new();
 
         // VideoFrameAvailable thread access lock
         private static readonly object lockVideoFrameAvailable = new();
+
+        // Load, unloading or buffering indicator
+        private bool isBusy = false;
 
         public SurveyorMediaPlayer()
         {
@@ -187,7 +192,9 @@ namespace Surveyor.User_Controls
                     if (await FileExistsAsync(mediaFileSpec))
                     {
                         // Display the buffering progress ring
-                        ProgressRing_Buffering.IsActive = true;
+                        isBusy = true;
+                        //ProgressRing_Buffering.IsActive = true;
+                        //ProgressRing_Buffering.Visibility = Visibility.Visible;
 
                         // Reset
                         mediaOpen = false;
@@ -285,7 +292,9 @@ namespace Surveyor.User_Controls
             {
                 try
                 {
-                    ProgressRing_Buffering.IsActive = true;
+                    isBusy = true;
+                    //ProgressRing_Buffering.IsActive = true;
+                    //ProgressRing_Buffering.Visibility = Visibility.Visible;
 
                     // Indicate closing in progress
                     isClosing = true;
@@ -372,7 +381,9 @@ namespace Surveyor.User_Controls
                 }
                 finally
                 {
-                    ProgressRing_Buffering.IsActive = false;
+                    isBusy = false;
+                    //ProgressRing_Buffering.IsActive = false;
+                    //ProgressRing_Buffering.Visibility = Visibility.Collapsed;
                 }
             }
         }
@@ -405,6 +416,30 @@ namespace Surveyor.User_Controls
         {
             return MediaPlayerElement.MediaPlayer.TimelineController is not null ? true : false;
         }
+
+
+        /// <summary>
+        /// Used to indicate if the player is loading, unloading or buffering
+        /// </summary>
+        /// <returns></returns>
+        public bool IsBusy
+        {
+            get => isBusy;
+            set
+            {
+                if (isBusy != value)
+                {
+                    isBusy = value;
+                    OnPropertyChanged(nameof(IsBusy));
+                }
+            }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged(string name) =>
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+
 
         /// <summary>
         /// Getter/Setter for the Media position 
@@ -1030,6 +1065,7 @@ namespace Surveyor.User_Controls
                         mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.FrameRendered, CameraSide, mode)
                         {
                             position = mp.PlaybackSession.Position,
+                            frameIndex = GetFrameIndexFromPosition(mp.PlaybackSession.Position),
                             frameStream = _frameStream,
                             imageSourceWidth = _imageSourceWidth,
                             imageSourceHeight = _imageSourceHeight
@@ -1131,6 +1167,17 @@ namespace Surveyor.User_Controls
             MagnifyAndMarkerDisplay.RenderedPixelScreenSizeChanged(newWidth, newHeight);
         }
 
+        /// <summary>
+        /// Called from the MouseWheel event normally in the main window
+        /// </summary>
+        /// <param name="ImageFrame"></param>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        public void MouseWheelEvent(Object sender, PointerRoutedEventArgs e)
+        {
+            e.Handled = MagnifyAndMarkerDisplay.MouseWheelEvent(sender, e);
+        }
+
 
         ///
         /// EVENTS
@@ -1216,7 +1263,11 @@ namespace Surveyor.User_Controls
             WinUIGuards.CheckIsUIThread();
 
             mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, /*async*/ () =>
-                ProgressRing_Buffering.IsActive = true);
+                {
+                    isBusy = true;
+                    //ProgressRing_Buffering.IsActive = true;
+                    //ProgressRing_Buffering.Visibility = Visibility.Visible;
+                });
 
         }
 
@@ -1232,7 +1283,12 @@ namespace Surveyor.User_Controls
 
             // Hide the progress ring
             mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, /*async*/ () =>
-                ProgressRing_Buffering.IsActive = false);
+                {
+                    isBusy = false;
+                    //ProgressRing_Buffering.IsActive = false;
+                    //ProgressRing_Buffering.Visibility = Visibility.Collapsed;
+                }
+                );
         }
 
 
@@ -1417,7 +1473,9 @@ namespace Surveyor.User_Controls
                     MediaPlayerElement.Visibility = Visibility.Visible;
 
                     // Remove the buffering progress ring
-                    ProgressRing_Buffering.IsActive = false;
+                    isBusy = false;
+                    //ProgressRing_Buffering.IsActive = false;
+                    //ProgressRing_Buffering.Visibility = Visibility.Collapsed;
 
                     // This flag is used to indicate to the class that the media is open
                     mediaOpen = true;
@@ -2164,6 +2222,7 @@ namespace Surveyor.User_Controls
                                         mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.FrameRendered, CameraSide, mode)
                                         {
                                             position = mp.PlaybackSession.Position,
+                                            frameIndex = GetFrameIndexFromPosition(mp.PlaybackSession.Position),
                                             frameStream = _frameStream,
                                             imageSourceWidth = _imageSourceWidth,
                                             imageSourceHeight = _imageSourceHeight
@@ -2483,6 +2542,7 @@ namespace Surveyor.User_Controls
         }
 
 
+
         // ***END OF SurveyorMediaPlayer***
     }
 
@@ -2548,6 +2608,7 @@ namespace Surveyor.User_Controls
         public float? percentage;
 
         // Only used for FrameRendered to pass the CanvasBitmap
+        public long frameIndex;
         public IRandomAccessStream? frameStream;
         public uint imageSourceWidth;
         public uint imageSourceHeight;

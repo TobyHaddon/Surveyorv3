@@ -41,6 +41,7 @@
     <None Remove="Test Data\Yoga-0m-1-2025-01-24.survey" />
     <None Remove="User Controls\SettingsSurveyRules.xaml" />
     <None Remove="User Controls\SurveyInfoAndMedia.xaml" />
+    <None Remove="User Controls\SurveyInheritance.xaml" />
     <None Remove="User Controls\SurveyorTesting.xaml" />
   </ItemGroup>
 
@@ -76,6 +77,7 @@
     <PackageReference Include="CommunityToolkit.WinUI.Animations" Version="8.2.250402" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.Segmented" Version="8.2.250402" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.250402" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.Sizers" Version="8.2.250402" />
     <PackageReference Include="CommunityToolkit.WinUI.Converters" Version="8.2.250402" />
     <PackageReference Include="CommunityToolkit.WinUI.UI.Controls.DataGrid" Version="7.1.2" />
     <PackageReference Include="Emgu.CV" Version="4.10.0.5680" />
@@ -155,6 +157,9 @@
     <None Update="Species.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <Page Update="User Controls\SurveyInheritance.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="SpeciesRecordEdit.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

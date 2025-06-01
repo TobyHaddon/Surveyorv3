@@ -82,29 +82,35 @@
                         PointerReleased="CanvasMag_PointerReleased"
                         PointerEntered="CanvasMag_PointerEntered" 
                         PointerExited="CanvasMag_PointerExited">
+                    <!-- Mag WIndow Targets -->
                     <Rectangle Name="TargetAMag" Width="31" Height="31" Fill="Transparent" Visibility="Collapsed"
                                PointerMoved="Target_PointerMoved" />
                     <Rectangle Name="TargetBMag" Width="31" Height="31" Fill="Transparent" Visibility="Collapsed"
                                PointerMoved="Target_PointerMoved" />
+
+                    <!-- Mag Window Canvas Zoom Factor NOT CURRENT USED-->
+                    <Border x:Name="ZoomIndicatorBorder"
+                            Background="#AA000000"
+                            CornerRadius="3"
+                            Padding="6"
+                            Opacity="0"
+                            HorizontalAlignment="Center"
+                            VerticalAlignment="Center"
+                            RenderTransformOrigin="0.5,0.5">
+                        <Border.RenderTransform>
+                            <ScaleTransform x:Name="ZoomScaleTransform" ScaleX="1" ScaleY="1"/>
+                        </Border.RenderTransform>
+                        <TextBlock x:Name="ZoomIndicatorText"
+                                   Text="x 1"
+                                   FontSize="48"
+                                   Foreground="White"
+                                   FontWeight="Bold"
+                                   TextAlignment="Center"/>
+                    </Border>
                 </Canvas>
 
 
                 <StackPanel x:Name="ButtonsMag" Orientation="Horizontal" Visibility="Collapsed" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,2,2,0">
-                    <!-- Measurement Symbol E1D9 -->
-                    <Button Name="ButtonMagAddMeasurement" Content="&#xE1D9;" Click="ButtonMagOK_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"                             
-                        Style="{StaticResource ButtonMagStyle}" VerticalAlignment="Top">
-                        <Button.KeyboardAccelerators>
-                            <KeyboardAccelerator Key="Enter" />
-                        </Button.KeyboardAccelerators>
-                    </Button>
-                    <!-- Delete symbol xE74D -->
-                    <Button Name="ButtonMagDelete" Content="&#xE74D;" Click="ButtonMagDelete_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"
-                        Style="{StaticResource ButtonMagStyle}" VerticalAlignment="Top"
-                        IsEnabled="False">
-                        <Button.KeyboardAccelerators>
-                            <KeyboardAccelerator Key="Delete" />
-                        </Button.KeyboardAccelerators>
-                    </Button>
                     <!-- Left symbol xE973 -->
                     <Button Name="ButtonMagLeft" Content="&#xE973;" Click="ButtonMagLeft_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"
                         Style="{StaticResource ButtonMagStyle}" VerticalAlignment="Top"
@@ -135,6 +141,21 @@
                         IsEnabled="True">
                         <Button.KeyboardAccelerators>
                             <KeyboardAccelerator Key="Right" />
+                        </Button.KeyboardAccelerators>
+                    </Button>
+                    <!-- Measurement Symbol E1D9 -->
+                    <Button Name="ButtonMagAddMeasurement" Content="&#xE1D9;" Click="ButtonMagOK_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"                             
+                        Style="{StaticResource ButtonMagStyle}" VerticalAlignment="Top">
+                        <Button.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="Enter" />
+                        </Button.KeyboardAccelerators>
+                    </Button>
+                    <!-- Delete symbol xE74D -->
+                    <Button Name="ButtonMagDelete" Content="&#xE74D;" Click="ButtonMagDelete_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"
+                        Style="{StaticResource ButtonMagStyle}" VerticalAlignment="Top"
+                        IsEnabled="False">
+                        <Button.KeyboardAccelerators>
+                            <KeyboardAccelerator Key="Delete" />
                         </Button.KeyboardAccelerators>
                     </Button>
 

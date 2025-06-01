@@ -18,19 +18,20 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Navigation;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
+using Windows.Storage;
 using WinUIEx;
 using static Surveyor.InternetQueue;
 using static Surveyor.SpeciesImageAndInfoCache;
@@ -137,7 +138,9 @@ namespace Surveyor.User_Controls
                 CalibrationExpander.Visibility = Visibility.Collapsed;   //???Not Implimented
                 SettingsSurveyRules.Visibility = Visibility.Visible;
             }
-            
+
+            // Remember the experimental status so we can broadcast any changed
+            RememberExperimentalStatus();
 
             // Setup the Setting page
             OnSettingsPageLoaded(SettingsManagerLocal.ApplicationTheme);
@@ -294,13 +297,17 @@ namespace Surveyor.User_Controls
                     // Load the Use Internet enabled state
                     UseInternet.IsOn = SettingsManagerLocal.UseInternetEnabled;
 
-                    // Set the tooltip on the information icon on the Species image and information cache expander
+                    // Set the tooltip on the information icon on the Reporter info, Species image and information cache expander
                     ToolTip tooltipSpeciesImageCacheFolder = new();
+                    ToolTip tooltipReporterFolder = new();
                     try
                     {
                         string localFolderPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
-                        tooltipSpeciesImageCacheFolder.Content = $"Species image and information folder: {localFolderPath}";
+                        tooltipSpeciesImageCacheFolder.Content = $"Species image and information folder: {localFolderPath}. Click the button to copy the folder path to the clipboard.";
                         ToolTipService.SetToolTip(SpeciesImageCacheFolder, tooltipSpeciesImageCacheFolder);
+
+                        tooltipReporterFolder.Content = $"Reporter folder: {localFolderPath}. Click the button to copy the folder path to the clipboard.";
+                        ToolTipService.SetToolTip(ReporterFolder, tooltipReporterFolder);
                     }
                     catch { }                
 
@@ -331,6 +338,12 @@ namespace Surveyor.User_Controls
 
                     // Load the Experimental setting
                     Experimental.IsOn = SettingsManagerLocal.ExperimentalEnabled;
+                    ExperimentalFeatureSetA.IsChecked = SettingsManagerLocal.ExperimentalFeatureSetAEnabled;
+                    ExperimentalFeatureSetB.IsChecked = SettingsManagerLocal.ExperimentalFeatureSetBEnabled;
+                    ExperimentalFeatureSetC.IsChecked = SettingsManagerLocal.ExperimentalFeatureSetCEnabled;
+                    ExperimentalFeatureSetA.IsEnabled = Experimental.IsOn;
+                    ExperimentalFeatureSetB.IsEnabled = Experimental.IsOn;
+                    ExperimentalFeatureSetC.IsEnabled = Experimental.IsOn;
                 }
 
 
@@ -393,6 +406,8 @@ namespace Surveyor.User_Controls
         {
             //  But: don't await anything directly here!
 
+            // If the experiment status changed then broadcast the changes via mediator
+            BroadcastExperimentalStatus();
 
             // Check if the theme has changed
             var rootElement = (FrameworkElement)(this.Content);
@@ -621,6 +636,87 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Copy the path to the local folder where the report files are stored to the clipboard
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ReporterFolder_Click(object sender, RoutedEventArgs e)
+        {
+            string localFolderPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+
+            if (!string.IsNullOrEmpty(localFolderPath))
+            {
+                var dataPackage = new DataPackage();
+                dataPackage.SetText(localFolderPath);
+                Clipboard.SetContent(dataPackage);
+            }
+        }
+
+
+        /// <summary>
+        /// Copy the actual reporter?.txt files to the clipboard
+        /// This is normally so thy can be emailed somewhere
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void ReporterFilesToClipboard_Click(object sender, RoutedEventArgs e)
+        {
+            string localFolderPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+            List<string> reporterFilesToCopy = [];
+            List<IStorageItem> storageItems = [];
+
+            // Get the list of reporter?.txt files to copy
+            for (int i = 0; i < 10; i++)
+            {
+                string reportFileSpec;
+                if (i == 0)
+                    reportFileSpec = Path.Combine(localFolderPath, "reporter.txt");
+                else
+                {
+                    reportFileSpec = Path.Combine(localFolderPath, $"reporter{i}.txt");
+                }
+
+                // Check of the file exists
+                if (File.Exists(reportFileSpec))
+                {
+                    // Add to the list of files to put in the clipboard
+                    try
+                    {
+                        StorageFile file = await StorageFile.GetFileFromPathAsync(reportFileSpec);
+                        storageItems.Add(file);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Failed to get StorageFile for {reportFileSpec}: {ex.Message}");
+                    }
+                }
+            }
+
+            // Apply files to the clipboard
+            if (storageItems.Count > 0)
+            {
+                var dataPackage = new DataPackage();
+                dataPackage.SetStorageItems(storageItems);
+                Clipboard.SetContent(dataPackage);
+
+
+                // Show Clipboard Confirmation
+                var dialog = new ContentDialog
+                {
+                    Title = "Files Copied",
+                    Content = $"{storageItems.Count} reporter file(s) have been copied to the clipboard. You can now paste them into an email.",
+                    CloseButtonText = "OK",
+                    XamlRoot = this.Content.XamlRoot // Required in WinUI 3 for non-windowed dialogs
+                };
+
+                await dialog.ShowAsync();
+            }
+        }
+
+
+
+
+        /// <summary>
         /// Eanbled or disable beat release code
         /// </summary>
         /// <param name="sender"></param>
@@ -640,11 +736,67 @@ namespace Surveyor.User_Controls
                 SettingsManagerLocal.ExperimentalEnabled = false;
             }
 
+            ExperimentalFeatureSetA.IsEnabled = Experimental.IsOn;
+            ExperimentalFeatureSetB.IsEnabled = Experimental.IsOn;
+            ExperimentalFeatureSetC.IsEnabled = Experimental.IsOn;
+
             // Inform everyone of the state change
             settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.Experimental)
             {
-                experimentialEnabled = SettingsManagerLocal.ExperimentalEnabled
+                experimentalEnabled = SettingsManagerLocal.ExperimentalEnabled
             });
+        }
+
+
+        /// <summary>
+        /// Check feature sets
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ExperimentalFeatureSetA_Click(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+
+            if (ExperimentalFeatureSetA.IsChecked is not null && (bool)ExperimentalFeatureSetA.IsChecked)
+            {
+                // Enable diagnostic information
+                SettingsManagerLocal.ExperimentalFeatureSetAEnabled = true;
+            }
+            else
+            {
+                // Disable diagnostic information
+                SettingsManagerLocal.ExperimentalFeatureSetAEnabled = false;
+            }
+        }
+        private void ExperimentalFeatureSetB_Click(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+
+            if (ExperimentalFeatureSetB.IsChecked is not null && (bool)ExperimentalFeatureSetB.IsChecked)
+            {
+                // Enable diagnostic information
+                SettingsManagerLocal.ExperimentalFeatureSetBEnabled = true;
+            }
+            else
+            {
+                // Disable diagnostic information
+                SettingsManagerLocal.ExperimentalFeatureSetBEnabled = false;
+            }
+        }
+        private void ExperimentalFeatureSetC_Click(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+
+            if (ExperimentalFeatureSetC.IsChecked is not null && (bool)ExperimentalFeatureSetC.IsChecked)
+            {
+                // Enable diagnostic information
+                SettingsManagerLocal.ExperimentalFeatureSetCEnabled = true;
+            }
+            else
+            {
+                // Disable diagnostic information
+                SettingsManagerLocal.ExperimentalFeatureSetCEnabled = false;
+            }
         }
 
 
@@ -1334,6 +1486,45 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Used to records the status of the experimental features on entry
+        /// </summary>
+        private bool onEntryExperimentalEnabled = false;
+        private bool onEntryExperimentalFeatureSetAEnabled = false;
+        private bool onEntryExperimentalFeatureSetBEnabled = false;
+        private bool onEntryExperimentalFeatureSetCEnabled = false;
+        private void RememberExperimentalStatus()
+        {
+            onEntryExperimentalEnabled = SettingsManagerLocal.ExperimentalEnabled;
+            onEntryExperimentalFeatureSetAEnabled = SettingsManagerLocal.ExperimentalFeatureSetAEnabled;
+            onEntryExperimentalFeatureSetBEnabled = SettingsManagerLocal.ExperimentalFeatureSetBEnabled;
+            onEntryExperimentalFeatureSetCEnabled = SettingsManagerLocal.ExperimentalFeatureSetCEnabled;
+        }
+
+
+        /// <summary>
+        /// Boardcast the experimental status to all listeners if anything changed
+        /// </summary>
+        private void BroadcastExperimentalStatus()
+        {
+            if (onEntryExperimentalEnabled != SettingsManagerLocal.ExperimentalEnabled ||
+                onEntryExperimentalFeatureSetAEnabled != SettingsManagerLocal.ExperimentalFeatureSetAEnabled ||
+                onEntryExperimentalFeatureSetBEnabled != SettingsManagerLocal.ExperimentalFeatureSetBEnabled ||
+                onEntryExperimentalFeatureSetCEnabled != SettingsManagerLocal.ExperimentalFeatureSetCEnabled)
+            {
+                // Inform everyone of the state change
+                settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.Experimental)
+                {
+                    experimentalEnabled = SettingsManagerLocal.ExperimentalEnabled,
+                    experimentalFeatureSetAEnabled = SettingsManagerLocal.ExperimentalFeatureSetAEnabled,
+                    experimentalFeatureSetBEnabled = SettingsManagerLocal.ExperimentalFeatureSetBEnabled,
+                    experimentalFeatureSetCEnabled = SettingsManagerLocal.ExperimentalFeatureSetCEnabled
+
+                });
+            }
+        }
+
+
+        /// <summary>
         /// Expand the expander and bring it into view
         /// </summary>
         /// <param name="expander"></param>
@@ -1362,8 +1553,7 @@ namespace Surveyor.User_Controls
             });
         }
 
-
-
+        
 
         // ***END OF SettingsWindow***
     }
@@ -1420,7 +1610,10 @@ namespace Surveyor.User_Controls
         public bool? diagnosticInformation;
 
         // Only used for settingsWindowEvent.Experimental
-        public bool? experimentialEnabled;
+        public bool? experimentalEnabled;
+        public bool? experimentalFeatureSetAEnabled;
+        public bool? experimentalFeatureSetBEnabled;
+        public bool? experimentalFeatureSetCEnabled;
     }
 
 

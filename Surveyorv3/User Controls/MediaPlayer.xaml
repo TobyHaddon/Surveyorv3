@@ -19,21 +19,20 @@
 
         <!-- Image for Frame -->
         <Image x:Name="ImageFrame" 
-               Visibility="Collapsed"
-               Stretch="Fill"/>
+                Visibility="Collapsed"
+                Stretch="Fill"/>
 
         <!-- Magnifier Window-->
         <local:MagnifyAndMarkerDisplay x:Name="MagnifyAndMarkerDisplay"/>
-        
-        <!-- Buffering -->
-        <ProgressRing Name="ProgressRing_Buffering" 
-                      IsActive="false" 
-                      Background=
-                      "Transparent" 
-                      HorizontalAlignment="Center"
-                      VerticalAlignment="Center"
-                      Width="100" Height="100"/>
+
+        <!-- Buffering  -->
+        <!--<ProgressRing x:Name="ProgressRing_Buffering"
+                IsActive="False"
+                Visibility="Collapsed"
+                Width="300" Height="300"
+                Background="Transparent"/>-->
     </Grid>
+
 </UserControl>
 
 

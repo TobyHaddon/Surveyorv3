@@ -167,6 +167,12 @@ namespace Surveyor.Events
         public SurveyDataType EventDataType { get; set; }
         public IPointData? EventData { get; set; }
 
+        // Frame Index is calculated and not saved
+        [JsonIgnore]
+        public long FrameIndexLeft { get; set; }
+        [JsonIgnore]
+        public long FrameIndexRight { get; set; }
+
         // Constructor
         public Event(SurveyDataType dataType) : this()  // Chaining to the base constructor
         {

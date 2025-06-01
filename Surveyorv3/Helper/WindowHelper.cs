@@ -14,6 +14,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Windows.Storage;
 using WinRT.Interop;
@@ -99,5 +100,25 @@ namespace Surveyor.Helper
             }
             return localFolder;
         }
+
+
+        /// <summary>
+        /// Returns true is main windows is the activated application window
+        /// </summary>
+        /// <param name="mainWindow"></param>
+        /// <returns></returns>
+        static public bool IsMainWindowActive(MainWindow mainWindow)
+        {
+            if (mainWindow == null)
+                return false;
+
+            IntPtr foregroundWindow = GetForegroundWindow();
+            IntPtr mainWindowHandle = WindowNative.GetWindowHandle(mainWindow);
+
+            return foregroundWindow == mainWindowHandle;
+        }
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetForegroundWindow();
     }
 }

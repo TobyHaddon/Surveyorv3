@@ -225,7 +225,7 @@ namespace Surveyor
             _frameRate = 0.0;
             mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
 
-            // This is an are you sure dialog if the user has not set the species info
+            // This is an 'are you sure' dialog if the user has not set the species info
             justSaveEventDoAsk = false;
 
             // Open both files
@@ -259,6 +259,16 @@ namespace Surveyor
                 // things like dimensions get setup fully
                 await Task.Delay(100);
                 await FrameMove(eCameraSide.None, 1);
+
+                // Calculate the frame index for each event
+                if (existingEvents is not null)
+                {
+                    foreach (Event evt in existingEvents)
+                    {
+                        evt.FrameIndexLeft = mediaPlayerLeft.GetFrameIndexFromPosition(evt.TimeSpanLeftFrame);
+                        evt.FrameIndexRight = mediaPlayerRight.GetFrameIndexFromPosition(evt.TimeSpanRightFrame);
+                    }
+                }
 
                 // Set the events if the players are locked
                 mediaPlayerLeft.SetEvents(existingEvents);
@@ -1953,9 +1963,14 @@ namespace Surveyor
 
                 if (leftPosition is not null && rightPosition is not null)
                 {
+                    // Add media position information
                     evt.TimeSpanTimelineController = (TimeSpan)timelineConntrollerPoistion;
                     evt.TimeSpanLeftFrame = (TimeSpan)leftPosition;
                     evt.TimeSpanRightFrame = (TimeSpan)rightPosition;
+
+                    // Add frame indexes (not saved, values always calc'd)
+                    evt.FrameIndexLeft = mediaPlayerLeft.GetFrameIndexFromPosition((TimeSpan)leftPosition);
+                    evt.FrameIndexRight = mediaPlayerRight.GetFrameIndexFromPosition((TimeSpan)rightPosition);
 
                     // Add the species info to the Events list
                     eventsControl?.AddEvent(evt);

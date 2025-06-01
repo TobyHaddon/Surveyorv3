@@ -135,7 +135,7 @@
                         </AppBarButton>
 
                         <!-- Adjust Speed Media Control Button EC58(Solid), EC57(Hollow), EC4A(SpeedHigh) -->
-                        <AppBarButton x:Name="ControlSpeed" MinWidth="20" Width="30" ToolTipService.ToolTip="Select playback rate">
+                        <AppBarButton x:Name="ControlSpeed" MinWidth="20" Width="30" ToolTipService.ToolTip="Change playback speed">
                             <AppBarButton.Icon>
                                 <FontIcon Glyph="&#xEC4A;"/>
                             </AppBarButton.Icon>
@@ -202,15 +202,15 @@
                 </CommandBar.Content>
                 
                 <CommandBar.SecondaryCommands>
-                    <!-- Show Properties Media Control Button EB4B -->
-                    <AppBarButton x:Name="ControlProperties" Label="Properties" Click="ControlProperties_Click">
+                    <!-- Show Properties Media Control Button EB4B (Not Implemented)-->
+                    <AppBarButton x:Name="ControlProperties" Label="Properties" Visibility="Collapsed" Click="ControlProperties_Click">
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE946;"/>
                         </AppBarButton.Icon>
                     </AppBarButton>
 
-                    <!-- Event Mark Media Control Button EB4B -->
-                    <AppBarButton x:Name="ControlEvent" Label="Bookmark Event" Click="ControlEvent_Click">
+                    <!-- Event Mark Media Control Button EB4B (Not Implemented)-->
+                    <AppBarButton x:Name="ControlEvent" Label="Bookmark Event" Visibility="Collapsed" Click="ControlEvent_Click">
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xEB4B;"/>
                         </AppBarButton.Icon>
@@ -238,6 +238,7 @@
                         </AppBarButton.Icon>
                         <AppBarButton.Flyout>
                             <MenuFlyout Opening="ControlMagSize_Opening">
+                                <ToggleMenuFlyoutItem x:Name="ControlMagSize_Full" Text="Full" Click="ControlMagSize_Click"/>
                                 <ToggleMenuFlyoutItem x:Name="ControlMagSize_Large" Text="Large" Click="ControlMagSize_Click"/>
                                 <ToggleMenuFlyoutItem x:Name="ControlMagSize_Medium" Text="Medium" Click="ControlMagSize_Click"/>
                                 <ToggleMenuFlyoutItem x:Name="ControlMagSize_Small" Text="Small" Click="ControlMagSize_Click"/>

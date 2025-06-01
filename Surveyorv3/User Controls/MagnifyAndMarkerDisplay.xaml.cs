@@ -45,6 +45,7 @@
 // Move the MagnifyAndMarkerDisplay to be a child of the MediaPlayer control
 
 
+using MathNet.Numerics.Distributions;
 using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -52,6 +53,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Shapes;
 using Surveyor.DesktopWap.Helper;
@@ -62,6 +64,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Diagnostics;
+using System.Drawing.Text;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading;
@@ -96,7 +99,7 @@ namespace Surveyor.User_Controls
         private SurveyorMediaPlayer.eCameraSide CameraSide = SurveyorMediaPlayer.eCameraSide.None;
 
         // The Image UIElement control we are serving
-        private Image? imageUIElement = null;   // This is a reference to the control we are pigbacking on
+        private Image? imageUIElement = null;   // This is a reference to the Image control we are pigbacking on
         private bool isImageAtFullResolution = false;
         private bool imageLoaded = false;
 
@@ -107,19 +110,22 @@ namespace Surveyor.User_Controls
 
         // Image poistion (which frame in the video as a TimeSpace)
         private TimeSpan? position = null;
+        private long frameIndex = 0;    // Note position is the master reference point in the media, frameIndex is calculated
 
         // The scale factor between the actual image in the Image frame and the size of the
         // ImageFrame in the screen. i.e. the actual iamge size could be 3840x2160 and say the 
         // ImageFrame is 1600x900 then the scale factor X would be 1600/3840 = 0.4167
-        private double canvasFrameScaleX = -1;
-        private double canvasFrameScaleY = -1;
-        private double labelScaleFactor = 1;
+        private double canvasFrameScaleX = -1;  //??? Need to phased out
+        private double canvasFrameScaleY = -1;  //??? Need to phased out
+        private double canvasScaleFactor = 1;
 
         // The scaling of the image in the ImageMag where 1 is scales to full image source size 
-        private double canvasZoomFactor = 2;    // Must be set to the same initial value as 'canvasZoomFactor' in MediaControl.xaml.cs
+        public const double CanvasZoomFactorInitialValue = 5; // 5x zoom - Also used by 'canvasZoomFactor' in MediaControl.xaml.cs
+        private double canvasZoomFactor = CanvasZoomFactorInitialValue;    
 
         // Indicates if the pointer (mouse) is on this user control of not
         private bool isPointerOnUs = false;
+        private bool inZoomModeProcessing = false;
 
         // Set to true if the Magnifier Window is locked (i.e. the user has clicked the mouse and the Mag Window
         // no longer follows the pointer (mouse))
@@ -128,19 +134,25 @@ namespace Surveyor.User_Controls
 
         // Dragging support
         private bool isDragging = false;
+        private Rectangle? isDraggingRectangle = null;
         private Point draggingInitialPoint;
         private DateTime draggingInitialPressTime;
 
         // Default Magnifier Window dimensions
-        private const uint magWidthDefaultSmall = 350 * 3;
-        private const uint magHeightDefaultSmall = 150 * 3;
-        private const uint magWidthDefaultMedium = 500 * 3;
-        private const uint magHeightDefaultMedium = 250 * 3;
+        // ** Important width/height ratio of the Mag Window is always greater then the
+        // ** canvas actual width/actual height.  This is because in a lot of calcs in
+        // ** this class the width is only checked.
+        // ** i.e. Actual width/height for 4k = 3840/2160 = 1.778
+        // and taking the large default below as an example 700 / 3500 = 2
+        public const uint magWidthDefaultSmall = 350;
+        public const uint magHeightDefaultSmall = 150;
+        private const uint magWidthDefaultMedium = 500;
+        private const uint magHeightDefaultMedium = 250;
         private const uint magWidthDefaultLarge = 700;
         private const uint magHeightDefaultLarge = 350;
 
-        private uint magWidth = magWidthDefaultLarge;
-        private uint magHeight = magHeightDefaultLarge;
+        private uint magWidthUnscaled = magWidthDefaultLarge;
+        private uint magHeightUnscaled = magHeightDefaultLarge;
 
         // Marker icons 
         private readonly ImageBrush iconTargetLockA = new();
@@ -237,6 +249,16 @@ namespace Surveyor.User_Controls
         // Cached diagnostic information flag
         private bool diagnosticInformation = false;
 
+        // Only used for settingsWindowEvent.Experimental
+        public bool? experimentalEnabled;
+        public bool? experimentalFeatureSetAEnabled;
+        public bool? experimentalFeatureSetBEnabled;
+        public bool? experimentalFeatureSetCEnabled;
+
+        // Mousewheel calibration
+        private int _lowestMouseWheelDeltaSeen = Int32.MaxValue;
+
+
 
 
         public MagnifyAndMarkerDisplay()
@@ -259,9 +281,17 @@ namespace Surveyor.User_Controls
             // dimensions then calculate the offset to the centre of the icon and save of later use
             targetIconOriginalWidth = TargetA.Width;
             targetIconOriginalHeight = TargetA.Height;
-            
+
+            // Set-up any controls that depend on the diagnostic information state 
+            _SetDiagnosticInformation(SettingsManagerLocal.DiagnosticInformation);
+
+            // Load the experimental settings
+            _SetExperimental(SettingsManagerLocal.ExperimentalEnabled,
+                SettingsManagerLocal.ExperimentalFeatureSetAEnabled, SettingsManagerLocal.ExperimentalFeatureSetBEnabled, SettingsManagerLocal.ExperimentalFeatureSetCEnabled);
+
             // Start the three second utility timer
             SetupTimer();
+
         }
 
 
@@ -362,6 +392,9 @@ namespace Surveyor.User_Controls
             // _mainWindow is set in InitializeMediator so made sure that is called first
             Debug.Assert(_mainWindow is not null, "MagnifyAndMarkerControl.InitializeMediator(...) must be called before MagnifyAndMarkerControl.Setup(...)");
             _mainWindow.Activated += MainWindow_Activated;
+
+            // Get the current MainWindow activation status
+            mainWindowActivated = WindowHelper.IsMainWindowActive(_mainWindow);
         }
 
 
@@ -563,23 +596,27 @@ namespace Surveyor.User_Controls
         {
             if (magWindowSize == "Small")
             {
-                magWidth = magWidthDefaultSmall;
-                magHeight = magHeightDefaultSmall;
+                magWidthUnscaled = magWidthDefaultSmall;
+                magHeightUnscaled = magHeightDefaultSmall;
             }
             else if (magWindowSize == "Medium")
             {
-                magWidth = magWidthDefaultMedium;
-                magHeight = magHeightDefaultMedium;
+                magWidthUnscaled = magWidthDefaultMedium;
+                magHeightUnscaled = magHeightDefaultMedium;
             }
             else if (magWindowSize == "Large")
             {
-                magWidth = magWidthDefaultLarge;
-                magHeight = magHeightDefaultLarge;
+                magWidthUnscaled = magWidthDefaultLarge;
+                magHeightUnscaled = magHeightDefaultLarge;
+            }
+            else if (magWindowSize == "Full" && imageUIElement is not null)
+            {
+                magWidthUnscaled = (uint)(imageUIElement.ActualWidth / canvasScaleFactor);
+                magHeightUnscaled = (uint)(imageUIElement.ActualHeight / canvasScaleFactor);
             }
             else
                 throw new Exception("MagWindowSizeSelect: Unknown mag window size");
         }
-
 
 
         /// <summary>
@@ -591,15 +628,192 @@ namespace Surveyor.User_Controls
         {
             if (!double.IsNaN(CanvasFrame.ActualWidth))
             {
-                labelScaleFactor = CanvasFrame.ActualWidth / newWidth;
+                canvasScaleFactor = CanvasFrame.ActualWidth / newWidth;
             }
             else
             {
-                labelScaleFactor = 1;
+                canvasScaleFactor = 1;
             }
 
             if (imageLoaded && newWidth != 0)
                 GridSizeChanged();
+        }
+
+
+
+        /// <summary>
+        /// Called from the MouseWheel event normally in the main window
+        /// </summary>
+        /// <param name="ImageFrame"></param>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        public bool MouseWheelEvent(Object sender, PointerRoutedEventArgs e)
+        {
+            bool ret = false;
+
+            int delta = e.GetCurrentPoint((UIElement)sender).Properties.MouseWheelDelta;
+            // Delta > 0: wheel moved away from the user; Delta < 0: wheel moved toward the user
+            // Handle the event, e.g., by manually scrolling content or performing custom actions
+
+            if (delta != 0)   // I have seen a e.Delta of 0 which creates a divide by zero error so we will ignore this
+            {
+                // Remember the lowest mouse wheel delta seen. This is used to calculate the number of frames to move
+                if (Math.Abs(delta) < _lowestMouseWheelDeltaSeen)
+                {
+                    _lowestMouseWheelDeltaSeen = Math.Abs(delta);
+
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide} MouseWheel notch calculated at a delta of: {_lowestMouseWheelDeltaSeen}");
+                }
+  
+                // Act immediately on the first event to feel responsive
+                ret = CombinedZoomMode(delta / _lowestMouseWheelDeltaSeen);
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// The method combines the management of the Mag Window size and the canvasZoomFactor
+        /// It allows the user to control both Mag Window size and zoom factor
+        /// </summary>
+        /// <param name="delta"></param>
+        /// <returns></returns>
+        public bool CombinedZoomMode(int delta)
+        {
+            if (isMagLocked)
+            {
+                inZoomModeProcessing = true;
+
+                // Update the last seen time
+                lastTimePointerSeenInMagWindow = DateTime.Now;
+
+                try
+                {
+                    bool changeMagWindowSize = false;
+                    bool changeMagnification = false;
+
+                    // Calc max width/height
+                    double magWidthMax = magWidthDefaultLarge;
+                    double magHeightMax = magHeightDefaultLarge;
+                    // Adjust so we don't exceed the size of the Image UIElement
+                    if (imageUIElement is not null && magWidthMax > imageUIElement.ActualWidth / canvasScaleFactor)
+                    {
+                        magWidthMax = imageUIElement.ActualWidth / canvasScaleFactor;
+                        magHeightMax = magWidthMax * ((double)magHeightDefaultSmall / (double)magWidthDefaultSmall);
+                    }
+
+                    // Zoom range
+                    double zoomFactorStandard = 5.0;
+                    double zoomFactorMax = 9.0;
+                    double zoomFactorMin = 1.0;
+
+                    //  Potential new magnifcation
+                    double newCanvasZoomFactor = -1; // = canvasZoomFactor;
+
+                    string magWindowSize = MagWindowGetSizeName();
+                    string newMagWindowSize = string.Empty;
+
+                    // Handle Zoom out request, wheel direction Down (towards user)
+                    if (delta < 0)
+                    {
+                        if (magWindowSize == "Full" && canvasZoomFactor > zoomFactorStandard)
+                        {
+                            newCanvasZoomFactor = canvasZoomFactor - 2.0; // Decrease zoom factor
+                            changeMagnification = true;
+
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode Min Mag Window, Zoom Out, Zoom factor: {canvasZoomFactor} > {newCanvasZoomFactor}");
+                        }
+                        // Adjust the size of the Mag Window biggrt
+                        else if ((magWindowSize == "Large" || magWindowSize == "Medium" || magWindowSize == "Small") && canvasZoomFactor == zoomFactorStandard)
+                        {
+                            newMagWindowSize = MagWindowCalcNextViableSizeEnlargeOrReduce(magWindowSize, true/*TrueEnargeFalseReduce*/);
+
+                            changeMagWindowSize = true;
+
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode Zoom factor:{canvasZoomFactor}, Zoom Out, Size: ({magWindowSize}) > ({newMagWindowSize})");
+                        }
+                        else if (canvasZoomFactor > zoomFactorMin)
+                        {
+                            newCanvasZoomFactor = canvasZoomFactor - 2.0; // Decrease zoom factor
+                            changeMagnification = true;
+
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode Max Mag Window?, Zoom Out, Zoom factor: {canvasZoomFactor} > {newCanvasZoomFactor}");
+                        }
+                        else
+                        {
+                            if (!(magWindowSize == "Full" && canvasZoomFactor <= zoomFactorMin))
+                            {
+                                Debug.WriteLine($"**{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode, (Shouldn't get here!) Zoom Out, Size: {magWindowSize}, Zoom factor: {canvasZoomFactor}");
+                                // Consider adding a reset to 'Large'/Zoom=5
+                            }
+                        }
+                    }
+                    // Handle Zoom in request, wheel direction Up (away from user)
+                    else if (delta > 0)
+                    {
+                        // If at max size decrease zoom factor to 'zoomFactorStandard'
+                        if (magWindowSize == "Full" && canvasZoomFactor < zoomFactorStandard)
+                        {
+                            newCanvasZoomFactor = canvasZoomFactor + 2.0; // Increase zoom factor
+                            changeMagnification = true;
+
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode Max Mag Window, Zoom In, Zoom factor: {canvasZoomFactor} > {newCanvasZoomFactor}");
+                        }
+                        // Adjust the size of the Mag Window smaller
+                        else if ((magWindowSize == "Full" || magWindowSize == "Large" || magWindowSize == "Medium") && canvasZoomFactor == zoomFactorStandard)
+                        {
+                            newMagWindowSize = MagWindowCalcNextViableSizeEnlargeOrReduce(magWindowSize, false/*TrueEnargeFalseReduce*/);
+
+                            changeMagWindowSize = true;
+
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode Zoom factor:{canvasZoomFactor}, Zoom In, Size: ({magWindowSize}) > ({newMagWindowSize})");
+                        }
+                        // Mag Window normal small so zoom in
+                        else if (canvasZoomFactor < zoomFactorMax)
+                        {
+                            newCanvasZoomFactor = canvasZoomFactor + 2.0; // Increase zoom factor
+                            changeMagnification = true;
+
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode Min Mag Window?, Zoom In, Zoom factor: {canvasZoomFactor} > {newCanvasZoomFactor}");
+                        }
+                        else
+                        {
+                            if (!(magWindowSize == "Small" && canvasZoomFactor >= zoomFactorMax))
+                            {
+                                Debug.WriteLine($"**{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode, (Shouldn't get here!) Zoom In, Size: {magWindowSize}, Zoom factor: {canvasZoomFactor}");
+                                // Consider adding a reset to 'Large'/Zoom=5
+                            }
+                        }
+                    }
+
+
+                    // Adjust the mag window size
+                    if (changeMagWindowSize)
+                    {
+                        // Update the unscaled size
+                        MagWindowSizeSelect(newMagWindowSize);
+
+                        MagHide();
+
+                        // Show the Mag Window as it new size
+                        MagLockInCurrentPoisition(magLockedCentre, PointerDeviceType.Mouse);
+                    }
+                    // Adjust the magnification
+                    else if (changeMagnification)
+                    {
+                        ChangeZoomFactor(newCanvasZoomFactor);
+                    }
+                }
+                finally
+                {
+                    inZoomModeProcessing = false;
+                }
+
+                return true;  // Handled
+            }
+            else
+                return false;   // Not Handled 
         }
 
 
@@ -629,21 +843,6 @@ namespace Surveyor.User_Controls
         {
             if (mainWindowActivated && imageLoaded)
             {
-                //???All done in Timer_Tick()
-                //// Check if the Mag Window is currently locked
-                //if (isMagLocked)
-                //{
-                //    // Unlock the Mag Window as long is there isn't any unsaved work
-                //    MagUnlock();
-                //}
-
-                //// Check we are not in Mag Window lock mode still
-                //if (!isMagLocked)
-                //{
-                //    // If auto magnify isn't on then ensure the Mag Window in empty
-                //    MagHide();
-                //}
-
                 // Remove any existing Event line highlights
                 RemoveAnyLineHightLights();
 
@@ -696,6 +895,8 @@ namespace Surveyor.User_Controls
                     DisplayCanvasContextMenu(sender, e);
                 }
             }
+            else
+                Debug.Write($"CanvasFrame_PointerPressed: mainWindowActivated={mainWindowActivated}, imageLoaded={imageLoaded}");
         }
 
 
@@ -723,6 +924,9 @@ namespace Surveyor.User_Controls
                      Math.Abs(pointerRelativeToCanvasFrame.Position.Y - draggingInitialPoint.Y) > 10))
                 {
                     isDragging = true; // Movement threshold exceeded, start drag operation
+
+                    // Note isDraggingRectangle was setup in CanvasMag_PointerPressed
+
                     Debug.WriteLine($"CanvasMag_PointerMoved Dragging detected at ImageFrame Screen Coords:({pointerRelativeToCanvasFrame.Position.X}, {pointerRelativeToCanvasFrame.Position.Y})");
                 }
 
@@ -733,9 +937,12 @@ namespace Surveyor.User_Controls
                 {
                     MagWindow(pointerRelativeToCanvasFrame.Position);
                 }
-                // Detect if we are dragging one of the measurement markers
-                else if (isDragging && e.OriginalSource is Rectangle rectangle)
+                // Detect if we are dragging one of the measurement markers                
+                else if (isDragging && isDraggingRectangle is not null /*???&& e.OriginalSource is Rectangle rectangle*/)
                 {
+                    // We are dragging but the target can be slow to updated so the 'e.OriginalSource'
+                    // may not be the target Rectangle
+
                     // Get the pointer point relative to the ImageMag control
                     PointerPoint pointerRelativeToImageMag = e.GetCurrentPoint(ImageMag);
 
@@ -746,8 +953,10 @@ namespace Surveyor.User_Controls
                     if (rectMagPointerBounds.Contains(pointerRelativeToImageMag.Position))
                     {
                         // Set the target icon on the canvas
-                        SetTargetOnCanvasMag(rectangle, pointerRelativeToCanvasMag.Position.X, pointerRelativeToCanvasMag.Position.Y, TargetIconType.Moved);
-                        Debug.WriteLine($"CanvasMag_PointerMoved Dragging target...   Image Coords:({pointerRelativeToImageMag.Position.X + rectMagWindowScreen.X:F1}, {pointerRelativeToImageMag.Position.Y + rectMagWindowScreen.Y:F1}),  ImageMag Screen Coords:({pointerRelativeToImageMag.Position.X:F1}, {pointerRelativeToImageMag.Position.Y:F1})");
+                        SetTargetOnCanvasMag(isDraggingRectangle, pointerRelativeToCanvasMag.Position.X, pointerRelativeToCanvasMag.Position.Y, TargetIconType.Moved);
+
+                        string targetName = isDraggingRectangle == TargetAMag ? "TargetA" : isDraggingRectangle == TargetBMag ? "TargetB" : "TargetUnknown";
+                        Debug.WriteLine($"CanvasMag_PointerMoved Dragging {targetName}...   Image Coords:({pointerRelativeToImageMag.Position.X + rectMagWindowScreen.X:F1}, {pointerRelativeToImageMag.Position.Y + rectMagWindowScreen.Y:F1}),  ImageMag Screen Coords:({pointerRelativeToImageMag.Position.X:F1}, {pointerRelativeToImageMag.Position.Y:F1})");
                     }
                 }
 
@@ -804,34 +1013,21 @@ namespace Surveyor.User_Controls
                     else
                     {
                         // Detect if we maybe starting to drag one of the measurement markers
-                        if (e.OriginalSource is Rectangle)
+                        if (e.OriginalSource is Rectangle targetRectangle)
                         {
                             // Potental start dragging
                             draggingInitialPoint = pointerPoint.Position;
                             draggingInitialPressTime = DateTime.Now;
                             isDragging = false;     // Set this to false and in PointerMoved event
                                                     // set to true is pointer does move
-                            Debug.WriteLine($"CanvasMag_PointerMoved Start detect for dragging at ImageFrame Screen Coords:({pointerPoint.Position.X:F1}, {pointerPoint.Position.Y:F1})");
+                            isDraggingRectangle = targetRectangle;
+
+                            string targetName = isDraggingRectangle == TargetAMag ? "TargetA" : isDraggingRectangle == TargetBMag ? "TargetB" : "TargetUnknown";
+                            Debug.WriteLine($"CanvasMag_PointerMoved Start detect for dragging {targetName} at ImageFrame Screen Coords:({pointerPoint.Position.X:F1}, {pointerPoint.Position.Y:F1})");
                         }
                         else
                         {
-                            //// Get the pointer point relative to the ImageZoomed control
-                            //???DELETEPointerPoint pointerPointMag = e.GetCurrentPoint(ImageMag);
-
-                            //// Set the measurement markers if none or only one target already selected
-                            //if (TargetAMag.Visibility == Visibility.Collapsed)
-                            //{
-                            //    // Set Target A
-                            //    SetTargetOnCanvasMag(TargetAMag, pointerPointMag.Position.X, pointerPointMag.Position.Y, TargetIconType.Locked);
-                            //    // Clear any selectec Target (if necessary)
-                            //    SetSelectedTarget(null);
-                            //}
-                            //else if (TargetBMag.Visibility == Visibility.Collapsed)
-                            //{
-                            //    SetTargetOnCanvasMag(TargetBMag, pointerPointMag.Position.X, pointerPointMag.Position.Y, TargetIconType.Locked);
-                            //    // Clear any selectec Target (if necessary)
-                            //    SetSelectedTarget(null);
-                            //}
+                            // Note.  The Targets are set in the PointerRelease method below
                         }
                     }
                 }
@@ -858,31 +1054,35 @@ namespace Surveyor.User_Controls
                 PointerPoint pointerRelativeToImageMag = e.GetCurrentPoint(ImageMag);
 
                 // Stop dragging
-                if (isDragging)
+                if (isDragging && isDraggingRectangle is not null)
                 {
-                    if (e.OriginalSource is Rectangle rectangle)
-                    {
+                    //???Because can be slow to update the pointer maybe come off the
+                    //??? target during dragging
+                    //???if (e.OriginalSource is Rectangle rectangle)
+                    //???{
                         // Check if we are in bounds of the Mag Window
                         if (rectMagPointerBounds.Contains(pointerRelativeToImageMag.Position))
                         {
                             // After dragging has stopped switch the icon back to the non-moving version
-                            if (rectangle == TargetAMag)
+                            if (isDraggingRectangle == TargetAMag)
                                 SetTargetIconOnCanvas(TargetAMag, TargetIconType.Locked);
-                            else if (rectangle == TargetBMag)
+                            else if (isDraggingRectangle == TargetBMag)
                                 SetTargetIconOnCanvas(TargetBMag, TargetIconType.Locked);
                         }
                         else
                         {
                             // Drag/Drop is out of bounds, return target to it's original position
-                            if (rectangle == TargetAMag)
+                            if (isDraggingRectangle == TargetAMag)
                                 TransferTargetsBetweenVariableAndCanvasMag(true/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
-                            else if (rectangle == TargetBMag)
+                            else if (isDraggingRectangle == TargetBMag)
                                 TransferTargetsBetweenVariableAndCanvasMag(false/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
                         }
-                    }
+                    //???}
 
+                    string targetName = isDraggingRectangle == TargetAMag ? "TargetA" : isDraggingRectangle == TargetBMag ? "TargetB" : "TargetUnknown";
+                    Debug.WriteLine($"CanvasMag_PointerReleased Stop dragging {targetName} at ImageMag Screen Coords:({pointerRelativeToImageMag.Position.X:F1}, {pointerRelativeToImageMag.Position.Y:F1})");
                     isDragging = false;
-                    Debug.WriteLine($"CanvasMag_PointerReleased Stop dragging at ImageMag Screen Coords:({pointerRelativeToImageMag.Position.X:F1}, {pointerRelativeToImageMag.Position.Y:F1})");
+                    isDraggingRectangle = null;
                 }
                 else if (pointerRelativeToImageMag.Properties.PointerUpdateKind == PointerUpdateKind.LeftButtonReleased)
                 {
@@ -898,7 +1098,7 @@ namespace Surveyor.User_Controls
                         // Check if it was a single left click (instead of dragging)
                         var duration = DateTime.Now - draggingInitialPressTime;
                         if (draggingInitialPressTime == DateTime.MinValue ||
-                            duration.TotalMilliseconds < 500) // Adjust click threshold time as needed
+                            duration.TotalMilliseconds < 200) // Adjust click threshold time as needed
                         {
 
                             if (e.OriginalSource is Canvas)
@@ -1086,14 +1286,33 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void ButtonMagEnlarge_Click(object sender, RoutedEventArgs e)
         {
-            MagWindowSizeEnlargeOrReduce(true/*TrueEnargeFalseReduce*/, true/*trueHideIfLocked*/);
-
-            // Message MediaStereoController so the other instance can update the size of the mag window
-            MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
+            if (experimentalEnabled is not null && experimentalFeatureSetBEnabled is not null &&
+                (bool)experimentalEnabled && (bool)experimentalFeatureSetBEnabled)
             {
-                magWindowSize = MagWindowGetSizeName()
-            };
-            magnifyAndMarkerControlHandler?.Send(data);
+                CombinedZoomMode(-1/*zoom out: enlarge size & reduce magnification*/);
+
+                // Message MediaStereoController so the other instance can update the size of the mag window
+                magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
+                {
+                    magWindowSize = MagWindowGetSizeName()
+                });
+                // Message MediaStereoController so the other instance can update the zoom factor
+                magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, CameraSide)
+                {
+                    canvasZoomFactor = canvasZoomFactor
+                });
+            }
+            else
+            {
+                MagWindowSizeEnlargeOrReduce(true/*TrueEnargeFalseReduce*/, true/*trueHideIfLocked*/);
+
+                // Message MediaStereoController so the other instance can update the size of the mag window
+                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
+                {
+                    magWindowSize = MagWindowGetSizeName()
+                };
+                magnifyAndMarkerControlHandler?.Send(data);
+            }
         }
 
 
@@ -1104,15 +1323,33 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void ButtonMagReduce_Click(object sender, RoutedEventArgs e)
         {
-            MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/, true/*trueHideIfLocked*/);
-
-
-            // Message MediaStereoController so the other instance can update the size of the mag window
-            MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide )
+            if (experimentalEnabled is not null && experimentalFeatureSetBEnabled is not null &&
+                (bool)experimentalEnabled && (bool)experimentalFeatureSetBEnabled)
             {
-                magWindowSize = MagWindowGetSizeName()
-            };
-            magnifyAndMarkerControlHandler?.Send(data);
+                CombinedZoomMode(1/*zoom in: reduce size & magnify*/);
+
+                // Message MediaStereoController so the other instance can update the size of the mag window
+                magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
+                {
+                    magWindowSize = MagWindowGetSizeName()
+                });
+                // Message MediaStereoController so the other instance can update the zoom factor
+                magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, CameraSide)
+                {
+                    canvasZoomFactor = canvasZoomFactor
+                });
+            }
+            else
+            {
+                MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/, true/*trueHideIfLocked*/);
+
+                // Message MediaStereoController so the other instance can update the size of the mag window
+                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
+                {
+                    magWindowSize = MagWindowGetSizeName()
+                };
+                magnifyAndMarkerControlHandler?.Send(data);
+            }
         }
 
 
@@ -1168,8 +1405,8 @@ namespace Surveyor.User_Controls
                 else if (rect == TargetB || rect == TargetBMag)
                     hoveringOverTargetTrueAFalseB = false;
 
-                // Handle the event
-                e.Handled = true;
+                // Pass the event down, this is so dragging can be implemented
+                e.Handled = false;
             }
         }
 
@@ -1180,7 +1417,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void CanvasFrameContextMenu_Click(object sender, RoutedEventArgs e)
+        private async void CanvasFrameContextMenu_Click(object sender, RoutedEventArgs e)
         {
             MenuFlyoutItem? item = sender as MenuFlyoutItem;
             if (item is not null)
@@ -1222,6 +1459,10 @@ namespace Surveyor.User_Controls
                     {
                         TruePointAFalsePointB = false; // Target B
                     }
+                    else if (TargetA is not null && pointTargetB is not null && otherInstanceTargetASet && otherInstanceTargetBSet)
+                    {
+                        TruePointAFalsePointB = await RequestUsersSelectsTargetAorB("Add 3D Point", "Please select either the Red Target or the Green Target to add a 3D Point.");
+                    }
 
                     if (TruePointAFalsePointB is not null)
                     {
@@ -1259,6 +1500,10 @@ namespace Surveyor.User_Controls
                     else if (hoveringOverTargetTrueAFalseB == false && pointTargetB is not null)
                     {
                         TruePointAFalsePointB = false; // Target B
+                    }
+                    else if (pointTargetA is not null & pointTargetB is not null)
+                    {
+                        TruePointAFalsePointB = await RequestUsersSelectsTargetAorB("Add Single Point", "Please select either the Red Target or the Green Target to add a Single Point.");
                     }
 
                     if (TruePointAFalsePointB is not null)
@@ -1481,6 +1726,7 @@ namespace Surveyor.User_Controls
 
             // Reset dragging
             isDragging = false;
+            isDraggingRectangle = null;
 
             // Reset existing targets
             pointTargetA = null;
@@ -1512,7 +1758,7 @@ namespace Surveyor.User_Controls
         /// Other frame setup functions like SetTargets and SetEvents must be called
         /// AFTER NewImageFrame is called
         /// </summary>       
-        internal void _NewImageFrame(IRandomAccessStream? frameStream, TimeSpan _position, uint _imageSourceWidth, uint _imageSourceHeight)
+        internal void _NewImageFrame(IRandomAccessStream? frameStream, TimeSpan _position, long _frameIndex, uint _imageSourceWidth, uint _imageSourceHeight)
         {
             CheckIsUIThread();
 
@@ -1521,15 +1767,27 @@ namespace Surveyor.User_Controls
 
             Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: _NewImageFrame: Position:{_position}, Width:{_imageSourceWidth}, Height:{_imageSourceHeight}");
 
+
+            // Hide the mag window if it is locked
+            MagUnlock();
+
             // Remember the frame position
             // Used to know what Events are applicable to this frame
             position = _position;
+            frameIndex = _frameIndex;
             streamSource = frameStream;
             imageSourceWidth = _imageSourceWidth;
             imageSourceHeight = _imageSourceHeight;
 
             // Clear the canvas
             _ResetCanvas();
+
+            // Clear Epipolar
+            SetCanvasFrameEpipolarLine(true/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/, 0.0, 0.0, 0.0, -1);
+            SetCanvasFrameEpipolarLine(false/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/, 0.0, 0.0, 0.0, -1);
+
+            // Clear 'other instance' data
+            OtherInstanceTargetSet(false, false);
 
             // Do coordinate need to be displayed
             DisplayPointerCoords = true;   // Force on always not part of SettingsManagerLocal.DiagnosticInformation
@@ -1585,6 +1843,22 @@ namespace Surveyor.User_Controls
         internal void _SetDiagnosticInformation(bool _diagnosticInformation)
         {        
             diagnosticInformation = _diagnosticInformation;
+        }
+
+
+        /// <summary>
+        /// Experimental setting has changed (or is being initially set)
+        /// </summary>
+        /// <param name="_experimentalEnabled"></param>
+        internal void _SetExperimental(bool _experimentalEnabled,
+                                       bool _experimentalFeatureSetAEnabled,
+                                       bool _experimentalFeatureSetBEnabled,
+                                       bool _experimentalFeatureSetCEnabled)
+        {
+            experimentalEnabled = _experimentalEnabled;
+            experimentalFeatureSetAEnabled = _experimentalFeatureSetAEnabled;
+            experimentalFeatureSetBEnabled = _experimentalFeatureSetBEnabled;
+            experimentalFeatureSetCEnabled = _experimentalFeatureSetCEnabled;
         }
 
 
@@ -1649,12 +1923,9 @@ namespace Surveyor.User_Controls
                 // Requirement: There is at least one target set on this instance and the other instance
                 //              If their is two target points set on this instance we must be hovering over
                 //              one of them (so we know which one to use)
-                // Simple case one target set on this instance and the corresponding one on other instance
-                if (pointTargetA is not null && pointTargetB is null && otherInstanceTargetASet)
-                {
-                    CanvasFrameMenuAdd3DPoint.IsEnabled = true;
-                }
-                else if (pointTargetB is not null && pointTargetA is null && otherInstanceTargetBSet)
+
+                if ((pointTargetA is not null && pointTargetB is null && otherInstanceTargetASet) ||
+                    (pointTargetB is not null && pointTargetA is null && otherInstanceTargetBSet))
                 {
                     CanvasFrameMenuAdd3DPoint.IsEnabled = true;
                 }
@@ -1675,12 +1946,7 @@ namespace Surveyor.User_Controls
 
                 // Add Single Point
                 // Requirement: There is at least one target set on this instance 
-                // Simple case one target set on this instance 
-                if (pointTargetA is not null & pointTargetB is null)
-                {
-                    CanvasFrameMenuAddSinglePoint.IsEnabled = true;
-                }
-                else if (pointTargetA is null & pointTargetB is not null)
+                if ((pointTargetA is not null) || (pointTargetB is not null))
                 {
                     CanvasFrameMenuAddSinglePoint.IsEnabled = true;
                 }
@@ -1832,13 +2098,10 @@ namespace Surveyor.User_Controls
             // Adjust the CanvasFrame size and scaling
             AdjustCanvasSizeAndScaling();
             
-            if (canvasFrameScaleX != -1 && canvasFrameScaleY != -1)
-            {
-                // Reposition any target and events on the renewly size canvas
-                TransferExistingEvents();
-                TransferTargetsBetweenVariableAndCanvasFrame(true/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
-                TransferTargetsBetweenVariableAndCanvasFrame(false/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);                
-            }
+            // Reposition any target and events on the renewly size canvas
+            TransferExistingEvents();
+            TransferTargetsBetweenVariableAndCanvasFrame(true/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
+            TransferTargetsBetweenVariableAndCanvasFrame(false/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);                
         }
 
         private void AdjustCanvasSizeAndScaling()
@@ -1886,20 +2149,53 @@ namespace Surveyor.User_Controls
                 //????CanvasFrame.Margin = new Thickness(relativePositionImageFrame.X, relativePositionImageFrame.Y, relativePositionImageFrame.X, relativePositionImageFrame.Y);
 
                 // Next scale the targets so they take up 31x31 pixels on the screen
-                TargetA.Width = targetIconOriginalWidth / canvasFrameScaleX;
-                TargetA.Height = targetIconOriginalHeight / canvasFrameScaleY;
-                TargetB.Width = targetIconOriginalWidth / canvasFrameScaleX;
-                TargetB.Height = targetIconOriginalHeight / canvasFrameScaleY;
+                TargetA.Width = targetIconOriginalWidth * canvasScaleFactor;
+                TargetA.Height = targetIconOriginalHeight * canvasScaleFactor;
+                TargetB.Width = targetIconOriginalWidth * canvasScaleFactor;
+                TargetB.Height = targetIconOriginalHeight * canvasScaleFactor;
                 targetIconOffsetToCentre.X = (TargetA.Width - 1) / 2;
                 targetIconOffsetToCentre.Y = (TargetA.Height - 1) / 2;
 
-                TargetAMag.Width = targetIconOriginalWidth / canvasZoomFactor;
-                TargetAMag.Height = targetIconOriginalHeight / canvasZoomFactor;
-                TargetBMag.Width = targetIconOriginalWidth / canvasZoomFactor;
-                TargetBMag.Height = targetIconOriginalHeight / canvasZoomFactor;
-                targetMagIconOffsetToCentre.X = (TargetAMag.Width - 1) / 2;
-                targetMagIconOffsetToCentre.Y = (TargetAMag.Height - 1) / 2;
+                // And scale icons for the Mag Window (this is in a separate method bacause
+                // it is re-used when the zoom factor is adjusted by the user)
+                CalcMagIconSize();
 
+                // Adjust the size of the Mag Window control buttons
+                double magButtonWidth = 16 * canvasScaleFactor;
+                double magButtonHeight = 16 * canvasScaleFactor;
+                double fontSize = 10 * canvasScaleFactor;
+                SizeButton(ButtonMagClose, magButtonWidth, magButtonHeight, fontSize);
+                SizeButton(ButtonMagAddMeasurement, magButtonWidth, magButtonHeight, fontSize);
+                SizeButton(ButtonMagDelete, magButtonWidth, magButtonHeight, fontSize);
+                SizeButton(ButtonMagUp, magButtonWidth, magButtonHeight, fontSize);
+                SizeButton(ButtonMagDown, magButtonWidth, magButtonHeight, fontSize);
+                SizeButton(ButtonMagLeft, magButtonWidth, magButtonHeight, fontSize);
+                SizeButton(ButtonMagRight, magButtonWidth, magButtonHeight, fontSize);
+                SizeButton(ButtonMagEnlarge, magButtonWidth, magButtonHeight, fontSize);
+                SizeButton(ButtonMagReduce, magButtonWidth, magButtonHeight, fontSize);
+
+                // Button Size Helper function
+                static void SizeButton(Button button, double width, double height, double fontSize)
+                {
+                    button.Width = width;
+                    button.Height = height;
+                    button.FontSize = fontSize;
+                }
+
+                if (experimentalEnabled is not null && experimentalFeatureSetBEnabled is not null && 
+                   (bool)experimentalEnabled && (bool)experimentalFeatureSetBEnabled)
+                {
+                    // In ZoomMode (FeatureSetb) Enable/Disable the Mag Zoom In/Out buttons are combined
+                    ButtonMagZoomIn.Visibility = Visibility.Collapsed;
+                    ButtonMagZoomOut.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    ButtonMagZoomIn.Visibility = Visibility.Visible;
+                    SizeButton(ButtonMagZoomIn, magButtonWidth, magButtonHeight, fontSize);
+                    ButtonMagZoomOut.Visibility = Visibility.Visible;
+                    SizeButton(ButtonMagZoomOut, magButtonWidth, magButtonHeight, fontSize);
+                }
 
                 // In diags mode display a pink box around the canvas to check for alignment with the media player/ImageFrame
                 if (diagnosticInformation)
@@ -2089,33 +2385,37 @@ namespace Surveyor.User_Controls
                                 pointerPosition.X < CanvasFrame.ActualWidth &&
                                 pointerPosition.Y < CanvasFrame.ActualHeight)
                             {
+                                double magWidthScaled = magWidthUnscaled * canvasScaleFactor;
+                                double magHeightScaled = magHeightUnscaled * canvasScaleFactor;
+
+
                                 // *** TEST CODE START ***
                                 {
-                                    Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: CanvasFrame Size ({CanvasFrame.ActualWidth:F1}x{CanvasFrame.ActualHeight:F1}, ImageFrame Size:({imageUIElement.ActualWidth}x{imageUIElement.ActualHeight})");
-                                    if (imageUIElement.ActualWidth < magWidth || imageUIElement.ActualHeight < magHeight)
+                                    Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: CanvasFrame Size ({CanvasFrame.ActualWidth:F1}x{CanvasFrame.ActualHeight:F1}), ImageFrame Size:({imageUIElement.ActualWidth}x{imageUIElement.ActualHeight})");
+                                    if (imageUIElement.ActualWidth < magWidthScaled || imageUIElement.ActualHeight < magHeightScaled)
                                     {
-                                        Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, ImageFrame ({imageUIElement.ActualWidth:F1}x{imageUIElement.ActualHeight:F1}), MagWindow ({magWidth}x{magHeight}), first attempt to reduce window size automatically.");
+                                        Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, ImageFrame ({imageUIElement.ActualWidth:F1}x{imageUIElement.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), first attempt to reduce window size automatically.");
 
                                         MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/, false/*trueHideIfLocked*/);
 
-                                        if (imageUIElement.ActualWidth < magWidth || imageUIElement.ActualHeight < magHeight)
+                                        if (imageUIElement.ActualWidth < magWidthScaled || imageUIElement.ActualHeight < magHeightScaled)
                                         {
-                                            Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1}x{CanvasFrame.ActualHeight:F1}), MagWindow ({magWidth}x{magHeight}), second attempt to reduce window size automatically.");
+                                            Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1}x{CanvasFrame.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), second attempt to reduce window size automatically.");
 
                                             MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/, false/*trueHideIfLocked*/);
 
-                                            if (imageUIElement.ActualWidth < magWidth || imageUIElement.ActualHeight < magHeight)
+                                            if (imageUIElement.ActualWidth < magWidthScaled || imageUIElement.ActualHeight < magHeightScaled)
                                             {
-                                                Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1}x{CanvasFrame.ActualHeight:F1}), MagWindow ({magWidth}x{magHeight}), can't display MagWindow, try maximising the main window.");
+                                                Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1}x{CanvasFrame.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), can't display MagWindow, try maximising the main window.");
                                             }
                                         }
                                     }
 
                                     // First check that the mag windows will phyiscally fit in the size the CanvasFrame/ImageFrame has
-                                    double magWindowLeftCheck = Math.Clamp(pointerPosition.X - (magWidth / 2), 0/*min*/, CanvasFrame.ActualWidth - magWidth/*max*/);
-                                    double magWindowTopCheck = Math.Clamp(pointerPosition.Y - (magHeight / 2), 0/*min*/, CanvasFrame.ActualHeight - magHeight/*max*/);
-                                    double magWindowWidthCheck = Math.Min(magWidth, CanvasFrame.ActualWidth - magWindowLeftCheck);
-                                    double magWindowHeightCheck = Math.Min(magHeight, decoder.PixelHeight - magWindowTopCheck);
+                                    double magWindowLeftCheck = Math.Clamp(pointerPosition.X - (magWidthScaled / 2), 0/*min*/, CanvasFrame.ActualWidth - magWidthScaled/*max*/);
+                                    double magWindowTopCheck = Math.Clamp(pointerPosition.Y - (magHeightScaled / 2), 0/*min*/, CanvasFrame.ActualHeight - magHeightScaled/*max*/);
+                                    double magWindowWidthCheck = Math.Min(magWidthScaled, CanvasFrame.ActualWidth - magWindowLeftCheck);
+                                    double magWindowHeightCheck = Math.Min(magHeightScaled, decoder.PixelHeight - magWindowTopCheck);
 
                                     if (imageUIElement.ActualHeight < magWindowHeightCheck ||
                                         imageUIElement.ActualWidth < magWindowWidthCheck)
@@ -2128,18 +2428,18 @@ namespace Surveyor.User_Controls
                                 // Calculate the Mag Window screen rectangle. That is the rectangle that the Mag Window
                                 // actually appears within on the CanvasFrame (excluding the border)
                                 { // Putting this in braces so that variable go out of scope and not used by mistake
-                                    double magWindowLeft = Math.Clamp(pointerPosition.X - (magWidth / 2), 0/*min*/, CanvasFrame.ActualWidth - magWidth/*max*/);
-                                    double magWindowTop = Math.Clamp(pointerPosition.Y - (magHeight / 2), 0/*min*/, CanvasFrame.ActualHeight - magHeight/*max*/);
-                                    double magWindowWidth = Math.Min(magWidth, CanvasFrame.ActualWidth - magWindowLeft);
-                                    double magWindowHeight = Math.Min(magHeight, decoder.PixelHeight - magWindowTop);
+                                    double magWindowLeft = Math.Clamp(pointerPosition.X - (magWidthScaled / 2), 0/*min*/, CanvasFrame.ActualWidth - magWidthScaled/*max*/);
+                                    double magWindowTop = Math.Clamp(pointerPosition.Y - (magHeightScaled / 2), 0/*min*/, CanvasFrame.ActualHeight - magHeightScaled/*max*/);
+                                    double magWindowWidth = Math.Min(magWidthScaled, CanvasFrame.ActualWidth - magWindowLeft);
+                                    double magWindowHeight = Math.Min(magHeightScaled, decoder.PixelHeight - magWindowTop);
                                     rectMagWindowScreen = new Rect(magWindowLeft, magWindowTop, magWindowWidth, magWindowHeight);
                                 }
 
                                 // Calcaulte the source rectangle from the ImageFrame that is used to fill
                                 // the Mag Window.                         
                                 { // Putting this in braces so that variable go out of scope and not used by mistake
-                                    double magWidthZoomed = magWidth / canvasZoomFactor;
-                                    double magHeightZoomed = magHeight / canvasZoomFactor;
+                                    double magWidthZoomed = magWidthScaled / canvasZoomFactor;
+                                    double magHeightZoomed = magHeightScaled / canvasZoomFactor;
                                     double magSourceLeft = Math.Clamp(pointerPosition.X - (magWidthZoomed / 2), 0/*min*/, CanvasFrame.ActualWidth - magWidthZoomed/*max*/);
                                     double magSourceTop = Math.Clamp(pointerPosition.Y - (magHeightZoomed / 2), 0/*min*/, CanvasFrame.ActualHeight - magHeightZoomed/*max*/);
                                     double magSourceWidth = Math.Min(magWidthZoomed, decoder.PixelWidth - magSourceLeft);
@@ -2148,14 +2448,10 @@ namespace Surveyor.User_Controls
                                     rectMagWindowSource = new Rect(magSourceLeft, magSourceTop, magSourceWidth, magSourceHeight);
                                 }
 
-
-
                                 // Definate the ImageMag Rect for pointer bounds checking in 
                                 // PointerMoved events
                                 rectMagPointerBounds = new Rect(0.0, 0.0, rectMagWindowSource.Width, rectMagWindowSource.Height);
-
-
-                                //***CHANGE_ORIGNAL START***
+                              
                                 // Define the magnified portion of the image to extact from the bitmap
                                 var transform = new BitmapTransform()
                                 {
@@ -2169,36 +2465,12 @@ namespace Surveyor.User_Controls
                                         Height = (uint)Math.Round(rectMagWindowSource.Height)
                                     }
                                 };
-                                //***CHANGE_ORIGNAL END***
-                                //***CHANGE1 START
-                                //var boundsX = Math.Clamp((int)Math.Round(rectMagWindowSource.X), 0, (int)decoder.PixelWidth - 1);
-                                //var boundsY = Math.Clamp((int)Math.Round(rectMagWindowSource.Y), 0, (int)decoder.PixelHeight - 1);
-                                //var boundsWidth = Math.Clamp((int)Math.Round(rectMagWindowSource.Width), 1, (int)decoder.PixelWidth - boundsX);
-                                //var boundsHeight = Math.Clamp((int)Math.Round(rectMagWindowSource.Height), 1, (int)decoder.PixelHeight - boundsY);
 
-                                //var transform = new BitmapTransform()
-                                //{
-                                //    // If you zoom out too far (zoom < 1), ScaledWidth or ScaledHeight might round to zero.
-                                //    // Fix: Clamp to minimum 1:
-                                //    ScaledWidth = (uint)Math.Max(1, Math.Round(rectMagWindowScreen.Width)),
-                                //    ScaledHeight = (uint)Math.Max(1, Math.Round(rectMagWindowScreen.Height)),
-
-                                //    // The Bounds rectangle must be fully inside the dimensions of the original
-                                //    // image(decoder.PixelWidth and decoder.PixelHeight).
-                                //    Bounds = new BitmapBounds()
-                                //    {
-                                //        X = (uint)boundsX,
-                                //        Y = (uint)boundsY,
-                                //        Width = (uint)boundsWidth,
-                                //        Height = (uint)boundsHeight
-                                //    }
-                                //};
-                                //***CHANGE1 END
 
                                 // Debug reporting
                                 //???Debug.WriteLine($"Pointer ({pointerPosition.X:F1},{pointerPosition.Y:F1}) ImageFrame cx={imageUIElement.ActualWidth:F1}, cy={imageUIElement.ActualHeight:F1}, Source Image cx,cy {imageSourceWidth},{imageSourceHeight}, Mag Zoom:{canvasZoomFactor:F1}");
-                                Debug.WriteLine($"Image size: {decoder.PixelWidth}x{decoder.PixelHeight}");
-                                Debug.WriteLine($"Mag Window Coords left,top=({rectMagWindowScreen.X:F1},{rectMagWindowScreen.Y:F1}), cx,cy {rectMagWindowScreen.Width:F1},{rectMagWindowScreen.Height:F1}");
+                                
+                                //???Debug.WriteLine($"Mag Window Coords left,top=({rectMagWindowScreen.X:F1},{rectMagWindowScreen.Y:F1}), cx,cy {rectMagWindowScreen.Width:F1},{rectMagWindowScreen.Height:F1}");
                                 Debug.WriteLine($"Mag Window Source Coords left,top=({rectMagWindowSource.X:F1},{rectMagWindowSource.Y:F1}), cx,cy {rectMagWindowSource.Width:F1},{rectMagWindowSource.Height:F1}, Zoom={canvasZoomFactor:F2}");
 
 
@@ -2305,6 +2577,10 @@ namespace Surveyor.User_Controls
                                                                 rectMagWindowSource,
                                                                 0 /*draw line*/);
                                 }
+
+                                // Flash the current zoom factor so the user is aware
+                                //??? This maybe stopping the user changing the zoom mode quickly
+                                //???await ShowZoomIndicatorAsync(canvasZoomFactor);
                             }
                             else
                             {
@@ -2325,6 +2601,61 @@ namespace Surveyor.User_Controls
             }
 
         }
+
+        //public async Task ShowZoomIndicatorAsync(double zoomFactor)
+        //{
+        //    ZoomIndicatorText.Text = $"x {zoomFactor:0.0}";
+
+        //    // Reset scale
+        //    ZoomScaleTransform.ScaleX = 0.5;
+        //    ZoomScaleTransform.ScaleY = 0.5;
+
+        //    // Set visible
+        //    ZoomIndicatorBorder.Opacity = 1;
+
+        //    // Scale animations
+        //    var scaleX = new DoubleAnimation
+        //    {
+        //        To = 1.0,
+        //        Duration = new Duration(TimeSpan.FromMilliseconds(200)),
+        //        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        //    };
+
+        //    var scaleY = new DoubleAnimation
+        //    {
+        //        To = 1.0,
+        //        Duration = new Duration(TimeSpan.FromMilliseconds(200)),
+        //        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        //    };
+
+        //    var scaleStoryboard = new Storyboard();
+
+        //    Storyboard.SetTarget(scaleX, ZoomScaleTransform);
+        //    Storyboard.SetTargetProperty(scaleX, "ScaleX");
+        //    scaleStoryboard.Children.Add(scaleX);
+
+        //    Storyboard.SetTarget(scaleY, ZoomScaleTransform);
+        //    Storyboard.SetTargetProperty(scaleY, "ScaleY");
+        //    scaleStoryboard.Children.Add(scaleY);
+
+        //    scaleStoryboard.Begin();
+
+        //    // Wait before fading out
+        //    await Task.Delay(500);
+
+        //    var fadeOut = new DoubleAnimation
+        //    {
+        //        To = 0.0,
+        //        Duration = new Duration(TimeSpan.FromMilliseconds(300)),
+        //        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+        //    };
+
+        //    var fadeStoryboard = new Storyboard();
+        //    Storyboard.SetTarget(fadeOut, ZoomIndicatorBorder);
+        //    Storyboard.SetTargetProperty(fadeOut, "Opacity");
+        //    fadeStoryboard.Children.Add(fadeOut);
+        //    fadeStoryboard.Begin();
+        //}
 
 
         /// <summary>
@@ -2433,50 +2764,45 @@ namespace Surveyor.User_Controls
         /// <param name="TrueToCanvasFalseFromCanvas"></param>
         private void TransferTargetsBetweenVariableAndCanvasFrame(bool TrueAOnlyFalseBOnly, bool TrueToCanvasFalseFromCanvas)
         {
-            if (canvasFrameScaleX != -1 && canvasFrameScaleY != -1)
+            if (TrueToCanvasFalseFromCanvas)
             {
-                if (TrueToCanvasFalseFromCanvas)
+                // Transfer from Target A & B variables to the CanvasFrame
+                if (TrueAOnlyFalseBOnly)
                 {
-                    // Transfer from Target A & B variables to the CanvasFrame
-                    if (TrueAOnlyFalseBOnly)
-                    {
-                        if (pointTargetA is not null)
-                            SetTargetIconOnCanvas(TargetA, pointTargetA!.Value.X, pointTargetA!.Value.Y, TargetIconType.Locked, true/*TrueCanvasFalseMagCanvas*/);
-                        else
-                            ResetTargetIconOnCanvas(TargetA);
-                    }
-
-                    if (!TrueAOnlyFalseBOnly)
-                    {
-                        if (pointTargetB is not null)
-                            SetTargetIconOnCanvas(TargetB, pointTargetB!.Value.X, pointTargetB!.Value.Y, TargetIconType.Locked, true/*TrueCanvasFalseMagCanvas*/);
-                        else
-                            ResetTargetIconOnCanvas(TargetB);
-                    }
+                    if (pointTargetA is not null)
+                        SetTargetIconOnCanvas(TargetA, pointTargetA!.Value.X, pointTargetA!.Value.Y, TargetIconType.Locked, true/*TrueCanvasFalseMagCanvas*/);
+                    else
+                        ResetTargetIconOnCanvas(TargetA);
                 }
-                else
-                {
-                    // Transfer from the CanvasFrame to Target A variable
-                    if (TrueAOnlyFalseBOnly)
-                    {
-                        if (TargetA.Visibility == Visibility.Visible)
-                            pointTargetA = GetTargetIconOnCanvas(TargetA, true/*TrueCanvasFalseMagCanvas*/);
-                        else
-                            pointTargetA = null;
-                    }
 
-                    // Transfer from the CanvasFrame to Target B variable
-                    if (!TrueAOnlyFalseBOnly)
-                    { 
-                        if (TargetB.Visibility == Visibility.Visible)
-                            pointTargetB = GetTargetIconOnCanvas(TargetBMag, true/*TrueCanvasFalseMagCanvas*/);
-                        else
-                            pointTargetB = null;
-                    }   
+                if (!TrueAOnlyFalseBOnly)
+                {
+                    if (pointTargetB is not null)
+                        SetTargetIconOnCanvas(TargetB, pointTargetB!.Value.X, pointTargetB!.Value.Y, TargetIconType.Locked, true/*TrueCanvasFalseMagCanvas*/);
+                    else
+                        ResetTargetIconOnCanvas(TargetB);
                 }
             }
             else
-                throw new Exception($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Warning Scale factors (scaleX & scaleY) not setup");
+            {
+                // Transfer from the CanvasFrame to Target A variable
+                if (TrueAOnlyFalseBOnly)
+                {
+                    if (TargetA.Visibility == Visibility.Visible)
+                        pointTargetA = GetTargetIconOnCanvas(TargetA, true/*TrueCanvasFalseMagCanvas*/);
+                    else
+                        pointTargetA = null;
+                }
+
+                // Transfer from the CanvasFrame to Target B variable
+                if (!TrueAOnlyFalseBOnly)
+                { 
+                    if (TargetB.Visibility == Visibility.Visible)
+                        pointTargetB = GetTargetIconOnCanvas(TargetBMag, true/*TrueCanvasFalseMagCanvas*/);
+                    else
+                        pointTargetB = null;
+                }   
+            }
         }
 
 
@@ -2624,11 +2950,20 @@ namespace Surveyor.User_Controls
             if (events is not null && events.Count > 0 && position is not null)
             {
                 // Loop through the events and draw them on the canvas
+                //???TOBEDELETEDforeach (Event evt in events)
+                //{
+                //    // Is the event for this frame?
+                //    if ((CameraSide == SurveyorMediaPlayer.eCameraSide.Left && evt.TimeSpanLeftFrame == position) ||
+                //        (CameraSide == SurveyorMediaPlayer.eCameraSide.Right && evt.TimeSpanRightFrame == position))
+                //    {
+                //        eventsForThisFrame.Add(evt);
+                //    }
+                //}
                 foreach (Event evt in events)
                 {
                     // Is the event for this frame?
-                    if ((CameraSide == SurveyorMediaPlayer.eCameraSide.Left && evt.TimeSpanLeftFrame == position) ||
-                        (CameraSide == SurveyorMediaPlayer.eCameraSide.Right && evt.TimeSpanRightFrame == position))
+                    if ((CameraSide == SurveyorMediaPlayer.eCameraSide.Left && evt.FrameIndexLeft == frameIndex) ||
+                        (CameraSide == SurveyorMediaPlayer.eCameraSide.Right && evt.FrameIndexRight == frameIndex))
                     {
                         eventsForThisFrame.Add(evt);
                     }
@@ -2977,53 +3312,7 @@ namespace Surveyor.User_Controls
         }
 
 
-        /// <summary>
-        /// Convert from the XAML screen coordinate system to the image control source coordinates
-        /// </summary>
-        /// <param name="screenCoords"></param>        
-        /// <returns>Point</returns>
-        private Point ScreenToImageCoords(Point screenCoords)
-        {
-            Point ret;
 
-            ret = new Point(screenCoords.X * (double)canvasFrameScaleX!, screenCoords.Y * (double)canvasFrameScaleY!);
-
-            return ret;
-        }
-
-
-        /// <summary>
-        /// Convert from the image control source corrdinate system to the XAML screen coordinates
-        /// </summary>
-        /// <param name="imageCoords"></param>
-        /// <returns></returns>
-        Point? ImageToScreenCoords(Point? imageCoords)
-        {
-            Point? ret = null;
-
-            if (imageCoords.HasValue && canvasFrameScaleX != -1 && canvasFrameScaleY != -1)
-            {
-                ret = new Point(imageCoords.Value.X / (double)canvasFrameScaleX, imageCoords.Value.Y / (double)canvasFrameScaleY);
-            }
-
-            return ret;
-        }
-
-
-        /// <summary>
-        /// Uses after a screen resise to reposition elements on the canvas
-        /// </summary>
-        /// <param name="uie"></param>
-        /// <param name="scaleOldX"></param>
-        /// <param name="scaleOldY"></param>
-        private void RePositionUIElementAfterReSize(UIElement uie, double scaleOldX, double scaleOldY)
-        {
-            double left = Canvas.GetLeft(uie) * scaleOldX / (double)canvasFrameScaleX!;
-            double top = Canvas.GetTop(uie) * scaleOldY / (double)canvasFrameScaleY!;
-
-            Canvas.SetLeft(uie, left);
-            Canvas.SetTop(uie, top);
-        }
 
 
         /// <summary>
@@ -3055,11 +3344,14 @@ namespace Surveyor.User_Controls
                 // Calculate elapsed time since last pointer movement
                 TimeSpan elapsed = DateTime.Now - lastTimePointerSeenInMagWindow;
 
-                if (elapsed.TotalMilliseconds >= inactivityMagWindowClose) 
+                if (isMagLocked && elapsed.TotalMilliseconds >= inactivityMagWindowClose) 
                 {
-                    if ((!isPointerOnUs && !canvasMagContextMenuOpen) || !mainWindowActivated)
+                    if (!inZoomModeProcessing && (!isPointerOnUs && !canvasMagContextMenuOpen) || !mainWindowActivated)
+                    {
                         // Unlock/Hide the Mag Window
                         MagHide();  // This function will unlock and/or hide the Mag Window
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Timer_Tick: Mag Window hidden due to inactivity, isPointerOnUs={isPointerOnUs}, mainWindowActivated={mainWindowActivated}, canvasMagContextMenuOpen={canvasMagContextMenuOpen}, inZoomModeProcessing={inZoomModeProcessing}");
+                    }
                 }
             }
             finally
@@ -3077,14 +3369,17 @@ namespace Surveyor.User_Controls
         private string MagWindowGetSizeName()
         {
             string magWindowSize;
-            if (magWidth == magWidthDefaultSmall)
+            if (magWidthUnscaled == magWidthDefaultSmall)
                 magWindowSize = "Small";
-            else if (magWidth == magWidthDefaultMedium)
+            else if (magWidthUnscaled == magWidthDefaultMedium)
                 magWindowSize = "Medium";
-            else if (magWidth == magWidthDefaultLarge)
+            else if (magWidthUnscaled == magWidthDefaultLarge)
                 magWindowSize = "Large";
+            else if (imageUIElement is not null && magWidthUnscaled == (uint)(imageUIElement.ActualWidth / canvasScaleFactor))
+                magWindowSize = "Full";
             else
                 magWindowSize = "";
+
             return magWindowSize;
         }
 
@@ -3096,44 +3391,110 @@ namespace Surveyor.User_Controls
         /// <param name="trueHideIfLocked"></param>
         private void MagWindowSizeEnlargeOrReduce(bool TrueEnargeFalseReduce, bool trueHideIfLocked)
         {
-            // Get the current mag window size
+            // Get the current Mag Window size
             string magWindowSize = MagWindowGetSizeName();
 
-            if (TrueEnargeFalseReduce)
+            // Get the next mag window size
+            string newSize = MagWindowCalcNextViableSizeEnlargeOrReduce(magWindowSize, TrueEnargeFalseReduce);
+
+            if (newSize != MagWindowGetSizeName())
             {
-                if (magWindowSize == "Medium")
-                    MagWindowSizeSelect("Large");
-                else if (magWindowSize == "Small")
-                    MagWindowSizeSelect("Medium");
-            }
-            else
-            {
-                if (magWindowSize == "Large")
-                    MagWindowSizeSelect("Medium");
-                else if (magWindowSize == "Medium")
-                    MagWindowSizeSelect("Small");
-            }
 
-            // Next remove and re-display the mag window at the new size
-            // Note this method is also called by MagWindow() method with trueHideIfLocked=false
-            if (trueHideIfLocked && isMagLocked)
-            {
-                //??? TO DO get the original mag window centre point (if any)
+                // Next remove and re-display the mag window at the new size
+                // Note this method is also called by MagWindow() method with trueHideIfLocked=false
+                if (trueHideIfLocked && isMagLocked)
+                {
+                    // Hide the existing Mag Window
+                    MagHide();
 
-                //??? TO DO Remember any selected targets (see what gets reset inside MagHide, remember and restore)
-
-                // Hide the existing Mag Window
-                MagHide();
-
-                // Show the Mag Window as it new size
-                MagLockInCurrentPoisition(magLockedCentre, PointerDeviceType.Mouse);
-
-                //??? TO DO Restore any previously selected targets
-
+                    // Show the Mag Window as it new size
+                    MagLockInCurrentPoisition(magLockedCentre, PointerDeviceType.Mouse);
+                }
             }
         }
 
 
+        /// <summary>
+        /// Used to caculate the next viable increase or decrease in the size of the mag windiw
+        /// The Issue: The 'Full' size is the size of the CanvasFrame.  If the canvas is physically
+        /// very small on the screen the size down, 'Large', which has fixed dimensions, may not
+        /// actually fit.  In which case the next size down is used. And so on
+        /// </summary>
+        /// <param name="TrueEnargeFalseReduce"></param>
+        private string MagWindowCalcNextViableSizeEnlargeOrReduce(string magWindowSize, bool TrueEnargeFalseReduce)
+        {
+            string newSize = string.Empty;
+            bool tryNextSize = false;
+
+            if (imageUIElement is not null)
+            {
+                if (TrueEnargeFalseReduce)
+                {
+                    if (magWindowSize == "Small")
+                    {
+                        if (imageUIElement.ActualWidth >= magWidthDefaultMedium)
+                        {
+                            newSize = "Medium";
+                            tryNextSize = false;
+                        }
+                        else
+                            tryNextSize = true;
+                    }
+                    if (magWindowSize == "Medium" || tryNextSize)
+                    {
+                        if (imageUIElement.ActualWidth >= magWidthDefaultLarge)
+                        {
+                            newSize = "Large";
+                            tryNextSize = false;
+                        }
+                        else
+                            tryNextSize = true;
+                    }
+                    if (magWindowSize == "Large" || tryNextSize)
+                    {
+                        // Full is the size of the canvas so no need to check it fits
+                        newSize = "Full";
+                    }
+                }
+                else
+                {
+                    if (magWindowSize == "Full")
+                    {
+                        if (imageUIElement.ActualWidth >= magWidthDefaultLarge)
+                        {
+                            newSize = "Large";
+                            tryNextSize = false;
+                        }
+                        else
+                            tryNextSize = true;
+                    }
+                    if (magWindowSize == "Large" || tryNextSize)
+                    {
+                        if (imageUIElement.ActualWidth >= magWidthDefaultMedium)
+                        { 
+                            newSize = "Medium";
+                            tryNextSize = false;
+                        }
+                        else
+                            tryNextSize = true;
+                    }
+                    if (magWindowSize == "Medium" || tryNextSize)
+                    {
+                        if (imageUIElement.ActualWidth >= magWidthDefaultSmall)
+                        {
+                            newSize = "Small";
+                            tryNextSize = false;
+                        }
+                        else
+                            tryNextSize = true;
+                    }
+                }
+            }
+
+            return newSize;
+        }
+
+      
         /// <summary>
         /// Used to increase of decrease the zoom factor from inside the MagWindow
         /// </summary>
@@ -3146,9 +3507,7 @@ namespace Surveyor.User_Controls
 
             if (TrueZoomInFalseZoomOut)
             {
-                if (canvasZoomFactor == 0.5)
-                    MagWindowZoomFactor(1.0);
-                else if (canvasZoomFactor == 1.0)
+                if (canvasZoomFactor == 1.0)
                     MagWindowZoomFactor(2.0);
                 else if (canvasZoomFactor == 2.0)
                     MagWindowZoomFactor(3.0);
@@ -3163,28 +3522,159 @@ namespace Surveyor.User_Controls
                     MagWindowZoomFactor(2.0);
                 else if (canvasZoomFactor == 2.0)
                     MagWindowZoomFactor(1.0);
-                // 0.5 current not supported by MagWindow()
-                //else if (canvasZoomFactor == 1.0)
-                //    MagWindowZoomFactor(0.5);
             }
 
             // Next remove and re-display the mag window at the new size
             if (isMagLocked)
             {
-                //??? TO DO get the original mag window centre point (if any)
-
-                //??? TO DO Remember any selected targets (see what gets reset inside MagHide, remember and restore)
-
-                // Hide the existing Mag Window
-                MagHide();
-
-                // Show the Mag Window as it new size
-                MagLockInCurrentPoisition(magLockedCentre, PointerDeviceType.Mouse);
-
-                //??? TO DO Restore any previously selected targets
-
+                // Recalcs icon sizes, hides and re-displays the Mag Window
+                ChangeZoomFactor(canvasZoomFactor);
             }
         }
+
+
+        /// <summary>
+        /// Request to change the zoom factor of the current Mag Window.
+        /// This requires re-calculating the target icon zize, hiding the Mag Window
+        /// if necessary and re-displaying at the new zoom factor
+        /// </summary>
+        /// <param name="newCanvasZoomFactor"></param>
+        private void ChangeZoomFactor(double newCanvasZoomFactor)
+        {
+            canvasZoomFactor = newCanvasZoomFactor;
+
+            // Re-calc Mag Window icon size
+            CalcMagIconSize();
+        
+            // Hide Mag Window if necessary
+            MagHide();
+
+            // Re-display the Mag Window as it new size/zoom
+            MagLockInCurrentPoisition(magLockedCentre, PointerDeviceType.Mouse);
+        }
+
+
+        /// <summary>
+        /// Calcs the Mag Window icon sizes based on the canvasScaleFactor and the canvasZoomFactor
+        /// </summary>
+        private void CalcMagIconSize()
+        {
+            // Size the target icons
+            TargetAMag.Width = targetIconOriginalWidth * canvasScaleFactor / canvasZoomFactor;
+            TargetAMag.Height = targetIconOriginalHeight * canvasScaleFactor / canvasZoomFactor;
+            TargetBMag.Width = targetIconOriginalWidth * canvasScaleFactor / canvasZoomFactor;
+            TargetBMag.Height = targetIconOriginalHeight * canvasScaleFactor / canvasZoomFactor;
+            targetMagIconOffsetToCentre.X = (TargetAMag.Width - 1) / 2;
+            targetMagIconOffsetToCentre.Y = (TargetAMag.Height - 1) / 2;
+
+            // Size the zoom indicators
+            ZoomIndicatorText.FontSize =  16 * canvasScaleFactor / canvasZoomFactor;
+        }
+
+
+        /// <summary>
+        /// Prompt the users to select which target they want to select, A or B. (Red or Green)
+        /// </summary>
+        /// <param name="title"></param>
+        /// <param name="question"></param>
+        /// <returns></returns>
+        private async Task<bool?> RequestUsersSelectsTargetAorB(string title, string question)
+        {
+            var dialog = new ContentDialog
+            {
+                Title = title,
+                XamlRoot = this.Content.XamlRoot, // Ensure proper root assignment
+                DefaultButton = ContentDialogButton.None,
+
+                // Dialog content
+                Content = new TextBlock
+                {
+                    Text = question,
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 0, 0, 16)
+                }
+            };
+
+            // Buttons container
+            var stackPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center, Spacing = 16 };
+
+            // Red Target Button
+            var redButton = new Button
+            {
+                Content = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Children =
+                {
+                    new Image
+                    {
+                        Source = new BitmapImage(new Uri("ms-appx:///Assets/targetLockA_Set2.png")),
+                        Width = 24,
+                        Height = 24,
+                        Margin = new Thickness(0, 0, 8, 0)
+                    },
+                    new TextBlock { Text = "Red Target", VerticalAlignment = VerticalAlignment.Center }
+                }
+                }
+            };
+
+            // Green Target Button
+            var greenButton = new Button
+            {
+                Content = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Children =
+                {
+                    new Image
+                    {
+                        Source = new BitmapImage(new Uri("ms-appx:///Assets/targetLockB_Set2.png")),
+                        Width = 24,
+                        Height = 24,
+                        Margin = new Thickness(0, 0, 8, 0)
+                    },
+                    new TextBlock { Text = "Green Target", VerticalAlignment = VerticalAlignment.Center }
+                }
+                }
+            };
+
+            // Cancel Button
+            var cancelButton = new Button { Content = "Cancel" };
+
+            stackPanel.Children.Add(redButton);
+            stackPanel.Children.Add(greenButton);
+            stackPanel.Children.Add(cancelButton);
+
+            // Place buttons below content
+            var mainStack = new StackPanel();
+            mainStack.Children.Add((UIElement)dialog.Content);
+            mainStack.Children.Add(stackPanel);
+
+            dialog.Content = mainStack;
+
+            var tcs = new TaskCompletionSource<bool?>();
+
+            redButton.Click += (s, e) =>
+            {
+                dialog.Hide();
+                tcs.TrySetResult(true/*Target A:Red*/);
+            };
+            greenButton.Click += (s, e) =>
+            {
+                dialog.Hide();
+                tcs.TrySetResult(false/*Target B:Green*/);
+            };
+            cancelButton.Click += (s, e) =>
+            {
+                dialog.Hide();
+                tcs.TrySetResult(null);
+            };
+
+            await dialog.ShowAsync();
+            return await tcs.Task;
+        }
+
+
 
 
         /// <summary>
@@ -3369,7 +3859,7 @@ namespace Surveyor.User_Controls
                     {
                         case MediaPlayerEventData.eMediaPlayerEvent.FrameRendered:
                             if (data.frameStream is not null && data.position is not null)
-                                SafeUICall(() => _magnifyAndMarkerControl._NewImageFrame(data.frameStream, (TimeSpan)data.position, data.imageSourceWidth, data.imageSourceHeight));
+                                SafeUICall(() => _magnifyAndMarkerControl._NewImageFrame(data.frameStream, (TimeSpan)data.position, data.frameIndex, data.imageSourceWidth, data.imageSourceHeight));
                             break;
                         case MediaPlayerEventData.eMediaPlayerEvent.Playing:
                             SafeUICall(() => _magnifyAndMarkerControl._ResetCanvas());
@@ -3388,6 +3878,19 @@ namespace Surveyor.User_Controls
                         if (data.diagnosticInformation is not null)
                         {
                             _magnifyAndMarkerControl._SetDiagnosticInformation((bool)data!.diagnosticInformation);
+                        }
+                        break;
+                    // The user has changed the Experimental settings
+                    case eSettingsWindowEvent.Experimental:
+                        if (data.experimentalEnabled is not null &&
+                            data.experimentalFeatureSetAEnabled is not null &&
+                            data.experimentalFeatureSetBEnabled is not null &&
+                            data.experimentalFeatureSetCEnabled is not null)
+                        {
+                            _magnifyAndMarkerControl._SetExperimental((bool)data!.experimentalEnabled,
+                                                                     (bool)data.experimentalFeatureSetAEnabled,
+                                                                     (bool)data.experimentalFeatureSetBEnabled,
+                                                                     (bool)data.experimentalFeatureSetCEnabled);
                         }
                         break;
                 }

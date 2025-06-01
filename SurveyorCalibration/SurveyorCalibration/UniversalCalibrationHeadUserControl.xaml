@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Surveyor.Controls.UniversalCalibrationHeadUserControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Surveyor"
+    xmlns:controls="using:Surveyor.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto" />
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Graph and Bins -->
+        <controls:CalibrationFrameSetViewer x:Name="CalibrationFrameSetViewerLeft" Grid.Column="1"  HorizontalAlignment="Center"/>
+        <controls:CalibrationFrameSetViewer x:Name="CalibrationFrameSetViewerRight" Grid.Column="2"  HorizontalAlignment="Center"/>
+
+        <!-- Images for left and right camera -->
+        <Image x:Name="LeftImage" Grid.Column="1" Grid.Row="1" Stretch="Uniform" Margin="5"/>
+        <Image x:Name="RightImage" Grid.Column="2" Grid.Row="1" Stretch="Uniform" Margin="5"/>
+
+        <!-- Calibration Board Time Line User Controls -->
+        <controls:CalibrationBoardTimeLineUserControl x:Name="CalibrationBoardTimeLineLeft" Grid.Column="1" Grid.Row="2" Margin="0,10,2,0"/>
+        <controls:CalibrationBoardTimeLineUserControl x:Name="CalibrationBoardTimeLineRight" Grid.Column="2" Grid.Row="2" Margin="2,10,2,0"/>
+
+        <StackPanel Grid.Column="0" Grid.Row="0" Grid.RowSpan="3" Orientation="Vertical" HorizontalAlignment="Left" Margin="0,0,0,0">
+            <!-- Open Button -->
+            <Button x:Name="OpenButton" Click="OpenButton_Click"
+                    ToolTipService.ToolTip="Load a previously extracted Calibration Frame Set for these video files"
+                    Margin="0,0,0,0">
+                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8E5;" />
+            </Button>
+            <!-- Save Button -->
+            <Button x:Name="SaveButton" Click="SaveButton_Click"
+                    ToolTipService.ToolTip="Save the extracted Calibration Frame Set for these video files"
+                    Margin="0,5,0,0">
+                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74E;" />
+            </Button>
+            <!-- Lock and Unlock Button &#xE72E; or &#xE785;-->
+            <Button x:Name="LockUnlockButton" Click="LockUnlockClick" 
+                    Margin="0,5,0,0">
+                <FontIcon x:Name="LockUnlockIcon" Glyph="&#xE785;"/>
+            </Button>
+            <!-- Search for calibration board -->
+            <Button x:Name="SearchCalibrationBoard" Click="SearchCalibrationBoard_Click" 
+                    Margin="0,5,0,0">
+                <FontIcon x:Name="SearchCalibrationBoardIcon" Glyph="&#xE71E;"
+                ToolTipService.ToolTip="Search the media for calibration boards"/>
+            </Button>
+            <!-- Extract best frames-->
+            <Button x:Name="BestFrames" Click="BestFrames_Click" 
+                    Margin="0,5,0,0">
+                <FontIcon x:Name="BestFramesIcon" Glyph="&#xEB3C;"
+                ToolTipService.ToolTip="Find the best calibration frames"/>
+            </Button>
+            <!-- Cancel -->            
+            <Button x:Name="Cancel" Click="Cancel_Click" 
+                    Margin="0,5,0,0">
+                <FontIcon x:Name="CancelIcon" Glyph="&#xE106;"
+                ToolTipService.ToolTip="Cancel the operation"/>
+            </Button>
+
+        </StackPanel>
+
+        <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20" Margin="0,5,0,0">
+            <!-- Frame Back Media Control Button, E973 -->
+            <Button x:Name="LeftFrameBackButton" Click="LeftFrameBackClick">
+                <FontIcon Glyph="&#xE973;"/>
+            </Button>
+            <!-- Play or Pause Media Control Button, F5B0 or F8AE -->
+            <Button x:Name="LeftPlayPauseButton" Click="LeftPlayPauseClick">
+                <FontIcon x:Name ="LeftPlayPauseIcon" Glyph="&#xF5B0;"/>
+            </Button>
+            <!-- Frame Forward Media Control Button, E974 -->
+            <Button x:Name="LeftFrameForwardButton" Click="LeftFrameForwardClick">
+                <FontIcon Glyph="&#xE974;"/>
+            </Button>
+            <TextBox x:Name="LeftFrameInfoTextBox" VerticalAlignment="Center" KeyDown="LeftFrameInfoTextBox_KeyDown"/>
+            <TextBlock x:Name="LeftFrameInfoLabel" FontSize="14"/>
+        </StackPanel>
+
+        <StackPanel Grid.Column="2" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20" Margin="0,0,0,0">
+            <!-- Frame Back Media Control Button, E973 -->
+            <Button x:Name="RightFrameBackButton" Click="RightFrameBackClick">
+                <FontIcon Glyph="&#xE973;"/>
+            </Button>
+            <!-- Play or Pause Media Control Button, F5B0 or F8AE -->
+            <Button x:Name="RightPlayPauseButton" Click="RightPlayPauseClick">
+                <FontIcon x:Name ="RightPlayPauseIcon" Glyph="&#xF5B0;"/>
+            </Button>
+            <!-- Frame Forward Media Control Button, E974 -->
+            <Button x:Name="RightFrameForwardButton" Click="RightFrameForwardClick">
+                <FontIcon Glyph="&#xE974;"/>
+            </Button>
+            <TextBox x:Name="RightFrameInfoTextBox" VerticalAlignment="Center" KeyDown="RightFrameInfoTextBox_KeyDown"/>
+            <TextBlock x:Name="RightFrameInfoLabel" FontSize="14"/>
+        </StackPanel>
+
+        <!-- Move factor, Blur Factors, feature count and score -->
+        <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,5,0,0">
+            <TextBlock x:Name="LeftMovementFactor"
+                    FontSize="12"
+                    Margin="0,5,0,0"
+                    Text="" />
+            <TextBlock x:Name="LeftBlurFactor"
+                    FontSize="12"
+                    Margin="5,5,0,0"
+                    Text="" />
+            <TextBlock x:Name="LeftFeatureCount"
+                    FontSize="12"
+                    Margin="5,5,0,0"
+                    Text="" />
+            <TextBlock x:Name="LeftScore"
+                    FontSize="12"
+                    Margin="5,5,0,0"
+                    Text="" />
+        </StackPanel>
+        
+        <StackPanel Grid.Column="2" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,5,0,0">
+            <TextBlock x:Name="RightMovementFactor"
+                    FontSize="12"
+                    Margin="0,5,0,0"
+                    Text="" />
+            <TextBlock x:Name="RightBlurFactor"
+                    FontSize="12"
+                    Margin="5,5,0,0"
+                    Text="" />
+            <TextBlock x:Name="RightFeatureCount"
+                    FontSize="12"
+                    Margin="5,5,0,0"
+                    Text="" />
+            <TextBlock x:Name="RightScore"
+                    FontSize="12"
+                    Margin="5,5,0,0"
+                    Text="" />
+        </StackPanel>
+
+        <controls:ImageStripViewer x:Name="LeftImageViewer" Grid.Column="1" Grid.Row="4" Margin="0,5,0,0" Visibility="Collapsed"/>
+        <controls:ImageStripViewer x:Name="RightImageViewer" Grid.Column="2" Grid.Row="4"  Margin="0,5,0,0"  Visibility="Collapsed"/>
+
+    </Grid>
+
+</UserControl>

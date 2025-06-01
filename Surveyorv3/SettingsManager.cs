@@ -34,6 +34,9 @@ namespace Surveyor
         private const string DiagnosticInformationKey = "DiagnosticInformation";
         private const string TelemetryKey = "Telemetry";
         private const string ExperimentalKey = "Experimental";
+        private const string ExperimentalFeatureSetAKey = "ExperimentalFeatureSetA";
+        private const string ExperimentalFeatureSetBKey = "ExperimentalFeatureSetB";
+        private const string ExperimentalFeatureSetCKey = "ExperimentalFeatureSetC";
         private const string ApplicationThemeKey = "ApplicationTheme";
         private const string UserNameKey = "UserName";
         private const string TeachingTipsEnabledKey = "TeachingTipsEnabled";
@@ -106,6 +109,24 @@ namespace Surveyor
             get => GetBool(ExperimentalKey, false/*default*/);
             set => SetBool(ExperimentalKey, value);
         }
+        public static bool ExperimentalFeatureSetAEnabled
+        {
+            get => GetBool(ExperimentalFeatureSetAKey, false/*default*/);
+            set => SetBool(ExperimentalFeatureSetAKey, value);
+        }
+        public static bool ExperimentalFeatureSetBEnabled
+        {
+            get => GetBool(ExperimentalFeatureSetBKey, false/*default*/);
+            set => SetBool(ExperimentalFeatureSetBKey, value);
+        }
+        public static bool ExperimentalFeatureSetCEnabled
+        {
+            get => GetBool(ExperimentalFeatureSetCKey, false/*default*/);
+            set => SetBool(ExperimentalFeatureSetCKey, value);
+        }
+
+
+
 
 
 

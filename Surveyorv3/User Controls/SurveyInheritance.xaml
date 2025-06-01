@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Surveyor.User_Controls.SurveyInheritance"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Surveyor.User_Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid>
+        <StackPanel Orientation="Vertical">
+            <!-- Survey we are inheriting from -->
+            <TextBlock x:Name="IneritFrom">
+                
+            </TextBlock>
+            <TextBlock x:Name="IneritFromSurveyDateLastUSed">
+            </TextBlock>
+            
+            <!-- Inherit Rules-->
+            <CheckBox x:Name="InheritRulesCheckBox">
+                
+            </CheckBox>
+            
+            <!-- Inherit Calibration-->
+            <CheckBox x:Name="InheritCalibrationCheckBox">
+            </CheckBox>
+
+
+            <!--Survey Rules Available?-->
+            <StackPanel x:Name="SurveyRulesAvailablePanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
+             Margin="0,8,0,0" 
+             Visibility="{Binding ElementName=SurveyRulesAvailableValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
+                <FontIcon x:Name="SurveyRulesAvailableGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
+                <TextBlock x:Name="SurveyRulesAvailableValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </StackPanel>
+            <!--Survey Calibration Available? -->
+            <StackPanel x:Name="SurveyCalibrationAvailablePanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
+             Margin="0,8,0,0" 
+             Visibility="{Binding ElementName=SurveyCalibrationAvailableValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
+                <FontIcon x:Name="SurveyCalibrationAvailableGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
+                <TextBlock x:Name="SurveyCalibrationAvailableValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </StackPanel>
+            <!--Survey Media Files From Same GoPro as Calibration-->
+            <StackPanel x:Name="SurveyGoProMatchPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
+             Margin="0,8,0,0" 
+             Visibility="{Binding ElementName=SurveyGoProMatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
+                <FontIcon x:Name="SurveyGoProMatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
+                <TextBlock x:Name="SurveyGoProMatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
+            </StackPanel>
+
+        </StackPanel>
+    </Grid>
+</UserControl>

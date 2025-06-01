@@ -106,8 +106,8 @@ namespace Surveyor.User_Controls
             CanvasTag canvasTagDetails = new("Event", "Details", guid);
 
             // Calculate offset for parallel lines
-            Vector2 direction = new Vector2((float)(pointB.X - pointA.X), (float)(pointB.Y - pointA.Y));
-            Vector2 perp = new Vector2(-direction.Y, direction.X);
+            Vector2 direction = new((float)(pointB.X - pointA.X), (float)(pointB.Y - pointA.Y));
+            Vector2 perp = new(-direction.Y, direction.X);
             perp = Vector2.Normalize(perp);
 
             // Calculate the angle of the line in degrees
@@ -117,7 +117,7 @@ namespace Surveyor.User_Controls
             bool TrueIfTextBestAboveFalseIfBelow = (angleRadians >= 0) && (angleRadians <= Math.PI);
 
             // Caculate the offset for the dimension line either above or below
-            double offset = (20 * labelScaleFactor ) * (TrueIfTextBestAboveFalseIfBelow ? -1 : 1);
+            double offset = (20 * canvasScaleFactor) * (TrueIfTextBestAboveFalseIfBelow ? -1 : 1);
 
             // Parallel line 1
             Point p1Start = new(pointA.X, pointA.Y);
@@ -156,7 +156,7 @@ namespace Surveyor.User_Controls
 
             if (TrueIfTextBestAboveFalseIfBelow)
             {
-                double offsetYText = -(eventFontSize / canvasFrameScaleX) * rowsOfTextCount * 1.2/*vertical padding*/;
+                double offsetYText = -(eventFontSize * canvasScaleFactor) * rowsOfTextCount * 1.2/*vertical padding*/;
 
                 textPoint1 = new(pointA.X + (offset * perp.X * 0.90), pointA.Y + (offset * perp.Y) + offsetYText);
                 textPoint2 = new(pointB.X + (offset * perp.X * 0.90), pointB.Y + (offset * perp.Y) + offsetYText);
@@ -186,7 +186,7 @@ namespace Surveyor.User_Controls
             CanvasTag canvasTagPoint = new("Event", "Point", guid);
             CanvasTag canvasTagDetails = new("Event", "Details", guid);
 
-            CanvasDrawingHelper.DrawDot(CanvasFrame, point, 10 * labelScaleFactor/*diameter*/, eventDimensionLineColour, canvasTagPoint, EventElement_PointerMoved, EventElement_PointerPressed);
+            CanvasDrawingHelper.DrawDot(CanvasFrame, point, 10 * canvasScaleFactor/*diameter*/, eventDimensionLineColour, canvasTagPoint, EventElement_PointerMoved, EventElement_PointerPressed);
 
             // Draw species text
             string fishID = "";
@@ -201,7 +201,7 @@ namespace Surveyor.User_Controls
             }
 
             // Caculate the offset for the dimension line either above or below
-            double offset = (5 / canvasFrameScaleX);
+            double offset = (5 * canvasScaleFactor);
 
 
             // Depending on the number of rows of text we are displaying, if the text is to be
@@ -235,7 +235,7 @@ namespace Surveyor.User_Controls
             TextBlock textBlock = new()
             {
                 Foreground = brush,
-                FontSize = eventFontSize * labelScaleFactor,
+                FontSize = eventFontSize * canvasScaleFactor,
                 Tag = canvasTag
             };
 
@@ -290,7 +290,7 @@ namespace Surveyor.User_Controls
                 TextBlock textBlock = new()
                 {
                     Foreground = brush,
-                    FontSize = eventFontSize * labelScaleFactor,
+                    FontSize = eventFontSize * canvasScaleFactor,
                     Tag = canvasTag
                 };
 
@@ -470,7 +470,7 @@ namespace Surveyor.User_Controls
                     // Epipolar line with an arrow head on the end with the larger depth 
                     if (trueCanvasFrameFalseMagWindow)
                     {
-                        CanvasDrawingHelper.DrawLineWithArrowHeads(CanvasFrame, (Point)start, (Point)end, 10 / (float)canvasFrameScaleX/*arrow length*/, brush, new CanvasTag("EpipolarLine", "Line", tagValue), false, true, EventElement_PointerMoved, EventElement_PointerPressed);
+                        CanvasDrawingHelper.DrawLineWithArrowHeads(CanvasFrame, (Point)start, (Point)end, 10f * (float)canvasScaleFactor/*arrow length*/, brush, new CanvasTag("EpipolarLine", "Line", tagValue), false, true, EventElement_PointerMoved, EventElement_PointerPressed);
                     }
                     else
                     {

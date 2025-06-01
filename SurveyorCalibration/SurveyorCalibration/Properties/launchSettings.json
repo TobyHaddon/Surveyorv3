@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "SurveyorCalibrationFrames (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "SurveyorCalibrationFrames (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

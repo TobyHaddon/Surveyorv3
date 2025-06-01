@@ -87,8 +87,8 @@ namespace Surveyor.User_Controls
             // Reset Fields
             ResetDialogFields();
 
-            // Inherit from prior Survey
-            if (SettingsManagerLocal.ExperimentalEnabled)
+            // Inherit from prior Survey (Currently Experimental/featureSetA
+            if (SettingsManagerLocal.ExperimentalEnabled && SettingsManagerLocal.ExperimentalFeatureSetAEnabled)
             {
                 //??? TO DO
                 InheritSurveyData.Visibility = Visibility.Visible;
