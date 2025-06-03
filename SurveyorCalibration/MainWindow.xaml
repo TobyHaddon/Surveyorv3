@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Surveyor"    
     xmlns:controls="using:Surveyor.Controls"
+    xmlns:surveyorControls="using:Surveyor.User_Controls"
     xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
@@ -17,6 +18,7 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />   <!-- Hidden row 3 for Content Dialog -->
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
@@ -27,7 +29,7 @@
                     DefaultLabelPosition="Bottom" 
                     IsSticky="True">
             <CommandBar.PrimaryCommands>
-                <AppBarButton Icon="OpenFile" Label="Open..." />
+                <AppBarButton Icon="OpenFile" Label="Open..." Click="OpenAppBarButton_Click"/>
 
                 <!-- Arrow icon between buttons -->
                 <AppBarButton Label="" IsEnabled="false">
@@ -36,8 +38,9 @@
                     </AppBarButton.Icon>
                 </AppBarButton>
 
-                <AppBarButton Icon="Find" Label="Find" />
-            
+                <AppBarButton x:Name="FindAppBarButton" Icon="Find" Label="Find" Click="FindAppBarButton_Click"/>
+                <AppBarButton x:Name="FindAppBarCancel" Icon="Cancel"  Click="FindAppBarCancel_Click" />
+
                 <!-- Arrow icon between buttons -->
                 <AppBarButton Label="" IsEnabled="false">
                     <AppBarButton.Icon>
@@ -45,7 +48,7 @@
                     </AppBarButton.Icon>
                 </AppBarButton>
 
-                <AppBarButton Icon="Save" Label="Save" />
+                <AppBarButton x:Name="SaveAppBarButton" Icon="Save" Label="Save" Click="SaveAppBarButton_Click"/>
             </CommandBar.PrimaryCommands>
             
             <CommandBar.SecondaryCommands>
@@ -108,9 +111,25 @@
 
         <controls:UniversalCalibrationHeadUserControl x:Name="StereoCalibrationHead" 
                                                       Head="Stereo" 
-                                                      Grid.Row="3"                                                      
+                                                      Grid.Row="4"                                                      
                                                       Margin="5,5,5,5"/>
-        
+
+        <!--New Survey Dialog-->
+        <Grid x:Name="SurveyInfoAndMediaContentDialogGrid" Grid.Row="3">
+                    <ContentDialog x:Name="CalibrationMediaContentDialog"
+                        Title="Calibration Media Setup"
+                        PrimaryButtonText="OK"
+                        SecondaryButtonText="Cancel"
+                        DefaultButton="Primary"
+                        MinWidth="300"
+                        MaxWidth="860"
+                        MinHeight="200"
+                        MaxHeight="400"
+                        IsPrimaryButtonEnabled="True"
+                        RequestedTheme="Default">
+                <surveyorControls:CalibInfoAndMedia x:Name="CalibrationMediaUserControl" />
+            </ContentDialog>
+        </Grid>
     </Grid>
     
 </winex:WindowEx>

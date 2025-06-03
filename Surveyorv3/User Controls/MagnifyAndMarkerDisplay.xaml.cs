@@ -635,6 +635,18 @@ namespace Surveyor.User_Controls
                 canvasScaleFactor = 1;
             }
 
+            if (diagnosticInformation)
+            {
+                if (!double.IsNaN(CanvasFrame.ActualWidth))
+                {
+                    report?.Info(CameraSide.ToString(), $"RenderedPixelScreenSizeChanged: canvasScaleFactor={canvasScaleFactor}, CanvasFrame.ActualWidth={CanvasFrame.ActualWidth}, newWidth={newWidth}");
+                }
+                else
+                {
+                    report?.Info(CameraSide.ToString(), $"RenderedPixelScreenSizeChanged: canvasScaleFactor={canvasScaleFactor}, CanvasFrame.ActualWidth=NaN, newWidth={newWidth}");
+                }
+            }
+
             if (imageLoaded && newWidth != 0)
                 GridSizeChanged();
         }
@@ -872,6 +884,15 @@ namespace Surveyor.User_Controls
 
                 // Get the pointer point relative to the sender (Image control)
                 PointerPoint pointerPoint = e.GetCurrentPoint(CanvasFrame);
+
+                if (diagnosticInformation)
+                {
+                    report?.Info(CameraSide.ToString(), $"CanvasFrame_PointerPressed: Pointer pressed at ({pointerPoint.Position.X:F1}, {pointerPoint.Position.Y:F1}) " +
+                        $"PointerDeviceType={pointerPoint.PointerDeviceType}, " +
+                        $"Properties.PointerUpdateKind={pointerPoint.Properties.PointerUpdateKind}, " +
+                        $"Properties.IsLeftButtonPressed={pointerPoint.Properties.IsLeftButtonPressed}, "+
+                        $"sender is type:{sender.GetType().FullName}, isMagLocked={isMagLocked}");
+                }
 
                 // Check if the event was a mouse event
                 if (/*pointerPoint.PointerDeviceType == PointerDeviceType.Mouse &&*/
@@ -2290,8 +2311,13 @@ namespace Surveyor.User_Controls
         /// <param name="pointerPoint"></param>
         public void MagLockInCurrentPoisition(Point pointerPosition, PointerDeviceType pointerDeviceType)
         {
-            // Check if the event was a mouse event
-            if (pointerDeviceType == PointerDeviceType.Mouse)
+            if (diagnosticInformation)
+            {
+                report?.Info(CameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagLockInCurrentPoisition: PointerPosition: ({pointerPosition.X:F1},{pointerPosition.Y:F1}), PointerDeviceType: {pointerDeviceType}");
+            }
+
+            // Check if the event was not a touch screen event
+            if (pointerDeviceType != PointerDeviceType.Touch)
             {
                 // Remove any existing target that are outside of the MagWindow
                 // We are assuming the user locked the MagWindow to select targets
@@ -2366,6 +2392,11 @@ namespace Surveyor.User_Controls
                 int entryCounter = Interlocked.Increment(ref magIntoImageSquare_EntryCounter);
                 if (entryCounter == 1)
                 {
+                    if (diagnosticInformation)
+                    {
+                        string streamSourceStatus = streamSource is not null ? "streamSource is not null" : "streamSource is null";
+                        report?.Info(CameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: PointerPosition: ({pointerPosition.X:F1},{pointerPosition.Y:F1}), {streamSourceStatus}, {imageUIElement.Parent?.GetType().FullName}");
+                    }
 
                     // Reset rectMagPointerBounds for safty, not strictly necessary
                     rectMagPointerBounds = new Rect(0, 0, 0, 0);
@@ -2380,6 +2411,13 @@ namespace Surveyor.User_Controls
                             streamSource.Seek(0);
                             var decoder = await BitmapDecoder.CreateAsync(streamSource);
 
+                            if (diagnosticInformation)
+                            {
+                                report?.Info(CameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: BitmapDecoder created, PixelWidth={decoder.PixelWidth}, PixelHeight={decoder.PixelHeight}");
+                                report?.Info(CameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: Canvas Size ({CanvasFrame.ActualWidth}x{CanvasFrame.ActualHeight})");
+                            }
+
+
                             // Check if the pointer if still on the Image (because the Image maybe not exactly fit the Grid Cell
                             if (pointerPosition.X >= 0 && pointerPosition.Y >= 0 &&
                                 pointerPosition.X < CanvasFrame.ActualWidth &&
@@ -2388,25 +2426,35 @@ namespace Surveyor.User_Controls
                                 double magWidthScaled = magWidthUnscaled * canvasScaleFactor;
                                 double magHeightScaled = magHeightUnscaled * canvasScaleFactor;
 
+                                if (diagnosticInformation)
+                                {
+                                    report?.Info(CameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: magWidthScaled={magWidthScaled}, magHeightScaled={magHeightScaled}");
+                                }
 
-                                // *** TEST CODE START ***
+
+                                // Dynamic mag window resize START
                                 {
                                     Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: CanvasFrame Size ({CanvasFrame.ActualWidth:F1}x{CanvasFrame.ActualHeight:F1}), ImageFrame Size:({imageUIElement.ActualWidth}x{imageUIElement.ActualHeight})");
                                     if (imageUIElement.ActualWidth < magWidthScaled || imageUIElement.ActualHeight < magHeightScaled)
                                     {
-                                        Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, ImageFrame ({imageUIElement.ActualWidth:F1}x{imageUIElement.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), first attempt to reduce window size automatically.");
+                                        report?.Info(CameraSide.ToString(), $"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, ImageFrame ({imageUIElement.ActualWidth:F1} x {imageUIElement.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), first attempt to reduce window size automatically.");
 
                                         MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/, false/*trueHideIfLocked*/);
+                                        magWidthScaled = magWidthUnscaled * canvasScaleFactor;
+                                        magHeightScaled = magHeightUnscaled * canvasScaleFactor;
+
 
                                         if (imageUIElement.ActualWidth < magWidthScaled || imageUIElement.ActualHeight < magHeightScaled)
                                         {
-                                            Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1}x{CanvasFrame.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), second attempt to reduce window size automatically.");
+                                            report?.Info(CameraSide.ToString(), $"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1} x {CanvasFrame.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), second attempt to reduce window size automatically.");
 
                                             MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/, false/*trueHideIfLocked*/);
+                                            magWidthScaled = magWidthUnscaled * canvasScaleFactor;
+                                            magHeightScaled = magHeightUnscaled * canvasScaleFactor;
 
                                             if (imageUIElement.ActualWidth < magWidthScaled || imageUIElement.ActualHeight < magHeightScaled)
                                             {
-                                                Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1}x{CanvasFrame.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), can't display MagWindow, try maximising the main window.");
+                                                report?.Info(CameraSide.ToString(), $"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1} x {CanvasFrame.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), can't display MagWindow, try maximising the main window.");
                                             }
                                         }
                                     }
@@ -2423,7 +2471,7 @@ namespace Surveyor.User_Controls
                                         Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, ImageFrame ({imageUIElement.ActualWidth}x{imageUIElement.ActualHeight}), MagWindow ({magWindowWidthCheck}x{magWindowHeightCheck})");
                                     }
                                 }
-                                // *** TEST CODE END ***
+                                // Dynamic mag window resize End
 
                                 // Calculate the Mag Window screen rectangle. That is the rectangle that the Mag Window
                                 // actually appears within on the CanvasFrame (excluding the border)
@@ -2481,7 +2529,7 @@ namespace Surveyor.User_Controls
                                 WriteableBitmap magImageBitmap = new WriteableBitmap((int)Math.Round(rectMagWindowSource.Width), (int)Math.Round(rectMagWindowSource.Height));
                                 pixelProvider.DetachPixelData().CopyTo(magImageBitmap.PixelBuffer);
 
-                                //***CHANGE_ORIGNAL START***
+
                                 // Update ImageMag's source and scaling
                                 ImageMag.Source = magImageBitmap;
                                 ImageMag.RenderTransform = new ScaleTransform()
@@ -2494,7 +2542,7 @@ namespace Surveyor.User_Controls
                                     ScaleX = canvasZoomFactor,
                                     ScaleY = canvasZoomFactor
                                 };
-                                //***CHANGE_ORIGNAL END***
+
 
 
                                 // Discover exactly where the XAML rendering engine placed the ImageFrame (given
@@ -2577,10 +2625,6 @@ namespace Surveyor.User_Controls
                                                                 rectMagWindowSource,
                                                                 0 /*draw line*/);
                                 }
-
-                                // Flash the current zoom factor so the user is aware
-                                //??? This maybe stopping the user changing the zoom mode quickly
-                                //???await ShowZoomIndicatorAsync(canvasZoomFactor);
                             }
                             else
                             {
@@ -2590,8 +2634,15 @@ namespace Surveyor.User_Controls
                         catch (Exception ex)
                         {
                             // Seen BitmapDecoder.CreateAsync(streamSource) cause a COM exception
-                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error MagWindow display: {ex.Message}");
+                            report?.Info(CameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error MagWindow display: {ex.Message}");
                         }
+                    }
+                }
+                else 
+                {
+                    if (diagnosticInformation)
+                    {
+                        report?.Info(CameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: EntryCounter != 1 (EntryCounter={entryCounter})");
                     }
                 }
             }
@@ -2601,61 +2652,6 @@ namespace Surveyor.User_Controls
             }
 
         }
-
-        //public async Task ShowZoomIndicatorAsync(double zoomFactor)
-        //{
-        //    ZoomIndicatorText.Text = $"x {zoomFactor:0.0}";
-
-        //    // Reset scale
-        //    ZoomScaleTransform.ScaleX = 0.5;
-        //    ZoomScaleTransform.ScaleY = 0.5;
-
-        //    // Set visible
-        //    ZoomIndicatorBorder.Opacity = 1;
-
-        //    // Scale animations
-        //    var scaleX = new DoubleAnimation
-        //    {
-        //        To = 1.0,
-        //        Duration = new Duration(TimeSpan.FromMilliseconds(200)),
-        //        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-        //    };
-
-        //    var scaleY = new DoubleAnimation
-        //    {
-        //        To = 1.0,
-        //        Duration = new Duration(TimeSpan.FromMilliseconds(200)),
-        //        EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
-        //    };
-
-        //    var scaleStoryboard = new Storyboard();
-
-        //    Storyboard.SetTarget(scaleX, ZoomScaleTransform);
-        //    Storyboard.SetTargetProperty(scaleX, "ScaleX");
-        //    scaleStoryboard.Children.Add(scaleX);
-
-        //    Storyboard.SetTarget(scaleY, ZoomScaleTransform);
-        //    Storyboard.SetTargetProperty(scaleY, "ScaleY");
-        //    scaleStoryboard.Children.Add(scaleY);
-
-        //    scaleStoryboard.Begin();
-
-        //    // Wait before fading out
-        //    await Task.Delay(500);
-
-        //    var fadeOut = new DoubleAnimation
-        //    {
-        //        To = 0.0,
-        //        Duration = new Duration(TimeSpan.FromMilliseconds(300)),
-        //        EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-        //    };
-
-        //    var fadeStoryboard = new Storyboard();
-        //    Storyboard.SetTarget(fadeOut, ZoomIndicatorBorder);
-        //    Storyboard.SetTargetProperty(fadeOut, "Opacity");
-        //    fadeStoryboard.Children.Add(fadeOut);
-        //    fadeStoryboard.Begin();
-        //}
 
 
         /// <summary>
@@ -3397,8 +3393,11 @@ namespace Surveyor.User_Controls
             // Get the next mag window size
             string newSize = MagWindowCalcNextViableSizeEnlargeOrReduce(magWindowSize, TrueEnargeFalseReduce);
 
+            // Check if new size if actually different
             if (newSize != MagWindowGetSizeName())
             {
+                // Set the new size
+                MagWindowSizeSelect(newSize);
 
                 // Next remove and re-display the mag window at the new size
                 // Note this method is also called by MagWindow() method with trueHideIfLocked=false

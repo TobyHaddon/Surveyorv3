@@ -64,9 +64,11 @@ namespace Surveyor.Controls
         private CancellationToken cancellationToken;
         private CancellationTokenSource? cts = null;
 
+        private bool isFindCalibrationFrameRunning = false;
+
         private readonly Microsoft.UI.Dispatching.DispatcherQueue dispatcherQueue;
 
-        private enum AppMode { Open, BestFramesFind, BestFramesCalc, BestFramesView };
+        private enum AppMode { Open, FindCalibrationsFrames, BestFramesCalc, BestFramesView };
         private AppMode appMode = AppMode.Open;
 
 
@@ -196,7 +198,7 @@ namespace Surveyor.Controls
         {
             bool ret = false;
             bool leftOpened = false;
-            bool rightOpened = false;
+            //???bool rightOpened = false;
 
             // Reset
             leftMediaFileSpec = string.Empty;
@@ -233,6 +235,7 @@ namespace Surveyor.Controls
 
                         // Setup the timeline ranges indicators that show where calibration
                         // boards have been found
+                        CalibrationBoardTimeLineLeft.Visibility = Visibility.Visible;
                         CalibrationBoardTimeLineLeft.SetRange(0, _totalFramesLeft);
 
                         leftOpened = true;
@@ -279,8 +282,9 @@ namespace Surveyor.Controls
                             // Setup the timeline ranges indicators that show where calibration
                             // boards have been found
                             CalibrationBoardTimeLineRight.SetRange(0, _totalFramesRight);
+                            CalibrationBoardTimeLineRight.Visibility = Visibility.Visible;
 
-                            rightOpened = true;
+                            //???rightOpened = true;
                         }
                     }
                 }
@@ -315,6 +319,9 @@ namespace Surveyor.Controls
 
             calibrationStereoFrameSet.ShutDownMedia();
 
+            CalibrationBoardTimeLineLeft.Visibility = Visibility.Collapsed;
+            CalibrationBoardTimeLineRight.Visibility = Visibility.Collapsed;
+
             if (capLeft is not null && capLeft.IsOpened)
             {
                 capLeft.Dispose();
@@ -331,6 +338,261 @@ namespace Surveyor.Controls
 
             return ret;
         }
+
+        /// <summary>
+        /// Check media is open and ready
+        /// </summary>
+        /// <returns></returns>
+        public bool IsOpen()
+        {
+            // Check if the media files are open
+            bool leftOpen = capLeft is not null && capLeft.IsOpened;
+
+            if (Head.Equals("stereo", StringComparison.InvariantCultureIgnoreCase))
+            {
+                bool rightOpen = capRight is not null && capRight.IsOpened;
+                return leftOpen && rightOpen;
+            }
+            else
+            {
+                return leftOpen;
+            }                           
+        }
+
+
+        /// <summary>
+        /// Check if the stereo head is locked or not.
+        /// </summary>
+        /// <returns>Null is Mono, True is Stereo and Locked</returns>
+        public bool? IsStereoLocked()
+        {
+            if (Head.Equals("stereo", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return isLocked;
+            }
+            else
+            {
+                return null;  // Mono
+            }
+        }
+
+
+        /// <summary>
+        /// Search the media for the calibration boards
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        public async void FindCalibrationFrame()
+        {
+            try
+            {
+                appMode = AppMode.FindCalibrationsFrames;
+                SetUIControls();
+
+                cts = new CancellationTokenSource();
+                cancellationToken = cts.Token;
+
+                // Move both methods to background threads
+                var (startCalibration, stopCalibration) = await Task.Run(() =>
+                    calibrationStereoFrameSet.FindCalibrationTimeLineRange(FrameProcessingCallbackFindCalibrationTimeLineRange, cancellationToken));
+
+                if (startCalibration != -1 && stopCalibration != -1)
+                {
+                    // Update the timeline ranges
+                    CalibrationBoardTimeLineLeft.CalibrationBoardRange(startCalibration, stopCalibration);
+                    CalibrationBoardTimeLineRight.CalibrationBoardRange(startCalibration, stopCalibration);
+
+                    // Next find the calibration frames with in that range
+                    int framesCount = await Task.Run(() =>
+                    {
+                        isFindCalibrationFrameRunning = true;
+                        try
+                        {
+                            return calibrationStereoFrameSet.FindCalibrationsFrames(
+                                startCalibration,
+                                stopCalibration,
+                                FrameProcessingCallbackFindCalibrationsFrames,
+                                cancellationToken);
+                        }
+                        finally
+                        {
+                            isFindCalibrationFrameRunning = false;
+                        }
+                    });
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Debug.WriteLine("Calibration search cancelled.");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error during calibration search: {ex.Message}");
+            }
+            finally
+            {
+                appMode = AppMode.Open;
+                SetUIControls();
+            }
+        }
+
+
+        /// <summary>
+        /// Cancel the search for calibration frames.
+        /// </summary>
+        public void FindCalibrationFrameCancel()
+        {
+            cts?.Cancel();
+        }
+
+
+        /// <summary>
+        /// Check if the Find Calibration Frames is running or not
+        /// </summary>
+        /// <returns></returns>
+        public bool IsFindRunning()
+        {
+            return isFindCalibrationFrameRunning;
+        }
+
+
+        /// <summary>
+        /// Extract the best frames
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        public async void BestFramesCalc(bool writeBestFramesToPng = true)
+        {
+            appMode = AppMode.BestFramesCalc;
+            SetUIControls();
+
+            if (calibrationStereoFrameSet is not null)
+            {
+                // Create a list of the best calibation frames from the left side
+                calibrationStereoFrameSet.SelectBestStereoFrames();
+
+                if (writeBestFramesToPng)
+                {
+                    if (await SaveBestFiles())
+                    {
+                        // Update the left image viewers with the saved frames
+                        string documentsFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                        string outputPathLeft = MakeAndCreateFramesDirectory(documentsFolder, leftMediaFileSpec, false);
+
+                        string searchPath = Path.Combine(outputPathLeft, "*.png");
+                        LeftImageViewer.Data = searchPath;
+
+                        // Update the right image viewers with the saved frames                    
+                        string outputPathRight = MakeAndCreateFramesDirectory(documentsFolder, rightMediaFileSpec, false);
+
+                        searchPath = Path.Combine(outputPathRight, "*.png");
+                        RightImageViewer.Data = searchPath;
+                    }
+                }
+            }
+
+            appMode = AppMode.BestFramesView;
+            BestFrameJump(0);
+            LeftUpdateFrameLabel();
+            RightUpdateFrameLabel();
+            SetUIControls();
+        }
+
+
+        /// <summary>
+        /// Write the Calibration Frame Set to file
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        public bool SaveResults()
+        {
+            // Make the left calibration frame set path
+            string calibrationFrameSetPath = MakeCalibrationStereoFrameSetPath(leftMediaFileSpec, rightMediaFileSpec);
+
+            bool saved = calibrationStereoFrameSet.SaveToFile(calibrationFrameSetPath);
+        
+            SetUIControls();
+
+            return saved;
+        }
+
+
+        /// <summary>
+        /// Used to check is a cached result file already exists
+        /// </summary>
+        /// <returns></returns>
+        public bool ResultsFileExists()
+        {
+            bool ret = false;
+
+            // Make the left calibration frame set path
+            string calibrationFrameSetPath = MakeCalibrationStereoFrameSetPath(leftMediaFileSpec, rightMediaFileSpec);
+
+            // Check if the file exists (remove any zero byte file)
+            DeleteIfZeroByteFile(calibrationFrameSetPath);
+
+            if (File.Exists(calibrationFrameSetPath))
+            {
+                ret = true;
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        ///  Load a Calibration Frame Set from file and display to the screen
+        /// </summary>
+        /// <param name="MP4Path"></param>
+        /// <param name="calibrationFrameSet"></param>
+        /// <param name="calibrationFrameSetViewer"></param>
+        public bool LoadResults()
+        {
+            bool ret = false;
+            string messageText;
+
+            // Make the left calibration frame set path
+            string calibrationFrameSetPath = MakeCalibrationStereoFrameSetPath(leftMediaFileSpec, rightMediaFileSpec);
+
+            // Check if the file exists (remove any zero byte file)
+            DeleteIfZeroByteFile(calibrationFrameSetPath);
+
+            if (File.Exists(calibrationFrameSetPath))
+            {
+                // Load the calibration frame set
+                var json = CalibrationStereoFrameSet.LoadFromFile(calibrationFrameSetPath);
+                if (json is not null)
+                {
+                    calibrationStereoFrameSet = json;
+
+                    CalibrationFrameSetViewerData dataLeft = new(true/*trueLeftFalseRight*/, calibrationStereoFrameSet);
+                    CalibrationFrameSetViewerLeft.Data = dataLeft;
+                    CalibrationFrameSetViewerLeft.RefreshBinLayers();
+                    CalibrationFrameSetViewerLeft.DrawGraphs();
+
+                    CalibrationFrameSetViewerData dataRight = new(false/*trueLeftFalseRight*/, calibrationStereoFrameSet);
+                    CalibrationFrameSetViewerRight.Data = dataRight;
+                    CalibrationFrameSetViewerRight.RefreshBinLayers();
+                    CalibrationFrameSetViewerRight.DrawGraphs();
+
+                    ret = true;
+                }
+                else
+                {
+                    messageText = $"Failed to load left: {calibrationFrameSetPath}";
+                    Debug.WriteLine(messageText);
+
+                }
+            }
+            else
+            {
+                messageText = $"File not found left: {calibrationFrameSetPath}";
+                Debug.WriteLine(messageText);
+            }
+
+            return ret;
+        }
+
 
 
 
@@ -511,7 +773,7 @@ namespace Surveyor.Controls
             if (load)
             {
                 // Load and display the left calibration frame set file
-                bool loaded = LoadAndDisplayCalibrationStereoFrameSetFile();
+                bool loaded = LoadResults();
 
 
 
@@ -545,47 +807,48 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void SearchCalibrationBoard_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                appMode = AppMode.BestFramesFind;
-                SetUIControls();
+        //???TOBEDELETED
+        //private async void SearchCalibrationBoard_Click(object sender, RoutedEventArgs e)
+        //{
+        //    try
+        //    {
+        //        appMode = AppMode.FindCalibrationsFrames;
+        //        SetUIControls();
 
-                cts = new CancellationTokenSource();
-                cancellationToken = cts.Token;
+        //        cts = new CancellationTokenSource();
+        //        cancellationToken = cts.Token;
 
-                // Move both methods to background threads
-                var (startCalibration, stopCalibration) = await Task.Run(() =>
-                    calibrationStereoFrameSet.FindCalibrationTimeLineRange(FrameProcessingCallbackFindCalibrationTimeLineRange, cancellationToken));
+        //        // Move both methods to background threads
+        //        var (startCalibration, stopCalibration) = await Task.Run(() =>
+        //            calibrationStereoFrameSet.FindCalibrationTimeLineRange(FrameProcessingCallbackFindCalibrationTimeLineRange, cancellationToken));
 
-                if (startCalibration != -1 && stopCalibration != -1)
-                {
-                    // Update the timeline ranges
-                    CalibrationBoardTimeLineLeft.CalibrationBoardRange(startCalibration, stopCalibration);
-                    CalibrationBoardTimeLineRight.CalibrationBoardRange(startCalibration, stopCalibration);
+        //        if (startCalibration != -1 && stopCalibration != -1)
+        //        {
+        //            // Update the timeline ranges
+        //            CalibrationBoardTimeLineLeft.CalibrationBoardRange(startCalibration, stopCalibration);
+        //            CalibrationBoardTimeLineRight.CalibrationBoardRange(startCalibration, stopCalibration);
 
-                    // Next find the calibration frames with in that range
-                    int framesCount = await Task.Run(() =>
-                        calibrationStereoFrameSet.FindCalibrationsFrames(startCalibration, stopCalibration,
-                                                                         FrameProcessingCallbackFindCalibrationsFrames, 
-                                                                         cancellationToken));
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                Debug.WriteLine("Calibration search cancelled.");
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error during calibration search: {ex.Message}");
-            }
-            finally
-            {
-                appMode = AppMode.Open;
-                SetUIControls();
-            }
-        }
+        //            // Next find the calibration frames with in that range
+        //            int framesCount = await Task.Run(() =>
+        //                calibrationStereoFrameSet.FindCalibrationsFrames(startCalibration, stopCalibration,
+        //                                                                 FrameProcessingCallbackFindCalibrationsFrames, 
+        //                                                                 cancellationToken));
+        //        }
+        //    }
+        //    catch (OperationCanceledException)
+        //    {
+        //        Debug.WriteLine("Calibration search cancelled.");
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        Debug.WriteLine($"Error during calibration search: {ex.Message}");
+        //    }
+        //    finally
+        //    {
+        //        appMode = AppMode.Open;
+        //        SetUIControls();
+        //    }
+        //}
 
 
         /// <summary>
@@ -593,38 +856,38 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void SaveButton_Click(object sender, RoutedEventArgs e)
-        {
-            LeftImageViewer.Data = string.Empty;
-            RightImageViewer.Data = string.Empty;
+        //private void SaveButton_Click(object sender, RoutedEventArgs e)
+        //{
+        //    LeftImageViewer.Data = string.Empty;
+        //    RightImageViewer.Data = string.Empty;
 
-            // Make the left calibration frame set path
-            string calibrationFrameSetPath = MakeCalibrationStereoFrameSetPath(leftMediaFileSpec, rightMediaFileSpec);
+        //    // Make the left calibration frame set path
+        //    string calibrationFrameSetPath = MakeCalibrationStereoFrameSetPath(leftMediaFileSpec, rightMediaFileSpec);
 
-            bool saved = calibrationStereoFrameSet.SaveToFile(calibrationFrameSetPath);
+        //    bool saved = calibrationStereoFrameSet.SaveToFile(calibrationFrameSetPath);
 
-            string messageText = string.Empty;
-            if (saved)
-            {
-                messageText = $"Stereo calibration Frame Set saved ok";
-            }
-            else
-            {
-                messageText = $"Failed to save stereo calibration Frame Set";
-            }
+        //    string messageText = string.Empty;
+        //    if (saved)
+        //    {
+        //        messageText = $"Stereo calibration Frame Set saved ok";
+        //    }
+        //    else
+        //    {
+        //        messageText = $"Failed to save stereo calibration Frame Set";
+        //    }
 
-            var dialog = new ContentDialog
-            {
-                Title = "Calibration Stereo Frame Set Save",
-                Content = messageText,
-                CloseButtonText = "Ok",
-                XamlRoot = this.Content.XamlRoot  // 'this' is the MainWindow
-            };
-            // Show the dialog
-            var result = dialog.ShowAsync();
+        //    var dialog = new ContentDialog
+        //    {
+        //        Title = "Calibration Stereo Frame Set Save",
+        //        Content = messageText,
+        //        CloseButtonText = "Ok",
+        //        XamlRoot = this.Content.XamlRoot  // 'this' is the MainWindow
+        //    };
+        //    // Show the dialog
+        //    var result = dialog.ShowAsync();
 
-            SetUIControls();
-        }
+        //    SetUIControls();
+        //}
 
 
         /// <summary>
@@ -632,39 +895,39 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void BestFrames_Click(object sender, RoutedEventArgs e)
-        {
-            appMode = AppMode.BestFramesCalc;
-            SetUIControls();
+        //private async void BestFrames_Click(object sender, RoutedEventArgs e)
+        //{
+        //    appMode = AppMode.BestFramesCalc;
+        //    SetUIControls();
 
-            if (calibrationStereoFrameSet is not null)
-            {
-                // Create a list of the best calibation frames from the left side
-                calibrationStereoFrameSet.SelectBestStereoFrames();
+        //    if (calibrationStereoFrameSet is not null)
+        //    {
+        //        // Create a list of the best calibation frames from the left side
+        //        calibrationStereoFrameSet.SelectBestStereoFrames();
 
-                if (await SaveBestFiles())
-                {
-                    // Update the left image viewers with the saved frames
-                    string documentsFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-                    string outputPathLeft = MakeAndCreateFramesDirectory(documentsFolder, leftMediaFileSpec, false);
+        //        if (await SaveBestFiles())
+        //        {
+        //            // Update the left image viewers with the saved frames
+        //            string documentsFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+        //            string outputPathLeft = MakeAndCreateFramesDirectory(documentsFolder, leftMediaFileSpec, false);
                     
-                    string searchPath = Path.Combine(outputPathLeft, "*.png");
-                    LeftImageViewer.Data = searchPath;
+        //            string searchPath = Path.Combine(outputPathLeft, "*.png");
+        //            LeftImageViewer.Data = searchPath;
 
-                    // Update the right image viewers with the saved frames                    
-                    string outputPathRight = MakeAndCreateFramesDirectory(documentsFolder, rightMediaFileSpec, false);
+        //            // Update the right image viewers with the saved frames                    
+        //            string outputPathRight = MakeAndCreateFramesDirectory(documentsFolder, rightMediaFileSpec, false);
 
-                    searchPath = Path.Combine(outputPathRight, "*.png");
-                    RightImageViewer.Data = searchPath;
-                }
-            }
+        //            searchPath = Path.Combine(outputPathRight, "*.png");
+        //            RightImageViewer.Data = searchPath;
+        //        }
+        //    }
 
-            appMode = AppMode.BestFramesView;
-            BestFrameJump(0);
-            LeftUpdateFrameLabel();
-            RightUpdateFrameLabel();
-            SetUIControls();
-        }
+        //    appMode = AppMode.BestFramesView;
+        //    BestFrameJump(0);
+        //    LeftUpdateFrameLabel();
+        //    RightUpdateFrameLabel();
+        //    SetUIControls();
+        //}
 
         /// <summary>
         /// Used to cancel long running operations
@@ -1303,7 +1566,7 @@ namespace Surveyor.Controls
 
                 SetUIControls();
             }
-            else if (appMode == AppMode.BestFramesFind)
+            else if (appMode == AppMode.FindCalibrationsFrames)
             {
                 DrawFrameToScreen(frame, wb);
             }
@@ -1444,58 +1707,6 @@ namespace Surveyor.Controls
 
 
 
-        /// <summary>
-        ///  Load a Calibration Frame Set from file and display to the screen
-        /// </summary>
-        /// <param name="MP4Path"></param>
-        /// <param name="calibrationFrameSet"></param>
-        /// <param name="calibrationFrameSetViewer"></param>
-        private bool LoadAndDisplayCalibrationStereoFrameSetFile()
-        {
-            bool ret = false;
-            string messageText;
-
-            // Make the left calibration frame set path
-            string calibrationFrameSetPath = MakeCalibrationStereoFrameSetPath(leftMediaFileSpec, rightMediaFileSpec);
-
-            // Check if the file exists (remove any zero byte file)
-            DeleteIfZeroByteFile(calibrationFrameSetPath);
-
-            if (File.Exists(calibrationFrameSetPath))
-            {
-                // Load the calibration frame set
-                var json = CalibrationStereoFrameSet.LoadFromFile(calibrationFrameSetPath);
-                if (json is not null)
-                {
-                    calibrationStereoFrameSet = json;
-
-                    CalibrationFrameSetViewerData dataLeft = new(true/*trueLeftFalseRight*/, calibrationStereoFrameSet);
-                    CalibrationFrameSetViewerLeft.Data = dataLeft;
-                    CalibrationFrameSetViewerLeft.RefreshBinLayers();
-                    CalibrationFrameSetViewerLeft.DrawGraphs();
-
-                    CalibrationFrameSetViewerData dataRight = new(false/*trueLeftFalseRight*/, calibrationStereoFrameSet);
-                    CalibrationFrameSetViewerRight.Data = dataRight;
-                    CalibrationFrameSetViewerRight.RefreshBinLayers();
-                    CalibrationFrameSetViewerRight.DrawGraphs();
-
-                    ret = true;
-                }
-                else
-                {
-                    messageText = $"Failed to load left: {calibrationFrameSetPath}";
-                    Debug.WriteLine(messageText);
-
-                }
-            }
-            else
-            {
-                messageText = $"File not found left: {calibrationFrameSetPath}";
-                Debug.WriteLine(messageText);
-            }
-
-            return ret;
-        }
 
 
         /// <summary>
@@ -1761,30 +1972,30 @@ namespace Surveyor.Controls
                 // Load Button - Always enabled
 
                 // Save Button
-                SaveButton.IsEnabled = totalRecordCount > 0 ? true : false;
+                //???SaveButton.IsEnabled = totalRecordCount > 0 ? true : false;
 
                 // Lock/Unlock Button            
                 LockUnlockButton.IsEnabled = (capLeft?.IsOpened == true) && (capRight?.IsOpened == true);
 
                 // Best Frames
-                BestFrames.IsEnabled = totalRecordCount > 0 ? true : false;
+                //???BestFrames.IsEnabled = totalRecordCount > 0 ? true : false;
 
 
-                OpenButton.IsEnabled = true;
-                SaveButton.IsEnabled = true;
+                //???OpenButton.IsEnabled = true;
+                //???SaveButton.IsEnabled = true;
                 LockUnlockButton.IsEnabled = true;
-                SearchCalibrationBoard.IsEnabled = true;
-                BestFrames.IsEnabled = true;
-                Cancel.IsEnabled = false;
+                //???SearchCalibrationBoard.IsEnabled = true;
+                //???BestFrames.IsEnabled = true;
+                //???Cancel.IsEnabled = false;
             }
-            else if (appMode == AppMode.BestFramesFind || appMode == AppMode.BestFramesCalc)
+            else if (appMode == AppMode.FindCalibrationsFrames || appMode == AppMode.BestFramesCalc)
             {
-                OpenButton.IsEnabled = false;
-                SaveButton.IsEnabled = false;
+                //???OpenButton.IsEnabled = false;
+                //???SaveButton.IsEnabled = false;
                 LockUnlockButton.IsEnabled = false;
-                BestFrames.IsEnabled = false;
-                SearchCalibrationBoard.IsEnabled = false;
-                Cancel.IsEnabled = true;
+                //???BestFrames.IsEnabled = false;
+                //???SearchCalibrationBoard.IsEnabled = false;
+                //???Cancel.IsEnabled = true;
             }
 
             SetUISubControls(true/*trueLeftfalseRight*/);
@@ -1808,7 +2019,7 @@ namespace Surveyor.Controls
 
 
             }
-            else if (appMode == AppMode.BestFramesFind || appMode == AppMode.BestFramesCalc)
+            else if (appMode == AppMode.FindCalibrationsFrames || appMode == AppMode.BestFramesCalc)
             {
                 if (trueLeftfalseRight)
                 {

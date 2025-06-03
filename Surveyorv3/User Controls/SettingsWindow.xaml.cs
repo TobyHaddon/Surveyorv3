@@ -665,6 +665,9 @@ namespace Surveyor.User_Controls
             List<string> reporterFilesToCopy = [];
             List<IStorageItem> storageItems = [];
 
+            // Save Reporter
+            report?.Save();
+
             // Get the list of reporter?.txt files to copy
             for (int i = 0; i < 10; i++)
             {

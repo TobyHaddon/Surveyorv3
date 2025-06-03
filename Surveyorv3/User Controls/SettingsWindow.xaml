@@ -369,7 +369,7 @@
                                 <Button Click="ReporterFilesToClipboard_Click" Content="Reporter Files to Clipboard"
                                                         HorizontalAlignment="Left"
                                                         VerticalAlignment="Top"
-                                                        ToolTipService.ToolTip="Remove all records."
+                                                        ToolTipService.ToolTip="Click to copy all the reporter files to the clipboard."
                                                         Margin="0,0,10,0">
                                 </Button>
 

@@ -9,8 +9,8 @@
 
   <Identity
     Name="TobySolo.312674E3C56F2"
-    Publisher="CN=BBFC9555-B064-4A94-B7B3-FE2E887C0C99"
-    Version="3.1.148.0" />
+    Publisher="CN=Toby Haddon"
+    Version="3.1.154.0" />
 
   <mp:PhoneIdentity PhoneProductId="8dac229f-0c01-4807-9447-bd7efd4f2133" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

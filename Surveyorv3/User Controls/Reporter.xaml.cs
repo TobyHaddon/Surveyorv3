@@ -8,7 +8,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using Windows.ApplicationModel.DataTransfer;
-using System.Diagnostics;
 using static Surveyor.User_Controls.Reporter;
 
 namespace Surveyor.User_Controls

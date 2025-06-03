@@ -16,7 +16,7 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	<PublishTrimmed>false</PublishTrimmed>
 	<GenerateAppInstallerFile>False</GenerateAppInstallerFile>
-	<AppxPackageSigningEnabled>False</AppxPackageSigningEnabled>
+	<AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
 	<AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
 	<AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
 	<AppxSymbolPackageEnabled>True</AppxSymbolPackageEnabled>
@@ -25,6 +25,7 @@
 	<AppxBundlePlatforms>x64</AppxBundlePlatforms>
 	<HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
 	<GenerateTemporaryStoreCertificate>True</GenerateTemporaryStoreCertificate>
+	<PackageCertificateThumbprint>3ABA6CB3F657912FFAF12F407853CAB61413360B</PackageCertificateThumbprint>
   </PropertyGroup>
   <ItemGroup>
     <None Remove="Help Documents\Opwall SVS User Manual Part I - Calibration.pdf" />
