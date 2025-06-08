@@ -79,7 +79,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="dialog"></param>
         /// <param name="_mediaFilesSelected"></param>
-        public void SetupForContentDialog(ContentDialog dialog, IReadOnlyList<StorageFile> _mediaFilesSelected)
+        public void SetupForContentDialog(ContentDialog dialog, IReadOnlyList<StorageFile> _mediaFilesSelected, string potentialInhertanceSurvey)
         {
             Debug.WriteLine($"SetMediaFiles() Started");
             ParentDialog = dialog;
@@ -88,13 +88,22 @@ namespace Surveyor.User_Controls
             ResetDialogFields();
 
             // Inherit from prior Survey (Currently Experimental/featureSetA
-            if (SettingsManagerLocal.ExperimentalEnabled && SettingsManagerLocal.ExperimentalFeatureSetAEnabled)
+            if (!string.IsNullOrEmpty(potentialInhertanceSurvey))
             {
-                //??? TO DO
+                // Show the inherit survey data checkbox
                 InheritSurveyData.Visibility = Visibility.Visible;
-                //InheritSurveyData.IsChecked = true;
+                PotentialInheritanceSurveyName.Visibility = Visibility.Visible;
 
-                
+                if (SettingsManagerLocal.InheritFromLastSetting)
+                    InheritSurveyData.IsChecked = true;
+                else
+                    InheritSurveyData.IsChecked = false;
+            }
+            else
+            {
+                // Hide the inherit survey data checkbox
+                InheritSurveyData.Visibility = Visibility.Collapsed;
+                PotentialInheritanceSurveyName.Visibility = Visibility.Collapsed;
             }
 
 
@@ -137,6 +146,16 @@ namespace Surveyor.User_Controls
                 // Get the full name from Windows if we are running in the ContextDialog (New Survey) context
                 LoadUserFullNameAsync();
 
+                // Set the inheritance survey file name
+                if (!string.IsNullOrEmpty(potentialInhertanceSurvey))
+                {
+                    PotentialInheritanceSurveyName.Text = $"({potentialInhertanceSurvey})";
+                }
+                else
+                {
+                    PotentialInheritanceSurveyName.Text = string.Empty;
+                }
+
                 EntryFieldsValid(false/*no reporting*/);
 
             });
@@ -162,6 +181,10 @@ namespace Surveyor.User_Controls
             // Disable UI elements not used by the SettingsCard
             SurveyCode.IsEnabled = false;       // Survey code is the name of the survey e.g. CVW-10-5-2024-07-12.
                                                 // It is used as the file name and therefore can't be changed in the Setting window
+
+            // Hide the inherit survey data checkbox (in-case it has been set in the ContentDialog context)
+            InheritSurveyData.Visibility = Visibility.Collapsed;
+            PotentialInheritanceSurveyName.Visibility = Visibility.Collapsed;
 
             // Because the depth is also in the file name it can't be changed in the Setting window
             // The only exception is if the depth has never been set (i.e. an old .survey file)
@@ -256,14 +279,16 @@ namespace Surveyor.User_Controls
             RightMediaFileItemList.Clear();
         }
 
-
         /// <summary>
         /// Save the values from the survey information fields and media into the surveyClass 
         /// object
         /// </summary>
         /// <param name="surveyClass"></param>
-        public void SaveForContentDialog(Survey surveyClass)
+        /// <returns>true is inheritance requested</returns>
+        public bool SaveForContentDialog(Survey surveyClass)
         {
+            bool ret = false;
+
             surveyClass.Data.Info.Clear();
             surveyClass.Data.Media.Clear();
 
@@ -318,8 +343,20 @@ namespace Surveyor.User_Controls
             // Remember the last used analyst name
             SettingsManagerLocal.UserName = SurveyAnalystName.Text;
 
+            // Remember the inheritence check box setting
+            if (IsParentContentDialog() && InheritSurveyData.IsChecked is not null)
+            {
+                SettingsManagerLocal.InheritFromLastSetting =  (bool)InheritSurveyData.IsChecked;
+            }
+
             // Report any issues with the data
             EntryFieldsValid(true/*report*/);
+
+            // Inheritance requested?
+            if (IsParentContentDialog() && InheritSurveyData.IsChecked is not null)
+                ret = (bool)InheritSurveyData.IsChecked;
+
+            return ret;
         }
 
 
@@ -1679,23 +1716,5 @@ namespace Surveyor.User_Controls
     }
 
 
-    /// <summary>
-    /// This converter is used by the XAML to hide a whole StackPanel if a string null in one of it's elements is blank or null
-    /// </summary>
-    public partial class EmptyStringToVisibilityConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, string language)
-        {
-            if (value is string valueString)
-                return string.IsNullOrWhiteSpace(valueString) == true ? Visibility.Collapsed : Visibility.Visible;
-            else
-                return Visibility.Visible;
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, string language)
-        {
-            throw new NotImplementedException();
-        }
-    }
 }
 

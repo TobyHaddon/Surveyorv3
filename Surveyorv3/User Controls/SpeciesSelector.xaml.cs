@@ -739,13 +739,10 @@ namespace Surveyor.User_Controls
         // *** End of SpeciesSelector ***
     }
 
-
- 
-
     /// <summary>
     /// Used to convert the image Uri
     /// </summary>
-    public class UriToImageSourceConverter : IValueConverter
+    public sealed partial class UriToImageSourceConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {
@@ -760,11 +757,10 @@ namespace Surveyor.User_Controls
             => throw new NotImplementedException();
     }
 
-
     /// <summary>
     /// Add "by " as a prefix to the author is the Author proirity has a value
     /// </summary>
-    public class AuthorDisplayConverter : IValueConverter
+    public sealed partial class AuthorDisplayConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {

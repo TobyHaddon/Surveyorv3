@@ -14,17 +14,25 @@
     Width="1600"
     Height="1000">
     <Grid>
-        <Grid.RowDefinitions>
+        <!--<Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />   <!-- Hidden row 3 for Content Dialog -->
+            <RowDefinition Height="Auto" />   --><!-- Hidden row 3 for Content Dialog --><!--
             <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>-->
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />         <!-- 0: CommandBar -->
+            <RowDefinition Height="*" />            <!-- 1: Mono Heads -->
+            <RowDefinition Height="8" />            <!-- 2: GridSplitter -->
+            <RowDefinition Height="0" />            <!-- 3: Optional Hidden Dialog -->
+            <RowDefinition Height="*" />            <!-- 4: Stereo Head -->            
         </Grid.RowDefinitions>
 
         <CommandBar Grid.Row="0" 
                     Background="Transparent" 
-                    HorizontalAlignment="Left"
+                    HorizontalAlignment="Stretch"
                     IsOpen="False" 
                     DefaultLabelPosition="Bottom" 
                     IsSticky="True">
@@ -49,6 +57,7 @@
                 </AppBarButton>
 
                 <AppBarButton x:Name="SaveAppBarButton" Icon="Save" Label="Save" Click="SaveAppBarButton_Click"/>
+                <AppBarSeparator/>
             </CommandBar.PrimaryCommands>
             
             <CommandBar.SecondaryCommands>
@@ -58,6 +67,17 @@
                     </AppBarButton.KeyboardAccelerators>
                 </AppBarButton>
             </CommandBar.SecondaryCommands>
+
+            <!-- Custom Content Area -->
+            <CommandBar.Content>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <ProgressRing x:Name="InProgress" IsActive="False" Width="20" Height="20" VerticalAlignment="Center" Margin="12,0"/>
+                    <TextBlock x:Name="StatusText" 
+                       VerticalAlignment="Center" 
+                       Margin="12,0"
+                       FontWeight="SemiBold"/>
+                </StackPanel>
+            </CommandBar.Content>
         </CommandBar>
         
         <Grid x:Name="MonoCalibrationHeads" Grid.Row="1">

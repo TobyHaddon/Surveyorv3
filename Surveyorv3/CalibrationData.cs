@@ -111,6 +111,28 @@ namespace Surveyor
             ImageUseable = 0;
             CameraID = "";
         }
+
+
+        /// <summary>
+        /// Clone this CalibrationCameraData object
+        /// Uses a json serialization to create a deep copy of the object.
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        public CalibrationCameraData Clone()
+        {
+            var settings = new JsonSerializerSettings
+            {
+                Converters = [new MatrixJsonConverter()]
+            };
+
+            var json = JsonConvert.SerializeObject(this, settings);
+            var clone = JsonConvert.DeserializeObject<CalibrationCameraData>(json, settings)
+                        ?? throw new InvalidOperationException("Failed to clone CalibrationCameraData.");
+
+            return clone;
+        }
+
     }
 
 
@@ -174,6 +196,27 @@ namespace Surveyor
             Translation = null;
             ImageTotal = 0;
             ImageUseable = 0;
+        }
+
+
+        /// <summary>
+        /// Clone this CalibrationStereoCameraData object
+        /// Uses a json serialization to create a deep copy of the object.
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        public CalibrationStereoCameraData Clone()
+        {
+            var settings = new JsonSerializerSettings
+            {
+                Converters = [new MatrixJsonConverter()]
+            };
+
+            var json = JsonConvert.SerializeObject(this, settings);
+            var clone = JsonConvert.DeserializeObject<CalibrationStereoCameraData>(json, settings)
+                        ?? throw new InvalidOperationException("Failed to clone CalibrationStereoCameraData.");
+
+            return clone;
         }
     }
 
@@ -261,6 +304,27 @@ namespace Surveyor
             }
 
             return ret;
+        }
+
+
+        /// <summary>
+        /// Clone this CalibrationData object
+        /// Uses json serialization to create a deep copy of the object.
+        /// </summary>
+        /// <returns></returns>
+        /// <exception cref="InvalidOperationException"></exception>
+        public CalibrationData Clone()
+        {
+            var settings = new JsonSerializerSettings
+            {
+                Converters = [new MatrixJsonConverter(), new VectorJsonConverter()]
+            };
+
+            var json = JsonConvert.SerializeObject(this, settings);
+            var clone = JsonConvert.DeserializeObject<CalibrationData>(json, settings)
+                        ?? throw new InvalidOperationException("Failed to clone CalibrationData.");
+
+            return clone;
         }
 
         /// <summary>

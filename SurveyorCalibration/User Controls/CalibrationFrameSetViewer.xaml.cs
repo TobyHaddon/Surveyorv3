@@ -14,18 +14,18 @@ namespace Surveyor.Controls
 
     public class CalibrationFrameSetViewerData
     {
-        public CalibrationFrameSetViewerData(CalibrationFrameSet _calibrationFrameSet)
-        {
-            calibrationFrameSet = _calibrationFrameSet;
-        }
+        //???public CalibrationFrameSetViewerData(CalibrationFrameSet _calibrationFrameSet)
+        //{
+        //    calibrationFrameSet = _calibrationFrameSet;
+        //}
         public CalibrationFrameSetViewerData(bool _trueLeftFalseRight, CalibrationStereoFrameSet _calibrationStereoFrameSet)
         {
             trueLeftFalseRight = _trueLeftFalseRight;
             calibrationStereoFrameSet = _calibrationStereoFrameSet;
         }
 
-        // Solo calibration frame set
-        public CalibrationFrameSet? calibrationFrameSet = null;
+        //// Solo calibration frame set
+        //???public CalibrationFrameSet? calibrationFrameSet = null;
 
         // Stereo calibration frame set
         public bool trueLeftFalseRight = true;
@@ -70,63 +70,63 @@ namespace Surveyor.Controls
             var blurPoints = new List<Point>();
 
 
-            if (Data.calibrationFrameSet is not null)
-            {
-                var frames = Data.calibrationFrameSet.Frames;
-                if (frames.Count == 0) return;
+            //if (Data.calibrationFrameSet is not null)
+            //{
+            //    var frames = Data.calibrationFrameSet.Frames;
+            //    if (frames.Count == 0) return;
 
-                double xStep = widthMovementCanvas / (double)((int)Math.Ceiling((double)frames.Count / 100.0) * 100);
+            //    double xStep = widthMovementCanvas / (double)((int)Math.Ceiling((double)frames.Count / 100.0) * 100);
 
-                double maxMovement = Math.Clamp(Data.calibrationFrameSet.MaxMovementFactor, 0.0, CalibrationFrameSet.MOVEMENT_LARGEVALUE);
-                double maxBlur = Data.calibrationFrameSet.MaxBlurFactor * 1.1;
+            //    double maxMovement = Math.Clamp(Data.calibrationFrameSet.MaxMovementFactor, 0.0, CalibrationFrameSet.MOVEMENT_LARGEVALUE);
+            //    double maxBlur = Data.calibrationFrameSet.MaxBlurFactor * 1.1;
 
 
-                double x;
-                int i = 0;
-                foreach (var frame in frames.Values)
-                {
-                    x = i * xStep;
+            //    double x;
+            //    int i = 0;
+            //    foreach (var frame in frames.Values)
+            //    {
+            //        x = i * xStep;
 
-                    try
-                    {
-                        if (frame.MovementFactor != -1)
-                        {
-                            double movementFactor = frame.MovementFactor;
-                            movementFactor = Math.Clamp(movementFactor, 0.0, CalibrationFrameSet.MOVEMENT_LARGEVALUE);
+            //        try
+            //        {
+            //            if (frame.MovementFactor != -1)
+            //            {
+            //                double movementFactor = frame.MovementFactor;
+            //                movementFactor = Math.Clamp(movementFactor, 0.0, CalibrationFrameSet.MOVEMENT_LARGEVALUE);
 
-                            double yMovement = heightMovementCanvas * (1 - movementFactor / maxMovement);
+            //                double yMovement = heightMovementCanvas * (1 - movementFactor / maxMovement);
 
-                            movementPoints.Add(new Point(x, yMovement));
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        // Handle the exception as needed
-                        System.Diagnostics.Debug.WriteLine($"Movement Error processing frame {i}: {ex.Message}");
-                    }
+            //                movementPoints.Add(new Point(x, yMovement));
+            //            }
+            //        }
+            //        catch (Exception ex)
+            //        {
+            //            // Handle the exception as needed
+            //            System.Diagnostics.Debug.WriteLine($"Movement Error processing frame {i}: {ex.Message}");
+            //        }
 
-                    try
-                    {
-                        double yBlur = heightBlurCanvas * (1 - frame.BlurFactor / maxBlur);
-                        blurPoints.Add(new Point(x, yBlur));
-                    }
-                    catch (Exception ex)
-                    {
-                        // Handle the exception as needed
-                        System.Diagnostics.Debug.WriteLine($"Blur Error processing frame {i}: {ex.Message}");
-                    }
+            //        try
+            //        {
+            //            double yBlur = heightBlurCanvas * (1 - frame.BlurFactor / maxBlur);
+            //            blurPoints.Add(new Point(x, yBlur));
+            //        }
+            //        catch (Exception ex)
+            //        {
+            //            // Handle the exception as needed
+            //            System.Diagnostics.Debug.WriteLine($"Blur Error processing frame {i}: {ex.Message}");
+            //        }
 
-                    i++;
-                }
-            }
-            else if (Data.calibrationStereoFrameSet is not null)
+            //        i++;
+            //    }
+            //}
+            /*else */if (Data.calibrationStereoFrameSet is not null)
             {
                 var frames = Data.calibrationStereoFrameSet.Frames;
                 if (frames.Count == 0) return;
 
                 double xStep = widthMovementCanvas / (double)((int)Math.Ceiling((double)frames.Count / 100.0) * 100);
 
-                double maxMovement = Math.Clamp(Data.calibrationStereoFrameSet.MaxMovementFactor, 0.0, CalibrationFrameSet.MOVEMENT_LARGEVALUE);
+                double maxMovement = Math.Clamp(Data.calibrationStereoFrameSet.MaxMovementFactor, 0.0, CalibrationStereoFrameSet.MOVEMENT_LARGEVALUE);
                 double maxBlur = Data.calibrationStereoFrameSet.MaxBlurFactor * 1.1;
 
 
@@ -143,7 +143,7 @@ namespace Surveyor.Controls
                         if (frame is not null && frame.MovementFactor != -1)
                         {
                             double movementFactor = frame.MovementFactor;
-                            movementFactor = Math.Clamp(movementFactor, 0.0, CalibrationFrameSet.MOVEMENT_LARGEVALUE);
+                            movementFactor = Math.Clamp(movementFactor, 0.0, CalibrationStereoFrameSet.MOVEMENT_LARGEVALUE);
 
                             double yMovement = heightMovementCanvas * (1 - movementFactor / maxMovement);
 
@@ -266,6 +266,7 @@ namespace Surveyor.Controls
                             HorizontalAlignment = HorizontalAlignment.Center,
                             VerticalAlignment = VerticalAlignment.Center,
                             //Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources["CaptionTextBlockStyle"]
+                            //Width = 50,
                             FontSize = 10,
                             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                             Margin = new Thickness(0),
@@ -291,35 +292,35 @@ namespace Surveyor.Controls
             int gridIndex = 0;
 
 
-            if (Data.calibrationFrameSet is not null)
-            {
+            //if (Data.calibrationFrameSet is not null)
+            //{
 
-                foreach (var (gx, gy) in layers)
-                {
-                    // Safety check
-                    if (gridIndex >= BinGridItemsControl.Items.Count)
-                        break;
+            //    foreach (var (gx, gy) in layers)
+            //    {
+            //        // Safety check
+            //        if (gridIndex >= BinGridItemsControl.Items.Count)
+            //            break;
 
-                    if (BinGridItemsControl.Items[gridIndex] is Grid grid)
-                    {
-                        var counts = Data.calibrationFrameSet.GetBinCounts(gx, gy);
+            //        if (BinGridItemsControl.Items[gridIndex] is Grid grid)
+            //        {
+            //            var counts = Data.calibrationFrameSet.GetBinCounts(gx, gy);
 
-                        foreach (var child in grid.Children)
-                        {
-                            if (child is Border border && border.Child is TextBlock textBlock)
-                            {
-                                int column = Grid.GetColumn(border);
-                                int row = Grid.GetRow(border);
+            //            foreach (var child in grid.Children)
+            //            {
+            //                if (child is Border border && border.Child is TextBlock textBlock)
+            //                {
+            //                    int column = Grid.GetColumn(border);
+            //                    int row = Grid.GetRow(border);
 
-                                // Updated to use just column/row since gx/gy are implicit in the grid structure
-                                textBlock.Text = counts.TryGetValue((gx, gy, column, row), out int v) ? v.ToString() : "0";
-                            }
-                        }
-                    }
-                    gridIndex++;
-                }
-            }
-            else if (Data.calibrationStereoFrameSet is not null)
+            //                    // Updated to use just column/row since gx/gy are implicit in the grid structure
+            //                    textBlock.Text = counts.TryGetValue((gx, gy, column, row), out int v) ? v.ToString() : "0";
+            //                }
+            //            }
+            //        }
+            //        gridIndex++;
+            //    }
+            //}
+            /*else*/ if (Data.calibrationStereoFrameSet is not null)
             {
                 foreach (var (gx, gy) in layers)
                 {

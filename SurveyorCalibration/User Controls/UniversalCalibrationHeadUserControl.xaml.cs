@@ -386,6 +386,8 @@ namespace Surveyor.Controls
         {
             try
             {
+                isFindCalibrationFrameRunning = true;
+
                 appMode = AppMode.FindCalibrationsFrames;
                 SetUIControls();
 
@@ -405,7 +407,7 @@ namespace Surveyor.Controls
                     // Next find the calibration frames with in that range
                     int framesCount = await Task.Run(() =>
                     {
-                        isFindCalibrationFrameRunning = true;
+
                         try
                         {
                             return calibrationStereoFrameSet.FindCalibrationsFrames(
@@ -419,7 +421,7 @@ namespace Surveyor.Controls
                             isFindCalibrationFrameRunning = false;
                         }
                     });
-                }
+                }                
             }
             catch (OperationCanceledException)
             {
@@ -431,7 +433,7 @@ namespace Surveyor.Controls
             }
             finally
             {
-                appMode = AppMode.Open;
+                appMode = AppMode.Open;                
                 SetUIControls();
             }
         }
@@ -476,7 +478,7 @@ namespace Surveyor.Controls
                     if (await SaveBestFiles())
                     {
                         // Update the left image viewers with the saved frames
-                        string documentsFolder = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+                        string documentsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "SurveyorCalibration");
                         string outputPathLeft = MakeAndCreateFramesDirectory(documentsFolder, leftMediaFileSpec, false);
 
                         string searchPath = Path.Combine(outputPathLeft, "*.png");

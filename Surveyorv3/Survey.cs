@@ -527,6 +527,7 @@ namespace Surveyor
 
                 [JsonIgnore]
                 private bool _isDirty;
+
                 [JsonIgnore]
                 public bool IsDirty
                 {
@@ -582,6 +583,9 @@ namespace Surveyor
                 private bool? _allowMultipleCalibrationData = false;
 
                 [JsonIgnore]
+                private string? _calibrationInherited = null;
+
+                [JsonIgnore]
                 private int _preferredCalibrationDataIndex = -1;
 
                 [JsonIgnore]
@@ -589,6 +593,8 @@ namespace Surveyor
 
 
                 // Setters and getters
+
+                [JsonProperty(nameof(AllowMultipleCalibrationData))]
                 public bool? AllowMultipleCalibrationData
                 {
                     get => _allowMultipleCalibrationData;
@@ -602,6 +608,22 @@ namespace Surveyor
                     }
                 }
 
+
+                [JsonProperty(nameof(CalibrationInherited))]
+                public string? CalibrationInherited
+                {
+                    get => _calibrationInherited;
+                    set
+                    {
+                        if (_calibrationInherited != value)
+                        {
+                            _calibrationInherited = value;
+                            IsDirty = true;
+                        }
+                    }
+                }
+
+                [JsonProperty(nameof(PreferredCalibrationDataIndex))]
                 public int PreferredCalibrationDataIndex
                 {
                     get => _preferredCalibrationDataIndex;
@@ -682,6 +704,59 @@ namespace Surveyor
                         }
                     }
                     return null;
+                }
+
+
+                /// <summary>
+                /// Clones the CalibrationClass instance, including its collection of CalibrationData.
+                /// Uses json serialization to create a deep copy of the object.
+                /// </summary>
+                /// <returns></returns>
+                /// <exception cref="InvalidOperationException"></exception>
+                public CalibrationClass Clone()
+                {
+                    var settings = new JsonSerializerSettings
+                    {
+                        Converters = [new CalibrationDataListJsonConverter()]
+                    };
+
+                    var json = JsonConvert.SerializeObject(this, settings);
+                    var clone = JsonConvert.DeserializeObject<CalibrationClass>(json, settings)
+                                ?? throw new InvalidOperationException("Failed to clone CalibrationClass.");
+
+                    // Reset IsDirty
+                    clone.IsDirty = false;
+
+                    // Re-hook collection change event if needed
+                    clone.CalibrationDataList.CollectionChanged += clone.CollectionChangedHandler;
+
+                    return clone;
+                }
+
+
+                /// <summary>
+                /// Used to copy the properties from another CalibrationClass instance.
+                /// </summary>
+                /// <param name="source"></param>
+                /// <exception cref="ArgumentNullException"></exception>
+                public void CopyFrom(CalibrationClass source)
+                {
+                    ArgumentNullException.ThrowIfNull(source);
+
+                    // Clone first to ensure we're working from a stable snapshot
+                    var clone = source.Clone();
+
+                    AllowMultipleCalibrationData = clone.AllowMultipleCalibrationData;
+                    CalibrationInherited = clone.CalibrationInherited;
+                    PreferredCalibrationDataIndex = clone.PreferredCalibrationDataIndex;
+
+                    // Replace CalibrationDataList with a new ObservableCollection so we preserve event wiring
+                    CalibrationDataList = new ObservableCollection<CalibrationData>(clone.CalibrationDataList);
+
+                    // Re-hook collection changed event
+                    CalibrationDataList.CollectionChanged += CollectionChangedHandler;
+
+                    IsDirty = true;
                 }
 
 
@@ -805,6 +880,47 @@ namespace Surveyor
                         
                     }
                 }
+
+
+                /// <summary>
+                /// Clones the SurveyRulesClass instance.
+                /// Uses json serialization to create a deep copy of the object.
+                /// </summary>
+                /// <returns></returns>
+                /// <exception cref="InvalidOperationException"></exception>
+                public SurveyRulesClass Clone()
+                {
+                    var json = JsonConvert.SerializeObject(this);
+                    var clone = JsonConvert.DeserializeObject<SurveyRulesClass>(json)
+                                ?? throw new InvalidOperationException("Failed to clone SurveyRulesClass.");
+
+                    // Reset IsDirty
+                    clone.IsDirty = false;
+
+                    return clone;
+                }
+
+
+                /// <summary>
+                /// Used to copy the properties from another SurveyRulesClass instance.
+                /// </summary>
+                /// <param name="source"></param>
+                /// <exception cref="ArgumentNullException"></exception>
+                public void CopyFrom(SurveyRulesClass source)
+                {
+                    ArgumentNullException.ThrowIfNull(source);
+
+                    // Clone first to ensure we're working from a stable snapshot
+                    var clone = source.Clone();
+
+                    SurveyRulesActive = clone.SurveyRulesActive;
+                    SurveyRulesInherited = clone.SurveyRulesInherited;
+                    SurveyRulesData = clone.SurveyRulesData;
+
+                    IsDirty = true;
+                }
+
+
 
                 /// 
                 /// EVENTS

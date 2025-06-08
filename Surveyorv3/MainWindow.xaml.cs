@@ -452,9 +452,7 @@ namespace Surveyor
                     return;
             }
 
-            // Recheck of the projectClass is null
-
-
+            // Recheck if the SurveyClass is null
             if (surveyClass is not null &&
                 surveyClass.IsLoaded &&
                 !string.IsNullOrEmpty(surveyClass.Data.Info.SurveyPath))
@@ -772,8 +770,20 @@ namespace Surveyor
                     // Inform the EventControl of the new survey events
                     eventsControl.SetEvents(surveyClass.Data.Events.EventList);
 
+                    // Get the name (if any) of a potential survey to inherit information from
+                    string potentialSurveyToInheritFrom = string.Empty;                    
+                    string[]? recentSurveys = ApplicationData.Current.LocalSettings.Values[RECENT_SURVEYS_KEY] as string[];
+                    if (recentSurveys is not null && recentSurveys.Length > 0)
+                    {
+                        potentialSurveyToInheritFrom = recentSurveys[0];
+                        if (File.Exists(potentialSurveyToInheritFrom) == false)
+                            potentialSurveyToInheritFrom = string.Empty;
+                    }
+
                     // Load the Info and Media user control to setup the survey
-                    SurveyInfoAndMediaUserControl.SetupForContentDialog(SurveyInfoAndMediaContentDialog, mediaFilesSelected);
+                    SurveyInfoAndMediaUserControl.SetupForContentDialog(SurveyInfoAndMediaContentDialog, 
+                                                                        mediaFilesSelected,
+                                                                        Path.GetFileName(potentialSurveyToInheritFrom)/*used to display the name of the inheritance survey only*/);
                     SurveyInfoAndMediaUserControl.SetReporter(report);
 
                     try
@@ -790,7 +800,17 @@ namespace Surveyor
                         ContentDialogResult result = await SurveyInfoAndMediaContentDialog.ShowAsync();
                         if (result == ContentDialogResult.Primary)
                         {
-                            SurveyInfoAndMediaUserControl.SaveForContentDialog(surveyClass);
+                            // Copy the survey info and media info setup in the dialog into the surevey class
+                            bool inheritanceRequested = SurveyInfoAndMediaUserControl.SaveForContentDialog(surveyClass);
+
+                            // Inherit information from recent survey if user requested
+                            if (inheritanceRequested == true && !string.IsNullOrEmpty(potentialSurveyToInheritFrom))
+                            {
+                                // Copies select information (calibration and/or rules)
+                                SurveyInheritance surveyInheritance = new();
+                                await surveyInheritance.InheritFromSurvey(this, report, surveyClass, potentialSurveyToInheritFrom);
+                            }
+
 
                             // Open Media Files
                             await OpenSVSMediaFiles();
@@ -805,7 +825,7 @@ namespace Surveyor
                 }
             }
             
-            SetMenuStatusBasedOnProjectState();
+            SetMenuStatusBasedOnSurveyState();
 
             // Reset Info Bar dismissed status
             infoBarCalibrationMissingDismissed = false;
@@ -860,8 +880,8 @@ namespace Surveyor
                     await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
                 }
 
-                // Enable/Disable menu items based on the current project state
-                SetMenuStatusBasedOnProjectState();
+                // Enable/Disable menu items based on the current survey state
+                SetMenuStatusBasedOnSurveyState();
             }
         }
 
@@ -871,13 +891,19 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FileSurveySave_Click(object? sender, RoutedEventArgs? e)
+        private async void FileSurveySave_Click(object? sender, RoutedEventArgs? e)
+        {
+            await FileSurveySaveOrSaveAs();
+        }
+
+        private async Task FileSurveySaveOrSaveAs()
         {
             if (surveyClass is not null)
             {
                 if (surveyClass.Data.Info.SurveyPath == null || surveyClass.Data.Info.SurveyFileName == null)
                 {
-                    FileSurveySaveAs_Click(sender, e);
+                    // Not saved yet so use 'Save As'
+                    await SaveAsSurvey();
                 }
                 else
                 {
@@ -888,8 +914,9 @@ namespace Surveyor
 
             report.Save();
 
-            SetMenuStatusBasedOnProjectState();
+            SetMenuStatusBasedOnSurveyState();
         }
+
 
         /// <summary>
         /// Save the currently open survey file with a new name
@@ -902,7 +929,7 @@ namespace Surveyor
 
             report.Save();
 
-            SetMenuStatusBasedOnProjectState();
+            SetMenuStatusBasedOnSurveyState();
         }
 
 
@@ -926,6 +953,13 @@ namespace Surveyor
 
                         if (ret == 0)
                         {
+                            // Force to the top of the recent surveys list
+                            // Note this survey is definately in the recent survey list
+                            // but may be the top item. As the new last opened survey it
+                            // should be top
+                            AddToRecentSurveys(filePath);
+                            UpdateRecentSurveysMenu();
+
                             // Check if the preferred calibration data is the one being using for
                             // the current event measurements calculations
                             await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
@@ -972,8 +1006,8 @@ namespace Surveyor
                     }
                 }
 
-                // Enable/Disable menu items based on the current project state
-                SetMenuStatusBasedOnProjectState();
+                // Enable/Disable menu items based on the current survey state
+                SetMenuStatusBasedOnSurveyState();
             }
         }
 
@@ -1700,14 +1734,14 @@ namespace Surveyor
         /// <param name="e"></param>        
         private void LeftSubGrid_MouseWheel(object sender, PointerRoutedEventArgs e)
         {
-            if (experimentalEnabled &&  experimentalFeatureSetBEnabled)
+            // Manage the mag window size/zoom
+            MediaPlayerLeft.MouseWheelEvent(sender, e);
+            if (e.Handled == true)
+                return;
+
+            if (SettingsManagerLocal.MouseWheelFrameMoveEnabled)
             {
-                MediaPlayerLeft.MouseWheelEvent(sender, e);
-                if (e.Handled == true)
-                    return;
-            }
-            if (experimentalEnabled && experimentalFeatureSetAEnabled)
-            {
+                // Move the frame
                 MediaControlPrimary.MouseWheelEvent(sender, e);
             }
         }
@@ -1715,12 +1749,14 @@ namespace Surveyor
         {
             if (experimentalEnabled && experimentalFeatureSetBEnabled)
             {
+                // Manage the mag window size/zoom
                 MediaPlayerRight.MouseWheelEvent(sender, e);
                 if (e.Handled == true)
                     return;
             }
-            if (experimentalEnabled && experimentalFeatureSetAEnabled)
+            if (SettingsManagerLocal.MouseWheelFrameMoveEnabled)
             {
+                // Move the frame
                 MediaControlSecondary.MouseWheelEvent(sender, e);
             }
         }
@@ -1992,7 +2028,7 @@ namespace Surveyor
                         //???LMediaPlayer.SetMeasurementPointControl(measurementPointControl);
                         //???RMediaPlayer.SetMeasurementPointControl(measurementPointControl);
 
-                        // Report Project details
+                        // Report Survey details
                         string calibrationStatus;
                         if (surveyClass.Data.Calibration.CalibrationDataList.Count == 0)
                             calibrationStatus = "No Calibration Data";
@@ -2111,7 +2147,7 @@ namespace Surveyor
 
             if (this.surveyClass is not null)
             {
-                bool closeProject = false;
+                bool closeSurvey = false;
 
                 if (this.surveyClass.IsDirty == true)
                 {
@@ -2126,7 +2162,7 @@ namespace Surveyor
 
                     ContentDialog confirmationDialog = new()
                     {
-                        Title = "Close Project",
+                        Title = "Close Survey",
                         Content = new StackPanel
                         {
                             Orientation = Orientation.Horizontal,
@@ -2158,22 +2194,22 @@ namespace Surveyor
                     if (result == ContentDialogResult.Primary)
                     {
                         // "Yes" button clicked
-                        FileSurveySave_Click(null, null);
-                            closeProject = true;
+                        await FileSurveySaveOrSaveAs();                        
+                        closeSurvey = true;
 
                     }
                     else if (result == ContentDialogResult.Secondary)
                     {
                         // "No" button clicked
-                        closeProject = true;
+                        closeSurvey = true;
                     }
                     // If the select Cancel the Close Survey request is cancelled
                 }
                 else
-                    closeProject = true;
+                    closeSurvey = true;
 
 
-                if (closeProject == true)
+                if (closeSurvey == true)
                 {
                     // Wait for things to settle
                     await Task.Delay(200);
@@ -2181,7 +2217,7 @@ namespace Surveyor
                     // Closes the StereoMediaController, clears the title and the sync indicator
                     await CloseSVSMediaFiles();
 
-                    // Close and clear the Project class (holds the survey data)
+                    // Close and clear the Survey class (holds the survey data)
                     if (surveyClass is not null)
                     {
                         await surveyClass.SurveyClose();
@@ -2206,7 +2242,7 @@ namespace Surveyor
             else
                 ret = true;
 
-            SetMenuStatusBasedOnProjectState();
+            SetMenuStatusBasedOnSurveyState();
 
             // Display the missing calibration warning InfoBar if necessary
             infoBarCalibrationMissingDismissed = false;
@@ -2468,7 +2504,7 @@ namespace Surveyor
         /// <summary>
         /// Used to set the status of the menu options based on the state of the survey
         /// </summary>
-        private void SetMenuStatusBasedOnProjectState()
+        private void SetMenuStatusBasedOnSurveyState()
         {
             if (surveyClass is not null /*&& this.projectClass.IsLoaded == true*/)
             {

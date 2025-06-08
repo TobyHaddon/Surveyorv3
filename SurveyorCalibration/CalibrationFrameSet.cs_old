@@ -366,59 +366,5 @@ namespace Surveyor.Calibration
         /*** End of CalibrationFrameSet ***/
     }
 
-    public class TupleInt4JsonConverter : JsonConverter
-    {
-        public override bool CanConvert(Type objectType)
-        {
-            return objectType == typeof(Dictionary<(int, int, int, int), int>);
-        }
-
-        public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
-        {
-            var result = new Dictionary<(int, int, int, int), int>();
-            var obj = JObject.Load(reader);
-
-            foreach (var prop in obj.Properties())
-            {
-                // Parse string key: "(6, 4, 3, 0)"
-                var keyString = prop.Name.Trim('(', ')');
-                var parts = keyString.Split(',');
-
-                if (parts.Length == 4 &&
-                    int.TryParse(parts[0], out int a) &&
-                    int.TryParse(parts[1], out int b) &&
-                    int.TryParse(parts[2], out int c) &&
-                    int.TryParse(parts[3], out int d))
-                {
-                    var key = (a, b, c, d);
-                    var value = prop.Value.ToObject<int>();
-                    result[key] = value;
-                }
-            }
-
-            return result;
-        }
-
-        public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
-        {
-            var dict = value as Dictionary<(int, int, int, int), int>;
-            if (dict == null)
-            {
-                writer.WriteNull();
-                return;
-            }
-
-            writer.WriteStartObject();
-            foreach (var kvp in dict)
-            {
-                string key = $"({kvp.Key.Item1}, {kvp.Key.Item2}, {kvp.Key.Item3}, {kvp.Key.Item4})";
-                writer.WritePropertyName(key);
-                writer.WriteValue(kvp.Value);
-            }
-            writer.WriteEndObject();
-        }
-
-        /*** End of TupleInt4JsonConverter ***/
-    }
 }
 

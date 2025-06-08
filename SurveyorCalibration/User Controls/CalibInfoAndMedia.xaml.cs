@@ -49,8 +49,16 @@ namespace Surveyor.User_Controls
         private ObservableCollection<MediaFileItem> RightStereoMediaFileItemList { get; set; }
 
 
-        private bool? trueFullCalibratiobSetFalseStereoOnly = true; 
+        public enum StereoMonoMediaSetMode
+        {
+            MonoAndStereoMediaSet,  // A stereo pair plus a mono pair
+            StereoOnlyMediaSet,     // A stereo pair only
+            MonoPairOnlyMediaSet,   // A mono pair only
+            MonoSingleOnlyMediaSet,  // A single mono file only
+            None
+        };
 
+        private StereoMonoMediaSetMode stereoMonoMediaSetMode = StereoMonoMediaSetMode.MonoAndStereoMediaSet; 
 
         public CalibInfoAndMedia()
         {
@@ -120,7 +128,7 @@ namespace Surveyor.User_Controls
             calibProject.Data.Media.Clear();
             calibProject.Data.Calibration.Clear();
 
-            calibProject.Data.Media.TrueFullCalibratiobSetFalseStereoOnly = trueFullCalibratiobSetFalseStereoOnly ?? true; // Default to true if null
+            calibProject.Data.Media.StereoMonoMediaSetMode = stereoMonoMediaSetMode; 
 
             // Save the media files
             if (LeftMonoMediaFileNames is not null && RightMonoMediaFileNames is not null &&
@@ -196,21 +204,38 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>        
         private void StereoMonoRadioButtons_SelectionChanged(object sender, RoutedEventArgs e)
         {
-            bool newTrueFullCalibratiobSetFalseStereoOnly;
+            StereoMonoMediaSetMode newStereoMonoMediaSetMode = StereoMonoMediaSetMode.None;
+
             if (MonoAndStereoMediaSetRadioButton.IsChecked == true)
             {
                 // Handle mono+stereo selection
-                newTrueFullCalibratiobSetFalseStereoOnly = true;
+                newStereoMonoMediaSetMode = StereoMonoMediaSetMode.MonoAndStereoMediaSet;
             }
-            else // if (StereoOnlyMediaSetRadioButton.IsChecked == true)
+            else if (StereoOnlyMediaSetRadioButton.IsChecked == true)
             {
                 // Handle stereo-only selection
-                newTrueFullCalibratiobSetFalseStereoOnly = false;
+                newStereoMonoMediaSetMode = StereoMonoMediaSetMode.StereoOnlyMediaSet;
+            }
+            else if (MonoPairOnlyMediaSetRadioButton.IsChecked == true)
+            {
+                // Handle mono pair selection
+                newStereoMonoMediaSetMode = StereoMonoMediaSetMode.MonoPairOnlyMediaSet;
+            }
+            else if (MonoSingleOnlyMediaSetRadioButton.IsChecked == true)
+            {
+                // Handle single mono file selection
+                newStereoMonoMediaSetMode = StereoMonoMediaSetMode.MonoSingleOnlyMediaSet;
+            }
+            else
+            {
+                // No valid selection
+                newStereoMonoMediaSetMode = StereoMonoMediaSetMode.None;
             }
 
-            if (newTrueFullCalibratiobSetFalseStereoOnly != trueFullCalibratiobSetFalseStereoOnly)
+
+            if (newStereoMonoMediaSetMode != stereoMonoMediaSetMode)
             {
-                trueFullCalibratiobSetFalseStereoOnly = newTrueFullCalibratiobSetFalseStereoOnly;
+                stereoMonoMediaSetMode = newStereoMonoMediaSetMode;
                 EnableDisableControlButtons();
             }
         }
@@ -526,26 +551,36 @@ namespace Surveyor.User_Controls
                         mediaFileItemList.Add(item);
                     }
 
-                    if (trueFullCalibratiobSetFalseStereoOnly is not null && 
-                        (bool)trueFullCalibratiobSetFalseStereoOnly)
+                    switch (stereoMonoMediaSetMode)
                     {
+                        case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                            // Try to figure out which is the left and which is the right media file                        
+                            (LeftStereoMediaFileItemList, RightStereoMediaFileItemList, LeftMonoMediaFileItemList, RightMonoMediaFileItemList, _) = SplitIntoStereoAndMonoChannels(mediaFileItemList);
 
-                        // Try to figure out which is the left and which is the right media file                        
-                        (LeftStereoMediaFileItemList, RightStereoMediaFileItemList, LeftMonoMediaFileItemList, RightMonoMediaFileItemList, _) = SplitIntoStereoAndMonoChannels(mediaFileItemList);
+                            // Bind the collection to the ListView
+                            LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
+                            RightMonoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
+                            LeftStereoMediaFileNames.ItemsSource = LeftStereoMediaFileItemList;
+                            RightStereoMediaFileNames.ItemsSource = RightStereoMediaFileItemList;
+                            break;
+                        case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                            (LeftMonoMediaFileItemList, RightMonoMediaFileItemList, _) = DetectLeftAndRightMediaFile(mediaFileItemList);
 
-                        // Bind the collection to the ListView
-                        LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
-                        RightMonoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
-                        LeftStereoMediaFileNames.ItemsSource = LeftStereoMediaFileItemList;
-                        RightStereoMediaFileNames.ItemsSource = RightStereoMediaFileItemList;
-                    }
-                    else
-                    {                        
-                        (LeftMonoMediaFileItemList, RightMonoMediaFileItemList, _) = DetectLeftAndRightMediaFile(mediaFileItemList);
+                            // Bind the collection to the ListView
+                            LeftStereoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
+                            RightStereoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
+                            break;
+                        case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                            (LeftMonoMediaFileItemList, RightMonoMediaFileItemList, _) = DetectLeftAndRightMediaFile(mediaFileItemList);
 
-                        // Bind the collection to the ListView
-                        LeftStereoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
-                        RightStereoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
+                            // Bind the collection to the ListView
+                            LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
+                            RightMonoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
+                            break;
+                        case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                            ObservableCollection<MediaFileItem> leftFiles = [];
+                            leftFiles.Add(mediaFileItemList[0]);
+                            break;
                     }
                 }
 
@@ -1463,7 +1498,7 @@ namespace Surveyor.User_Controls
         private void ResetDialogFields()
         {
             // Default to Mono and Stereo Media Set
-            trueFullCalibratiobSetFalseStereoOnly = true;
+            stereoMonoMediaSetMode = StereoMonoMediaSetMode.None;
             MonoAndStereoMediaSetRadioButton.IsChecked = true;
 
             LeftMonoMediaFileItemList.Clear();
@@ -1478,6 +1513,7 @@ namespace Surveyor.User_Controls
         /// changing the order of media files
         /// </summary>
         private GridLength monoListViewRowHeight = new GridLength(0);
+        private GridLength stereoListViewRowHeight = new GridLength(0);
         private void EnableDisableControlButtons()
         {
             bool moveItemAcrossTopRightIsEnabled = false;
@@ -1491,41 +1527,95 @@ namespace Surveyor.User_Controls
             bool deleteItemIsEnabled = false;
 
 
-            if (trueFullCalibratiobSetFalseStereoOnly == false)
+            // Remember the current heights
+            if (monoListViewRowHeight == new GridLength(0))
+                monoListViewRowHeight = MonoListViewRow.Height;
+            if (stereoListViewRowHeight == new GridLength(2))
+                stereoListViewRowHeight = MonoListViewRow.Height;
+
+
+            switch (stereoMonoMediaSetMode)
             {
-                // Ensure no mono item is selected
-                LeftMonoMediaFileNames.SelectedItem = null;
-                RightMonoMediaFileNames.SelectedItem = null;
+                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                    // Restore the mono & stereo title grid row
+                    MonoTitleRow.Height = GridLength.Auto;
+                    StereoTitleRow.Height = GridLength.Auto;
 
-                // Hide the mono title grid row
-                MonoTitleRow.Height = new GridLength(0);
-                if (monoListViewRowHeight == new GridLength(0))
-                    monoListViewRowHeight = MonoListViewRow.Height; // Remember the current height
+                    // Restore the mono listview grid row
+                    MonoListViewRow.Height = monoListViewRowHeight;
+                    StereoListViewRow.Height = monoListViewRowHeight;
 
-                // Hide the mono listview grid row
-                MonoListViewRow.Height = new GridLength(0);
+                    // Show right mono
+                    RightMonoMediaFileNames.IsEnabled = true;
 
-                // Hide the up/down buttons
-                LeftSideMoveItemUp.Visibility = Visibility.Collapsed;
-                LeftSideMoveItemDown.Visibility = Visibility.Collapsed;
-                RightSideMoveItemUp.Visibility = Visibility.Collapsed;
-                RightSideMoveItemDown.Visibility = Visibility.Collapsed;
+                    // Hide the up/down buttons
+                    LeftSideMoveItemUp.Visibility = Visibility.Visible;
+                    LeftSideMoveItemDown.Visibility = Visibility.Visible;
+                    RightSideMoveItemUp.Visibility = Visibility.Visible;
+                    RightSideMoveItemDown.Visibility = Visibility.Visible;
+                    break;
 
+                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                    // Ensure no mono item is selected
+                    LeftMonoMediaFileNames.SelectedItem = null;
+                    RightMonoMediaFileNames.SelectedItem = null;
+
+                    // Hide the mono title grid row
+                    MonoTitleRow.Height = new GridLength(0);
+
+                    // Hide the mono listview grid row
+                    MonoListViewRow.Height = new GridLength(0);
+
+                    // Hide the up/down buttons
+                    LeftSideMoveItemUp.Visibility = Visibility.Collapsed;
+                    LeftSideMoveItemDown.Visibility = Visibility.Collapsed;
+                    RightSideMoveItemUp.Visibility = Visibility.Collapsed;
+                    RightSideMoveItemDown.Visibility = Visibility.Collapsed;
+                    break;
+
+                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                    // Ensure no stereo item is selected
+                    LeftStereoMediaFileNames.SelectedItem = null;
+                    RightStereoMediaFileNames.SelectedItem = null;
+
+                    // Hide the stereo title grid row
+                    StereoTitleRow.Height = new GridLength(0);
+
+                    // Hide the stereo listview grid row
+                    StereoListViewRow.Height = new GridLength(0);
+
+                    // Show right mono
+                    RightMonoMediaFileNames.IsEnabled = true;
+
+                    // Hide the up/down buttons
+                    LeftSideMoveItemUp.Visibility = Visibility.Collapsed;
+                    LeftSideMoveItemDown.Visibility = Visibility.Collapsed;
+                    RightSideMoveItemUp.Visibility = Visibility.Collapsed;
+                    RightSideMoveItemDown.Visibility = Visibility.Collapsed;
+                    break;
+
+                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                    // Ensure no stereo item is selected
+                    LeftStereoMediaFileNames.SelectedItem = null;
+                    RightStereoMediaFileNames.SelectedItem = null;
+
+                    // Hide the stereo title grid row
+                    StereoTitleRow.Height = new GridLength(0);
+
+                    // Hide the stereo listview grid row
+                    StereoListViewRow.Height = new GridLength(0);
+
+                    // Hide right mono
+                    RightMonoMediaFileNames.IsEnabled = false;
+
+                    // Hide the up/down buttons
+                    LeftSideMoveItemUp.Visibility = Visibility.Collapsed;
+                    LeftSideMoveItemDown.Visibility = Visibility.Collapsed;
+                    RightSideMoveItemUp.Visibility = Visibility.Collapsed;
+                    RightSideMoveItemDown.Visibility = Visibility.Collapsed;
+                    break;
             }
-            else 
-            {
-                // Restore the mono title grid row
-                MonoTitleRow.Height = GridLength.Auto;
 
-                // Restore the mono listview grid row
-                MonoListViewRow.Height = monoListViewRowHeight;
-
-                // Hide the up/down buttons
-                LeftSideMoveItemUp.Visibility = Visibility.Visible;
-                LeftSideMoveItemDown.Visibility = Visibility.Visible;
-                RightSideMoveItemUp.Visibility = Visibility.Visible;
-                RightSideMoveItemDown.Visibility = Visibility.Visible;
-            }
 
 
             if (LeftMonoMediaFileNames.SelectedItem is MediaFileItem)

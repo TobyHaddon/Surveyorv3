@@ -38,10 +38,10 @@
                     <GridView.ItemContainerStyle>
                         <Style TargetType="GridViewItem">
                             <Setter Property="Padding" Value="0"/>
-                            <Setter Property="Margin" Value="0"/>
+                            <Setter Property="Padding" Value="0"/>
                             <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
-                            </Style>
+                        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                        </Style>
                     </GridView.ItemContainerStyle>
                 </GridView>
             </StackPanel>

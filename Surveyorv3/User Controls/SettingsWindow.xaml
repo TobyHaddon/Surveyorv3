@@ -7,6 +7,7 @@
     xmlns:surveyor="using:Surveyor" 
     xmlns:ex="using:WinUIEx"
     xmlns:surveyorControls="using:Surveyor.User_Controls"
+    xmlns:converters="using:Surveyor.Converters"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     MinWidth="1100"
     MinHeight="800"
@@ -18,7 +19,7 @@
     <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Unloaded="RootGrid_Unloaded">
 
         <Grid.Resources>
-            <surveyorControls:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         </Grid.Resources>
 
         <Grid.RowDefinitions>
@@ -122,6 +123,14 @@
                                 <FontIcon Glyph="&#xE701;" ToolTipService.ToolTip="When the internet is available the application is allowed to download images and upload data."/>
                             </toolkit:SettingsCard.HeaderIcon>
                             <ToggleSwitch x:Name="UseInternet" Toggled="UseInternet_Toggled" />
+                        </toolkit:SettingsCard>
+
+                        <!-- Mousewheel frame forward/back -->
+                        <toolkit:SettingsCard Header="Mousewheel Frame Forward/Back" Description="Use the mousewheel or a two fingers swipe to move the frame forward or back">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE65A;" ToolTipService.ToolTip="You can use either the mousewheel or a two fingers swipe up/down on the trackpad to move the frame forward or back in the video.  The pointer needs to be on the media player and the magnifier window cannot be open."/>
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <ToggleSwitch x:Name="MouseWheelFrameMove" Toggled="MouseWheelFrameMoveEnabled_Toggled" />
                         </toolkit:SettingsCard>
 
                         <!-- Teaching Tips -->
@@ -317,6 +326,8 @@
                                                  BorderBrush="Gray" Margin="0,5,20,0"/>
 
                                     </StackPanel>
+                                    <CheckBox x:Name="GoProQRSetDateTime" Content="Set Date &amp; Time"
+                                              IsChecked="True" IsEnabled="True"/>
                                     
                                     <!-- Display Scrip QR Code-->
                                     <Image x:Name="GoProQRCode"  HorizontalAlignment="Right" Grid.Column="1" Width="400" Height="400" Margin="10,0,00,0"/>

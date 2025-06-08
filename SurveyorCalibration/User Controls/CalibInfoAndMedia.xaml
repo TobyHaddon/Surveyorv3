@@ -77,6 +77,16 @@
                          Content="Stereo Calibration Media Set Only"
                          GroupName="StereoMonoGroup"
                          Checked="StereoMonoRadioButtons_SelectionChanged"/>
+
+                <RadioButton x:Name="MonoPairOnlyMediaSetRadioButton"
+                         Content="Mono Calibration Media Pair Only"
+                         GroupName="StereoMonoGroup"
+                         Checked="StereoMonoRadioButtons_SelectionChanged"/>
+
+                <RadioButton x:Name="MonoSingleOnlyMediaSetRadioButton"
+                         Content="Mono Calibration Media Single Only"
+                         GroupName="StereoMonoGroup"
+                         Checked="StereoMonoRadioButtons_SelectionChanged"/>
             </StackPanel>
 
 
@@ -94,8 +104,8 @@
                 <Grid.RowDefinitions>
                     <RowDefinition x:Name="MonoTitleRow" Height="Auto"/>
                     <RowDefinition x:Name="MonoListViewRow" Height="150"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="150"/>
+                    <RowDefinition x:Name="StereoTitleRow" Height="Auto"/>
+                    <RowDefinition x:Name="StereoListViewRow" Height="150"/>
                 </Grid.RowDefinitions>
                 
                 <!--Left Mono Camera Media Files-->

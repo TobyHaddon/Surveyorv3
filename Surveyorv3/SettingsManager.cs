@@ -32,6 +32,7 @@ namespace Surveyor
         private const string SurveyFolderKey = "SurveyFolder";
         private const string MediaFrameFolderKey = "MediaFrameFolder";
         private const string DiagnosticInformationKey = "DiagnosticInformation";
+        private const string MouseWheelFrameMoveEnabledKey = "MouseWheelFrameMoveEnabled";
         private const string TelemetryKey = "Telemetry";
         private const string ExperimentalKey = "Experimental";
         private const string ExperimentalFeatureSetAKey = "ExperimentalFeatureSetA";
@@ -44,6 +45,7 @@ namespace Surveyor
         private const string AutoSaveEnabledKey = "AutoSaveEnabled";
         private const string SpeciesImageCacheEnabledKey = "SpeciesImageCacheEnabled";
         private const string ScientificNameOrderEnabledKey = "ScientificNameOrderEnabled";
+        private const string InheritFromLastSettingKey = "InheritFromLastSetting";
 
 
         // Path where new media (MP4) are typically imported from
@@ -87,11 +89,19 @@ namespace Surveyor
             }
         }
 
-        // Display Pointer Coordinates on screen
+        // Report More Diagnostic Information
         public static bool DiagnosticInformation
         {
             get => GetBool(DiagnosticInformationKey, false/*default*/);
             set => SetBool(DiagnosticInformationKey, value);
+        }
+
+
+        // Mousewheel/Two-finger scroll gesture in the media player window move frame forward/back
+        public static bool MouseWheelFrameMoveEnabled
+        {
+            get => GetBool(MouseWheelFrameMoveEnabledKey, false/*default*/);
+            set => SetBool(MouseWheelFrameMoveEnabledKey, value);
         }
 
 
@@ -270,6 +280,16 @@ namespace Surveyor
             get => GetBool(ScientificNameOrderEnabledKey, true/*default*/);
             set => SetBool(ScientificNameOrderEnabledKey, value);
 
+        }
+
+
+        /// <summary>
+        /// The last value of the 'InheritFrom' checkbox in the SurveyInfoAndMedia dialog
+        /// </summary>
+        public static bool InheritFromLastSetting
+        {
+            get => GetBool(InheritFromLastSettingKey, true/*default*/);
+            set => SetBool(InheritFromLastSettingKey, value);
         }
 
 

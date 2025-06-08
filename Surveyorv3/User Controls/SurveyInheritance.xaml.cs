@@ -1,28 +1,24 @@
-using MathNet.Numerics.Distributions;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using Surveyor.Events;
 using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
 
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
 
 namespace Surveyor.User_Controls
 {
     public sealed partial class SurveyInheritance : UserControl
     {
+        private MainWindow? mainWindow = null;
+        private Reporter? report = null;
+        Survey? survey = null;
+        string surveyInheritingFromFileSpec = string.Empty;
+
+
+        private ContentDialog? dialog = null;
+        private Survey? surveyInheritanceSource = null;
+
         public SurveyInheritance()
         {
             this.InitializeComponent();
@@ -30,83 +26,133 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Handle the edit or new (create) species info dialog
+        /// Allows the user in inherit Calibration data and Survey rules data from an
+        /// existing survey file
         /// </summary>
         /// <param name="mainWindow"></param>
         /// <param name="speciesInfo"></param>
         /// <param name="editExisting"></param>
         /// <returns>true is the speciesInfo parameter has been changed</returns>
-        public async Task<bool> InheritFromSurvey(MainWindow mainWindow, Reporter report, string surveyInheritingFromFileSpec)
+        public async Task<bool> InheritFromSurvey(MainWindow _mainWindow, Reporter _report, Survey _survey, string _surveyInheritingFromFileSpec)
         {
             bool ret = false;
+
+            // Remember
+            mainWindow = _mainWindow;
+            report = _report;
+            survey = _survey;
+            surveyInheritingFromFileSpec = _surveyInheritingFromFileSpec;
+
             bool doesInheritanceSourceHaveRules = false;
             bool doesInheritanceSourceHaveCalibration = false;
-            string leftCameraID = string.Empty;
-            string rightCameraID = string.Empty;
+
+            string surveyInheritingFromFileName = Path.GetFileName(surveyInheritingFromFileSpec);
 
             ClearControls();
 
             // Load the source survey
-            Survey surveyInheritanceSource = new(report);
+            surveyInheritanceSource = new(report);
+
 
             int surveyInheritanceSourceLoaded = await surveyInheritanceSource.SurveyLoad(surveyInheritingFromFileSpec);
-            if (surveyInheritanceSourceLoaded == 0)
+
+            try
             {
-                // Get and remember left GoPro serial number
-                leftCameraID = surveyInheritanceSource.Data.Media.LeftCameraID;
 
-                // Get and remember right GoPro serial number
-                rightCameraID = surveyInheritanceSource.Data.Media.RightCameraID;
-
-                // Check if rules exist
-                int rulesCount = CheckAtLeastOneRulePresent(surveyInheritanceSource);
-                if (surveyInheritanceSource.Data.SurveyRules.SurveyRulesActive == true &&
-                    rulesCount > 0)
+                if (surveyInheritanceSourceLoaded == 0)
                 {
-                    doesInheritanceSourceHaveRules = true;
+                    // Check if rules exist
+                    int rulesCount = CheckAtLeastOneRulePresent(surveyInheritanceSource);
+                    if (surveyInheritanceSource.Data.SurveyRules.SurveyRulesActive == true &&
+                        rulesCount > 0)
+                    {
+                        doesInheritanceSourceHaveRules = true;
+                    }
+
+                    // Check if calibration data exists
+                    int countCalibration = surveyInheritanceSource.Data.Calibration.CalibrationDataList.Count;
+                    if (countCalibration > 0)
+                    {
+                        doesInheritanceSourceHaveCalibration = true;
+                    }
                 }
 
-                // Check if calibration data exists
-                int countCalibration = surveyInheritanceSource.Data.Calibration.CalibrationDataList.Count;
-                if (countCalibration > 0)
+                // Create the dialog
+                dialog = new()
                 {
-                    doesInheritanceSourceHaveCalibration = true;
+                    Content = this,
+                    Title = "Inherit From Exisiting Survey",
+                    CloseButtonText = "Cancel",
+                    PrimaryButtonText = "Inherit",                   
+                    XamlRoot = mainWindow.Content.XamlRoot  // Set the XamlRoot property
+                };
+
+                // Setup the dialog test
+                if (!doesInheritanceSourceHaveRules && !doesInheritanceSourceHaveCalibration)
+                {
+                    dialog.IsPrimaryButtonEnabled = false;
+
+                    IneritFrom.Text = $"This are no survey rules or calibration information in {surveyInheritingFromFileName}, so there is nothing to inherit!";
+                    InheritRulesCheckBox.IsEnabled = false;
+                    InheritCalibrationCheckBox.IsEnabled = false;
+                }
+                else
+                {
+                    dialog.IsPrimaryButtonEnabled = true;
+
+                    IneritFrom.Text = $"{surveyInheritingFromFileName} has the following inheritable information:";
+
+                    // Make the Survey Rule checkbox visible and default to checked
+                    InheritRulesCheckBox.IsEnabled = doesInheritanceSourceHaveRules;
+                    InheritRulesCheckBox.IsChecked = doesInheritanceSourceHaveRules;
+
+                    // Make the Calibration Datea checkbox visible and default to checked
+                    InheritCalibrationCheckBox.IsEnabled = doesInheritanceSourceHaveCalibration;
+                    InheritCalibrationCheckBox.IsChecked = doesInheritanceSourceHaveCalibration;
                 }
 
-                // Close the inheritance source survey for now
+                
+                // Setup an open dialog handler
+                dialog.Opened += Dialog_Opened;
+
+
+                
+
+                // Show the dialog and handle the response
+                var result = await dialog.ShowAsync();
+
+                // Check if the Add button pressed
+                if (result == ContentDialogResult.Primary)
+                {
+                    if (InheritRulesCheckBox.IsChecked == true)
+                    {
+                        // Safely copies the survey ruilesfrom the source survey
+                        survey.Data.SurveyRules.CopyFrom(surveyInheritanceSource.Data.SurveyRules);
+                        surveyInheritanceSource.Data.SurveyRules.SurveyRulesInherited = surveyInheritingFromFileName;
+                    }
+
+                    if (InheritCalibrationCheckBox.IsChecked == true)
+                    {
+                        // Safely copies the calibration data from the source survey
+                        survey.Data.Calibration.CopyFrom(surveyInheritanceSource.Data.Calibration);
+                        survey.Data.Calibration.CalibrationInherited = surveyInheritingFromFileName;
+                    }
+
+                }
+
+                ClearControls();
+                dialog.Content = null;  // Detach the content after the dialog is closed
+            }
+            catch (Exception ex)
+            {
+                // Handle any exceptions that occur during the inheritance process
+                report?.Error("", $"InheritFromSurvey: An error occurred while inheriting from survey {surveyInheritingFromFileSpec}: {ex.Message}");
+            }
+            finally
+            {
                 await surveyInheritanceSource.SurveyClose();
             }
 
-            // Create the dialog
-            ContentDialog dialog = new()
-            {
-                Content = this,
-                Title = "Inherit From Exisiting Survey",
-                CloseButtonText = "Cancel",
-                PrimaryButtonText = "Inherit",
-                MaxWidth = 800, // <-- important!
-                MinWidth = 400,
-                XamlRoot = mainWindow.Content.XamlRoot  // Set the XamlRoot property
-            };
-
-            // Setup an open dialog handler
-            dialog.Opened += Dialog_Opened;
-
-
-
-            // Show the dialog and handle the response
-            var result = await dialog.ShowAsync();
-
-            // Check if the Add button pressed
-            if (result == ContentDialogResult.Primary)
-            {
-
-
-                // surveyInheritanceSource.Data.SurveyRules.SurveyRulesInherited
-            }
-
-            ClearControls();
-            dialog.Content = null;  // Detach the content after the dialog is closed
 
             return ret;
         }
@@ -126,7 +172,12 @@ namespace Surveyor.User_Controls
         {
             // Handle the dialog being opened
             EnableButtons();
+
+            // Display data validation text
+            EntryFieldsValid(true/*report*/);
         }
+
+
 
         ///
         /// PRIVATE
@@ -157,7 +208,13 @@ namespace Surveyor.User_Controls
         /// </summary>
         private void EnableButtons()
         {
-
+            if (dialog is not null)
+            {
+                if (InheritRulesCheckBox.IsChecked == true || InheritCalibrationCheckBox.IsChecked == true)
+                {
+                    dialog.IsPrimaryButtonEnabled = true;
+                }
+            }
         }
 
 
@@ -175,7 +232,7 @@ namespace Surveyor.User_Controls
             SurveyRulesData surveyRulesData = survey.Data.SurveyRules.SurveyRulesData;
 
             // Check if the range rule is setup
-            if (surveyRulesData.RangeRuleActive && surveyRulesData.RangeMin != 0.0 && surveyRulesData.RangeMax != 0.0)
+            if (surveyRulesData.RangeRuleActive && /*surveyRulesData.RangeMin != 0.0 ignore zero&&*/ surveyRulesData.RangeMax != 0.0)
             {
                 ruleCount++;
             }
@@ -200,5 +257,183 @@ namespace Surveyor.User_Controls
 
             return ruleCount;
         }
+
+
+        /// <summary>
+        /// Called when anything change to test the validity of the survey information and media
+        /// This is also shows on the users control whick fields are invalid
+        /// </summary>
+        /// <returns></returns>
+        /// 
+        enum EntryFieldsValidReturn
+        {
+            Invalid,
+            Valid,
+            Warning
+        }
+        private EntryFieldsValidReturn EntryFieldsValid(bool reportIssues)
+        {
+            EntryFieldsValidReturn ret = EntryFieldsValidReturn.Valid;
+
+            bool mediaGoProSNMatch = true;
+            bool mediaSameResolution = true;   // To Do if necessary
+            bool mediaSameFrameRate = true;   // To Do if necessary
+
+            if (survey is not null && surveyInheritanceSource is not null)
+            {
+                // Get and remember left & right InheritanceSource GoPro serial number
+                string leftInheritanceSourceCameraID = surveyInheritanceSource.Data.Media.LeftCameraID;
+                string rightInheritanceSourceCameraID = surveyInheritanceSource.Data.Media.RightCameraID;
+
+
+                // Get the left & right media from GoPro serial number from the target survey
+                string leftTargetCameraID = survey.Data.Media.LeftCameraID;
+                string rightTargetCameraID = survey.Data.Media.RightCameraID;
+
+                // Check if the left source and target are from the same GoPro
+                bool sameGoProLeftMedia = string.Compare(leftInheritanceSourceCameraID, leftTargetCameraID, true) == 0;
+
+                // Check if the right source and target are from the same GoPro
+                bool sameGoProRightMedia = string.Compare(rightInheritanceSourceCameraID, rightTargetCameraID, true) == 0;
+
+                // Report on the status of the GoPro serial numbers in the media set
+                string mediaGoProSNMatchWarningText = "";
+                string mediaGoProSNMatchWarningToolTip = "";
+
+                if (!sameGoProLeftMedia && !sameGoProRightMedia)
+                {
+                    mediaGoProSNMatchWarningText = "Inheritance calibration data is from a different set of GoPro Cameras";
+                    mediaGoProSNMatchWarningToolTip = "The inheritance survey has calibration data generated from different GoPro Cameras to the cameras used in the new survey.";
+                    mediaGoProSNMatch = false;
+
+                    if (reportIssues)
+                        report?.Warning("", $"The media files for survey {survey.Data.Info.SurveyFileName} are not from the same GoPro cameras as the inheritance survey {surveyInheritanceSource.Data.Info.SurveyFileName}, different on both the left and the right side");
+                }
+                else if (sameGoProLeftMedia && !sameGoProRightMedia)
+                {
+                    mediaGoProSNMatchWarningText = "The right camera inheritance calibration data is from a different GoPro Camera";
+                    mediaGoProSNMatchWarningToolTip = "The inheritance survey has calibration data generated from different right side GoPro Camera to the camera used in the new survey.";
+                    mediaGoProSNMatch = false;
+
+                    if (reportIssues)
+                        report?.Warning("Right", $"The right side media files for survey {survey.Data.Info.SurveyFileName} are not from the same GoPro as the inheritance survey {surveyInheritanceSource.Data.Info.SurveyFileName}");
+                }
+                else if (!sameGoProLeftMedia && sameGoProRightMedia)
+                {
+                    mediaGoProSNMatchWarningText = "The left camera inheritance calibration data is from a different GoPro Camera";
+                    mediaGoProSNMatchWarningToolTip = "The inheritance survey has calibration data generated from different left side GoPro Camera to the camera used in the new survey.";
+                    mediaGoProSNMatch = false;
+
+                    if (reportIssues)
+                        report?.Warning("Left", $"The left side media files for survey {survey.Data.Info.SurveyFileName} are not from the same GoPro as the inheritance survey {surveyInheritanceSource.Data.Info.SurveyFileName}");
+                }
+
+
+                if (!mediaGoProSNMatch)
+                {
+                    SetValidationText(false/*invalid*/, SurveyGoProMatchPanel, SurveyGoProMatchGlyph, SurveyGoProMatchValidationText, mediaGoProSNMatchWarningText, mediaGoProSNMatchWarningToolTip);
+                }
+                else
+                {
+                     SetValidationText(true/*valid*/, SurveyGoProMatchPanel, SurveyGoProMatchGlyph, SurveyGoProMatchValidationText, "GoPro serial numbers match", "");              
+                }
+
+
+                //// Check if all the media has the same resolution
+                //mediaSameResolution = CheckAllMediaResolutionAreTheSame();
+                //if (!mediaSameResolution)
+                //{
+                //    SetValidationText(false/*invalid*/, SurveyResolutionMatchPanel, SurveyResolutionMatchGlyph, SurveyResolutionMatchValidationText, "All media files need have the same frame resolution", "");
+
+                //    if (reportIssues)
+                //        report?.Warning("", $"The media files for survey {surveyCode} are not all of the same resolution");
+                //}
+                //else
+                //{
+                //    SetValidationText(true/*valid*/, SurveyResolutionMatchPanel, SurveyResolutionMatchGlyph, SurveyResolutionMatchValidationText, "All media files have the same frame resolution", "");
+                //}
+
+
+
+                // Return Invalid if any invalid data
+                if (!mediaGoProSNMatch || !mediaSameResolution || !mediaSameFrameRate)
+                    ret = EntryFieldsValidReturn.Invalid;
+
+
+
+                // Should we enable to OK button if we are inside a ContentDialog
+                if (ret == EntryFieldsValidReturn.Valid || ret == EntryFieldsValidReturn.Warning)
+                    dialog!.IsPrimaryButtonEnabled = true;
+                else
+                    dialog!.IsPrimaryButtonEnabled = false;
+
+            }
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Called to set the validation test and icon status
+        /// </summary>
+        /// <param name="validTRUEInvalidFALSE"></param>
+        /// <param name="glyph"></param>
+        /// <param name="validationText"></param>
+        /// <param name="text"></param>
+        private static void SetValidationText(bool? validTRUEInvalidFALSE, StackPanel? panel, FontIcon glyph, TextBlock validationText, string text, string tooltip)
+        {
+            if (validTRUEInvalidFALSE is null)
+            {
+                if (panel is not null)
+                    panel.Visibility = Visibility.Collapsed;
+
+                glyph.Glyph = "";
+                validationText.Text = "";
+            }
+            else if ((bool)validTRUEInvalidFALSE == true)
+            {
+                // Get the brush from the application resources
+                var themeBrush = (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
+
+                if (panel is not null)
+                    panel.Visibility = Visibility.Visible;
+
+                glyph.Glyph = "\uE73E";     // Tick
+                glyph.Foreground = themeBrush;
+                validationText.Text = text;
+            }
+            else
+            {
+                // Get the brush from the application resources
+                var themeBrush = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+
+                if (panel is not null)
+                    panel.Visibility = Visibility.Visible;
+
+                glyph.Glyph = "\uE783";    // Information 
+                glyph.Foreground = themeBrush;
+                validationText.Text = text;
+            }
+
+            // Retrieve the tooltip programmatically
+            bool applyTooltip = false;
+
+            if (ToolTipService.GetToolTip(validationText) is not ToolTip existingToolTip)
+            {
+                applyTooltip = true;
+            }
+            else if ((string)existingToolTip.Content != tooltip)
+            {
+                // Update tooltip
+                existingToolTip.Content = tooltip;
+            }
+
+            // Change the tooltip
+            if (applyTooltip)
+            {
+                ToolTip toolTip = new() { Content = tooltip };
+                ToolTipService.SetToolTip(validationText, toolTip);
+            }
+        }
+
     }
 }

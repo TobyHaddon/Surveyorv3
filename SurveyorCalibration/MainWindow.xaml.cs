@@ -1,27 +1,11 @@
-using Emgu.CV;
 using Emgu.CV.Aruco;
-using Emgu.CV.CvEnum;
-using Emgu.CV.Structure;
-using Emgu.CV.Util;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media.Imaging;
-using Surveyor.Calibration;
-using Surveyor.Controls;
+using Surveyor.User_Controls;
 using System;
 using System.Diagnostics;
-using System.Drawing;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading.Tasks;
-using Windows.Graphics.Imaging;
-using Windows.Storage;
-using Windows.Storage.Pickers;
-using Windows.Storage.Streams;
-using Windows.UI.Core;
-using WinRT.Interop;
 using WinUIEx;
 using static Emgu.CV.Aruco.Dictionary;
 
@@ -38,7 +22,7 @@ namespace Surveyor
                     Clear();
                 }
 
-                public bool TrueFullCalibratiobSetFalseStereoOnly = true;
+                public CalibInfoAndMedia.StereoMonoMediaSetMode StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet;
                 public string LeftMonoMP4Path { get; set; } = string.Empty;
                 public string RightMonoMP4Path { get; set; } = string.Empty;
                 public string LeftStereoMP4Path { get; set; } = string.Empty;
@@ -91,6 +75,10 @@ namespace Surveyor
 
         // Add these fields to MainWindow class
         private DispatcherQueueTimer? _stereoLockCheckTimer;
+        private DispatcherQueueTimer? _findCheckTimer;
+        private DateTime? _findStartTime;
+
+        private bool? findStatus = null;  // false started, true done
 
         public MainWindow()
         {
@@ -157,33 +145,69 @@ namespace Surveyor
                 {
                     CalibrationMediaUserControl.SaveForContentDialog(calibProject);
 
+                    // Reset
+                    findStatus = null;
+
                     // Open Media Files
-                    // Open the media
-                    StereoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
-                    if (calibProject.Data.Media.TrueFullCalibratiobSetFalseStereoOnly == false)
+                    switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                     {
-                        LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                        RightMonoCalibrationHead.OpenMedia(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
+                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                            StereoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
+                            LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
+                            RightMonoCalibrationHead.OpenMedia(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
+                            break;
+
+                        case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                            StereoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
+                            break;
+
+                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                            LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
+                            RightMonoCalibrationHead.OpenMedia(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
+                            break;
+
+                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                            LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
+                            break;
                     }
+
+
 
                     // Check if cached results files are available
                     bool cachedResultsAvailable = false;
 
-                    if (calibProject.Data.Media.TrueFullCalibratiobSetFalseStereoOnly == true)
+                    switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                     {
-                        if (StereoCalibrationHead.ResultsFileExists() &&
-                            LeftMonoCalibrationHead.ResultsFileExists() &&
-                            RightMonoCalibrationHead.ResultsFileExists())
-                        {
-                            cachedResultsAvailable = true;
-                        }
-                    }
-                    else
-                    {
-                        if (StereoCalibrationHead.ResultsFileExists())
-                        {
-                            cachedResultsAvailable = true;
-                        }
+                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                            if (StereoCalibrationHead.ResultsFileExists() &&
+                                LeftMonoCalibrationHead.ResultsFileExists() &&
+                                RightMonoCalibrationHead.ResultsFileExists())
+                            {
+                                cachedResultsAvailable = true;
+                            }
+                            break;
+
+                        case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                            if (StereoCalibrationHead.ResultsFileExists())
+                            {
+                                cachedResultsAvailable = true;
+                            }
+                            break;
+
+                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                            if (LeftMonoCalibrationHead.ResultsFileExists() &&
+                                RightMonoCalibrationHead.ResultsFileExists())
+                            {
+                                cachedResultsAvailable = true;
+                            }
+                            break;
+
+                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                            if (LeftMonoCalibrationHead.ResultsFileExists())
+                            {
+                                cachedResultsAvailable = true;
+                            }
+                            break;
                     }
 
                     // Ask the user if they want to use cached results (a full set of results is required)
@@ -200,34 +224,53 @@ namespace Surveyor
                         if (await dialogUseCahceResults.ShowAsync() == ContentDialogResult.Primary)
                         {
                             // Load cached results
-                            if (calibProject.Data.Media.TrueFullCalibratiobSetFalseStereoOnly == true)
+                            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                             {
-                                StereoCalibrationHead.LoadResults();
-                                LeftMonoCalibrationHead.LoadResults();
-                                RightMonoCalibrationHead.LoadResults();
-                            }
-                            else
-                            {
-                                StereoCalibrationHead.LoadResults();
+                                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                                    StereoCalibrationHead.LoadResults();
+                                    LeftMonoCalibrationHead.LoadResults();
+                                    RightMonoCalibrationHead.LoadResults();
+                                    break;
+
+                                case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                                    StereoCalibrationHead.LoadResults();
+                                    break;
+
+                                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                                    LeftMonoCalibrationHead.LoadResults();
+                                    RightMonoCalibrationHead.LoadResults();
+                                    break;
+
+                                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                                    LeftMonoCalibrationHead.LoadResults();
+                                    break;
                             }
                         }
                     }
 
 
-                    // Inform that user they need to lock the stereo calibration videos
-                    var dialog = new ContentDialog
+                    switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                     {
-                        Title = "Stereo Calibration Videos",
-                        Content = "Please sync the stereo calibration media and lock the videos before proceeding.",
-                        CloseButtonText = "OK"
-                    };
-                    dialog.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
-                    await dialog.ShowAsync();
+                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                        case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                            // Inform that user they need to lock the stereo calibration videos
+                            var dialog = new ContentDialog
+                            {
+                                Title = "Stereo Calibration Videos",
+                                Content = "Please sync the stereo calibration media and lock the videos before proceeding.",
+                                CloseButtonText = "OK"
+                            };
+                            dialog.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
+                            await dialog.ShowAsync();
 
+                            // Start a timer to check if the stereo calibration is locked
+                            StartStereoLockCheckTimer();
+                            break;
 
-                    // Start a timer to check if the stereo calibration is locked
-                    StartStereoLockCheckTimer();
-
+                        default:
+                            SetUIControls();
+                            break;
+                    }
                 }
             }
             catch (Exception ex)
@@ -246,28 +289,59 @@ namespace Surveyor
         /// <param name="e"></param>
         private void FindAppBarButton_Click(object sender, RoutedEventArgs e)
         {
-            if (calibProject.Data.Media.TrueFullCalibratiobSetFalseStereoOnly)
+            bool started = false;
+
+            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
             {
-                if (StereoCalibrationHead.IsOpen() &&
-                    (bool)StereoCalibrationHead.IsStereoLocked()! &&
-                    LeftMonoCalibrationHead.IsOpen() && 
-                    RightMonoCalibrationHead.IsOpen())
-                {
-                    // Find the calibration frame in the stereo videos
-                    StereoCalibrationHead.FindCalibrationFrame();
-                    LeftMonoCalibrationHead.FindCalibrationFrame();
-                    RightMonoCalibrationHead.FindCalibrationFrame();
-                }
+                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                    if (StereoCalibrationHead.IsOpen() &&
+                        (bool)StereoCalibrationHead.IsStereoLocked()! &&
+                        LeftMonoCalibrationHead.IsOpen() && 
+                        RightMonoCalibrationHead.IsOpen())
+                    {
+                        // Find the calibration frame in the stereo and mono calibration videos
+                        StereoCalibrationHead.FindCalibrationFrame();
+                        LeftMonoCalibrationHead.FindCalibrationFrame();
+                        RightMonoCalibrationHead.FindCalibrationFrame();
+                        started = true;
+                    }
+                    break;
+                case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                    if (StereoCalibrationHead.IsOpen() &&
+                        (bool)StereoCalibrationHead.IsStereoLocked()!)
+                    {
+                        // Find the calibration frame in the stereo videos
+                        StereoCalibrationHead.FindCalibrationFrame();
+                        started = true;
+                    }
+                    break;
+                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                    if (LeftMonoCalibrationHead.IsOpen() &&
+                        RightMonoCalibrationHead.IsOpen())
+                    {
+                        // Find the calibration frame in the mono videos
+                        LeftMonoCalibrationHead.FindCalibrationFrame();
+                        RightMonoCalibrationHead.FindCalibrationFrame();
+                        started = true;
+                    }
+                    break;
+                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                    if (LeftMonoCalibrationHead.IsOpen())
+                    {
+                        // Find the calibration frame in the mono video
+                        LeftMonoCalibrationHead.FindCalibrationFrame();
+                        started = true;
+                    }
+                    break;
+
             }
-            else 
+
+            if (started)
             {
-                if (StereoCalibrationHead.IsOpen() &&
-                    (bool)StereoCalibrationHead.IsStereoLocked()!)
-                {
-                    // Find the calibration frame in the stereo videos
-                    StereoCalibrationHead.FindCalibrationFrame();
-                }
+                StartFindCheckTimer();
+                findStatus = false;
             }
+
         }
 
 
@@ -294,30 +368,106 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void SaveAppBarButton_Click(object sender, RoutedEventArgs e)
+        private async void SaveAppBarButton_Click(object sender, RoutedEventArgs e)
         {
-            if (calibProject.Data.Media.TrueFullCalibratiobSetFalseStereoOnly)
+            InProgress.IsActive = true;
+
+            bool doStereo = false;
+            bool doLeftMono = false;
+            bool doRightMono = false;
+
+            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
             {
-                // Find the calibration frame in the stereo videos
+                
+                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                    if (StereoCalibrationHead.IsOpen() &&
+                        (bool)StereoCalibrationHead.IsStereoLocked()! &&
+                        LeftMonoCalibrationHead.IsOpen() &&
+                        RightMonoCalibrationHead.IsOpen())
+                    {
+                        doStereo = true;
+                        doLeftMono = true;
+                        doRightMono = true;
+                    }
+                    break;
+                case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                    if (StereoCalibrationHead.IsOpen() &&
+                        (bool)StereoCalibrationHead.IsStereoLocked()!)
+                    {
+                        doStereo = true;
+                    }
+                    break;
+                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                    if (LeftMonoCalibrationHead.IsOpen() &&
+                        RightMonoCalibrationHead.IsOpen())
+                    {
+                        doLeftMono = true;
+                        doRightMono = true;
+                    }
+                    break;
+                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                    if (LeftMonoCalibrationHead.IsOpen())
+                    {
+                        doLeftMono = true;
+                    }
+                    break;
+
+            }
+
+            // Find the calibration frame in the stereo videos
+            await DisplayStatusText("Calc best frames...");
+            if (doStereo)
+            {                
                 StereoCalibrationHead.BestFramesCalc();
+            }
+            if (doLeftMono)
+            {
                 LeftMonoCalibrationHead.BestFramesCalc();
-                RightMonoCalibrationHead.BestFramesCalc();
-
-
-                StereoCalibrationHead.SaveResults();
-                LeftMonoCalibrationHead.SaveResults();
-                RightMonoCalibrationHead.SaveResults();
             }
-            else
+            if (doRightMono)
             {
-                // Find the calibration frame in the stereo videos
-                StereoCalibrationHead.BestFramesCalc();
+                RightMonoCalibrationHead.BestFramesCalc();
+            }
 
+            // Save the frames
+            if (doStereo)
+            {
+                await DisplayStatusText("Save stereo best frames...");
                 StereoCalibrationHead.SaveResults();
             }
+            if (doLeftMono)
+            {
+                await DisplayStatusText("Save left mono best frames...");
+                LeftMonoCalibrationHead.SaveResults();
+            }
+            if (doRightMono)
+            {
+                await DisplayStatusText("Save right mono best frames...");
+                RightMonoCalibrationHead.SaveResults();                
+            }
+
+            await DisplayStatusText("");
+            InProgress.IsActive = false;
         }
 
 
+        /// <summary>
+        /// Display a status text in the StatusText TextBlock
+        /// </summary>
+        /// <param name="text"></param>
+        /// <returns></returns>
+        private async Task DisplayStatusText(TimeSpan elapsedTime)
+        {
+            string formatted = elapsedTime.ToString(@"hh\:mm\:ss");
+            await DisplayStatusText($"Elapsed Time: {formatted}");
+        }
+
+        private async Task DisplayStatusText(string text)
+        {
+            StatusText.Text = text;
+
+            await Task.Delay(50);
+        }
 
 
 
@@ -335,17 +485,39 @@ namespace Surveyor
         {
             bool? isLocked = StereoCalibrationHead.IsStereoLocked();
 
-            if (isLocked is not null && isLocked == true)
+            // Find Button
+            if (findStatus is null)
             {
-                // Stereo is locked
-                FindAppBarButton.IsEnabled = true; // Disable Find button for now
+                if ((isLocked is not null && isLocked == true) ||
+                    calibProject.Data.Media.StereoMonoMediaSetMode == CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet ||
+                    calibProject.Data.Media.StereoMonoMediaSetMode == CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet)
+                {
+                    // Stereo is locked
+                    FindAppBarButton.IsEnabled = true; // Disable Find button for now
+                }
+                else
+                {
+                    // Stereo is unlocked
+                    FindAppBarButton.IsEnabled = false; // Disable Find button for now
+                }
             }
             else
             {
                 // Stereo is unlocked
-                FindAppBarButton.IsEnabled = false; // Disable Find button for now
+                FindAppBarButton.IsEnabled = false; // Disable Find button for now                
             }
 
+            // Save Button
+            if (findStatus is not null && findStatus == true)
+            {
+                SaveAppBarButton.IsEnabled = true; // Enable Save button if Find is done
+            }
+            else
+            {
+                SaveAppBarButton.IsEnabled = false; // Disable Save button if Find is not done
+            }
+
+            // Cancel Find Button
             if (IsFindRunning())
             {
                 FindAppBarCancel.IsEnabled = true; // Enable Cancel button if Find is running
@@ -360,7 +532,10 @@ namespace Surveyor
 
 
 
-
+        /// <summary>
+        /// Start a timer to check if the stereo calibration is locked.
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private void StartStereoLockCheckTimer()
         {
             if (_stereoLockCheckTimer != null)
@@ -378,7 +553,6 @@ namespace Surveyor
             _stereoLockCheckTimer.Tick += StereoLockCheckTimer_Tick;
             _stereoLockCheckTimer.Start();
         }
-
         private void StopStereoLockCheckTimer()
         {
             if (_stereoLockCheckTimer != null)
@@ -388,7 +562,6 @@ namespace Surveyor
                 _stereoLockCheckTimer = null;
             }
         }
-
         private void StereoLockCheckTimer_Tick(object? sender, object e)
         {
             bool? isLocked = StereoCalibrationHead.IsStereoLocked();
@@ -400,6 +573,59 @@ namespace Surveyor
             }
         }
 
+
+        /// <summary>
+        /// Start a timer to display the elapsed time
+        /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
+        
+        private void StartFindCheckTimer()
+        {
+            if (_findCheckTimer != null)
+                return;
+
+            // Use DispatcherQueue.GetForCurrentThread() to get an instance of DispatcherQueue
+            DispatcherQueue dispatcherQueue = DispatcherQueue.GetForCurrentThread();
+            if (dispatcherQueue == null)
+            {
+                throw new InvalidOperationException("DispatcherQueue is not available on the current thread.");
+            }
+
+            _findCheckTimer = dispatcherQueue.CreateTimer();
+            _findCheckTimer.Interval = TimeSpan.FromSeconds(1);            
+            _findCheckTimer.Tick += StereoFindCheckTimer_Tick;
+            _findStartTime = DateTime.Now;
+            _findCheckTimer.Start();
+        }
+        private void StopFindCheckTimer()
+        {
+            if (_findCheckTimer != null)
+            {
+                _findCheckTimer.Stop();
+                _findCheckTimer.Tick -= StereoFindCheckTimer_Tick;
+                _findCheckTimer = null;
+            }
+        }
+        private void StereoFindCheckTimer_Tick(object? sender, object e)
+        {
+            if (_findStartTime is not null)
+            {
+                if (IsFindRunning())
+                {
+                    TimeSpan elapsed = DateTime.Now - (DateTime)_findStartTime;
+                    _ = DisplayStatusText(elapsed);
+                }
+                else
+                {
+                    findStatus = true;
+
+                    StopFindCheckTimer();
+                    _findStartTime = null; // Reset the start time
+                    _ = DisplayStatusText("");
+                    SetUIControls(); // Update UI controls after find operation completes
+                }
+            }
+        }
 
         /// <summary>
         /// Check if any of the FindCalibrationBoard methods are currently running.
@@ -418,22 +644,6 @@ namespace Surveyor
                 return false; // No find operations are running
             }
         }
-
-
-        //    public async Task<StorageFolder?> PickOutputFolderAsync(Window window)
-        //    {
-        //        FolderPicker picker = new FolderPicker();
-
-        //        picker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
-        //        picker.FileTypeFilter.Add("*"); // Required even if picking a folder
-
-        //        // Initialize the picker with the window handle (required in WinUI 3)
-        //        IntPtr hWnd = WindowNative.GetWindowHandle(window);
-        //        InitializeWithWindow.Initialize(picker, hWnd);
-
-        //        StorageFolder folder = await picker.PickSingleFolderAsync();
-        //        return folder; // returns null if user cancels
-        //    }
     }
 }
 

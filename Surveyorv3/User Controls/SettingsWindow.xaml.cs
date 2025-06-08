@@ -297,6 +297,9 @@ namespace Surveyor.User_Controls
                     // Load the Use Internet enabled state
                     UseInternet.IsOn = SettingsManagerLocal.UseInternetEnabled;
 
+                    // Load the MouseWheel FrameMove enabled state
+                    MouseWheelFrameMove.IsOn = SettingsManagerLocal.MouseWheelFrameMoveEnabled;
+
                     // Set the tooltip on the information icon on the Reporter info, Species image and information cache expander
                     ToolTip tooltipSpeciesImageCacheFolder = new();
                     ToolTip tooltipReporterFolder = new();
@@ -531,6 +534,35 @@ namespace Surveyor.User_Controls
 
             // Remember the new state
             SettingsManagerLocal.UseInternetEnabled = settingValue;
+        }
+
+
+        /// <summary>
+        /// Toggle the ability to use the mousewheel of the two finger swipe to move the frame forward
+        /// or backwards when the pointer is on the media player
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MouseWheelFrameMoveEnabled_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+
+            bool settingValue;
+
+            if (this.MouseWheelFrameMove.IsOn)
+            {
+                // Enable 
+                settingValue = true;
+
+            }
+            else
+            {
+                // Disable
+                settingValue = false;
+            }
+
+            // Remember the new state
+            SettingsManagerLocal.MouseWheelFrameMoveEnabled = settingValue;
         }
 
 
@@ -1556,34 +1588,10 @@ namespace Surveyor.User_Controls
             });
         }
 
-        
+
+
 
         // ***END OF SettingsWindow***
-    }
-
-
-    /// <summary>
-    /// XAML Converter 
-    /// </summary>
-    public class BooleanToVisibilityConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, string language)
-        {
-            if (value is bool boolValue)
-            {
-                return boolValue ? Visibility.Visible : Visibility.Collapsed;
-            }
-            return Visibility.Collapsed;
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, string language)
-        {
-            if (value is Visibility visibility)
-            {
-                return visibility == Visibility.Visible;
-            }
-            return false;
-        }
     }
 
 
