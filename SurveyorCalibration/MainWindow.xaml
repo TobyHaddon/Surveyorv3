@@ -30,55 +30,58 @@
             <RowDefinition Height="*" />            <!-- 4: Stereo Head -->            
         </Grid.RowDefinitions>
 
-        <CommandBar Grid.Row="0" 
-                    Background="Transparent" 
-                    HorizontalAlignment="Stretch"
-                    IsOpen="False" 
-                    DefaultLabelPosition="Bottom" 
-                    IsSticky="True">
-            <CommandBar.PrimaryCommands>
-                <AppBarButton Icon="OpenFile" Label="Open..." Click="OpenAppBarButton_Click"/>
-
-                <!-- Arrow icon between buttons -->
-                <AppBarButton Label="" IsEnabled="false">
-                    <AppBarButton.Icon>
-                        <FontIcon Glyph="&#xE72A;" />
-                    </AppBarButton.Icon>
-                </AppBarButton>
-
-                <AppBarButton x:Name="FindAppBarButton" Icon="Find" Label="Find" Click="FindAppBarButton_Click"/>
-                <AppBarButton x:Name="FindAppBarCancel" Icon="Cancel"  Click="FindAppBarCancel_Click" />
-
-                <!-- Arrow icon between buttons -->
-                <AppBarButton Label="" IsEnabled="false">
-                    <AppBarButton.Icon>
-                        <FontIcon Glyph="&#xE72A;" />
-                    </AppBarButton.Icon>
-                </AppBarButton>
-
-                <AppBarButton x:Name="SaveAppBarButton" Icon="Save" Label="Save" Click="SaveAppBarButton_Click"/>
-                <AppBarSeparator/>
-            </CommandBar.PrimaryCommands>
+        <StackPanel Orientation="Horizontal">
+            <ProgressRing x:Name="InProgress" IsActive="False" Width="20" Height="20" VerticalAlignment="Center" Margin="12,0"/>
             
-            <CommandBar.SecondaryCommands>
-                <AppBarButton Icon="Setting" Label="Settings">
-                    <AppBarButton.KeyboardAccelerators>
-                        <KeyboardAccelerator Modifiers="Control" Key="I" />
-                    </AppBarButton.KeyboardAccelerators>
-                </AppBarButton>
-            </CommandBar.SecondaryCommands>
+            <TextBlock x:Name="StatusText" 
+                           VerticalAlignment="Center" 
+                           Margin="12,0"
+                           Width="220"
+                           MinWidth="150"
+                           FontWeight="SemiBold"/>
 
-            <!-- Custom Content Area -->
-            <CommandBar.Content>
-                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <ProgressRing x:Name="InProgress" IsActive="False" Width="20" Height="20" VerticalAlignment="Center" Margin="12,0"/>
-                    <TextBlock x:Name="StatusText" 
-                       VerticalAlignment="Center" 
-                       Margin="12,0"
-                       FontWeight="SemiBold"/>
-                </StackPanel>
-            </CommandBar.Content>
-        </CommandBar>
+            <CommandBar Grid.Row="0" 
+                        Background="Transparent" 
+                        HorizontalAlignment="Stretch"
+                        IsOpen="False" 
+                        DefaultLabelPosition="Bottom" 
+                        IsSticky="True">
+                <CommandBar.PrimaryCommands>
+                    <AppBarButton x:Name="OpenAppBarButton" Icon="OpenFile" Label="Open..." Click="OpenAppBarButton_Click"/>
+
+                    <!-- Arrow icon between buttons -->
+                    <AppBarButton Label="" IsEnabled="false">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE72A;" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+
+                    <AppBarButton x:Name="FindAppBarButton" Icon="Find" Label="Find" Click="FindAppBarButton_Click"/>
+                    <AppBarButton x:Name="FindAppBarCancel" Icon="Cancel"  Click="FindAppBarCancel_Click" />
+
+                    <!-- Arrow icon between buttons -->
+                    <AppBarButton Label="" IsEnabled="false">
+                        <AppBarButton.Icon>
+                            <FontIcon Glyph="&#xE72A;" />
+                        </AppBarButton.Icon>
+                    </AppBarButton>
+
+                    <AppBarButton x:Name="SaveAppBarButton" Icon="Save" Label="Save" Click="SaveAppBarButton_Click"/>
+                    <AppBarSeparator/>
+                </CommandBar.PrimaryCommands>
+            
+                <CommandBar.SecondaryCommands>
+                    <AppBarButton Icon="Setting" Label="Settings">
+                        <AppBarButton.KeyboardAccelerators>
+                            <KeyboardAccelerator Modifiers="Control" Key="I" />
+                        </AppBarButton.KeyboardAccelerators>
+                    </AppBarButton>
+                    <AppBarButton Icon="Find" Label="Show Cache Folder" Click="ShowCacheFolderButton_Click"/>
+
+                </CommandBar.SecondaryCommands>
+            </CommandBar>
+            <CheckBox x:Name="SaveBestFrames" IsEnabled="False" IsChecked="False" Content="Save Best Frames"/>
+        </StackPanel>
         
         <Grid x:Name="MonoCalibrationHeads" Grid.Row="1">
             <Grid.RowDefinitions>

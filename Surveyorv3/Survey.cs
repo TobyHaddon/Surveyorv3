@@ -1105,7 +1105,7 @@ namespace Surveyor
         /// <summary>
         /// Save a survey to a json file using the survey current name and path
         /// </summary>
-        /// <returns></returns>
+        /// <returns>0 if OK</returns>
         public int SurveySave()
         {
             int ret = -1;

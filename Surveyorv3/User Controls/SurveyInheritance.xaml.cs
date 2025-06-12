@@ -138,6 +138,7 @@ namespace Surveyor.User_Controls
                         survey.Data.Calibration.CalibrationInherited = surveyInheritingFromFileName;
                     }
 
+                    ret = true;
                 }
 
                 ClearControls();

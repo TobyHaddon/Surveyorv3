@@ -12,6 +12,7 @@
 
     <UserControl.Content>
         <Grid>
+             
             <ScrollViewer HorizontalScrollBarVisibility="Visible">
                 <StackPanel x:Name="MainPanel" Orientation="Horizontal" Padding="0" Spacing="0">
                     <!-- Box 1: Line graphs -->
@@ -25,26 +26,44 @@
                             <Canvas x:Name="BlurCanvas" Grid.Row="1"/>
                         </Grid>
                     </Border>
+                    
+                    <!-- Sensor Bins -->
+                    <GridView x:Name="SensorBinGridItemsControl" IsItemClickEnabled="False" SelectionMode="None">
+                        <GridView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid Orientation="Vertical" MaximumRowsOrColumns="1"/>
+                            </ItemsPanelTemplate>
+                        </GridView.ItemsPanel>
                         
+                        <GridView.ItemContainerStyle>
+                            <Style TargetType="GridViewItem">
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                            </Style>
+                        </GridView.ItemContainerStyle>
+                    </GridView>
 
-                <GridView x:Name="BinGridItemsControl" IsItemClickEnabled="False" SelectionMode="None">
-                    <GridView.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <ItemsWrapGrid Orientation="Vertical" MaximumRowsOrColumns="1"/>
-                        </ItemsPanelTemplate>
-                    </GridView.ItemsPanel>
+                    <!-- Pose Bins -->
+                    <GridView x:Name="PoseBinGridItemsControl" IsItemClickEnabled="False" SelectionMode="None">
+                        <GridView.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <ItemsWrapGrid Orientation="Vertical" MaximumRowsOrColumns="1"/>
+                            </ItemsPanelTemplate>
+                        </GridView.ItemsPanel>
 
-                        
-                    <GridView.ItemContainerStyle>
-                        <Style TargetType="GridViewItem">
-                            <Setter Property="Padding" Value="0"/>
-                            <Setter Property="Padding" Value="0"/>
-                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                        <Setter Property="VerticalContentAlignment" Value="Stretch"/>
-                        </Style>
-                    </GridView.ItemContainerStyle>
-                </GridView>
-            </StackPanel>
+                        <GridView.ItemContainerStyle>
+                            <Style TargetType="GridViewItem">
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="Padding" Value="0"/>
+                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                                <Setter Property="VerticalContentAlignment" Value="Stretch"/>
+                            </Style>
+                        </GridView.ItemContainerStyle>
+                    </GridView>
+
+                </StackPanel>
             </ScrollViewer>
         </Grid>
     </UserControl.Content>

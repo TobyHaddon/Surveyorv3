@@ -124,9 +124,7 @@ namespace Surveyor.User_Controls
         /// <param name="calibProject"></param>
         public void SaveForContentDialog(CalibProject calibProject)
         {
-            //            surveyClass.Data.Info.Clear();
             calibProject.Data.Media.Clear();
-            calibProject.Data.Calibration.Clear();
 
             calibProject.Data.Media.StereoMonoMediaSetMode = stereoMonoMediaSetMode; 
 
@@ -161,10 +159,22 @@ namespace Surveyor.User_Controls
                     calibProject.Data.Media.RightCameraID = rightMonoMediaFileItem.GoProSerialNumber;
                 }
             }
+            else if (LeftMonoMediaFileNames is not null && LeftMonoMediaFileNames.Items.Count == 1)
+            {
+                MediaFileItem leftMonoMediaFileItem = (MediaFileItem)LeftMonoMediaFileNames.Items[0];
+                if (leftMonoMediaFileItem is not null && leftMonoMediaFileItem.MediaFilePath is not null)
+                {
+                    // Load mono left media
+                    calibProject.Data.Media.LeftMonoMP4Path = leftMonoMediaFileItem.MediaFilePath;
+
+                    // Get and remember left GoPro serial number (try the left mono)
+                    calibProject.Data.Media.LeftCameraID = leftMonoMediaFileItem.GoProSerialNumber;
+                }
+            }
 
             if (LeftStereoMediaFileNames is not null && RightStereoMediaFileNames is not null &&
                 (LeftStereoMediaFileNames.Items.Count == 1 && RightStereoMediaFileNames.Items.Count == 1))
-            { 
+            {
                 // Load stereo left media
                 MediaFileItem leftStereoMediaFileItem = (MediaFileItem)LeftStereoMediaFileNames.Items[0];
                 if (leftStereoMediaFileItem is not null && leftStereoMediaFileItem.MediaFilePath is not null)
@@ -186,6 +196,9 @@ namespace Surveyor.User_Controls
                 }
             }
 
+
+            // Just to set variables up correctly
+            StereoMonoRadioButtons_SelectionChanged(null!, null!);
             // Report any issues with the data
             EntryFieldsValid(true/*report*/);
         }
@@ -578,8 +591,8 @@ namespace Surveyor.User_Controls
                             RightMonoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
                             break;
                         case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-                            ObservableCollection<MediaFileItem> leftFiles = [];
-                            leftFiles.Add(mediaFileItemList[0]);
+                            LeftMonoMediaFileItemList.Add(mediaFileItemList[0]);
+                            LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
                             break;
                     }
                 }
@@ -723,6 +736,7 @@ namespace Surveyor.User_Controls
             bool mediaContigious = true;
 
 
+            //
 
             // Check all media from the same path
             bool mediaPathSame = CheckAllMediaPathAreTheSame();
@@ -739,12 +753,58 @@ namespace Surveyor.User_Controls
             }
 
 
-            // Check all the media is from the same date (warning only as date maybe wrong on GoPros)
+            
             DateTime? sameDateMonoLeftMedia = CheckMediaDatesMatch(LeftMonoMediaFileItemList);
             DateTime? sameDateMonoRightMedia = CheckMediaDatesMatch(RightMonoMediaFileItemList);
             DateTime? sameDateStereoLeftMedia = CheckMediaDatesMatch(LeftStereoMediaFileItemList);
             DateTime? sameDateStereoRightMedia = CheckMediaDatesMatch(RightStereoMediaFileItemList);
 
+            // Check if media has been selected
+            switch (stereoMonoMediaSetMode)
+            {
+                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                    if (sameDateMonoLeftMedia is null ||
+                        sameDateMonoRightMedia is null ||
+                        sameDateStereoLeftMedia is null ||
+                        sameDateStereoRightMedia is null)
+                    {
+                        SetValidationText(false/*invalid*/, SurveyMediaPathPanel, SurveyMediaPathGlyph, SurveyMediaPathValidationText, "We need a calibration file for mono left & right and stereo left & right", "");
+                        mediaValid = false;
+                    }
+                    break;
+
+                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                    if (sameDateStereoLeftMedia is null ||
+                        sameDateStereoRightMedia is null)
+                    {
+                        SetValidationText(false/*invalid*/, SurveyMediaPathPanel, SurveyMediaPathGlyph, SurveyMediaPathValidationText, "We need a calibration file for stereo left & right", "");
+                        mediaValid = false;
+                    }
+                    break;
+
+                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                    if (sameDateMonoLeftMedia is null ||
+                        sameDateMonoRightMedia is null)
+                    {
+                        SetValidationText(false/*invalid*/, SurveyMediaPathPanel, SurveyMediaPathGlyph, SurveyMediaPathValidationText, "We need a calibration file for mono left & right", "");
+                        mediaValid = false;
+                    }
+                    break;
+
+                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                    if (sameDateMonoLeftMedia is null)
+                    {
+                        SetValidationText(false/*invalid*/, SurveyMediaPathPanel, SurveyMediaPathGlyph, SurveyMediaPathValidationText, "We need a mono calibration file", "");
+                        mediaValid = false;
+                    }
+                    break;
+
+                default:
+                    mediaValid = false;
+                    break;
+            }
+
+            // Check all the media is from the same date (warning only as date maybe wrong on GoPros)
             if (sameDateMonoLeftMedia is not null && sameDateMonoRightMedia is not null && sameDateStereoLeftMedia is not null && sameDateStereoRightMedia is not null)
             {
                 if (!(sameDateMonoLeftMedia.Value.Date == sameDateMonoRightMedia.Value.Date &&
@@ -1498,7 +1558,7 @@ namespace Surveyor.User_Controls
         private void ResetDialogFields()
         {
             // Default to Mono and Stereo Media Set
-            stereoMonoMediaSetMode = StereoMonoMediaSetMode.None;
+            stereoMonoMediaSetMode = StereoMonoMediaSetMode.MonoAndStereoMediaSet;
             MonoAndStereoMediaSetRadioButton.IsChecked = true;
 
             LeftMonoMediaFileItemList.Clear();

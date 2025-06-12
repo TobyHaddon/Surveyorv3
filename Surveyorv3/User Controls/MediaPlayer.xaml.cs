@@ -24,6 +24,9 @@
 // approach to grab the frame
 // Version 1.5 20 May 2025
 // Move the MagnifyAndMarkerDisplay to be a child of the MediaPlayer control
+// Version 1.6 12 Jun 2025
+// Added depth colour correction (experimental on feature set A)
+
 
 using CommunityToolkit.WinUI;
 using Microsoft.Graphics.Canvas;
@@ -57,6 +60,9 @@ using Windows.Foundation;
 using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
 using Microsoft.UI.Xaml.Input;
 using System.ComponentModel;
+using Microsoft.Graphics.Canvas.Effects;
+using static Surveyor.User_Controls.SettingsWindowEventData;
+using Emgu.CV.Cuda;
 
 namespace Surveyor.User_Controls
 {
@@ -115,9 +121,30 @@ namespace Surveyor.User_Controls
         // Load, unloading or buffering indicator
         private bool isBusy = false;
 
+        // Depth used for colour correction
+        private uint depthUnderwater = 0;
+
+        // Cached diagnostic information flag
+        private bool diagnosticInformation = false;
+
+        // Only used for settingsWindowEvent.Experimental
+        public bool? experimentalEnabled;
+        public bool? experimentalFeatureSetAEnabled;
+        public bool? experimentalFeatureSetBEnabled;
+        public bool? experimentalFeatureSetCEnabled;
+
+
         public SurveyorMediaPlayer()
         {
             this.InitializeComponent();
+
+
+            // Set-up any controls that depend on the diagnostic information state 
+            _SetDiagnosticInformation(SettingsManagerLocal.DiagnosticInformation);
+
+            // Load the experimental settings
+            _SetExperimental(SettingsManagerLocal.ExperimentalEnabled,
+                SettingsManagerLocal.ExperimentalFeatureSetAEnabled, SettingsManagerLocal.ExperimentalFeatureSetBEnabled, SettingsManagerLocal.ExperimentalFeatureSetCEnabled);
         }
 
 
@@ -175,7 +202,7 @@ namespace Surveyor.User_Controls
         /// Opens the indicated media file in the Media Player
         /// </summary>
         /// <param name="mediaFileSpec"></param>
-        internal async Task Open(string mediaFileSpec)
+        internal async Task Open(string mediaFileSpec, uint _depthUnderwater)
         {
             WinUIGuards.CheckIsUIThread();
 
@@ -186,6 +213,9 @@ namespace Surveyor.User_Controls
 
             if (!IsOpen() && mediaFileSpec is not null)
             {
+                // Remember the depth the video was shot at (for colour correction)
+                depthUnderwater = _depthUnderwater;
+
                 try
                 {
                     // Check the file exists either locally of via a URL
@@ -243,6 +273,8 @@ namespace Surveyor.User_Controls
                         playbackSession.SeekableRangesChanged += PlaybackSession_SeekableRangesChanged;
                         playbackSession.SeekCompleted += PlaybackSession_SeekCompleted;
                         playbackSession.SupportedPlaybackRatesChanged += PlaybackSession_SupportedPlaybackRatesChanged;
+
+                        vidFrameMgr.SetDepthUnderwater(depthUnderwater);
                     }
                     else
                     {
@@ -1045,6 +1077,10 @@ namespace Surveyor.User_Controls
                     if (vidFrameMgr.FrameWidth != mp.PlaybackSession.NaturalVideoWidth || vidFrameMgr.FrameHeight != mp.PlaybackSession.NaturalVideoHeight)
                         Debug.WriteLine($"{CameraSide}: Warning dimension change, SoftwareBitmap setup at ({vidFrameMgr.FrameWidth},{vidFrameMgr.FrameHeight}), this frame is ({mp.PlaybackSession.NaturalVideoWidth},{mp.PlaybackSession.NaturalVideoHeight})");
 
+                    // Color Correct if necessary
+                    if (depthUnderwater > 0)
+                        vidFrameMgr.UpdateCorrectedTarget();
+
                     // Draw the framePrimary: User requested to play
                     vidFrameMgr.DrawFrameOnImageControl();
 
@@ -1555,12 +1591,16 @@ namespace Surveyor.User_Controls
             private uint frameWidthSoftwareBitmap = 0;
             private uint frameHeightSoftwareBitmap = 0;
             private int videoFrameCount = 0;
+            private CanvasRenderTarget? correctedTarget;   // same device, same size as inputBitmap
+            private Matrix5x4? colourCorrectionMatrix = null;
 
             // Wait for one more frame 
             private bool waitForOneMoreFrame = false;
             private TaskCompletionSource<bool>? taskOneMoreFrameCompletion = null;
             private readonly object _frameLock = new(); // Lock for synchronization
 
+            // Depth used for colour correction
+            private uint depthUnderwater = 0;
 
             /// <summary>
             /// Set the Image control
@@ -1573,6 +1613,17 @@ namespace Surveyor.User_Controls
             }
 
             public bool IsSetup { get; set; } = false;
+
+
+            /// <summary>
+            /// Allow the depth underwater that the video was shot at.  This is used for colour correction
+            /// </summary>
+            /// <param name="_depthUnderwater"></param>
+            public void SetDepthUnderwater(uint _depthUnderwater)
+            {
+                depthUnderwater = _depthUnderwater;
+                colourCorrectionMatrix = DepthColourCorrection.GetUnderwaterColorMatrix((uint)depthUnderwater);
+            }
 
 
             /// <summary>
@@ -1612,8 +1663,13 @@ namespace Surveyor.User_Controls
                     // Create inputBitMap to receive the frame from Media Player
                     inputBitmap = CanvasBitmap.CreateFromSoftwareBitmap(canvasDevice, frameServerDest);
 
+                    // Create a CanvasRenderTarget to hold the colour correct frame
+                    correctedTarget = new CanvasRenderTarget(canvasDevice, (float)frameWidthSoftwareBitmap, (float)frameHeightSoftwareBitmap, 96);
+
                     // Assign the canvasImageSource to the Image.Source
                     imageFrame.Source = canvasImageSource;
+
+
 
                     // Check all setup ok
                     if (frameServerDest != null && canvasImageSource != null && inputBitmap != null)
@@ -1705,6 +1761,14 @@ namespace Surveyor.User_Controls
                 }
                 if (imageFrame is not null)
                     imageFrame.Source = null;
+
+                if (correctedTarget is not null)
+                {
+                    correctedTarget.Dispose();
+                    correctedTarget = null;
+                }
+
+                colourCorrectionMatrix = null;
 
                 frameWidthSoftwareBitmap = 0;
                 frameHeightSoftwareBitmap = 0;
@@ -1908,6 +1972,7 @@ namespace Surveyor.User_Controls
 
                         ret = !IsImageBlank();
 
+
                         if (!ret)
                         {
                             Debug.WriteLine($"{cameraSide} VideoFrameManager.GetNextMediaPlayFrame: Frame is blank");
@@ -1924,6 +1989,25 @@ namespace Surveyor.User_Controls
 
 
             /// <summary>
+            /// Do colour correction if we are at depth
+            /// </summary>
+            public void UpdateCorrectedTarget()
+            {
+                WinUIGuards.CheckIsUIThread();
+
+                if (correctedTarget is null || inputBitmap == null || depthUnderwater == 0) return;
+
+                using var ds = correctedTarget.CreateDrawingSession();
+                ds.Clear(Microsoft.UI.Colors.Black);
+                ds.DrawImage(new ColorMatrixEffect
+                {
+                    Source = inputBitmap,
+                    ColorMatrix = colourCorrectionMatrix!.Value
+                });
+            }
+
+
+            /// <summary>
             /// Draw the frame on the image control
             /// </summary>
             public bool DrawFrameOnImageControl()
@@ -1935,7 +2019,7 @@ namespace Surveyor.User_Controls
                 try
                 {
                     if (canvasImageSource == null || inputBitmap == null)
-                        return ret; // Avoid null reference issues
+                        return ret; 
 
                     // Draw the frame
                     ret = true;  // Assume success
@@ -1943,7 +2027,15 @@ namespace Surveyor.User_Controls
                     {
                         using (CanvasDrawingSession ds = canvasImageSource!.CreateDrawingSession(Microsoft.UI.Colors.Black))
                         {
-                            ds.DrawImage(inputBitmap);
+                            if (depthUnderwater == 0)
+                            {
+                                ds.DrawImage(inputBitmap);
+                            }
+                            else
+                            {
+                                ds.DrawImage(correctedTarget);
+                            }
+
                             //???Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info MediaPlayer_VideoFrameAvailable: Frame drawn. Index from player position:{(mp.PlaybackSession.Position.TotalMilliseconds / 1000.0):F3}");
 
                             // In Debug mode, draw a camera symbol on the frame for differentiation
@@ -2021,7 +2113,16 @@ namespace Surveyor.User_Controls
                 try
                 {
                     // Save the CanvasBitmap into the memory stream
-                    _ = inputBitmap.SaveAsync(streamSource, CanvasBitmapFileFormat.Bmp);
+                    if (depthUnderwater == 0 || correctedTarget is null)
+                    {
+                        //??? This fire and forget is a PROBLEM
+                        _ = inputBitmap.SaveAsync(streamSource, CanvasBitmapFileFormat.Bmp);
+                    }
+                    else
+                    {
+                        //??? This fire and forget is a PROBLEM - See if we could ber MagnifyAndMarkerDisplay to use a CanvasRenderTarget and makr a copy of it here?
+                        _ = correctedTarget.SaveAsync(streamSource, CanvasBitmapFileFormat.Bmp);
+                    }
                     return (streamSource, imageSourceWidth, imageSourceHeight); // Return the stream with the image data
                 }
                 catch (Exception ex)
@@ -2052,7 +2153,14 @@ namespace Surveyor.User_Controls
                 {
                     try
                     {
-                        await inputBitmap.SaveAsync(fileSpec, fileFormat);
+                        if (depthUnderwater == 0 || correctedTarget is null)
+                        {
+                            await inputBitmap.SaveAsync(fileSpec, fileFormat);
+                        }
+                        else
+                        {
+                            await correctedTarget.SaveAsync(fileSpec, fileFormat);
+                        }
                         Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide}: SaveFrame Saved: {fileSpec}");
                         ret = true;
                     }
@@ -2199,6 +2307,10 @@ namespace Surveyor.User_Controls
                             // i.e. waste if time if there is already a frame pending
                             if (!vidFrameMgr.MultipleFramesPending())
                             {
+                                // Color Correct if necessary
+                                if (depthUnderwater > 0) 
+                                    vidFrameMgr.UpdateCorrectedTarget();
+
                                 // Draw the framePrimary: User requested to play
                                 if (vidFrameMgr.DrawFrameOnImageControl() == false)
                                     reset = true;
@@ -2297,7 +2409,35 @@ namespace Surveyor.User_Controls
         }
 
 
+        ///
+        /// MEDIATOR METHODS (Called by the TListener, always marked as internal)
+        ///
 
+
+        /// <summary>
+        /// The user changes the Diagnostic Information setting
+        /// </summary>
+        /// <param name="diagnosticInformation"></param>
+        internal void _SetDiagnosticInformation(bool _diagnosticInformation)
+        {
+            diagnosticInformation = _diagnosticInformation;
+        }
+
+
+        /// <summary>
+        /// Experimental setting has changed (or is being initially set)
+        /// </summary>
+        /// <param name="_experimentalEnabled"></param>
+        internal void _SetExperimental(bool _experimentalEnabled,
+                                       bool _experimentalFeatureSetAEnabled,
+                                       bool _experimentalFeatureSetBEnabled,
+                                       bool _experimentalFeatureSetCEnabled)
+        {
+            experimentalEnabled = _experimentalEnabled;
+            experimentalFeatureSetAEnabled = _experimentalFeatureSetAEnabled;
+            experimentalFeatureSetBEnabled = _experimentalFeatureSetBEnabled;
+            experimentalFeatureSetCEnabled = _experimentalFeatureSetCEnabled;
+        }
 
 
         ///
@@ -2647,7 +2787,34 @@ namespace Surveyor.User_Controls
 
         public override void Receive(TListener listenerFrom, object message)
         {
-            // In case we need later
+            if (message is SettingsWindowEventData)
+            {
+                SettingsWindowEventData data = (SettingsWindowEventData)message;
+
+                switch (data.settingsWindowEvent)
+                {
+                    // The user has changed the Diagnostic Information settings
+                    case eSettingsWindowEvent.DiagnosticInformation:
+                        if (data.diagnosticInformation is not null)
+                        {
+                            _mediaPlayer._SetDiagnosticInformation((bool)data!.diagnosticInformation);
+                        }
+                        break;
+                    // The user has changed the Experimental settings
+                    case eSettingsWindowEvent.Experimental:
+                        if (data.experimentalEnabled is not null &&
+                            data.experimentalFeatureSetAEnabled is not null &&
+                            data.experimentalFeatureSetBEnabled is not null &&
+                            data.experimentalFeatureSetCEnabled is not null)
+                        {
+                            _mediaPlayer._SetExperimental((bool)data!.experimentalEnabled,
+                                                                     (bool)data.experimentalFeatureSetAEnabled,
+                                                                     (bool)data.experimentalFeatureSetBEnabled,
+                                                                     (bool)data.experimentalFeatureSetCEnabled);
+                        }
+                        break;
+                }
+            }
         }
 
     }

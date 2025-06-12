@@ -1307,9 +1307,9 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void ButtonMagEnlarge_Click(object sender, RoutedEventArgs e)
         {
-            if (experimentalEnabled is not null && experimentalFeatureSetBEnabled is not null &&
-                (bool)experimentalEnabled && (bool)experimentalFeatureSetBEnabled)
-            {
+            //if (experimentalEnabled is not null && experimentalFeatureSetBEnabled is not null &&
+            //    (bool)experimentalEnabled && (bool)experimentalFeatureSetBEnabled)
+            //{
                 CombinedZoomMode(-1/*zoom out: enlarge size & reduce magnification*/);
 
                 // Message MediaStereoController so the other instance can update the size of the mag window
@@ -1322,18 +1322,18 @@ namespace Surveyor.User_Controls
                 {
                     canvasZoomFactor = canvasZoomFactor
                 });
-            }
-            else
-            {
-                MagWindowSizeEnlargeOrReduce(true/*TrueEnargeFalseReduce*/, true/*trueHideIfLocked*/);
+            //}
+            //else
+            //{
+            //    MagWindowSizeEnlargeOrReduce(true/*TrueEnargeFalseReduce*/, true/*trueHideIfLocked*/);
 
-                // Message MediaStereoController so the other instance can update the size of the mag window
-                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
-                {
-                    magWindowSize = MagWindowGetSizeName()
-                };
-                magnifyAndMarkerControlHandler?.Send(data);
-            }
+            //    // Message MediaStereoController so the other instance can update the size of the mag window
+            //    MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
+            //    {
+            //        magWindowSize = MagWindowGetSizeName()
+            //    };
+            //    magnifyAndMarkerControlHandler?.Send(data);
+            //}
         }
 
 
@@ -1344,9 +1344,9 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void ButtonMagReduce_Click(object sender, RoutedEventArgs e)
         {
-            if (experimentalEnabled is not null && experimentalFeatureSetBEnabled is not null &&
-                (bool)experimentalEnabled && (bool)experimentalFeatureSetBEnabled)
-            {
+            //if (experimentalEnabled is not null && experimentalFeatureSetBEnabled is not null &&
+            //    (bool)experimentalEnabled && (bool)experimentalFeatureSetBEnabled)
+            //{
                 CombinedZoomMode(1/*zoom in: reduce size & magnify*/);
 
                 // Message MediaStereoController so the other instance can update the size of the mag window
@@ -1359,18 +1359,18 @@ namespace Surveyor.User_Controls
                 {
                     canvasZoomFactor = canvasZoomFactor
                 });
-            }
-            else
-            {
-                MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/, true/*trueHideIfLocked*/);
+            //}
+            //else
+            //{
+            //    MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/, true/*trueHideIfLocked*/);
 
-                // Message MediaStereoController so the other instance can update the size of the mag window
-                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
-                {
-                    magWindowSize = MagWindowGetSizeName()
-                };
-                magnifyAndMarkerControlHandler?.Send(data);
-            }
+            //    // Message MediaStereoController so the other instance can update the size of the mag window
+            //    MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
+            //    {
+            //        magWindowSize = MagWindowGetSizeName()
+            //    };
+            //    magnifyAndMarkerControlHandler?.Send(data);
+            //}
         }
 
 
@@ -2203,20 +2203,20 @@ namespace Surveyor.User_Controls
                     button.FontSize = fontSize;
                 }
 
-                if (experimentalEnabled is not null && experimentalFeatureSetBEnabled is not null && 
-                   (bool)experimentalEnabled && (bool)experimentalFeatureSetBEnabled)
-                {
+                //if (experimentalEnabled is not null && experimentalFeatureSetBEnabled is not null && 
+                //   (bool)experimentalEnabled && (bool)experimentalFeatureSetBEnabled)
+                //{
                     // In ZoomMode (FeatureSetb) Enable/Disable the Mag Zoom In/Out buttons are combined
                     ButtonMagZoomIn.Visibility = Visibility.Collapsed;
                     ButtonMagZoomOut.Visibility = Visibility.Collapsed;
-                }
-                else
-                {
-                    ButtonMagZoomIn.Visibility = Visibility.Visible;
-                    SizeButton(ButtonMagZoomIn, magButtonWidth, magButtonHeight, fontSize);
-                    ButtonMagZoomOut.Visibility = Visibility.Visible;
-                    SizeButton(ButtonMagZoomOut, magButtonWidth, magButtonHeight, fontSize);
-                }
+                //}
+                //else
+                //{
+                //    ButtonMagZoomIn.Visibility = Visibility.Visible;
+                //    SizeButton(ButtonMagZoomIn, magButtonWidth, magButtonHeight, fontSize);
+                //    ButtonMagZoomOut.Visibility = Visibility.Visible;
+                //    SizeButton(ButtonMagZoomOut, magButtonWidth, magButtonHeight, fontSize);
+                //}
 
                 // In diags mode display a pink box around the canvas to check for alignment with the media player/ImageFrame
                 if (diagnosticInformation)
@@ -3374,7 +3374,7 @@ namespace Surveyor.User_Controls
             else if (imageUIElement is not null && magWidthUnscaled == (uint)(imageUIElement.ActualWidth / canvasScaleFactor))
                 magWindowSize = "Full";
             else
-                magWindowSize = "";
+                magWindowSize = "Full";  // Catch-up best to return something
 
             return magWindowSize;
         }

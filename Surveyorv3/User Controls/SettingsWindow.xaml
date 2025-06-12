@@ -275,7 +275,8 @@
 
 
                 <!-- SYSTEM SETTINGS > CAMERA -->
-                <toolkit:SettingsExpander x:Name="CameraExpander" Header="Camera" Description="GoPro setup instructions" MaxWidth="1200">
+                <toolkit:SettingsExpander x:Name="CameraExpander" Header="Camera" Description="GoPro setup instructions" MaxWidth="1200"
+                                          Expanded="CameraExpander_Expanded" Collapsed="CameraExpander_Collapsed">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE722;" />
                     </toolkit:SettingsExpander.HeaderIcon>
@@ -327,7 +328,7 @@
 
                                     </StackPanel>
                                     <CheckBox x:Name="GoProQRSetDateTime" Content="Set Date &amp; Time"
-                                              IsChecked="True" IsEnabled="True"/>
+                                              IsChecked="True" IsEnabled="False"/>
                                     
                                     <!-- Display Scrip QR Code-->
                                     <Image x:Name="GoProQRCode"  HorizontalAlignment="Right" Grid.Column="1" Width="400" Height="400" Margin="10,0,00,0"/>

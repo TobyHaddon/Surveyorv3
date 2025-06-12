@@ -33,7 +33,6 @@ using static Surveyor.Helper.TelemetryLogger;
 using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.Survey.DataClass;
 using static Surveyor.User_Controls.SettingsWindowEventData;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 
@@ -804,23 +803,53 @@ namespace Surveyor
                             bool inheritanceRequested = SurveyInfoAndMediaUserControl.SaveForContentDialog(surveyClass);
 
                             // Inherit information from recent survey if user requested
+                            bool proceed = true;
                             if (inheritanceRequested == true && !string.IsNullOrEmpty(potentialSurveyToInheritFrom))
                             {
                                 // Copies select information (calibration and/or rules)
                                 SurveyInheritance surveyInheritance = new();
-                                await surveyInheritance.InheritFromSurvey(this, report, surveyClass, potentialSurveyToInheritFrom);
+                                proceed = await surveyInheritance.InheritFromSurvey(this, report, surveyClass, potentialSurveyToInheritFrom);
                             }
 
+                            if (proceed)
+                            {
+                                // ***OLD CODE START***
+                                // Open Media Files
+                                ///???await OpenSVSMediaFiles();
+                                // ***OLD CODE END***
 
-                            // Open Media Files
-                            await OpenSVSMediaFiles();
+                                // ***NEW CODE START*** (Force the NewSurvey logical through the save OpenSurvey Logic)
+                                // Force a Save
+                                int ret = await FileSurveySaveOrSaveAs();
 
+                                if (ret == 0 && surveyClass.Data.Info.SurveyPath is not null && surveyClass.Data.Info.SurveyFileName is not null)
+                                {
+                                    // Remember the survey path
+                                    string surveyPath = Path.Combine(surveyClass.Data.Info.SurveyPath, surveyClass.Data.Info.SurveyFileName);
+
+                                    // Close the Survey
+                                    await CheckForOpenSurveyAndClose();
+
+                                    // Re-Open in a standard way (so everyone gets hooked up and initialized correctly)
+                                    ret = await OpenSurvey(surveyPath);
+
+                                    if (ret != 0)
+                                    {
+                                        report.Warning("", $"FileSurveyNew_Click: OpenSurvey() failed, survey path:{surveyPath}, ret = {ret}");
+                                    }
+                                }
+                                else
+                                {
+                                    report.Warning("", $"FileSurveyNew_Click: FileSurveySaveOrSaveAs() failed");
+                                }
+                                // ***NEW CODE END***
+                            }
                         }
                     }
                     catch (Exception ex)
                     {
                         // Log or handle the exception as needed
-                        report.Error("", $"Error showing SurveyInfoAndMediaContentDialog: {ex.Message}");
+                        report.Error("", $"FileSurveyNew_Click: {ex.Message}");
                     }
                 }
             }
@@ -869,15 +898,22 @@ namespace Surveyor
                 // If a file was picked, handle it
                 if (file is not null)
                 {
-                    await OpenSurvey(file.Path);
+                    int ret = await OpenSurvey(file.Path);
 
-                    // Add to Recent Surveys
-                    AddToRecentSurveys(file.Path);
-                    UpdateRecentSurveysMenu();
+                    if (ret == 0)
+                    {
+                        // Add to Recent Surveys
+                        AddToRecentSurveys(file.Path);
+                        UpdateRecentSurveysMenu();
 
-                    // Check if the preferred calibration data is the one being using for
-                    // the current event measurements calculations
-                    await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
+                        // Check if the preferred calibration data is the one being using for
+                        // the current event measurements calculations
+                        await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
+                    }
+                    else
+                    { 
+                        report.Warning("", $"FileSurveyOpen_Click: OpenSurvey() failed, survey path:{file.Path}, ret = {ret}");
+                    }
                 }
 
                 // Enable/Disable menu items based on the current survey state
@@ -894,27 +930,6 @@ namespace Surveyor
         private async void FileSurveySave_Click(object? sender, RoutedEventArgs? e)
         {
             await FileSurveySaveOrSaveAs();
-        }
-
-        private async Task FileSurveySaveOrSaveAs()
-        {
-            if (surveyClass is not null)
-            {
-                if (surveyClass.Data.Info.SurveyPath == null || surveyClass.Data.Info.SurveyFileName == null)
-                {
-                    // Not saved yet so use 'Save As'
-                    await SaveAsSurvey();
-                }
-                else
-                {
-                    // Save
-                    surveyClass.SurveySave();
-                }
-            }
-
-            report.Save();
-
-            SetMenuStatusBasedOnSurveyState();
         }
 
 
@@ -1539,8 +1554,10 @@ namespace Surveyor
                     }
 
                     // Engage to the MediaTimelineController
-                    if (reEnable || newPosition)
-                        await mediaStereoController.MediaLockMediaPlayers();
+                    if (surveyClass is not null && (reEnable || newPosition))
+                    {
+                        await mediaStereoController.MediaLockMediaPlayers(null/*current media positions*/, surveyClass.Data.Events.EventList);
+                    }
                 }
                 else
                 {
@@ -1747,13 +1764,11 @@ namespace Surveyor
         }
         private void RightSubGrid_MouseWheel(object sender, PointerRoutedEventArgs e)
         {
-            if (experimentalEnabled && experimentalFeatureSetBEnabled)
-            {
-                // Manage the mag window size/zoom
-                MediaPlayerRight.MouseWheelEvent(sender, e);
-                if (e.Handled == true)
-                    return;
-            }
+            // Manage the mag window size/zoom
+            MediaPlayerRight.MouseWheelEvent(sender, e);
+            if (e.Handled == true)
+                return;
+
             if (SettingsManagerLocal.MouseWheelFrameMoveEnabled)
             {
                 // Move the frame
@@ -1979,11 +1994,6 @@ namespace Surveyor
             }
             else
             {
-//??? TOBEDELETED
-//#if !No_MagnifyAndMarkerDisplay
-//                MagnifyAndMarkerDisplayLeft.Close();
-//                MagnifyAndMarkerDisplayRight.Close();
-//#endif
                 await surveyClass.SurveyClose();
             }
 
@@ -2001,11 +2011,6 @@ namespace Surveyor
                 if (ret == 0)
                 {
                     // Setup the events
-//??? TOBEDELETED
-//#if !No_MagnifyAndMarkerDisplay
-//                    MagnifyAndMarkerDisplayLeft.SetEvents(surveyClass.Data.Events.EventList);
-//                    MagnifyAndMarkerDisplayRight.SetEvents(surveyClass.Data.Events.EventList);
-//#endif
                     eventsControl.SetEvents(surveyClass.Data.Events.EventList);
 
 
@@ -2018,7 +2023,7 @@ namespace Surveyor
                     if (await OpenSVSMediaFiles() == true)
                     {
                         // Enable the insert survey transect marker menu item
-                        MenuTransectStartStopMarker.IsEnabled = true;
+                        //???MenuTransectStartStopMarker.IsEnabled = true;  // This is probably not need here (handled elsewhere)
 
                         // Remember the survey folder
                         SettingsManagerLocal.SurveyFolder = Path.GetDirectoryName(surveyFileSpec);
@@ -2131,6 +2136,38 @@ namespace Surveyor
                     }
                 }
             }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Save the currently open survey file or 'Save As' if not saved yet
+        /// Used by the FileSurveySave_Click and FileSurveySaveAs_Click and
+        /// also to save a new survey after creation
+        /// </summary>
+        /// <returns></returns>
+        private async Task<int> FileSurveySaveOrSaveAs()
+        {
+            int ret = -1;
+
+            if (surveyClass is not null)
+            {
+                if (surveyClass.Data.Info.SurveyPath == null || surveyClass.Data.Info.SurveyFileName == null)
+                {
+                    // Not saved yet so use 'Save As'
+                    ret = await SaveAsSurvey();
+                }
+                else
+                {
+                    // Save
+                    ret = surveyClass.SurveySave();
+                }
+            }
+
+            report.Save();
+
+            SetMenuStatusBasedOnSurveyState();
 
             return ret;
         }
@@ -2445,11 +2482,16 @@ namespace Surveyor
                 // Open left camera media
                 if (string.IsNullOrEmpty(mediaFileLeft) == false && string.IsNullOrEmpty(mediaFileRight) == false)
                 {
+                    // Extract depth underwater for colour correction
+                    if (uint.TryParse(surveyClass.Data.Info.SurveyDepth, out uint depthUnderwater) == false)
+                        depthUnderwater = 0;
+
                     // Open the new media
                     retOpen = await mediaStereoController.MediaOpen(mediaFileLeft,
                                                                     mediaFileRight,
                                                                     surveyClass.Data.Events.EventList,
-                                                                    surveyClass.Data.Sync.IsSynchronized == true ? surveyClass.Data.Sync.TimeSpanOffset : null);
+                                                                    surveyClass.Data.Sync.IsSynchronized == true ? surveyClass.Data.Sync.TimeSpanOffset : null,
+                                                                    depthUnderwater);
 
                     if (retOpen == 0)
                     {

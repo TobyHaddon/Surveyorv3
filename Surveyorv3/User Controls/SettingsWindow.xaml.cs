@@ -76,6 +76,11 @@ namespace Surveyor.User_Controls
         // This is temporary filtered version of the species code list, used if the used searches the DataGrid
         public ObservableCollection<SpeciesItem> FilteredSpeciesItems { get; } = [];
 
+        // Camera settings timer and flag to indicate is a set camera date/time request is in the currently selected QR Code string
+        private DispatcherTimer? _qrCodeUpdateTimer;
+        private bool _containsOT = false;
+
+
         public SettingsWindow(SurveyorMediator _mediator, MainWindow _mainWindow, Survey? surveyClass, Reporter? _report, string section = "")
         {
             // Remember main window (needed for this method)
@@ -836,20 +841,6 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Show the GoPro Camera Setup QR Codes
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private async void GoProQRSelectionMenuFlyoutItem_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is MenuFlyoutItem menuItem)
-            {
-                await SetQRCodeSelection(menuItem.Text);
-            }
-        }
-
-
-        /// <summary>
         /// User requested the species image cache view is updated
         /// </summary>
         /// <param name="sender"></param>
@@ -1347,6 +1338,56 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// Show the GoPro Camera Setup QR Codes
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void GoProQRSelectionMenuFlyoutItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuFlyoutItem menuItem)
+            {
+                await SetQRCodeSelection(menuItem.Text);
+            }
+        }
+
+
+        /// <summary>
+        /// Camera Settings expanded
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void CameraExpander_Expanded(object sender, EventArgs e)
+        {
+            if (_containsOT)
+            {
+                _qrCodeUpdateTimer = new DispatcherTimer
+                {
+                    Interval = TimeSpan.FromMilliseconds(500)
+                };
+                _qrCodeUpdateTimer.Tick += QRCodeUpdateTimer_Tick;
+                _qrCodeUpdateTimer.Start();
+            }
+        }
+
+
+        /// <summary>
+        /// Camera Settings collapsed
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void CameraExpander_Collapsed(object sender, EventArgs e)
+        {
+            if (_qrCodeUpdateTimer is not null)
+            {
+                _qrCodeUpdateTimer.Stop();
+                _qrCodeUpdateTimer.Tick -= QRCodeUpdateTimer_Tick;
+                _qrCodeUpdateTimer = null;
+            }
+        }
+
+
+
         ///
         /// MEDIATOR METHODS (Called by the TListener, always marked as internal)
         ///
@@ -1436,6 +1477,15 @@ namespace Surveyor.User_Controls
                 string? script = GoProScriptsList.Find(x => x.Item1 == name).Item2;
                 if (script is not null)
                 {
+                    // Detect is this QR Code string contains a request to set the camera date time
+                    // If so the date and time will need to be injected into the QR Code string in the timer tick
+                    _containsOT = script.Contains("oT");
+
+                    // Update checkbox visibility and state
+                    GoProQRSetDateTime.Visibility = _containsOT ? Visibility.Visible : Visibility.Collapsed;
+                    GoProQRSetDateTime.IsEnabled = _containsOT;
+                    GoProQRSetDateTime.IsChecked = _containsOT;
+
                     // Update the QR Code and script
                     GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(script);
                     GoProQRScript.Text = $"{script}";
@@ -1586,6 +1636,32 @@ namespace Surveyor.User_Controls
 
                 contentSV.ChangeView(null, scrollTo, null);
             });
+        }
+
+
+        /// <summary>
+        /// Timer tick used to dynamically inject the date time in the QR code string if
+        /// required and re-generate the QR code
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void QRCodeUpdateTimer_Tick(object? sender, object e)
+        {
+            string script = GoProQRScript.Text;
+
+            if (!_containsOT) return;
+
+            if (GoProQRSetDateTime.IsChecked == true)
+            {
+                string timestamp = DateTime.Now.ToString("yyMMddHHmmss.fff");
+                string updated = script.Replace("oT", $"oT{timestamp}");
+                GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(updated);
+            }
+            else
+            {
+                string updated = script.Replace("oT", "");
+                GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(updated);
+            }
         }
 
 

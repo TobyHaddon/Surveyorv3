@@ -14,18 +14,11 @@ namespace Surveyor.Controls
 
     public class CalibrationFrameSetViewerData
     {
-        //???public CalibrationFrameSetViewerData(CalibrationFrameSet _calibrationFrameSet)
-        //{
-        //    calibrationFrameSet = _calibrationFrameSet;
-        //}
         public CalibrationFrameSetViewerData(bool _trueLeftFalseRight, CalibrationStereoFrameSet _calibrationStereoFrameSet)
         {
             trueLeftFalseRight = _trueLeftFalseRight;
             calibrationStereoFrameSet = _calibrationStereoFrameSet;
         }
-
-        //// Solo calibration frame set
-        //???public CalibrationFrameSet? calibrationFrameSet = null;
 
         // Stereo calibration frame set
         public bool trueLeftFalseRight = true;
@@ -35,11 +28,11 @@ namespace Surveyor.Controls
     public sealed partial class CalibrationFrameSetViewer : UserControl
     {
 
-        private (int gx, int gy)[] layers;
+        private (int gx, int gy)[] sensorBinLayers;
 
         public CalibrationFrameSetViewer()
         {
-            layers = FrameCalibrationTarget.GridLayers;
+            sensorBinLayers = FrameCalibrationData.SensorBinGridLayers;
 
             this.InitializeComponent();
             this.Loaded += OnLoaded;
@@ -50,9 +43,14 @@ namespace Surveyor.Controls
 
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
-            SetupBinLayers();
+            SetupSensorBinLayers();
+            SetupPoseBinLayers();
         }
 
+
+        /// <summary>
+        /// Draw the movement and blur graphs based on the current data.
+        /// </summary>
         public void DrawGraphs()
         {
             if (Data is null)
@@ -70,56 +68,7 @@ namespace Surveyor.Controls
             var blurPoints = new List<Point>();
 
 
-            //if (Data.calibrationFrameSet is not null)
-            //{
-            //    var frames = Data.calibrationFrameSet.Frames;
-            //    if (frames.Count == 0) return;
-
-            //    double xStep = widthMovementCanvas / (double)((int)Math.Ceiling((double)frames.Count / 100.0) * 100);
-
-            //    double maxMovement = Math.Clamp(Data.calibrationFrameSet.MaxMovementFactor, 0.0, CalibrationFrameSet.MOVEMENT_LARGEVALUE);
-            //    double maxBlur = Data.calibrationFrameSet.MaxBlurFactor * 1.1;
-
-
-            //    double x;
-            //    int i = 0;
-            //    foreach (var frame in frames.Values)
-            //    {
-            //        x = i * xStep;
-
-            //        try
-            //        {
-            //            if (frame.MovementFactor != -1)
-            //            {
-            //                double movementFactor = frame.MovementFactor;
-            //                movementFactor = Math.Clamp(movementFactor, 0.0, CalibrationFrameSet.MOVEMENT_LARGEVALUE);
-
-            //                double yMovement = heightMovementCanvas * (1 - movementFactor / maxMovement);
-
-            //                movementPoints.Add(new Point(x, yMovement));
-            //            }
-            //        }
-            //        catch (Exception ex)
-            //        {
-            //            // Handle the exception as needed
-            //            System.Diagnostics.Debug.WriteLine($"Movement Error processing frame {i}: {ex.Message}");
-            //        }
-
-            //        try
-            //        {
-            //            double yBlur = heightBlurCanvas * (1 - frame.BlurFactor / maxBlur);
-            //            blurPoints.Add(new Point(x, yBlur));
-            //        }
-            //        catch (Exception ex)
-            //        {
-            //            // Handle the exception as needed
-            //            System.Diagnostics.Debug.WriteLine($"Blur Error processing frame {i}: {ex.Message}");
-            //        }
-
-            //        i++;
-            //    }
-            //}
-            /*else */if (Data.calibrationStereoFrameSet is not null)
+            if (Data.calibrationStereoFrameSet is not null)
             {
                 var frames = Data.calibrationStereoFrameSet.Frames;
                 if (frames.Count == 0) return;
@@ -132,11 +81,11 @@ namespace Surveyor.Controls
 
                 double x;
                 int i = 0;
-                foreach ((FrameCalibrationTarget leftTarget, FrameCalibrationTarget? rightTarget) in frames.Values)
+                foreach ((FrameCalibrationData leftTarget, FrameCalibrationData? rightTarget) in frames.Values)
                 {
                     x = i * xStep;
 
-                    FrameCalibrationTarget? frame = Data.trueLeftFalseRight ? leftTarget : rightTarget;
+                    FrameCalibrationData? frame = Data.trueLeftFalseRight ? leftTarget : rightTarget;
 
                     try
                     {                        
@@ -223,14 +172,16 @@ namespace Surveyor.Controls
         }
 
 
-        
-        private void SetupBinLayers()
+        /// <summary>
+        /// Setup the sensor bin grid
+        /// </summary>
+        private void SetupSensorBinLayers()
         {
             if (Data is null) return;
 
-            BinGridItemsControl.Items.Clear();
+            SensorBinGridItemsControl.Items.Clear();
 
-            foreach (var (gx, gy) in layers)
+            foreach (var (gx, gy) in sensorBinLayers)
             {
                 var grid = new Grid
                 {
@@ -243,6 +194,7 @@ namespace Surveyor.Controls
                 // Create columns and rows
                 for (int c = 0; c < gx; c++)
                     grid.ColumnDefinitions.Add(new ColumnDefinition());
+
                 for (int r = 0; r < gy; r++)
                     grid.RowDefinitions.Add(new RowDefinition());
 
@@ -281,10 +233,81 @@ namespace Surveyor.Controls
                     }
                 }
 
-                BinGridItemsControl.Items.Add(grid);
+                SensorBinGridItemsControl.Items.Add(grid);
             }
         }
-        public void RefreshBinLayers()
+
+        /// <summary>
+        /// Setup the pose bin grid
+        /// </summary>
+        private void SetupPoseBinLayers()
+        {
+            if (Data is null) return;
+
+            PoseBinGridItemsControl.Items.Clear();
+
+            (int gx, int gy) = FrameCalibrationData.PoseBinGrid;
+
+
+            var grid = new Grid
+            {
+                Width = 180,
+                Height = 110,
+                Margin = new Thickness(8),
+                Background = new SolidColorBrush(Microsoft.UI.Colors.Gray)
+            };
+
+            // Create columns and rows
+            for (int c = 0; c < gx; c++)
+                grid.ColumnDefinitions.Add(new ColumnDefinition());
+
+            for (int r = 0; r < gy; r++)
+                grid.RowDefinitions.Add(new RowDefinition());
+
+            // Add cell borders and content
+            for (int r = 0; r < gy; r++)
+            {
+                for (int c = 0; c < gx; c++)
+                {
+                    var cell = new Border
+                    {
+                        BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.LightGray),
+                        BorderThickness = new Thickness(0.5),
+                        HorizontalAlignment = HorizontalAlignment.Stretch,
+                        VerticalAlignment = VerticalAlignment.Stretch
+                    };
+
+                    var label = new TextBlock
+                    {
+                        Text = "0", // Default value
+                        FontFamily = new FontFamily("Segoe UI Variable"),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        //Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources["CaptionTextBlockStyle"]
+                        //Width = 50,
+                        FontSize = 10,
+                        FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                        Margin = new Thickness(0),
+                        Padding = new Thickness(0),
+                        UseLayoutRounding = true
+                    };
+
+                    Grid.SetRow(cell, r);
+                    Grid.SetColumn(cell, c);
+                    cell.Child = label;
+                    grid.Children.Add(cell);
+                }
+            }
+
+            PoseBinGridItemsControl.Items.Add(grid);
+
+        }
+
+
+        /// <summary>
+        /// Refresh the sensor bin layers with the current data.
+        /// </summary>
+        public void RefreshSensorBinLayers()
         {
             if (Data is null)
                 return;
@@ -292,45 +315,17 @@ namespace Surveyor.Controls
             int gridIndex = 0;
 
 
-            //if (Data.calibrationFrameSet is not null)
-            //{
-
-            //    foreach (var (gx, gy) in layers)
-            //    {
-            //        // Safety check
-            //        if (gridIndex >= BinGridItemsControl.Items.Count)
-            //            break;
-
-            //        if (BinGridItemsControl.Items[gridIndex] is Grid grid)
-            //        {
-            //            var counts = Data.calibrationFrameSet.GetBinCounts(gx, gy);
-
-            //            foreach (var child in grid.Children)
-            //            {
-            //                if (child is Border border && border.Child is TextBlock textBlock)
-            //                {
-            //                    int column = Grid.GetColumn(border);
-            //                    int row = Grid.GetRow(border);
-
-            //                    // Updated to use just column/row since gx/gy are implicit in the grid structure
-            //                    textBlock.Text = counts.TryGetValue((gx, gy, column, row), out int v) ? v.ToString() : "0";
-            //                }
-            //            }
-            //        }
-            //        gridIndex++;
-            //    }
-            //}
-            /*else*/ if (Data.calibrationStereoFrameSet is not null)
+            if (Data.calibrationStereoFrameSet is not null)
             {
-                foreach (var (gx, gy) in layers)
+                foreach (var (gx, gy) in sensorBinLayers)
                 {
                     // Safety check
-                    if (gridIndex >= BinGridItemsControl.Items.Count)
+                    if (gridIndex >= SensorBinGridItemsControl.Items.Count)
                         break;
 
-                    if (BinGridItemsControl.Items[gridIndex] is Grid grid)
+                    if (SensorBinGridItemsControl.Items[gridIndex] is Grid grid)
                     {
-                        var counts = Data.calibrationStereoFrameSet.GetBinCounts(Data.trueLeftFalseRight, gx, gy);
+                        var counts = Data.calibrationStereoFrameSet.GetSensorBinCounts(Data.trueLeftFalseRight, gx, gy);
 
                         foreach (var child in grid.Children)
                         {
@@ -349,5 +344,45 @@ namespace Surveyor.Controls
             }
         }
 
+
+        /// <summary>
+        /// Refresh the sensor bin layers with the current data.
+        /// </summary>
+        public void RefreshPoseBinLayers()
+        {
+            if (Data is null)
+                return;
+
+            int gridIndex = 0;
+
+
+            if (Data.calibrationStereoFrameSet is not null)
+            {
+                (int gx, int gy) = FrameCalibrationData.PoseBinGrid;
+
+                // Safety check
+                if (gridIndex < PoseBinGridItemsControl.Items.Count)
+                {
+
+                    if (PoseBinGridItemsControl.Items[gridIndex] is Grid grid)
+                    {
+                        var counts = Data.calibrationStereoFrameSet.GetPoseBinCounts(Data.trueLeftFalseRight);
+
+                        foreach (var child in grid.Children)
+                        {
+                            if (child is Border border && border.Child is TextBlock textBlock)
+                            {
+                                int column = Grid.GetColumn(border);
+                                int row = Grid.GetRow(border);
+
+                                // Updated to use just column/row since gx/gy are implicit in the grid structure
+                                textBlock.Text = counts.TryGetValue((column, row), out int v) ? v.ToString() : "0";
+                            }
+                        }
+                    }
+                    gridIndex++;
+                }
+            }
+        }
     }
 }

@@ -247,7 +247,7 @@ namespace Surveyor
         /// </summary>
         public static bool UseInternetEnabled
         {
-            get => GetBool(UseInternetEnabledKey, false/*default*/);
+            get => GetBool(UseInternetEnabledKey, true/*default*/);
             set => SetBool(UseInternetEnabledKey, value);
         }
 

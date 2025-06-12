@@ -25,6 +25,8 @@ using System.Collections.ObjectModel;
 using static Surveyor.User_Controls.MagnifyAndMarkerControlEventData;
 using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
 using static Surveyor.User_Controls.SurveyorMediaPlayer;
+using static Surveyor.User_Controls.SettingsWindowEventData;
+using Windows.Media.Playback;
 
 
 namespace Surveyor
@@ -51,12 +53,6 @@ namespace Surveyor
         private readonly SurveyorMediaControl mediaControlPrimary;
         private readonly SurveyorMediaControl mediaControlSecondary;
 
-        // Copy of the left and right Magnify and Marker controls
-//???TOBEDELETE
-//#if !No_MagnifyAndMarkerDisplay
-//        private readonly MagnifyAndMarkerDisplay magnifyAndMarkerDisplayLeft;
-//        private readonly MagnifyAndMarkerDisplay magnifyAndMarkerDisplayRight;
-//#endif
 
         // Copy of the left and right MediaInfo controls
         //???private readonly MediaInfo _mediaInfoLeft;
@@ -88,7 +84,16 @@ namespace Surveyor
 
         // Used to allow the user not to see the dialog that appears if the user adds a
         // Measurement Point, 3D Point or a Single Point and doesn't setup the species info
-        private bool justSaveEventDoAsk = false;    
+        private bool justSaveEventDoAsk = false;
+
+        // Cached diagnostic information flag
+        private bool diagnosticInformation = false;
+
+        // Only used for settingsWindowEvent.Experimental
+        public bool? experimentalEnabled;
+        public bool? experimentalFeatureSetAEnabled;
+        public bool? experimentalFeatureSetBEnabled;
+        public bool? experimentalFeatureSetCEnabled;
 
 
         public MediaStereoController(MainWindow _mainWindow, Reporter _report, 
@@ -142,16 +147,18 @@ namespace Surveyor
             mediaControlPrimary.InitializeMediator(mediator, mainWindow);
             mediaControlSecondary.InitializeMediator(mediator, mainWindow);
 
-            // Initialize mediator for both Magnify and Marker controls
-//???TOBEDELETED
-//#if !No_MagnifyAndMarkerDisplay
-//            magnifyAndMarkerDisplayLeft.InitializeMediator(mediator, mainWindow);
-//            magnifyAndMarkerDisplayRight.InitializeMediator(mediator, mainWindow);
-//#endif
 
             // Initialize mediator for both media info controls
             //???_mediaInfoLeft.InitializeMediator(mediator, mainWindow);
             //???_mediaInfoRight.InitializeMediator(mediator, mainWindow);
+
+            // Set-up any controls that depend on the diagnostic information state 
+            _SetDiagnosticInformation(SettingsManagerLocal.DiagnosticInformation);
+
+            // Load the experimental settings
+            _SetExperimental(SettingsManagerLocal.ExperimentalEnabled,
+                SettingsManagerLocal.ExperimentalFeatureSetAEnabled, SettingsManagerLocal.ExperimentalFeatureSetBEnabled, SettingsManagerLocal.ExperimentalFeatureSetCEnabled);
+
 
             // Remember the StereoProjection class
             stereoProjection = _stereoProjection;
@@ -210,7 +217,7 @@ namespace Surveyor
         /// <param name="mediaFileSpecRight"></param>
         /// <param name="tempSpanOffset"></param>
         /// <returns></returns>
-        public async Task<int> MediaOpen(string mediaFileSpecLeft, string mediaFileSpecRight, ObservableCollection<Event>? existingEvents, TimeSpan? timeSpanOffset)
+        public async Task<int> MediaOpen(string mediaFileSpecLeft, string mediaFileSpecRight, ObservableCollection<Event>? existingEvents, TimeSpan? timeSpanOffset, uint depthUnderwater)
         {
             CheckIsUIThread();
 
@@ -228,52 +235,46 @@ namespace Surveyor
             // This is an 'are you sure' dialog if the user has not set the species info
             justSaveEventDoAsk = false;
 
+
+            // Set the depth the video were filmed at for colour correction (Feature Set A)
+            uint depthUnderwaterPassed = 0;
+            if (experimentalEnabled == true && experimentalFeatureSetAEnabled == true)
+            {
+                depthUnderwaterPassed = depthUnderwater;
+            }
+
+
             // Open both files
             if (!string.IsNullOrEmpty(mediaFileSpecLeft))
-                await mediaPlayerLeft.Open(mediaFileSpecLeft);
+                await mediaPlayerLeft.Open(mediaFileSpecLeft, depthUnderwaterPassed);
 
             if (!string.IsNullOrEmpty(mediaFileSpecRight))
-                await mediaPlayerRight.Open(mediaFileSpecRight);
+                await mediaPlayerRight.Open(mediaFileSpecRight, 0/*depthUnderwaterPassed*/);
+
+            // Wait for media to open
+            int tries = 0;
+            while ((!string.IsNullOrEmpty(mediaFileSpecLeft) && !mediaPlayerLeft.IsOpen()) &&
+                   (!string.IsNullOrEmpty(mediaFileSpecRight) && !mediaPlayerRight.IsOpen()) &&
+                   tries < 20)
+            {
+                // Sleep 100ms
+                await Task.Delay(250);
+                tries++;
+            }
 
             // If the timeSpanOffset is not null and both media files opened then request the media
             // players to be locked together
             if (timeSpanOffset != null)
             {
-                // Wait for media to open
-                int tries = 0;
-                while ((!string.IsNullOrEmpty(mediaFileSpecLeft) && !mediaPlayerLeft.IsOpen()) &&
-                       (!string.IsNullOrEmpty(mediaFileSpecRight) && !mediaPlayerRight.IsOpen()) &&
-                       tries < 20)
-                {
-                    // Sleep 100ms
-                    await Task.Delay(250);
-                    tries++;
-                }
-
                 // Lock the media
                 await Task.Delay(100);
-                await MediaLockMediaPlayers((TimeSpan)timeSpanOffset);
+                await MediaLockMediaPlayers((TimeSpan)timeSpanOffset, existingEvents);
 
                 // Move in one frame to engage frame server (i.e. display the pause frame in the ImageFrame
                 // instead of the MediaPlayer). This ensure all the code around the canvas and displaying
                 // things like dimensions get setup fully
                 await Task.Delay(100);
-                await FrameMove(eCameraSide.None, 1);
-
-                // Calculate the frame index for each event
-                if (existingEvents is not null)
-                {
-                    foreach (Event evt in existingEvents)
-                    {
-                        evt.FrameIndexLeft = mediaPlayerLeft.GetFrameIndexFromPosition(evt.TimeSpanLeftFrame);
-                        evt.FrameIndexRight = mediaPlayerRight.GetFrameIndexFromPosition(evt.TimeSpanRightFrame);
-                    }
-                }
-
-                // Set the events if the players are locked
-                mediaPlayerLeft.SetEvents(existingEvents);
-                mediaPlayerRight.SetEvents(existingEvents);
-
+                await FrameMove(eCameraSide.None, 1);            
             }
             else
             {
@@ -360,25 +361,26 @@ namespace Surveyor
 
             return (mediaPlayerLeft.IsOpen() || mediaPlayerRight.IsOpen());
         }
-      
+
 
         /// <summary>
         /// Lock the two mediaplayer together at their current offset position
         /// </summary>
         /// <returns></returns>
-        public async Task<bool> MediaLockMediaPlayers()
-        {
-            CheckIsUIThread();
+        //???TOBEDELETED Only used MediaLockMediaPlayers(TimeSpan?)
+        //public async Task<bool> MediaLockMediaPlayers()
+        //{
+        //    CheckIsUIThread();
 
-            bool ret = false;
+        //    bool ret = false;
 
-            if (!mediaSynchronized)
-            {
-                // Lock the players at their current position
-                ret = await MediaLockMediaPlayers(null);
-            }
-            return ret;
-        }
+        //    if (!mediaSynchronized)
+        //    {
+        //        // Lock the players at their current position
+        //        ret = await MediaLockMediaPlayers(null);
+        //    }
+        //    return ret;
+        //}
 
 
         /// <summary>
@@ -386,7 +388,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="_lockedMediaPlayersFrameOffset"></param>
         /// <returns></returns>
-        public async Task<bool> MediaLockMediaPlayers(TimeSpan? _lockedMediaPlayersFrameOffset)
+        public async Task<bool> MediaLockMediaPlayers(TimeSpan? _lockedMediaPlayersFrameOffset, ObservableCollection<Event>? existingEvents)
         {
             CheckIsUIThread();
 
@@ -430,7 +432,7 @@ namespace Surveyor
                         Debug.WriteLine($"MediaLockMediaPlayers: Lock PositionOffset: (Left:{leftPositionRounded.TotalMilliseconds / 1000.0:F3}, Right:{rightPositionRounded.TotalMilliseconds / 1000.0:F3})");
 
                         // Let players settle
-                        await Task.Delay(100);
+                        await Task.Delay(200);
 
                         // Engaging MedaTimelineController will cause the media players to jump to the new start position
                         // of the MediaTimelineController. We want to lock the players but stay at the original point
@@ -517,7 +519,22 @@ namespace Surveyor
                 if (mediaSynchronizedFrameOffsetTest != mediaSynchronizedFrameOffset)
                     Debug.WriteLine($"MediaLockMediaPlayers: Warning Synchronization Offset: Required:{mediaSynchronizedFrameOffset.TotalMilliseconds / 1000.0:F3}, Actual:{mediaSynchronizedFrameOffsetTest.TotalMilliseconds / 1000.0:F3})");
 
-                    
+
+                // Calculate the frame index for each event from the position timespan
+                if (existingEvents is not null)
+                {
+                    foreach (Event evt in existingEvents)
+                    {
+                        evt.FrameIndexLeft = mediaPlayerLeft.GetFrameIndexFromPosition(evt.TimeSpanLeftFrame);
+                        evt.FrameIndexRight = mediaPlayerRight.GetFrameIndexFromPosition(evt.TimeSpanRightFrame);
+                    }
+                }
+
+                // Set the events if the players are locked
+                mediaPlayerLeft.SetEvents(existingEvents);
+                mediaPlayerRight.SetEvents(existingEvents);
+
+
                 // Indicate we have locked the media players
                 mediaSynchronized = true;  
 
@@ -1101,6 +1118,32 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// The user changes the Diagnostic Information setting
+        /// </summary>
+        /// <param name="diagnosticInformation"></param>
+        internal void _SetDiagnosticInformation(bool _diagnosticInformation)
+        {
+            diagnosticInformation = _diagnosticInformation;
+        }
+
+
+        /// <summary>
+        /// Experimental setting has changed (or is being initially set)
+        /// </summary>
+        /// <param name="_experimentalEnabled"></param>
+        internal void _SetExperimental(bool _experimentalEnabled,
+                                       bool _experimentalFeatureSetAEnabled,
+                                       bool _experimentalFeatureSetBEnabled,
+                                       bool _experimentalFeatureSetCEnabled)
+        {
+            experimentalEnabled = _experimentalEnabled;
+            experimentalFeatureSetAEnabled = _experimentalFeatureSetAEnabled;
+            experimentalFeatureSetBEnabled = _experimentalFeatureSetBEnabled;
+            experimentalFeatureSetCEnabled = _experimentalFeatureSetCEnabled;
+        }
+
+
         ///
         /// PRIVATE METHODS
         ///
@@ -1167,6 +1210,8 @@ namespace Surveyor
         /// <param name="positionJump"></param>
         internal void UserReqFrameJump(SurveyorMediaControl.eControlType controlType, TimeSpan positionJump)
         {
+            CheckIsUIThread();
+
             if (mediaSynchronized)
             {
                 FrameJump(eCameraSide.None, positionJump);
@@ -2404,6 +2449,35 @@ namespace Surveyor
                         break;
                 }
             }
+            else if (message is SettingsWindowEventData)
+            {
+                SettingsWindowEventData data = (SettingsWindowEventData)message;
+
+                switch (data.settingsWindowEvent)
+                {
+                    // The user has changed the Diagnostic Information settings
+                    case eSettingsWindowEvent.DiagnosticInformation:
+                        if (data.diagnosticInformation is not null)
+                        {
+                            mediaStereoController._SetDiagnosticInformation((bool)data!.diagnosticInformation);
+                        }
+                        break;
+                    // The user has changed the Experimental settings
+                    case eSettingsWindowEvent.Experimental:
+                        if (data.experimentalEnabled is not null &&
+                            data.experimentalFeatureSetAEnabled is not null &&
+                            data.experimentalFeatureSetBEnabled is not null &&
+                            data.experimentalFeatureSetCEnabled is not null)
+                        {
+                            mediaStereoController._SetExperimental((bool)data!.experimentalEnabled,
+                                                                     (bool)data.experimentalFeatureSetAEnabled,
+                                                                     (bool)data.experimentalFeatureSetBEnabled,
+                                                                     (bool)data.experimentalFeatureSetCEnabled);
+                        }
+                        break;
+                }
+            }
+
         }
     }
 }

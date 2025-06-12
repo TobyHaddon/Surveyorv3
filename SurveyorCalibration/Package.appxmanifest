@@ -8,15 +8,15 @@
   IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="7517efb0-c83c-4ce1-b6ce-a5086e8f6327"
+    Name="TobySolo.312674E3C56F2"
     Publisher="CN=tobyh"
-    Version="1.0.0.0" />
+    Version="0.0.3.0" />
 
-  <mp:PhoneIdentity PhoneProductId="7517efb0-c83c-4ce1-b6ce-a5086e8f6327" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+  <mp:PhoneIdentity PhoneProductId="c2a65c42-2fb2-4674-bbf6-472a7cd95aff" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
-    <DisplayName>SurveyorCalibrationFrames</DisplayName>
-    <PublisherDisplayName>tobyh</PublisherDisplayName>
+    <DisplayName>Underwater Surveyor</DisplayName>
+    <PublisherDisplayName>TobySolo</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
@@ -34,7 +34,7 @@
       Executable="$targetnametoken$.exe"
       EntryPoint="$targetentrypoint$">
       <uap:VisualElements
-        DisplayName="SurveyorCalibrationFrames"
+        DisplayName="Underwater Surveyor"
         Description="SurveyorCalibrationFrames"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"

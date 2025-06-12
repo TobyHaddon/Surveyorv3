@@ -1,7 +1,8 @@
 {
   "profiles": {
     "SurveyorCalibrationFrames (Package)": {
-      "commandName": "MsixPackage"
+      "commandName": "MsixPackage",
+      "commandLineArgs": " /XMonoLeft=\"C:\\Users\\tobyh\\OneDrive\\Docs\\SVS2\\SVS2 Media\\161L (CEV22 Mono Calibration V3P1).mp4\"  /XMonoRight=\"C:\\Users\\tobyh\\OneDrive\\Docs\\SVS2\\SVS2 Media\\161R (CEV22 Mono Calibration V3P1).mp4\" /XRun /XUseCache  /XLeftSync=604  /XRightSync=602 /XStereoLeft=\"C:\\Users\\tobyh\\OneDrive\\Docs\\SVS2\\SVS2 Media\\165L (CEV22 Stereo Calibration V3P1).mp4\" /XStereoRight=\"C:\\Users\\tobyh\\OneDrive\\Docs\\SVS2\\SVS2 Media\\165R (CEV22 Stereo Calibration V3P1).mp4\" /XSaveBestFrames"
     },
     "SurveyorCalibrationFrames (Unpackaged)": {
       "commandName": "Project"
