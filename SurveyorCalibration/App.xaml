@@ -16,5 +16,7 @@
             <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double>
             
         </ResourceDictionary>
+        
+        
     </Application.Resources>
 </Application>

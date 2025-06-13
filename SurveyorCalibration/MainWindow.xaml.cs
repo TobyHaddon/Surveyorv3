@@ -2,6 +2,7 @@ using Emgu.CV.Aruco;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Surveyor.Calibration;
 using Surveyor.User_Controls;
 using System;
@@ -93,7 +94,6 @@ namespace Surveyor
 
             this.InitializeComponent();
 
-
             // Create Charuco Board Definition
             calibProject.Data.CharucoBoardDefinition.Setup(new Dictionary(PredefinedDictionaryName.Dict5X5_100),
                                                         14/*SquareX*/, 9/*SquareY*/,
@@ -144,155 +144,29 @@ namespace Surveyor
             if (isStereoLeft && isStereoRight && isMonoLeft && isMonoRight)
             {
                 calibProject.Data.Media.StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet;
-
-                // Load cached results if available
-                if (AppLaunchArgs.UseCache &&
-                        StereoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path) &&
-                        LeftMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftMonoMP4Path, string.Empty) &&
-                        RightMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.RightMonoMP4Path, string.Empty))
-                {
-                    int? stereoFramesLoaded = StereoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
-                    int? leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                    int? rightMonoFramesLoaded = RightMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
-
-                    if (stereoFramesLoaded is not null && leftMonoFramesLoaded is not null && rightMonoFramesLoaded is not null &&
-                        stereoFramesLoaded > 0 && leftMonoFramesLoaded > 0 && rightMonoFramesLoaded > 0)
-                    {
-                        findStatus = true; // Frames have been extracted
-                        saveStatus = true; // Can press save
-                    }
-                    else
-                    {
-                        // Added message to user here - to indicate cache failed to load/fullly load
-                        Debug.WriteLine($"Tried to load Stereo cached results StereoCalibrationHead.LoadCachedResults returned={stereoFramesLoaded}, Original Stereo Left file:{calibProject.Data.Media.LeftStereoMP4Path},  Right file:{calibProject.Data.Media.RightStereoMP4Path}");
-                        Debug.WriteLine($"Tried to load Mono Left/Right cached results LeftMonoCalibrationHead.LoadCachedResults returned={leftMonoFramesLoaded}, RightMonoCalibrationHead.LoadCachedResults returned={rightMonoFramesLoaded}, Original Mono Left file:{calibProject.Data.Media.LeftMonoMP4Path},  Right file:{calibProject.Data.Media.RightMonoMP4Path}");
-                        findStatus = null;  // No frames loaded
-                        saveStatus = null; // Can't press save
-                    }
-                }
-
-                // Open Media Files
-                StereoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
-                LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                RightMonoCalibrationHead.OpenMedia(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
                 mediaFromCommandLine = true;
-
-                if (AppLaunchArgs.SyncFrameIndexLeft is not null && AppLaunchArgs.SyncFrameIndexRight is not null)
-                {
-                    // Lock Media
-                    StereoCalibrationHead.LockStereo((int)AppLaunchArgs.SyncFrameIndexLeft, (int)AppLaunchArgs.SyncFrameIndexRight);
-                }
-
             }
             else if (isStereoLeft && isStereoRight)
             {
                 calibProject.Data.Media.StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet;
-
-                // Load cached results if available
-                if (AppLaunchArgs.UseCache &&
-                        StereoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path))
-                {
-                    int? stereoFramesLoaded = StereoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
-                    if (stereoFramesLoaded is not null && stereoFramesLoaded > 0)
-                    {
-                        findStatus = true; // Frames have been extracted
-                        saveStatus = true; // Can press save
-                    }
-                    else
-                    {
-                        // Added message to user here - to indicate cache failed to load/fullly load
-                        Debug.WriteLine($"Tried to load Stereo cached results StereoCalibrationHead.LoadCachedResults returned={stereoFramesLoaded}, Original Stereo Left file:{calibProject.Data.Media.LeftStereoMP4Path},  Right file:{calibProject.Data.Media.RightStereoMP4Path}");
-                        findStatus = null; // No frames loaded
-                        saveStatus = true; // Can't press save
-                    }
-                }
-
-                // Open Media Files
-                StereoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
                 mediaFromCommandLine = true;
-
-                if (AppLaunchArgs.SyncFrameIndexLeft is not null && AppLaunchArgs.SyncFrameIndexRight is not null)
-                {
-                    // Lock Media
-                    StereoCalibrationHead.LockStereo((int)AppLaunchArgs.SyncFrameIndexLeft, (int)AppLaunchArgs.SyncFrameIndexRight);
-                }
             }
             else if (isMonoLeft && isMonoRight)
             {
                 calibProject.Data.Media.StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet;
-
-                // Load cached results if available
-                if (AppLaunchArgs.UseCache &&
-                        LeftMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftMonoMP4Path, string.Empty) &&
-                        RightMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.RightMonoMP4Path, string.Empty))
-
-                {
-                    int? leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                    int? rightMonoFramesLoaded = RightMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
-                    if (leftMonoFramesLoaded is not null && rightMonoFramesLoaded is not null &&
-                        leftMonoFramesLoaded > 0 && rightMonoFramesLoaded > 0)
-                    {
-                        findStatus = true; // Frames have been extracted
-                        saveStatus = true; // Can press save
-
-                    }
-                    else
-                    {
-                        // Added message to user here - to indicate cache failed to load/fullly load
-                        Debug.WriteLine($"Tried to load Mono Left/Right cached results LeftMonoCalibrationHead.LoadCachedResults returned={leftMonoFramesLoaded}, RightMonoCalibrationHead.LoadCachedResults returned={rightMonoFramesLoaded}, Original Mono Left file:{calibProject.Data.Media.LeftMonoMP4Path},  Right file:{calibProject.Data.Media.RightMonoMP4Path}");
-                        findStatus = null; // No frames loaded
-                        saveStatus = true; // Can't press save
-                    }
-                }
-
-                // Open Media Files
-                LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                RightMonoCalibrationHead.OpenMedia(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
                 mediaFromCommandLine = true;
             }
             else if (isMonoLeft)
             {
                 calibProject.Data.Media.StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet;
-
-                // Load cached results if available
-                if (AppLaunchArgs.UseCache &&
-                        LeftMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftMonoMP4Path, string.Empty))
-
-                {
-                    int? leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                    if (leftMonoFramesLoaded is not null && leftMonoFramesLoaded > 0)
-                    {
-                        findStatus = true; // Frames have been extracted
-                        saveStatus = true; // Can press save
-                    }
-                    else
-                    {
-                        // Added message to user here - to indicate cache failed to load/fullly load
-                        Debug.WriteLine($"Tried to load Mono Left cached results LeftMonoCalibrationHead.LoadCachedResults returned={leftMonoFramesLoaded}, Original Mono Left file:{calibProject.Data.Media.LeftMonoMP4Path}");
-                        findStatus = null; // No frames loaded
-                        saveStatus = true; // Can't press save
-
-                    }
-
-                }
-
-                // Open Media Files
-                LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
                 mediaFromCommandLine = true;
             }
 
-            // Auto run
-            if (AppLaunchArgs.RunWithoutPrompts)
-            {
-                if (findStatus == null && mediaFromCommandLine)
-                {
-                    FindAppBarButton_Click(null!, null!);
-                }
-            }
 
-            SetUIControls();
+            if (mediaFromCommandLine)
+                _ = OpenMedia(calibProject, true/*forceUsdCacheIfAvalable*/, AppLaunchArgs.RunWithoutPrompts/*noPrompts*/);
+
         }
-
 
 
         /// 
@@ -304,218 +178,253 @@ namespace Surveyor
             // Load the Info and Media user control to setup the survey
             CalibrationMediaUserControl.SetupForContentDialog(CalibrationMediaContentDialog);
 
+            // ** Important notes **
+            // The UserControl CalibrationMediaContentDialog is displayed within a ContentDialog for 
+            // the purpose of setting up a new survey (also using from a SettingsCard)
+            // I stuggled to get the ContentDialog to show width necessary to fully display
+            // the UserControl.  The solution was to:
+            // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
+            // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
+            // This took a lot of trail and error. It seems to effect the title bar is left in
+            // default row zero.
+            ContentDialogResult result = await CalibrationMediaContentDialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                CalibrationMediaUserControl.SaveForContentDialog(calibProject);
+
+                await OpenMedia(calibProject, false/*forceUsdCacheIfAvalable*/, false/*noPrompts*/);
+            }                    
+        }
+
+        private async Task OpenMedia(CalibProject calibProject, bool forceUsdCacheIfAvalable, bool noPrompts)
+        { 
 
             try
             {
-                // ** Important notes **
-                // The UserControl CalibrationMediaContentDialog is displayed within a ContentDialog for 
-                // the purpose of setting up a new survey (also using from a SettingsCard)
-                // I stuggled to get the ContentDialog to show width necessary to fully display
-                // the UserControl.  The solution was to:
-                // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
-                // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
-                // This took a lot of trail and error. It seems to effect the title bar is left in
-                // default row zero.
-                ContentDialogResult result = await CalibrationMediaContentDialog.ShowAsync();
-                if (result == ContentDialogResult.Primary)
+                // Reset
+                findStatus = null;  // No frames loaded
+                saveStatus = null;  // Can't press save
+
+
+                // Check if cached results files are available
+                bool cachedResultsAvailable = false;
+
+                switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                 {
-                    CalibrationMediaUserControl.SaveForContentDialog(calibProject);
-
-                    // Reset
-                    findStatus = null;  // No frames loaded
-                    saveStatus = null;  // Can't press save
-
-
-                    // Check if cached results files are available
-                    bool cachedResultsAvailable = false;
-
-                    switch (calibProject.Data.Media.StereoMonoMediaSetMode)
-                    {
-                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                            if (StereoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path) &&
-                                LeftMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftMonoMP4Path, string.Empty) &&
-                                RightMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.RightMonoMP4Path, string.Empty))
-                            {
-                                cachedResultsAvailable = true;
-                            }
-                            break;
-
-                        case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                            if (StereoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path))
-                            {
-                                cachedResultsAvailable = true;
-                            }
-                            break;
-
-                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-                            if (LeftMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftMonoMP4Path, string.Empty) &&
-                                RightMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.RightMonoMP4Path, string.Empty))
-                            {
-                                cachedResultsAvailable = true;
-                            }
-                            break;
-
-                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-                            if (LeftMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftMonoMP4Path, string.Empty))
-                            {
-                                cachedResultsAvailable = true;
-                            }
-                            break;
-                    }
-
-                    // Ask the user if they want to use cached results (a full set of results is required)
-                    if (cachedResultsAvailable == true)
-                    {
-                        var dialogUseCahceResults = new ContentDialog
+                    case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                        if (StereoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path) &&
+                            LeftMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftMonoMP4Path, string.Empty) &&
+                            RightMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.RightMonoMP4Path, string.Empty))
                         {
-                            Title = "Cached Results Available",
-                            Content = "This is a set of cache results available.  Would you like to use them?",
-                            PrimaryButtonText = "Yes",
-                            CloseButtonText = "No"
-                        };
-                        dialogUseCahceResults.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
-                        if (await dialogUseCahceResults.ShowAsync() == ContentDialogResult.Primary)
-                        {
-                            bool loaded = false;
-                            int? stereoFramesLoaded = null;
-                            int? leftMonoFramesLoaded = null;
-                            int? rightMonoFramesLoaded = null;
+                            cachedResultsAvailable = true;
+                        }
+                        break;
 
-                            // Load cached results
+                    case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                        if (StereoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path))
+                        {
+                            cachedResultsAvailable = true;
+                        }
+                        break;
+
+                    case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                        if (LeftMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftMonoMP4Path, string.Empty) &&
+                            RightMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.RightMonoMP4Path, string.Empty))
+                        {
+                            cachedResultsAvailable = true;
+                        }
+                        break;
+
+                    case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                        if (LeftMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftMonoMP4Path, string.Empty))
+                        {
+                            cachedResultsAvailable = true;
+                        }
+                        break;
+                }
+
+                // Ask the user if they want to use cached results (a full set of results is required)
+                if (cachedResultsAvailable == true)
+                {
+                    var dialogUseCahceResults = new ContentDialog
+                    {
+                        Title = "Cached Results Available",
+                        Content = "This is a set of cache results available.  Would you like to use them?",
+                        PrimaryButtonText = "Yes",
+                        CloseButtonText = "No"
+                    };
+                    dialogUseCahceResults.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
+                    
+                    if (forceUsdCacheIfAvalable || await dialogUseCahceResults.ShowAsync() == ContentDialogResult.Primary)
+                    {
+                        bool loaded = false;
+                        int? stereoFramesLoaded = null;
+                        int? leftMonoFramesLoaded = null;
+                        int? rightMonoFramesLoaded = null;
+
+                        // Load cached results
+                        switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                        {
+                            case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                                try
+                                {
+                                    stereoFramesLoaded = StereoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
+                                    leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
+                                    rightMonoFramesLoaded = RightMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
+
+                                    if (stereoFramesLoaded is not null && leftMonoFramesLoaded is not null && rightMonoFramesLoaded is not null &&
+                                        stereoFramesLoaded > 0 && leftMonoFramesLoaded > 0 && rightMonoFramesLoaded > 0)
+                                    {
+                                        findStatus = true;  // Frames loaded from cache
+                                        saveStatus = true;  // Can press save
+                                        loaded = true;
+
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"Error loading cached results: {ex.Message}");
+                                    // Handle the error, e.g., show a message to the user
+                                }
+
+                                break;
+
+                            case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                                try
+                                {
+                                    stereoFramesLoaded = StereoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
+
+                                    if (stereoFramesLoaded is not null && stereoFramesLoaded > 0)
+                                    {
+                                        findStatus = true;  // Frames loaded from cache
+                                        saveStatus = true;  // Can press save
+                                        loaded = true;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"Error loading cached results: {ex.Message}");
+                                    // Handle the error, e.g., show a message to the user
+                                }
+                                break;
+
+                            case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                                try
+                                {
+                                    leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
+                                    rightMonoFramesLoaded = RightMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
+
+                                    if (leftMonoFramesLoaded is not null && rightMonoFramesLoaded is not null &&
+                                        leftMonoFramesLoaded > 0 && rightMonoFramesLoaded > 0)
+                                    {
+                                        findStatus = true;  // Frames loaded from cache
+                                        saveStatus = true;  // Can press save
+                                        loaded = true;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"Error loading cached results: {ex.Message}");
+                                    // Handle the error, e.g., show a message to the user
+                                }
+                                break;
+
+                            case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                                try
+                                {
+                                    leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
+
+                                    if (leftMonoFramesLoaded is not null && leftMonoFramesLoaded > 0)
+                                    {
+                                        findStatus = true;  // Frames loaded from cache
+                                        saveStatus = true;  // Can press save
+                                        loaded = true;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"Error loading cached results: {ex.Message}");
+                                    // Handle the error, e.g., show a message to the user
+                                }
+                                break;
+                        }
+
+                        // Check if stereo lock needed
+                        if (loaded)
+                        {
                             switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                             {
                                 case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                                    try
+                                case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                                    // Override the sync frame if this already exist
+                                    // (they may have been set in LoadResults())
+                                    if (AppLaunchArgs.SyncFrameIndexLeft is not null && AppLaunchArgs.SyncFrameIndexRight is not null)
                                     {
-                                        stereoFramesLoaded = StereoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
-                                        leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                                        rightMonoFramesLoaded = RightMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
-
-                                        if (stereoFramesLoaded is not null && leftMonoFramesLoaded is not null && rightMonoFramesLoaded is not null &&
-                                            stereoFramesLoaded > 0 && leftMonoFramesLoaded > 0 && rightMonoFramesLoaded > 0)
-                                        {
-                                            findStatus = true;  // Frames loaded from cache
-                                            saveStatus = true;  // Can press save
-                                            loaded = true;
-                                        }
+                                        // Lock Media
+                                        StereoCalibrationHead.LockStereo((int)AppLaunchArgs.SyncFrameIndexLeft, 
+                                                                         (int)AppLaunchArgs.SyncFrameIndexRight);
                                     }
-                                    catch (Exception ex)
+                                    break;
+                            }
+
+                        }
+
+
+                        // Check there are > 0 frames
+                        if (loaded)
+                        {
+                            bool warn = false;
+                            string contentText = string.Empty;
+
+                            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                            {
+                                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                                    if (stereoFramesLoaded == 0 || leftMonoFramesLoaded == 0 || rightMonoFramesLoaded == 0)
                                     {
-                                        Debug.WriteLine($"Error loading cached results: {ex.Message}");
-                                        // Handle the error, e.g., show a message to the user
+                                        contentText = $"The cached results not loaded of incomplete.\n\n" +
+                                            $"   Stereo Frames Loaded: {stereoFramesLoaded}\n" +
+                                            $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n" +
+                                            $"   Right Mono Frames Loaded: {rightMonoFramesLoaded}\n";
+                                        warn = true;
                                     }
-
                                     break;
 
                                 case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                                    try
+                                    if (stereoFramesLoaded == 0)
                                     {
-                                        stereoFramesLoaded = StereoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
-
-                                        if (stereoFramesLoaded is not null && stereoFramesLoaded > 0)
-                                        {
-                                            findStatus = true;  // Frames loaded from cache
-                                            saveStatus = true;  // Can press save
-                                            loaded = true;
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        Debug.WriteLine($"Error loading cached results: {ex.Message}");
-                                        // Handle the error, e.g., show a message to the user
+                                        contentText = $"The cached results not loaded of incomplete.\n\n" +
+                                            $"   Stereo Frames Loaded: {stereoFramesLoaded}\n";
+                                        warn = true;
                                     }
                                     break;
 
                                 case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-                                    try
+                                    if (leftMonoFramesLoaded == 0 || rightMonoFramesLoaded == 0)
                                     {
-                                        leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                                        rightMonoFramesLoaded = RightMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
-
-                                        if (leftMonoFramesLoaded is not null && rightMonoFramesLoaded is not null &&
-                                            leftMonoFramesLoaded > 0 && rightMonoFramesLoaded > 0)
-                                        {
-                                            findStatus = true;  // Frames loaded from cache
-                                            saveStatus = true;  // Can press save
-                                            loaded = true;
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        Debug.WriteLine($"Error loading cached results: {ex.Message}");
-                                        // Handle the error, e.g., show a message to the user
+                                        contentText = $"The cached results not loaded of incomplete.\n\n" +
+                                            $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n" +
+                                            $"   Right Mono Frames Loaded: {rightMonoFramesLoaded}\n";
+                                        warn = true;
                                     }
                                     break;
 
                                 case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-                                    try
+                                    if (leftMonoFramesLoaded == 0)
                                     {
-                                        leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-
-                                        if (leftMonoFramesLoaded is not null && leftMonoFramesLoaded > 0)
-                                        {
-                                            findStatus = true;  // Frames loaded from cache
-                                            saveStatus = true;  // Can press save
-                                            loaded = true;
-                                        }
-                                    }
-                                    catch (Exception ex)
-                                    {
-                                        Debug.WriteLine($"Error loading cached results: {ex.Message}");
-                                        // Handle the error, e.g., show a message to the user
+                                        contentText = $"The cached results not loaded of incomplete.\n\n" +
+                                            $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n";
+                                        warn = true;
                                     }
                                     break;
                             }
 
-                            // Check there are > 0 frames
-                            if (loaded)
+                            if (warn)
                             {
-                                bool warn = false;
-                                string contentText = string.Empty;
-
-                                switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                                if (noPrompts)
                                 {
-                                    case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                                        if (stereoFramesLoaded == 0 || leftMonoFramesLoaded == 0 || rightMonoFramesLoaded == 0)
-                                        {
-                                            contentText = $"The cached results not loaded of incomplete.\n\n" +
-                                                $"   Stereo Frames Loaded: {stereoFramesLoaded}\n" +
-                                                $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n" +
-                                                $"   Right Mono Frames Loaded: {rightMonoFramesLoaded}\n";
-                                            warn = true;
-                                        }
-                                        break;
-
-                                    case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                                        if (stereoFramesLoaded == 0)
-                                        {
-                                            contentText = $"The cached results not loaded of incomplete.\n\n" +
-                                                $"   Stereo Frames Loaded: {stereoFramesLoaded}\n";
-                                            warn = true;
-                                        }
-                                        break;
-
-                                    case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-                                        if (leftMonoFramesLoaded == 0 || rightMonoFramesLoaded == 0)
-                                        {
-                                            contentText = $"The cached results not loaded of incomplete.\n\n" +
-                                                $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n" +
-                                                $"   Right Mono Frames Loaded: {rightMonoFramesLoaded}\n";
-                                            warn = true;
-                                        }
-                                        break;
-
-                                    case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-                                        if (leftMonoFramesLoaded == 0)
-                                        {
-                                            contentText = $"The cached results not loaded of incomplete.\n\n" +
-                                                $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n";
-                                            warn = true;
-                                        }
-                                        break;
+                                    Debug.WriteLine(contentText);
                                 }
-
-                                if (warn)
+                                else
                                 {
                                     // Inform the user that the cached results could not be loaded
                                     var errorDialog = new ContentDialog
@@ -528,9 +437,16 @@ namespace Surveyor
                                     await errorDialog.ShowAsync();
                                 }
                             }
+                        }
 
-                            // Error loading
-                            if (!loaded)
+                        // Error loading
+                        if (!loaded)
+                        {
+                            if (noPrompts)
+                            {
+                                Debug.WriteLine("The cached results could not be loaded.");
+                            }
+                            else
                             {
                                 // Inform the user that the cached results could not be loaded
                                 var errorDialog = new ContentDialog
@@ -542,36 +458,39 @@ namespace Surveyor
                                 errorDialog.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
                                 await errorDialog.ShowAsync();
                             }
-
-                            SetUIControls();
                         }
+
+                        SetUIControls();
                     }
+                }
 
 
-                    // Open Media Files
-                    switch (calibProject.Data.Media.StereoMonoMediaSetMode)
-                    {
-                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                            StereoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
-                            LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                            RightMonoCalibrationHead.OpenMedia(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
-                            break;
+                // Open Media Files
+                switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                {
+                    case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                        StereoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
+                        LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
+                        RightMonoCalibrationHead.OpenMedia(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
+                        break;
 
-                        case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                            StereoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
-                            break;
+                    case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                        StereoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
+                        break;
 
-                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-                            LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                            RightMonoCalibrationHead.OpenMedia(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
-                            break;
+                    case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                        LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
+                        RightMonoCalibrationHead.OpenMedia(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
+                        break;
 
-                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-                            LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                            break;
-                    }
+                    case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                        LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
+                        break;
+                }
 
-                    // Ask user to sync the stereo videos
+                // Ask user to sync the stereo videos
+                if (StereoCalibrationHead.IsStereoLocked() == false)
+                {
                     switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                     {
                         case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
@@ -595,42 +514,19 @@ namespace Surveyor
                             SetUIControls();
                             break;
                     }
+                }
 
-                    // Jump to first frame
-                    bool stereoJumpFirstFrame = false;
-                    bool monoLeftJumpFirstFrame = false;
-                    bool monoRightJumpFirstFrame = false;
-                    switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                // Auto run
+                if (AppLaunchArgs.RunWithoutPrompts)
+                {
+                    if (findStatus == null && mediaFromCommandLine)
                     {
-                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                            stereoJumpFirstFrame = true;
-                            monoLeftJumpFirstFrame = true;
-                            monoRightJumpFirstFrame = true;
-                            break;
-                        case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                            stereoJumpFirstFrame = true;
-                            break;
-                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-                            monoLeftJumpFirstFrame = true;
-                            monoRightJumpFirstFrame = true;
-                            break;
-                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-                            monoLeftJumpFirstFrame = true;
-                            break;
-                        default:
-                            break;
-
-                    }
-                    if (stereoJumpFirstFrame)
-                    {
-                    }
-                    if (monoLeftJumpFirstFrame)
-                    {
-                    }
-                    if (monoRightJumpFirstFrame)
-                    {
+                        FindAppBarButton_Click(null!, null!);
                     }
                 }
+
+                SetUIControls();
+
             }
             catch (Exception ex)
             {
@@ -639,7 +535,6 @@ namespace Surveyor
             }
 
         }
-
 
         /// <summary>
         /// If ready find the calibration frame

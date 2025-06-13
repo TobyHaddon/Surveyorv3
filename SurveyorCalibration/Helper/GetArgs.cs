@@ -74,7 +74,7 @@ namespace Surveyor.Helper
             }
             else
             {
-                argValue = 0;
+                argValue = null;
                 return false;
             }
         }

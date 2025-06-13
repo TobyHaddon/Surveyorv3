@@ -1,3 +1,4 @@
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -5,6 +6,7 @@ using Microsoft.UI.Xaml.Shapes;
 using Surveyor.Calibration;
 using System;
 using System.Collections.Generic;
+using System.Data.Common;
 using System.Linq;
 using System.Reflection.Emit;
 using Windows.Foundation;
@@ -377,6 +379,73 @@ namespace Surveyor.Controls
 
                                 // Updated to use just column/row since gx/gy are implicit in the grid structure
                                 textBlock.Text = counts.TryGetValue((column, row), out int v) ? v.ToString() : "0";
+                            }
+                        }
+                    }
+                    gridIndex++;
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Highlight the used cells
+        /// </summary>
+        /// <param name="frameCalibrationData"></param>
+        public void HighLightActiveSensorBinLayers(FrameCalibrationData? frameCalibrationData)
+        {
+            if (Data is null)
+                return;
+
+            int gridIndex = 0;
+
+
+            if (Data.calibrationStereoFrameSet is not null)
+            {
+                foreach (var (gx, gy) in sensorBinLayers)
+                {
+                    // Safety check
+                    if (gridIndex >= SensorBinGridItemsControl.Items.Count)
+                        break;
+
+                    if (SensorBinGridItemsControl.Items[gridIndex] is Grid grid)
+                    {
+                        if (frameCalibrationData is null)
+                        {
+                            // Clear colour of the the bins
+                            foreach (var child in grid.Children)
+                            {
+                                if (child is Border border &&
+                                    border.Child is TextBlock textBlock)
+                                {
+                                    border.Background = null;   //??? new SolidColorBrush(color);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            foreach (var child in grid.Children)
+                            {
+                                if (child is Border border &&
+                                    border.Child is TextBlock textBlock)
+                                {
+                                    int row = Grid.GetRow(border);
+                                    int column = Grid.GetColumn(border);
+
+                                    
+                                    bool colourCell = frameCalibrationData.SensorBinsOccupied
+                                                                .Any(entry => entry.gx == gx && entry.gy == gy && entry.binx == column && entry.biny == row);
+
+                                    if (colourCell)
+                                    {
+
+                                        border.Background = new SolidColorBrush(Colors.LightBlue);
+                                    }
+                                    else
+                                    {
+                                        border.Background = null;
+                                    }
+                                }
                             }
                         }
                     }

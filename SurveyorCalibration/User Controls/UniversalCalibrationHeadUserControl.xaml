@@ -29,7 +29,7 @@
         <controls:CalibrationFrameSetViewer x:Name="CalibrationFrameSetViewerRight" Grid.Column="2"  HorizontalAlignment="Center"/>
 
         <!-- Images for left and right camera -->
-        <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal">
+        <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
             <Image x:Name="LeftImage" Stretch="Uniform" Margin="3"/>
             <Border x:Name="LeftCalibDataBorder" BorderBrush="Gray" BorderThickness="1" Padding="4" CornerRadius="2"  Visibility="Collapsed" Margin="3">
                 <TextBlock x:Name="LeftCalibDataText"
@@ -39,7 +39,7 @@
                            xml:space="preserve" />
             </Border>
         </StackPanel>
-        <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Horizontal">
+        <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
             <Image x:Name="RightImage" Stretch="Uniform" Margin="5"/>
             <Border x:Name="RightCalibDataBorder" BorderBrush="Gray" BorderThickness="1" Padding="4" CornerRadius="2" Visibility="Collapsed" Margin="3">
                 <TextBlock x:Name="RightCalibDataText" 

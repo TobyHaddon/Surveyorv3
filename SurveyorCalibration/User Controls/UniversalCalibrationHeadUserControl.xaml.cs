@@ -692,6 +692,15 @@ namespace Surveyor.Controls
                 {
                     calibrationStereoFrameSet = json;
 
+                    // Apply lock if necessary
+                    if (calibrationStereoFrameSet.LockFrameIndexLeft != -1 &&
+                        calibrationStereoFrameSet.LockFrameIndexRight != -1)
+                    {
+                        isLocked = false;
+                        LockStereo(calibrationStereoFrameSet.LockFrameIndexLeft,
+                            calibrationStereoFrameSet.LockFrameIndexRight);
+                    }
+
                     CalibrationFrameSetViewerData dataLeft = new(true/*trueLeftFalseRight*/, calibrationStereoFrameSet);
                     CalibrationFrameSetViewerLeft.Data = dataLeft;
                     CalibrationFrameSetViewerLeft.RefreshSensorBinLayers();
@@ -825,6 +834,7 @@ namespace Surveyor.Controls
             }
         }
 
+        
 
         /// <summary>
         /// User request to go to a particular left frame index
@@ -1548,6 +1558,7 @@ namespace Surveyor.Controls
                                             leftTarget.YawDeg,
                                             leftTarget.PitchDeg);
 
+                    CalibrationFrameSetViewerLeft.HighLightActiveSensorBinLayers(leftTarget);
 
                     if (rightTarget is not null)
                     {
@@ -1562,6 +1573,8 @@ namespace Surveyor.Controls
                                                 rightTarget.Score,
                                                 rightTarget.YawDeg,
                                                 rightTarget.PitchDeg);
+
+                        CalibrationFrameSetViewerRight.HighLightActiveSensorBinLayers(rightTarget);
                     }
 
                     ok = true;

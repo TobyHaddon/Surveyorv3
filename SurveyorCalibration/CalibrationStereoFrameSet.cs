@@ -1635,7 +1635,7 @@ namespace Surveyor.Calibration
 
                 System.Drawing.Size frameSizeCorrectedType = new((int)frameSize.Width, (int)frameSize.Height);
                 var intrinsicMatrix = new Matrix<double>(3, 3);
-                var distortionCoeffs = new Matrix<double>(1, distCoeffs.Cols);
+                var distortionCoeffs = new Matrix<double>(1, 5);
                 double reprojectionError;
 
                 //??DEBUG limit TEST
@@ -1766,7 +1766,7 @@ namespace Surveyor.Calibration
                     if (i > 0)
                         sb.Append("  ");
 
-                    sb.Append($"{monoCalib.DistortionCoeffs[i, 0],10:F3}");
+                    sb.Append($"{monoCalib.DistortionCoeffs[0, i],10:F3}");
                 }
                 sb.AppendLine();
 
@@ -1790,7 +1790,7 @@ namespace Surveyor.Calibration
                 // 0.2–0.5  Very good; suitable for accurate 3D reconstructions and pose estimates
                 // 0.5–1.0  Acceptable for many real-world use cases, especially underwater, drone, etc.
                 // > 1.0    Often indicates blur, motion, poor corner detection, or bad coverage
-                sb.AppendLine($"RPE: {monoCalib.ReprojectionRMS:F4} {rpeQuanlity} px");
+                sb.AppendLine($"RPE: {monoCalib.ReprojectionRMS:F4}px {rpeQuanlity}");
                 //Debug.WriteLine($"Projection RMS (point):    {monoCalib.ProjectionRMS:F4} px");
                 //Debug.WriteLine($"Max Reprojection Error:    {monoCalib.MaxError:F4} px");
 
