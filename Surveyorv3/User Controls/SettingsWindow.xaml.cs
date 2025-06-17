@@ -572,6 +572,34 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Switch to allow calibration and Survey Rules to be inherited from a previous survey 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void AllowSurveyInheritance_Toggled(object sender, RoutedEventArgs e)
+        {
+            if (_isInitializing) return;
+
+            bool settingValue;
+
+            if (this.AllowSurveyInheritance.IsOn)
+            {
+                // Enable teaching tips
+                settingValue = true;
+
+            }
+            else
+            {
+                // Disable teaching tips
+                settingValue = false;
+            }
+
+            // Remember the new state
+            SettingsManagerLocal.InheritFromLastSetting = settingValue;
+        }
+
+
+        /// <summary>
         /// Toggle the teaching tips on or off
         /// </summary>
         /// <param name="sender"></param>
@@ -1663,9 +1691,6 @@ namespace Surveyor.User_Controls
                 GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(updated);
             }
         }
-
-
-
 
         // ***END OF SettingsWindow***
     }

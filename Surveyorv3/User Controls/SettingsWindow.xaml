@@ -133,6 +133,14 @@
                             <ToggleSwitch x:Name="MouseWheelFrameMove" Toggled="MouseWheelFrameMoveEnabled_Toggled" />
                         </toolkit:SettingsCard>
 
+                        <!-- Allow Survey inheritance -->
+                        <toolkit:SettingsCard Header="Allow Survey Inheritance" Description="Allow calibration and Survey Rules inheritance from the last 'Recent Survey'">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE71B;" ToolTipService.ToolTip="The New Survey screen displays an option to inherit calibration and Survey Rules from the last Recent Survey provide that survey is not older than two weeks. This is stop out-of-date calibration being inherited."/>
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <ToggleSwitch x:Name="AllowSurveyInheritance" Toggled="AllowSurveyInheritance_Toggled" />
+                        </toolkit:SettingsCard>
+
                         <!-- Teaching Tips -->
                         <toolkit:SettingsCard Header="Teaching Tips">
                             <toolkit:SettingsCard.HeaderIcon>

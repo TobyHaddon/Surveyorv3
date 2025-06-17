@@ -87,7 +87,7 @@ namespace Surveyor.User_Controls
             // Reset Fields
             ResetDialogFields();
 
-            // Inherit from prior Survey (Currently Experimental/featureSetA
+            // Inherit from prior Survey
             if (!string.IsNullOrEmpty(potentialInhertanceSurvey))
             {
                 // Show the inherit survey data checkbox
