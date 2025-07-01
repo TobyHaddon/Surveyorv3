@@ -4,10 +4,14 @@
 //
 // Version 1.1 18 Apr 2025
 // Added support for Fishbase fish images
+// Version 1.2 24 Jun 2025
+// Changed NumberBox to TextBlock as it doesn't work on Ross's laptop
+
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
+using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Surveyor.Events;
 using Surveyor.Helper;
@@ -27,6 +31,8 @@ namespace Surveyor.User_Controls
     {
         public Uri? ImageLocation { get; set; } = null;
         public string Author { get; set; } = string.Empty;
+        public string Locality { get; set; } = string.Empty;
+        public string SexStage { get; set; } = string.Empty;
     }
 
     public sealed partial class SpeciesSelector : UserControl
@@ -98,11 +104,16 @@ namespace Surveyor.User_Controls
         /// <param name="mainWindow"></param>
         /// <param name="speciesInfo"></param>
         /// <returns></returns>
-        internal async Task<bool> SpeciesNew(MainWindow mainWindow, SpeciesInfo speciesInfo, SpeciesImageAndInfoCache speciesImageCache)
+        internal async Task<bool> SpeciesNew(MainWindow mainWindow, SpeciesInfo speciesInfo, string preselectedSpecies, SpeciesImageAndInfoCache speciesImageCache)
         {
             // Clear the speciesInfo instance as this is a New species assignment
             speciesInfo.Clear();
 
+            if (!string.IsNullOrEmpty(preselectedSpecies))
+            {
+                speciesInfo.Species = preselectedSpecies;
+            }
+            
             return await SpeciesEditorNew(mainWindow, speciesInfo, false/*removeButton*/, speciesImageCache);
         }
 
@@ -133,8 +144,8 @@ namespace Surveyor.User_Controls
             AutoSuggestGenus.Text = string.Empty;
             AutoSuggestFamily.Text = string.Empty;
             TextBoxComment.Text = string.Empty;
-            NumberBoxNumberOfFish.Value = 1;
-
+            // NumberBoxNumberOfFish.Value = 1;
+            NumberBoxNumberOfFish.Text = "1";
 
             // Clear ItemsSource bindings
             AutoSuggestSpecies.ItemsSource = null;
@@ -144,15 +155,14 @@ namespace Surveyor.User_Controls
             // Clear image list (bound to xaml)
             ImageList.Clear();
 
-            // Clear source credit and genus/species  (bound to xaml)
+            // Clear source credit 
             SourceCredit.Text = string.Empty;
-            GenusSpecies.Text = string.Empty;
+            GenusSpecies.Blocks.Clear();
 
             // Clear environment, distrution and size (bound to xaml)            
             Environment.Text = string.Empty;
             Distribution.Text = string.Empty;
             SpeciesSize.Text = string.Empty;
-
         }
 
 
@@ -244,11 +254,36 @@ namespace Surveyor.User_Controls
                 // Set the genus, family, fish count and comment
                 AutoSuggestGenus.Text = speciesInfo.Genus;
                 AutoSuggestFamily.Text = speciesInfo.Family;
-                NumberBoxNumberOfFish.Value = Convert.ToInt32(speciesInfo.Number);
+                //NumberBoxNumberOfFish.Value = Convert.ToInt32(speciesInfo.Number);
+                if (string.IsNullOrEmpty(speciesInfo.Number))
+                    NumberBoxNumberOfFish.Text = "1";
+                else
+                    NumberBoxNumberOfFish.Text = speciesInfo.Number;
+
                 //???ComboBoxLifeStage.SelectedItem = speciesInfo.Stage;
                 TextBoxComment.Text = speciesInfo.Comment;
             }
+            else
+            {
+                // Was there a pre-selected
+                if (speciesInfo.Species is not null)
+                {
+                    AutoSuggestSpecies.Text = speciesInfo.Species;
+                    if (speciesCodeList.SearchSpecies(speciesInfo.Species, ""/*genus*/, ""/*family*/) == true)
+                    {
+                        AutoSuggestSpecies.ItemsSource = speciesCodeList.SpeciesComboItems;
 
+                        // If the search resulted in one result then use that result as the selection
+                        if (speciesCodeList.SpeciesComboItems.Count == 1)
+                        {
+                            SpeciesItem speciesItem = speciesCodeList.SpeciesComboItems[0];
+                            await SpeciesSelected(speciesItem, true/*setAutoSuggest*/);
+                        }
+                    }
+                }
+
+                NumberBoxNumberOfFish.Text = "1";
+            }
 
             // Show the dialog and handle the response
             var result = await dialog.ShowAsync();
@@ -314,9 +349,12 @@ namespace Surveyor.User_Controls
                 }
 
                 // Number of fish
-                if (speciesInfo.Number != NumberBoxNumberOfFish.Value.ToString())
+                if (NumberBoxNumberOfFish is not null &&
+                    speciesInfo.Number != NumberBoxNumberOfFish.Text)
                 {
-                    speciesInfo.Number = NumberBoxNumberOfFish.Value.ToString();
+                    speciesInfo.Number = NumberBoxNumberOfFish.Text;
+                    if (speciesInfo.Number is not null)
+                        speciesInfo.Number = speciesInfo.Number.Trim();
                     ret = true;
                 }
 
@@ -567,6 +605,66 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// Screen out non-numbers
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void TextBoxNumberOnly_PreviewKeyDown(object sender, Microsoft.UI.Xaml.Input.KeyRoutedEventArgs e)
+        {
+            // Allow control keys (e.g., backspace, delete, arrow keys)
+            if (e.Key == Windows.System.VirtualKey.Back ||
+                e.Key == Windows.System.VirtualKey.Delete ||
+                e.Key == Windows.System.VirtualKey.Tab ||
+                e.Key == Windows.System.VirtualKey.Left ||
+                e.Key == Windows.System.VirtualKey.Right)
+            {
+                return;
+            }
+
+            // Block non-numeric keys
+            if (e.Key < Windows.System.VirtualKey.Number0 || e.Key > Windows.System.VirtualKey.Number9)
+            {
+                e.Handled = true;
+            }
+        }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void TextBoxNumberOnly_TextChanged(object sender, TextChangedEventArgs e)
+        {
+            var tb = sender as TextBox;
+            if (tb is not null)
+            {
+                int oldSelectionStart = tb.SelectionStart;
+
+                if (int.TryParse(tb.Text, out int value))
+                {
+                    if (value < 1)
+                    {
+                        tb.Text = "1";
+                        tb.SelectionStart = tb.Text.Length; // Move cursor to end or back to `oldSelectionStart` if preferred
+                    }
+                    else if (value > 999)
+                    {
+                        tb.Text = "999";
+                        tb.SelectionStart = tb.Text.Length;
+                    }
+                }
+                else if (!string.IsNullOrEmpty(tb.Text))
+                {
+                    tb.Text = "1";
+                    tb.SelectionStart = tb.Text.Length;
+                }
+            }
+        }
+
+
+
         ///
         /// PRIVATE
         /// 
@@ -652,8 +750,23 @@ namespace Surveyor.User_Controls
                             };
                             genusSpecies = speciesItem.Genus + " - " + speciesItem.Species;
 
+                            // Set the source credit text
                             SourceCredit.Text = $"Source: {source}";
-                            GenusSpecies.Text = genusSpecies;
+
+                            // Set the copy/pastable genus/species text
+                            GenusSpecies.Blocks.Clear();
+                            var para = new Paragraph();
+
+                            // Create and add a run
+                            var run = new Run
+                            {
+                                Text = genusSpecies
+                            };
+                            para.Inlines.Add(run);
+
+                            // Add the paragraph to the RichTextBlock
+                            GenusSpecies.Blocks.Add(para);
+
                             SpeciesInfoExpander.Visibility = Visibility.Visible;
                             // The state of a .XAML based dialog is remembered. Therefore you need to close
                             // the expander in case the user left it open last time the Assign Species dialog
@@ -676,7 +789,9 @@ namespace Surveyor.User_Controls
                             ImageList.Add(new ImageDataObject
                             {
                                 ImageLocation = fileUri,
-                                Author = speciesImageItem.Author
+                                Author = speciesImageItem.Author,
+                                Locality = speciesImageItem.Locality,
+                                SexStage = speciesImageItem.SexStage
                             });
                         }
 
@@ -698,7 +813,7 @@ namespace Surveyor.User_Controls
 
                         // Clear source credit and genus/species  (bound to xaml)
                         SourceCredit.Text = string.Empty;
-                        GenusSpecies.Text = string.Empty;
+                        GenusSpecies.Blocks.Clear();
 
                         // Clear environment, distrution and size (bound to xaml)
                         Environment.Text = string.Empty;
@@ -735,6 +850,7 @@ namespace Surveyor.User_Controls
                 }
             }
         }
+
 
         // *** End of SpeciesSelector ***
     }

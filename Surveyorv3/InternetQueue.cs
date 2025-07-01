@@ -645,7 +645,6 @@ namespace Surveyor
                             {
                                 Report?.Info("", $"{DateTime.Now:HH:mm:ss.ff} Start Downloaded file:{item.RelativeLocalFileSpec} Url:{item.URL}");
 
-                                //var response = await httpClient.GetAsync(item.URL);
                                 var response = await GetWithBackoffAsync(item.URL);
                                 response.EnsureSuccessStatusCode();
 

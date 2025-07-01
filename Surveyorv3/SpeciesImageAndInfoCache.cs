@@ -8,7 +8,6 @@
 // and calculate a hash and use later to check for updates (update checking not yet implimented)
 
 
-using Emgu.CV.Flann;
 using Surveyor.Helper;
 using Surveyor.User_Controls;
 using System;
@@ -19,8 +18,8 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using System.Text.Json.Serialization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Storage;
@@ -62,7 +61,8 @@ namespace Surveyor
         private bool isProcessing = false;
         private readonly TimeSpan timerInterval = TimeSpan.FromMinutes(5);
 
-
+        // Which FishBase mirror
+        private string baseURL = string.Empty;
         private enum State
         {
             None,
@@ -139,6 +139,8 @@ namespace Surveyor
             public string ImageFile { get; set; } = "";
             public string Author { get; set; } = "";
             public string GenusSpecies { get; set; } = "";
+            public string Locality { get; set; } = "";
+            public string SexStage { get; set; } = "";
         }
 
 
@@ -484,6 +486,7 @@ namespace Surveyor
                         switch (state.Status)
                         {
                             case State.None:
+                                baseURL = SettingsManagerLocal.FishBaseURL;
                                 await RequestFirstPage(state);
                                 break;
 
@@ -615,7 +618,6 @@ namespace Surveyor
             return ret;
         }
 
-
         /// <summary>
         /// Request the first photo first is downloaded. The first page is important because it has the total 
         /// number of photos available which will drive the next set of requests
@@ -625,7 +627,7 @@ namespace Surveyor
         private async Task RequestFirstPage(SpeciesCacheState state)
         {
             // Make the URL we need to download
-            string url = MakePhotoPageUrl(state.SpeciesItem.ExtractID(), 1/*page*/);
+            string url = MakePhotoPageUrl(baseURL, state.SpeciesItem.ExtractID(), 1/*page*/);
 
             // Queue this page for download if not already in the queue or downloaded
             await internetQueue.AddDownloadRequestIfNecessary(TransferType.Page, url, "temp");  // Intermediate file so put in localFolder/temp
@@ -640,7 +642,7 @@ namespace Surveyor
         private void WaitingForFirstPhotoPage(SpeciesCacheState state)
         {
             // Record key
-            string url = MakePhotoPageUrl(state.SpeciesItem.ExtractID(), 1/*page*/);
+            string url = MakePhotoPageUrl(baseURL, state.SpeciesItem.ExtractID(), 1/*page*/);
 
             var item = internetQueue.Find(url);
             if (item != null && item.Status == Status.Downloaded)
@@ -659,7 +661,7 @@ namespace Surveyor
         private async Task ParseFirstPhotoPage(SpeciesCacheState state)
         {
             // Record key
-            string url = MakePhotoPageUrl(state.SpeciesItem.ExtractID(), 1/*page*/);
+            string url = MakePhotoPageUrl(baseURL, state.SpeciesItem.ExtractID(), 1/*page*/);
 
             // Get the record of the download from the Download manager
             var item = internetQueue.Find(url);
@@ -700,7 +702,7 @@ namespace Surveyor
         {
             for (int page = 1; page <= state.TotalImages; page++)
             {
-                string url = MakePhotoPageUrl(state.SpeciesItem.ExtractID(), page);
+                string url = MakePhotoPageUrl(baseURL, state.SpeciesItem.ExtractID(), page);
                 await internetQueue.AddDownloadRequestIfNecessary(TransferType.Page, url, "temp");  // Intermediate file so put in localFolder/temp
             }
             state.Status = State.WaitingForAllPhotoPages;
@@ -719,7 +721,7 @@ namespace Surveyor
             for (int page = 1; page <= state.TotalImages; page++)
             {
                 // Record key
-                string url = MakePhotoPageUrl(state.SpeciesItem.ExtractID(), page);
+                string url = MakePhotoPageUrl(baseURL, state.SpeciesItem.ExtractID(), page);
 
                 var item = internetQueue.Find(url);
                 if (item is not null && item.Status != Status.Downloaded)
@@ -730,7 +732,7 @@ namespace Surveyor
                 else if (item is null)
                 {
                     string reportMessage = $"SpeciesImageAndInfoCache.CheckAllPhotoPageDownloaded Download request missing from internet queue. Suggest removing the FishID:{state.SpeciesItem.Code} from the Species Image Cache";
-                    //???Debug.WriteLine(reportMessage);
+                    
                     report?.Warning("", reportMessage);
                     allDownloaded = false;
                     setErrorState = true;
@@ -764,7 +766,7 @@ namespace Surveyor
             for (int page = 1; page <= state.TotalImages; page++)
             {
                 // Record key
-                string url = MakePhotoPageUrl(state.SpeciesItem.ExtractID(), page);
+                string url = MakePhotoPageUrl(baseURL, state.SpeciesItem.ExtractID(), page);
 
                 // Get the record of the download from the Download manager
                 var item = internetQueue.Find(url);
@@ -789,6 +791,8 @@ namespace Surveyor
                             ImageUrl = fullImageUrl,
                             ImageFile = "",
                             Author = metadata.Author ?? "",
+                            Locality = metadata.Locality ?? "",
+                            SexStage = metadata.SexStage ?? ""
                         };
                         state.SpeciesImageItemList.Add(speciesImageItem);
 
@@ -833,7 +837,7 @@ namespace Surveyor
                     else if (item is null)
                     {
                         string reportMessage = $"SpeciesImageAndInfoCache.CheckAllImagesDownloaded Download request missing from internet queue. Suggest removing the FishID:{state.SpeciesItem.Code} from the Species Image Cache";
-                        //???Debug.WriteLine(reportMessage);
+                      
                         report?.Warning("", reportMessage);
                         allDownloaded = false;
                         setErrorState = true;
@@ -887,7 +891,7 @@ namespace Surveyor
         /// <param name="state"></param>
         private async void RequestingSpeciesInformationPage(SpeciesCacheState state)
         {
-            string url = MakeSummaryPageUrl(state.SpeciesItem.ExtractID());
+            string url = MakeSummaryPageUrl(baseURL, state.SpeciesItem.ExtractID());
 
             // Add a download request
             await internetQueue.AddDownloadRequestIfNecessary(TransferType.Page, url, "temp");   // Intermediate file so put in localFolder/temp
@@ -902,7 +906,7 @@ namespace Surveyor
         private void WaitingForSpeciesInformationPage(SpeciesCacheState state)
         {
             // Record key
-            string url = MakeSummaryPageUrl(state.SpeciesItem.ExtractID());
+            string url = MakeSummaryPageUrl(baseURL, state.SpeciesItem.ExtractID());
 
             var item = internetQueue.Find(url);
             if (item != null && item.Status == Status.Downloaded)
@@ -915,7 +919,7 @@ namespace Surveyor
         private async void ParsingSpeciesInformationPage(SpeciesCacheState state)
         {
             // Record key
-            string url = MakeSummaryPageUrl(state.SpeciesItem.ExtractID());
+            string url = MakeSummaryPageUrl(baseURL, state.SpeciesItem.ExtractID());
 
             // Get the record of the download from the Download manager
             var item = internetQueue.Find(url);
@@ -956,9 +960,9 @@ namespace Surveyor
         /// <param name="speciesID"></param>
         /// <param name="page"></param>
         /// <returns></returns>
-        private static string MakePhotoPageUrl(string speciesID, int page)
+        private static string MakePhotoPageUrl(string baseURL, string speciesID, int page)
         {
-            return $"https://www.fishbase.se/photos/PicturesSummary.php?resultPage={page}&ID={speciesID}&what=species";
+            return $"{baseURL}/photos/PicturesSummary.php?resultPage={page}&ID={speciesID}&what=species";
         }
 
 
@@ -967,9 +971,9 @@ namespace Surveyor
         /// </summary>
         /// <param name="speciesID"></param>
         /// <returns></returns>
-        private static string MakeSummaryPageUrl(string speciesID)
+        private static string MakeSummaryPageUrl(string baseURL, string speciesID)
         {
-            return $"https://www.fishbase.se/summary/{speciesID}";
+            return $"{baseURL}/summary/{speciesID}";
         }
 
 
@@ -1017,21 +1021,6 @@ namespace Surveyor
                 report?.Error("", $"SpeciesImageCache.SaveSpeciesStates (temp-write strategy) failed: {ex.Message}");
             }
         }
-
-        //private async Task SaveSpeciesStates()
-        //{
-        //    try
-        //    {
-        //        string json = System.Text.Json.JsonSerializer.Serialize(speciesStates, CachedJsonSerializerOptions);
-        //        StorageFile file = await ApplicationData.Current.LocalFolder.CreateFileAsync("speciesStates.json", CreationCollisionOption.ReplaceExisting);
-        //        await FileIO.WriteTextAsync(file, json);
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        report?.Error("", $"SpeciesImageCache.SaveSpeciesStates Failed {ex.Message}");
-        //    }
-        //}
-
 
 
         /// <summary>

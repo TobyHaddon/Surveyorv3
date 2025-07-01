@@ -429,6 +429,22 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// Toggle the play/pause.  This is called from ControlPlayPause_Click and from
+        /// the MainWindow keydown handler
+        /// </summary>
+        public void TogglePlayPause()
+        {
+            // !PlayOrPause is the new state
+            string playOrPauseText = !PlayOrPause == true ? "play" : "pause";
+
+            // Signal eMediaControlEvent.UserReqPlayOrPause with !PlayOrPause
+            mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqPlayOrPause, ControlType) { playOrPause = !PlayOrPause });
+
+            string controls = ControlType.ToString();
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {controls}: User requested to {playOrPauseText}");
+        }
+
 
         ///
         /// EVENTS
@@ -442,14 +458,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void ControlPlayPause_Click(object sender, RoutedEventArgs e)
         {
-            // !PlayOrPause is the new state
-            string playOrPauseText = !PlayOrPause == true ? "play" : "pause";
-
-            // Signal eMediaControlEvent.UserReqPlayOrPause with !PlayOrPause
-            mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqPlayOrPause, ControlType) { playOrPause = !PlayOrPause });
-
-            string controls = ControlType.ToString();            
-            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {controls}: User requested to {playOrPauseText}");
+            TogglePlayPause();
         }
 
 

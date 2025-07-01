@@ -19,17 +19,19 @@
     </UserControl.Resources>
     
     <Grid>
-        <ListView x:Name="ListViewEvent" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" 
-                   IsItemClickEnabled="True" ItemClick="GoToFrameMenuItem_Click" RightTapped="ListViewEvent_RightTapped" KeyDown="ListViewEvent_KeyDown">
+        <local:NoSpaceListView x:Name="ListViewEvent" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" 
+                  IsItemClickEnabled="True" ItemClick="GoToFrameMenuItem_Click" 
+                  RightTapped="ListViewEvent_RightTapped" 
+                  KeyDown="ListViewEvent_KeyDown">
 
             <!-- Enable UI Virtualization -->
-            <ListView.ItemsPanel>
+            <local:NoSpaceListView.ItemsPanel>
                 <ItemsPanelTemplate>
                     <ItemsStackPanel/>
                 </ItemsPanelTemplate>
-            </ListView.ItemsPanel>
+            </local:NoSpaceListView.ItemsPanel>
                         
-            <ListView.ItemContainerStyle>
+            <local:NoSpaceListView.ItemContainerStyle>
                 <Style TargetType="ListViewItem">
                      <!--Reduce padding and margin--> 
                     <Setter Property="Padding" Value="0" />
@@ -37,9 +39,9 @@
                     <Setter Property="MinHeight" Value="20" />
                      <!--Adjust as needed--> 
                 </Style>
-            </ListView.ItemContainerStyle>
+            </local:NoSpaceListView.ItemContainerStyle>
 
-            <ListView.ItemTemplate>
+            <local:NoSpaceListView.ItemTemplate>
                 <DataTemplate x:DataType="local2:Event">
                     <Grid VerticalAlignment="Center" Margin="5,0,0,0">
                         <Grid.ColumnDefinitions>
@@ -68,9 +70,9 @@
                                    Width="1800" TextAlignment="Left" Margin="0,0,0,0" />
                     </Grid>
                 </DataTemplate>
-            </ListView.ItemTemplate>
+            </local:NoSpaceListView.ItemTemplate>
 
-            <ListView.ContextFlyout>
+            <local:NoSpaceListView.ContextFlyout>
                 <MenuFlyout>
                     <MenuFlyoutItem Text="Display Frame" Click="GoToFrameMenuItem_Click">
                         <MenuFlyoutItem.Icon>
@@ -89,8 +91,8 @@
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
                 </MenuFlyout>
-            </ListView.ContextFlyout>
-        </ListView>
+            </local:NoSpaceListView.ContextFlyout>
+        </local:NoSpaceListView>
 
         <!-- ContentDialog Definition -->
         <ContentDialog x:Name="EventDialog"

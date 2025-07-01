@@ -59,9 +59,9 @@ namespace Surveyor.Calibration
         public List<(int binx, int biny)> PoseBinsOccupied { get; set; } = [];
 
         [JsonIgnore]
-        public static IReadOnlyList<double> PoseBinThresholdYaw => [15, 30, 90.1];
+        public static IReadOnlyList<double> PoseBinThresholdYaw => [-10, 10, 90.1];
         [JsonIgnore]
-        public static IReadOnlyList<double> PoseBinThresholdPitch => [15, 30, 90.1 ];
+        public static IReadOnlyList<double> PoseBinThresholdPitch => [-10, 10, 90.1 ];
 
 
         // Parameterless constructor for deserialization

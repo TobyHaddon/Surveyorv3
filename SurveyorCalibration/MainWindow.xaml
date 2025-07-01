@@ -80,7 +80,85 @@
 
                 </CommandBar.SecondaryCommands>
             </CommandBar>
-            <CheckBox x:Name="SaveBestFrames" IsEnabled="False" IsChecked="False" Content="Save Best Frames"/>
+
+            <CheckBox x:Name="SaveBestFrames" IsEnabled="False" IsChecked="False" VerticalAlignment="Center" Content="Save Best Frames"/>
+
+            <Grid x:Name="Sliders">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                
+                <!-- Movement Filter Controls -->
+                <TextBlock Grid.Row="0" Grid.Column ="0" Grid.RowSpan="2" 
+                           Text="Movement Threshold:" VerticalAlignment="Center" Margin="16,0,0,0"/>
+                
+                <TextBlock x:Name="MovementSliderMin" 
+                           Grid.Row="0" Grid.Column ="1" VerticalAlignment="Center" 
+                           FontSize="10" Margin="6,0,0,0"/>
+
+                <Slider x:Name="MovementMaxThresholdSlider"
+                            Grid.Row="0" Grid.Column ="2" 
+                            StepFrequency="0.1"
+                            VerticalAlignment="Center"
+                            Value="{x:Bind movementMaxThreshold, Mode=TwoWay}"
+                            ValueChanged="MovementSlider_ValueChanged"
+                            Width="100"
+                            Margin="4,0,0,0"/>
+
+                <TextBlock x:Name="MovementSliderMax" 
+                           Grid.Row="0" Grid.Column ="3"
+                           VerticalAlignment="Center" 
+                           FontSize="10" Margin="8,0,0,0"/>
+                
+                <TextBlock x:Name="MovementMaxThresholdText" 
+                            Grid.Row="1" Grid.Column ="2" 
+                            VerticalAlignment="Top"
+                            HorizontalAlignment="Center"
+                            FontSize="10" Margin="4,0,0,0"/>
+
+                <!-- Blur Filter Controls -->
+                <TextBlock Text="Blur Threshold:"  
+                           Grid.Row="0" Grid.Column ="4" Grid.RowSpan="2"
+                           VerticalAlignment="Center" Margin="16,0,0,0"/>
+                
+                <TextBlock x:Name="BlurSliderMin" 
+                           Grid.Row="0" Grid.Column ="5"
+                           VerticalAlignment="Center" 
+                           FontSize="10" Margin="6,0,0,0"/>
+                    
+                <Slider x:Name="BlurMaxThresholdSlider"
+                        Grid.Row="0" Grid.Column ="6"
+                        StepFrequency="0.1"
+                        VerticalAlignment="Center"
+                        Value="{x:Bind blurMaxThreshold, Mode=TwoWay}"
+                        ValueChanged="BlurSlider_ValueChanged"
+                        Width="100"
+                        Margin="4,0,0,0"/>
+                
+                <TextBlock x:Name="BlurMaxThresholdText" 
+                            Grid.Row="1" Grid.Column ="6"
+                            VerticalAlignment="Top"
+                            HorizontalAlignment="Center"
+                            FontSize="10" 
+                            Margin="4,0,0,0"/>
+
+                <TextBlock x:Name="BlurSliderMax" 
+                           Grid.Row="0" Grid.Column ="7"
+                           VerticalAlignment="Center" 
+                           FontSize="10" Margin="8,0,0,0"/>
+            </Grid>
+            
         </StackPanel>
         
         <Grid x:Name="MonoCalibrationHeads" Grid.Row="1">

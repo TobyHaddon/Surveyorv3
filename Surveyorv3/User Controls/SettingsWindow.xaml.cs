@@ -290,20 +290,39 @@ namespace Surveyor.User_Controls
                             break;
                     }
 
-                    // Load the current diags info state
+                    // Load the current diags info saved state
                     DiagnosticInformation.IsOn = SettingsManagerLocal.DiagnosticInformation;
 
-                    // Load the SpeciesImageCache state
+                    // Load the SpeciesImageCache saved state
                     UseSpeciesImageCache.IsOn = SettingsManagerLocal.SpeciesImageCacheEnabled;
 
-                    // Load the teaching tip enabled state
+                    // Load the FisebaseURL saved state
+                    if (SettingsManagerLocal.FishBaseURL is not null)
+                    {
+                        string savedUrl = SettingsManagerLocal.FishBaseURL;
+                        foreach (var item in FishBaseURL.Items)
+                        {
+                            if (item is ComboBoxItem comboBoxItem &&
+                                comboBoxItem.Tag is string tag &&
+                                tag == savedUrl)
+                            {
+                                FishBaseURL.SelectedItem = comboBoxItem;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Load the teaching tip saved state
                     TeachingTips.IsOn = SettingsManagerLocal.TeachingTipsEnabled;
 
-                    // Load the Use Internet enabled state
+                    // Load the Use Internet saved state
                     UseInternet.IsOn = SettingsManagerLocal.UseInternetEnabled;
 
-                    // Load the MouseWheel FrameMove enabled state
+                    // Load the MouseWheel FrameMove saved state
                     MouseWheelFrameMove.IsOn = SettingsManagerLocal.MouseWheelFrameMoveEnabled;
+
+                    // Load survey inheritance saved state
+                    AllowSurveyInheritance.IsOn = SettingsManagerLocal.InheritFromLastSetting;
 
                     // Set the tooltip on the information icon on the Reporter info, Species image and information cache expander
                     ToolTip tooltipSpeciesImageCacheFolder = new();
@@ -323,7 +342,7 @@ namespace Surveyor.User_Controls
                     SpeciesCodeListEditButton.IsEnabled = false;
                     SpeciesCodeListDeleteButton.IsEnabled = false;
 
-                    // Load the Scientific Name Order enabled state
+                    // Load the Scientific Name Order saved state
                     SpeciesCodeListScientificNameOrder.IsOn = SettingsManagerLocal.ScientificNameOrderEnabled;
 
                     // Set the tooltip on the information icon on the Species List expander
@@ -1150,6 +1169,34 @@ namespace Surveyor.User_Controls
             mainWindow?.mediaStereoController.speciesImageCache.Enable(settingValue);
         }
 
+
+        /// <summary>
+        /// User selected a new base URL for the fish species information
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FishBaseURL_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_isInitializing) return;
+
+            string? settingValue;
+
+            if (FishBaseURL.SelectedItem is ComboBoxItem selectedItem)
+            {
+                settingValue = selectedItem.Tag as string;
+
+                if (settingValue is not null)
+                {
+                    // Remember the new state
+                    SettingsManagerLocal.FishBaseURL = settingValue;
+                }
+                else 
+                {
+                    SettingsManagerLocal.FishBaseURL = string.Empty;
+                }
+            }
+        }
+
         /// <summary>
         /// Display the cached image photos
         /// </summary>
@@ -1691,6 +1738,7 @@ namespace Surveyor.User_Controls
                 GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(updated);
             }
         }
+
 
         // ***END OF SettingsWindow***
     }

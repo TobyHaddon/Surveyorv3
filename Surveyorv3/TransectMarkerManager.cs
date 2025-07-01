@@ -75,7 +75,7 @@ namespace Surveyor
             }
 
             // Now we need to adjust all the existing markers so they go start/end, start/end, etc. 
-            ReCalcMarkerStartAndEnd(eventsControl);
+            await ReCalcMarkerStartAndEnd(eventsControl);
 
             // If the added marker is an end marker, then report an overview of the survey start/end markers
             if (newEvent is not null && newEvent.EventDataType == SurveyDataType.SurveyEnd)
@@ -92,7 +92,7 @@ namespace Surveyor
         /// <param name="eventsControl"></param>
         /// <param name="positionTimelineController"></param>
         /// <returns>true is anything was deleted</returns>
-        public bool DeleteMarker(EventsControl eventsControl, TimeSpan positionTimelineController)
+        public async Task<bool> DeleteMarker(EventsControl eventsControl, TimeSpan positionTimelineController)
         {
             bool ret = false;
 
@@ -110,7 +110,7 @@ namespace Surveyor
 
             // Recalc start/end
             if (ret)
-                ReCalcMarkerStartAndEnd(eventsControl);
+                await ReCalcMarkerStartAndEnd(eventsControl);
 
             return ret;
         }
@@ -122,7 +122,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="events"></param>
         /// <returns></returns>
-        private bool ReCalcMarkerStartAndEnd(EventsControl eventsControl)
+        private async Task<bool> ReCalcMarkerStartAndEnd(EventsControl eventsControl)
         {
             bool ret = false;
 
@@ -132,6 +132,7 @@ namespace Surveyor
             bool expectingStart = true;
             int transectMarkerIndex = 1;
 
+            // Renumber the transect marker
             foreach (Event evt in startEndEvents)
             {
                 TransectMarker transectMarker = (TransectMarker)evt.EventData!;
@@ -149,6 +150,18 @@ namespace Surveyor
                     expectingStart = true;
                     transectMarkerIndex++;
                 }
+            }
+
+            // Remove all the existing transect marker
+            foreach (Event evt in startEndEvents)
+            {
+                eventsControl.DeleteEvent(evt);
+            }
+
+            // Re-add them so the transect marker text is updated
+            foreach (Event evt in startEndEvents)
+            {
+                await eventsControl.AddEvent(evt);
             }
 
             return ret;

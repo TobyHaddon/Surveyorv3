@@ -85,6 +85,12 @@ namespace Surveyor
         private bool? saveStatus = null;  // None - Can't save, false - In Save, true - can save
 
 
+        //???public double movementMaxValue { get; set; } = 30.0;
+        public double movementMaxThreshold { get; set; } = 20.0;
+
+        //???public double blurMaxValue { get; set; } = 10.0;
+        public double blurMaxThreshold { get; set; } = 2.5;
+
         public MainWindow()
         {
             // Restore the saved window state
@@ -97,7 +103,7 @@ namespace Surveyor
             // Create Charuco Board Definition
             calibProject.Data.CharucoBoardDefinition.Setup(new Dictionary(PredefinedDictionaryName.Dict5X5_100),
                                                         14/*SquareX*/, 9/*SquareY*/,
-                                                        40.0f / 1000.0f/*SquareLength*/,
+                                                        39.92f / 1000.0f/*SquareLength*/,
                                                         30.0f / 1000.0f/*MarkerLength*/);
 
             // Pass the calibration board settings to the  calibration heads
@@ -111,7 +117,10 @@ namespace Surveyor
             if (AppLaunchArgs.SaveBestFrames is not null)
             {
                 SaveBestFrames.IsChecked = (bool)AppLaunchArgs.SaveBestFrames;
-            }
+            }                       
+            
+            // Set the sliders
+            SetMovementAndBlurSliderMax();
 
 
             // Check for command line            
@@ -461,6 +470,7 @@ namespace Surveyor
                         }
 
                         SetUIControls();
+
                     }
                 }
 
@@ -703,25 +713,25 @@ namespace Surveyor
             // Find the calibration frame in the stereo videos
             bool writePngFiles = SaveBestFrames.IsChecked == true;
 
-            if (doStereo)
-            {
-                await DisplayStatusText("Best frames calc stereo...");
-                InProgress.IsActive = true;
-                await StereoCalibrationHead.BestFramesCalc(writePngFiles);
-                InProgress.IsActive = false;
-            }
             if (doLeftMono)
             {
                 await DisplayStatusText("Best frames calc left mono...");
                 InProgress.IsActive = true;
-                await LeftMonoCalibrationHead.BestFramesCalc(writePngFiles);
+                await LeftMonoCalibrationHead.BestFramesCalc(movementMaxThreshold, blurMaxThreshold, writePngFiles);
                 InProgress.IsActive = false;
             }
             if (doRightMono)
             {
                 await DisplayStatusText("Best frames calc right mono...");
                 InProgress.IsActive = true;
-                await RightMonoCalibrationHead.BestFramesCalc(writePngFiles);
+                await RightMonoCalibrationHead.BestFramesCalc(movementMaxThreshold, blurMaxThreshold, writePngFiles);
+                InProgress.IsActive = false;
+            }
+            if (doStereo)
+            {
+                await DisplayStatusText("Best frames calc stereo...");
+                InProgress.IsActive = true;
+                await StereoCalibrationHead.BestFramesCalc(movementMaxThreshold, blurMaxThreshold, writePngFiles);
                 InProgress.IsActive = false;
             }
 
@@ -780,6 +790,26 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// Update the movement threshold text when the slider value changes
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MovementSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+        {
+            MovementMaxThresholdText.Text = $"{movementMaxThreshold:F1}"; // Update the text to show the current value
+        }
+
+
+        /// <summary>
+        /// Update the blur threshold text when the slider value changes
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void BlurSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+        {
+            BlurMaxThresholdText.Text = $"{blurMaxThreshold:F1}"; // Update the text to show the current value
+        }
 
 
 
@@ -868,10 +898,95 @@ namespace Surveyor
                 FindAppBarCancel.IsEnabled = false; // Enable Cancel button if Find is running
             }
 
+            // Set the sliders
+            SetMovementAndBlurSliderMax();
+
         }
 
 
+        private void SetMovementAndBlurSliderMax()
+        {
+            
+            if (findStatus == true)
+            {
+                double minMovement;
+                double maxMovement;
+                double maxBlur;
+                double minBlur;
 
+                {
+                    double minMovementMonoLeft = LeftMonoCalibrationHead.GetMinMovement(true/*trueNormalFalseBestFrame*/);
+                    double minMovementMonoRight = LeftMonoCalibrationHead.GetMinMovement(true/*trueNormalFalseBestFrame*/);
+                    double minMovementStereo = StereoCalibrationHead.GetMinMovement(true/*trueNormalFalseBestFrame*/);
+                    minMovement = Math.MinMagnitude(minMovementStereo, Math.MinMagnitude(minMovementMonoLeft, minMovementMonoRight));
+                }
+
+                {
+                    double maxMovementMonoLeft = LeftMonoCalibrationHead.GetMaxMovement(true/*trueNormalFalseBestFrame*/);
+                    double maxMovementMonoRight = LeftMonoCalibrationHead.GetMaxMovement(true/*trueNormalFalseBestFrame*/);
+                    double maxMovementStereo = StereoCalibrationHead.GetMaxMovement(true/*trueNormalFalseBestFrame*/);
+                    maxMovement = Math.MaxMagnitude(maxMovementStereo, Math.MaxMagnitude(maxMovementMonoLeft, maxMovementMonoRight));
+                }
+
+                {
+                    double minBlurMonoLeft = LeftMonoCalibrationHead.GetMinBlur(true/*trueNormalFalseBestFrame*/);
+                    double minBlurMonoRight = LeftMonoCalibrationHead.GetMinBlur(true/*trueNormalFalseBestFrame*/);
+                    double minBlurStereo = StereoCalibrationHead.GetMinBlur(true/*trueNormalFalseBestFrame*/);
+                    minBlur = Math.MinMagnitude(minBlurStereo, Math.MinMagnitude(minBlurMonoLeft, minBlurMonoRight));
+                }
+
+                {
+                    double maxBlurMonoLeft = LeftMonoCalibrationHead.GetMaxBlur(true/*trueNormalFalseBestFrame*/);
+                    double maxBlurMonoRight = LeftMonoCalibrationHead.GetMaxBlur(true/*trueNormalFalseBestFrame*/);
+                    double maxBlurStereo = StereoCalibrationHead.GetMaxBlur(true/*trueNormalFalseBestFrame*/);
+                    maxBlur = Math.MaxMagnitude(maxBlurStereo, Math.MaxMagnitude(maxBlurMonoLeft, maxBlurMonoRight));
+                }
+
+                // Load the movement/blur max values into the slider for the whole set of frames
+                Sliders.Visibility = Visibility.Visible;
+
+                // Setup Movement filter max/min values
+                MovementMaxThresholdSlider.Minimum = minMovement;
+                MovementSliderMin.Text = $"{minMovement:F1}";
+                MovementMaxThresholdSlider.Maximum = maxMovement;
+                MovementSliderMax.Text = $"{maxMovement:F1}";
+
+                // Setup Movement filter max/min values
+                BlurMaxThresholdSlider.Maximum = maxBlur;
+                BlurSliderMin.Text = $"{minBlur:F1}";
+                BlurMaxThresholdSlider.Maximum = maxBlur;
+                BlurSliderMax.Text = $"{maxBlur:F1}";
+            }
+            else if (saveStatus == true)
+            {
+                double maxMovement;
+                double maxBlur;
+
+                {
+                    double maxMovementMonoLeft = LeftMonoCalibrationHead.GetMaxMovement(false/*trueNormalFalseBestFrame*/);
+                    double maxMovementMonoRight = LeftMonoCalibrationHead.GetMaxMovement(false/*trueNormalFalseBestFrame*/);
+                    double maxMovementStereo = StereoCalibrationHead.GetMaxMovement(false/*trueNormalFalseBestFrame*/);
+                    maxMovement = Math.MaxMagnitude(maxMovementStereo, Math.MaxMagnitude(maxMovementMonoLeft, maxMovementMonoRight));
+                }
+
+                {
+                    double maxBlurMonoLeft = LeftMonoCalibrationHead.GetMaxBlur(false/*trueNormalFalseBestFrame*/);
+                    double maxBlurMonoRight = LeftMonoCalibrationHead.GetMaxBlur(false/*trueNormalFalseBestFrame*/);
+                    double maxBlurStereo = StereoCalibrationHead.GetMaxBlur(false/*trueNormalFalseBestFrame*/);
+                    maxBlur = Math.MaxMagnitude(maxBlurStereo, Math.MaxMagnitude(maxBlurMonoLeft, maxBlurMonoRight));
+                }
+
+                // Load the movement/blur max values into the slider for the best frames
+                Sliders.Visibility = Visibility.Visible;
+                MovementMaxThresholdSlider.Maximum = maxMovement;
+                BlurMaxThresholdSlider.Maximum = maxBlur;
+            }
+            else
+            {
+                // Hide the sliders
+                Sliders.Visibility = Visibility.Collapsed;
+            }
+        }
 
         /// <summary>
         /// Start a timer to check if the stereo calibration is locked.
@@ -999,7 +1114,6 @@ namespace Surveyor
                 return false; // No find operations are running
             }
         }
-
 
     }
 }

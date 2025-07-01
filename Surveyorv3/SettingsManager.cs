@@ -51,7 +51,7 @@ namespace Surveyor
         // Path where new media (MP4) are typically imported from
         public static string? MediaImportFolder
         {
-            get => GetString(MediaImportFolderKey);
+            get => GetString(MediaImportFolderKey, string.Empty);
             set => SetString(MediaImportFolderKey, value);
         }
 
@@ -59,7 +59,7 @@ namespace Surveyor
         // Path where new calibration files are typically imported from
         public static string? CalibrationImportFolder
         {
-            get => GetString(CalibrationImportFolderKey);
+            get => GetString(CalibrationImportFolderKey, string.Empty);
             set => SetString(CalibrationImportFolderKey, value);
         }
 
@@ -67,7 +67,7 @@ namespace Surveyor
         // Retrieve or set the survey folder path.  This is where the Survey files and the media files are stored.
         public static string? SurveyFolder
         {
-            get => GetString(SurveyFolderKey);
+            get => GetString(SurveyFolderKey, string.Empty);
             set => SetString(SurveyFolderKey, value);
         }
 
@@ -178,7 +178,7 @@ namespace Surveyor
         // User name 
         public static string? UserName
         {
-            get => GetString(UserNameKey);
+            get => GetString(UserNameKey, string.Empty);
             set => SetString(UserNameKey, value);
         }
 
@@ -271,6 +271,14 @@ namespace Surveyor
             set => SetBool(SpeciesImageCacheEnabledKey, value);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        public static string FishBaseURL
+        {
+            get => GetString(SpeciesImageCacheEnabledKey, "https://www.fishbase.se"/*default*/);
+            set => SetString(SpeciesImageCacheEnabledKey, value);
+        }
 
         /// <summary>
         /// Species code list order can be by common name or scientific name
@@ -309,7 +317,10 @@ namespace Surveyor
             _localSettings.Values[key] = value;
         }
 
-        private static string? GetString(string key) => _localSettings.Values[key] as string;
+        private static string GetString(string key, string defaultValue)
+        {
+            return _localSettings.Values[key] is string value ? value : defaultValue;
+        }
         private static void SetString(string key, string? value) => _localSettings.Values[key] = value;
 
     }

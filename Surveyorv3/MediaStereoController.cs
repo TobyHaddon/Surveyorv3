@@ -8,6 +8,8 @@
 // Add a method to swap the targets is user LeftA mixed up with RightB (and therefore LeftB with RightA
 // Version 1.3  09 Mar 2025
 // Refractored based on ExampleMediaTimelineController
+// Version 1.4  29 Jun 2025
+// Handle space bar forwards from any UI component
 
 using Surveyor.Events;
 using Surveyor.User_Controls;
@@ -27,6 +29,7 @@ using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
 using static Surveyor.User_Controls.SurveyorMediaPlayer;
 using static Surveyor.User_Controls.SettingsWindowEventData;
 using Windows.Media.Playback;
+using MathNet.Numerics;
 
 
 namespace Surveyor
@@ -661,6 +664,34 @@ namespace Surveyor
                     mediaPlayerLeft.Play();
                 else
                     mediaPlayerRight.Play();
+            }
+        }
+
+
+        /// <summary>
+        /// Called use other UI components to signal the user press the space bar
+        /// Space Bar to used focus component is used to toggle play/pause in media 
+        /// locked mode.  If media is not locked the focus as to be on the particular 
+        /// mediaControl instance you want to play/pause
+        /// </summary>
+        public async void SpaceKeyPressed()
+        {
+            
+            // If the players are locked that pass a spacebar keystroke directly to the
+            // primary media controller
+            if (mediaSynchronized)
+            {
+                if (MediaIsOpen())
+                {
+                    if (IsPlaying())
+                    {
+                        await Pause(eCameraSide.None);
+                    }
+                    else
+                    {
+                        Play(eCameraSide.None);
+                    }
+                }
             }
         }
 
@@ -1754,7 +1785,7 @@ namespace Surveyor
         /// <param name="pointA"></param>
         /// <param name="pointB"></param>
         /// <returns></returns>
-        internal async Task AddMeasurementRequest()
+        internal async Task AddMeasurementRequest(string species)
         {
             SurveyMeasurement surveyMeasurement = new();
 
@@ -1776,7 +1807,7 @@ namespace Surveyor
                 // This is incase the user selected the points the wrong way around. If so the target will be swapped
                 SurveyMeasurementHelper.EnsureCorrectCorrespondence(surveyMeasurement);
 
-                await AddMeasurementOr3DPointOrSinglePointRequest(surveyMeasurement);
+                await AddMeasurementOr3DPointOrSinglePointRequest(surveyMeasurement, species);
             }
         }
 
@@ -1789,7 +1820,7 @@ namespace Surveyor
         /// <param name="cameraSide"></param>
         /// <param name="TruePointAFalsePointB"></param>
         /// <returns></returns>
-        internal async Task Add3DPointRequest(bool TruePointAFalsePointB)
+        internal async Task Add3DPointRequest(bool TruePointAFalsePointB, string species)
         {
             SurveyStereoPoint surveyStereoPoint = new();
 
@@ -1816,7 +1847,7 @@ namespace Surveyor
                 surveyStereoPoint.RightY = TargetBRight!.Value.Y;
             }
 
-            await AddMeasurementOr3DPointOrSinglePointRequest(surveyStereoPoint);
+            await AddMeasurementOr3DPointOrSinglePointRequest(surveyStereoPoint, species);
         }
 
 
@@ -1827,7 +1858,7 @@ namespace Surveyor
         /// <param name="cameraSide"></param>
         /// <param name="TruePointAFalsePointB"></param>
         /// <returns></returns>
-        internal async Task AddSinglePointRequest(SurveyorMediaPlayer.eCameraSide cameraSide, bool TruePointAFalsePointB)
+        internal async Task AddSinglePointRequest(SurveyorMediaPlayer.eCameraSide cameraSide, bool TruePointAFalsePointB, string species)
         {
             if (cameraSide != eCameraSide.None)
             {
@@ -1871,7 +1902,7 @@ namespace Surveyor
                     surveyPoint.Y = TargetBRight.Value.Y;
                 }
 
-                await AddMeasurementOr3DPointOrSinglePointRequest(surveyPoint);
+                await AddMeasurementOr3DPointOrSinglePointRequest(surveyPoint, species);
             }
         }
 
@@ -1882,7 +1913,7 @@ namespace Surveyor
         /// <param name="pointA"></param>
         /// <param name="pointB"></param>
         /// <returns></returns>
-        private async Task AddMeasurementOr3DPointOrSinglePointRequest(IPointData pointData)
+        private async Task AddMeasurementOr3DPointOrSinglePointRequest(IPointData pointData, string preSelectedSpecies)
         {
             // Check if the Events is setup and the stereo projection is not null (normally
             // stereoProject is not null if we have calibration data)
@@ -1916,7 +1947,8 @@ namespace Surveyor
                 bool add = true;
 
                 SpeciesInfo specifiesInfo = new();
-                if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo, speciesImageCache) == false)
+
+                if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo, preSelectedSpecies, speciesImageCache) == false)
                 {
                     // Species info cancelled, check the user still want to add the measurement
                     add = await SpeciesInfoMissingWarningDialog(isMeasurement, is3DPoint, isSinglePoint);
@@ -2400,20 +2432,20 @@ namespace Surveyor
                         break;
 
                     case MagnifyAndMarkerControlEvent.AddMeasurementRequest:
-                        SafeUICall(async () => await mediaStereoController.AddMeasurementRequest());
+                        SafeUICall(async () => await mediaStereoController.AddMeasurementRequest(data.species));
                         break;
 
                     case MagnifyAndMarkerControlEvent.Add3DPointRequest:
                         if (data.TruePointAFalsePointB is not null)
                         {
-                            SafeUICall(async () => await mediaStereoController.Add3DPointRequest((bool)data.TruePointAFalsePointB));
+                            SafeUICall(async () => await mediaStereoController.Add3DPointRequest((bool)data.TruePointAFalsePointB, data.species));
                         }
                         break;
 
                     case MagnifyAndMarkerControlEvent.AddSinglePointRequest:
                         if (data.TruePointAFalsePointB is not null)
                         {
-                            SafeUICall(async () => await mediaStereoController.AddSinglePointRequest(data.cameraSide, (bool)data.TruePointAFalsePointB));
+                            SafeUICall(async () => await mediaStereoController.AddSinglePointRequest(data.cameraSide, (bool)data.TruePointAFalsePointB, data.species));
                         }
                         break;
 

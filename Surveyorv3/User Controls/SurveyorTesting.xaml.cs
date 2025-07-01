@@ -1144,7 +1144,7 @@ namespace Surveyor.User_Controls
         private IRandomAccessStream? streamSource = null;
         private uint imageSourceWidth = 0;
         private uint imageSourceHeight = 0;
-        //???private bool imageLoaded;
+        
         // Image poistion (which frame in the video as a TimeSpace)
         private TimeSpan? position = null;
         internal void _NewImageFrame(IRandomAccessStream? frameStream, TimeSpan _position, uint _imageSourceWidth, uint _imageSourceHeight)
@@ -1161,14 +1161,7 @@ namespace Surveyor.User_Controls
             streamSource = frameStream;
             imageSourceWidth = _imageSourceWidth;
             imageSourceHeight = _imageSourceHeight;
-
-
-            // Set the image loaded flag
-            //???imageLoaded = true; // No used
         }
-
-
-
     }
 
     /// <summary>

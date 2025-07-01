@@ -72,6 +72,7 @@ using System.Threading.Tasks;
 using Windows.Foundation;               // Point class
 using Windows.Graphics.Imaging;         // BitmapTransform
 using Windows.Storage.Streams;
+using static Surveyor.User_Controls.MediaPlayerEventData;
 using static Surveyor.User_Controls.SettingsWindowEventData;
 
 
@@ -1446,97 +1447,19 @@ namespace Surveyor.User_Controls
                 // Add Measurement
                 if (item == CanvasFrameMenuAddMeasurement)
                 {
-                    if (pointTargetA is not null && pointTargetB is not null)
-                    {
-                        // Request a measurement to be added
-                        MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.AddMeasurementRequest, CameraSide);
-                        magnifyAndMarkerControlHandler?.Send(data);
-                    }
+                    RequestMeasurement(string.Empty/*no preselected species*/);
                 }
 
                 // Add 3D Point
                 else if (item == CanvasFrameMenuAdd3DPoint)
                 {
-                    bool? TruePointAFalsePointB = null;
-
-                    // Figure out if the request is for Target A or Target B
-                    // Target A is set and Target B is not set and also A is set on the other instance
-                    if (pointTargetA is not null && pointTargetB is null && otherInstanceTargetASet)
-                    {
-                        TruePointAFalsePointB = true; // Target A
-                    }
-                    // Target B is set and Target A is not set and also B is set on the other instance
-                    else if (pointTargetB is not null && pointTargetA is null && otherInstanceTargetBSet)
-                    {
-                        TruePointAFalsePointB = false; // Target B
-                    }
-                    // Hovering over Target A and their is a corresponding point on the other instance
-                    else if (hoveringOverTargetTrueAFalseB == true && pointTargetA is not null && otherInstanceTargetASet)
-                    {
-                        TruePointAFalsePointB = true; // Target A
-                    }
-                    // Hovering over Target B and their is a corresponding point on the other instance
-                    else if (hoveringOverTargetTrueAFalseB == false && pointTargetB is not null && otherInstanceTargetBSet)
-                    {
-                        TruePointAFalsePointB = false; // Target B
-                    }
-                    else if (TargetA is not null && pointTargetB is not null && otherInstanceTargetASet && otherInstanceTargetBSet)
-                    {
-                        TruePointAFalsePointB = await RequestUsersSelectsTargetAorB("Add 3D Point", "Please select either the Red Target or the Green Target to add a 3D Point.");
-                    }
-
-                    if (TruePointAFalsePointB is not null)
-                    {
-                        // Request a 3D Point to be added
-                        MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.Add3DPointRequest, CameraSide)
-                        {
-                            TruePointAFalsePointB = (bool)TruePointAFalsePointB
-                        };
-                        magnifyAndMarkerControlHandler?.Send(data);
-                    }
+                    await Request3DPoint(string.Empty/*no preselected species*/);
                 }
 
                 // Add Single Point
                 else if (item == CanvasFrameMenuAddSinglePoint)
                 {
-                    bool? TruePointAFalsePointB = null;
-
-                    // Figure out if the request is for Target A or Target B
-                    // Target A is set and Target B is not set
-                    if (pointTargetA is not null & pointTargetB is null)
-                    {
-                        TruePointAFalsePointB = true; // Target A
-                    }
-                    // Target B is set and Target A is not set
-                    else if (pointTargetA is null & pointTargetB is not null)
-                    {
-                        TruePointAFalsePointB = false; // Target B
-                    }
-                    // Hovering over Target A 
-                    else if (hoveringOverTargetTrueAFalseB == true && pointTargetA is not null)
-                    {
-                        TruePointAFalsePointB = true; // Target A
-                    }
-                    // Hovering over Target B 
-                    else if (hoveringOverTargetTrueAFalseB == false && pointTargetB is not null)
-                    {
-                        TruePointAFalsePointB = false; // Target B
-                    }
-                    else if (pointTargetA is not null & pointTargetB is not null)
-                    {
-                        TruePointAFalsePointB = await RequestUsersSelectsTargetAorB("Add Single Point", "Please select either the Red Target or the Green Target to add a Single Point.");
-                    }
-
-                    if (TruePointAFalsePointB is not null)
-                    {
-                        // Request a Single Point to be added
-                        MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.AddSinglePointRequest, CameraSide)
-                        {
-                            TruePointAFalsePointB = (bool)TruePointAFalsePointB
-                        };
-                        magnifyAndMarkerControlHandler?.Send(data);
-                    }
-
+                    await RequestSinglePoint(string.Empty/*no preselected species*/);
                 }
 
                 // Context menu - Delete the Target on the Canvas Frame we are hoving over
@@ -1622,6 +1545,118 @@ namespace Surveyor.User_Controls
                     }
                 }
             }
+        }
+
+
+        /// <summary>
+        /// Request a measurement
+        /// </summary>
+        private void RequestMeasurement(string _species)
+        {
+            if (pointTargetA is not null && pointTargetB is not null &&
+                otherInstanceTargetASet && otherInstanceTargetBSet)
+            {
+                // Request a measurement to be added
+                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.AddMeasurementRequest, CameraSide)
+                {
+                    species = _species,
+                };
+                magnifyAndMarkerControlHandler?.Send(data);
+            }
+        }
+
+        /// <summary>
+        /// Request a 3D point is added
+        /// </summary>
+        /// <returns></returns>
+        private async Task Request3DPoint(string _species)
+        {
+            bool? TruePointAFalsePointB = null;
+
+            // Figure out if the request is for Target A or Target B
+            // Target A is set and Target B is not set and also A is set on the other instance
+            if (pointTargetA is not null && pointTargetB is null && otherInstanceTargetASet)
+            {
+                TruePointAFalsePointB = true; // Target A
+            }
+            // Target B is set and Target A is not set and also B is set on the other instance
+            else if (pointTargetB is not null && pointTargetA is null && otherInstanceTargetBSet)
+            {
+                TruePointAFalsePointB = false; // Target B
+            }
+            // Hovering over Target A and their is a corresponding point on the other instance
+            else if (hoveringOverTargetTrueAFalseB == true && pointTargetA is not null && otherInstanceTargetASet)
+            {
+                TruePointAFalsePointB = true; // Target A
+            }
+            // Hovering over Target B and their is a corresponding point on the other instance
+            else if (hoveringOverTargetTrueAFalseB == false && pointTargetB is not null && otherInstanceTargetBSet)
+            {
+                TruePointAFalsePointB = false; // Target B
+            }
+            else if (TargetA is not null && pointTargetB is not null && otherInstanceTargetASet && otherInstanceTargetBSet)
+            {
+                TruePointAFalsePointB = await RequestUsersSelectsTargetAorB("Add 3D Point", "Please select either the Red Target or the Green Target to add a 3D Point.");
+            }
+
+            if (TruePointAFalsePointB is not null)
+            {
+                // Request a 3D Point to be added
+                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.Add3DPointRequest, CameraSide)
+                {
+                    species = _species,
+                    TruePointAFalsePointB = (bool)TruePointAFalsePointB
+                };
+                magnifyAndMarkerControlHandler?.Send(data);
+            }
+
+        }
+
+        /// <summary>
+        /// Request a single point is added
+        /// </summary>
+        /// <returns></returns>
+        private async Task RequestSinglePoint(string _species)
+        {
+            bool? TruePointAFalsePointB = null;
+
+            // Figure out if the request is for Target A or Target B
+            // Target A is set and Target B is not set
+            if (pointTargetA is not null & pointTargetB is null)
+            {
+                TruePointAFalsePointB = true; // Target A
+            }
+            // Target B is set and Target A is not set
+            else if (pointTargetA is null & pointTargetB is not null)
+            {
+                TruePointAFalsePointB = false; // Target B
+            }
+            // Hovering over Target A 
+            else if (hoveringOverTargetTrueAFalseB == true && pointTargetA is not null)
+            {
+                TruePointAFalsePointB = true; // Target A
+            }
+            // Hovering over Target B 
+            else if (hoveringOverTargetTrueAFalseB == false && pointTargetB is not null)
+            {
+                TruePointAFalsePointB = false; // Target B
+            }
+            else if (pointTargetA is not null & pointTargetB is not null)
+            {
+                TruePointAFalsePointB = await RequestUsersSelectsTargetAorB("Add Single Point", "Please select either the Red Target or the Green Target to add a Single Point.");
+            }
+
+            if (TruePointAFalsePointB is not null)
+            {
+                // Request a Single Point to be added
+                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.AddSinglePointRequest, CameraSide)
+                {
+                    species = _species,
+                    TruePointAFalsePointB = (bool)TruePointAFalsePointB
+                };
+                magnifyAndMarkerControlHandler?.Send(data);
+            }
+
         }
 
 
@@ -1890,7 +1925,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Called to displau the Canvas Context Mneu and enable/disable each menu item
+        /// Called to display the Canvas Context Menu and enable/disable each menu item
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -1931,60 +1966,17 @@ namespace Surveyor.User_Controls
             {
                 // Add Measurement Point
                 // Requirement: There is a pair of targets set on this instance and the other instance
-                if (pointTargetA is not null && pointTargetB is not null && otherInstanceTargetASet && otherInstanceTargetBSet)
-                {
-                    CanvasFrameMenuAddMeasurement.IsEnabled = true;
-                }
-                else
-                {
-                    CanvasFrameMenuAddMeasurement.IsEnabled = false;
-                }
+                CanvasFrameMenuAddMeasurement.IsEnabled = IsMeasurementRequestPossible();
 
                 // Add 3D Point
                 // Requirement: There is at least one target set on this instance and the other instance
                 //              If their is two target points set on this instance we must be hovering over
                 //              one of them (so we know which one to use)
-
-                if ((pointTargetA is not null && pointTargetB is null && otherInstanceTargetASet) ||
-                    (pointTargetB is not null && pointTargetA is null && otherInstanceTargetBSet))
-                {
-                    CanvasFrameMenuAdd3DPoint.IsEnabled = true;
-                }
-                // Hovering over Target A and their is a corresponding point on the other instance
-                else if (hoveringOverTargetTrueAFalseB == true && pointTargetA is not null && otherInstanceTargetASet)
-                {
-                    CanvasFrameMenuAdd3DPoint.IsEnabled = true;
-                }
-                // Hovering over Target B and their is a corresponding point on the other instance
-                else if (hoveringOverTargetTrueAFalseB == false && pointTargetB is not null && otherInstanceTargetBSet)
-                {
-                    CanvasFrameMenuAdd3DPoint.IsEnabled = true;
-                }
-                else
-                {
-                    CanvasFrameMenuAdd3DPoint.IsEnabled = false;
-                }
+                CanvasFrameMenuAdd3DPoint.IsEnabled = Is3DPointRequestPossible();
 
                 // Add Single Point
                 // Requirement: There is at least one target set on this instance 
-                if ((pointTargetA is not null) || (pointTargetB is not null))
-                {
-                    CanvasFrameMenuAddSinglePoint.IsEnabled = true;
-                }
-                // Hovering over Target A 
-                else if (hoveringOverTargetTrueAFalseB == true && pointTargetA is not null)
-                {
-                    CanvasFrameMenuAddSinglePoint.IsEnabled = true;
-                }
-                // Hovering over Target B 
-                else if (hoveringOverTargetTrueAFalseB == false && pointTargetB is not null)
-                {
-                    CanvasFrameMenuAddSinglePoint.IsEnabled = true;
-                }
-                else
-                {
-                    CanvasFrameMenuAddSinglePoint.IsEnabled = false;
-                }
+                CanvasFrameMenuAddSinglePoint.IsEnabled = IsSinglePointRequestPossible();
 
                 // Delete Target
                 // Requirement: There is at least one target set on this instance
@@ -2065,7 +2057,7 @@ namespace Surveyor.User_Controls
                 // Edit Species Info
                 // Requirement: There is at least one Measurement, 3D Point or Single Point set on this instance
                 // i.e. any Event that can have a Species Info
-                if (countMeasurements > 0 || count3DPoints > 0 || countSinglePoints > 0)
+                if (hoveringOverGuid is not null /*???tobedeleted countMeasurements > 0 || count3DPoints > 0 || countSinglePoints > 0*/)
                 {
                     CanvasFrameMenuEditSpeciesInfo.IsEnabled = true;
                 }
@@ -2074,6 +2066,8 @@ namespace Surveyor.User_Controls
                     CanvasFrameMenuEditSpeciesInfo.IsEnabled = false;
                 }
 
+                // Populate the recently selected species sub-menu
+                PopulateRecentAssignedSpeciesFromEvents();
 
                 // Show the context menu
                 menuFlyout.ShowAt(sender as FrameworkElement, new FlyoutShowOptions
@@ -2100,6 +2094,182 @@ namespace Surveyor.User_Controls
             }
         }
 
+
+        /// <summary>
+        /// Check is suitbale targets are setup for a measurment
+        /// </summary>
+        /// <returns></returns>
+        private bool IsMeasurementRequestPossible()
+        {
+            if (pointTargetA is not null && pointTargetB is not null && otherInstanceTargetASet && otherInstanceTargetBSet)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+
+        /// <summary>
+        /// Check if a 3D Point request is possible
+        /// </summary>
+        /// <returns></returns>
+        private bool Is3DPointRequestPossible()
+        {
+            if ((pointTargetA is not null && pointTargetB is null && otherInstanceTargetASet) ||
+                (pointTargetB is not null && pointTargetA is null && otherInstanceTargetBSet))
+            {
+                return true;
+            }
+            // Hovering over Target A and their is a corresponding point on the other instance
+            else if (hoveringOverTargetTrueAFalseB == true && pointTargetA is not null && otherInstanceTargetASet)
+            {
+                return true;
+            }
+            // Hovering over Target B and their is a corresponding point on the other instance
+            else if (hoveringOverTargetTrueAFalseB == false && pointTargetB is not null && otherInstanceTargetBSet)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+
+        /// <summary>
+        /// Check if a Single Point request is possible
+        /// </summary>
+        /// <returns></returns>
+        private bool IsSinglePointRequestPossible()
+        {
+            if ((pointTargetA is not null) || (pointTargetB is not null))
+            {
+                return true;
+            }
+            // Hovering over Target A 
+            else if (hoveringOverTargetTrueAFalseB == true && pointTargetA is not null)
+            {
+                return true;
+            }
+            // Hovering over Target B 
+            else if (hoveringOverTargetTrueAFalseB == false && pointTargetB is not null)
+            {
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+
+
+        /// <summary>
+        /// Used to populate the sub-menu containing the top 10 selected species in
+        /// this current survey
+        /// </summary>
+        private void PopulateRecentAssignedSpeciesFromEvents()
+        {
+            if (RecentSpeciesSubItem is null || events is null)
+                return;
+
+            RecentSpeciesSubItem.Items.Clear();
+
+            var speciesUsage = events
+                .Select(ev => {
+                    SpeciesInfo? speciesInfo = null;
+
+                    switch (ev.EventDataType)
+                    {
+                        case SurveyDataType.SurveyPoint:
+                            speciesInfo = (ev.EventData as SurveyPoint)?.SpeciesInfo;
+                            break;
+                        case SurveyDataType.SurveyStereoPoint:
+                            speciesInfo = (ev.EventData as SurveyStereoPoint)?.SpeciesInfo;
+                            break;
+                        case SurveyDataType.SurveyMeasurementPoints:
+                            speciesInfo = (ev.EventData as SurveyMeasurement)?.SpeciesInfo;
+                            break;
+                    }
+
+                    return speciesInfo;
+                })
+                .Where(s => s != null && !string.IsNullOrWhiteSpace(s!.Species))
+                .GroupBy(s => s!.Code)
+                .Select(g => new { Species = g.First(), Count = g.Count() })
+                .OrderByDescending(x => x.Count)
+                .Take(10);
+
+            bool anySubMenuItems = false;
+
+            foreach (var entry in speciesUsage)
+            {
+                SpeciesInfo? speciesInfo = entry.Species;
+
+                if (speciesInfo is not null)
+                {
+                    var item = new MenuFlyoutItem
+                    {
+
+                        Text = $"{speciesInfo.Species}",
+                        Tag = entry.Species
+                    };
+
+                    item.Click += (s, e) =>
+                    {
+                        SpeciesInfo? species = (s as MenuFlyoutItem)?.Tag as SpeciesInfo;
+                        OnRecentSpeciesSelected(species);
+                    };
+
+                    RecentSpeciesSubItem.Items.Add(item);
+                    anySubMenuItems = true;
+                }
+            }
+
+            // Where any recent species setup in the sub-menu and is a measurement/3D point or
+            // a single point possible (with the current given targets
+            if (anySubMenuItems && (IsMeasurementRequestPossible() || 
+                                    Is3DPointRequestPossible() || 
+                                    IsSinglePointRequestPossible()))
+            {
+                RecentSpeciesSubItem.IsEnabled = true;
+            }
+            else
+            {
+                RecentSpeciesSubItem.IsEnabled = false;
+            }
+        }
+
+
+        /// <summary>
+        /// Called when a recent species is selected from the Recent Species sub-menu
+        /// </summary>
+        /// <param name="species"></param>
+        private async void OnRecentSpeciesSelected(SpeciesInfo? speciesInfo)
+        {
+            if (speciesInfo is not null && speciesInfo.Species is not null)
+            {
+                // Quick species selection has been used (frequently used
+                // species in this survey menu list).
+                // Figure out if the user want a measurement, 3D point, or Survey point
+                // based on the targets they have selected.
+                if (IsMeasurementRequestPossible())
+                {
+                    RequestMeasurement(speciesInfo.Species);
+                }
+                else if (Is3DPointRequestPossible())
+                {
+                    await Request3DPoint(speciesInfo.Species);
+                }
+                else if (IsSinglePointRequestPossible())
+                {
+                    await RequestSinglePoint(speciesInfo.Species);
+                }
+            }
+        }
 
         /// <summary>
         /// Called from the size changed event on the Image frame control
@@ -2657,7 +2827,7 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Hide the Mag Window and it's target rectangles
         /// </summary>
-        private void MagHide()
+        internal void MagHide()
         {
             BorderMag.BorderBrush = magColourUnlocked;
             BorderMag.Visibility = Visibility.Collapsed;
@@ -3791,6 +3961,9 @@ namespace Surveyor.User_Controls
         // Used by EditSpeciesInfoRequest or DeleteMeasure3DPointOrSinglePoint
         public Guid? eventGuid;
 
+        // Used if a species if preselected for the measurement/3D Point or Survey Point
+        public string species = string.Empty;
+
         // Used by UserReqMagWindowSizeSelect
         public string? magWindowSize;
 
@@ -3822,7 +3995,7 @@ namespace Surveyor.User_Controls
                     {
                         case MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarLine:
                             SafeUICall(() => _magnifyAndMarkerControl.SetCanvasFrameEpipolarLine(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
-                                                                                                 data.epipolarLine_a, data.epipolarLine_b, data.epipolarLine_c, 
+                                                                                                 data.epipolarLine_a, data.epipolarLine_b, data.epipolarLine_c,
                                                                                                  data.channelWidth));
                             break;
 
@@ -3830,7 +4003,7 @@ namespace Surveyor.User_Controls
                             //SafeUICall(() => _magnifyAndMarkerControl.SetEpipolarPoints(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
                             //                                                            data.pointNear, data.pointMiddle, data.pointFar,
                             //                                                            data.channelWidth));
-                            break;                        
+                            break;
                     }
                 }
             }
@@ -3856,12 +4029,23 @@ namespace Surveyor.User_Controls
                 {
                     switch (data.mediaPlayerEvent)
                     {
-                        case MediaPlayerEventData.eMediaPlayerEvent.FrameRendered:
+                        case eMediaPlayerEvent.FrameRendered:
                             if (data.frameStream is not null && data.position is not null)
                                 SafeUICall(() => _magnifyAndMarkerControl._NewImageFrame(data.frameStream, (TimeSpan)data.position, data.frameIndex, data.imageSourceWidth, data.imageSourceHeight));
                             break;
-                        case MediaPlayerEventData.eMediaPlayerEvent.Playing:
-                            SafeUICall(() => _magnifyAndMarkerControl._ResetCanvas());
+                        case eMediaPlayerEvent.Playing:
+                        case eMediaPlayerEvent.FrameForwarded:
+                        case eMediaPlayerEvent.FrameBacked:
+                        case eMediaPlayerEvent.MovedToStart:
+                        case eMediaPlayerEvent.MovedToEnd:
+                        case eMediaPlayerEvent.MoveSteppedBack:
+                        case eMediaPlayerEvent.MoveSteppedForward:
+                            SafeUICall(() =>
+                            {
+                                // Unlock/Hide the Mag Window
+                                _magnifyAndMarkerControl.MagHide();  // This function will unlock and/or hide the Mag Window
+                                _magnifyAndMarkerControl._ResetCanvas();
+                            });
                             break;
                     }
                 }

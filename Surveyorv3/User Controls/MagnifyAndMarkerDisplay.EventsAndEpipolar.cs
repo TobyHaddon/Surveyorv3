@@ -91,6 +91,43 @@ namespace Surveyor.User_Controls
         }
 
         /// <summary>
+        /// Make the species string depending on the display layers enabled, the species name
+        /// and the fish count
+        /// </summary>
+        /// <param name="speciesInfo"></param>
+        /// <returns></returns>
+        private string MakeSpeciesText(SpeciesInfo speciesInfo)
+        {
+            string fishID = string.Empty;
+
+            if ((layerTypesDisplayed & LayerType.EventsDetail) != 0)
+            {
+                if (speciesInfo is not null &&
+                    int.TryParse(speciesInfo.Number, out int count) &&
+                    count > 1)
+                {
+                    if (!string.IsNullOrEmpty(speciesInfo.Species))
+                        fishID = $"{speciesInfo.Number} x {speciesInfo.Species}";
+                    else if (!string.IsNullOrEmpty(speciesInfo.Genus))
+                        fishID = $"{speciesInfo.Number} x {speciesInfo.Genus}";
+                    else if (!string.IsNullOrEmpty(speciesInfo.Family))
+                        fishID = $"{speciesInfo.Number} x {speciesInfo.Family}";
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(speciesInfo.Species))
+                        fishID = speciesInfo.Species;
+                    else if (!string.IsNullOrEmpty(speciesInfo.Genus))
+                        fishID = speciesInfo.Genus;
+                    else if (!string.IsNullOrEmpty(speciesInfo.Family))
+                        fishID = speciesInfo.Family;
+                }
+            }
+
+            return fishID;
+        }
+
+        /// <summary>
         /// Draws a StereoMeasurementPoints event on the CanvasFrame
         /// </summary>
         /// <param name="guid"></param>
@@ -136,16 +173,7 @@ namespace Surveyor.User_Controls
             CanvasDrawingHelper.DrawLineWithArrowHeads(CanvasFrame, dimPoint1, dimPoint2, 10/*arrow length*/, eventArrowLineColour, canvasTagDimensionLine, true/*start arrow*/, true/*end arrow*/, EventElement_PointerMoved, EventElement_PointerPressed);
 
             // Draw dimension text
-            string fishID = "";
-            if ((layerTypesDisplayed & LayerType.EventsDetail) != 0)
-            {
-                if (!string.IsNullOrEmpty(speciesInfo.Species))
-                    fishID = speciesInfo.Species;
-                else if (!string.IsNullOrEmpty(speciesInfo.Genus))
-                    fishID = speciesInfo.Genus;
-                else if (!string.IsNullOrEmpty(speciesInfo.Family))
-                    fishID = speciesInfo.Family;
-            }
+            string speciesText = MakeSpeciesText(speciesInfo);
 
             // Depending on the number of rows of text we are displaying, if the text is to be
             // displayed above the line then we need to adjust the offset to ensure the text
@@ -168,7 +196,7 @@ namespace Surveyor.User_Controls
             }
 
             // Draw the text
-            DrawDimensionAndSpecies(distance, fishID,
+            DrawDimensionAndSpecies(distance, speciesText,
                 new Point((textPoint1.X + textPoint2.X) / 2, (textPoint1.Y + textPoint2.Y) / 2),
                 eventDimensionTextColour, canvasTagDetails);
         }
@@ -189,16 +217,7 @@ namespace Surveyor.User_Controls
             CanvasDrawingHelper.DrawDot(CanvasFrame, point, 10 * canvasScaleFactor/*diameter*/, eventDimensionLineColour, canvasTagPoint, EventElement_PointerMoved, EventElement_PointerPressed);
 
             // Draw species text
-            string fishID = "";
-            if ((layerTypesDisplayed & LayerType.EventsDetail) != 0)
-            {
-                if (!string.IsNullOrEmpty(speciesInfo.Species))
-                    fishID = speciesInfo.Species;
-                else if (!string.IsNullOrEmpty(speciesInfo.Genus))
-                    fishID = speciesInfo.Genus;
-                else if (!string.IsNullOrEmpty(speciesInfo.Family))
-                    fishID = speciesInfo.Family;
-            }
+            string speciesText = MakeSpeciesText(speciesInfo);
 
             // Caculate the offset for the dimension line either above or below
             double offset = (5 * canvasScaleFactor);
@@ -213,11 +232,8 @@ namespace Surveyor.User_Controls
 
 
             // Draw the text
-            DrawSpecifies(fishID, textPoint, eventDimensionTextColour, canvasTagDetails);
+            DrawSpecies(speciesText, textPoint, eventDimensionTextColour, canvasTagDetails);
         }
-
-
-
 
 
         /// <summary>
@@ -283,7 +299,7 @@ namespace Surveyor.User_Controls
         /// <param name="at"></param>
         /// <param name="brush"></param>
         /// <param name="tag"></param>
-        private void DrawSpecifies(string specifies, Point at, Brush brush, CanvasTag canvasTag)
+        private void DrawSpecies(string specifies, Point at, Brush brush, CanvasTag canvasTag)
         {
             if (specifies != "")
             {

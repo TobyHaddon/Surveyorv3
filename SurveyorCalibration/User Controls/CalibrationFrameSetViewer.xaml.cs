@@ -83,7 +83,7 @@ namespace Surveyor.Controls
 
                 double x;
                 int i = 0;
-                foreach ((FrameCalibrationData leftTarget, FrameCalibrationData? rightTarget) in frames.Values)
+                foreach ((FrameCalibrationData leftTarget, FrameCalibrationData? rightTarget, _) in frames.Values)
                 {
                     x = i * xStep;
 

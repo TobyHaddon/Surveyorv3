@@ -17,6 +17,8 @@ using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 
 
+
+
 namespace Surveyor.User_Controls
 {
     public sealed partial class EventsControl : UserControl
@@ -32,6 +34,10 @@ namespace Surveyor.User_Controls
         private MediaStereoController? mediaStereoController = null;
 
         private readonly int displayToDecimalPlaces = 2;     // If we start using frame rate of 120fps then we will need to increase this to 3dp
+
+        // Spacebar press event handler
+        public event EventHandler<RoutedEventArgs>? SpaceKeyPressed = null;
+
 
         public EventsControl()
         {
@@ -85,6 +91,7 @@ namespace Surveyor.User_Controls
             
             // Set the SelectedItem property to the newly added event
             ListViewEvent.SelectedItem = evt;
+            ListViewEvent.ScrollIntoView(evt);
 
             // If the event type could contain SpeciesInfo then set the info bar
             // to show missing species info if necessary
@@ -345,7 +352,12 @@ namespace Surveyor.User_Controls
         {
             // Set the content dialog title
             EventDialog.Title = "Survey Start & End Segment";
-            EventDialog.PrimaryButtonText = "Ok";
+            //???Primary button is a Copy glyph: EventDialog.PrimaryButtonText = "Ok";
+
+            // Override the Close Button Text to say 'Close' instead of 'Cancel'
+            // and disable the primary button
+            EventDialog.IsPrimaryButtonEnabled = false;
+            EventDialog.CloseButtonText = "Close";
 
             Event? newestEventStartMarker = null;
             TransectMarker? newestStartTransectMarker = null;
@@ -458,6 +470,14 @@ namespace Surveyor.User_Controls
             }
         }
 
+
+        /// <summary>
+        /// Add this method to be called from the custom NoSpaceListView ListView
+        /// </summary>
+        internal void OnSpaceKeyPressed()
+        {
+            SpaceKeyPressed?.Invoke(this, new RoutedEventArgs());
+        }
 
 
         ///
@@ -851,6 +871,14 @@ namespace Surveyor.User_Controls
                         sb.Append($"*No Species");
                     }
 
+                    // Report the count
+                    if (speciesInfo is not null && 
+                        int.TryParse(speciesInfo.Number, out int count) &&
+                        count > 1)
+                    {
+                        sb.Append($" ({speciesInfo.Number} fish)");
+                    }
+
                     // Survey rules passed or failed
                     if (surveyRulesCalc is not null && !string.IsNullOrEmpty(surveyRulesCalc.SurveyRulesText))
                     {
@@ -894,5 +922,41 @@ namespace Surveyor.User_Controls
             throw new NotImplementedException();
         }
     }
+
+
+    /// <summary>
+    /// Custom ListView that intercepts the space key press.
+    /// Note: Trying to do this with a KeyDown handler on ListView directly does not work.
+    /// </summary>
+    public class NoSpaceListView : ListView
+    {
+        protected override void OnKeyDown(KeyRoutedEventArgs e)
+        {
+            if (e.Key == Windows.System.VirtualKey.Space)
+            {
+                e.Handled = true;
+                Debug.WriteLine("Space key intercepted in NoSpaceListView");
+
+                if (this.DataContext is EventsControl eventsControl)
+                {
+                    eventsControl.OnSpaceKeyPressed();
+                }
+                else
+                {
+                    var parent = VisualTreeHelper.GetParent(this);
+                    while (parent != null && !(parent is EventsControl))
+                    {
+                        parent = VisualTreeHelper.GetParent(parent);
+                    }
+                    (parent as EventsControl)?.OnSpaceKeyPressed();
+                }
+            }
+            else
+            {
+                base.OnKeyDown(e);
+            }
+        }
+    }
+
 }
 

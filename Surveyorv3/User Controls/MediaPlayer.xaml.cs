@@ -2120,7 +2120,7 @@ namespace Surveyor.User_Controls
                     }
                     else
                     {
-                        //??? This fire and forget is a PROBLEM - See if we could ber MagnifyAndMarkerDisplay to use a CanvasRenderTarget and makr a copy of it here?
+                        //??? This fire and forget is a PROBLEM - See if we could ber MagnifyAndMarkerDisplay to use a CanvasRenderTarget and make a copy of it here?
                         _ = correctedTarget.SaveAsync(streamSource, CanvasBitmapFileFormat.Bmp);
                     }
                     return (streamSource, imageSourceWidth, imageSourceHeight); // Return the stream with the image data

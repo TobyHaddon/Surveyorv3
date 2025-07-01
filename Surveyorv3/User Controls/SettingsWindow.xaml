@@ -158,6 +158,14 @@
                                 <FontIcon Glyph="&#xE8B9;" ToolTipService.ToolTip="The species image cache tries to download stock image for each fish species. This is used to help with fish ID."/>
                             </toolkit:SettingsCard.HeaderIcon>
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <ComboBox x:Name="FishBaseURL"  
+                                          SelectionChanged="FishBaseURL_SelectionChanged" 
+                                          Margin="0,0,10,0">
+                                    <ComboBoxItem Content="Fishbase.se" Tag="https://www.fishbase.se" />
+                                    <ComboBoxItem Content="Fishbase.org" Tag="https://www.fishbase.org" />
+                                    <ComboBoxItem Content="Fishbase.us" Tag="https://www.fishbase.us" />
+                                    <ComboBoxItem Content="Fishbase.au" Tag="https://www.fishbase.au" />
+                                </ComboBox>
                                 <ToggleSwitch x:Name="UseSpeciesImageCache" Toggled="UseSpeciesImageCache_Toggled" />
                             </StackPanel>
                         </toolkit:SettingsCard>

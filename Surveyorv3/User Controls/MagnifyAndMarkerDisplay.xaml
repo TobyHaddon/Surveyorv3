@@ -50,6 +50,7 @@
                     <BitmapIcon x:Name="SpeciesEditIcon" UriSource="ms-appx:///Assets/fish-dark.png" ShowAsMonochrome="False"/>
                 </MenuFlyoutItem.Icon>
             </MenuFlyoutItem>
+            <MenuFlyoutSubItem x:Name="RecentSpeciesSubItem" Text="Recent Assigned Species" IsEnabled="False"/>
         </MenuFlyout>
     </UserControl.Resources>
 

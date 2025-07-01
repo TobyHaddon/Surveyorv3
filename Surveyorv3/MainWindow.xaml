@@ -13,7 +13,9 @@
     mc:Ignorable="d">
 
 
-    <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Grid x:Name="RootGrid" 
+          Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
+          KeyDown="RootGrid_KeyDown">
         <!-- The top level grid only contains the menubar and everything else in two separate cells in 1x2 grid  -->
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!--Title Bar-->

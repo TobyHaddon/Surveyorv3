@@ -9,6 +9,7 @@ using Windows.Storage;
 using HtmlAgilityPack;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.IO;
+using System.Net;
 
 
 namespace Surveyor.Helper
@@ -20,6 +21,8 @@ namespace Surveyor.Helper
         public string? GenusSpecies { get; set; }
         public string? Author { get; set; }
         public int? TotalImages { get; set; }
+        public string? Locality { get; set; }
+        public string? SexStage { get; set; }
     }
 
     public class HtmlFishBaseParser
@@ -80,6 +83,24 @@ namespace Surveyor.Helper
                 {
                     result.TotalImages = int.Parse(match.Groups[2].Value);
                 }
+            }
+
+            // 5. Extract Locality 
+            var localityNode = doc.DocumentNode
+                .SelectSingleNode("//td[contains(text(),'Locality')]/following-sibling::td");
+            if (localityNode != null)
+            {
+                var raw = localityNode.InnerText.Trim();
+                result.Locality = WebUtility.HtmlDecode(raw);
+            }
+
+            // 6. Extract Sex/Stage
+            var sexStageNode = doc.DocumentNode
+                .SelectSingleNode("//td[contains(text(),'Sex/Stage')]/following-sibling::td");
+            if (sexStageNode != null)
+            {
+                var raw = sexStageNode.InnerText.Trim();
+                result.SexStage = WebUtility.HtmlDecode(raw);
             }
 
             return result;

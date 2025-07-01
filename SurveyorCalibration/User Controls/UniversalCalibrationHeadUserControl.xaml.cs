@@ -405,6 +405,84 @@ namespace Surveyor.Controls
             }
         }
 
+        /// <summary>
+        /// Return the largest movement in the calibration frames or the best frames.
+        /// </summary>
+        /// <param name="trueNormalFalseBestFrame"></param>
+        /// <returns></returns>
+        public double GetMaxMovement(bool trueNormalFalseBestFrame)
+        {
+            if (calibrationStereoFrameSet is not null)
+            {
+                if (trueNormalFalseBestFrame)
+                {
+                    return calibrationStereoFrameSet.MaxMovementFactor;
+                }
+                else
+                {
+                    return calibrationStereoFrameSet.MaxBestMovementFactor;
+                }
+            }
+            return -1;
+        }
+        public double GetMinMovement(bool trueNormalFalseBestFrame)
+        {
+            if (calibrationStereoFrameSet is not null)
+            {
+                if (trueNormalFalseBestFrame)
+                {
+                    return calibrationStereoFrameSet.MinMovementFactor;
+                }
+                else
+                {
+                    return calibrationStereoFrameSet.MinBestMovementFactor;
+                }
+            }
+            return -1;
+        }
+
+        /// <summary>
+        /// Return the largest blur in the calibration frames or the best frames.
+        /// </summary>
+        /// <param name="trueNormalFalseBestFrame"></param>
+        /// <returns></returns>
+        public double GetMaxBlur(bool trueNormalFalseBestFrame)
+        {
+            if (calibrationStereoFrameSet is not null)
+            {
+                if (trueNormalFalseBestFrame)
+                {
+                    return calibrationStereoFrameSet.MaxBlurFactor;
+                }
+                else
+                {
+                    return calibrationStereoFrameSet.MaxBlurFactor; // calibrationStereoFrameSet.MaxBestBlurFactor;  not yet implemented
+                }
+            }
+            return -1;
+        }
+        /// <summary>
+        /// Return the largest blur in the calibration frames or the best frames.
+        /// </summary>
+        /// <param name="trueNormalFalseBestFrame"></param>
+        /// <returns></returns>
+        public double GetMinBlur(bool trueNormalFalseBestFrame)
+        {
+            if (calibrationStereoFrameSet is not null)
+            {
+                if (trueNormalFalseBestFrame)
+                {
+                    return calibrationStereoFrameSet.MinBlurFactor;
+                }
+                else
+                {
+                    return calibrationStereoFrameSet.MinBlurFactor; // calibrationStereoFrameSet.MaxBestBlurFactor;  not yet implemented
+                }
+            }
+            return -1;
+        }
+
+
 
         /// <summary>
         /// Search the media for the calibration boards
@@ -492,7 +570,7 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        public async Task BestFramesCalc(bool writeBestFramesToPng = true)
+        public async Task BestFramesCalc(double movementMinThreshold, double blurMinThreshold, bool writeBestFramesToPng = true)
         {
             appMode = AppMode.BestFramesCalc;
             SetUIControls();
@@ -500,7 +578,7 @@ namespace Surveyor.Controls
             if (calibrationStereoFrameSet is not null)
             {
                 // Create a list of the best calibation frames best on the sensor bin only
-                calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly();
+                calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold, blurMinThreshold);
 
                 // Calibration using the best frames (pass1 calibration)                    
                 (MonoCalibrationCameraData? monoCalibLeft, MonoCalibrationCameraData? monoCalibRight) = calibrationStereoFrameSet.MonoCalibrateUsingBestFrames(frameSize);
@@ -704,11 +782,13 @@ namespace Surveyor.Controls
                     CalibrationFrameSetViewerData dataLeft = new(true/*trueLeftFalseRight*/, calibrationStereoFrameSet);
                     CalibrationFrameSetViewerLeft.Data = dataLeft;
                     CalibrationFrameSetViewerLeft.RefreshSensorBinLayers();
+                 //???   CalibrationFrameSetViewerLeft.RefreshPoseBinLayers();
                     CalibrationFrameSetViewerLeft.DrawGraphs();
 
                     CalibrationFrameSetViewerData dataRight = new(false/*trueLeftFalseRight*/, calibrationStereoFrameSet);
                     CalibrationFrameSetViewerRight.Data = dataRight;
                     CalibrationFrameSetViewerRight.RefreshSensorBinLayers();
+                //???    CalibrationFrameSetViewerRight.RefreshPoseBinLayers();
                     CalibrationFrameSetViewerRight.DrawGraphs();
 
                     ret = calibrationStereoFrameSet.Frames.Count;
@@ -1102,6 +1182,7 @@ namespace Surveyor.Controls
                 int rightFrameIndex,
                 Mat? rightMat,
                 FrameCalibrationData? rightFrameCalibrationTarget,
+                int correspondingCount,
                 object? userData)
         {
             dispatcherQueue.TryEnqueue(() => {
@@ -1151,6 +1232,7 @@ namespace Surveyor.Controls
                 int rightFrameIndex,
                 Mat? rightMat,
                 FrameCalibrationData? rightFrameCalibrationTarget,
+                int correspondingCount,
                 object? userData)
         {
             dispatcherQueue.TryEnqueue(() => {
@@ -1208,7 +1290,8 @@ namespace Surveyor.Controls
                                             leftFrameCalibrationTarget.CharucoCorners.Length /*Size*/,
                                             leftFrameCalibrationTarget.Score,
                                             leftFrameCalibrationTarget.YawDeg,
-                                            leftFrameCalibrationTarget.PitchDeg);
+                                            leftFrameCalibrationTarget.PitchDeg,
+                                            correspondingCount);
                     }
 
                     if (rightFrameCalibrationTarget is not null)
@@ -1221,7 +1304,8 @@ namespace Surveyor.Controls
                                             rightFrameCalibrationTarget.CharucoCorners.Length /*Size*/,
                                             rightFrameCalibrationTarget.Score,
                                             rightFrameCalibrationTarget.YawDeg,
-                                            rightFrameCalibrationTarget.PitchDeg);
+                                            rightFrameCalibrationTarget.PitchDeg,
+                                            correspondingCount);
 
                     }
                 }
@@ -1272,7 +1356,8 @@ namespace Surveyor.Controls
         private void UpdateFrameMetaData(bool trueLeftfalseRight, 
             double movementFactor, double movementFromPrevious, double movementToNext, 
             double blurFactor, int featureCount, double score,
-            double yaw, double pitch)
+            double yaw, double pitch,
+            int correspondingCount)
         {
             TextBlock MovementFactor;
             TextBlock BlurFactor;
@@ -1318,7 +1403,7 @@ namespace Surveyor.Controls
             BlurFactor.Text = $"Blur: {blurFactor:F1}";
 
             // Feature Count (number of Charuco corners)
-            FeatureCount.Text = $"Corners: {featureCount}";
+            FeatureCount.Text = $"Corners: {featureCount}({correspondingCount})";
 
             // Score
             Score.Text = $"Score: {score:F2}";
@@ -1481,6 +1566,7 @@ namespace Surveyor.Controls
 
         private void FrameJump(bool leftTrueRightFalse, int targetIndex)
         {
+
             if (isLocked && capLeft != null && wbLeft != null && capRight != null && wbRight != null)
             {
                 (int leftFrame, int rightFrame) = calibrationStereoFrameSet.GetIndexes(targetIndex);
@@ -1489,16 +1575,49 @@ namespace Surveyor.Controls
                 _JumpFrame(false/*leftTrueRightFalse*/, rightFrame);
                 LeftUpdateFrameLabel();
                 RightUpdateFrameLabel();
+
+                // Get stereo frame pair
+                (FrameCalibrationData leftTarget, FrameCalibrationData? rightTarget, int correspondingCount) = calibrationStereoFrameSet.Frames[targetIndex];
+
             }
             else if (leftTrueRightFalse && capLeft != null && wbLeft != null)
             {
                 _JumpFrame(true/*leftTrueRightFalse*/, targetIndex);
                 LeftUpdateFrameLabel();
+
+                // Get left mono frame data
+                (FrameCalibrationData leftTarget, _, _) = calibrationStereoFrameSet.Frames[targetIndex];
+
+                UpdateFrameMetaData(false/*leftTrueRightFalse*/,
+                            leftTarget.MovementFactor, 
+                            leftTarget.MovementFromPrevious, 
+                            leftTarget.MovementToNext,
+                            leftTarget.BlurFactor,
+                            leftTarget.CharucoCorners.Length /*Size*/,
+                            leftTarget.Score,
+                            leftTarget.YawDeg,
+                            leftTarget.PitchDeg,
+                            0);
+
             }
             else if (!leftTrueRightFalse && capRight != null && wbRight != null)
             {
                 _JumpFrame(false/*leftTrueRightFalse*/, targetIndex);
                 RightUpdateFrameLabel();
+
+                // Get left mono frame data
+                (FrameCalibrationData rightTarget, _, _) = calibrationStereoFrameSet.Frames[targetIndex];
+
+                UpdateFrameMetaData(false/*leftTrueRightFalse*/,
+                            rightTarget.MovementFactor,
+                            rightTarget.MovementFromPrevious,
+                            rightTarget.MovementToNext,
+                            rightTarget.BlurFactor,
+                            rightTarget.CharucoCorners.Length /*Size*/,
+                            rightTarget.Score,
+                            rightTarget.YawDeg,
+                            rightTarget.PitchDeg,
+                            0);
             }
         }
 
@@ -1523,6 +1642,7 @@ namespace Surveyor.Controls
             int targetIndex;
 
             // BestFrameJump does the out of bounds check
+
             targetIndex = _currentBestFrame + 1;
             BestFrameJump(targetIndex);
         }
@@ -1536,15 +1656,15 @@ namespace Surveyor.Controls
                 if (targetIndex < 0)
                     targetIndex = 0;
 
-                if (targetIndex >= calibrationStereoFrameSet.Frames.Count)
-                    targetIndex = calibrationStereoFrameSet.Frames.Count;
+                if (targetIndex >= calibrationStereoFrameSet.BestFrameIndexes.Count)
+                    targetIndex = calibrationStereoFrameSet.BestFrameIndexes.Count;
 
                 try
                 {
                     int frameIndex = calibrationStereoFrameSet.BestFrameIndexes[targetIndex];
 
                     // Get stereo frame pair
-                    (FrameCalibrationData leftTarget, FrameCalibrationData? rightTarget) = calibrationStereoFrameSet.Frames[frameIndex];
+                    (FrameCalibrationData leftTarget, FrameCalibrationData? rightTarget, int correspondingCount) = calibrationStereoFrameSet.Frames[frameIndex];
 
                     // Jump to the left side best frame
                     _JumpFrame(true/*leftTrueRightFalse*/, leftTarget.FrameIndex);
@@ -1556,7 +1676,8 @@ namespace Surveyor.Controls
                                             leftTarget.CharucoCorners.Length /*Size*/,
                                             leftTarget.Score,
                                             leftTarget.YawDeg,
-                                            leftTarget.PitchDeg);
+                                            leftTarget.PitchDeg,
+                                            correspondingCount);
 
                     CalibrationFrameSetViewerLeft.HighLightActiveSensorBinLayers(leftTarget);
 
@@ -1567,12 +1688,15 @@ namespace Surveyor.Controls
 
                         // Update right side the information fields
                         UpdateFrameMetaData(false/*leftTrueRightFalse*/,
-                                                rightTarget.MovementFactor, leftTarget.MovementFromPrevious, leftTarget.MovementToNext,
+                                                rightTarget.MovementFactor,
+                                                rightTarget.MovementFromPrevious,
+                                                rightTarget.MovementToNext,
                                                 rightTarget.BlurFactor,
                                                 rightTarget.CharucoCorners.Length /*Size*/,
                                                 rightTarget.Score,
                                                 rightTarget.YawDeg,
-                                                rightTarget.PitchDeg);
+                                                rightTarget.PitchDeg,
+                                                correspondingCount);
 
                         CalibrationFrameSetViewerRight.HighLightActiveSensorBinLayers(rightTarget);
                     }
@@ -1924,7 +2048,7 @@ namespace Surveyor.Controls
                     else
                     {
                         double time = cap.Get(CapProp.PosMsec) / 1000.0;
-                        frameText = $"Frame {currentFrame} / {totalFrames}, Time {time:F2}s";
+                        frameText = $"Frame {currentFrame} / {totalFrames - 1}, Time {time:F2}s";
                     }
 
                     textBlock.Text = frameText;
@@ -2103,7 +2227,7 @@ namespace Surveyor.Controls
 
                     try
                     {
-                        (FrameCalibrationData leftTarget, FrameCalibrationData? rightTarget) = calibrationStereoFrameSet.Frames[frameIndex];
+                        (FrameCalibrationData leftTarget, FrameCalibrationData? rightTarget, _) = calibrationStereoFrameSet.Frames[frameIndex];
 
                         // Force the frame with MoveJump
                         _JumpFrame(true/*trueLeftFalseRight*/, leftTarget.FrameIndex);
