@@ -2,13 +2,17 @@
 // Holds, reads, saves calibration data for a camera.
 // 
 // Version 1.4
-/// Added RMS to CalibrationCameraData
-/// Moved alway from MathNET to use native Emgu types
-/// Commented out the legacy classes
-
+// Added RMS to CalibrationCameraData
+// Moved alway from MathNET to use native Emgu types
+// Commented out the legacy classes
+//
+// Version 1.5
+// Moved into it's own library so it can be shared between
+// Surveyorv3 and SurveyorCalibration
 
 
 using Emgu.CV;
+using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -16,11 +20,10 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Runtime.InteropServices;
 using System.Text;
 
 
-namespace Surveyor
+namespace SurveyorCalibrationData
 {
 
     public class CalibrationCameraData
@@ -35,7 +38,7 @@ namespace Surveyor
 
         [JsonProperty("DistortionCoefficients")]
         [JsonConverter(typeof(MatrixJsonConverter))]
-        public Emgu.CV.Matrix<double>? Distortion { get; set; }   // Distortion coefficient Matrix 4x1
+        public Emgu.CV.Matrix<double>? Distortion { get; set; }   // Distortion coefficient Matrix 1x4, 1x5 or 1x8 (D)
 
         [JsonProperty(nameof(ImageSize))]
         [JsonConverter(typeof(MatrixJsonConverter))]
@@ -218,6 +221,60 @@ namespace Surveyor
 
             return clone;
         }
+
+
+        /// <summary>
+        /// Calculate the Essential Matrix
+        /// </summary>
+        /// <param name="R"></param>
+        /// <param name="T"></param>
+        /// <returns></returns>
+        /// <exception cref="ArgumentException"></exception>
+        public Matrix<double>? ComputeEssentialMatrix()
+        {
+            Matrix<double>? essentialMatrix = null;
+
+            if (Translation is not null && Rotation is not null)
+            {
+                // Create the skew-symmetric matrix for the translation vector
+                Matrix<double> T_skew = new(3, 3);
+
+                if (Translation.Rows == 3 && Translation.Cols == 1)
+                {
+                    T_skew[0, 0] = 0;
+                    T_skew[0, 1] = -Translation[2, 0];
+                    T_skew[0, 2] = Translation[1, 0];
+                    T_skew[1, 0] = Translation[2, 0];
+                    T_skew[1, 1] = 0;
+                    T_skew[1, 2] = -Translation[0, 0];
+                    T_skew[2, 0] = -Translation[1, 0];
+                    T_skew[2, 1] = Translation[0, 0];
+                    T_skew[2, 2] = 0;
+                }
+                else if (Translation.Rows == 1 && Translation.Cols == 3)
+                {
+                    T_skew[0, 0] = 0;
+                    T_skew[0, 1] = -Translation[0, 2];
+                    T_skew[0, 2] = Translation[0, 1];
+                    T_skew[1, 0] = Translation[0, 2];
+                    T_skew[1, 1] = 0;
+                    T_skew[1, 2] = -Translation[0, 0];
+                    T_skew[2, 0] = -Translation[0, 1];
+                    T_skew[2, 1] = Translation[0, 0];
+                    T_skew[2, 2] = 0;
+                }
+                else
+                    throw new ArgumentException("The translation vector must be a 3x1 or 1x3 matrix.");
+
+                // Compute the essential matrix
+                essentialMatrix = T_skew * Rotation;
+            }
+
+            return essentialMatrix;
+        }
+
+
+        // ** End of CalibrationStereoCameraData **
     }
 
 
@@ -326,6 +383,40 @@ namespace Surveyor
 
             return clone;
         }
+
+
+        /// <summary>
+        /// Calcualte the FundamentalMatrix
+        /// </summary>
+        /// <param name="E"></param>
+        /// <param name="K1"></param>
+        /// <param name="K2"></param>
+        /// <returns></returns>
+        public Matrix<double>? ComputeFundamentalMatrix()
+        {
+            Matrix<double>? fundamentalMatrix = null;
+
+            if (LeftCameraCalibration?.Intrinsic is not null &&
+                RightCameraCalibration?.Intrinsic is not null)
+            {
+                Matrix<double> K1Inv = new(3, 3);
+                Matrix<double> K2Inv = new(3, 3);
+
+                // Invert the intrinsic matrices
+                CvInvoke.Invert(LeftCameraCalibration.Intrinsic, K1Inv, DecompMethod.Svd);
+                CvInvoke.Invert(RightCameraCalibration.Intrinsic, K2Inv, DecompMethod.Svd);
+
+                // Compute the fundamental matrix
+                Matrix<double>? essentialMatrix = StereoCameraCalibration.ComputeEssentialMatrix();
+                if (essentialMatrix is not null)
+                {
+                    fundamentalMatrix = K2Inv.Transpose() * essentialMatrix * K1Inv;
+                }
+            }
+
+            return fundamentalMatrix;
+        }
+
 
         /// <summary>
         /// Load the calibration data from a JSON string
@@ -536,18 +627,43 @@ namespace Surveyor
 
                         if (intrinsics is not null)
                         {
-                            double? f = (double?)intrinsics["f"]?["val"];
-                            double? ar = (double?)intrinsics["ar"]?["val"];
-                            double? cx = (double?)intrinsics["cx"]?["val"];
-                            double? cy = (double?)intrinsics["cy"]?["val"];
-                            double? k1 = (double?)intrinsics["k1"]?["val"];
-                            double? k2 = (double?)intrinsics["k2"]?["val"];
-                            double? k3 = (double?)intrinsics["k3"]?["val"];
-                            double? k4 = (double?)intrinsics["k4"]?["val"];
-                            double? k5 = (double?)intrinsics["k5"]?["val"];
-                            double? k6 = (double?)intrinsics["k6"]?["val"];
-                            double? p1 = (double?)intrinsics["p1"]?["val"];
-                            double? p2 = (double?)intrinsics["p2"]?["val"];
+
+                            // Focal Length
+                            int? f_state = (int?)intrinsics["f"]?["state"];
+                            double f = (f_state ?? 2) != 2 ? (double?)intrinsics["f"]?["val"] ?? 0.0 : 0.0;
+                            // Sensor aspect ratio (normally square for GoPro and therefore not estimated)
+                            double ar = (double?)intrinsics["ar"]?["val"] ?? 1.0;
+                            // Principal Point X - X-coordinate of the principal point (usually near the image center), in pixels.
+                            int? cx_state = (int?)intrinsics["cx"]?["state"];
+                            double cx = (cx_state ?? 2) != 2 ? (double?)intrinsics["cx"]?["val"] ?? 0.0 : 0.0;
+                            // Principal Point Y - Y-coordinate of the principal point (usually near the image center), in pixels.
+                            int? cy_state = (int?)intrinsics["cy"]?["state"];
+                            double cy = (cy_state ?? 2) != 2 ? (double?)intrinsics["cy"]?["val"] ?? 0.0 : 0.0;
+                            // Radial Distortion Coefficient 1 - Corrects for barrel/pincushion distortion, primary term.
+                            int? k1_state = (int?)intrinsics["k1"]?["state"];
+                            double? k1 = (k1_state ?? 2) != 2 ? (double?)intrinsics["k1"]?["val"] ?? 0.0 : 0.0;
+                            // Radial Distortion Coefficient 2 - Secondary radial term for stronger or complex distortion correction.
+                            int? k2_state = (int?)intrinsics["k2"]?["state"];
+                            double? k2 = (k2_state ?? 2) != 2 ? (double?)intrinsics["k2"]?["val"] ?? 0.0 : 0.0;
+                            // Radial Distortion Coefficient 3 - Higher-order radial distortion term for strong lenses or wide FOV.
+                            int? k3_state = (int?)intrinsics["k3"]?["state"];
+                            double? k3 = (k3_state ?? 2) != 2 ? (double?)intrinsics["k3"]?["val"] ?? 0.0 : 0.0;
+                            // Radial Distortion Coefficient 4 - Used in extended distortion models (rarely needed for standard lenses).
+                            int? k4_state = (int?)intrinsics["k4"]?["state"];
+                            double? k4 = (k4_state ?? 2) != 2 ? (double?)intrinsics["k4"]?["val"] ?? 0.0 : 0.0;
+                            // Radial Distortion Coefficient 5 - Even higher-order radial term; supports very precise modeling.
+                            int? k5_state = (int?)intrinsics["k5"]?["state"];
+                            double? k5 = (k5_state ?? 2) != 2 ? (double?)intrinsics["k5"]?["val"] ?? 0.0 : 0.0;
+                            // Radial Distortion Coefficient 6 - Highest-order radial distortion parameter (used when fine precision is needed).
+                            int? k6_state = (int?)intrinsics["k6"]?["state"];
+                            double? k6 = (k6_state ?? 2) != 2 ? (double?)intrinsics["k6"]?["val"] ?? 0.0 : 0.0;
+                            // Tangential Distortion Coefficient 1 - Accounts for lens misalignment causing image to skew tangentially.
+                            int? p1_state = (int?)intrinsics["p1"]?["state"];
+                            double? p1 = (p1_state ?? 2) != 2 ? (double?)intrinsics["p1"]?["val"] ?? 0.0 : 0.0;
+                            // Tangential Distortion Coefficient 2 - Works with p1 to correct asymmetric distortion.
+                            int? p2_state = (int?)intrinsics["p2"]?["state"];
+                            double? p2 = (p2_state ?? 2) != 2 ? (double?)intrinsics["p2"]?["val"] ?? 0.0 : 0.0;
+                            // These coeeffients are not currently used
                             double? s1 = (double?)intrinsics["s1"]?["val"];
                             double? s2 = (double?)intrinsics["s2"]?["val"];
                             double? s3 = (double?)intrinsics["s3"]?["val"];
@@ -555,86 +671,91 @@ namespace Surveyor
                             double? tauX = (double?)intrinsics["tauX"]?["val"];
                             double? tauY = (double?)intrinsics["tauY"]?["val"];
 
+                            // Calculate the distortion matrix row count
+                            int distortionRowCount;
+                            if ((k4_state ?? 2) != 2 || (k5_state ?? 2) != 2 || (k6_state ?? 2) != 2)
+                                distortionRowCount = 8;
+                            else if ((k3_state ?? 2) != 2)
+                                distortionRowCount = 5;
+                            else
+                                distortionRowCount = 4;
+
+                            CalibrationCameraData cameraCalibrationData;
+
                             if (i == 0/*left camera*/)
                             {
-                                // Left Camera Matrix
-                                LeftCameraCalibration.Intrinsic = new Emgu.CV.Matrix<double>(3/*rows*/, 3/*cols*/);
-                                LeftCameraCalibration.Intrinsic[0, 0] = f ?? 0.0;
-                                LeftCameraCalibration.Intrinsic[0, 1] = 0.0;
-                                LeftCameraCalibration.Intrinsic[0, 2] = cx ?? 0.0;
-                                LeftCameraCalibration.Intrinsic[1, 0] = 0.0;
-                                LeftCameraCalibration.Intrinsic[1, 1] = f * ar ?? 0.0;
-                                LeftCameraCalibration.Intrinsic[1, 2] = cy ?? 0.0;
-                                LeftCameraCalibration.Intrinsic[2, 0] = 0.0;
-                                LeftCameraCalibration.Intrinsic[2, 1] = 0.0;
-                                LeftCameraCalibration.Intrinsic[2, 2] = 1.0;
-
-                                // Left Distortion Coefficients (we use the 5 element model)
-                                LeftCameraCalibration.Distortion = new Emgu.CV.Matrix<double>(1/*rows*/, 5/*cols*/);
-                                LeftCameraCalibration.Distortion[0, 0] = k1 ?? 0.0;
-                                LeftCameraCalibration.Distortion[0, 1] = k2 ?? 0.0;
-                                LeftCameraCalibration.Distortion[0, 2] = p1 ?? 0.0;
-                                LeftCameraCalibration.Distortion[0, 3] = p2 ?? 0.0;
-                                LeftCameraCalibration.Distortion[0, 4] = k3 ?? 0.0;
+                                cameraCalibrationData = LeftCameraCalibration;
                             }
-                            else if (i == 1/*right camera*/)
+                            else /*right camera*/
                             {
-                                // Right Camera Matrix
-                                RightCameraCalibration.Intrinsic = new Emgu.CV.Matrix<double>(3/*rows*/, 3/*cols*/);
-                                RightCameraCalibration.Intrinsic[0, 0] = f ?? 0.0;
-                                RightCameraCalibration.Intrinsic[0, 1] = 0.0;
-                                RightCameraCalibration.Intrinsic[0, 2] = cx ?? 0.0;
-                                RightCameraCalibration.Intrinsic[1, 0] = 0.0;
-                                RightCameraCalibration.Intrinsic[1, 1] = f * ar ?? 0.0;
-                                RightCameraCalibration.Intrinsic[1, 2] = cy ?? 0.0;
-                                RightCameraCalibration.Intrinsic[2, 0] = 0.0;
-                                RightCameraCalibration.Intrinsic[2, 1] = 0.0;
-                                RightCameraCalibration.Intrinsic[2, 2] = 1.0;
+                                cameraCalibrationData = RightCameraCalibration;
+                            }
+                            
+                            // Camera Matrix
+                            cameraCalibrationData.Intrinsic = new Emgu.CV.Matrix<double>(3/*rows*/, 3/*cols*/);
+                            cameraCalibrationData.Intrinsic[0, 0] = f;
+                            cameraCalibrationData.Intrinsic[0, 1] = 0.0;
+                            cameraCalibrationData.Intrinsic[0, 2] = cx;
+                            cameraCalibrationData.Intrinsic[1, 0] = 0.0;
+                            cameraCalibrationData.Intrinsic[1, 1] = f * ar;
+                            cameraCalibrationData.Intrinsic[1, 2] = cy;
+                            cameraCalibrationData.Intrinsic[2, 0] = 0.0;
+                            cameraCalibrationData.Intrinsic[2, 1] = 0.0;
+                            cameraCalibrationData.Intrinsic[2, 2] = 1.0;
 
-                                // Right Distortion Coefficients (we use the 5 element model)
-                                RightCameraCalibration.Distortion = new Emgu.CV.Matrix<double>(1/*rows*/, 5/*cols*/);
-                                RightCameraCalibration.Distortion[0, 0] = k1 ?? 0.0;
-                                RightCameraCalibration.Distortion[0, 1] = k2 ?? 0.0;
-                                RightCameraCalibration.Distortion[0, 2] = p1 ?? 0.0;
-                                RightCameraCalibration.Distortion[0, 3] = p2 ?? 0.0;
-                                RightCameraCalibration.Distortion[0, 4] = k3 ?? 0.0;
+                            // Right Distortion Coefficients either 4,5 or 8 elements [k1, k2, p1, p2, k3, k4, k5, k6]
+                            cameraCalibrationData.Distortion = new Emgu.CV.Matrix<double>(1/*rows*/, distortionRowCount/*cols*/);
+                            cameraCalibrationData.Distortion[0, 0] = k1 ?? 0.0;
+                            cameraCalibrationData.Distortion[0, 1] = k2 ?? 0.0;
+                            cameraCalibrationData.Distortion[0, 2] = p1 ?? 0.0;
+                            cameraCalibrationData.Distortion[0, 3] = p2 ?? 0.0;
+                            if (distortionRowCount > 4)
+                            {
+                                cameraCalibrationData.Distortion[0, 4] = k3 ?? 0.0;
+                            }
+                            if (distortionRowCount > 5)
+                            {
+                                cameraCalibrationData.Distortion[0, 5] = k4 ?? 0.0;
+                                cameraCalibrationData.Distortion[0, 6] = k5 ?? 0.0;
+                                cameraCalibrationData.Distortion[0, 7] = k6 ?? 0.0;
+                            }
 
 
-                                // Stereo Calibration Data
-                                var transform = jsonStruct["Calibration"]?["cameras"]?[i]?["transform"];
-                                if (transform is not null)
+                            // Stereo Calibration Data
+                            var transform = jsonStruct["Calibration"]?["cameras"]?[i]?["transform"];
+                            if (transform is not null)
+                            {
+                                var rot = transform["rotation"];
+
+                                if (rot is not null)
                                 {
-                                    var rot = transform["rotation"];
+                                    Emgu.CV.Matrix<double> rotationVector = new(3, 1);
+                                    rotationVector[0, 0] = (double?)rot["rx"] ?? 0.0;
+                                    rotationVector[1, 0] = (double?)rot["ry"] ?? 0.0;
+                                    rotationVector[2, 0] = (double?)rot["rz"] ?? 0.0;
 
-                                    if (rot is not null)
-                                    {
-                                        Emgu.CV.Matrix<double> rotationVector = new(3, 1);
-                                        rotationVector[0, 0] = (double?)rot["rx"] ?? 0.0;
-                                        rotationVector[1, 0] = (double?)rot["ry"] ?? 0.0;
-                                        rotationVector[2, 0] = (double?)rot["rz"] ?? 0.0;
+                                    StereoCameraCalibration.Rotation = new Emgu.CV.Matrix<double>(3/*rows*/, 3/*cols*/);
 
-                                        StereoCameraCalibration.Rotation = new Emgu.CV.Matrix<double>(3/*rows*/, 3/*cols*/);
+                                    // Convert the rotation vector to a rotation matrix
+                                    CvInvoke.Rodrigues(rotationVector, StereoCameraCalibration.Rotation);
+                                }
 
-                                        // Convert the rotation vector to a rotation matrix
-                                        CvInvoke.Rodrigues(rotationVector, StereoCameraCalibration.Rotation);
-                                    }
+                                var t = transform["translation"];
+                                if (t is not null)
+                                {
+                                    // Right Translation
+                                    StereoCameraCalibration.Translation = new Emgu.CV.Matrix<double>(1/*rows*/, 3/*cols*/);
+                                    StereoCameraCalibration.Translation[0, 0] = (double?)t["x"] ?? 0.0;
+                                    StereoCameraCalibration.Translation[0, 1] = (double?)t["y"] ?? 0.0;
+                                    StereoCameraCalibration.Translation[0, 2] = (double?)t["z"] ?? 0.0;
+                                }
 
-                                    var t = transform["translation"];
-                                    if (t is not null)
-                                    {
-                                        // Right Translation
-                                        StereoCameraCalibration.Translation = new Emgu.CV.Matrix<double>(1/*rows*/, 3/*cols*/);
-                                        StereoCameraCalibration.Translation[0, 0] = (double?)t["x"] ?? 0.0;
-                                        StereoCameraCalibration.Translation[0, 1] = (double?)t["y"] ?? 0.0;
-                                        StereoCameraCalibration.Translation[0, 2] = (double?)t["z"] ?? 0.0;
-                                    }
-
-                                    if (rot is not null && t is not null && CalibrationID is null)
-                                    {
-                                        CalibrationID = Guid.NewGuid();
-                                    }
+                                if (rot is not null && t is not null && CalibrationID is null)
+                                {
+                                    CalibrationID = Guid.NewGuid();
                                 }
                             }
+
                         }
                     }
                 }
@@ -863,6 +984,8 @@ namespace Surveyor
 
             return sb.ToString();
         }
+
+        // ** End of CalibrationData
     }
 
 

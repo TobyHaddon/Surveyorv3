@@ -13,7 +13,7 @@ using Surveyor.User_Controls;
 using System;
 using System.Text;
 using Windows.Foundation;   // We use the Point class from here
-
+using SurveyorCalibrationData;
 
 
 namespace Surveyor
@@ -663,7 +663,7 @@ namespace Surveyor
                 double middleTargetDistance = (farTargetDistance - nearTargetDistance) / 2.0;
 
                 // Calculate the corresponding points
-                pointNear = StereoProjection.ComputeCorrespondingDistortedPointByDistanceFromTarget(cd, point, nearTargetDistance, TrueLeftFalseRight);
+                pointNear = StereoProjection.ComputeCorrespondingDistortedPointByDistanceFromTarget((CalibrationData)cd, point, nearTargetDistance, TrueLeftFalseRight);
                 pointMiddle = StereoProjection.ComputeCorrespondingDistortedPointByDistanceFromTarget(cd, point, middleTargetDistance, TrueLeftFalseRight);
                 pointFar = StereoProjection.ComputeCorrespondingDistortedPointByDistanceFromTarget(cd, point, farTargetDistance, TrueLeftFalseRight);
 
@@ -722,10 +722,12 @@ namespace Surveyor
                             cdp.LeftCameraCalibration.Intrinsic is not null && cdp.RightCameraCalibration.Intrinsic is not null)
                         {
                             // Compute the essential matrix
-                            Emgu.CV.Matrix<double>? essentialMatrix = ComputeEssentialMatrix(cdp.StereoCameraCalibration.Rotation, cdp.StereoCameraCalibration.Translation);
+                            //???Emgu.CV.Matrix<double>? essentialMatrix = ComputeEssentialMatrix(cdp.StereoCameraCalibration.Rotation, cdp.StereoCameraCalibration.Translation);
+                            Emgu.CV.Matrix<double>? essentialMatrix = cdp.StereoCameraCalibration.ComputeEssentialMatrix();
 
                             // Compute the fundamental matrix
-                            Emgu.CV.Matrix<double>? fundamentalMatrix = ComputeFundamentalMatrix(essentialMatrix, cdp.LeftCameraCalibration.Intrinsic/*intrinsicLeft*/, cdp.RightCameraCalibration.Intrinsic/*intrinsicRight*/);
+                            //???Emgu.CV.Matrix<double>? fundamentalMatrix = ComputeFundamentalMatrix(essentialMatrix, cdp.LeftCameraCalibration.Intrinsic/*intrinsicLeft*/, cdp.RightCameraCalibration.Intrinsic/*intrinsicRight*/);
+                            Emgu.CV.Matrix<double>? fundamentalMatrix = cdp.ComputeFundamentalMatrix();
 
                             // Compute the 3D centre point of the camera system
                             //OLD MCvPoint3D64f? cameraSystemCentre= new MCvPoint3D64f(cdp.StereoCameraCalibration.Translation[0, 1] / 2.0, 0.0, 0.0);
@@ -916,41 +918,42 @@ namespace Surveyor
         /// <param name="T"></param>
         /// <returns></returns>
         /// <exception cref="ArgumentException"></exception>
-        private static Matrix<double> ComputeEssentialMatrix(Matrix<double> R, Matrix<double> T)
-        {
-            // Create the skew-symmetric matrix for the translation vector
-            Matrix<double> T_skew = new Matrix<double>(3, 3);
+        ///???TOBEDELETED
+        //private static Matrix<double> ComputeEssentialMatrix(Matrix<double> R, Matrix<double> T)
+        //{
+        //    // Create the skew-symmetric matrix for the translation vector
+        //    Matrix<double> T_skew = new Matrix<double>(3, 3);
 
-            if (T.Rows == 3 && T.Cols == 1)
-            {
-                T_skew[0, 0] = 0;
-                T_skew[0, 1] = -T[2, 0];
-                T_skew[0, 2] = T[1, 0];
-                T_skew[1, 0] = T[2, 0];
-                T_skew[1, 1] = 0;
-                T_skew[1, 2] = -T[0, 0];
-                T_skew[2, 0] = -T[1, 0];
-                T_skew[2, 1] = T[0, 0];
-                T_skew[2, 2] = 0;
-            }
-            else if (T.Rows == 1 && T.Cols == 3)
-            {
-                T_skew[0, 0] = 0;
-                T_skew[0, 1] = -T[0, 2];
-                T_skew[0, 2] = T[0, 1];
-                T_skew[1, 0] = T[0, 2];
-                T_skew[1, 1] = 0;
-                T_skew[1, 2] = -T[0, 0];
-                T_skew[2, 0] = -T[0, 1];
-                T_skew[2, 1] = T[0, 0];
-                T_skew[2, 2] = 0;
-            }
-            else
-                throw new ArgumentException("The translation vector must be a 3x1 or 1x3 matrix.");
+        //    if (T.Rows == 3 && T.Cols == 1)
+        //    {
+        //        T_skew[0, 0] = 0;
+        //        T_skew[0, 1] = -T[2, 0];
+        //        T_skew[0, 2] = T[1, 0];
+        //        T_skew[1, 0] = T[2, 0];
+        //        T_skew[1, 1] = 0;
+        //        T_skew[1, 2] = -T[0, 0];
+        //        T_skew[2, 0] = -T[1, 0];
+        //        T_skew[2, 1] = T[0, 0];
+        //        T_skew[2, 2] = 0;
+        //    }
+        //    else if (T.Rows == 1 && T.Cols == 3)
+        //    {
+        //        T_skew[0, 0] = 0;
+        //        T_skew[0, 1] = -T[0, 2];
+        //        T_skew[0, 2] = T[0, 1];
+        //        T_skew[1, 0] = T[0, 2];
+        //        T_skew[1, 1] = 0;
+        //        T_skew[1, 2] = -T[0, 0];
+        //        T_skew[2, 0] = -T[0, 1];
+        //        T_skew[2, 1] = T[0, 0];
+        //        T_skew[2, 2] = 0;
+        //    }
+        //    else
+        //        throw new ArgumentException("The translation vector must be a 3x1 or 1x3 matrix.");
 
-            // Compute the essential matrix
-            return T_skew * R;
-        }
+        //    // Compute the essential matrix
+        //    return T_skew * R;
+        //}
 
 
         /// <summary>
@@ -960,22 +963,25 @@ namespace Surveyor
         /// <param name="K1"></param>
         /// <param name="K2"></param>
         /// <returns></returns>
-        private static Matrix<double> ComputeFundamentalMatrix(Matrix<double> E, Matrix<double> K1, Matrix<double> K2)
-        {
-            Matrix<double> K1Inv = new Matrix<double>(3, 3);
-            Matrix<double> K2Inv = new Matrix<double>(3, 3);
+        ///???TOBEDELETED
+        //private static Matrix<double> ComputeFundamentalMatrix(Matrix<double> E, Matrix<double> K1, Matrix<double> K2)
+        //{
+        //    Matrix<double> K1Inv = new Matrix<double>(3, 3);
+        //    Matrix<double> K2Inv = new Matrix<double>(3, 3);
 
-            // Invert the intrinsic matrices
-            CvInvoke.Invert(K1, K1Inv, DecompMethod.Svd);
-            CvInvoke.Invert(K2, K2Inv, DecompMethod.Svd);
+        //    // Invert the intrinsic matrices
+        //    CvInvoke.Invert(K1, K1Inv, DecompMethod.Svd);
+        //    CvInvoke.Invert(K2, K2Inv, DecompMethod.Svd);
 
-            // Compute the fundamental matrix
-            return K2Inv.Transpose() * E * K1Inv;
-        }
+        //    // Compute the fundamental matrix
+        //    return K2Inv.Transpose() * E * K1Inv;
+        //}
 
 
         /// <summary>
-        /// Convert a matched left and right 2D points to a real world 3D point
+        /// Convert corresponding left and right 2D points to a real world 
+        /// 3D point the input points can be either raw distorted points or 
+        /// already undistorted
         /// </summary>
         /// <param name="cd"></param>
         /// <param name="pL2D"></param>

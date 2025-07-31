@@ -2,18 +2,24 @@ using Emgu.CV.Aruco;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media.Imaging;
 using Surveyor.Calibration;
+using SurveyorCalibrationData;
 using Surveyor.User_Controls;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
-using Windows.Foundation;
 using Windows.Storage;
 using WinUIEx;
 using static Emgu.CV.Aruco.Dictionary;
+using Windows.Storage.Pickers;
+using WinRT.Interop;
+using Newtonsoft.Json;
+using System.Drawing;
+using System.Linq;
+
 
 namespace Surveyor
 {
@@ -62,14 +68,136 @@ namespace Surveyor
                     RightCameraID = string.Empty;
                 }
             }
-            
+
+            public string CalibFileSpec { get; set; } = string.Empty;
+
             public MediaClass Media { get; set; } = new();
 
+            [JsonIgnore]
             public CharucoBoardDefinition CharucoBoardDefinition { get; set; } = new();
+
+            // Left & right mono calibration result sets (different results for different calibration flags)
+            public MonoCalibrationCameraData?[] LeftMonoCalibrationCameraDataArray { get; set; } = new MonoCalibrationCameraData?[Enum.GetValues<CalibrationParameters>().Length];
+            public MonoCalibrationCameraData?[] RightMonoCalibrationCameraDataArray { get; set; } = new MonoCalibrationCameraData?[Enum.GetValues<CalibrationParameters>().Length];
+
+            // Stereo result sets  (different results for different calibration flags)
+            public CalibrationStereoCameraData?[] CalibrationStereoCameraDataArray { get; set; } = new CalibrationStereoCameraData?[Enum.GetValues<CalibrationParameters>().Length];
         }
 
         public DataClass Data = new();
+
+
+        /// <summary>
+        /// Save the calibration project data to a file as json.
+        /// </summary>
+        /// <param name="fileSpec"></param>
+        /// <returns></returns>
+        public async Task<bool> Save(string fileSpec)
+        {
+            // Remember the calib project file spec
+            Data.CalibFileSpec = fileSpec;
+
+            return await Save();
+        }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        public async Task<bool> Save()
+        {
+            bool ret = false;
+
+            if (string.IsNullOrEmpty(Data.CalibFileSpec))
+                return ret;
+
+            // Delete a .bak file if it exists
+            string bakFileSpec = Path.ChangeExtension(Data.CalibFileSpec, ".bak");
+            if (File.Exists(bakFileSpec))
+            {
+                try
+                {
+                    File.Delete(bakFileSpec);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error deleting backup file {bakFileSpec}: {ex.Message}");
+                }
+            }
+
+            // Rename fileSpec to a .bak file
+            if (File.Exists(Data.CalibFileSpec))
+            {
+                try
+                {
+                    File.Move(Data.CalibFileSpec, bakFileSpec);
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error renaming file {Data.CalibFileSpec} to backup {bakFileSpec}: {ex.Message}");
+                    return false; // Return false if renaming fails
+                }
+            }
+
+            // Save the project data as json to the file
+            try
+            {
+                var options = CreateJsonOptions();
+                string json = JsonConvert.SerializeObject(Data, options);
+                await File.WriteAllTextAsync(Data.CalibFileSpec, json);
+                ret = true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error saving calibration project data to {Data.CalibFileSpec}: {ex.Message}");
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Load the calibration project data from a file as json.
+        /// </summary>
+        /// <param name="fileSpec"></param>
+        /// <returns></returns>
+        public bool Load(string fileSpec)
+        {
+            if (!File.Exists(fileSpec))
+            {
+                Debug.WriteLine($"Calibration project file {fileSpec} does not exist.");
+                return false;
+            }
+            try
+            {
+                string json = File.ReadAllText(fileSpec);
+                var options = CreateJsonOptions();
+                Data = JsonConvert.DeserializeObject<DataClass>(json, options) ?? new DataClass();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error loading calibration project data from {fileSpec}: {ex.Message}");
+                return false;
+            }
+        }
+
+        private static JsonSerializerSettings CreateJsonOptions()
+        {
+            var opts = new JsonSerializerSettings
+            {
+                Formatting = Formatting.Indented
+            };
+            //???opts.Converters.Add(new Double2DArrayConverter());
+            opts.Converters.Add(new MatrixJsonConverter());
+            // opts.Converters.Add(new Float2DArrayConverter()); // if needed
+            return opts;
+        }
     }
+
+   
+
 
     public sealed partial class MainWindow : WindowEx
     {
@@ -84,12 +212,10 @@ namespace Surveyor
         private bool? findStatus = null;  // false started, true done
         private bool? saveStatus = null;  // None - Can't save, false - In Save, true - can save
 
-
-        //???public double movementMaxValue { get; set; } = 30.0;
-        public double movementMaxThreshold { get; set; } = 20.0;
-
-        //???public double blurMaxValue { get; set; } = 10.0;
-        public double blurMaxThreshold { get; set; } = 2.5;
+        public double MovementMaxThreshold { get; set; } = 20.0;
+        public double BlurMaxThreshold { get; set; } = 2.5;
+        public int MonoCornersMinThreshold { get; set; } = CalibrationStereoFrameSet.MONO_CORNER_COUNT_THESHOLD;
+        public int StereoCornersMinThreshold { get; set; } = CalibrationStereoFrameSet.STEREO_CORNER_COUNT_THESHOLD;
 
         public MainWindow()
         {
@@ -182,7 +308,7 @@ namespace Surveyor
         /// EVENTS
         /// 
 
-        private async void OpenAppBarButton_Click(object sender, RoutedEventArgs e)
+        private async void NewAppBarButton_Click(object sender, RoutedEventArgs e)
         {
             // Load the Info and Media user control to setup the survey
             CalibrationMediaUserControl.SetupForContentDialog(CalibrationMediaContentDialog);
@@ -202,8 +328,95 @@ namespace Surveyor
                 CalibrationMediaUserControl.SaveForContentDialog(calibProject);
 
                 await OpenMedia(calibProject, false/*forceUsdCacheIfAvalable*/, false/*noPrompts*/);
-            }                    
+            }
+
+            // Save the calib project file
+            var file = await PickCalibFileToSaveAsync(this); // 'this' refers to your Window instance
+            if (file != null)
+            {
+                try
+                {
+                    // Save the calib project data to the file
+                    await calibProject.Save(file.Path);
+                    Debug.WriteLine($"Calibration project saved to {file.Path}");
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error saving calibration project: {ex.Message}");
+                    // Handle the error, e.g., show a message to the user
+                }
+            }
+            else
+            {
+                Debug.WriteLine("No file selected for saving calibration project.");
+            }
         }
+        public async Task<StorageFile?> PickCalibFileToSaveAsync(Window window)
+        {
+            var savePicker = new FileSavePicker();
+
+            // Initialize with the window handle
+            var hWnd = WindowNative.GetWindowHandle(window);
+            InitializeWithWindow.Initialize(savePicker, hWnd);
+
+            // Set file type choices and default extension
+            savePicker.FileTypeChoices.Add("Calibration File", new List<string>() { ".calib" });
+            savePicker.DefaultFileExtension = ".calib";
+
+            // Optional: set suggested file name
+            savePicker.SuggestedFileName = "my_calibration";
+
+            StorageFile file = await savePicker.PickSaveFileAsync();
+            return file;
+        }
+
+
+        /// <summary>
+        /// Find and open a project file and open the associated media
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void OpenAppBarButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Ensure your class has access to the current Window
+            var window = this; // If this method is inside your MainWindow or a class inheriting from Window
+
+            var openPicker = new Windows.Storage.Pickers.FileOpenPicker();
+
+            // Initialize with the window handle (WinUI 3 requirement)
+            var hWnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            WinRT.Interop.InitializeWithWindow.Initialize(openPicker, hWnd);
+
+            // Set up picker filters
+            openPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            openPicker.FileTypeFilter.Add(".calib");
+
+            // Let user pick a single file
+            var file = await openPicker.PickSingleFileAsync();
+
+            if (file != null)
+            {
+                // Load the project               
+                if (calibProject.Load(file.Path))
+                {
+
+                    // Call OpenMedia
+                    await OpenMedia(calibProject, false, false);
+                }
+                else
+                {
+                    var dialog = new ContentDialog
+                    {
+                        Title = "Load Failed",
+                        Content = "Failed to load the selected calibration project file.",
+                        CloseButtonText = "OK",
+                        XamlRoot = this.Content.XamlRoot
+                    };
+                    await dialog.ShowAsync();
+                }
+            }
+        }
+
 
         private async Task OpenMedia(CalibProject calibProject, bool forceUsdCacheIfAvalable, bool noPrompts)
         { 
@@ -635,10 +848,10 @@ namespace Surveyor
         /// <param name="e"></param>
         private async void SaveAppBarButton_Click(object sender, RoutedEventArgs e)
         {
-            await Save();
+            await Save(calibProject);
         }
 
-        private async Task Save()
+        private async Task Save(CalibProject calibProject)
         {
             saveStatus = false;  // Save/Calc in progress (disable the save button
             InProgress.IsActive = true;
@@ -647,6 +860,7 @@ namespace Surveyor
             bool doStereo = false;
             bool doLeftMono = false;
             bool doRightMono = false;
+            bool useMonoCacheValues = false;
 
             switch (calibProject.Data.Media.StereoMonoMediaSetMode)
             {
@@ -683,6 +897,39 @@ namespace Surveyor
                         doLeftMono = true;
                     }
                     break;
+
+            }
+            // Check if mono calibration is need but there are old result that could be used
+            if (doLeftMono && doRightMono)
+            {
+                // Check for any cached mono calibration results
+                if (calibProject.Data.LeftMonoCalibrationCameraDataArray.Any(item => item != null) &&
+                    calibProject.Data.RightMonoCalibrationCameraDataArray.Any(item => item != null))
+                {
+                    // Get local folder path
+                    StorageFolder localFolder = ApplicationData.Current.LocalFolder;
+
+                    var dialog = new ContentDialog
+                    {
+                        Title = "Mono Calibration",
+                        Content = $"There is an existing mono calibration set. If you wish to reuse (quick) press 'Yes' else to recalculate (slow) press 'No'?",
+                        PrimaryButtonText = "Yes",
+                        CloseButtonText = "No"
+                    };
+                    dialog.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
+                    var result = await dialog.ShowAsync();
+                    if (result == ContentDialogResult.Primary)
+                    {
+                        // Use the cahced mono calibration results
+                        useMonoCacheValues = true;
+                    }
+                    else 
+                    {
+                        // Remove cached mono calibration results
+                        Array.Fill(calibProject.Data.LeftMonoCalibrationCameraDataArray, null);
+                        Array.Fill(calibProject.Data.RightMonoCalibrationCameraDataArray, null);
+                    }
+                }
             }
 
             // Save the frames
@@ -693,14 +940,14 @@ namespace Surveyor
                 StereoCalibrationHead.SaveCachedResults();
                 InProgress.IsActive = false;
             }
-            if (doLeftMono)
+            if (doLeftMono && !useMonoCacheValues)
             {
                 await DisplayStatusText("Pre-save left mono best frames...");
                 InProgress.IsActive = true;
                 LeftMonoCalibrationHead.SaveCachedResults();
                 InProgress.IsActive = false;
             }
-            if (doRightMono)
+            if (doRightMono && !useMonoCacheValues)
             {
                 await DisplayStatusText("Pre-save right mono best frames...");
                 InProgress.IsActive = true;
@@ -712,26 +959,105 @@ namespace Surveyor
 
             // Find the calibration frame in the stereo videos
             bool writePngFiles = SaveBestFrames.IsChecked == true;
-
+                       
             if (doLeftMono)
             {
                 await DisplayStatusText("Best frames calc left mono...");
                 InProgress.IsActive = true;
-                await LeftMonoCalibrationHead.BestFramesCalc(movementMaxThreshold, blurMaxThreshold, writePngFiles);
+                await LeftMonoCalibrationHead.BestFramesCalcAndMonoCalibration(
+                                                             calibProject,
+                                                             true/*trueLeftFalseRight*/,
+                                                             MovementMaxThreshold, 
+                                                             BlurMaxThreshold,
+                                                             MonoCornersMinThreshold,
+                                                             useMonoCacheValues,
+                                                             writePngFiles);
                 InProgress.IsActive = false;
             }
             if (doRightMono)
             {
                 await DisplayStatusText("Best frames calc right mono...");
                 InProgress.IsActive = true;
-                await RightMonoCalibrationHead.BestFramesCalc(movementMaxThreshold, blurMaxThreshold, writePngFiles);
+                await RightMonoCalibrationHead.BestFramesCalcAndMonoCalibration(
+                                                              calibProject,
+                                                              false/*trueLeftFalseRight*/,
+                                                              MovementMaxThreshold, 
+                                                              BlurMaxThreshold,
+                                                              MonoCornersMinThreshold,
+                                                              useMonoCacheValues,
+                                                              writePngFiles);
                 InProgress.IsActive = false;
             }
             if (doStereo)
             {
                 await DisplayStatusText("Best frames calc stereo...");
                 InProgress.IsActive = true;
-                await StereoCalibrationHead.BestFramesCalc(movementMaxThreshold, blurMaxThreshold, writePngFiles);
+
+                if (calibProject.Data.LeftMonoCalibrationCameraDataArray.Any(item => item != null) &&
+                    calibProject.Data.RightMonoCalibrationCameraDataArray.Any(item => item != null))
+                {
+                    await StereoCalibrationHead.BestFramesCalcAndStereoCalibration(
+                                                                calibProject,
+                                                                MovementMaxThreshold,
+                                                                BlurMaxThreshold,
+                                                                StereoCornersMinThreshold,
+                                                                writePngFiles);
+
+                    // Return the best stereo calibration set
+                    CalibrationParameters? calibrationParameters = ReturnBestStereoCalibrationCameraData(calibProject);
+                    if (calibrationParameters is not null)
+                    {
+                        // Get the stereo, left mono and right mono result set
+                        CalibrationStereoCameraData calibrationStereoCameraData = calibProject.Data.CalibrationStereoCameraDataArray[(int)calibrationParameters];
+                        ???
+
+                        // Populate the CalibrationData
+                        CalibrationData calibrationData = new()
+                        {
+                            StereoCameraCalibration = calibrationStereoCameraData,
+                        };
+                        calibrationData.LeftCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
+                        calibrationData.LeftCameraCalibration.ImageSize[0, 0] = (int)frameSize.Width;
+                        calibrationData.LeftCameraCalibration.ImageSize[0, 1] = (int)frameSize.Height;
+
+                        calibrationData.LeftCameraCalibration.ImageTotal = leftMonoCalibrationCameraData.ImageTotal;
+                        calibrationData.LeftCameraCalibration.ImageUseable = leftMonoCalibrationCameraData.ImageUseable;
+                        calibrationData.LeftCameraCalibration.Intrinsic = leftMonoCalibrationCameraData.IntrinsicMatrix;
+                        calibrationData.LeftCameraCalibration.Distortion = leftMonoCalibrationCameraData.DistortionCoeffs;
+                        calibrationData.LeftCameraCalibration.RMS = leftMonoCalibrationCameraData.ReprojectionRMS;
+
+                        calibrationData.RightCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
+                        calibrationData.RightCameraCalibration.ImageSize[0, 0] = (int)frameSize.Width;
+                        calibrationData.RightCameraCalibration.ImageSize[0, 1] = (int)frameSize.Height;
+                        calibrationData.RightCameraCalibration.ImageTotal = rightMonoCalibrationCameraData.ImageTotal;
+                        calibrationData.RightCameraCalibration.ImageUseable = rightMonoCalibrationCameraData.ImageUseable;
+                        calibrationData.RightCameraCalibration.Intrinsic = rightMonoCalibrationCameraData.IntrinsicMatrix;
+                        calibrationData.RightCameraCalibration.Distortion = rightMonoCalibrationCameraData.DistortionCoeffs;
+                        calibrationData.RightCameraCalibration.RMS = leftMonoCalibrationCameraData.ReprojectionRMS;
+
+
+                        // Add the camera serial numbers
+                        calibrationData.LeftCameraCalibration.CameraID = calibProject.Data.Media.LeftCameraID;
+                        calibrationData.RightCameraCalibration.CameraID = calibProject.Data.Media.RightCameraID;
+
+                        // Get the user to save the calibration data
+                        var savePicker = new Windows.Storage.Pickers.FileSavePicker();
+                        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                        WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hwnd);
+
+                        savePicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+                        savePicker.FileTypeChoices.Add("Calibration Data", new List<string>() { ".json" });
+                        savePicker.SuggestedFileName = "CalibrationData";
+
+                        Windows.Storage.StorageFile file = await savePicker.PickSaveFileAsync();
+                        if (file is not null)
+                        {
+                            string fileSpec = file.Path;
+                            calibrationData.SaveToFile(fileSpec);
+                        }
+                    }
+                }
+
                 InProgress.IsActive = false;
             }
 
@@ -757,12 +1083,97 @@ namespace Surveyor
                 RightMonoCalibrationHead.SaveCachedResults();
                 InProgress.IsActive = false;
             }
+            if (doLeftMono || doRightMono)
+            {
+                await calibProject.Save();                   
+            }
 
             await DisplayStatusText("");
             InProgress.IsActive = false;
             saveStatus = true;  // Allowed to press the save button again
             SetUIControls();
         }
+
+
+        /// <summary>
+        /// Return the strongest mono calibration camera data from the left and right mono 
+        /// calibration camera data arrays.  The returned index is the same index for both the
+        /// left and right array. Stereo calibration expects to use mono calibration data that
+        /// was cresated using the same calibration parameters.
+        /// </summary>
+        /// <param name="leftMonoCalibrationCameraData"></param>
+        /// <param name="rightMonoCalibrationCameraData"></param>
+        /// <returns></returns>
+        private static CalibrationParameters? ReturnBestMonoCalibrationCameraData(
+                                    MonoCalibrationCameraData?[] leftMonoCalibrationCameraData,
+                                    MonoCalibrationCameraData?[] rightMonoCalibrationCameraData)
+        {
+            double bestScore = double.MaxValue;
+            int bestIndex = -1;
+
+            for (int i = 0; i < leftMonoCalibrationCameraData.Length; i++)
+            {
+                var left = leftMonoCalibrationCameraData[i];
+                var right = rightMonoCalibrationCameraData[i];
+
+                if (left == null || right == null)
+                    continue;
+
+                // Combine left and right metrics
+                double rmsAvg = (left.ReprojectionRMS + right.ReprojectionRMS) / 2.0;
+                double maxErrAvg = (left.MaxError + right.MaxError) / 2.0;
+
+                // Define weighted score (you can tune weights as needed)
+                double score = rmsAvg + 0.2 * maxErrAvg;
+
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    bestIndex = i;
+                }
+            }
+
+            if (bestIndex == -1)
+                return null;
+
+            return (CalibrationParameters)bestIndex;
+        }
+
+
+        /// <summary>
+        /// Returns the stereo calibration result set with the best RMS
+        /// </summary>
+        /// <param name="calibProject"></param>
+        /// <returns></returns>
+        private static CalibrationParameters? ReturnBestStereoCalibrationCameraData(CalibProject calibProject)
+        {
+            double bestScore = double.MaxValue;
+            int bestIndex = -1;
+
+            for (int i = 0; i < calibProject.Data.CalibrationStereoCameraDataArray.Length; i++)
+            {
+                var stereoResult = calibProject.Data.CalibrationStereoCameraDataArray[i];
+                
+
+                if (stereoResult is null)
+                    continue;
+
+                // Define weighted score (you can tune weights as needed)
+                double score = stereoResult.RMS + /*???0.2 * stereoResult.MaxError*/;
+
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    bestIndex = i;
+                }
+            }
+
+            if (bestIndex == -1)
+                return null;
+
+            return (CalibrationParameters?)bestIndex;
+        }
+
 
         /// <summary>
         /// Display and copy the cache folder to the clipbaord
@@ -797,7 +1208,7 @@ namespace Surveyor
         /// <param name="e"></param>
         private void MovementSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
         {
-            MovementMaxThresholdText.Text = $"{movementMaxThreshold:F1}"; // Update the text to show the current value
+            MovementMaxThresholdText.Text = $"{MovementMaxThreshold:F1}"; // Update the text to show the current value
         }
 
 
@@ -808,10 +1219,18 @@ namespace Surveyor
         /// <param name="e"></param>
         private void BlurSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
         {
-            BlurMaxThresholdText.Text = $"{blurMaxThreshold:F1}"; // Update the text to show the current value
+            BlurMaxThresholdText.Text = $"{BlurMaxThreshold:F1}"; // Update the text to show the current value
         }
 
+        private void MonoCornersSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+        {
+            MonoCornersMinThresholdText.Text = $"{MonoCornersMinThreshold}";
+        }
 
+        private void StereoCornersSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+        {
+            StereoCornersMinThresholdText.Text = $"{StereoCornersMinThreshold}";
+        }
 
         ///
         /// PRIVATE
@@ -1086,7 +1505,7 @@ namespace Surveyor
                     if (AppLaunchArgs.RunWithoutPrompts)
                     {
                         Debug.WriteLine("Auto run: Save results after find is done.");
-                        await Save(); // Automatically save results if find is done
+                        await Save(calibProject); // Automatically save results if find is done
 
                         Debug.WriteLine("Auto run: Exit Aplication.");
                         //??? TODO

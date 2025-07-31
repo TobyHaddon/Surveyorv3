@@ -63,6 +63,18 @@ namespace Surveyor.Calibration
         [JsonIgnore]
         public static IReadOnlyList<double> PoseBinThresholdPitch => [-10, 10, 90.1 ];
 
+        // Mono Frame quantily tests        
+        public PointF[][] monoProjectedPoints = new PointF[Enum.GetValues<CalibrationParameters>().Length][];
+        public double[] monoFrameRms = new double[Enum.GetValues<CalibrationParameters>().Length];
+        public double[] monoFrameMaxError = new double[Enum.GetValues<CalibrationParameters>().Length];
+
+        // Stereo calibration specific
+        public PointF[][] StereoSharedCharucoCorners = new PointF[Enum.GetValues<CalibrationParameters>().Length][];
+        public int[][] StereoSharedCharucoIDs = new int[Enum.GetValues<CalibrationParameters>().Length][];
+        public PointF[][] stereoProjectedPoints = new PointF[Enum.GetValues<CalibrationParameters>().Length][];
+        public double[] stereoFrameRms = new double[Enum.GetValues<CalibrationParameters>().Length];
+        public double[] stereoFrameMaxError = new double[Enum.GetValues<CalibrationParameters>().Length];
+
 
         // Parameterless constructor for deserialization
         [JsonConstructor]

@@ -25,7 +25,7 @@
         <MenuFlyout x:Key="CanvasContextMenu" Closing="CanvasContextMenu_Closing">
             <MenuFlyoutItem x:Name="CanvasFrameMenuAddMeasurement" Text="Add Measurement"  Click="CanvasFrameContextMenu_Click">
                 <MenuFlyoutItem.Icon>
-                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE1D9;" />
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xED5E;" />
                 </MenuFlyoutItem.Icon>
             </MenuFlyoutItem>
             <MenuFlyoutItem x:Name="CanvasFrameMenuAdd3DPoint" Text="Add 3D Point"  Click="CanvasFrameContextMenu_Click">
@@ -144,8 +144,8 @@
                             <KeyboardAccelerator Key="Right" />
                         </Button.KeyboardAccelerators>
                     </Button>
-                    <!-- Measurement Symbol E1D9 -->
-                    <Button Name="ButtonMagAddMeasurement" Content="&#xE1D9;" Click="ButtonMagOK_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"                             
+                    <!-- Measurement Symbol ED5E -->
+                    <Button Name="ButtonMagAddMeasurement" Content="&#xED5E;" Click="ButtonMagOK_Click" PointerEntered="CanvasMagChild_PointerEntered" PointerExited="CanvasMagChild_PointerExited"                             
                         Style="{StaticResource ButtonMagStyle}" VerticalAlignment="Top">
                         <Button.KeyboardAccelerators>
                             <KeyboardAccelerator Key="Enter" />

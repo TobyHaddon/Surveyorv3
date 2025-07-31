@@ -32,21 +32,29 @@
         <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
             <Image x:Name="LeftImage" Stretch="Uniform" Margin="3"/>
             <Border x:Name="LeftCalibDataBorder" BorderBrush="Gray" BorderThickness="1" Padding="4" CornerRadius="2"  Visibility="Collapsed" Margin="3">
-                <TextBlock x:Name="LeftCalibDataText"
-                           FontFamily="Consolas"
-                           FontSize="10"
-                           TextWrapping="Wrap"
-                           xml:space="preserve" />
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <TextBlock x:Name="LeftCalibDataText"
+                               FontFamily="Consolas"
+                               FontSize="10"
+                               TextWrapping="Wrap"
+                               TextTrimming="None"
+                               xml:space="preserve" />
+                </ScrollViewer>
             </Border>
         </StackPanel>
         <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
             <Image x:Name="RightImage" Stretch="Uniform" Margin="5"/>
-            <Border x:Name="RightCalibDataBorder" BorderBrush="Gray" BorderThickness="1" Padding="4" CornerRadius="2" Visibility="Collapsed" Margin="3">
-                <TextBlock x:Name="RightCalibDataText" 
+            <Border x:Name="RightCalibDataBorder" BorderBrush="Gray" 
+                    BorderThickness="1" Padding="4" CornerRadius="2" 
+                    Visibility="Collapsed" Margin="3">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <TextBlock x:Name="RightCalibDataText" 
                            FontFamily="Consolas"
                            FontSize="10"
                            TextWrapping="Wrap"
+                           TextTrimming="None"
                            xml:space="preserve" />
+                </ScrollViewer>
             </Border>
         </StackPanel>
         <!-- Calibration Board Time Line User Controls -->

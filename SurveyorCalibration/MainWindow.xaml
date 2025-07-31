@@ -14,14 +14,6 @@
     Width="1600"
     Height="1000">
     <Grid>
-        <!--<Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />   --><!-- Hidden row 3 for Content Dialog --><!--
-            <RowDefinition Height="*"/>
-        </Grid.RowDefinitions>-->
-
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />         <!-- 0: CommandBar -->
             <RowDefinition Height="*" />            <!-- 1: Mono Heads -->
@@ -47,27 +39,33 @@
                         DefaultLabelPosition="Bottom" 
                         IsSticky="True">
                 <CommandBar.PrimaryCommands>
-                    <AppBarButton x:Name="OpenAppBarButton" Icon="OpenFile" Label="Open..." Click="OpenAppBarButton_Click"/>
+                    <AppBarButton x:Name="NewAppBarButton" 
+                                  Icon="Add" Label="New..." 
+                                  Click="NewAppBarButton_Click" 
+                                  ToolTipService.ToolTip="Create a new calibration project"/>
+                    
+                    <AppBarButton x:Name="OpenAppBarButton" 
+                                  Icon="OpenFile" 
+                                  Label="Open..." 
+                                  Click="OpenAppBarButton_Click"
+                                  ToolTipService.ToolTip="Open an existing calibration project"/>
 
-                    <!-- Arrow icon between buttons -->
-                    <AppBarButton Label="" IsEnabled="false">
-                        <AppBarButton.Icon>
-                            <FontIcon Glyph="&#xE72A;" />
-                        </AppBarButton.Icon>
-                    </AppBarButton>
+                    <AppBarButton x:Name="FindAppBarButton" 
+                                  Icon="Find" 
+                                  Label="Find" 
+                                  Click="FindAppBarButton_Click"
+                                  ToolTipService.ToolTip="Scan the media for calibration targets and collect the information"/>
+                    
+                    <AppBarButton x:Name="FindAppBarCancel" 
+                                  Icon="Cancel"  
+                                  Click="FindAppBarCancel_Click"
+                                  ToolTipService.ToolTip="Cancel the scan"/>
 
-                    <AppBarButton x:Name="FindAppBarButton" Icon="Find" Label="Find" Click="FindAppBarButton_Click"/>
-                    <AppBarButton x:Name="FindAppBarCancel" Icon="Cancel"  Click="FindAppBarCancel_Click" />
-
-                    <!-- Arrow icon between buttons -->
-                    <AppBarButton Label="" IsEnabled="false">
-                        <AppBarButton.Icon>
-                            <FontIcon Glyph="&#xE72A;" />
-                        </AppBarButton.Icon>
-                    </AppBarButton>
-
-                    <AppBarButton x:Name="SaveAppBarButton" Icon="Save" Label="Save" Click="SaveAppBarButton_Click"/>
-                    <AppBarSeparator/>
+                    <AppBarButton x:Name="SaveAppBarButton" 
+                                  Icon="Save" 
+                                  Label="Save" 
+                                  Click="SaveAppBarButton_Click"
+                                  ToolTipService.ToolTip="Find the best frames and perform calibration"/>
                 </CommandBar.PrimaryCommands>
             
                 <CommandBar.SecondaryCommands>
@@ -97,12 +95,20 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                
+
                 <!-- Movement Filter Controls -->
                 <TextBlock Grid.Row="0" Grid.Column ="0" Grid.RowSpan="2" 
-                           Text="Movement Threshold:" VerticalAlignment="Center" Margin="16,0,0,0"/>
-                
+                           Text="Movement:" VerticalAlignment="Center" Margin="16,0,0,0"/>
+
                 <TextBlock x:Name="MovementSliderMin" 
                            Grid.Row="0" Grid.Column ="1" VerticalAlignment="Center" 
                            FontSize="10" Margin="6,0,0,0"/>
@@ -111,7 +117,7 @@
                             Grid.Row="0" Grid.Column ="2" 
                             StepFrequency="0.1"
                             VerticalAlignment="Center"
-                            Value="{x:Bind movementMaxThreshold, Mode=TwoWay}"
+                            Value="{x:Bind MovementMaxThreshold, Mode=TwoWay}"
                             ValueChanged="MovementSlider_ValueChanged"
                             Width="100"
                             Margin="4,0,0,0"/>
@@ -120,7 +126,7 @@
                            Grid.Row="0" Grid.Column ="3"
                            VerticalAlignment="Center" 
                            FontSize="10" Margin="8,0,0,0"/>
-                
+
                 <TextBlock x:Name="MovementMaxThresholdText" 
                             Grid.Row="1" Grid.Column ="2" 
                             VerticalAlignment="Top"
@@ -128,24 +134,24 @@
                             FontSize="10" Margin="4,0,0,0"/>
 
                 <!-- Blur Filter Controls -->
-                <TextBlock Text="Blur Threshold:"  
+                <TextBlock Text="Blur:"  
                            Grid.Row="0" Grid.Column ="4" Grid.RowSpan="2"
                            VerticalAlignment="Center" Margin="16,0,0,0"/>
-                
+
                 <TextBlock x:Name="BlurSliderMin" 
                            Grid.Row="0" Grid.Column ="5"
                            VerticalAlignment="Center" 
                            FontSize="10" Margin="6,0,0,0"/>
-                    
+
                 <Slider x:Name="BlurMaxThresholdSlider"
                         Grid.Row="0" Grid.Column ="6"
                         StepFrequency="0.1"
                         VerticalAlignment="Center"
-                        Value="{x:Bind blurMaxThreshold, Mode=TwoWay}"
+                        Value="{x:Bind BlurMaxThreshold, Mode=TwoWay}"
                         ValueChanged="BlurSlider_ValueChanged"
                         Width="100"
                         Margin="4,0,0,0"/>
-                
+
                 <TextBlock x:Name="BlurMaxThresholdText" 
                             Grid.Row="1" Grid.Column ="6"
                             VerticalAlignment="Top"
@@ -157,8 +163,69 @@
                            Grid.Row="0" Grid.Column ="7"
                            VerticalAlignment="Center" 
                            FontSize="10" Margin="8,0,0,0"/>
+
+                <!-- Mono Corners Filter Controls -->
+                <TextBlock Text="Mono Corners:"  
+                           Grid.Row="0" Grid.Column ="8" Grid.RowSpan="2"
+                           VerticalAlignment="Center" Margin="16,0,0,0"/>
+
+                <TextBlock x:Name="MonoCornersSliderMin" 
+                           Grid.Row="0" Grid.Column ="9"
+                           VerticalAlignment="Center" 
+                           FontSize="10" Margin="6,0,0,0"/>
+
+                <Slider x:Name="MonoCornersMinThresholdSlider"
+                        Grid.Row="0" Grid.Column ="10"
+                        StepFrequency="1"
+                        VerticalAlignment="Center"
+                        Value="{x:Bind MonoCornersMinThreshold, Mode=TwoWay}"
+                        ValueChanged="MonoCornersSlider_ValueChanged"
+                        Width="100"
+                        Margin="4,0,0,0"/>
+
+                <TextBlock x:Name="MonoCornersMinThresholdText" 
+                            Grid.Row="1" Grid.Column ="10"
+                            VerticalAlignment="Top"
+                            HorizontalAlignment="Center"
+                            FontSize="10" 
+                            Margin="4,0,0,0"/>
+
+                <TextBlock x:Name="MonoCornersSliderMax" 
+                           Grid.Row="0" Grid.Column ="11"
+                           VerticalAlignment="Center" 
+                           FontSize="10" Margin="8,0,0,0"/>
+
+                <!-- Stereo Corners Filter Controls -->
+                <TextBlock Text="Stereo Corners:"  
+                           Grid.Row="0" Grid.Column ="12" Grid.RowSpan="2"
+                           VerticalAlignment="Center" Margin="16,0,0,0"/>
+
+                <TextBlock x:Name="StereoCornersSliderMin" 
+                           Grid.Row="0" Grid.Column ="13"
+                           VerticalAlignment="Center" 
+                           FontSize="10" Margin="6,0,0,0"/>
+
+                <Slider x:Name="StereoCornersMinThresholdSlider"
+                        Grid.Row="0" Grid.Column ="14"
+                        StepFrequency="1"
+                        VerticalAlignment="Center"
+                        Value="{x:Bind StereoCornersMinThreshold, Mode=TwoWay}"
+                        ValueChanged="StereoCornersSlider_ValueChanged"
+                        Width="100"
+                        Margin="4,0,0,0"/>
+
+                <TextBlock x:Name="StereoCornersMinThresholdText" 
+                            Grid.Row="1" Grid.Column ="14"
+                            VerticalAlignment="Top"
+                            HorizontalAlignment="Center"
+                            FontSize="10" 
+                            Margin="4,0,0,0"/>
+
+                <TextBlock x:Name="StereoCornersSliderMax" 
+                           Grid.Row="0" Grid.Column ="15"
+                           VerticalAlignment="Center" 
+                           FontSize="10" Margin="8,0,0,0"/>
             </Grid>
-            
         </StackPanel>
         
         <Grid x:Name="MonoCalibrationHeads" Grid.Row="1">

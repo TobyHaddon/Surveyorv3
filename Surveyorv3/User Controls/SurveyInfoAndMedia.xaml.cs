@@ -713,6 +713,13 @@ namespace Surveyor.User_Controls
                         rightFiles.Add(file);
                         certainty = 0.6;
                     }
+                    // Must put the file somewhere so add to left and let the user
+                    // fix left or right via to UI
+                    else
+                    {
+                        leftFiles.Add(file);
+                        certainty = 0.0;
+                    }
                 }
             }
 
@@ -864,6 +871,7 @@ namespace Surveyor.User_Controls
             // Check all left & right media from the same GoPro
             bool? sameGoProLeftMedia = CheckGoProSNMatch(LeftMediaFileItemList);    // Will return Null if no GoPro serial number found or there is only one left media file
             bool? sameGoProRightMedia = CheckGoProSNMatch(RightMediaFileItemList);  // Will return Null if no GoPro serial number found or there is only one right media file
+            bool? differentGoProLefAndRight = CheckGoProSNLeftAndRightAreDifferent(LeftMediaFileItemList, RightMediaFileItemList);
 
             // Report on the status of the GoPro serial numbers in the media set
             string mediaGoProSNMatchWarningText = "";
@@ -895,6 +903,15 @@ namespace Surveyor.User_Controls
 
                 if (reportIssues)
                     report?.Warning("", $"The media files for survey {surveyCode} are not all from the same GoPro, different on both the left and the right side");
+            }
+            else if (differentGoProLefAndRight is not null && !(bool)differentGoProLefAndRight)
+            {
+                mediaGoProSNMatchWarningText = "Left and Right media files need to be from different GoPros";
+                mediaGoProSNMatchWarningToolTip = "Left side media files need to be from a different GoPro to the right side media files.";
+                mediaGoProSNMatch = false;
+
+                if (reportIssues)
+                    report?.Warning("", $"The media files for survey {surveyCode} the left side media and the right side media are from the same GoPro, this is not possible.");
             }
 
 
@@ -1211,6 +1228,27 @@ namespace Surveyor.User_Controls
             }
 
             return ret;
+        }
+
+
+        /// <summary>
+        /// Check the left side media is from a different GoPro to the right side
+        /// </summary>
+        private static bool CheckGoProSNLeftAndRightAreDifferent(ObservableCollection<MediaFileItem> leftMediaFileItemList, ObservableCollection<MediaFileItem> rightMediaFileItemList)
+        {
+            // Extract unique serial numbers from both lists
+            var leftSerials = new HashSet<string>(
+                leftMediaFileItemList
+                    .Where(item => !string.IsNullOrWhiteSpace(item.GoProSerialNumber))
+                    .Select(item => item.GoProSerialNumber));
+
+            var rightSerials = new HashSet<string>(
+                rightMediaFileItemList
+                    .Where(item => !string.IsNullOrWhiteSpace(item.GoProSerialNumber))
+                    .Select(item => item.GoProSerialNumber));
+
+            // Check if there is any overlap
+            return !leftSerials.Overlaps(rightSerials);
         }
 
 

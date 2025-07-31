@@ -389,7 +389,7 @@ namespace Surveyor.Controls
 
 
         /// <summary>
-        /// Highlight the used cells
+        /// Highlight on the screen the used sensor bins for this frame
         /// </summary>
         /// <param name="frameCalibrationData"></param>
         public void HighLightActiveSensorBinLayers(FrameCalibrationData? frameCalibrationData)
@@ -432,7 +432,7 @@ namespace Surveyor.Controls
                                     int row = Grid.GetRow(border);
                                     int column = Grid.GetColumn(border);
 
-                                    
+
                                     bool colourCell = frameCalibrationData.SensorBinsOccupied
                                                                 .Any(entry => entry.gx == gx && entry.gy == gy && entry.binx == column && entry.biny == row);
 
@@ -452,6 +452,67 @@ namespace Surveyor.Controls
                     gridIndex++;
                 }
             }
+        }
+
+
+        /// <summary>
+        /// Highlight on the screen the used pose bins for this frame
+        /// </summary>
+        /// <param name="frameCalibrationData"></param>
+        public void HighLightActivePoseBinLayers(FrameCalibrationData? frameCalibrationData)
+        {
+            if (Data is null)
+                return;
+
+            int gridIndex = 0;
+
+
+            if (Data.calibrationStereoFrameSet is not null)
+            {
+                if (PoseBinGridItemsControl.Items[gridIndex] is Grid grid)
+                {
+                    if (frameCalibrationData is null)
+                    {
+                        // Clear colour of the the bins
+                        foreach (var child in grid.Children)
+                        {
+                            if (child is Border border &&
+                                border.Child is TextBlock textBlock)
+                            {
+                                border.Background = null;   //??? new SolidColorBrush(color);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        foreach (var child in grid.Children)
+                        {
+                            if (child is Border border &&
+                                border.Child is TextBlock textBlock)
+                            {
+                                int row = Grid.GetRow(border);
+                                int column = Grid.GetColumn(border);
+
+
+                                bool colourCell = frameCalibrationData.PoseBinsOccupied
+                                                            .Any(entry => entry.binx == column && entry.biny == row);
+
+                                if (colourCell)
+                                {
+
+                                    border.Background = new SolidColorBrush(Colors.LightBlue);
+                                }
+                                else
+                                {
+                                    border.Background = null;
+                                }
+                            }
+                        }
+                    }
+                }
+                gridIndex++;
+            }
+
         }
     }
 }

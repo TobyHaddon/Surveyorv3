@@ -35,7 +35,7 @@ using static Surveyor.Helper.TelemetryLogger;
 using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.Survey.DataClass;
 using static Surveyor.User_Controls.SettingsWindowEventData;
-
+using SurveyorCalibrationData;
 
 
 namespace Surveyor
@@ -1741,8 +1741,8 @@ namespace Surveyor
 
                 if (firstMissingSpeciesEvent is not null)
                 {
-                    // Jump to frame of this event
-                    mediaStereoController?.UserReqFrameJump(SurveyorMediaControl.eControlType.Primary, firstMissingSpeciesEvent.TimeSpanTimelineController);
+                    // Go to the frame in the media player and scroll to the event in the events list
+                    eventsControl?.GoToEvent(firstMissingSpeciesEvent);
                 }
             }
         }

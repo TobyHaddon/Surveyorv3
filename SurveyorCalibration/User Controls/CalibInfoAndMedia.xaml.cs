@@ -94,6 +94,7 @@ namespace Surveyor.User_Controls
             // Run on the UI thread
             _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
             {
+                EnableDisableControlButtons();
                 EntryFieldsValid(false/*no reporting*/);
             });
         }
@@ -577,11 +578,11 @@ namespace Surveyor.User_Controls
                             RightStereoMediaFileNames.ItemsSource = RightStereoMediaFileItemList;
                             break;
                         case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                            (LeftMonoMediaFileItemList, RightMonoMediaFileItemList, _) = DetectLeftAndRightMediaFile(mediaFileItemList);
+                            (LeftStereoMediaFileItemList, RightStereoMediaFileItemList, _) = DetectLeftAndRightMediaFile(mediaFileItemList);
 
                             // Bind the collection to the ListView
-                            LeftStereoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
-                            RightStereoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
+                            LeftStereoMediaFileNames.ItemsSource = LeftStereoMediaFileItemList;
+                            RightStereoMediaFileNames.ItemsSource = RightStereoMediaFileItemList;
                             break;
                         case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
                             (LeftMonoMediaFileItemList, RightMonoMediaFileItemList, _) = DetectLeftAndRightMediaFile(mediaFileItemList);
@@ -1587,10 +1588,10 @@ namespace Surveyor.User_Controls
             bool deleteItemIsEnabled = false;
 
 
-            // Remember the current heights
+            // Remember the current heights on initial load
             if (monoListViewRowHeight == new GridLength(0))
                 monoListViewRowHeight = MonoListViewRow.Height;
-            if (stereoListViewRowHeight == new GridLength(2))
+            if (stereoListViewRowHeight == new GridLength(0))
                 stereoListViewRowHeight = MonoListViewRow.Height;
 
 
@@ -1603,7 +1604,7 @@ namespace Surveyor.User_Controls
 
                     // Restore the mono listview grid row
                     MonoListViewRow.Height = monoListViewRowHeight;
-                    StereoListViewRow.Height = monoListViewRowHeight;
+                    StereoListViewRow.Height = stereoListViewRowHeight;
 
                     // Show right mono
                     RightMonoMediaFileNames.IsEnabled = true;
@@ -1620,11 +1621,13 @@ namespace Surveyor.User_Controls
                     LeftMonoMediaFileNames.SelectedItem = null;
                     RightMonoMediaFileNames.SelectedItem = null;
 
-                    // Hide the mono title grid row
+                    // Hide the mono title grid row and restore the stereo
                     MonoTitleRow.Height = new GridLength(0);
+                    StereoTitleRow.Height = GridLength.Auto;
 
-                    // Hide the mono listview grid row
+                    // Hide the mono listview grid row and restore the stereo
                     MonoListViewRow.Height = new GridLength(0);
+                    StereoListViewRow.Height = monoListViewRowHeight;
 
                     // Hide the up/down buttons
                     LeftSideMoveItemUp.Visibility = Visibility.Collapsed;
@@ -1638,11 +1641,14 @@ namespace Surveyor.User_Controls
                     LeftStereoMediaFileNames.SelectedItem = null;
                     RightStereoMediaFileNames.SelectedItem = null;
 
-                    // Hide the stereo title grid row
+                    // Restore thr mono and Hide the stereo title grid row
+                    MonoTitleRow.Height = GridLength.Auto;
                     StereoTitleRow.Height = new GridLength(0);
 
-                    // Hide the stereo listview grid row
+                    // Restore the mono and hide the stereo listview grid row
+                    MonoListViewRow.Height = monoListViewRowHeight;
                     StereoListViewRow.Height = new GridLength(0);
+
 
                     // Show right mono
                     RightMonoMediaFileNames.IsEnabled = true;
@@ -1659,10 +1665,12 @@ namespace Surveyor.User_Controls
                     LeftStereoMediaFileNames.SelectedItem = null;
                     RightStereoMediaFileNames.SelectedItem = null;
 
-                    // Hide the stereo title grid row
+                    // Restore the mono and hide the stereo title grid row
+                    MonoTitleRow.Height = GridLength.Auto;
                     StereoTitleRow.Height = new GridLength(0);
 
-                    // Hide the stereo listview grid row
+                    // Restore the mono and hide the stereo listview grid row
+                    MonoListViewRow.Height = monoListViewRowHeight;
                     StereoListViewRow.Height = new GridLength(0);
 
                     // Hide right mono

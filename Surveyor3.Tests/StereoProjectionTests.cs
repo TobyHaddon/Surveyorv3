@@ -4,7 +4,7 @@ using Windows.Foundation;
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
-using Surveyor;
+using SurveyorCalibrationData;
 using System.Diagnostics;
 using Surveyor.User_Controls;
 using Microsoft.UI.Dispatching;

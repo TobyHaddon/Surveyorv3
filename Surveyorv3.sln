@@ -5,6 +5,7 @@ VisualStudioVersion = 17.11.35312.102
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Surveyorv3", "Surveyorv3\Surveyorv3.csproj", "{775F1225-EC27-4ADC-A3FE-C47E2AF55BCD}"
 	ProjectSection(ProjectDependencies) = postProject
+		{6102E091-29E1-4F19-8A76-2EDC1349442E} = {6102E091-29E1-4F19-8A76-2EDC1349442E}
 		{C55760FD-229D-4157-8694-47C284BDD6AE} = {C55760FD-229D-4157-8694-47C284BDD6AE}
 	EndProjectSection
 EndProject
@@ -22,6 +23,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SurveyorCalibration", "Surv
 	ProjectSection(ProjectDependencies) = postProject
 		{B7899B87-13A9-4AB5-97B3-8D94ED6358B8} = {B7899B87-13A9-4AB5-97B3-8D94ED6358B8}
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SurveyorCalibrationData", "SurveyorCalibrationData\SurveyorCalibrationData.csproj", "{6102E091-29E1-4F19-8A76-2EDC1349442E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -171,6 +174,22 @@ Global
 		{B57B9EE2-AE9C-A6A1-9A84-1D58E6A77DC2}.Release|x86.ActiveCfg = Release|x86
 		{B57B9EE2-AE9C-A6A1-9A84-1D58E6A77DC2}.Release|x86.Build.0 = Release|x86
 		{B57B9EE2-AE9C-A6A1-9A84-1D58E6A77DC2}.Release|x86.Deploy.0 = Release|x86
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Debug|x64.Build.0 = Debug|Any CPU
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Debug|x86.Build.0 = Debug|Any CPU
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Release|ARM64.Build.0 = Release|Any CPU
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Release|x64.ActiveCfg = Release|Any CPU
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Release|x64.Build.0 = Release|Any CPU
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Release|x86.ActiveCfg = Release|Any CPU
+		{6102E091-29E1-4F19-8A76-2EDC1349442E}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

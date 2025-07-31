@@ -158,11 +158,31 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Go to the event in the media player and scroll to it in the Events List
+        /// </summary>
+        /// <param name="evt"></param>
+        /// <returns></returns>
+        public bool GoToEvent(Event evt)
+        {
+            // Jump to frame of this event
+            mediaStereoController?.UserReqFrameJump(SurveyorMediaControl.eControlType.Primary, evt.TimeSpanTimelineController);
+
+            // Set the SelectedItem property to the newly added event
+            ListViewEvent.SelectedItem = evt;
+            ListViewEvent.ScrollIntoView(evt);
+
+            return false;
+        }
+
+        /// <summary>
         /// Display Event in a ContentDialog
         /// </summary>
         /// <param name="evt"></param>
         public async void Display(Event evt)
         {
+            // Primary is the copy to clipboard button
+            EventDialog.PrimaryButtonText = "&#xE8C8;";
+
             // Set the content dialog title
             switch (evt.EventDataType)
             {
@@ -352,10 +372,10 @@ namespace Surveyor.User_Controls
         {
             // Set the content dialog title
             EventDialog.Title = "Survey Start & End Segment";
-            //???Primary button is a Copy glyph: EventDialog.PrimaryButtonText = "Ok";
 
             // Override the Close Button Text to say 'Close' instead of 'Cancel'
             // and disable the primary button
+            EventDialog.PrimaryButtonText = null;
             EventDialog.IsPrimaryButtonEnabled = false;
             EventDialog.CloseButtonText = "Close";
 
@@ -746,7 +766,7 @@ namespace Surveyor.User_Controls
                     case Surveyor.Events.SurveyDataType.SurveyStereoPoint:        // 3D Point
                         return "\uECAF";
                     case Surveyor.Events.SurveyDataType.SurveyMeasurementPoints:  // Measurement
-                        return "\uE1D9";
+                        return "\uED5E";
                     case Surveyor.Events.SurveyDataType.StereoCalibrationPoints:
                         return "\uEB3C";
                     case Surveyor.Events.SurveyDataType.StereoSyncPoint:

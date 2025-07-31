@@ -102,8 +102,7 @@ namespace Surveyor.User_Controls
 
             if ((layerTypesDisplayed & LayerType.EventsDetail) != 0)
             {
-                if (speciesInfo is not null &&
-                    int.TryParse(speciesInfo.Number, out int count) &&
+                if (int.TryParse(speciesInfo.Number, out int count) &&
                     count > 1)
                 {
                     if (!string.IsNullOrEmpty(speciesInfo.Species))

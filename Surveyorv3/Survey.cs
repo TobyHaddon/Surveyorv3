@@ -19,7 +19,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-
+using SurveyorCalibrationData;
 
 namespace Surveyor
 {
@@ -1072,9 +1072,7 @@ namespace Surveyor
                         IsDirty = false;
                         IsLoaded = true;
 
-                        // Start the autosave task in background
-                        //????OLD AUTOSAVE
-                        //_ = Task.Run(() => AutoSaveWork());
+                        // Start the autosave task in background                        
                         await StartAutoSave();
                     }
                 }
@@ -1113,6 +1111,29 @@ namespace Surveyor
             // Stop any reentry
             lock (_lockObject)
             {
+                // Adjust MediaPath if possible
+                if (!string.IsNullOrEmpty(Data.Info.SurveyPath) && !string.IsNullOrEmpty(Data.Media.MediaPath))
+                {
+                    var surveyPathFull = Path.GetFullPath(Data.Info.SurveyPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    var mediaPathFull = Path.GetFullPath(Data.Media.MediaPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                    if (mediaPathFull.StartsWith(surveyPathFull, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Make relative path
+                        var relativePath = Path.GetRelativePath(surveyPathFull, mediaPathFull);
+                        if (string.IsNullOrEmpty(relativePath) || relativePath == ".")
+                        {
+                            // Same directory — blank MediaPath
+                            Data.Media.MediaPath = "";
+                        }
+                        else
+                        {
+                            Data.Media.MediaPath = relativePath;
+                        }
+                    }
+                }
+
+                // Save to .json
                 if (Data.Info.SurveyPath != null && Data.Info.SurveyFileName != null)
                 {
                     var settings = new JsonSerializerSettings
