@@ -76,6 +76,9 @@ namespace Surveyor
             [JsonIgnore]
             public CharucoBoardDefinition CharucoBoardDefinition { get; set; } = new();
 
+            // Frame Size
+            public Windows.Foundation.Size FrameSize { get; set; } = new(0 ,0); 
+            
             // Left & right mono calibration result sets (different results for different calibration flags)
             public MonoCalibrationCameraData?[] LeftMonoCalibrationCameraDataArray { get; set; } = new MonoCalibrationCameraData?[Enum.GetValues<CalibrationParameters>().Length];
             public MonoCalibrationCameraData?[] RightMonoCalibrationCameraDataArray { get; set; } = new MonoCalibrationCameraData?[Enum.GetValues<CalibrationParameters>().Length];
@@ -182,6 +185,41 @@ namespace Surveyor
                 return false;
             }
         }
+
+
+        /// <summary>
+        /// Returns the stereo calibration result set with the best RMS
+        /// </summary>
+        /// <returns></returns>
+        public CalibrationParameters? ReturnBestStereoCalibrationCameraData()
+        {
+            double bestScore = double.MaxValue;
+            int bestIndex = -1;
+
+            for (int i = 0; i < Data.CalibrationStereoCameraDataArray.Length; i++)
+            {
+                var stereoResult = Data.CalibrationStereoCameraDataArray[i];
+
+
+                if (stereoResult is null)
+                    continue;
+
+                // Define weighted score (you can tune weights as needed)
+                double score = stereoResult.RMS /*???+ 0.2 * stereoResult.MaxError*/;
+
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    bestIndex = i;
+                }
+            }
+
+            if (bestIndex == -1)
+                return null;
+
+            return (CalibrationParameters?)bestIndex;
+        }
+
 
         private static JsonSerializerSettings CreateJsonOptions()
         {
@@ -1004,56 +1042,61 @@ namespace Surveyor
                                                                 writePngFiles);
 
                     // Return the best stereo calibration set
-                    CalibrationParameters? calibrationParameters = ReturnBestStereoCalibrationCameraData(calibProject);
+                    CalibrationParameters? calibrationParameters = calibProject.ReturnBestStereoCalibrationCameraData();
                     if (calibrationParameters is not null)
                     {
                         // Get the stereo, left mono and right mono result set
-                        CalibrationStereoCameraData calibrationStereoCameraData = calibProject.Data.CalibrationStereoCameraDataArray[(int)calibrationParameters];
-                        ???
+                        CalibrationStereoCameraData calibrationStereoCameraData = calibProject.Data.CalibrationStereoCameraDataArray[(int)calibrationParameters]!;
 
-                        // Populate the CalibrationData
-                        CalibrationData calibrationData = new()
+                        MonoCalibrationCameraData? leftMonoCalibrationCameraData = calibProject.Data.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
+                        MonoCalibrationCameraData? rightMonoCalibrationCameraData = calibProject.Data.RightMonoCalibrationCameraDataArray[(int)calibrationParameters];
+
+                        if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
                         {
-                            StereoCameraCalibration = calibrationStereoCameraData,
-                        };
-                        calibrationData.LeftCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
-                        calibrationData.LeftCameraCalibration.ImageSize[0, 0] = (int)frameSize.Width;
-                        calibrationData.LeftCameraCalibration.ImageSize[0, 1] = (int)frameSize.Height;
+                            // Populate the CalibrationData
+                            CalibrationData calibrationData = new()
+                            {
+                                StereoCameraCalibration = calibrationStereoCameraData,
+                            };
+                            calibrationData.LeftCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
+                            calibrationData.LeftCameraCalibration.ImageSize[0, 0] = (int)calibProject.Data.FrameSize.Width;
+                            calibrationData.LeftCameraCalibration.ImageSize[0, 1] = (int)calibProject.Data.FrameSize.Height;
 
-                        calibrationData.LeftCameraCalibration.ImageTotal = leftMonoCalibrationCameraData.ImageTotal;
-                        calibrationData.LeftCameraCalibration.ImageUseable = leftMonoCalibrationCameraData.ImageUseable;
-                        calibrationData.LeftCameraCalibration.Intrinsic = leftMonoCalibrationCameraData.IntrinsicMatrix;
-                        calibrationData.LeftCameraCalibration.Distortion = leftMonoCalibrationCameraData.DistortionCoeffs;
-                        calibrationData.LeftCameraCalibration.RMS = leftMonoCalibrationCameraData.ReprojectionRMS;
+                            calibrationData.LeftCameraCalibration.ImageTotal = leftMonoCalibrationCameraData.ImageTotal;
+                            calibrationData.LeftCameraCalibration.ImageUseable = leftMonoCalibrationCameraData.ImageUseable;
+                            calibrationData.LeftCameraCalibration.Intrinsic = leftMonoCalibrationCameraData.IntrinsicMatrix;
+                            calibrationData.LeftCameraCalibration.Distortion = leftMonoCalibrationCameraData.DistortionCoeffs;
+                            calibrationData.LeftCameraCalibration.RMS = leftMonoCalibrationCameraData.ReprojectionRMS;
 
-                        calibrationData.RightCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
-                        calibrationData.RightCameraCalibration.ImageSize[0, 0] = (int)frameSize.Width;
-                        calibrationData.RightCameraCalibration.ImageSize[0, 1] = (int)frameSize.Height;
-                        calibrationData.RightCameraCalibration.ImageTotal = rightMonoCalibrationCameraData.ImageTotal;
-                        calibrationData.RightCameraCalibration.ImageUseable = rightMonoCalibrationCameraData.ImageUseable;
-                        calibrationData.RightCameraCalibration.Intrinsic = rightMonoCalibrationCameraData.IntrinsicMatrix;
-                        calibrationData.RightCameraCalibration.Distortion = rightMonoCalibrationCameraData.DistortionCoeffs;
-                        calibrationData.RightCameraCalibration.RMS = leftMonoCalibrationCameraData.ReprojectionRMS;
+                            calibrationData.RightCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
+                            calibrationData.RightCameraCalibration.ImageSize[0, 0] = (int)calibProject.Data.FrameSize.Width;
+                            calibrationData.RightCameraCalibration.ImageSize[0, 1] = (int)calibProject.Data.FrameSize.Height;
+                            calibrationData.RightCameraCalibration.ImageTotal = rightMonoCalibrationCameraData.ImageTotal;
+                            calibrationData.RightCameraCalibration.ImageUseable = rightMonoCalibrationCameraData.ImageUseable;
+                            calibrationData.RightCameraCalibration.Intrinsic = rightMonoCalibrationCameraData.IntrinsicMatrix;
+                            calibrationData.RightCameraCalibration.Distortion = rightMonoCalibrationCameraData.DistortionCoeffs;
+                            calibrationData.RightCameraCalibration.RMS = leftMonoCalibrationCameraData.ReprojectionRMS;
 
 
-                        // Add the camera serial numbers
-                        calibrationData.LeftCameraCalibration.CameraID = calibProject.Data.Media.LeftCameraID;
-                        calibrationData.RightCameraCalibration.CameraID = calibProject.Data.Media.RightCameraID;
+                            // Add the camera serial numbers
+                            calibrationData.LeftCameraCalibration.CameraID = calibProject.Data.Media.LeftCameraID;
+                            calibrationData.RightCameraCalibration.CameraID = calibProject.Data.Media.RightCameraID;
 
-                        // Get the user to save the calibration data
-                        var savePicker = new Windows.Storage.Pickers.FileSavePicker();
-                        var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-                        WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hwnd);
+                            // Get the user to save the calibration data
+                            var savePicker = new Windows.Storage.Pickers.FileSavePicker();
+                            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
+                            WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hwnd);
 
-                        savePicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
-                        savePicker.FileTypeChoices.Add("Calibration Data", new List<string>() { ".json" });
-                        savePicker.SuggestedFileName = "CalibrationData";
+                            savePicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+                            savePicker.FileTypeChoices.Add("Calibration Data", new List<string>() { ".json" });
+                            savePicker.SuggestedFileName = "CalibrationData";
 
-                        Windows.Storage.StorageFile file = await savePicker.PickSaveFileAsync();
-                        if (file is not null)
-                        {
-                            string fileSpec = file.Path;
-                            calibrationData.SaveToFile(fileSpec);
+                            Windows.Storage.StorageFile file = await savePicker.PickSaveFileAsync();
+                            if (file is not null)
+                            {
+                                string fileSpec = file.Path;
+                                calibrationData.SaveToFile(fileSpec);
+                            }
                         }
                     }
                 }
@@ -1140,39 +1183,39 @@ namespace Surveyor
         }
 
 
-        /// <summary>
-        /// Returns the stereo calibration result set with the best RMS
-        /// </summary>
-        /// <param name="calibProject"></param>
-        /// <returns></returns>
-        private static CalibrationParameters? ReturnBestStereoCalibrationCameraData(CalibProject calibProject)
-        {
-            double bestScore = double.MaxValue;
-            int bestIndex = -1;
+        ///// <summary>
+        ///// Returns the stereo calibration result set with the best RMS
+        ///// </summary>
+        ///// <param name="calibProject"></param>
+        ///// <returns></returns>
+        //private static CalibrationParameters? ReturnBestStereoCalibrationCameraData(CalibProject calibProject)
+        //{
+        //    double bestScore = double.MaxValue;
+        //    int bestIndex = -1;
 
-            for (int i = 0; i < calibProject.Data.CalibrationStereoCameraDataArray.Length; i++)
-            {
-                var stereoResult = calibProject.Data.CalibrationStereoCameraDataArray[i];
+        //    for (int i = 0; i < calibProject.Data.CalibrationStereoCameraDataArray.Length; i++)
+        //    {
+        //        var stereoResult = calibProject.Data.CalibrationStereoCameraDataArray[i];
                 
 
-                if (stereoResult is null)
-                    continue;
+        //        if (stereoResult is null)
+        //            continue;
 
-                // Define weighted score (you can tune weights as needed)
-                double score = stereoResult.RMS + /*???0.2 * stereoResult.MaxError*/;
+        //        // Define weighted score (you can tune weights as needed)
+        //        double score = stereoResult.RMS + /*???0.2 * stereoResult.MaxError*/;
 
-                if (score < bestScore)
-                {
-                    bestScore = score;
-                    bestIndex = i;
-                }
-            }
+        //        if (score < bestScore)
+        //        {
+        //            bestScore = score;
+        //            bestIndex = i;
+        //        }
+        //    }
 
-            if (bestIndex == -1)
-                return null;
+        //    if (bestIndex == -1)
+        //        return null;
 
-            return (CalibrationParameters?)bestIndex;
-        }
+        //    return (CalibrationParameters?)bestIndex;
+        //}
 
 
         /// <summary>

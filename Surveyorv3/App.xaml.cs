@@ -1,9 +1,4 @@
-﻿using Emgu.CV.Ocl;
-using MathNet.Numerics;
-using Microsoft.ApplicationInsights;
-using Microsoft.ApplicationInsights.Extensibility;
-using Microsoft.UI.Xaml;
-using Microsoft.Windows.AppLifecycle;
+﻿using Microsoft.UI.Xaml;
 using Surveyor.Helper;
 using System;
 using System.Diagnostics;
@@ -12,10 +7,7 @@ using System.Reflection;
 // Top of App.xaml.cs (before any namespace or class)
 // This is to allow the UnitTestApp to access internal members 
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 using Windows.ApplicationModel;
-using Windows.ApplicationModel.Activation;
-using Windows.Storage;
 using static Surveyor.Helper.TelemetryLogger;
 [assembly: InternalsVisibleTo("Surveyor3")]
 
@@ -80,11 +72,6 @@ namespace Surveyor
             mainWindow = new MainWindow();
             if (mainWindow is not null)     
             {
-                //???TOBEDELETEDvar activationArgs = Microsoft.Windows.AppLifecycle.AppInstance.GetCurrent().GetActivatedEventArgs();
-                //Debug.WriteLine($"OnLaunched called with activation kind: {activationArgs.Kind}");
-                //HandleActivation(activationArgs);
-
-
                 mainWindow.Closed += (sender, e) =>
                 {
 #if !DEBUG
@@ -111,22 +98,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
-        public static string? StartupSurveyPath { get; private set; }
-
-        //???TOBEDELELEDprivate void HandleActivation(AppActivationArguments args)
-        //{
-        //    if (args.Kind == ExtendedActivationKind.File)
-        //    {
-        //        var fileArgs = args.Data as IFileActivatedEventArgs;
-        //        if (fileArgs?.Files.Count > 0 &&
-        //            fileArgs.Files[0] is StorageFile file &&
-        //            file.FileType == ".survey")
-        //        {
-        //            StartupSurveyPath = file.Path;
-        //            Debug.WriteLine($"Activated with file: {StartupSurveyPath}");
-        //        }
-        //    }
-        //}
+        //???public static string? StartupSurveyPath { get; private set; }
 
 
         private void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)

@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ex:WindowEx
+    x:Class="Surveyor.User_Controls.BulkSurveyExportDialog"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Surveyor.User_Controls"
+    xmlns:dg="using:CommunityToolkit.WinUI.UI.Controls"   
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:ex="using:WinUIEx"
+    MinWidth="700"
+    MinHeight="800"
+    MaxHeight="1000"
+    MaxWidth="1100"
+    mc:Ignorable="d"
+    Title="Bulk survey export">
+
+    <Grid Padding="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>         <!-- 0: Title -->
+            <RowDefinition Height="Auto"/>         <!-- 1: Instructions -->
+            <RowDefinition Height="Auto"/>         <!-- 2: Folder select -->
+            <RowDefinition Height="Auto"/>         <!-- 3: Select All Checkbox -->
+            <RowDefinition Height="*"/>            <!-- 4: DataGrid -->
+            <RowDefinition Height="Auto"/>         <!-- 5: Buttons -->
+        </Grid.RowDefinitions>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        
+        <!--TITLE-->
+        <TextBlock x:Name="SurveyExportTitle" Grid.Row="0" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Bulk Survey Export"/>
+
+        <!--INSTRUCTIONS-->
+        <TextBlock Text="Select a folder and indicate if you want to include sub-folders. The surveys are found and displayed below. De-select any you do not want included in the export. On pressing the 'Export Data' button the measurements, 3D points and Single points are exported to an Excel spreadsheet."
+                   Grid.Row="1"
+                   TextWrapping="Wrap" Margin="0,10,0,20"/>
+
+        <!--SELECT FOLDER-->
+        <StackPanel Orientation="Horizontal" Grid.Row="2" Margin="0,0,0,10">
+            <TextBox x:Name="FolderPathTextBox" Width="500" Margin="0,0,10,0" IsReadOnly="True"/>
+            <Button Content="Select Folder" Click="SelectFolder_Click" Margin="0,0,10,0"/>
+            <CheckBox x:Name="IncludeSubfoldersCheckBox" Content="Include Subfolders" IsChecked="True" VerticalAlignment="Center" Margin="0,0,0,10"/>
+            <!--LOADING...-->
+            <ProgressRing x:Name="LoadingRing"
+                  IsActive="False"
+                  Width="24"
+                  Height="24"
+                  Visibility="Collapsed"
+                  VerticalAlignment="Center"
+                  Margin="10,0,0,0"/>
+        </StackPanel>
+
+        <CheckBox x:Name="HeaderSelectAllCheckBox"
+                      Grid.Row="3"
+                      Content="Select All"
+                      IsThreeState="True"
+                      Checked="HeaderSelectAllCheckBox_Checked"
+                      Unchecked="HeaderSelectAllCheckBox_Unchecked"
+                      Indeterminate="HeaderSelectAllCheckBox_Indeterminate"
+                      ToolTipService.ToolTip="Toggle all rows on or off"
+                      Margin="0,0,0,10"/>
+
+        <!--SURVEY DATAGRID-->
+        <dg:DataGrid x:Name="SurveyGrid" Grid.Row="4" AutoGenerateColumns="False"
+                     MinColumnWidth="20"
+                    HeadersVisibility="Column"
+                    Padding="0"
+                    ColumnHeaderHeight="40">
+            <dg:DataGrid.Columns>
+                <dg:DataGridCheckBoxColumn Width="50" Header="" Binding="{Binding Include, Mode=TwoWay}"/>
+                <dg:DataGridTextColumn Header="File Name" Binding="{Binding FileName}" Width="300"/>
+                <dg:DataGridTextColumn Header="Depth" Binding="{Binding Depth}" Width="100"/>
+                <dg:DataGridTextColumn Header="Total" Binding="{Binding TotalEntries}" Width="120"/>
+                <dg:DataGridTextColumn Header="Measurements" Binding="{Binding TotalMeasurements}" Width="120"/>
+                <dg:DataGridTextColumn Header="3D" Binding="{Binding Total3DPoints}" Width="120"/>
+                <dg:DataGridTextColumn Header="Single" Binding="{Binding TotalSinglePoints}" Width="120"/>
+
+                <dg:DataGridTextColumn Header="Transects" Binding="{Binding TransectList}" Width="120"/>
+                <dg:DataGridTextColumn Header="Range Rule" Binding="{Binding RulesRange}" Width="120"/>
+                <dg:DataGridTextColumn Header="Horz Rule" Binding="{Binding RulesHorizontal}" Width="120"/>
+                <dg:DataGridTextColumn Header="Vert Rule" Binding="{Binding RulesVertical}" Width="120"/>
+                <dg:DataGridTextColumn Header="RMS Rule" Binding="{Binding RulesRMS}" Width="120"/>
+                <dg:DataGridTextColumn Header="Rules Calc'd" Binding="{Binding RulesCalc}" Width="120"/>
+                <dg:DataGridTextColumn Header="Species" Binding="{Binding Species}" Width="120"/>
+                <dg:DataGridTextColumn Header="Calibration" Binding="{Binding Calibration}" Width="120"/>
+                <dg:DataGridTextColumn Header="Sync'd" Binding="{Binding SyncPoint}" Width="120"/>
+                <dg:DataGridTextColumn Header="Analyst" Binding="{Binding Analyst}" Width="180"/>
+                <dg:DataGridTextColumn Header="Survey Code" Binding="{Binding SurveyCode}" Width="180"/>
+                <dg:DataGridTextColumn Header="LeftMediaFile" Binding="{Binding LeftMediaFile}" Width="250"/>
+                <dg:DataGridTextColumn Header="RightMediaFile" Binding="{Binding RightMediaFile}" Width="250"/>
+                <dg:DataGridTextColumn Header="Survey Path" Binding="{Binding SurveyPath}" Width="250"/>
+                <dg:DataGridTextColumn Header="Media Path" Binding="{Binding MediaPath}" Width="250"/>
+            </dg:DataGrid.Columns>
+        </dg:DataGrid>
+        <!--BUTTONS AND COUNTS-->
+        <Grid Grid.Row="5" Margin="0,10,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+            <!-- Left side: Item count -->
+            <TextBlock x:Name="ItemCountTextBlock" VerticalAlignment="Center" Margin="0,0,20,0" Grid.Column="0" />
+
+            <!-- Right side: Buttons -->
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Column="1">
+                <Button x:Name="ExportButton" Content="Export" Click="Export_Click" Margin="0,0,10,0">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="Save the contains for the selected survey files in a sheet called 'Data' and the table above into a sheet called 'Metadata'"/>
+                    </ToolTipService.ToolTip>
+                </Button>
+                <Button Content="Cancel" Click="Cancel_Click"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</ex:WindowEx>

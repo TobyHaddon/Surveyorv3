@@ -237,29 +237,49 @@ namespace Surveyor.User_Controls
                 // Load left the media files
                 if (survey.Data.Media.LeftMediaFileNames.Count > 0)
                 {
-                    foreach (string fileName in survey.Data.Media.LeftMediaFileNames)
+                    for (int index = 0; index < survey.Data.Media.LeftMediaFileNames.Count; index++)
                     {
-                        string fileSpec = Path.Combine(survey.Data.Media.MediaPath, fileName);
+                        string fileSpec = survey.GetLeftMediaFileSpec(index);
 
                         StorageFile file = await StorageFile.GetFileFromPathAsync(fileSpec);
                         MediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
 
                         LeftMediaFileItemList.Add(item);
                     }
+                    //???TOBEDELETED
+                    //foreach (string fileName in survey.Data.Media.LeftMediaFileNames)
+                    //{
+                    //    string fileSpec = Path.Combine(survey.Data.Media.MediaPath, fileName);
+
+                    //    StorageFile file = await StorageFile.GetFileFromPathAsync(fileSpec);
+                    //    MediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
+
+                    //    LeftMediaFileItemList.Add(item);
+                    //}
                 }
 
                 // Load right the media files
                 if (survey.Data.Media.RightMediaFileNames.Count > 0)
                 {
-                    foreach (string fileName in survey.Data.Media.RightMediaFileNames)
+                    for (int index = 0; index < survey.Data.Media.RightMediaFileNames.Count; index++)
                     {
-                        string fileSpec = Path.Combine(survey.Data.Media.MediaPath, fileName);
+                        string fileSpec = survey.GetRightMediaFileSpec(index);
 
                         StorageFile file = await StorageFile.GetFileFromPathAsync(fileSpec);
                         MediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
 
                         RightMediaFileItemList.Add(item);
                     }
+                    //???TOBEDELETED
+                    //foreach (string fileName in survey.Data.Media.RightMediaFileNames)
+                    //{
+                    //    string fileSpec = Path.Combine(survey.Data.Media.MediaPath, fileName);
+
+                    //    StorageFile file = await StorageFile.GetFileFromPathAsync(fileSpec);
+                    //    MediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
+
+                    //    RightMediaFileItemList.Add(item);
+                    //}
                 }
             }
 

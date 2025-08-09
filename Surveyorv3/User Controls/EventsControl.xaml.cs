@@ -219,7 +219,7 @@ namespace Surveyor.User_Controls
             if (evt.EventData is not null)
             {
                 // Get the survey transect marker name for this event (if any)
-                string? surveyTransectName = GetTransectMarkerNameForEvent(evt);
+                string? surveyTransectName = GetTransectMarkerNameForEvent(events, evt);
 
                 switch (evt.EventDataType)
                 {
@@ -634,7 +634,7 @@ namespace Surveyor.User_Controls
         /// <param name="targetEvent"></param>
         /// <returns></returns>
 
-        private string? GetTransectMarkerNameForEvent(Event targetEvent)
+        public static string? GetTransectMarkerNameForEvent(ObservableCollection<Event> events, Event targetEvent)
         {
             TransectMarker? startMarker = null;
             TransectMarker? endMarker = null;

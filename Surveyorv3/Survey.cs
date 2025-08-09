@@ -20,6 +20,8 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using SurveyorCalibrationData;
+using System.Diagnostics;
+using Emgu.CV.Flann;
 
 namespace Surveyor
 {
@@ -1004,6 +1006,8 @@ namespace Surveyor
         {
             int ret = -1;
             string? json = null;
+            var stopwatch = Stopwatch.StartNew();
+
 
             if (Path.GetExtension(SurveyFileSpec).Equals(".Survey", StringComparison.OrdinalIgnoreCase))
             {
@@ -1095,6 +1099,10 @@ namespace Surveyor
                 ret = -8;
                 Report?.Warning("", $"Load survey failed because the survey has an unsupported extension type, file:{SurveyFileSpec}.");
             }
+
+            stopwatch.Stop();
+            Debug.WriteLine($"Survey.SurveyLoad {SurveyFileSpec} Return code:{ret}, Elapsed time: {stopwatch.ElapsedMilliseconds} ms");
+
 
             return ret;
         }
@@ -1350,6 +1358,56 @@ namespace Surveyor
             }
 
             return ret;
+        }
+
+
+        /// <summary>
+        /// Return a full media file spec
+        /// </summary>
+        /// <param name="index"></param>
+        /// <returns></returns>
+        public string GetLeftMediaFileSpec(int index)
+        {
+            return GetMediaFileSpec(true/*trueLeftFaleRight*/, index);
+        }
+        public string GetRightMediaFileSpec(int index)
+        {
+            return GetMediaFileSpec(false/*trueLeftFaleRight*/, index);
+        }
+        private string GetMediaFileSpec(bool trueLeftFaleRight, int index)
+        {
+            ObservableCollection<string> mediaFileNames;
+            if (trueLeftFaleRight)
+            {
+                mediaFileNames = Data.Media.LeftMediaFileNames;
+            }
+            else
+            {
+                mediaFileNames = Data.Media.RightMediaFileNames;
+            }
+
+            string mediaFile = string.Empty;
+            if (mediaFileNames.Count > 0 &&
+                index >= 0 && index < mediaFileNames.Count)
+            {
+                if (Data.Media.MediaPath is not null)
+                {
+                    mediaFile = Path.Combine(Data.Media.MediaPath, mediaFileNames[index]);
+                }
+                else
+                {
+                    mediaFile = mediaFileNames[index];
+                }
+            }
+
+            // If fileSpec a relative path then use the path from the survey file spec
+            if (!Path.IsPathRooted(mediaFile) && Data.Info.SurveyPath is not null)
+            {
+                // Combine the base directory with the relative fileSpec
+                mediaFile = Path.GetFullPath(Path.Combine(Data.Info.SurveyPath, mediaFile));
+            }
+
+            return mediaFile;
         }
 
 

@@ -723,6 +723,7 @@
                                 <HyperlinkButton Content="Emgu.CV GPL V3" NavigateUri="https://www.nuget.org/packages/Emgu.CV" />
                                 <HyperlinkButton Content="Math.NET Numerics MIT License" NavigateUri="https://numerics.mathdotnet.com" />
                                 <HyperlinkButton Content="Json.NET MIT License" NavigateUri="https://www.newtonsoft.com/json" />
+                                <HyperlinkButton Content="EPPlus Polyform Noncommercial 1.0.0" NavigateUri="https://polyformproject.org/licenses/noncommercial/1.0.0/" />
                                 <HyperlinkButton Content="FishBase Attribution-NonCommercial 4.0 International License" NavigateUri="https://creativecommons.org/licenses/by-nc/4.0/?ref=chooser-v1" />
                                 <HyperlinkButton Content="Snorkeling mask icon from Noun Project CC BY 3.0" NavigateUri="https://thenounproject.com/icon/snorkeling-mask-1541410/" />
                                 <HyperlinkButton Content="Fish icon created by Those Icons - Flaticon" NavigateUri="https://www.flaticon.com/free-icons/fish"/>

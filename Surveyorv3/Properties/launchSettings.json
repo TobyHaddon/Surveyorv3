@@ -2,6 +2,7 @@
   "profiles": {
     "Surveyorv3 (Package)": {
       "commandName": "MsixPackage",
+      "commandLineArgs": "\"C:\\Users\\tobyh\\OneDrive\\Documents\\LIB-5m-E23 (Sync retest).survey\" /Start=123",
       "nativeDebugging": true
     },
     "Surveyorv3 (Unpackaged)": {

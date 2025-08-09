@@ -103,7 +103,7 @@
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8B5;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem Name="MenuExport" Text="Export..." IsEnabled="False" Click="FileExport_Click">
+                    <MenuFlyoutItem Name="MenuExport" Text="Export..." IsEnabled="True" Click="FileExport_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEDE1;" />
                         </MenuFlyoutItem.Icon>
@@ -336,8 +336,28 @@
             <!-- TextBlock in the PaneFooter -->
             <NavigationView.PaneFooter>
                 <StackPanel Orientation="Horizontal">
+                    <!-- Measurement and Range Indicators -->
+                    <TextBlock x:Name="Measurement" FontSize="12" 
+                               VerticalAlignment="Center" HorizontalAlignment="Right" 
+                               TextAlignment="Right" Width="70"/>
+                    <TextBlock x:Name="MeasurementIndictor"
+                           Visibility="Collapsed"
+                           FontFamily="Segoe Fluent Icons"
+                           FontSize="12" 
+                           Text="&#xED5E;"
+                           VerticalAlignment="Center"
+                           Margin="0,0,10,0">
+                    </TextBlock>
+                    <TextBlock x:Name="Range" FontSize="12" 
+                               VerticalAlignment="Center" HorizontalAlignment="Right" 
+                               TextAlignment="Right" Width="70" Margin="0,0,10,0"/>
+                    <TextBlock x:Name="RMS" FontSize="12" 
+                               VerticalAlignment="Center" HorizontalAlignment="Right" 
+                               TextAlignment="Right" Width="75" Margin="0,0,10,0"/>
                     <!-- Pointer coordinates -->
-                    <TextBlock x:Name="PointerCoordinates" FontSize="12" VerticalAlignment="Center"/>
+                    <TextBlock x:Name="PointerCoordinates" FontSize="12" 
+                               VerticalAlignment="Center" HorizontalAlignment="Right" 
+                               TextAlignment="Right" Width="80"/>
                     <TextBlock x:Name="PointerCoordinatesIndicator"
                            Visibility="Collapsed"
                            FontFamily="Segoe Fluent Icons"

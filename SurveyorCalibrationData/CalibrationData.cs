@@ -309,6 +309,7 @@ namespace SurveyorCalibrationData
         public int LoadFromFile(string fileSpec)
         {
             int ret = 0;
+            var stopwatch = Stopwatch.StartNew();
 
             try
             {
@@ -335,6 +336,11 @@ namespace SurveyorCalibrationData
                 // Log the exception details
                 Debug.WriteLine($"Error loading calibration data: {ex.Message}");
                 return -2; // Error code for exception
+            }
+            finally
+            {
+                stopwatch.Stop();
+                Debug.WriteLine($"CalibrationCameraData.LoadFromFile {fileSpec} Return code:{ret}, RMS={this.StereoCameraCalibration.RMS}, Elapsed time: {stopwatch.ElapsedMilliseconds} ms");
             }
 
             return ret;
@@ -438,41 +444,41 @@ namespace SurveyorCalibrationData
 
                 var calibrationData = JsonConvert.DeserializeObject<CalibrationData>(json, settings);
 
-#if DEBUG
-                if (calibrationData is not null)
-                {
-                    string Description = string.IsNullOrEmpty(calibrationData.Description) == false ? calibrationData.Description : "None";
-                    string GuidString = calibrationData.CalibrationID?.ToString() ?? "Emtry";
+//#if DEBUG
+//                if (calibrationData is not null)
+//                {
+//                    string Description = string.IsNullOrEmpty(calibrationData.Description) == false ? calibrationData.Description : "None";
+//                    string GuidString = calibrationData.CalibrationID?.ToString() ?? "Emtry";
 
-                    Debug.WriteLine($"Description:{Description},  Guid:{GuidString}");
-                    Debug.WriteLine($"Left:");
-                    if (calibrationData.LeftCameraCalibration.Intrinsic is not null)
-                        Debug.WriteLine($"   Camera Matrix: {FormatMatrixToString(calibrationData.LeftCameraCalibration.Intrinsic, 18/*indent*/)}");
-                    if (calibrationData.LeftCameraCalibration.Distortion is not null)
-                        Debug.WriteLine($"   Distortion Coefficients: {FormatMatrixToString(calibrationData.LeftCameraCalibration.Distortion, 28/*indent*/)}");
-                    if (calibrationData.LeftCameraCalibration.ImageSize is not null)
-                        Debug.WriteLine($"   Image Size: {FormatMatrixToString(calibrationData.LeftCameraCalibration.ImageSize, 28/*indent*/)}");
-                    if (!string.IsNullOrEmpty(calibrationData.LeftCameraCalibration.CameraID))
-                        Debug.WriteLine($"   Camera ID: {calibrationData.LeftCameraCalibration.CameraID}");
+//                    Debug.WriteLine($"Description:{Description},  Guid:{GuidString}");
+//                    Debug.WriteLine($"Left:");
+//                    if (calibrationData.LeftCameraCalibration.Intrinsic is not null)
+//                        Debug.WriteLine($"   Camera Matrix: {FormatMatrixToString(calibrationData.LeftCameraCalibration.Intrinsic, 18/*indent*/)}");
+//                    if (calibrationData.LeftCameraCalibration.Distortion is not null)
+//                        Debug.WriteLine($"   Distortion Coefficients: {FormatMatrixToString(calibrationData.LeftCameraCalibration.Distortion, 28/*indent*/)}");
+//                    if (calibrationData.LeftCameraCalibration.ImageSize is not null)
+//                        Debug.WriteLine($"   Image Size: {FormatMatrixToString(calibrationData.LeftCameraCalibration.ImageSize, 28/*indent*/)}");
+//                    if (!string.IsNullOrEmpty(calibrationData.LeftCameraCalibration.CameraID))
+//                        Debug.WriteLine($"   Camera ID: {calibrationData.LeftCameraCalibration.CameraID}");
 
-                    Debug.WriteLine($"Right:");
-                    if (calibrationData.RightCameraCalibration.Intrinsic is not null)
-                        Debug.WriteLine($"   Camera Matrix: {FormatMatrixToString(calibrationData.RightCameraCalibration.Intrinsic, 18/*indent*/)}");
-                    if (calibrationData.RightCameraCalibration.Distortion is not null)
-                        Debug.WriteLine($"   Distortion Coefficients: {FormatMatrixToString(calibrationData.RightCameraCalibration.Distortion, 28/*indent*/)}");
-                    if (calibrationData.RightCameraCalibration.ImageSize is not null)
-                        Debug.WriteLine($"   Image Size: {FormatMatrixToString(calibrationData.RightCameraCalibration.ImageSize, 28/*indent*/)}");
-                    if (!string.IsNullOrEmpty(calibrationData.RightCameraCalibration.CameraID))
-                        Debug.WriteLine($"   Camera ID: {calibrationData.RightCameraCalibration.CameraID}");
+//                    Debug.WriteLine($"Right:");
+//                    if (calibrationData.RightCameraCalibration.Intrinsic is not null)
+//                        Debug.WriteLine($"   Camera Matrix: {FormatMatrixToString(calibrationData.RightCameraCalibration.Intrinsic, 18/*indent*/)}");
+//                    if (calibrationData.RightCameraCalibration.Distortion is not null)
+//                        Debug.WriteLine($"   Distortion Coefficients: {FormatMatrixToString(calibrationData.RightCameraCalibration.Distortion, 28/*indent*/)}");
+//                    if (calibrationData.RightCameraCalibration.ImageSize is not null)
+//                        Debug.WriteLine($"   Image Size: {FormatMatrixToString(calibrationData.RightCameraCalibration.ImageSize, 28/*indent*/)}");
+//                    if (!string.IsNullOrEmpty(calibrationData.RightCameraCalibration.CameraID))
+//                        Debug.WriteLine($"   Camera ID: {calibrationData.RightCameraCalibration.CameraID}");
 
-                    Debug.WriteLine("Stereo:");
-                    Debug.WriteLine($"   RMS: {calibrationData.StereoCameraCalibration.RMS}");
-                    if (calibrationData.StereoCameraCalibration.Rotation is not null)
-                        Debug.WriteLine($"   Rotation: {FormatMatrixToString(calibrationData.StereoCameraCalibration.Rotation, 13/*indent*/)}");
-                    if (calibrationData.StereoCameraCalibration.Translation is not null)
-                        Debug.WriteLine($"   Translation: {FormatMatrixToString(calibrationData.StereoCameraCalibration.Translation, 16/*indent*/)}");
-                }
-#endif
+//                    Debug.WriteLine("Stereo:");
+//                    Debug.WriteLine($"   RMS: {calibrationData.StereoCameraCalibration.RMS}");
+//                    if (calibrationData.StereoCameraCalibration.Rotation is not null)
+//                        Debug.WriteLine($"   Rotation: {FormatMatrixToString(calibrationData.StereoCameraCalibration.Rotation, 13/*indent*/)}");
+//                    if (calibrationData.StereoCameraCalibration.Translation is not null)
+//                        Debug.WriteLine($"   Translation: {FormatMatrixToString(calibrationData.StereoCameraCalibration.Translation, 16/*indent*/)}");
+//                }
+//#endif
 
                 // Load this class
                 if (calibrationData is not null)

@@ -1780,6 +1780,111 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Called dynamically display measurement/range/rms information as the user selects
+        /// target points. i.e. before a measurement is added or a 3D point added
+        /// </summary>
+        internal async void DisplayDynamicMeasurment()
+        {
+            Stopwatch stopwatch = new();
+            stopwatch.Start();
+
+            if (TargetALeft is not null &&
+                TargetBLeft is not null &&
+                TargetARight is not null &&
+                TargetBRight is not null)
+            {
+                // Enough points for a measurement
+                SurveyMeasurement surveyMeasurement = new();
+                surveyMeasurement.LeftXA = TargetALeft!.Value.X;
+                surveyMeasurement.LeftYA = TargetALeft!.Value.Y;
+                surveyMeasurement.LeftXB = TargetBLeft!.Value.X;
+                surveyMeasurement.LeftYB = TargetBLeft!.Value.Y;
+                surveyMeasurement.RightXA = TargetARight!.Value.X;
+                surveyMeasurement.RightYA = TargetARight!.Value.Y;
+                surveyMeasurement.RightXB = TargetBRight!.Value.X;
+                surveyMeasurement.RightYB = TargetBRight!.Value.Y;
+
+                // Check that logically Target Left A correponds to Target Right A and Target Left B is correponds to Target Right B
+                // This is incase the user selected the points the wrong way around. If so the target will be swapped
+                SurveyMeasurementHelper.EnsureCorrectCorrespondence(surveyMeasurement);
+
+                // Check if suitable calibration data is available for this frame size
+                bool isReady = await mainWindow.CheckIfMeasurementSetupIsReady();
+                if (isReady)
+                {
+                    // This call calculates the distance, range, X & Y offset between the camera system mid-point and the measurement point mid-point
+                    if (mainWindow.DoMeasurementAndRulesCalculations(surveyMeasurement))
+                    {
+                        stopwatch.Stop();
+                        Debug.WriteLine($"DisplayDynamicMeasurment: Measurement={surveyMeasurement.Measurment * 1000:F0}mm Range={surveyMeasurement.SurveyRulesCalc.Range:F2}m RMS={surveyMeasurement.SurveyRulesCalc.RMS * 1000:F0}mm, elasped {stopwatch.ElapsedMilliseconds}ms");
+
+                        mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.DisplayDynamicMeasurement)
+                        {
+                            measurement = surveyMeasurement.Measurment,
+                            rms = surveyMeasurement.SurveyRulesCalc?.RMS,
+                            range = surveyMeasurement.SurveyRulesCalc?.Range,
+                            //???rangeRulePassed = surveyMeasurement.SurveyRulesCalc?.,
+                            xOffset = surveyMeasurement.SurveyRulesCalc?.XOffset,
+                            //???horizontalRulePassed = surveyMeasurement.SurveyRulesCalc?.,
+                            yOffset = surveyMeasurement.SurveyRulesCalc?.YOffset,
+                            //???verticalRulePassed = surveyMeasurement.SurveyRulesCalc?.
+                        });
+                    }
+                }
+            }
+            else if (TargetALeft is not null && TargetARight is not null)
+            {
+                // Enough points for a 3D point
+                // Check if suitable calibration data is available for this frame size
+                bool isReady = await mainWindow.CheckIfMeasurementSetupIsReady();
+                if (isReady)
+                {
+                    SurveyStereoPoint surveyStereoPoint = new();
+
+                    if (TargetALeft is not null && TargetARight is not null)
+                    {
+                        surveyStereoPoint.LeftX = TargetALeft.Value.X;
+                        surveyStereoPoint.LeftY = TargetALeft.Value.Y;
+                        surveyStereoPoint.RightX = TargetARight.Value.X;
+                        surveyStereoPoint.RightY = TargetARight.Value.Y;
+                    }
+                    else if (TargetBLeft is not null && TargetBRight is not null)
+                    {
+                        surveyStereoPoint.LeftX = TargetBLeft!.Value.X;
+                        surveyStereoPoint.LeftY = TargetBLeft!.Value.Y;
+                        surveyStereoPoint.RightX = TargetBRight!.Value.X;
+                        surveyStereoPoint.RightY = TargetBRight!.Value.Y;
+                    }
+                    // This call calculates the distance, range, X & Y offset between
+                    // the camera system mid-point and the measurement point mid-point
+                    // Note false is returned if there is an error (i.e. it's not that a rules was broken)
+                    if (mainWindow.DoRulesCalculations(surveyStereoPoint))
+                    {
+                        stopwatch.Stop();
+                        Debug.WriteLine($"DisplayDynamicMeasurment: 3D Point Range={surveyStereoPoint.SurveyRulesCalc.Range:F2}m RMS={surveyStereoPoint.SurveyRulesCalc.RMS*1000:F0}mm, elasped {stopwatch.ElapsedMilliseconds}ms");
+
+                        mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.DisplayDynamicMeasurement)
+                        {
+                            rms = surveyStereoPoint.SurveyRulesCalc?.RMS,
+                            range = surveyStereoPoint.SurveyRulesCalc?.Range,
+                            //???rangeRulePassed = surveyStereoPoint.SurveyRulesCalc?.,
+                            xOffset = surveyStereoPoint.SurveyRulesCalc?.XOffset,
+                            //???horizontalRulePassed = surveyStereoPoint.SurveyRulesCalc?.,
+                            yOffset = surveyStereoPoint.SurveyRulesCalc?.YOffset,
+                            //???verticalRulePassed = surveyStereoPoint.SurveyRulesCalc?.
+                        });
+                    }
+                }
+            }
+            else 
+            {
+                // Clear dynamic measurments
+                mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.DisplayDynamicMeasurement));
+            }
+        }
+
+
+        /// <summary>
         /// Users requested a new measurement is added
         /// </summary>
         /// <param name="pointA"></param>
@@ -2241,7 +2346,9 @@ namespace Surveyor
             MediaSynchronized,
             MediaUnsynchronized,
             Poistion,
-            Duration
+            Duration,
+            DisplayDynamicMeasurement   // Used to signal dynamic measurement/rms/range calcs as
+                                        // target points are setup and moved
         }
 
         public eMediaStereoControllerEvent mediaStereoControllerEvent;
@@ -2251,6 +2358,16 @@ namespace Surveyor
 
         // Used for Duration
         public TimeSpan? duration;
+
+        // Used for DisplayDynamicMeasurement
+        public double? measurement;
+        public double? rms;
+        public double? range;
+        public bool? rangeRulePassed;
+        public double? xOffset;
+        public bool? horizontalRulePassed;
+        public double? yOffset;
+        public bool? verticalRulePassed;
     }
 
 
@@ -2413,7 +2530,15 @@ namespace Surveyor
                     case MagnifyAndMarkerControlEvent.TargetPointSelected:
                         if (data.TruePointAFalsePointB is not null)
                         {
+                            // Store the selected points, inform the reciprocal media players and request
+                            // epipolar lines
                             SafeUICall(() => mediaStereoController.TargetPointSelected(data.cameraSide, (bool)data.TruePointAFalsePointB, data.pointA, data.pointB));
+
+                            // Dynamically display measurement/rms/range info as defined by what points
+                            // have been selected. Display in the MainWindow to help the user create
+                            // actuate measurements
+                            mediaStereoController.DisplayDynamicMeasurment();
+
                             if ((bool)data.TruePointAFalsePointB)
                             {
                                 if (data.pointA is not null)

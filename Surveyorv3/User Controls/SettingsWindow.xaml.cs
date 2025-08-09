@@ -54,7 +54,7 @@ namespace Surveyor.User_Controls
         // Reporter
         private Reporter? report = null;
 
-        // Optional sectionto open
+        // Optional section to open
         private string sectionToScrollTo = string.Empty;
 
         // Copy of the mediator 

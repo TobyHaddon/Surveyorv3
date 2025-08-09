@@ -29,12 +29,12 @@ namespace Surveyor
         // Values
         private bool _rangeRuleActive = false;
         private double _rangeMin = 0.0;
-        private double _rangeMax = 10.0;
+        private double _rangeMax = 10.0;    // Default to 10m max range (but not enabled)
         private bool _rmsRuleActive = false;
         private double _rmsMax = 0.0;
         private bool _horizontalRangeRuleActive = false;
-        private double _horizontalRangeLeft = 0.0;
-        private double _horizontalRangeRight = 0.0;
+        private double _horizontalRangeLeft = 2.5;      // Default to 2.5m either side (but not enabled)
+        private double _horizontalRangeRight = 2.5;
         private bool _verticalRangeRuleActive = false;
         private double _verticalRangeTop = 0.0;
         private double _verticalRangeBottom = 0.0;
@@ -315,33 +315,38 @@ namespace Surveyor
         
         public double? RMS { get; set; } = null;                // RMS error in mm
 
+        /// <summary>
+        /// Clear both calcs and rules data
+        /// </summary>
         public void Clear()
+        {
+            ClearCalcs();
+            ClearRules();
+        }
+        public void ClearCalcs()
+        {
+            Range = null;
+            RMS = null;
+            XOffset = null;
+            YOffset = null;
+        }
+        public void ClearRules()
         {
             SurveyRules = null;
             SurveyRulesText = "";
-            Range = null;
-            XOffset = null;
-            YOffset = null;
         }
 
 
         /// <summary>
-        /// Apply the rules based on the stereo projection calculations
-        /// This function should only be called if survey rules are active
+        /// Apply calvulations that the rules later depend on.
+        /// Note. It is helpful to have the range, rms, x-offset, y-offset available
+        /// even if the rules are not on
         /// </summary>
-        /// <param name="surveyRulesData"></param>
         /// <param name="stereoProjection"></param>
-        public void ApplyRules(SurveyRulesData surveyRulesData,StereoProjection stereoProjection)
+        public void ApplyCalcs(StereoProjection stereoProjection)
         {
             // Reset
             Clear();
-
-            // Start by assuming the survey passes the rules and prove otherwise
-            SurveyRules = true;
-            SurveyRulesText = "";
-            StringBuilder surveyRulesFailedText = new();
-            StringBuilder surveyRulesPassedText = new();
-            string ruleText = "";
 
             // Calculate range (distance from origin)
             Range = stereoProjection.RangeFromCameraSystemCentrePointToMeasurementCentrePoint();
@@ -352,6 +357,25 @@ namespace Surveyor
 
             // Calculate RMS
             RMS = stereoProjection.RMS(null/*TruePointAFalsePointBNullWorstCase*/);
+
+        }
+
+
+        /// <summary>
+        /// Apply the rules based on the stereo projection calculations
+        /// This function should only be called if survey rules are active
+        /// Note. *** SurveyRulesCalc.ApplyCalcs() must be called before 
+        /// this function ***
+        /// </summary>
+        /// <param name="surveyRulesData"></param>
+        public void ApplyRules(SurveyRulesData surveyRulesData)
+        {
+            // Start by assuming the survey passes the rules and prove otherwise
+            SurveyRules = true;
+            SurveyRulesText = "";
+            StringBuilder surveyRulesFailedText = new();
+            StringBuilder surveyRulesPassedText = new();
+            string ruleText = "";
 
             // Check the range rule
             if (surveyRulesData.RangeRuleActive == true)

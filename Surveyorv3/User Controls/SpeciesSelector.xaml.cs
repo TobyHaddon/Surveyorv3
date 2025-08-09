@@ -328,21 +328,32 @@ namespace Surveyor.User_Controls
                     else
                     {
                         // Check if the Species value has changed
+                        if (species == string.Empty)
+                            species = null;
+
                         if (speciesInfo.Species != species)
                         {
                             speciesInfo.Species = species;
                             ret = true;
                         }
                         // Check if the Genus value has changed
-                        if (speciesInfo.Genus != AutoSuggestGenus.Text)
+                        string? genus = AutoSuggestGenus.Text;
+                        if (genus == string.Empty)
+                            genus = null;
+
+                        if (speciesInfo.Genus != genus)
                         {
-                            speciesInfo.Genus = AutoSuggestGenus.Text;
+                            speciesInfo.Genus = genus;
                             ret = true;
                         }
                         // Check if the Family value has changed
-                        if (speciesInfo.Family != AutoSuggestFamily.Text)
+                        string? family = AutoSuggestFamily.Text;
+                        if (family == string.Empty)
+                            family = null;
+
+                        if (speciesInfo.Family != family)
                         {
-                            speciesInfo.Family = AutoSuggestFamily.Text;
+                            speciesInfo.Family = family;
                             ret = true;
                         }
                     }

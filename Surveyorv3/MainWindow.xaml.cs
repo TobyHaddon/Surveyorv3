@@ -36,6 +36,10 @@ using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.Survey.DataClass;
 using static Surveyor.User_Controls.SettingsWindowEventData;
 using SurveyorCalibrationData;
+using static System.Collections.Specialized.BitVector32;
+using MathNet.Numerics.Distributions;
+using static Surveyor.User_Controls.MediaPlayerEventData;
+using System.Collections;
 
 
 namespace Surveyor
@@ -327,6 +331,10 @@ namespace Surveyor
             // Load a startup survey if the application was started via a file assoication
             // Now check for startup file
             var activationArgs = Microsoft.Windows.AppLifecycle.AppInstance.GetCurrent().GetActivatedEventArgs();
+            var launchArgs = activationArgs.Data as ILaunchActivatedEventArgs;
+            
+            string surveyFileSpec = string.Empty;
+            double? startSeconds = null;
             if (activationArgs.Kind == ExtendedActivationKind.File)
             {
                 var fileArgs = activationArgs.Data as IFileActivatedEventArgs;
@@ -334,16 +342,69 @@ namespace Surveyor
                     fileArgs.Files[0] is StorageFile file &&
                     file.FileType == ".survey")
                 {
-                    Debug.WriteLine($"Activated with file: {file.Path}");
-                    // Small dispatcher delay to ensure UI is fully rendered
-                    DispatcherQueue.TryEnqueue(async () =>
-                    {
-                        await Task.Delay(100); // optional but helps UI be ready
-                        report.Info("", $"App activated with associated file: {file.Path}");
-
-                        await OpenSurveyFromFile(file.Path);
-                    });
+                    surveyFileSpec = file.Path;
                 }
+            }
+            else if (activationArgs.Kind == ExtendedActivationKind.Launch)
+            {
+                var args = Environment.GetCommandLineArgs();
+                if (args.Length >= 2)
+                {
+                    surveyFileSpec = args[1];
+
+                    // Get for 2nd parameter for a start position (in seconds)
+                    GetArgs.GetArg("/Start", out double? startPosition);
+                }
+            }
+            else if (activationArgs.Kind == ExtendedActivationKind.Protocol)
+            {
+                var protocolArgs = activationArgs.Data as IProtocolActivatedEventArgs;
+                var uri = protocolArgs?.Uri;
+
+                if (uri is not null)
+                {
+                    var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+
+                    if (query is not null)
+                    {
+                        surveyFileSpec = query["file"] ?? string.Empty;
+                        string startParam = query["start"] ?? string.Empty;
+
+                        if (startParam != string.Empty && 
+                            double.TryParse(startParam, System.Globalization.NumberStyles.Float,
+                                            System.Globalization.CultureInfo.InvariantCulture,
+                                            out var secs))
+                        {
+                            startSeconds = secs;
+                        }
+                    }
+                }
+            }
+
+            if (surveyFileSpec != string.Empty)
+            {
+                Debug.WriteLine($"Activated with file: {surveyFileSpec}");
+                // Small dispatcher delay to ensure UI is fully rendered
+                DispatcherQueue.TryEnqueue(async () =>
+                {
+                    await Task.Delay(100); // optional but helps UI be ready
+                    report.Info("", $"App activated with associated file: {surveyFileSpec}");
+
+                    await OpenSurveyFromFile(surveyFileSpec);
+
+                    // Go to the start position in the video (only if stereo set)
+                    if (surveyClass?.Data.Sync.IsSynchronized == true &&
+                        startSeconds is not null)
+                    {
+                        TimeSpan startPositionTS = TimeSpan.FromSeconds((double)startSeconds);
+
+                        report.Info("", $"Start position: {startPositionTS:hh\\:mm\\:ss\\.ff} ({startPositionTS.TotalSeconds:F2}");
+                        await Task.Delay(100); // optional but helps UI be ready
+                        await mediaStereoController.FrameMove(SurveyorMediaPlayer.eCameraSide.None/*Stereo*/, 1);
+                        await Task.Delay(200); // optional but helps UI be ready
+                        mediaStereoController.FrameJump(SurveyorMediaPlayer.eCameraSide.None/*Stereo*/, startPositionTS);
+                    }
+                });
             }
         }
 
@@ -1753,11 +1814,63 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FileExport_Click(object sender, RoutedEventArgs e)
+        private int exportWindowEntryCount = 0;
+        private async void FileExport_Click(object sender, RoutedEventArgs e)
         {
 
-        }
+            try
+            {
+                int entryCount = Interlocked.Increment(ref exportWindowEntryCount);
+                // Make sure we only open the settings window once.
+                // This can happen if the survey and movies are loaded and the user clicks the settings a few times.
+                if (entryCount == 1)
+                {
+                    // Initialize if necessary
+                    var dialog = new BulkSurveyExportDialog(report);
 
+                    // Get the HWND (window handle) for both windows
+                    IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
+                    IntPtr settingsWindowHandle = WindowNative.GetWindowHandle(dialog);
+
+                    // Get the AppWindow instances for both windows
+                    AppWindow mainAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(mainWindowHandle));
+
+                    // Disable the main window by setting it inactive
+                    SetWindowEnabled(mainWindowHandle, false);
+
+                    // Activate export window
+                    dialog.Activate(); // Shows the window non-modally
+
+                    // Important not to block the UI thread.
+                    // We're still waiting for the Closed event.
+                    // The Closed handler runs on the UI thread, allowing WinUIEx to persist the window position.
+                    var tcs = new TaskCompletionSource();
+
+                    void OnClosed(object sender, WindowEventArgs args)
+                    {
+                        dialog.Closed -= OnClosed;
+                        tcs.SetResult();
+                    }
+
+                    dialog.Closed += OnClosed;
+
+                    await tcs.Task;
+
+
+                    // Re-enable the main window after closing settings
+                    SetWindowEnabled(mainWindowHandle, true);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Handle any exceptions that occur during the process
+                Debug.WriteLine($"MainWindow.FileExport_Click Error showing bulk export window: {ex.Message}");
+            }
+            finally
+            {
+                Interlocked.Decrement(ref exportWindowEntryCount);
+            }
+        }
 
 
         /// <summary>
@@ -2587,25 +2700,26 @@ namespace Surveyor
 
 
                 // Get the media file names
-                string mediaFileLeft = "";
-                string mediaFileRight = "";
+                string mediaFileLeft = surveyClass.GetLeftMediaFileSpec(0);
+                string mediaFileRight = surveyClass.GetRightMediaFileSpec(0);
 
-                if (surveyClass.Data.Media.LeftMediaFileNames.Count > 0)
-                    mediaFileLeft = Path.Combine(surveyClass.Data.Media.MediaPath, surveyClass.Data.Media.LeftMediaFileNames[0]);
-                if (surveyClass.Data.Media.RightMediaFileNames.Count > 0)
-                    mediaFileRight = Path.Combine(surveyClass.Data.Media.MediaPath, surveyClass.Data.Media.RightMediaFileNames[0]);
+                //???TOBEDELETED
+                //if (surveyClass.Data.Media.LeftMediaFileNames.Count > 0)
+                //    mediaFileLeft = Path.Combine(surveyClass.Data.Media.MediaPath, surveyClass.Data.Media.LeftMediaFileNames[0]);
+                //if (surveyClass.Data.Media.RightMediaFileNames.Count > 0)
+                //    mediaFileRight = Path.Combine(surveyClass.Data.Media.MediaPath, surveyClass.Data.Media.RightMediaFileNames[0]);
                 
-                // If fileSpec a relative path then use the path from the survey file spec
-                if (!Path.IsPathRooted(mediaFileLeft) && surveyClass.Data.Info.SurveyPath is not null)
-                {
-                    // Combine the base directory with the relative fileSpec
-                    mediaFileLeft = Path.GetFullPath(Path.Combine(surveyClass.Data.Info.SurveyPath, mediaFileLeft));
-                }
-                if (!Path.IsPathRooted(mediaFileRight) && surveyClass.Data.Info.SurveyPath is not null)
-                {
-                    // Combine the base directory with the relative fileSpec
-                    mediaFileRight = Path.GetFullPath(Path.Combine(surveyClass.Data.Info.SurveyPath, mediaFileRight));
-                }
+                //// If fileSpec a relative path then use the path from the survey file spec
+                //if (!Path.IsPathRooted(mediaFileLeft) && surveyClass.Data.Info.SurveyPath is not null)
+                //{
+                //    // Combine the base directory with the relative fileSpec
+                //    mediaFileLeft = Path.GetFullPath(Path.Combine(surveyClass.Data.Info.SurveyPath, mediaFileLeft));
+                //}
+                //if (!Path.IsPathRooted(mediaFileRight) && surveyClass.Data.Info.SurveyPath is not null)
+                //{
+                //    // Combine the base directory with the relative fileSpec
+                //    mediaFileRight = Path.GetFullPath(Path.Combine(surveyClass.Data.Info.SurveyPath, mediaFileRight));
+                //}
 
 
                 // Open left camera media
@@ -3021,17 +3135,18 @@ namespace Surveyor
                 surveyMeasurement.Measurment = measurement;
 
                 SurveyRulesCalc newRules = new();
+                newRules.ApplyCalcs(stereoProjection);
 
                 // Apply the survey rules
                 if (surveyClass is not null &&                     
                     surveyClass.Data.SurveyRules.SurveyRulesActive == true)
                 {
-                    newRules.ApplyRules(surveyClass.Data.SurveyRules.SurveyRulesData, stereoProjection);
+                    newRules.ApplyRules(surveyClass.Data.SurveyRules.SurveyRulesData);
                 }
                 else
                 {
                     // No rules applied
-                    newRules.Clear();
+                    newRules.ClearRules();  // This clears the rules and but the calcs
                 }
 
                 if (!newRules.Equals(surveyMeasurement.SurveyRulesCalc))
@@ -3072,18 +3187,18 @@ namespace Surveyor
                 new Point(surveyStereoPoint.RightX, surveyStereoPoint.RightY)) == true)
             {
                 SurveyRulesCalc newRules = new();
+                newRules.ApplyCalcs(stereoProjection);
 
                 // Apply the survey rules
                 if (surveyClass is not null &&
                     surveyClass.Data.SurveyRules.SurveyRulesActive == true)
                 {
-
-                    newRules.ApplyRules(surveyClass.Data.SurveyRules.SurveyRulesData, stereoProjection);
+                    newRules.ApplyRules(surveyClass.Data.SurveyRules.SurveyRulesData);
                 }
                 else
                 {
                     // No rules to apply
-                    newRules.Clear();
+                    newRules.ClearRules();  // This clears the rules and but the calcs
                 }
 
                 if (!newRules.Equals(surveyStereoPoint.SurveyRulesCalc))
@@ -3303,6 +3418,41 @@ namespace Surveyor
             // Adjust the File menu item text 
             MenuLockUnlockMediaPlayers.Text = "Lock Media Players";
             MenuLockUnlockMediaPlayersIcon.Glyph = "\uE1F6"; // Lock icon
+        }
+
+
+        /// <summary>
+        /// Updates the main windows to show any dynamic measurement information
+        /// </summary>
+        internal void DisplayDynamicMeasurement(double? measurement, double? range, double? rms)
+        {
+            // Measurment dynamic display
+            string measurementText = string.Empty;
+            if (measurement is not null)
+            {
+                measurementText = $"{measurement*1000:F0}mm";
+                MeasurementIndictor.Visibility = Visibility.Visible;
+            }
+            else
+                MeasurementIndictor.Visibility = Visibility.Collapsed;
+
+            Measurement.Text = measurementText;
+
+            // Range dynamic display
+            string rangeText = string.Empty;
+            if (range is not null)
+            {
+                rangeText = $"range:{range:F2}m";
+            }
+            Range.Text = rangeText;
+
+            // RMS dynamic display
+            string rmsText = string.Empty;
+            if (rms is not null)
+            {
+                rmsText = $"rms:{rms*1000:F1}mm";
+            }
+            RMS.Text = rmsText;
         }
 
 
@@ -3685,6 +3835,27 @@ namespace Surveyor
                     case eMediaStereoControllerEvent.MediaUnsynchronized:
                         SafeUICall(() => _mainWindow.MediaUnsynchronized());
                         break;
+
+                    case eMediaStereoControllerEvent.DisplayDynamicMeasurement:
+                        SafeUICall(() => _mainWindow.DisplayDynamicMeasurement(data.measurement,
+                                                                               data.range,
+                                                                               data.rms));
+                        break;
+
+                }
+            }
+            else if (message is MediaPlayerEventData)
+            {
+                MediaPlayerEventData data = (MediaPlayerEventData)message;
+
+                // If a new frame is being rendered then clear any dynamic measurements
+                // We are depending on the FrameRendered message from the left camera
+                // The dynamic measurments are only from stereo calcs, we only need to clear
+                // the measurement once (no left frame/right frame concept)
+                if (data.cameraSide == SurveyorMediaPlayer.eCameraSide.Left &&
+                    data.mediaPlayerEvent == eMediaPlayerEvent.FrameRendered)
+                {
+                    SafeUICall(() => _mainWindow.DisplayDynamicMeasurement(null, null, null));
                 }
             }
             else if (message is SettingsWindowEventData)
@@ -3707,7 +3878,7 @@ namespace Surveyor
                             data.experimentalFeatureSetBEnabled is not null &&
                             data.experimentalFeatureSetCEnabled is not null)
                         {
-                            _mainWindow._SetExperimental((bool)data!.experimentalEnabled, 
+                            _mainWindow._SetExperimental((bool)data!.experimentalEnabled,
                                                          (bool)data.experimentalFeatureSetAEnabled,
                                                          (bool)data.experimentalFeatureSetBEnabled,
                                                          (bool)data.experimentalFeatureSetCEnabled);

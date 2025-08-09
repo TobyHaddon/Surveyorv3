@@ -693,33 +693,28 @@ namespace Surveyor.Controls
         {
             bool ret = false;
 
-            CalibrationData? calibrationData = null;
-
             appMode = AppMode.BestFramesCalc;
             SetUIControls();
 
-            if (calibrationStereoFrameSet is not null)
+            if (calibrationStereoFrameSet is not null && Head.Equals("stereo", StringComparison.InvariantCultureIgnoreCase))
             {
-                //???  MonoCalibrationCameraData leftMonoCalibrationCameraData,
-                //???  MonoCalibrationCameraData rightMonoCalibrationCameraData,
-                ??  CalibrationParameters calibrationParameters,
-                // Proceed to do the mono calibration using each the calibration paraemter set
+                // Proceed to do the stero  calibration using each the calibration paraemter set
                 foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
                 {
+                    MonoCalibrationCameraData? leftMonoCalibrationCameraData = calibProject.Data.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
+                    MonoCalibrationCameraData? rightMonoCalibrationCameraData = calibProject.Data.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
 
-
-                    // Create a list of the best calibation frames best on the sensor bin only
-                    calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold, blurMinThreshold);
-
-                    // Parse the Frames and calculate the yaw and pitch for each frame using the pass1 calibration
-                    await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBin(leftMonoCalibrationCameraData, rightMonoCalibrationCameraData, frameSize);
-
-                    // Next top-up with pose diverse frames
-                    calibrationStereoFrameSet.AddBestStereoFramesUsingPoseBins(movementMinThreshold, blurMinThreshold);
-
-                    // Check we have suitable calibration data to proceed
-                    if (Head.Equals("stereo", StringComparison.InvariantCultureIgnoreCase))
+                    if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
                     {
+                        // Create a list of the best calibation frames best on the sensor bin only
+                        calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold, blurMinThreshold);
+
+                        // Parse the Frames and calculate the yaw and pitch for each frame using the pass1 calibration
+                        await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBin(leftMonoCalibrationCameraData, rightMonoCalibrationCameraData, frameSize);
+
+                        // Next top-up with pose diverse frames
+                        calibrationStereoFrameSet.AddBestStereoFramesUsingPoseBins(movementMinThreshold, blurMinThreshold);
+
                         // Reset calibration output display display 
                         LeftCalibDataText.Text = string.Empty;
                         LeftCalibDataBorder.Visibility = Visibility.Collapsed;
@@ -742,30 +737,7 @@ namespace Surveyor.Controls
 
                         if (calibrationStereoCameraData is not null)
                         {
-                            calibrationData = new()
-                            {
-                                StereoCameraCalibration = calibrationStereoCameraData,
-                            };
-                            calibrationData.LeftCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
-                            calibrationData.LeftCameraCalibration.ImageSize[0, 0] = (int)frameSize.Width;
-                            calibrationData.LeftCameraCalibration.ImageSize[0, 1] = (int)frameSize.Height;
-
-                            calibrationData.LeftCameraCalibration.ImageTotal = leftMonoCalibrationCameraData.ImageTotal;
-                            calibrationData.LeftCameraCalibration.ImageUseable = leftMonoCalibrationCameraData.ImageUseable;
-                            calibrationData.LeftCameraCalibration.Intrinsic = leftMonoCalibrationCameraData.IntrinsicMatrix;
-                            calibrationData.LeftCameraCalibration.Distortion = leftMonoCalibrationCameraData.DistortionCoeffs;
-                            calibrationData.LeftCameraCalibration.RMS = leftMonoCalibrationCameraData.ReprojectionRMS;
-
-                            calibrationData.RightCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
-                            calibrationData.RightCameraCalibration.ImageSize[0, 0] = (int)frameSize.Width;
-                            calibrationData.RightCameraCalibration.ImageSize[0, 1] = (int)frameSize.Height;
-                            calibrationData.RightCameraCalibration.ImageTotal = rightMonoCalibrationCameraData.ImageTotal;
-                            calibrationData.RightCameraCalibration.ImageUseable = rightMonoCalibrationCameraData.ImageUseable;
-                            calibrationData.RightCameraCalibration.Intrinsic = rightMonoCalibrationCameraData.IntrinsicMatrix;
-                            calibrationData.RightCameraCalibration.Distortion = rightMonoCalibrationCameraData.DistortionCoeffs;
-                            calibrationData.RightCameraCalibration.RMS = leftMonoCalibrationCameraData.ReprojectionRMS;
-
-                            calibrationDataArray[(int)calibrationParameters] = calibrationData;
+                            calibProject.Data.CalibrationStereoCameraDataArray[(int)calibrationParameters] = calibrationStereoCameraData;
                         }
 
                         // Add the stereo calibration display text
@@ -783,11 +755,36 @@ namespace Surveyor.Controls
                         RightCalibDataText.Text = rightCalibationText;
                         RightCalibDataBorder.Visibility = Visibility.Visible;
 
+                       
                     }
+                }
+
+                // Find the best stereo calibration results set
+                CalibrationParameters? calibrationParametersBest = calibProject.ReturnBestStereoCalibrationCameraData();
+                if (calibrationParametersBest is not null)
+                {
+                    ret = true;
+                    calibProject.Data.FrameSize = frameSize;
 
                     if (writeBestFramesToPng)
                     {
-                        await SaveBestFiles();
+                        MonoCalibrationCameraData? leftMonoCalibrationCameraData = calibProject.Data.LeftMonoCalibrationCameraDataArray[(int)calibrationParametersBest];
+                        MonoCalibrationCameraData? rightMonoCalibrationCameraData = calibProject.Data.LeftMonoCalibrationCameraDataArray[(int)calibrationParametersBest];
+
+                        if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
+                        {
+                            // Create a list of the best calibation frames best on the sensor bin only
+                            calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold, blurMinThreshold);
+
+                            // Parse the Frames and calculate the yaw and pitch for each frame using the pass1 calibration
+                            await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBin(leftMonoCalibrationCameraData, rightMonoCalibrationCameraData, frameSize);
+
+                            // Next top-up with pose diverse frames
+                            calibrationStereoFrameSet.AddBestStereoFramesUsingPoseBins(movementMinThreshold, blurMinThreshold);
+
+
+                            await SaveBestFiles();
+                        }
                     }
                 }
             }
@@ -798,7 +795,7 @@ namespace Surveyor.Controls
             RightUpdateFrameLabel();
             SetUIControls();
 
-            return calibrationDataArray[(int)calibrationParameters];
+            return ret;
         }
 
 
