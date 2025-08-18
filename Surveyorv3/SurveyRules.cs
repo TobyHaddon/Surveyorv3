@@ -313,7 +313,10 @@ namespace Surveyor
         public double? XOffset { get; set; } = null;            // X Distance between the camera system mid-point and the measurement mid-point
         public double? YOffset { get; set; } = null;            // Y Distance between the camera system mid-point and the measurement mid-point
         
-        public double? RMS { get; set; } = null;                // RMS error in mm
+        public double? RMS { get; set; } = null;
+        public double? RMSTargetA { get; set; } = null;
+        public double? RMSTargetB { get; set; } = null;
+        // RMS errors in mm
 
         /// <summary>
         /// Clear both calcs and rules data
@@ -358,6 +361,8 @@ namespace Surveyor
             // Calculate RMS
             RMS = stereoProjection.RMS(null/*TruePointAFalsePointBNullWorstCase*/);
 
+            // RMS for Target A and B
+            (RMSTargetA, RMSTargetB) = stereoProjection.GetRMSElements();
         }
 
 

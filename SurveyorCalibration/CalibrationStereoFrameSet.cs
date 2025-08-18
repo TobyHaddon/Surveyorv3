@@ -2437,6 +2437,8 @@ namespace Surveyor.Calibration
                 };
 
 
+                //???***TEMP***
+                return calibrationStereoCameraData;
 
                 // Reprojection test
                 int index = 0;

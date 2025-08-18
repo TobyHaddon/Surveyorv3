@@ -154,7 +154,7 @@ namespace Surveyor.Events
 
 
     [JsonConverter(typeof(EventJsonConverter))]
-    public class Event : INotifyPropertyChanged
+    public partial class Event : INotifyPropertyChanged
     {
         public event PropertyChangedEventHandler? PropertyChanged;
 

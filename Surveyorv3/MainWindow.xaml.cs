@@ -40,6 +40,9 @@ using static System.Collections.Specialized.BitVector32;
 using MathNet.Numerics.Distributions;
 using static Surveyor.User_Controls.MediaPlayerEventData;
 using System.Collections;
+using Windows.UI;
+using Microsoft.UI.Xaml.Documents;
+using System.Security.Cryptography;
 
 
 namespace Surveyor
@@ -3424,7 +3427,7 @@ namespace Surveyor
         /// <summary>
         /// Updates the main windows to show any dynamic measurement information
         /// </summary>
-        internal void DisplayDynamicMeasurement(double? measurement, double? range, double? rms)
+        internal void DisplayDynamicMeasurement(bool showRMSCombinedOnly, double? measurement, double? range, double? rmsCombined, double? rmsTargetA, double? rmsTargetB)
         {
             // Measurment dynamic display
             string measurementText = string.Empty;
@@ -3446,13 +3449,56 @@ namespace Surveyor
             }
             Range.Text = rangeText;
 
-            // RMS dynamic display
-            string rmsText = string.Empty;
-            if (rms is not null)
+            if (showRMSCombinedOnly)
             {
-                rmsText = $"rms:{rms*1000:F1}mm";
+                // RMS dynamic display
+                string rmsText = string.Empty;
+                if (rmsCombined is not null)
+                {
+                    rmsText = $"rms:{rmsCombined * 1000:F1}mm";
+                }
+                RMS.Text = rmsText;
             }
-            RMS.Text = rmsText;
+            else
+            {
+                RMS.Inlines.Clear();
+
+                if (rmsCombined is null) return;
+
+                var (redBrush, greenBrush) = ThemeAwareRmsBrushes(RMS);
+
+                RMS.Inlines.Add(new Run { Text = $"rms:{rmsCombined * 1000:F1}(" });
+
+                if (rmsTargetA is not null)
+                    RMS.Inlines.Add(new Run { Text = $"{rmsTargetA * 1000:F0}", Foreground = redBrush });
+                else
+                    RMS.Inlines.Add(new Run { Text = "—" });
+
+                RMS.Inlines.Add(new Run { Text = "/" });
+
+                if (rmsTargetB is not null)
+                    RMS.Inlines.Add(new Run { Text = $"{rmsTargetB * 1000:F0}", Foreground = greenBrush });
+                else
+                    RMS.Inlines.Add(new Run { Text = "—" });
+
+                RMS.Inlines.Add(new Run { Text = ")mm" });
+            }
+        }
+
+        static SolidColorBrush MakeBrush(byte a, byte r, byte g, byte b) =>
+                        new(new Color() { A = a, R = r, G = g, B = b });
+
+        static (Brush red, Brush green) ThemeAwareRmsBrushes(FrameworkElement fe)
+        {
+            // Use ActualTheme so it reflects app/system + per-element overrides
+            bool isDark = fe.ActualTheme == ElementTheme.Dark;
+
+            // Tuned for readability:
+            // - In light theme, use deeper tones.
+            // - In dark theme, use lighter tones.
+            var red = isDark ? MakeBrush(255, 255, 160, 160) : MakeBrush(255, 178, 34, 34);   // Light red vs Firebrick-ish
+            var green = isDark ? MakeBrush(255, 160, 245, 160) : MakeBrush(255, 34, 139, 34);   // Light green vs ForestGreen-ish
+            return (red, green);
         }
 
 
@@ -3837,9 +3883,15 @@ namespace Surveyor
                         break;
 
                     case eMediaStereoControllerEvent.DisplayDynamicMeasurement:
-                        SafeUICall(() => _mainWindow.DisplayDynamicMeasurement(data.measurement,
-                                                                               data.range,
-                                                                               data.rms));
+                        if (data.showRMSCombinedOnly is not null)
+                        {
+                            SafeUICall(() => _mainWindow.DisplayDynamicMeasurement((bool)data.showRMSCombinedOnly,
+                                                                                   data.measurement,
+                                                                                   data.range,
+                                                                                   data.rmsCombined,
+                                                                                   data.rmsTargetA,
+                                                                                   data.rmsTargetB));
+                        }
                         break;
 
                 }
@@ -3855,7 +3907,7 @@ namespace Surveyor
                 if (data.cameraSide == SurveyorMediaPlayer.eCameraSide.Left &&
                     data.mediaPlayerEvent == eMediaPlayerEvent.FrameRendered)
                 {
-                    SafeUICall(() => _mainWindow.DisplayDynamicMeasurement(null, null, null));
+                    SafeUICall(() => _mainWindow.DisplayDynamicMeasurement(true, null, null, null, null, null));
                 }
             }
             else if (message is SettingsWindowEventData)

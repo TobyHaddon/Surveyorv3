@@ -54,7 +54,7 @@
                         <!-- Column 0: Event Type Glyph -->
                         <TextBlock Grid.Column="0" 
                                    Text="{x:Bind EventDataType, Mode=OneWay, Converter={StaticResource EventTypeToGlyphConverter}}" 
-                                   Foreground="{x:Bind EventDataType, Mode=OneWay, Converter={StaticResource EventTypeToBrushConverter}}"
+                                   Foreground="{x:Bind Mode=OneWay, Converter={StaticResource EventTypeToBrushConverter}}"
                                    Width="16" TextAlignment="Left" Margin="0,0,10,0" FontFamily="Segoe Fluent Icons"/>
 
                         <!-- Column 1: Left Frame -->

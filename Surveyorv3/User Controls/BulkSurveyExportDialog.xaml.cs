@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.WinUI.UI.Controls;
+using MathNet.Numerics;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 using OfficeOpenXml;
@@ -42,6 +43,7 @@ namespace Surveyor.User_Controls
                                         Time,
                                         TimeSecs,
                                         Type,
+                                        FishCount,
                                         Measurement,
                                         Range,
                                         HorizontalOffset,
@@ -51,7 +53,8 @@ namespace Surveyor.User_Controls
                                         Species,
                                         Genus,
                                         Family,
-                                        Count,
+                                        SpeciesCode,
+                                        NoSpeciesCode,
                                         Comment };
 
         public BulkSurveyExportDialog(Reporter? _report)
@@ -576,6 +579,7 @@ namespace Surveyor.User_Controls
             worksheet.Cells[1, (int)ExportExcelColmns.Time].Value = "Position Time";
             worksheet.Cells[1, (int)ExportExcelColmns.TimeSecs].Value = "Position Secs";
             worksheet.Cells[1, (int)ExportExcelColmns.Type].Value = "Type";
+            worksheet.Cells[1, (int)ExportExcelColmns.FishCount].Value = "Fish Count";
             worksheet.Cells[1, (int)ExportExcelColmns.Measurement].Value = "Measurement";
             worksheet.Cells[1, (int)ExportExcelColmns.Range].Value = "Distance";
             worksheet.Cells[1, (int)ExportExcelColmns.HorizontalOffset].Value = "Horiontal Offset";
@@ -585,9 +589,9 @@ namespace Surveyor.User_Controls
             worksheet.Cells[1, (int)ExportExcelColmns.Species].Value = "Species";
             worksheet.Cells[1, (int)ExportExcelColmns.Genus].Value = "Genus";
             worksheet.Cells[1, (int)ExportExcelColmns.Family].Value = "Family";
-            worksheet.Cells[1, (int)ExportExcelColmns.Count].Value = "Count";
+            worksheet.Cells[1, (int)ExportExcelColmns.SpeciesCode].Value = "Species Code";
+            worksheet.Cells[1, (int)ExportExcelColmns.NoSpeciesCode].Value = "Species Not Coded";
             worksheet.Cells[1, (int)ExportExcelColmns.Comment].Value = "Comment";
-
             worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
 
 
@@ -614,13 +618,13 @@ namespace Surveyor.User_Controls
                                 SpeciesInfo? speciesInfo = null;
                                 SurveyRulesCalc? surveyRulesCalc = null;
                                 double? measurement = null;
+                                int fishCount = 0;
 
                                 // Common data
                                 worksheet.Cells[row, (int)ExportExcelColmns.SurveyName].Value = survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName;
                                 worksheet.Cells[row, (int)ExportExcelColmns.Depth].Value = survey.Data.Info.SurveyDepth;
                                 worksheet.Cells[row, (int)ExportExcelColmns.Analyst].Value = survey.Data.Info.SurveyAnalystName;
                                 worksheet.Cells[row, (int)ExportExcelColmns.Time].Value = evt.TimeSpanTimelineController;
-                                //???worksheet.Cells[row, (int)ExportExcelColmns.TimeSecs].Value = evt.TimeSpanTimelineController.TotalSeconds;
 
                                 // Hyperlink column
                                 var encodedPath = Uri.EscapeDataString(fileEntry.FilePath);
@@ -652,6 +656,8 @@ namespace Surveyor.User_Controls
                                             speciesInfo = surveyMeasurement.SpeciesInfo;
                                             surveyRulesCalc = surveyMeasurement.SurveyRulesCalc;
                                             measurement = surveyMeasurement.Measurment;
+                                            if (!int.TryParse(speciesInfo.Number, out fishCount))
+                                                fishCount = 1;
                                         }
                                         break;
 
@@ -661,6 +667,8 @@ namespace Surveyor.User_Controls
                                         {
                                             speciesInfo = surveyStereoPoint.SpeciesInfo;
                                             surveyRulesCalc = surveyStereoPoint.SurveyRulesCalc;
+                                            if (!int.TryParse(speciesInfo.Number, out fishCount))
+                                                fishCount = 1;
                                         }
                                         break;
 
@@ -669,9 +677,14 @@ namespace Surveyor.User_Controls
                                         if (evt.EventData is SurveyPoint surveyPoint)
                                         {
                                             speciesInfo = surveyPoint.SpeciesInfo;
+                                            if (!int.TryParse(speciesInfo.Number, out fishCount))
+                                                fishCount = 1;
                                         }
                                         break;
                                 }
+
+                                // Load the fish count
+                                worksheet.Cells[row, (int)ExportExcelColmns.FishCount].Value = fishCount;
 
                                 // Load measurement
                                 if (measurement is not null)
@@ -686,13 +699,23 @@ namespace Surveyor.User_Controls
                                 worksheet.Cells[row, (int)ExportExcelColmns.RMS].Value = surveyRulesCalc?.RMS ?? 0;
                                 worksheet.Cells[row, (int)ExportExcelColmns.RulesPassed].Value = surveyRulesCalc?.SurveyRules;
 
-                                // Species, Genus, Family
+                                // Species, Genus, Family, Code
                                 worksheet.Cells[row, (int)ExportExcelColmns.Species].Value = speciesInfo?.Species ?? "";
                                 worksheet.Cells[row, (int)ExportExcelColmns.Genus].Value = speciesInfo?.Genus ?? "";
                                 worksheet.Cells[row, (int)ExportExcelColmns.Family].Value = speciesInfo?.Family ?? "";
-                                worksheet.Cells[row, (int)ExportExcelColmns.Count].Value = speciesInfo?.Number ?? "";
+                                worksheet.Cells[row, (int)ExportExcelColmns.SpeciesCode].Value = speciesInfo?.Code ?? "";
                                 worksheet.Cells[row, (int)ExportExcelColmns.Comment].Value = speciesInfo?.Comment ?? "";
 
+                                // Check if a species code was actually used or was it plan text or the species code is blank
+                                bool validSpeciesCode = true;
+                                if (speciesInfo is null || 
+                                    string.IsNullOrEmpty(speciesInfo.Code) ||
+                                    speciesInfo.Species is null ||
+                                    speciesInfo.Species.IndexOf('/') == -1)
+                                {
+                                    validSpeciesCode = false;
+                                }
+                                worksheet.Cells[row, (int)ExportExcelColmns.NoSpeciesCode].Value = !validSpeciesCode ? true : ""; 
 
                                 // Debug
                                 Debug.WriteLine($"Export:{row},{survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName},{survey.Data.Info.SurveyDepth},{survey.Data.Info.SurveyAnalystName},{evt.TimeSpanTimelineController}");

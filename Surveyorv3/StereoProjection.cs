@@ -531,6 +531,16 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Get the individual RMS errors for the measurement points A & B
+        /// </summary>
+        /// <returns></returns>
+        public (double? RMSErrorA, double? RMSErrorB) GetRMSElements()
+        {
+            return (RMSErrorA, RMSErrorB);
+        }
+
+
+        /// <summary>
         /// Calulcate the epipolar line for a given point (distorted point) in the left or right image
         /// </summary>
         /// <param name="TrueLeftFalseRight"></param>
@@ -539,53 +549,112 @@ namespace Surveyor
         /// <param name="epiLine_b"></param>
         /// <param name="epiLine_c"></param>
         /// <returns></returns>
-        public bool CalculateEpipilorLine(int calibrationDataIndex, bool TrueLeftFalseRight, Point point, out double epiLine_a, out double epiLine_b, out double epiLine_c)
+        //public bool CalculateEpipolarLine(int calibrationDataIndex, bool TrueLeftFalseRight, Point point, out double epiLine_a, out double epiLine_b, out double epiLine_c)
+        //{
+        //    bool ret = false;
+
+        //    // Reset
+        //    epiLine_a = 0;
+        //    epiLine_b = 0;
+        //    epiLine_c = 0;
+
+
+        //    if (IsReadyCalibrationData())
+        //    {
+        //        // Calculate the epipolar line for the left image
+        //        CalibrationData? calibrationData = calibrationClass!.CalibrationDataList[calibrationDataIndex];
+        //        if (calibrationData is not null && calibrationData.FrameSizeCompare(frameWidth, frameHeight))
+        //        {
+        //            Point pointUndistorted;
+        //            if (TrueLeftFalseRight)
+        //                pointUndistorted = UndistortPoint(calibrationData.LeftCameraCalibration, point);
+        //            else
+        //                pointUndistorted = UndistortPoint(calibrationData.RightCameraCalibration, point);
+
+
+        //            // Convert point to homogeneous coordinates
+        //            Matrix<double> pointLHomogeneous = new Matrix<double>(3, 1);
+        //            pointLHomogeneous[0, 0] = pointUndistorted.X;
+        //            pointLHomogeneous[1, 0] = pointUndistorted.Y;
+        //            pointLHomogeneous[2, 0] = 1.0;
+
+        //            // Compute the epipolar line in the right image
+        //            Matrix<double> epipLine = fundamentalMatrixArray![calibrationDataIndex] * pointLHomogeneous;
+
+        //            epiLine_a = epipLine[0, 0];
+        //            epiLine_b = epipLine[1, 0];
+        //            epiLine_c = epipLine[2, 0];
+
+        //            // Indicate success
+        //            ret = true;
+        //        }
+        //    }
+
+        //    return ret;
+        //}
+
+        public bool CalculateEpipolarLine(
+                        int calibrationDataIndex,
+                        bool TrueLeftFalseRight,
+                        Point point,
+                        out double epiLine_a,
+                        out double epiLine_b,
+                        out double epiLine_c)
         {
             bool ret = false;
 
             // Reset
-            epiLine_a = 0;
-            epiLine_b = 0;
-            epiLine_c = 0;
-
+            epiLine_a = 0.0;
+            epiLine_b = 0.0;
+            epiLine_c = 0.0;
 
             if (IsReadyCalibrationData())
             {
-                // Calculate the epipolar line for the left image
                 CalibrationData? calibrationData = calibrationClass!.CalibrationDataList[calibrationDataIndex];
                 if (calibrationData is not null && calibrationData.FrameSizeCompare(frameWidth, frameHeight))
                 {
-                    Point pointUndistorted;
-                    if (TrueLeftFalseRight)
-                        pointUndistorted = UndistortPoint(calibrationData.LeftCameraCalibration, point);
-                    else
-                        pointUndistorted = UndistortPoint(calibrationData.RightCameraCalibration, point);
+                    // Undistort the input point in the SOURCE image
+                    var sourceCal = TrueLeftFalseRight
+                        ? calibrationData.LeftCameraCalibration
+                        : calibrationData.RightCameraCalibration;
 
+                    Point pointUndistorted = UndistortPoint(sourceCal, point);
 
-                    // Convert point to homogeneous coordinates
-                    Matrix<double> pointLHomogeneous = new Matrix<double>(3, 1);
-                    pointLHomogeneous[0, 0] = pointUndistorted.X;
-                    pointLHomogeneous[1, 0] = pointUndistorted.Y;
-                    pointLHomogeneous[2, 0] = 1.0;
+                    // Homogeneous point
+                    Matrix<double> x = new Matrix<double>(3, 1);
+                    x[0, 0] = pointUndistorted.X;
+                    x[1, 0] = pointUndistorted.Y;
+                    x[2, 0] = 1.0;
 
-                    // Compute the epipolar line in the right image
-                    Matrix<double> epipLine = fundamentalMatrixArray![calibrationDataIndex] * pointLHomogeneous;
+                    // Choose F or Fᵀ depending on direction:
+                    // Left point -> line in Right:  l' = F x
+                    // Right point -> line in Left:  l  = Fᵀ x'
+                    var F = fundamentalMatrixArray![calibrationDataIndex];
+                    if (F is not null)
+                    {
+                        Matrix<double> line = TrueLeftFalseRight ? (F * x) : (F.Transpose() * x);
 
-                    epiLine_a = epipLine[0, 0];
-                    epiLine_b = epipLine[1, 0];
-                    epiLine_c = epipLine[2, 0];
+                        // Normalize so sqrt(a^2 + b^2) == 1
+                        double a = line[0, 0];
+                        double b = line[1, 0];
+                        double c = line[2, 0];
+                        double norm = Math.Sqrt(a * a + b * b);
+                        if (norm > 0) { a /= norm; b /= norm; c /= norm; }
 
-                    // Indicate success
-                    ret = true;
+                        epiLine_a = a;
+                        epiLine_b = b;
+                        epiLine_c = c;
+                        ret = true;
+                    }
                 }
             }
 
             return ret;
         }
 
-        public bool CalculateEpipilorLine(bool TrueLeftFalseRight, Point point, out double epiLine_a, out double epiLine_b, out double epiLine_c, 
-                                          out double focalLength, out double baseline,
-                                          out double principalXLeft, out double principalYLeft, out double principalXRight, out double principalYRight)
+        public bool CalculateEpipolarLine(bool TrueLeftFalseRight, Point point, out double epiLine_a, out double epiLine_b, out double epiLine_c, 
+                                            out double focalLength, out double baseline,
+                                            out double principalXLeft, out double principalYLeft, out double principalXRight, out double principalYRight)
         {
             bool ret = false;
 
@@ -602,12 +671,12 @@ namespace Surveyor
 
             if (IsReadyCalibrationData())
             {
-                ret = CalculateEpipilorLine(calibrationClass!.PreferredCalibrationDataIndex,
-                                             TrueLeftFalseRight,
-                                             point,
-                                             out epiLine_a,
-                                             out epiLine_b,
-                                             out epiLine_c);
+                ret = CalculateEpipolarLine(calibrationClass!.PreferredCalibrationDataIndex,
+                                                TrueLeftFalseRight,
+                                                point,
+                                                out epiLine_a,
+                                                out epiLine_b,
+                                                out epiLine_c);
                 if (ret == true)
                 {
                     // Get the preferred calibration data instance
@@ -660,7 +729,7 @@ namespace Surveyor
                 }
 
                 // Calculate the middle target distance
-                double middleTargetDistance = (farTargetDistance - nearTargetDistance) / 2.0;
+                double middleTargetDistance = nearTargetDistance + (farTargetDistance - nearTargetDistance) / 2.0;
 
                 // Calculate the corresponding points
                 pointNear = StereoProjection.ComputeCorrespondingDistortedPointByDistanceFromTarget((CalibrationData)cd, point, nearTargetDistance, TrueLeftFalseRight);
@@ -1020,7 +1089,7 @@ namespace Surveyor
                 // Calculate the rays from each camera so the RMS error can be calculated
                 if (cd.StereoCameraCalibration.Translation is not null)
                 {
-                    // Get Camera Centers                    
+                    // Get Camera Centres                    
                     var leftCameraCentre = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([0, 0, 0]);
                     var t = cd.StereoCameraCalibration.Translation;
                     var rightCameraCentre = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([t[0, 0], t[0, 1], t[0, 2]]);
@@ -1380,40 +1449,61 @@ namespace Surveyor
 
             // Undistort the input point
             Point undistortedInputPoints = UndistortPoint(sourceCamera, inputPoint);
-            //???Mat inputPoints = new(1, 1, DepthType.Cv32F, 2);
-            //???inputPoints.SetTo([(float)inputPoint.X, (float)inputPoint.Y]);
-            //???Mat undistortedInputPoints = new();
-            //???CvInvoke.UndistortPoints(inputPoints, undistortedInputPoints, sourceCamera.Intrinsic, sourceCamera.Distortion);
 
-            // Extract undistorted input point values
-            //???float[] undistortedData = new float[2];
-            //???undistortedInputPoints.CopyTo(undistortedData);
-            double xUndistorted = undistortedInputPoints.X;   //??? undistortedData[0];
-            double yUndistorted = undistortedInputPoints.Y;   //??? undistortedData[1];
+            double xUndistorted = undistortedInputPoints.X;   
+            double yUndistorted = undistortedInputPoints.Y;   
 
             // Convert to 3D coordinates in the source camera space
             double Xs = (xUndistorted - cx) * depthSourceCamera / fx;
             double Ys = (yUndistorted - cy) * depthSourceCamera / fy;
 
-            // Transform to the target camera coordinate system
+            //// Transform to the target camera coordinate system
+            //Mat Ps = new(3, 1, DepthType.Cv64F, 1);
+            //Ps.SetTo([Xs, Ys, depthSourceCamera]);
+
+            //// Transpose the T matrix to be 3x1 (we store as 1x3)
+            //Emgu.CV.Matrix<double>? tT = T.Transpose();
+            //if (!isLeftCamera)
+            //{
+            //    CvInvoke.ScaleAdd(T, -1.0, tT, tT); // negated 
+            //}
+
+
+            //// Create
+            //Mat Pt = new();
+            //CvInvoke.Gemm(R, Ps, 1.0, tT, 1.0, Pt); // Adjust translation direction based on camera order
+
+
+            // Build the 3D point along the source ray (in SOURCE camera coords)
             Mat Ps = new(3, 1, DepthType.Cv64F, 1);
             Ps.SetTo([Xs, Ys, depthSourceCamera]);
 
-            // Transpose the T matrix to be 3x1 (we store as 1x3)
-            Emgu.CV.Matrix<double>? tT = T.Transpose();
-            if (!isLeftCamera)
+            // Choose transform from SOURCE -> TARGET
+            // If source is LEFT (isLeftCamera==true):  X_r = R * X_l + T
+            // If source is RIGHT (isLeftCamera==false): X_l = Rᵀ * X_r - Rᵀ * T
+            Mat R_use = new();
+            Mat t_use = new(3, 1, DepthType.Cv64F, 1);
+
+            if (isLeftCamera)
             {
-                CvInvoke.ScaleAdd(T, -1.0, tT, tT); // negated 
+                // Use underlying Mat objects for copy
+                R.Mat.CopyTo(R_use);
+                T.Mat.CopyTo(t_use);
+            }
+            else
+            {
+                // R_use = Rᵀ
+                CvInvoke.Transpose(R.Mat, R_use);
+
+                // t_use = -Rᵀ * T
+                Mat Rt = new();
+                CvInvoke.Transpose(R.Mat, Rt);
+                CvInvoke.Gemm(Rt, T.Mat, -1.0, null, 0.0, t_use);
             }
 
-
-
-            //???    Emgu.CV.Matrix<double> negatedT = new Emgu.CV.Matrix<double>(T.Rows, T.Cols);
-            //CvInvoke.ScaleAdd(T, -1.0, negatedT, negatedT); // negatedT = -1 * T
-
-            // Create
+            // Transform to TARGET camera
             Mat Pt = new();
-            CvInvoke.Gemm(R, Ps, 1.0, tT, 1.0, Pt); // Adjust translation direction based on camera order
+            CvInvoke.Gemm(R_use, Ps, 1.0, t_use, 1.0, Pt);
 
             // Extract transformed 3D coordinates
             double[] PtData = new double[3];

@@ -4,11 +4,17 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
-// Top of App.xaml.cs (before any namespace or class)
-// This is to allow the UnitTestApp to access internal members 
 using System.Runtime.CompilerServices;
 using Windows.ApplicationModel;
+#if !DEBUG
+using Microsoft.ApplicationInsights;
+using Microsoft.ApplicationInsights.Extensibility;
+using System.Threading.Tasks;
+#endif
 using static Surveyor.Helper.TelemetryLogger;
+
+// Top of App.xaml.cs (before any namespace or class)
+// This is to allow the UnitTestApp to access internal members 
 [assembly: InternalsVisibleTo("Surveyor3")]
 
 

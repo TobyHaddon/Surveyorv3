@@ -353,7 +353,7 @@
                                TextAlignment="Right" Width="70" Margin="0,0,10,0"/>
                     <TextBlock x:Name="RMS" FontSize="12" 
                                VerticalAlignment="Center" HorizontalAlignment="Right" 
-                               TextAlignment="Right" Width="75" Margin="0,0,10,0"/>
+                               TextAlignment="Right" Width="110" Margin="0,0,10,0"/> 
                     <!-- Pointer coordinates -->
                     <TextBlock x:Name="PointerCoordinates" FontSize="12" 
                                VerticalAlignment="Center" HorizontalAlignment="Right" 

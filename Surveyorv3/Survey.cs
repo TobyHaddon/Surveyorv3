@@ -1144,16 +1144,18 @@ namespace Surveyor
                 // Save to .json
                 if (Data.Info.SurveyPath != null && Data.Info.SurveyFileName != null)
                 {
+                    string filePath = Path.Combine(Data.Info.SurveyPath, Data.Info.SurveyFileName);
+
                     var settings = new JsonSerializerSettings
                     {
                         Formatting = Formatting.Indented,  // For pretty-printing the JSON
                         Converters = [new EventJsonConverter()]
                     };
 
-                    string json = JsonConvert.SerializeObject(Data, settings);
+                    // Remove the Survey Path so the survey can be safely moved to a different folder
+                    Data.Info.SurveyPath = string.Empty;
 
-
-                    string filePath = Path.Combine(Data.Info.SurveyPath, Data.Info.SurveyFileName);
+                    string json = JsonConvert.SerializeObject(Data, settings);                  
 
                     try
                     {

@@ -791,34 +791,70 @@ namespace Surveyor.User_Controls
 
 
     /// <summary>
-    /// Convert the EventDataType to a brush for display
+    /// Convert the Event (full object) to a brush for display. If SurveyRulesCalc.SurveyRules == false for
+    /// SurveyMeasurementPoints or SurveyStereoPoint then return bright orange. Also treat SurveyStart/End/Sync specially.
     /// </summary>
     public class EventTypeToBrushConverter : IValueConverter
     {
+        private static readonly SolidColorBrush BrightOrangeBrush = new(Microsoft.UI.Colors.Orange); // Bright orange
+        private static readonly SolidColorBrush GreenBrush = new(Microsoft.UI.Colors.LimeGreen);
+        private static readonly SolidColorBrush DefaultGrayBrush = new(Microsoft.UI.Colors.Gray);
+
         public object? Convert(object value, Type targetType, object parameter, string language)
         {
-            if (value is Surveyor.Events.SurveyDataType eventType)
+            try
             {
-
-                switch (eventType)
+                if (value is Event fullEvent)
                 {
-                    case Surveyor.Events.SurveyDataType.SurveyPoint:
-                    case Surveyor.Events.SurveyDataType.SurveyStereoPoint:
-                    case Surveyor.Events.SurveyDataType.SurveyMeasurementPoints:
-                    case Surveyor.Events.SurveyDataType.StereoCalibrationPoints:
-                    default:
-                        // Return system default foreground brush
-                        //???return Application.Current.Resources["TextControlForeground"] as Brush;
-                        return Application.Current.Resources["TextFillColorPrimaryBrush"] as Brush;
+                    // Highlight failed survey rules
+                    if (fullEvent.EventDataType == SurveyDataType.SurveyMeasurementPoints && fullEvent.EventData is SurveyMeasurement surveyMeasurement)
+                    {
+                        if (surveyMeasurement.SurveyRulesCalc is not null && surveyMeasurement.SurveyRulesCalc.SurveyRules == false)
+                            return BrightOrangeBrush;
+                    }
+                    else if (fullEvent.EventDataType == SurveyDataType.SurveyStereoPoint && fullEvent.EventData is SurveyStereoPoint surveyStereoPoint)
+                    {
+                        if (surveyStereoPoint.SurveyRulesCalc is not null && surveyStereoPoint.SurveyRulesCalc.SurveyRules == false)
+                            return BrightOrangeBrush;
+                    }
 
-                    case Surveyor.Events.SurveyDataType.StereoSyncPoint:
-                    case Surveyor.Events.SurveyDataType.SurveyStart:
-                    case Surveyor.Events.SurveyDataType.SurveyEnd:
-                        return new SolidColorBrush(Microsoft.UI.Colors.LimeGreen); // Bright green
+                    // Special green types
+                    switch (fullEvent.EventDataType)
+                    {
+                        case SurveyDataType.StereoSyncPoint:
+                        case SurveyDataType.SurveyStart:
+                        case SurveyDataType.SurveyEnd:
+                            return GreenBrush;
+                    }
+
+                    // Default app theme brush for other types
+                    if (Application.Current.Resources.TryGetValue("TextFillColorPrimaryBrush", out var themeBrush) && themeBrush is Brush b)
+                        return b;
+
+                    return DefaultGrayBrush;
+                }
+                else if (value is SurveyDataType eventTypeFallback)
+                {
+                    // Backwards compatibility if binding not updated
+                    switch (eventTypeFallback)
+                    {
+                        case SurveyDataType.StereoSyncPoint:
+                        case SurveyDataType.SurveyStart:
+                        case SurveyDataType.SurveyEnd:
+                            return GreenBrush;
+                        default:
+                            if (Application.Current.Resources.TryGetValue("TextFillColorPrimaryBrush", out var themeBrush) && themeBrush is Brush b)
+                                return b;
+                            return DefaultGrayBrush;
+                    }
                 }
             }
+            catch (Exception)
+            {
+                return DefaultGrayBrush;
+            }
 
-            return new SolidColorBrush(Microsoft.UI.Colors.Gray); // Default color
+            return DefaultGrayBrush;
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)
@@ -948,7 +984,7 @@ namespace Surveyor.User_Controls
     /// Custom ListView that intercepts the space key press.
     /// Note: Trying to do this with a KeyDown handler on ListView directly does not work.
     /// </summary>
-    public class NoSpaceListView : ListView
+    public partial class NoSpaceListView : ListView
     {
         protected override void OnKeyDown(KeyRoutedEventArgs e)
         {
