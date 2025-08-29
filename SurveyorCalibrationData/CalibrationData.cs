@@ -56,32 +56,74 @@ namespace SurveyorCalibrationData
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(RMS, Intrinsic, Distortion, ImageSize, ImageTotal, ImageUseable, CameraID);
+            var hash = new HashCode();
+            hash.Add(RMS);
+            hash.Add(ImageTotal);
+            hash.Add(ImageUseable);
+            hash.Add(CameraID, StringComparer.Ordinal);
+            hash.Add(HashMatrix(Intrinsic));   // content hash
+            hash.Add(HashMatrix(Distortion));  // content hash
+            hash.Add(HashMatrix(ImageSize));   // content hash
+            return hash.ToHashCode();
+        }
+
+        private static int HashMatrix(Emgu.CV.Matrix<double>? m)
+        {
+            if (m is null) return 0;
+            var h = new HashCode();
+            h.Add(m.Rows);
+            h.Add(m.Cols);
+            for (int r = 0; r < m.Rows; r++)
+                for (int c = 0; c < m.Cols; c++)
+                    h.Add(m[r, c]);
+            return h.ToHashCode();
+        }
+
+        private static int HashMatrix(Emgu.CV.Matrix<int>? m)
+        {
+            if (m is null) return 0;
+            var h = new HashCode();
+            h.Add(m.Rows);
+            h.Add(m.Cols);
+            for (int r = 0; r < m.Rows; r++)
+                for (int c = 0; c < m.Cols; c++)
+                    h.Add(m[r, c]);
+            return h.ToHashCode();
         }
 
 
         public override bool Equals(object? obj)
         {
-            if (ReferenceEquals(this, obj))
-            {
-                return true;
-            }
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj is not CalibrationCameraData other) return false;
 
-            if (obj is null || GetType() != obj.GetType())
-            {
-                return false;
-            }
-
-            CalibrationCameraData other = (CalibrationCameraData)obj;
-
-            
             return RMS == other.RMS &&
-                    ((ImageSize == null && other.ImageSize == null) || ImageSize?.Equals(other.ImageSize) == true) &&
-                    ImageTotal == other.ImageTotal &&
-                    ImageUseable == other.ImageUseable &&
-                    ((Intrinsic == null && other.Intrinsic == null) || Intrinsic?.Equals(other.Intrinsic) == true) &&
-                    ((Distortion == null && other.Distortion == null) || Distortion?.Equals(other.Distortion) == true) &&
-                    CameraID == other.CameraID;
+                   ImageTotal == other.ImageTotal &&
+                   ImageUseable == other.ImageUseable &&
+                   string.Equals(CameraID, other.CameraID, StringComparison.Ordinal) &&
+                   MatEqual(Intrinsic, other.Intrinsic) &&
+                   MatEqual(Distortion, other.Distortion) &&
+                   MatEqual(ImageSize, other.ImageSize);
+        }
+
+        private static bool MatEqual(Emgu.CV.Matrix<double>? a, Emgu.CV.Matrix<double>? b, double tol = 0.0)
+        {
+            if (a is null || b is null) return a is null && b is null;
+            if (a.Rows != b.Rows || a.Cols != b.Cols) return false;
+            for (int r = 0; r < a.Rows; r++)
+                for (int c = 0; c < a.Cols; c++)
+                    if (Math.Abs(a[r, c] - b[r, c]) > tol) return false; // set tol if you want tolerance
+            return true;
+        }
+
+        private static bool MatEqual(Emgu.CV.Matrix<int>? a, Emgu.CV.Matrix<int>? b)
+        {
+            if (a is null || b is null) return a is null && b is null;
+            if (a.Rows != b.Rows || a.Cols != b.Cols) return false;
+            for (int r = 0; r < a.Rows; r++)
+                for (int c = 0; c < a.Cols; c++)
+                    if (a[r, c] != b[r, c]) return false;
+            return true;
         }
 
         public static bool operator ==(CalibrationCameraData left, CalibrationCameraData right)
@@ -165,20 +207,67 @@ namespace SurveyorCalibrationData
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(RMS, Rotation, Translation, ImageTotal, ImageUseable);
+            var hash = new HashCode();
+            hash.Add(RMS);
+            hash.Add(ImageTotal);
+            hash.Add(ImageUseable);
+            hash.Add(HashMatrix(Rotation));
+            hash.Add(HashMatrix(Translation));
+            return hash.ToHashCode();
         }
 
+        private static int HashMatrix(Emgu.CV.Matrix<double>? m)
+        {
+            if (m is null) return 0;
+            var h = new HashCode();
+            h.Add(m.Rows);
+            h.Add(m.Cols);
+            for (int r = 0; r < m.Rows; r++)
+                for (int c = 0; c < m.Cols; c++)
+                    h.Add(m[r, c]);
+            return h.ToHashCode();
+        }
+
+        private static int HashMatrix(Emgu.CV.Matrix<int>? m)
+        {
+            if (m is null) return 0;
+            var h = new HashCode();
+            h.Add(m.Rows);
+            h.Add(m.Cols);
+            for (int r = 0; r < m.Rows; r++)
+                for (int c = 0; c < m.Cols; c++)
+                    h.Add(m[r, c]);
+            return h.ToHashCode();
+        }
         public override bool Equals(object? obj)
         {
-            if (obj is CalibrationStereoCameraData other)
-            {
-                return RMS == other.RMS &&
-                       ImageTotal == other.ImageTotal &&
-                       ImageUseable == other.ImageUseable &&
-                       (Rotation == null && other.Rotation == null || Rotation?.Equals(other.Rotation) == true) &&
-                       (Translation == null && other.Translation == null || Translation?.Equals(other.Translation) == true);
-            }
-            return false;
+            if (obj is not CalibrationStereoCameraData other) return false;
+
+            return RMS == other.RMS &&
+                   ImageTotal == other.ImageTotal &&
+                   ImageUseable == other.ImageUseable &&
+                   MatEqual(Rotation, other.Rotation) &&
+                   MatEqual(Translation, other.Translation);
+        }
+
+        private static bool MatEqual(Emgu.CV.Matrix<double>? a, Emgu.CV.Matrix<double>? b, double tol = 0.0)
+        {
+            if (a is null || b is null) return a is null && b is null;
+            if (a.Rows != b.Rows || a.Cols != b.Cols) return false;
+            for (int r = 0; r < a.Rows; r++)
+                for (int c = 0; c < a.Cols; c++)
+                    if (Math.Abs(a[r, c] - b[r, c]) > tol) return false; // set tol if you want tolerance
+            return true;
+        }
+
+        private static bool MatEqual(Emgu.CV.Matrix<int>? a, Emgu.CV.Matrix<int>? b)
+        {
+            if (a is null || b is null) return a is null && b is null;
+            if (a.Rows != b.Rows || a.Cols != b.Cols) return false;
+            for (int r = 0; r < a.Rows; r++)
+                for (int c = 0; c < a.Cols; c++)
+                    if (a[r, c] != b[r, c]) return false;
+            return true;
         }
 
         public static bool operator ==(CalibrationStereoCameraData left, CalibrationStereoCameraData right)
@@ -870,8 +959,7 @@ namespace SurveyorCalibrationData
         public void Clear()
         {
             CalibrationID = null;
-            Description = "";
-            //??? Create Clear() function in CalibrationCameraData() and CalibrationStereoCameraData() classes
+            Description = string.Empty;            
             LeftCameraCalibration.Clear();
             RightCameraCalibration.Clear();
             StereoCameraCalibration.Clear();
@@ -879,7 +967,7 @@ namespace SurveyorCalibrationData
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(CalibrationID,
+            return HashCode.Combine(/*CalibrationID,*/
                                     Description,
                                     LeftCameraCalibration,
                                     RightCameraCalibration,
@@ -924,22 +1012,14 @@ namespace SurveyorCalibrationData
 
         public override bool Equals(object? obj)
         {
-            if (ReferenceEquals(this, obj))
-            {
-                return true;
-            }
-
-            if (ReferenceEquals(obj, null))
-            {
-                return false;
-            }
+            if (ReferenceEquals(this, obj)) return true;
+            if (ReferenceEquals(obj, null)) return false;
 
             if (obj is CalibrationData other)
             {
-                return CalibrationID == other.CalibrationID &&
-                       Compare(other);
+                // Only compare content
+                return Compare(other);
             }
-
             return false;
         }
 

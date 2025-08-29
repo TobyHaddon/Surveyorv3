@@ -339,6 +339,7 @@ namespace Surveyor.User_Controls
         {
             Rect clippingWindow = new(0, 0, CanvasFrame.Width, CanvasFrame.Height);
 
+            // Set the epipolar line and also removes any existing lines
             SetEpipolarLine(TrueEpipolarLinePointAFalseEpipolarLinePointB,
                             clippingWindow,
                             epiLine_a, epiLine_b, epiLine_c,
@@ -364,7 +365,7 @@ namespace Surveyor.User_Controls
                     epipolarLine_cTargetB = epiLine_c;
                 }
             }
-            else if (channelWidth != -1)
+            else if (channelWidth == -1)
             {
                 // Remove the epipolar line
                 if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
@@ -478,9 +479,6 @@ namespace Surveyor.User_Controls
                         brush = epipolarALineColour;
                     else
                         brush = epipolarBLineColour;
-
-                    //??? Plain Epiploar line
-                    //???DrawLine(start, end, brush, new CanvasTag("EpipolarLine", "Line", tagValue));
 
                     // Epipolar line with an arrow head on the end with the larger depth 
                     if (trueCanvasFrameFalseMagWindow)
@@ -1022,10 +1020,15 @@ namespace Surveyor.User_Controls
                                     magnifyAndMarkerControlHandler?.Send(data);
                                 }
                             }
-                        }
 
-                        // Handle the event
-                        e.Handled = true;
+                            // Handle the event
+                            e.Handled = true;
+                        }
+                        else
+                        {
+                            // Single click let other handlers pick it up
+                            e.Handled = false;
+                        }
 
                         // Update the last click time
                         lastClickTime = DateTime.Now;

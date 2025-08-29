@@ -16,13 +16,13 @@ namespace Surveyor.User_Controls
     {
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        private WarningLevel _warningLevel;
+        private Reporter.WarningLevel _warningLevel;
         private BitmapImage? _imageData;
         private string? _time;
         private string? _channel;
         private string? _message;
 
-        public WarningLevel WarningLevel
+        public Reporter.WarningLevel WarningLevel
         {
             get => _warningLevel;
             set

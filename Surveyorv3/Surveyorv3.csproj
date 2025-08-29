@@ -40,6 +40,8 @@
     <None Remove="Test Data\Short Test - Stereo Calibration.json" />
     <None Remove="Test Data\Yoga-0m-1-2025-01-24.survey" />
     <None Remove="User Controls\BulkSurveyExportDialog.xaml" />
+    <None Remove="User Controls\Distortion3DView.xaml" />
+    <None Remove="User Controls\SettingsCalibration.xaml" />
     <None Remove="User Controls\SettingsSurveyRules.xaml" />
     <None Remove="User Controls\SurveyInfoAndMedia.xaml" />
     <None Remove="User Controls\SurveyInheritance.xaml" />
@@ -160,6 +162,12 @@
     <None Update="Species.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <Page Update="User Controls\Distortion3DView.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+    <Page Update="User Controls\SettingsCalibration.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="User Controls\BulkSurveyExportDialog.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

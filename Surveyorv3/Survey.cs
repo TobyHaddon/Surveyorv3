@@ -5,6 +5,8 @@
 // Make Partial class to allow for the addition of ProjectEMObs
 // Version 1.2
 // Added the CameraID to the MediaClass
+// Version 1.3
+// Fixed GetHashCode()  21 Aug 2025
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -326,7 +328,7 @@ namespace Surveyor
                 /// <param name="e"></param>
                 private void CollectionChangedHandler(object? sender, NotifyCollectionChangedEventArgs e)
                 {
-                    // This code will be executed when the collection is changed
+                    // Any change to the list means data changed
                     IsDirty = true;
                 }
 
@@ -574,6 +576,9 @@ namespace Surveyor
                     _allowMultipleCalibrationData = false;
                     _preferredCalibrationDataIndex = -1;
                     _calibrationDataList.Clear();
+                    // Ensure events remain hooked after clear
+                    _calibrationDataList.CollectionChanged -= CollectionChangedHandler;
+                    _calibrationDataList.CollectionChanged += CollectionChangedHandler;
                     _isDirty = false;
                 }
 
@@ -582,7 +587,7 @@ namespace Surveyor
 
                 // Values
                 [JsonIgnore]
-                private bool? _allowMultipleCalibrationData = false;
+                private bool _allowMultipleCalibrationData = false;
 
                 [JsonIgnore]
                 private string? _calibrationInherited = null;
@@ -591,13 +596,13 @@ namespace Surveyor
                 private int _preferredCalibrationDataIndex = -1;
 
                 [JsonIgnore]
-                private ObservableCollection<CalibrationData> _calibrationDataList = new();
+                private ObservableCollection<CalibrationData> _calibrationDataList = [];
 
 
                 // Setters and getters
 
                 [JsonProperty(nameof(AllowMultipleCalibrationData))]
-                public bool? AllowMultipleCalibrationData
+                public bool AllowMultipleCalibrationData
                 {
                     get => _allowMultipleCalibrationData;
                     set
@@ -646,9 +651,18 @@ namespace Surveyor
                     get => _calibrationDataList;
                     set
                     {
-                        if (_calibrationDataList != value)
+                        if (!ReferenceEquals(_calibrationDataList, value))
                         {
-                            _calibrationDataList = value;
+                            // Unhook old collection
+                            if (_calibrationDataList is not null)
+                                _calibrationDataList.CollectionChanged -= CollectionChangedHandler;
+
+                            // Assign new (never allow null)
+                            _calibrationDataList = value ?? new ObservableCollection<CalibrationData>();
+
+                            // Hook new collection so add/remove sets IsDirty
+                            _calibrationDataList.CollectionChanged += CollectionChangedHandler;
+
                             IsDirty = true;
                         }
                     }
@@ -662,7 +676,7 @@ namespace Surveyor
                 /// <param name="e"></param>
                 private void CollectionChangedHandler(object? sender, NotifyCollectionChangedEventArgs e)
                 {
-                    // This code will be executed when the collection is changed
+                    // Any change to the list means data changed
                     IsDirty = true;
                 }
 
@@ -923,6 +937,15 @@ namespace Surveyor
                 }
 
 
+                /// <summary>
+                /// Get the hash code for the SurveyRulesClass instance. (ignores IsDirty and SurveyRulesInherited)
+                /// </summary>
+                /// <returns></returns>
+                public override int GetHashCode()
+                {
+                    return HashCode.Combine(Version, SurveyRulesActive, SurveyRulesData);
+                }
+
 
                 /// 
                 /// EVENTS
@@ -1002,7 +1025,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="SurveyFileSpec"></param>
         /// <returns></returns>
-        public async Task<int> SurveyLoad(string SurveyFileSpec)
+        public async Task<int> SurveyLoad(string SurveyFileSpec, bool autoSave = true)
         {
             int ret = -1;
             string? json = null;
@@ -1071,13 +1094,17 @@ namespace Surveyor
                     if (data != null)
                     {
                         Data = data;
+
                         ret = SetSurveyNameAndPath(SurveyFileSpec);                     
 
                         IsDirty = false;
                         IsLoaded = true;
 
                         // Start the autosave task in background                        
-                        await StartAutoSave();
+                        if (autoSave)
+                        {
+                            await StartAutoSave();
+                        }
                     }
                 }
             }
@@ -1144,7 +1171,8 @@ namespace Surveyor
                 // Save to .json
                 if (Data.Info.SurveyPath != null && Data.Info.SurveyFileName != null)
                 {
-                    string filePath = Path.Combine(Data.Info.SurveyPath, Data.Info.SurveyFileName);
+                    string surveyPath = Data.Info.SurveyPath;
+                    string filePath = Path.Combine(surveyPath, Data.Info.SurveyFileName);
 
                     var settings = new JsonSerializerSettings
                     {
@@ -1155,8 +1183,12 @@ namespace Surveyor
                     // Remove the Survey Path so the survey can be safely moved to a different folder
                     Data.Info.SurveyPath = string.Empty;
 
-                    string json = JsonConvert.SerializeObject(Data, settings);                  
+                    string json = JsonConvert.SerializeObject(Data, settings);
 
+                    // Restore survey path
+                    Data.Info.SurveyPath = surveyPath;
+
+                    // Write to disk
                     try
                     {
                         File.WriteAllText(filePath, json);

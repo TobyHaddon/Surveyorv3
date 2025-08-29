@@ -51,8 +51,8 @@ namespace Surveyor
         private MCvPoint3D64f?[]? vecBUndistortedArray = null;
 
         // RMS errors
-        private double? RMSErrorA = null;
-        private double? RMSErrorB = null;
+        private double?[]? RMSErrorAArray = null;
+        private double?[]? RMSErrorBArray = null;
 
         // Calculated mid-point of the 3D measurement points 
         private MCvPoint3D64f?[]? vecABMidArray = null;
@@ -60,6 +60,20 @@ namespace Surveyor
         // Frame width and height
         private int frameWidth = -1;
         private int frameHeight = -1;
+
+
+        private static bool InBounds(int i, int n) => i >= 0 && i < n;
+        private int PreferredIndex => calibrationClass?.PreferredCalibrationDataIndex ?? -1;
+
+        private double? GetPreferred(double?[]? arr)
+        {
+            var idx = PreferredIndex;
+            if (arr is null || !InBounds(idx, arr.Length)) return null;
+            return arr[idx];
+        }
+
+        private double? RMSErrorA_Current => GetPreferred(RMSErrorAArray);
+        private double? RMSErrorB_Current => GetPreferred(RMSErrorBArray);
 
 
         /// <summary>
@@ -276,8 +290,8 @@ namespace Surveyor
             vecABMidArray = null;
 
             // Reset RMS errors
-            RMSErrorA = null;
-            RMSErrorB = null;
+            RMSErrorAArray = null;
+            RMSErrorBArray = null;
         }
 
 
@@ -285,6 +299,12 @@ namespace Surveyor
         /// Calulate the distane between the two measurement points
         /// </summary>
         /// <returns></returns>
+        public (double?, double?[]) MeasurementAll()
+        {
+            double?[] measurementAlt = new double?[3];
+            double? ret = null;
+            return (ret, measurementAlt);
+        }
         public double? Measurement()
         {
             double? ret = null;
@@ -408,7 +428,6 @@ namespace Surveyor
             //    }
 
             //    double meanError = totalError / points1.Length;
-            //    Console.WriteLine("Mean Reprojection Error: " + meanError);
             //}
 
             return ret;
@@ -497,47 +516,52 @@ namespace Surveyor
         /// </summary>
         /// <param name="TruePointAFalsePointBNullWorstCase"></param>
         /// <returns></returns>
-        public double? RMS(bool? TruePointAFalsePointBNullWorstCase)
+        public enum RMSMode
         {
-            double? ret = null;
-
-            if (TruePointAFalsePointBNullWorstCase == true)
-            {
-                ret = RMSErrorA;
-            }
-            else if (TruePointAFalsePointBNullWorstCase == false)
-            {
-                ret = RMSErrorB;
-            }
-            else
-            {
-                // WorstCase
-                if (RMSErrorA is not null && RMSErrorB is not null)
-                {
-                    ret = Math.Max((double)RMSErrorA, (double)RMSErrorB);
-                }
-                else if (RMSErrorA is not null)
-                {
-                    ret = RMSErrorA;
-                }
-                else if (RMSErrorB is not null)
-                {
-                    ret = RMSErrorB;
-                }
-            }
-
-            return ret;
+            AOnly,
+            BOnly,
+            Mean,
+            Quadrature,
+            Worst
         }
+        public double? RMS(RMSMode mode)
+        {
+            var a = RMSErrorA_Current;
+            var b = RMSErrorB_Current;
+
+            switch (mode)
+            {
+                case RMSMode.AOnly:
+                    return a;
+                case RMSMode.BOnly:
+                    return b;
+
+                case RMSMode.Mean:
+                    if (a is null) return b;
+                    if (b is null) return a;
+                    return 0.5 * (a.Value + b.Value);
+
+                case RMSMode.Quadrature:
+                    if (a is null) return b;
+                    if (b is null) return a;
+                    return Math.Sqrt(0.5 * (a.Value * a.Value + b.Value * b.Value));
+
+                case RMSMode.Worst:
+                default:
+                    if (a is null) return b;
+                    if (b is null) return a;
+                    return Math.Max(a.Value, b.Value);
+            }
+        }
+
 
 
         /// <summary>
         /// Get the individual RMS errors for the measurement points A & B
         /// </summary>
         /// <returns></returns>
-        public (double? RMSErrorA, double? RMSErrorB) GetRMSElements()
-        {
-            return (RMSErrorA, RMSErrorB);
-        }
+        public (double? A, double? B) GetRMSElements() => (RMSErrorA_Current, RMSErrorB_Current);
+
 
 
         /// <summary>
@@ -594,62 +618,38 @@ namespace Surveyor
         //}
 
         public bool CalculateEpipolarLine(
-                        int calibrationDataIndex,
-                        bool TrueLeftFalseRight,
-                        Point point,
-                        out double epiLine_a,
-                        out double epiLine_b,
-                        out double epiLine_c)
+            int calibrationDataIndex,
+            bool TrueLeftFalseRight,
+            Point point,
+            out double epiLine_a, out double epiLine_b, out double epiLine_c)
         {
-            bool ret = false;
+            epiLine_a = epiLine_b = epiLine_c = 0.0;
 
-            // Reset
-            epiLine_a = 0.0;
-            epiLine_b = 0.0;
-            epiLine_c = 0.0;
+            if (!IsReadyCalibrationData()) return false;
+            var calibrationData = calibrationClass!.CalibrationDataList[calibrationDataIndex];
+            if (calibrationData is null || !calibrationData.FrameSizeCompare(frameWidth, frameHeight))
+                return false;
 
-            if (IsReadyCalibrationData())
-            {
-                CalibrationData? calibrationData = calibrationClass!.CalibrationDataList[calibrationDataIndex];
-                if (calibrationData is not null && calibrationData.FrameSizeCompare(frameWidth, frameHeight))
-                {
-                    // Undistort the input point in the SOURCE image
-                    var sourceCal = TrueLeftFalseRight
-                        ? calibrationData.LeftCameraCalibration
-                        : calibrationData.RightCameraCalibration;
+            // IMPORTANT: F was built from E and K (undistorted pinhole model).
+            // So we must undistort the input pixel before using F.
+            var sourceCal = TrueLeftFalseRight ? calibrationData.LeftCameraCalibration
+                                               : calibrationData.RightCameraCalibration;
+            var pU = UndistortPoint(sourceCal, point);
 
-                    Point pointUndistorted = UndistortPoint(sourceCal, point);
+            var x = new Matrix<double>(3, 1);
+            x[0, 0] = pU.X; x[1, 0] = pU.Y; x[2, 0] = 1.0;
 
-                    // Homogeneous point
-                    Matrix<double> x = new Matrix<double>(3, 1);
-                    x[0, 0] = pointUndistorted.X;
-                    x[1, 0] = pointUndistorted.Y;
-                    x[2, 0] = 1.0;
+            var F = fundamentalMatrixArray![calibrationDataIndex];
+            if (F is null) return false;
 
-                    // Choose F or Fᵀ depending on direction:
-                    // Left point -> line in Right:  l' = F x
-                    // Right point -> line in Left:  l  = Fᵀ x'
-                    var F = fundamentalMatrixArray![calibrationDataIndex];
-                    if (F is not null)
-                    {
-                        Matrix<double> line = TrueLeftFalseRight ? (F * x) : (F.Transpose() * x);
+            Matrix<double> line = TrueLeftFalseRight ? (F * x) : (F.Transpose() * x);
 
-                        // Normalize so sqrt(a^2 + b^2) == 1
-                        double a = line[0, 0];
-                        double b = line[1, 0];
-                        double c = line[2, 0];
-                        double norm = Math.Sqrt(a * a + b * b);
-                        if (norm > 0) { a /= norm; b /= norm; c /= norm; }
+            double a = line[0, 0], b = line[1, 0], c = line[2, 0];
+            double norm = Math.Sqrt(a * a + b * b);
+            if (norm > 0) { a /= norm; b /= norm; c /= norm; }
 
-                        epiLine_a = a;
-                        epiLine_b = b;
-                        epiLine_c = c;
-                        ret = true;
-                    }
-                }
-            }
-
-            return ret;
+            epiLine_a = a; epiLine_b = b; epiLine_c = c;
+            return true;
         }
 
         public bool CalculateEpipolarLine(bool TrueLeftFalseRight, Point point, out double epiLine_a, out double epiLine_b, out double epiLine_c, 
@@ -683,8 +683,14 @@ namespace Surveyor
                     CalibrationData calibrationData = calibrationClass!.CalibrationDataList[calibrationClass!.PreferredCalibrationDataIndex];
 
                     // Extract focal length from left camera matrix
-                    focalLength = calibrationData.LeftCameraCalibration.Intrinsic?[0, 0] ?? 0.0; // f = fx
-                    baseline = Math.Abs(calibrationData.StereoCameraCalibration.Translation?[0, 0] ?? 0.0);
+                    focalLength = calibrationData.LeftCameraCalibration.Intrinsic?[0, 0] ?? 0.0; 
+
+                    var T = calibrationData.StereoCameraCalibration.Translation;
+                    if (T is not null)
+                    {
+                        double tx = T[0, 0], ty = (T.Cols > 1 ? T[0, 1] : T[1, 0]), tz = (T.Cols > 2 ? T[0, 2] : T[2, 0]);
+                        baseline = Math.Sqrt(tx * tx + ty * ty + tz * tz);
+                    }
 
                     // Extract principal point (cx, cy) from left camera matrix
                     principalXLeft = calibrationData.LeftCameraCalibration.Intrinsic?[0, 2] ?? 0.0;
@@ -713,39 +719,43 @@ namespace Surveyor
         public bool CalculateEpipolarPoints(bool TrueLeftFalseRight, Point point, out Point pointNear, out Point pointMiddle, out Point pointFar)
         {
             bool ret = false;
-            CalibrationData? cd = calibrationClass!.GetPreferredCalibationData(frameWidth, frameHeight);
+            pointNear = new Point(-1, -1);
+            pointMiddle = new Point(-1, -1);
+            pointFar = new Point(-1, -1);
 
-            if (cd is not null)
+            // Target distance  
+            double nearTargetDistance = 0.4;
+            double farTargetDistance = 10.0;
+
+            // Check if the survey rules are active
+            if (surveyRulesClass is not null && surveyRulesClass.SurveyRulesActive && surveyRulesClass.SurveyRulesData.RangeRuleActive)
             {
-                // Target distance  
-                double nearTargetDistance = 0.4;
-                double farTargetDistance = 10.0;
+                nearTargetDistance = surveyRulesClass.SurveyRulesData.RangeMin;
+                farTargetDistance = surveyRulesClass.SurveyRulesData.RangeMax;
+            }
 
-                // Check if the survey rules are active
-                if (surveyRulesClass is not null && surveyRulesClass.SurveyRulesActive && surveyRulesClass.SurveyRulesData.RangeRuleActive)
+            // Calculate the middle target distance
+            double middleTargetDistance = nearTargetDistance + (farTargetDistance - nearTargetDistance) / 2.0;
+
+            // Calculate the corresponding points
+
+            if (ComputeCorrespondingDistortedPointByDistanceFromTarget(TrueLeftFalseRight, point, nearTargetDistance, out Point? _pointNear))
+            {
+                if (ComputeCorrespondingDistortedPointByDistanceFromTarget(TrueLeftFalseRight, point, middleTargetDistance, out Point? _pointMiddle))
                 {
-                    nearTargetDistance = surveyRulesClass.SurveyRulesData.RangeMin;
-                    farTargetDistance = surveyRulesClass.SurveyRulesData.RangeMax;
+                    if (ComputeCorrespondingDistortedPointByDistanceFromTarget(TrueLeftFalseRight, point, farTargetDistance, out Point? _pointFar))
+                    {
+                        // Set the output points
+                        pointNear = _pointNear ?? new Point(-1, -1);
+                        pointMiddle = _pointMiddle ?? new Point(-1, -1);
+                        pointFar = _pointFar ?? new Point(-1, -1);
+
+                        ret = true;
+                    }
                 }
-
-                // Calculate the middle target distance
-                double middleTargetDistance = nearTargetDistance + (farTargetDistance - nearTargetDistance) / 2.0;
-
-                // Calculate the corresponding points
-                pointNear = StereoProjection.ComputeCorrespondingDistortedPointByDistanceFromTarget((CalibrationData)cd, point, nearTargetDistance, TrueLeftFalseRight);
-                pointMiddle = StereoProjection.ComputeCorrespondingDistortedPointByDistanceFromTarget(cd, point, middleTargetDistance, TrueLeftFalseRight);
-                pointFar = StereoProjection.ComputeCorrespondingDistortedPointByDistanceFromTarget(cd, point, farTargetDistance, TrueLeftFalseRight);
-
-                ret = true;
-            }
-            else 
-            {
-                pointNear = new Point(-1, -1);
-                pointMiddle = new Point(-1, 0);
-                pointFar = new Point(-1, 0);
             }
 
-                return ret;
+            return ret;
         }
 
 
@@ -761,84 +771,121 @@ namespace Surveyor
         /// must support the current frame size.
         /// </summary>
         /// <returns></returns>
-        private bool IsReadyCalibrationData()
+        public bool IsReadyCalibrationData()
         {
-            bool ret = false;
-            if (calibrationClass is not null)
+            if (calibrationClass is null ||
+                calibrationClass.CalibrationDataList is null ||
+                calibrationClass.CalibrationDataList.Count == 0 ||
+                frameWidth <= 0 || frameHeight <= 0)
             {
-                string newCalibationDataUniqueString = MakeCalibationDataUniqueString();
-
-                if (string.IsNullOrEmpty(calibationDataUniqueString) || calibationDataUniqueString != newCalibationDataUniqueString)
-                {
-
-                    CalibrationData? cdp;
-
-                    // Declare the correct size arrays
-                    essentialMatrixArray = new Matrix<double>?[calibrationClass.CalibrationDataList.Count];
-                    fundamentalMatrixArray = new Matrix<double>?[calibrationClass.CalibrationDataList.Count];
-                    cameraSystemCentreArray = new MCvPoint3D64f?[calibrationClass.CalibrationDataList.Count];
-
-                    // Parse the calibration data to calculate the essential and fundamental matrices for all entries of 
-                    // the calibration data list matching the current resolution
-                    for (int i = 0; i < calibrationClass.CalibrationDataList.Count; i++)
-                    {
-                        // Compute the essential matrix
-                        cdp = calibrationClass.CalibrationDataList[i];
-
-                        if (cdp is not null &&
-                            cdp.FrameSizeCompare(frameWidth, frameHeight) &&
-                            cdp.StereoCameraCalibration.Rotation is not null && cdp.StereoCameraCalibration.Translation is not null &&
-                            cdp.LeftCameraCalibration.Intrinsic is not null && cdp.RightCameraCalibration.Intrinsic is not null)
-                        {
-                            // Compute the essential matrix
-                            //???Emgu.CV.Matrix<double>? essentialMatrix = ComputeEssentialMatrix(cdp.StereoCameraCalibration.Rotation, cdp.StereoCameraCalibration.Translation);
-                            Emgu.CV.Matrix<double>? essentialMatrix = cdp.StereoCameraCalibration.ComputeEssentialMatrix();
-
-                            // Compute the fundamental matrix
-                            //???Emgu.CV.Matrix<double>? fundamentalMatrix = ComputeFundamentalMatrix(essentialMatrix, cdp.LeftCameraCalibration.Intrinsic/*intrinsicLeft*/, cdp.RightCameraCalibration.Intrinsic/*intrinsicRight*/);
-                            Emgu.CV.Matrix<double>? fundamentalMatrix = cdp.ComputeFundamentalMatrix();
-
-                            // Compute the 3D centre point of the camera system
-                            //OLD MCvPoint3D64f? cameraSystemCentre= new MCvPoint3D64f(cdp.StereoCameraCalibration.Translation[0, 1] / 2.0, 0.0, 0.0);
-                            MCvPoint3D64f? cameraSystemCentre = new MCvPoint3D64f(cdp.StereoCameraCalibration.Translation[0, 0] / 2.0, 
-                                                                                  cdp.StereoCameraCalibration.Translation[0, 1] / 2.0, 
-                                                                                  cdp.StereoCameraCalibration.Translation[0, 2] / 2.0);
-
-
-                            essentialMatrixArray[i] = essentialMatrix;
-                            fundamentalMatrixArray[i] = fundamentalMatrix;
-                            cameraSystemCentreArray[i] = cameraSystemCentre;
-                        }
-                    }
-
-                    // Check the preferred calibration data instance is available and supports the current frame size
-                    cdp = calibrationClass.GetPreferredCalibationData(frameWidth, frameHeight);
-                    if (cdp is not null)
-                    {
-                        ret = true;
-
-                        // Remember the new calibration data unique string
-                        calibationDataUniqueString = newCalibationDataUniqueString;
-                    }
-                }
-                else
-                {
-                    // Already setup
-                    ret = true;
-                }
+                return false;
             }
 
-            return ret;
+            string newKey = MakeCalibationDataUniqueString();
+            bool needRebuild = string.IsNullOrEmpty(calibationDataUniqueString) || calibationDataUniqueString != newKey;
+
+            if (!needRebuild)
+            {
+                // We assume arrays were already built for this key+frame size
+                // but still ensure preferred exists for current size.
+                var preferred = calibrationClass.GetPreferredCalibationData(frameWidth, frameHeight);
+                return preferred is not null;
+            }
+
+            int n = calibrationClass.CalibrationDataList.Count;
+
+            cameraSystemCentreArray = new MCvPoint3D64f?[n];
+            essentialMatrixArray = new Emgu.CV.Matrix<double>?[n];
+            fundamentalMatrixArray = new Emgu.CV.Matrix<double>?[n];
+
+
+            // Build for each calibration that matches current frame size
+            for (int i = 0; i < n; i++)
+            {
+                var cdp = calibrationClass.CalibrationDataList[i];
+                if (cdp is null) continue;
+
+                // Only use calibration entries that match the current video frame size
+                if (!cdp.FrameSizeCompare(frameWidth, frameHeight))
+                    continue;
+
+                // Intrinsics (must exist)
+                var K_left = cdp.LeftCameraCalibration?.Intrinsic;
+                var K_right = cdp.RightCameraCalibration?.Intrinsic;
+                if (K_left is null || K_right is null) continue;
+
+                // Stereo extrinsics mapping left->right: X_r = R * X_l + T
+                var R = cdp.StereoCameraCalibration?.Rotation;
+                var T = cdp.StereoCameraCalibration?.Translation;
+                if (R is null || T is null) continue;
+
+                // --- System center (midpoint between camera centers) ---
+                // Camera centers in LEFT/world coordinates:
+                //   C_left  = (0,0,0)
+                //   C_right = -R^T * T
+                // Midpoint: C_sys = (C_left + C_right)/2 = (-R^T * T) / 2
+                // Ensure T is 3x1
+                var Tcol = (T.Rows == 3 && T.Cols == 1) ? T : T.Transpose();
+                var Rt = R.Transpose(); // R^T
+
+                var C_right = new Emgu.CV.Matrix<double>(3, 1);
+                CvInvoke.Gemm(Rt, Tcol, -1.0, null, 0.0, C_right);
+
+                cameraSystemCentreArray[i] = new MCvPoint3D64f(
+                    C_right[0, 0] / 2.0,
+                    C_right[1, 0] / 2.0,
+                    C_right[2, 0] / 2.0
+                );
+
+                // --- Essential matrix: E = [T]_x * R ---
+                // Build skew-symmetric [T]_x from T (in *right* camera coords per OpenCV convention)
+                double tx = Tcol[0, 0], ty = Tcol[1, 0], tz = Tcol[2, 0];
+                var Tx = new Emgu.CV.Matrix<double>(3, 3);
+                // [  0  -tz   ty ]
+                // [  tz   0  -tx ]
+                // [ -ty   tx   0 ]
+                Tx[0, 0] = 0.0; Tx[0, 1] = -tz; Tx[0, 2] = ty;
+                Tx[1, 0] = tz; Tx[1, 1] = 0.0; Tx[1, 2] = -tx;
+                Tx[2, 0] = -ty; Tx[2, 1] = tx; Tx[2, 2] = 0.0;
+
+                var E = new Emgu.CV.Matrix<double>(3, 3);
+                CvInvoke.Gemm(Tx, R, 1.0, null, 0.0, E); // E = [T]_x * R
+                essentialMatrixArray[i] = E;
+
+                // --- Fundamental matrix: F = K_R^{-T} * E * K_L^{-1} ---
+                // Inverses
+                using var K_left_inv_mat = new Mat();
+                using var K_right_inv_mat = new Mat();
+
+                CvInvoke.Invert(K_left.Mat, K_left_inv_mat, DecompMethod.Svd);
+                CvInvoke.Invert(K_right.Mat, K_right_inv_mat, DecompMethod.Svd);
+
+                // (K_R)^{-T}  =  (K_R^{-1})^T
+                using var K_right_inv_T = new Mat();
+                CvInvoke.Transpose(K_right_inv_mat, K_right_inv_T);
+
+                // F = K_R^{-T} * E * K_L^{-1}
+                using var temp = new Mat();
+                CvInvoke.Gemm(E.Mat, K_left_inv_mat, 1.0, null, 0.0, temp);
+
+                var F = new Emgu.CV.Matrix<double>(3, 3);
+                CvInvoke.Gemm(K_right_inv_T, temp, 1.0, null, 0.0, F.Mat);
+                if (fundamentalMatrixArray is not null)
+                    fundamentalMatrixArray[i] = F;
+            }
+
+            // Validate preferred
+            var preferredCdp = calibrationClass.GetPreferredCalibationData(frameWidth, frameHeight);
+            if (preferredCdp is null) return false;
+
+            calibationDataUniqueString = newKey;
+            return true;
         }
 
 
-        /// <summary>
-        /// This method is used to prepare an undistorted 3D point from a 2D points set in PointsLoad().
-        /// It includes a called to IsReadyCalibrationData() so no need to call that again.
-        /// It works on the stereo pair of points A and B ([LPointA, RPointA] and [LPointB, RPointB]) 
-        /// or a single stero point [LPointA, RPointA].
-        /// </summary>
-        /// <returns></returns>
+        // In IsReadyUndistortedPoints(), inside the for loop where RMSErrorAArray[i] and RMSErrorBArray[i] are set to null,
+        // add null checks and initialize the arrays if they are null before assignment.
+
         private bool IsReadyUndistortedPoints()
         {
             bool ret = false;
@@ -849,27 +896,37 @@ namespace Surveyor
                 {
                     if (vecAUndistortedArray is null)
                     {
-                        vecAUndistortedArray = new MCvPoint3D64f?[calibrationClass!.CalibrationDataList.Count];
-                        vecBUndistortedArray = new MCvPoint3D64f?[calibrationClass!.CalibrationDataList.Count];
-                        vecABMidArray = new MCvPoint3D64f?[calibrationClass!.CalibrationDataList.Count];
+                        int count = calibrationClass!.CalibrationDataList.Count;
+                        vecAUndistortedArray = new MCvPoint3D64f?[count];
+                        vecBUndistortedArray = new MCvPoint3D64f?[count];
+                        vecABMidArray = new MCvPoint3D64f?[count];
+
+                        // Ensure RMSErrorAArray and RMSErrorBArray are initialized
+                        if (RMSErrorAArray is null || RMSErrorAArray.Length != count)
+                            RMSErrorAArray = new double?[count];
+                        if (RMSErrorBArray is null || RMSErrorBArray.Length != count)
+                            RMSErrorBArray = new double?[count];
 
                         if (vecAUndistortedArray is not null && vecBUndistortedArray is not null && vecABMidArray is not null)
                         {
                             // Calculate the undistorted 3D points
-                            for (int i = 0; i < calibrationClass!.CalibrationDataList.Count; i++)
+                            for (int i = 0; i < count; i++)
                             {
                                 CalibrationData? cdp = calibrationClass.CalibrationDataList[i];
 
                                 if (cdp is not null &&
                                     cdp.FrameSizeCompare(frameWidth, frameHeight))
                                 {
-                                    MCvPoint3D64f? vecAUndistorted = Convert2DTo3D(cdp, (Point)LPointA, (Point)RPointA, true/*TrueUndistort*/, out RMSErrorA);
-                                    MCvPoint3D64f? vecBUndistorted = Convert2DTo3D(cdp, (Point)LPointB, (Point)RPointB, true/*TrueUndistort*/, out RMSErrorB);
+                                    MCvPoint3D64f? vecAUndistorted = Convert2DTo3D(cdp, (Point)LPointA, (Point)RPointA, true/*TrueUndistort*/, out double? RMSErrorA);
+                                    MCvPoint3D64f? vecBUndistorted = Convert2DTo3D(cdp, (Point)LPointB, (Point)RPointB, true/*TrueUndistort*/, out double? RMSErrorB);
 
-                                    if (vecAUndistorted is not null && vecBUndistorted is not null)
+                                    if (vecAUndistorted is not null && vecBUndistorted is not null &&
+                                        RMSErrorAArray is not null && RMSErrorBArray is not null)
                                     {
                                         vecAUndistortedArray[i] = vecAUndistorted;
                                         vecBUndistortedArray[i] = vecBUndistorted;
+                                        RMSErrorAArray[i] = RMSErrorA;
+                                        RMSErrorBArray[i] = RMSErrorB;
 
                                         // Calculate the mid-point
                                         double midX = (vecAUndistorted.Value.X + vecBUndistorted.Value.X) / 2.0;
@@ -883,8 +940,8 @@ namespace Surveyor
                                         vecAUndistortedArray[i] = null;
                                         vecBUndistortedArray[i] = null;
                                         vecABMidArray[i] = null;
-                                        RMSErrorA = null;
-                                        RMSErrorB = null;
+                                        if (RMSErrorAArray is not null) RMSErrorAArray[i] = null;
+                                        if (RMSErrorBArray is not null) RMSErrorBArray[i] = null;
                                     }
                                 }
                             }
@@ -900,27 +957,33 @@ namespace Surveyor
                 {
                     if (vecAUndistortedArray is null)
                     {
-                        vecAUndistortedArray = new MCvPoint3D64f?[calibrationClass!.CalibrationDataList.Count];
+                        int count = calibrationClass!.CalibrationDataList.Count;
+                        vecAUndistortedArray = new MCvPoint3D64f?[count];
                         vecBUndistortedArray = null;
-                        vecABMidArray = new MCvPoint3D64f?[calibrationClass!.CalibrationDataList.Count];
+                        vecABMidArray = new MCvPoint3D64f?[count];
+
+                        // Ensure RMSErrorAArray is initialized
+                        if (RMSErrorAArray is null || RMSErrorAArray.Length != count)
+                            RMSErrorAArray = new double?[count];
 
                         if (vecAUndistortedArray is not null && vecABMidArray is not null)
                         {
                             // Calculate the undistorted 3D points
-                            for (int i = 0; i < calibrationClass!.CalibrationDataList.Count; i++)
+                            for (int i = 0; i < count; i++)
                             {
                                 CalibrationData? cdp = calibrationClass.CalibrationDataList[i];
 
                                 if (cdp is not null &&
                                     cdp.FrameSizeCompare(frameWidth, frameHeight))
                                 {
-                                    MCvPoint3D64f? vecAUndistorted = Convert2DTo3D(cdp, (Point)LPointA, (Point)RPointA, true/*TrueUndistort*/, out RMSErrorA);
+                                    MCvPoint3D64f? vecAUndistorted = Convert2DTo3D(cdp, (Point)LPointA, (Point)RPointA, true/*TrueUndistort*/, out double? RMSErrorA);
 
-                                    if (vecAUndistorted is not null)
+                                    if (vecAUndistorted is not null && RMSErrorAArray is not null)
                                     {
                                         vecAUndistortedArray[i] = vecAUndistorted;
+                                        RMSErrorAArray[i] = RMSErrorA;
 
-                                        // Single stero point so vecABMidArray[] is same as vecAUndistortedArray
+                                        // Single stereo point so vecABMidArray[] is same as vecAUndistortedArray
                                         double midX = vecAUndistorted.Value.X;
                                         double midY = vecAUndistorted.Value.Y;
                                         double midZ = vecAUndistorted.Value.Z;
@@ -931,7 +994,7 @@ namespace Surveyor
                                     {
                                         vecAUndistortedArray[i] = null;
                                         vecABMidArray[i] = null;
-                                        RMSErrorA = null;
+                                        if (RMSErrorAArray is not null) RMSErrorAArray[i] = null;
                                     }
                                 }
                             }
@@ -981,73 +1044,6 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Calculate the Essential Matrix
-        /// </summary>
-        /// <param name="R"></param>
-        /// <param name="T"></param>
-        /// <returns></returns>
-        /// <exception cref="ArgumentException"></exception>
-        ///???TOBEDELETED
-        //private static Matrix<double> ComputeEssentialMatrix(Matrix<double> R, Matrix<double> T)
-        //{
-        //    // Create the skew-symmetric matrix for the translation vector
-        //    Matrix<double> T_skew = new Matrix<double>(3, 3);
-
-        //    if (T.Rows == 3 && T.Cols == 1)
-        //    {
-        //        T_skew[0, 0] = 0;
-        //        T_skew[0, 1] = -T[2, 0];
-        //        T_skew[0, 2] = T[1, 0];
-        //        T_skew[1, 0] = T[2, 0];
-        //        T_skew[1, 1] = 0;
-        //        T_skew[1, 2] = -T[0, 0];
-        //        T_skew[2, 0] = -T[1, 0];
-        //        T_skew[2, 1] = T[0, 0];
-        //        T_skew[2, 2] = 0;
-        //    }
-        //    else if (T.Rows == 1 && T.Cols == 3)
-        //    {
-        //        T_skew[0, 0] = 0;
-        //        T_skew[0, 1] = -T[0, 2];
-        //        T_skew[0, 2] = T[0, 1];
-        //        T_skew[1, 0] = T[0, 2];
-        //        T_skew[1, 1] = 0;
-        //        T_skew[1, 2] = -T[0, 0];
-        //        T_skew[2, 0] = -T[0, 1];
-        //        T_skew[2, 1] = T[0, 0];
-        //        T_skew[2, 2] = 0;
-        //    }
-        //    else
-        //        throw new ArgumentException("The translation vector must be a 3x1 or 1x3 matrix.");
-
-        //    // Compute the essential matrix
-        //    return T_skew * R;
-        //}
-
-
-        /// <summary>
-        /// Calcualte the FundamentalMatrix
-        /// </summary>
-        /// <param name="E"></param>
-        /// <param name="K1"></param>
-        /// <param name="K2"></param>
-        /// <returns></returns>
-        ///???TOBEDELETED
-        //private static Matrix<double> ComputeFundamentalMatrix(Matrix<double> E, Matrix<double> K1, Matrix<double> K2)
-        //{
-        //    Matrix<double> K1Inv = new Matrix<double>(3, 3);
-        //    Matrix<double> K2Inv = new Matrix<double>(3, 3);
-
-        //    // Invert the intrinsic matrices
-        //    CvInvoke.Invert(K1, K1Inv, DecompMethod.Svd);
-        //    CvInvoke.Invert(K2, K2Inv, DecompMethod.Svd);
-
-        //    // Compute the fundamental matrix
-        //    return K2Inv.Transpose() * E * K1Inv;
-        //}
-
-
-        /// <summary>
         /// Convert corresponding left and right 2D points to a real world 
         /// 3D point the input points can be either raw distorted points or 
         /// already undistorted
@@ -1090,9 +1086,21 @@ namespace Surveyor
                 if (cd.StereoCameraCalibration.Translation is not null)
                 {
                     // Get Camera Centres                    
-                    var leftCameraCentre = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([0, 0, 0]);
-                    var t = cd.StereoCameraCalibration.Translation;
-                    var rightCameraCentre = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([t[0, 0], t[0, 1], t[0, 2]]);
+                    var leftCameraCentre = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([0.0, 0.0, 0.0]);
+
+                    var R = cd.StereoCameraCalibration.Rotation!;
+                    var T = cd.StereoCameraCalibration.Translation!;
+                    var Tcol = (T.Rows == 3 && T.Cols == 1) ? T : T.Transpose();
+                    var Rt = R.Transpose(); // R^T
+
+                    // C_right = -R^T * T   (in LEFT/world coords)
+                    var C_right = new Emgu.CV.Matrix<double>(3, 1);
+                    CvInvoke.Gemm(Rt, Tcol, -1.0, null, 0.0, C_right);
+
+                    var rightCameraCentre = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray(
+                        new double[] { C_right[0, 0], C_right[1, 0], C_right[2, 0] }
+                    );
+
 
                     if (cd.LeftCameraCalibration.Intrinsic is not null &&
                         cd.RightCameraCalibration.Intrinsic is not null &&
@@ -1125,22 +1133,6 @@ namespace Surveyor
 
             return null;
         }
-
-
-        /// <summary>
-        /// This function calculates the real-world RMS error by computing the 
-        /// shortest distance between two 3D rays.
-        /// </summary>
-        /// <param name="cameraCenterLeft"></param>
-        /// <param name="rayDirectionLeft"></param>
-        /// <param name="cameraCenterRight"></param>
-        /// <param name="rayDirectionRight"></param>
-        /// <returns></returns>
-
-
-
-
-
 
 
         /// <summary>
@@ -1187,23 +1179,18 @@ namespace Surveyor
         {
             // Create the matrix A based on the Direct Linear Transformation (DLT) algorithm
             var A = MathNet.Numerics.LinearAlgebra.Double.DenseMatrix.OfRowArrays(
-                (point1[1] * P1.Row(2) - P1.Row(1)).ToArray(),
-                (P1.Row(0) - point1[0] * P1.Row(2)).ToArray(),
-                (point2[1] * P2.Row(2) - P2.Row(1)).ToArray(),
-                (P2.Row(0) - point2[0] * P2.Row(2)).ToArray()
+                [.. (point1[1] * P1.Row(2) - P1.Row(1))],
+                [.. (P1.Row(0) - point1[0] * P1.Row(2))],
+                [.. (point2[1] * P2.Row(2) - P2.Row(1))],
+                [.. (P2.Row(0) - point2[0] * P2.Row(2))]
             );
 
             // Singular Value Decomposition (SVD)           
-            //???Older approach  var B = A.TransposeThisAndMultiply(A);
-            //???var svd = B.Svd(true);
             var svd = A.Svd(true);
             var Vh = svd.VT;
 
             // Extract the 3D Point
             var triangulatedPoint = Vh.Row(3).SubVector(0, 3) / Vh[3, 3];
-
-            // Debug Report
-            Console.WriteLine($"Triangulated point: {triangulatedPoint}");
 
             return triangulatedPoint;
         }
@@ -1223,7 +1210,6 @@ namespace Surveyor
                                                     MathNet.Numerics.LinearAlgebra.Vector<double> d2)
         {
             var cross = d1.CrossProduct(d2); // Compute the cross product of d1 and d2
-            //????var cross = CrossProduct(d1, d2); // Compute the cross product of d1 and d2
             double denom = cross.L2Norm();    // Magnitude of the cross product
 
             if (denom < 1e-6)
@@ -1420,105 +1406,291 @@ namespace Surveyor
         /// <param name="distanceToTarget">The real-world distance from the system center to the target.</param>
         /// <param name="isLeftCamera">True if the input point is from the left camera, false if from the right.</param>
         /// <returns>The corresponding distorted point in the opposite camera's image.</returns>
-        public static Point ComputeCorrespondingDistortedPointByDistanceFromTarget(CalibrationData cd, Point inputPoint, double distanceToTarget, bool isLeftCamera)
+        //???public static Point ComputeCorrespondingDistortedPointByDistanceFromTarget(CalibrationData cd, Point inputPoint, double distanceToTarget, bool isLeftCamera)
+        //{
+        //    // Select appropriate calibration data based on the input camera
+        //    var sourceCamera = isLeftCamera ? cd.LeftCameraCalibration : cd.RightCameraCalibration;
+        //    var targetCamera = isLeftCamera ? cd.RightCameraCalibration : cd.LeftCameraCalibration;
+
+        //    var R = cd.StereoCameraCalibration.Rotation;
+        //    var T = cd.StereoCameraCalibration.Translation;
+
+        //    if (sourceCamera.Intrinsic == null || targetCamera.Intrinsic == null || R == null || T == null || sourceCamera.Distortion == null || targetCamera.Distortion == null)
+        //        throw new InvalidOperationException("Calibration matrices are not initialized.");
+
+        //    // Extract intrinsic parameters of the source camera
+        //    double fx = sourceCamera.Intrinsic[0, 0];
+        //    double fy = sourceCamera.Intrinsic[1, 1];
+        //    double cx = sourceCamera.Intrinsic[0, 2];
+        //    double cy = sourceCamera.Intrinsic[1, 2];
+
+        //    // Extract intrinsic parameters of the target camera
+        //    double fx_t = targetCamera.Intrinsic[0, 0];
+        //    double fy_t = targetCamera.Intrinsic[1, 1];
+        //    double cx_t = targetCamera.Intrinsic[0, 2];
+        //    double cy_t = targetCamera.Intrinsic[1, 2];
+
+        //    // Convert distance from system center to depth in the source camera's coordinate system
+        //    double depthSourceCamera = distanceToTarget;
+
+        //    // Undistort the input point
+        //    Point undistortedInputPoints = UndistortPoint(sourceCamera, inputPoint);
+
+        //    double xUndistorted = undistortedInputPoints.X;   
+        //    double yUndistorted = undistortedInputPoints.Y;   
+
+        //    // Convert to 3D coordinates in the source camera space
+        //    double Xs = (xUndistorted - cx) * depthSourceCamera / fx;
+        //    double Ys = (yUndistorted - cy) * depthSourceCamera / fy;
+
+        //    //// Transform to the target camera coordinate system
+        //    //Mat Ps = new(3, 1, DepthType.Cv64F, 1);
+        //    //Ps.SetTo([Xs, Ys, depthSourceCamera]);
+
+        //    //// Transpose the T matrix to be 3x1 (we store as 1x3)
+        //    //Emgu.CV.Matrix<double>? tT = T.Transpose();
+        //    //if (!isLeftCamera)
+        //    //{
+        //    //    CvInvoke.ScaleAdd(T, -1.0, tT, tT); // negated 
+        //    //}
+
+
+        //    //// Create
+        //    //Mat Pt = new();
+        //    //CvInvoke.Gemm(R, Ps, 1.0, tT, 1.0, Pt); // Adjust translation direction based on camera order
+
+
+        //    // Build the 3D point along the source ray (in SOURCE camera coords)
+        //    Mat Ps = new(3, 1, DepthType.Cv64F, 1);
+        //    Ps.SetTo([Xs, Ys, depthSourceCamera]);
+
+        //    // Choose transform from SOURCE -> TARGET
+        //    // If source is LEFT (isLeftCamera==true):  X_r = R * X_l + T
+        //    // If source is RIGHT (isLeftCamera==false): X_l = Rᵀ * X_r - Rᵀ * T
+        //    Mat R_use = new();
+        //    Mat t_use = new(3, 1, DepthType.Cv64F, 1);
+
+        //    if (isLeftCamera)
+        //    {
+        //        // Use underlying Mat objects for copy
+        //        R.Mat.CopyTo(R_use);
+        //        T.Mat.CopyTo(t_use);
+        //    }
+        //    else
+        //    {
+        //        // R_use = Rᵀ
+        //        CvInvoke.Transpose(R.Mat, R_use);
+
+        //        // t_use = -Rᵀ * T
+        //        Mat Rt = new();
+        //        CvInvoke.Transpose(R.Mat, Rt);
+        //        CvInvoke.Gemm(Rt, T.Mat, -1.0, null, 0.0, t_use);
+        //    }
+
+        //    // Transform to TARGET camera
+        //    Mat Pt = new();
+        //    CvInvoke.Gemm(R_use, Ps, 1.0, t_use, 1.0, Pt);
+
+        //    // Extract transformed 3D coordinates
+        //    double[] PtData = new double[3];
+        //    Pt.CopyTo(PtData);
+        //    double Xt = PtData[0];
+        //    double Yt = PtData[1];
+        //    double Zt = PtData[2];
+
+        //    // Project onto the target camera's image plane (undistorted)
+        //    double xTargetUndistorted = (fx_t * Xt / Zt) + cx_t;
+        //    double yTargetUndistorted = (fy_t * Yt / Zt) + cy_t;
+
+        //    // Apply distortion to match the unrectified target image
+        //    return DistortPoint(targetCamera, new Point(xTargetUndistorted, yTargetUndistorted)) ?? new Point(xTargetUndistorted, yTargetUndistorted);
+        //}
+
+
+        /// <summary>
+        /// From a source pixel and a desired Euclidean distance from the camera system center,
+        /// compute the corresponding *distorted* pixel in the other camera by:
+        ///  1) building the source-camera ray,
+        ///  2) solving for the ray parameter α so that the 3D point lies on a sphere of radius
+        ///     'distanceToTarget' centered at C_sys = -R^T T / 2 in LEFT/world coords,
+        ///  3) transforming the 3D point to the target camera coords,
+        ///  4) projecting with target intrinsics,
+        ///  5) re-applying distortion for display on the unrectified image.
+        /// </summary>
+        /// <param name="TrueLeftFalseRight">true if the SOURCE pixel is from the LEFT image; false if from RIGHT</param>
+        /// <param name="sourcePixel">SOURCE pixel (distorted)</param>
+        /// <param name="distanceToTarget">Euclidean distance from the camera system center (meters)</param>
+        /// <param name="correspondingDistortedPixel">OUTPUT: corresponding distorted pixel in the TARGET image</param>
+        /// <returns>true on success; false if no valid solution (e.g., behind camera, degenerate geometry)</returns>
+        public bool ComputeCorrespondingDistortedPointByDistanceFromTarget(
+            bool TrueLeftFalseRight,
+            Point sourcePixel,
+            double distanceToTarget,
+            out Point? correspondingDistortedPixel)
         {
-            // Select appropriate calibration data based on the input camera
-            var sourceCamera = isLeftCamera ? cd.LeftCameraCalibration : cd.RightCameraCalibration;
-            var targetCamera = isLeftCamera ? cd.RightCameraCalibration : cd.LeftCameraCalibration;
+            correspondingDistortedPixel = default;
 
-            var R = cd.StereoCameraCalibration.Rotation;
-            var T = cd.StereoCameraCalibration.Translation;
+            if (!IsReadyCalibrationData() || calibrationClass is null)
+                return false;
 
-            if (sourceCamera.Intrinsic == null || targetCamera.Intrinsic == null || R == null || T == null || sourceCamera.Distortion == null || targetCamera.Distortion == null)
-                throw new InvalidOperationException("Calibration matrices are not initialized.");
+            int idx = calibrationClass.PreferredCalibrationDataIndex;
+            var cd = calibrationClass.CalibrationDataList[idx];
+            if (cd is null || !cd.FrameSizeCompare(frameWidth, frameHeight))
+                return false;
 
-            // Extract intrinsic parameters of the source camera
-            double fx = sourceCamera.Intrinsic[0, 0];
-            double fy = sourceCamera.Intrinsic[1, 1];
-            double cx = sourceCamera.Intrinsic[0, 2];
-            double cy = sourceCamera.Intrinsic[1, 2];
+            // SOURCE / TARGET camera calibrations and stereo extrinsics
+            var srcCal = TrueLeftFalseRight ? cd.LeftCameraCalibration : cd.RightCameraCalibration;
+            var dstCal = TrueLeftFalseRight ? cd.RightCameraCalibration : cd.LeftCameraCalibration;
 
-            // Extract intrinsic parameters of the target camera
-            double fx_t = targetCamera.Intrinsic[0, 0];
-            double fy_t = targetCamera.Intrinsic[1, 1];
-            double cx_t = targetCamera.Intrinsic[0, 2];
-            double cy_t = targetCamera.Intrinsic[1, 2];
+            var R = cd.StereoCameraCalibration.Rotation;     // maps LEFT -> RIGHT: X_r = R X_l + T
+            var T = cd.StereoCameraCalibration.Translation;   // column or row vector (handle both below)
 
-            // Convert distance from system center to depth in the source camera's coordinate system
-            double depthSourceCamera = distanceToTarget;
+            if (srcCal is null || dstCal is null || R is null || T is null)
+                return false;
 
-            // Undistort the input point
-            Point undistortedInputPoints = UndistortPoint(sourceCamera, inputPoint);
+            // Ensure T is 3x1
+            Emgu.CV.Matrix<double> Tcol = (T.Rows == 3 && T.Cols == 1) ? T : T.Transpose();
 
-            double xUndistorted = undistortedInputPoints.X;   
-            double yUndistorted = undistortedInputPoints.Y;   
+            // Rt = R^T
+            var Rt = R.Transpose();
 
-            // Convert to 3D coordinates in the source camera space
-            double Xs = (xUndistorted - cx) * depthSourceCamera / fx;
-            double Ys = (yUndistorted - cy) * depthSourceCamera / fy;
+            // ----- Camera system center in LEFT/world coords: C_sys = (-R^T T) / 2 -----
+            var C_right = new Emgu.CV.Matrix<double>(3, 1);         // = -Rt * T
+            CvInvoke.Gemm(Rt, Tcol, -1.0, null, 0.0, C_right);
+            double Csys_x = C_right[0, 0] * 0.5;
+            double Csys_y = C_right[1, 0] * 0.5;
+            double Csys_z = C_right[2, 0] * 0.5;
 
-            //// Transform to the target camera coordinate system
-            //Mat Ps = new(3, 1, DepthType.Cv64F, 1);
-            //Ps.SetTo([Xs, Ys, depthSourceCamera]);
+            // ----- Undistort the SOURCE pixel; build the SOURCE camera ray -----
+            // Undistorted SOURCE pixel (in pixel coords)
+            Point pU = UndistortPoint(srcCal, sourcePixel);
 
-            //// Transpose the T matrix to be 3x1 (we store as 1x3)
-            //Emgu.CV.Matrix<double>? tT = T.Transpose();
-            //if (!isLeftCamera)
-            //{
-            //    CvInvoke.ScaleAdd(T, -1.0, tT, tT); // negated 
-            //}
+            // Intrinsic parameters (SOURCE)
+            var Ksrc = srcCal.Intrinsic;
+            double fx_s = Ksrc[0, 0], fy_s = Ksrc[1, 1], cx_s = Ksrc[0, 2], cy_s = Ksrc[1, 2];
 
+            // Ray direction in SOURCE camera coords (not normalized; scale is fine)
+            // v_cam = [(x - cx)/fx, (y - cy)/fy, 1]
+            double vx_cam = (pU.X - cx_s) / fx_s;
+            double vy_cam = (pU.Y - cy_s) / fy_s;
+            double vz_cam = 1.0;
 
-            //// Create
-            //Mat Pt = new();
-            //CvInvoke.Gemm(R, Ps, 1.0, tT, 1.0, Pt); // Adjust translation direction based on camera order
-
-
-            // Build the 3D point along the source ray (in SOURCE camera coords)
-            Mat Ps = new(3, 1, DepthType.Cv64F, 1);
-            Ps.SetTo([Xs, Ys, depthSourceCamera]);
-
-            // Choose transform from SOURCE -> TARGET
-            // If source is LEFT (isLeftCamera==true):  X_r = R * X_l + T
-            // If source is RIGHT (isLeftCamera==false): X_l = Rᵀ * X_r - Rᵀ * T
-            Mat R_use = new();
-            Mat t_use = new(3, 1, DepthType.Cv64F, 1);
-
-            if (isLeftCamera)
+            // Express this ray direction in LEFT/world coords
+            // If source is LEFT: d_world = v_cam
+            // If source is RIGHT: d_world = R^T * v_cam
+            double dwx, dwy, dwz;
+            if (TrueLeftFalseRight)
             {
-                // Use underlying Mat objects for copy
-                R.Mat.CopyTo(R_use);
-                T.Mat.CopyTo(t_use);
+                dwx = vx_cam; dwy = vy_cam; dwz = vz_cam;
             }
             else
             {
-                // R_use = Rᵀ
-                CvInvoke.Transpose(R.Mat, R_use);
-
-                // t_use = -Rᵀ * T
-                Mat Rt = new();
-                CvInvoke.Transpose(R.Mat, Rt);
-                CvInvoke.Gemm(Rt, T.Mat, -1.0, null, 0.0, t_use);
+                // Multiply Rt * v_cam
+                dwx = Rt[0, 0] * vx_cam + Rt[0, 1] * vy_cam + Rt[0, 2] * vz_cam;
+                dwy = Rt[1, 0] * vx_cam + Rt[1, 1] * vy_cam + Rt[1, 2] * vz_cam;
+                dwz = Rt[2, 0] * vx_cam + Rt[2, 1] * vy_cam + Rt[2, 2] * vz_cam;
             }
 
-            // Transform to TARGET camera
-            Mat Pt = new();
-            CvInvoke.Gemm(R_use, Ps, 1.0, t_use, 1.0, Pt);
+            // SOURCE camera center in LEFT/world coords
+            double Csrc_x, Csrc_y, Csrc_z;
+            if (TrueLeftFalseRight)
+            {
+                // Left camera center is origin in world
+                Csrc_x = 0.0; Csrc_y = 0.0; Csrc_z = 0.0;
+            }
+            else
+            {
+                // Right camera center in LEFT/world: C_right = -R^T T
+                Csrc_x = C_right[0, 0];
+                Csrc_y = C_right[1, 0];
+                Csrc_z = C_right[2, 0];
+            }
 
-            // Extract transformed 3D coordinates
-            double[] PtData = new double[3];
-            Pt.CopyTo(PtData);
-            double Xt = PtData[0];
-            double Yt = PtData[1];
-            double Zt = PtData[2];
+            // ----- Solve for α so that || (C_src + α * d_world) - C_sys || = distanceToTarget -----
+            // Quadratic: (d·d) α^2 + 2 ((C_src - C_sys)·d) α + ||C_src - C_sys||^2 - D^2 = 0
+            double dx = Csrc_x - Csys_x;
+            double dy = Csrc_y - Csys_y;
+            double dz = Csrc_z - Csys_z;
 
-            // Project onto the target camera's image plane (undistorted)
-            double xTargetUndistorted = (fx_t * Xt / Zt) + cx_t;
-            double yTargetUndistorted = (fy_t * Yt / Zt) + cy_t;
+            double a = dwx * dwx + dwy * dwy + dwz * dwz;
+            double b = 2.0 * (dx * dwx + dy * dwy + dz * dwz);
+            double c = (dx * dx + dy * dy + dz * dz) - (distanceToTarget * distanceToTarget);
 
-            // Apply distortion to match the unrectified target image
-            return DistortPoint(targetCamera, new Point(xTargetUndistorted, yTargetUndistorted)) ?? new Point(xTargetUndistorted, yTargetUndistorted);
+            // Numerical guard
+            if (a <= 0.0)
+                return false;
+
+            double disc = b * b - 4.0 * a * c;
+            if (disc < 0.0) disc = 0.0; // clamp
+
+            double sqrtDisc = Math.Sqrt(disc);
+            double alpha1 = (-b - sqrtDisc) / (2.0 * a);
+            double alpha2 = (-b + sqrtDisc) / (2.0 * a);
+
+            // We want a point in front of the SOURCE camera -> choose the smallest non-negative α
+            double alpha = double.PositiveInfinity;
+            if (alpha1 >= 0.0) alpha = Math.Min(alpha, alpha1);
+            if (alpha2 >= 0.0) alpha = Math.Min(alpha, alpha2);
+
+            if (!double.IsFinite(alpha))
+                return false; // both roots behind the camera
+
+            // 3D point in LEFT/world coords
+            double Xw = Csrc_x + alpha * dwx;
+            double Yw = Csrc_y + alpha * dwy;
+            double Zw = Csrc_z + alpha * dwz;
+
+            // ----- Transform to TARGET camera coordinates -----
+            // If source=LEFT (target=RIGHT): X_t = R * X_w + T
+            // If source=RIGHT (target=LEFT):  X_t = R^T * X_w - R^T * T
+            double Xt, Yt, Zt;
+
+            if (TrueLeftFalseRight)
+            {
+                Xt = R[0, 0] * Xw + R[0, 1] * Yw + R[0, 2] * Zw + Tcol[0, 0];
+                Yt = R[1, 0] * Xw + R[1, 1] * Yw + R[1, 2] * Zw + Tcol[1, 0];
+                Zt = R[2, 0] * Xw + R[2, 1] * Yw + R[2, 2] * Zw + Tcol[2, 0];
+            }
+            else
+            {
+                // Left coordinates = R^T * X_right - R^T * T
+                // Here Xw is already in LEFT coords; but target is LEFT, so just set Xt= Xw, etc.
+                // (Equivalently: X_t = X_w since target == LEFT/world)
+                Xt = Xw; Yt = Yw; Zt = Zw;
+            }
+
+            // Guard: point must be in front of TARGET camera
+            if (Zt <= 1e-9) return false;
+
+            // ----- Project with TARGET intrinsics (undistorted pixel) -----
+            var Kdst = dstCal.Intrinsic;
+
+            if (Kdst is not null)
+            {
+                double fx_t = Kdst[0, 0], fy_t = Kdst[1, 1], cx_t = Kdst[0, 2], cy_t = Kdst[1, 2];
+
+                double x_u = fx_t * (Xt / Zt) + cx_t;
+                double y_u = fy_t * (Yt / Zt) + cy_t;
+
+                // ----- Re-apply distortion to draw on the unrectified image -----
+                correspondingDistortedPixel = DistortPoint(dstCal, new Point(x_u, y_u));
+
+                if (correspondingDistortedPixel is not null)
+                {
+                    // (Optional) bounds check; you may clamp or just return true regardless
+                    if (correspondingDistortedPixel.Value.X < 0 || correspondingDistortedPixel.Value.X >= frameWidth ||
+                        correspondingDistortedPixel.Value.Y < 0 || correspondingDistortedPixel.Value.Y >= frameHeight)
+                        return false;
+                }
+                else
+                    return false;
+            }
+            else
+                return false;
+
+            return true;
         }
+
 
         /// <summary>
         /// Applies distortion to a 2D point using the given camera's distortion model.
@@ -1528,40 +1700,54 @@ namespace Surveyor
         /// <returns>The distorted 2D image point.</returns>
         public static Point? DistortPoint(CalibrationCameraData ccd, Point undistortedPoint)
         {
-            if (ccd.Intrinsic == null || ccd.Distortion == null)
-                return null;
+            if (ccd.Intrinsic == null || ccd.Distortion == null) return null;
 
-            // Extract intrinsic parameters
-            double fx = ccd.Intrinsic[0, 0];
-            double fy = ccd.Intrinsic[1, 1];
-            double cx = ccd.Intrinsic[0, 2];
-            double cy = ccd.Intrinsic[1, 2];
+            double fx = ccd.Intrinsic[0, 0], fy = ccd.Intrinsic[1, 1];
+            double cx = ccd.Intrinsic[0, 2], cy = ccd.Intrinsic[1, 2];
 
-            // Extract distortion coefficients
-            double k1 = ccd.Distortion[0, 0];
-            double k2 = ccd.Distortion[0, 1];
-            double p1 = ccd.Distortion[0, 2];
-            double p2 = ccd.Distortion[0, 3];
-            double k3 = ccd.Distortion[0, 4];
+            // Gracefully read up to 8 coeffs if present
+            double k1 = 0, k2 = 0, p1 = 0, p2 = 0, k3 = 0, k4 = 0, k5 = 0, k6 = 0;
 
-            // Normalize the coordinates
-            double xNorm = (undistortedPoint.X - cx) / fx;
-            double yNorm = (undistortedPoint.Y - cy) / fy;
+            int dc = ccd.Distortion.Cols; // or Rows if 1xN vs Nx1
+            double GetD(int idx)
+            {
+                if (ccd.Distortion.Rows == 1 && idx < ccd.Distortion.Cols) return ccd.Distortion[0, idx];
+                if (ccd.Distortion.Cols == 1 && idx < ccd.Distortion.Rows) return ccd.Distortion[idx, 0];
+                return 0.0;
+            }
+            if (dc >= 1) k1 = GetD(0);
+            if (dc >= 2) k2 = GetD(1);
+            if (dc >= 3) p1 = GetD(2);
+            if (dc >= 4) p2 = GetD(3);
+            if (dc >= 5) k3 = GetD(4);
+            if (dc >= 6) k4 = GetD(5);
+            if (dc >= 7) k5 = GetD(6);
+            if (dc >= 8) k6 = GetD(7);
 
-            // Compute radial distortion
-            double r2 = xNorm * xNorm + yNorm * yNorm;
-            double radialDistortion = 1 + k1 * r2 + k2 * r2 * r2 + k3 * r2 * r2 * r2;
+            double x = (undistortedPoint.X - cx) / fx;
+            double y = (undistortedPoint.Y - cy) / fy;
 
-            // Compute distorted coordinates
-            double xDistortedNorm = xNorm * radialDistortion + 2 * p1 * xNorm * yNorm + p2 * (r2 + 2 * xNorm * xNorm);
-            double yDistortedNorm = yNorm * radialDistortion + p1 * (r2 + 2 * yNorm * yNorm) + 2 * p2 * xNorm * yNorm;
+            double r2 = x * x + y * y;
+            double r4 = r2 * r2;
+            double r6 = r4 * r2;
 
-            // Convert back to pixel coordinates
-            double xDistorted = xDistortedNorm * fx + cx;
-            double yDistorted = yDistortedNorm * fy + cy;
+            // 8-coef radial (OpenCV)
+            double radial = 1 + k1 * r2 + k2 * r4 + k3 * r6;
+            if (dc >= 8) // “rational” model
+            {
+                double denom = 1 + k4 * r2 + k5 * r4 + k6 * r6;
+                if (Math.Abs(denom) > 1e-12) radial /= denom;
+            }
 
-            return new Point(xDistorted, yDistorted);
+            double x_tan = 2 * p1 * x * y + p2 * (r2 + 2 * x * x);
+            double y_tan = p1 * (r2 + 2 * y * y) + 2 * p2 * x * y;
+
+            double xd = x * radial + x_tan;
+            double yd = y * radial + y_tan;
+
+            return new Point(xd * fx + cx, yd * fy + cy);
         }
+
 
         // ** End of StereoProjection**
     }

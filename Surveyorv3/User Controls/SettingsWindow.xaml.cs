@@ -120,6 +120,10 @@ namespace Surveyor.User_Controls
             if (surveyClass is not null)
                 SettingsSurveyRules.SetupForSurveySettingWindow(surveyClass);
 
+            // Inform the SettingsCalibration user control that it is being used in the SettingsWindow for a survey (as opposed to a Field Trip)
+            if (surveyClass is not null)
+                SettingsCalibration.SetupForSurveySettingWindow(surveyClass);
+
             // Remove the separate title bar from the window
             ExtendsContentIntoTitleBar = true;
 
@@ -132,7 +136,7 @@ namespace Surveyor.User_Controls
                 // Hide the survey settings section
                 SurveySettingsTitle.Visibility = Visibility.Collapsed;
                 SurveyInfoAndMediaExpander.Visibility = Visibility.Collapsed;
-                CalibrationExpander.Visibility = Visibility.Collapsed;
+                SettingsCalibration.Visibility = Visibility.Collapsed;
                 SettingsSurveyRules.Visibility = Visibility.Collapsed;
             }
             else
@@ -140,7 +144,7 @@ namespace Surveyor.User_Controls
                 // Show the survey settings section
                 SurveySettingsTitle.Visibility = Visibility.Visible;
                 SurveyInfoAndMediaExpander.Visibility = Visibility.Visible;
-                CalibrationExpander.Visibility = Visibility.Collapsed;   //???Not Implimented
+                SettingsCalibration.Visibility = Visibility.Visible;   
                 SettingsSurveyRules.Visibility = Visibility.Visible;
             }
 
@@ -1568,7 +1572,6 @@ namespace Surveyor.User_Controls
             }
             else
             {
-                Console.WriteLine($"No GoPro scripts loaded");
                 GoProQRCode.Source = null;
                 GoProQRScript.Text = "Failed!";
             }

@@ -223,11 +223,11 @@
                  therefore display a tooltip -->
             <TextBlock x:Name="CalibratedIndicator"
                        Grid.Row="0" Grid.Column="10"
-                       FontFamily="Segoe UI Emoji"
+                       FontFamily="Segoe Fluent Icons"
                        FontSize="14" 
-                       Text="&#x1F4D0;"
+                       Text="&#xEB3C;"
                        Style="{StaticResource CaptionTextBlockStyle}"                       
-                       VerticalAlignment="Top" Margin="0,6,16,0">
+                       VerticalAlignment="Top" Margin="0,8,16,0">
             </TextBlock>
 
          

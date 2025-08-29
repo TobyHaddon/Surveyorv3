@@ -11,25 +11,23 @@
 // Version 1.4  29 Jun 2025
 // Handle space bar forwards from any UI component
 
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Surveyor.Events;
+using Surveyor.Helper;
 using Surveyor.User_Controls;
 using System;
-using Microsoft.UI.Dispatching;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Media;
 using static Surveyor.MediaStereoControllerEventData;
-using Surveyor.Helper;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml;
-using System.Collections.ObjectModel;
 using static Surveyor.User_Controls.MagnifyAndMarkerControlEventData;
 using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
-using static Surveyor.User_Controls.SurveyorMediaPlayer;
 using static Surveyor.User_Controls.SettingsWindowEventData;
-using Windows.Media.Playback;
-using MathNet.Numerics;
+using static Surveyor.User_Controls.SurveyorMediaPlayer;
 
 
 namespace Surveyor
@@ -74,7 +72,7 @@ namespace Surveyor
         TimeSpan mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
 
         // EventControl (existing measurements etc)
-        private EventsControl? eventsControl = null;
+        private readonly EventsControl? eventsControl = null;
 
         // Species Image Cache (stock photos of fish species to help fish ID)
         internal SpeciesImageAndInfoCache speciesImageCache;  // Accessed by SettingsWindow
@@ -1837,13 +1835,13 @@ namespace Surveyor
                     if (mainWindow.DoMeasurementAndRulesCalculations(surveyMeasurement))
                     {
                         stopwatch.Stop();
-                        Debug.WriteLine($"DisplayDynamicMeasurment: Measurement={surveyMeasurement.Measurment * 1000:F0}mm Range={surveyMeasurement.SurveyRulesCalc.Range:F2}m RMS={surveyMeasurement.SurveyRulesCalc.RMS * 1000:F0}mm, elasped {stopwatch.ElapsedMilliseconds}ms");
+                        Debug.WriteLine($"DisplayDynamicMeasurment: Measurement={surveyMeasurement.Measurment * 1000:F0}mm Range={surveyMeasurement.SurveyRulesCalc.Range:F2}m RMS={surveyMeasurement.SurveyRulesCalc.RMSWorst * 1000:F0}mm, elasped {stopwatch.ElapsedMilliseconds}ms");
 
                         mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.DisplayDynamicMeasurement)
                         {
                             showRMSCombinedOnly = trueShowRMSCombinedOnly,
                             measurement = surveyMeasurement.Measurment,
-                            rmsCombined = surveyMeasurement.SurveyRulesCalc?.RMS,
+                            rmsCombined = surveyMeasurement.SurveyRulesCalc?.RMSWorst,
                             range = surveyMeasurement.SurveyRulesCalc?.Range,
                             //???rangeRulePassed = surveyMeasurement.SurveyRulesCalc?.,
                             xOffset = surveyMeasurement.SurveyRulesCalc?.XOffset,
@@ -1885,12 +1883,12 @@ namespace Surveyor
                     if (mainWindow.DoRulesCalculations(surveyStereoPoint))
                     {
                         stopwatch.Stop();
-                        Debug.WriteLine($"DisplayDynamicMeasurment: 3D Point Range={surveyStereoPoint.SurveyRulesCalc.Range:F2}m RMS={surveyStereoPoint.SurveyRulesCalc.RMS*1000:F0}mm, elasped {stopwatch.ElapsedMilliseconds}ms");
+                        Debug.WriteLine($"DisplayDynamicMeasurment: 3D Point Range={surveyStereoPoint.SurveyRulesCalc.Range:F2}m RMS={surveyStereoPoint.SurveyRulesCalc.RMSWorst*1000:F0}mm, elasped {stopwatch.ElapsedMilliseconds}ms");
 
                         mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.DisplayDynamicMeasurement)
                         {
                             showRMSCombinedOnly = trueShowRMSCombinedOnly,
-                            rmsCombined = surveyStereoPoint.SurveyRulesCalc?.RMS,
+                            rmsCombined = surveyStereoPoint.SurveyRulesCalc?.RMSWorst,
                             range = surveyStereoPoint.SurveyRulesCalc?.Range,
                             //???rangeRulePassed = surveyStereoPoint.SurveyRulesCalc?.,
                             xOffset = surveyStereoPoint.SurveyRulesCalc?.XOffset,

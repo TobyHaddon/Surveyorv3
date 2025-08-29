@@ -276,9 +276,9 @@ namespace Surveyor.User_Controls
                         
                         if (surveyRulesCalc is not null)
                         {
-                            if (surveyRulesCalc.RMS is not null)
+                            if (surveyRulesCalc.RMSWorst is not null)
                             {
-                                sb.AppendLine($"RMS Distance Error: {Math.Round((double)surveyRulesCalc.RMS * 1000, 0)}mm");
+                                sb.AppendLine($"RMS Distance Error: {Math.Round((double)surveyRulesCalc.RMSWorst * 1000, 0)}mm");
                                 sb.AppendLine($"When a point is selected in the left camera and the corresponding point selected in the right camaera, the 3D point is computed by intersecting the resulting rays in 3D space.");
                                 sb.AppendLine($"RMS Distance is the distance of the shortest line, between the intersecting rays. In practice, the intersection is unlikely to ever be perfect (RMS = 0mm).");
                                 sb.AppendLine($"");

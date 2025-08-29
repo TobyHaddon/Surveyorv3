@@ -1,9 +1,13 @@
 ﻿using CommunityToolkit.WinUI.UI.Controls;
-using MathNet.Numerics;
+using GoProMP4MetadataExtraction;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
+using Microsoft.UI.Xaml.Media;
 using OfficeOpenXml;
 using Surveyor.Events;
+using Surveyor.Helper;
+using SurveyorCalibrationData;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -15,11 +19,12 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Windows.ApplicationModel;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Provider;
+using WinRT.Interop;
 using WinUIEx;
+using static Surveyor.Survey.DataClass;
 
 
 
@@ -31,6 +36,8 @@ namespace Surveyor.User_Controls
     public sealed partial class BulkSurveyExportDialog : WindowEx
     {
         public ObservableCollection<SurveyFileEntry> SurveyFiles { get; set; } = [];
+
+        private bool noSaveOptionSelected_NoExportAllowed = false;
 
         // Reporter
         private readonly Reporter? report = null;
@@ -49,6 +56,7 @@ namespace Surveyor.User_Controls
                                         HorizontalOffset,
                                         VerticalOffset,
                                         RMS,
+                                        RMSWorst,
                                         RulesPassed,
                                         Species,
                                         Genus,
@@ -85,12 +93,13 @@ namespace Surveyor.User_Controls
                             }
                         };
                     }
-                }
+                }               
             };
 
             // Initial update
             UpdateSelectAllCheckBoxState();
             UpdateButtons();
+            RebuildTotalsRow();
         }
 
         private int selectFolderEntryCount = 0;
@@ -102,7 +111,7 @@ namespace Surveyor.User_Controls
                 // Make sure we only open the settings window once.
                 // This can happen if the survey and movies are loaded and the user clicks the settings a few times.
                 if (entryCount == 1)
-                {
+                { 
                     var folderPicker = new FolderPicker();
                     folderPicker.FileTypeFilter.Add("*");
                     WinRT.Interop.InitializeWithWindow.Initialize(folderPicker, WinRT.Interop.WindowNative.GetWindowHandle(this));
@@ -110,7 +119,10 @@ namespace Surveyor.User_Controls
                     if (folder != null)
                     {
                         FolderPathTextBox.Text = folder.Path;
-                        await LoadSurveyFiles(folder.Path, IncludeSubfoldersCheckBox.IsChecked == true);
+                        await LoadSurveyFiles(folder.Path, 
+                                              IncludeSubfoldersCheckBox.IsChecked == true, 
+                                              false/*recalce*/, 
+                                              false/*Save back to survey files*/);
                         UpdateButtons();
                     }
                 }
@@ -127,12 +139,14 @@ namespace Surveyor.User_Controls
 
         }
 
-        private async Task LoadSurveyFiles(string path, bool includeSubfolders)
+        private async Task LoadSurveyFiles(string path, bool includeSubfolders, bool recalc, bool save, CalibrationData? calibrationData = null)
         {
             SurveyFiles.Clear();
             ItemCountTextBlock.Text = "";
             LoadingRing.Visibility = Visibility.Visible;
             LoadingRing.IsActive = true;
+
+            StereoProjection stereoProjection = new();
 
             // Run the expensive work on a background thread
             var fileEntries = await Task.Run(async () =>
@@ -144,9 +158,72 @@ namespace Surveyor.User_Controls
                 {
                     try
                     {
-                        var survey = new Survey(null!);
-                        if (await survey.SurveyLoad(fileSpec) == 0)
+                        // Open the survey with no auto save
+                        var survey = new Survey(report!);
+                        if (await survey.SurveyLoad(fileSpec, false/*autoSave*/) == 0)
                         {
+                            // Get the frame size
+                            int frameWidth = 0;
+                            int frameHeight = 0;
+
+                            // Used the left mp4 file to get the frame size
+                            string mediaFileLeft = survey.GetLeftMediaFileSpec(0);
+
+                            // Get the frame size and frame rate
+                            Dictionary<string, string> fileProperties = await GetMP4FileProperities.ExtractProperties(mediaFileLeft);
+                            if (fileProperties.TryGetValue("Video.Width", out string? width) &&
+                                fileProperties.TryGetValue("Video.Height", out string? height))
+                            {
+                                try
+                                {
+                                    frameWidth = Int32.Parse(width);
+                                    frameHeight = Int32.Parse(height);
+                                }
+                                catch (Exception ex)
+                                {
+                                    report?.Error("", $"Failed to parse video frame size from {mediaFileLeft}: {ex.Message}");
+                                }
+                            }
+
+                            // Force a recalc?
+                            if (recalc == true)
+                            {
+                                // Set the calibration data for stereo projection
+                                if (calibrationData is not null)
+                                {
+                                    CalibrationClass Calibration = new();
+                                    Calibration.CalibrationDataList.Add(calibrationData);
+                                    Calibration.PreferredCalibrationDataIndex = 0;
+
+                                    stereoProjection.SetCalibrationData(Calibration);
+                                }
+                                else
+                                    stereoProjection.SetCalibrationData(survey.Data.Calibration);
+
+                                if (frameWidth != 0 && frameHeight != 0)
+                                {
+                                    stereoProjection.SetFrameSize(frameWidth, frameHeight);
+
+                                    bool ret = await SurveyMeasurementHelper.CheckIfEventMeasurementsAreUpToDate(
+                                                            stereoProjection,
+                                                            survey,
+                                                            frameWidth,
+                                                            frameHeight,
+                                                            null/*no UI this.Content.XamlRoot*/,
+                                                            true/*forceReCalc*/);
+
+                                    if (ret)
+                                    {
+                                        // Is a save required
+                                        if (save)
+                                        {
+                                            survey.SurveySave();
+                                        }
+                                    }
+                                }
+                            }
+
+
                             string fileName = Path.GetFileName(fileSpec);
 
                             // Check if the Survey File Name and the Survey Code are conistent
@@ -179,6 +256,21 @@ namespace Surveyor.User_Controls
                             // Total SurveyMeasurementPoints and SurveyStereoPoint with blank rules calcs
                             int totalCountWithNullRules = countSurveyMeasurementPointsWithNullRules + countSurveyStereoPointsWithNullRules;
 
+                            // Count SurveyMeasurementPoints with failed SurveyRules
+                            int countSurveyMeasurementPointsWithFailedRules = survey.Data.Events.EventList
+                                .Where(e => e.EventDataType == SurveyDataType.SurveyMeasurementPoints)
+                                .Select(e => e.EventData as SurveyMeasurement)
+                                .Count(data => data?.SurveyRulesCalc?.SurveyRules == false);
+
+                            // Count SurveyStereoPoint with failed SurveyRules
+                            int countSurveyStereoPointsWithFailedRules = survey.Data.Events.EventList
+                                .Where(e => e.EventDataType == SurveyDataType.SurveyStereoPoint)
+                                .Select(e => e.EventData as SurveyStereoPoint)
+                                .Count(data => data?.SurveyRulesCalc?.SurveyRules == false);
+
+                            // Total SurveyMeasurementPoints and SurveyStereoPoint with failed rules calcs
+                            int totalCountWithFailedRules = countSurveyMeasurementPointsWithFailedRules + countSurveyStereoPointsWithFailedRules;
+
                             int countSpeciesNull = survey.Data.Events.EventList.Count(e =>
                                 (e.EventDataType == SurveyDataType.SurveyMeasurementPoints &&
                                 string.IsNullOrEmpty((e.EventData as SurveyMeasurement)?.SpeciesInfo?.Species)) ||
@@ -189,6 +281,7 @@ namespace Surveyor.User_Controls
                                 (e.EventDataType == SurveyDataType.SurveyPoint &&
                                 string.IsNullOrEmpty((e.EventData as SurveyPoint)?.SpeciesInfo?.Species))
                             );
+
 
 
                             // Create a List<string> of all the different transect used in the survey
@@ -221,7 +314,7 @@ namespace Surveyor.User_Controls
                             {
                                 if (survey.Data.SurveyRules.SurveyRulesData.RMSRuleActive)
                                 {
-                                    rmsRule = $"RMS<{Math.Round(survey.Data.SurveyRules.SurveyRulesData.RMSMax / 1000, MidpointRounding.AwayFromZero):F0}mm";
+                                    rmsRule = $"RMS<{Math.Round(survey.Data.SurveyRules.SurveyRulesData.RMSMax, MidpointRounding.AwayFromZero):F0}mm";
                                 }
                                 else
                                 {
@@ -233,14 +326,25 @@ namespace Surveyor.User_Controls
 
 
                             // Check the number of measurement and 3D points where the rules have not been applied
-                            string rulesCalc = string.Empty;
+                            string rulesCalcNull = string.Empty;
                             if (totalCountWithNullRules > 0)
                             {
-                                rulesCalc = $"{totalCountWithNullRules} missing";
+                                rulesCalcNull = $"{totalCountWithNullRules} missing";
                             }
                             else
                             {
-                                rulesCalc = "Ok";
+                                rulesCalcNull = "Ok";
+                            }
+
+                            // Check the number of measurement and 3D points where the rules have failed
+                            string rulesCalcFailed = string.Empty;
+                            if (totalCountWithFailedRules > 0)
+                            {
+                                rulesCalcFailed = $"{totalCountWithFailedRules} failed";
+                            }
+                            else
+                            {
+                                rulesCalcFailed = "All passed";
                             }
 
                             // Check the number of measurment, 3D points and single points where the species has not been set
@@ -286,17 +390,19 @@ namespace Surveyor.User_Controls
                             else
                                 verticalRule = "No rules";
 
+
+                            // Get the rules hash so consistancy of rules can be checked across surveys
+                            int rulesHash = survey.Data.SurveyRules.GetHashCode();
+
+
                             // Check for calibration
                             string calibration = string.Empty;
-                            SurveyorCalibrationData.CalibrationData? calibrationData = survey.Data.Calibration.GetPreferredCalibationData(null, null);
-                            if (survey.Data.Calibration.CalibrationDataList.Count > 0 &&
-                                survey.Data.Calibration.PreferredCalibrationDataIndex >= 0 && 
-                                survey.Data.Calibration.PreferredCalibrationDataIndex < survey.Data.Calibration.CalibrationDataList.Count)
+                            SurveyorCalibrationData.CalibrationData? calibrationDataPreferred = survey.Data.Calibration.GetPreferredCalibationData(frameWidth, frameHeight);
+                            if (calibrationDataPreferred is not null)
                             {
-                                calibrationData = survey.Data.Calibration.CalibrationDataList[survey.Data.Calibration.PreferredCalibrationDataIndex];
-                                if (calibrationData.StereoCameraCalibration.RMS != 0)
+                                if (calibrationDataPreferred.StereoCameraCalibration.RMS != 0)
                                 {
-                                    calibration = $"RMS:{calibrationData.StereoCameraCalibration.RMS:F2}";
+                                    calibration = $"RMS:{calibrationDataPreferred.StereoCameraCalibration.RMS * 1000:F2}";
                                 }
                                 else
                                 {
@@ -307,6 +413,19 @@ namespace Surveyor.User_Controls
                             {
                                 calibration = "None";
                             }
+
+                            // Get calibration Hash
+                            string calibrationHash = string.Empty;
+                            if (calibrationDataPreferred is not null)
+                            {
+                                calibrationDataPreferred = survey.Data.Calibration.CalibrationDataList[survey.Data.Calibration.PreferredCalibrationDataIndex];
+                                calibrationHash = $"{calibrationDataPreferred.GetHashCode():x8}";
+                            }
+                            else
+                            {
+                                calibration = "None";
+                            }
+
 
                             // Check a sync point was setup (should only be one per survey video)
                             string syncPoint = string.Empty;
@@ -342,10 +461,13 @@ namespace Surveyor.User_Controls
                                 RulesRange = rangeRule,
                                 RulesHorizontal = horizontalRule,
                                 RulesVertical = verticalRule,
+                                RulesHash = rulesHash,
                                 RulesRMS = rmsRule,
-                                RulesCalc = rulesCalc,          // Where the rules actually applied
+                                RulesCalcNull = rulesCalcNull,          // Count of where the rules actually applied
+                                RulesCalcFailed = rulesCalcFailed,      // Count of where the rules have failed
                                 Species = species,
                                 Calibration = calibration,
+                                CalibrationHash = calibrationHash,
                                 SyncPoint = syncPoint,
                                 Analyst = analyst,
                                 SurveyCode = surveyCode,
@@ -359,7 +481,7 @@ namespace Surveyor.User_Controls
                     }
                     catch (Exception ex)
                     {
-                        System.Diagnostics.Debug.WriteLine($"Failed to load {fileSpec}: {ex.Message}");
+                        report?.Warning("", $"Failed to load {fileSpec}: {ex.Message}");
                     }
                 }
 
@@ -393,11 +515,23 @@ namespace Surveyor.User_Controls
                     entry.RightMediaFile = "*" + entry.RightMediaFile;
                 }
 
-
                 await Task.Delay(10); // Throttle to avoid UI freeze
                 SurveyFiles.Add(entry);
             }
             
+            RebuildTotalsRow();
+
+            // Check for non-matching rules
+            if (!CheckThatAllRulesMatch(fileEntries))
+            {
+                SetValidationText(false/*invalid*/, RulesMismatchPanel, RulesMismatchGlyph, RulesMismatchValidationText, "Not every survey has the same rules settings", "Check the different rules columns to find the survey(s) with differing rules");
+            }
+
+            // Check for non-matching calibration data
+            if (!CheckThatAllCalibrationDataMatch(fileEntries))
+            {
+                SetValidationText(false/*invalid*/, CalibrationDataMismatchPanel, CalibrationDataMismatchGlyph, CalibrationDataMismatchValidationText, "Not every survey is using the same calibration data", "This can happen if the camera rig needed to be recalibrated at some stage.");
+            }
 
             UpdateItemCountText();
             LoadingRing.IsActive = false;
@@ -406,8 +540,8 @@ namespace Surveyor.User_Controls
 
         private void UpdateItemCountText()
         {
-            int total = SurveyFiles.Count;
-            int selected = SurveyFiles.Count(f => f.Include);
+            int total = SurveyFiles.Count(sf=>!sf.IsTotalRow);
+            int selected = SurveyFiles.Count(f => f.Include && !f.IsTotalRow);
             ItemCountTextBlock.Text = $"{total} Items ({selected} selected)";
         }
         private static IEnumerable<string> SafeEnumerateFiles(string root, string pattern, bool recurse)
@@ -452,6 +586,56 @@ namespace Surveyor.User_Controls
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Parse the list of surveys and check all surveys have the sames rules applied
+        /// </summary>
+        /// <param name="entries"></param>
+        /// <returns></returns>
+        private static bool CheckThatAllRulesMatch(List<SurveyFileEntry> entries)
+        {
+            bool ret = true;
+
+            int firstRulesHash = entries[0].RulesHash;
+
+            for (int i = 1; i < entries.Count; i++)
+            {
+                if (firstRulesHash != entries[i].RulesHash)
+                {
+                    ret = false;
+                    break;
+                }
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Parse the list of surveys and check all surveys are using the same calibration data
+        /// </summary>
+        /// <param name=""></param>
+        /// <returns></returns>
+        private static bool CheckThatAllCalibrationDataMatch(List<SurveyFileEntry> entries)
+        {
+            bool ret = true;
+
+            if (entries.Count > 1)
+            {
+                string firstCalibrationHash = entries[0].CalibrationHash;
+
+                for (int i = 1; i < entries.Count; i++)
+                {
+                    if (firstCalibrationHash != entries[i].CalibrationHash)
+                    {
+                        ret = false;
+                        break;
+                    }
+                }
+            }
+
+            return ret;
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)
@@ -545,22 +729,228 @@ namespace Surveyor.User_Controls
 
         private void UpdateSelectAllCheckBoxState()
         {
-            if (SurveyFiles.Count == 0)
+            var dataRows = SurveyFiles.Where(sf=>!sf.IsTotalRow).ToList();
+            if (dataRows.Count == 0)
             {
                 HeaderSelectAllCheckBox.IsChecked = false;
                 return;
             }
-
-            int selectedCount = SurveyFiles.Count(f => f.Include);
+            int selectedCount = dataRows.Count(f => f.Include);
             if (selectedCount == 0)
                 HeaderSelectAllCheckBox.IsChecked = false;
-            else if (selectedCount == SurveyFiles.Count)
+            else if (selectedCount == dataRows.Count)
                 HeaderSelectAllCheckBox.IsChecked = true;
             else
                 HeaderSelectAllCheckBox.IsChecked = null; // indeterminate
         }
 
 
+        private void UpdateButtons()
+        {
+            if (noSaveOptionSelected_NoExportAllowed)
+            {
+                ExportButton.IsEnabled = false;
+            }
+            else
+            {
+                // Exclude total row from export logic
+                ExportButton.IsEnabled = SurveyFiles.Any(e => e.Include && !e.IsTotalRow);
+            }
+        }
+
+
+        private void RebuildTotalsRow()
+        {
+            // Remove existing total row if present
+            var existing = SurveyFiles.FirstOrDefault(f => f.IsTotalRow);
+            if (existing != null)
+            {
+                SurveyFiles.CollectionChanged -= SurveyFiles_CollectionChangedSuppress; // ensure not double
+                SurveyFiles.Remove(existing);
+            }
+            var data = SurveyFiles.Where(f => !f.IsTotalRow).ToList();
+            if (data.Count == 0)
+                return;
+
+            var totalRow = new SurveyFileEntry
+            {
+                IsTotalRow = true,
+                FileName = "Totals",
+                Depth = $"{data.Select(d=>d.Depth).Where(d=>!string.IsNullOrWhiteSpace(d)).Distinct(StringComparer.OrdinalIgnoreCase).Count()} depth(s)",
+                TotalEntries = data.Sum(d => d.TotalEntries),
+                TotalMeasurements = data.Sum(d => d.TotalMeasurements),
+                Total3DPoints = data.Sum(d => d.Total3DPoints),
+                TotalSinglePoints = data.Sum(d => d.TotalSinglePoints),
+                RulesRange = AllSameOrIndicator(data.Select(d=>d.RulesRange)),
+                RulesHorizontal = AllSameOrIndicator(data.Select(d=>d.RulesHorizontal)),
+                RulesVertical = AllSameOrIndicator(data.Select(d=>d.RulesVertical)),
+                RulesRMS = AllSameOrIndicator(data.Select(d=>d.RulesRMS)),
+                RulesCalcNull = data.Sum(d => ParseLeadingInt(d.RulesCalcNull)).ToString(),
+                RulesCalcFailed = data.Sum(d => ParseLeadingInt(d.RulesCalcFailed)).ToString(),
+                Species = $"{data.Sum(d => ParseLeadingInt(d.Species))} missing", // d.Species like "3 missing" or "Ok"
+                Calibration = $"{data.Count(d=> string.Equals(d.Calibration,"None",StringComparison.OrdinalIgnoreCase))} not set",
+                CalibrationHash = $"{data.Select(d=>d.CalibrationHash).Where(h=>!string.IsNullOrWhiteSpace(h)).Distinct().Count()} set(s)",
+                SyncPoint = $"{data.Count(d=> !string.Equals(d.SyncPoint,"Set",StringComparison.OrdinalIgnoreCase))} not set",
+                Analyst = data.Select(d=>d.Analyst).Where(a=>!string.IsNullOrWhiteSpace(a)).Distinct(StringComparer.OrdinalIgnoreCase).Count().ToString()
+            };
+
+            // Convert numeric-only fields for consistency
+            if (int.TryParse(totalRow.RulesCalcNull, out int rcnull) && rcnull == 0)
+                totalRow.RulesCalcNull = "0";
+            if (int.TryParse(totalRow.RulesCalcFailed, out int rcfail) && rcfail == 0)
+                totalRow.RulesCalcFailed = "0";
+
+            SurveyFiles.Add(totalRow);
+        }
+
+        private void SurveyFiles_CollectionChangedSuppress(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e) { }
+
+        private static string AllSameOrIndicator(IEnumerable<string> values)
+        {
+            var filtered = values.Where(v => !string.IsNullOrWhiteSpace(v)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            if (filtered.Count <= 1)
+                return "Consistent";
+            return "Inconsistent";
+        }
+
+        private static int ParseLeadingInt(string text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return 0;
+            int space = text.IndexOf(' ');
+            string first = space > 0 ? text[..space] : text;
+            if (int.TryParse(first, out int val)) return val;
+            return 0;
+        }
+
+        private async void RecalcNoSave_Click(object sender, RoutedEventArgs e)
+        {
+            // No save option selected. Don't allow export to avoid confusion
+            noSaveOptionSelected_NoExportAllowed = true;
+
+            await Recalc(false/*trueSaveFalseNoSave*/);
+        }
+
+        private async void RecalcSave_Click(object sender, RoutedEventArgs e)
+        {
+            // Save option selected. Export allowed
+            noSaveOptionSelected_NoExportAllowed = false;
+
+            await Recalc(true/*trueSaveFalseNoSave*/);
+        }
+
+
+        /// <summary>
+        /// Prompt the use for a new calibration file. Then use that
+        /// calibrition data to recalculate all the measurements and rules
+        /// </summary>
+        /// <param name="save"></param>
+        private async Task Recalc(bool trueSaveFalseNoSave)
+        {        
+            if (!string.IsNullOrEmpty(FolderPathTextBox.Text))
+            {
+                string fileSpec = FolderPathTextBox.Text;
+                await LoadSurveyFiles(fileSpec,
+                                      IncludeSubfoldersCheckBox.IsChecked == true,
+                                      true/*recalc*/,
+                                      trueSaveFalseNoSave/*Save back to survey files*/);
+                UpdateButtons();
+            }
+        }
+
+        private async void NewCalibRecalcNoSave_Click(object sender, RoutedEventArgs e)
+        {
+            // No save option selected. Don't allow export to avoid confusion
+            noSaveOptionSelected_NoExportAllowed = true;
+
+            await NewCalibRecalc(false/*save*/);
+        }
+
+        private async void NewCalibRecalcSave_Click(object sender, RoutedEventArgs e)
+        {
+            // Save option selected. Export allowed
+            noSaveOptionSelected_NoExportAllowed = false;
+
+            await NewCalibRecalc(true/*save*/);
+        }
+
+
+        /// <summary>
+        /// Prompt the use for a new calibration file. Then use that
+        /// calibrition data to recalculate all the measurements and rules
+        /// </summary>
+        /// <param name="save"></param>
+        private async Task NewCalibRecalc(bool trueSaveFalseNoSave)
+        {
+            // Get new calibration data
+            CalibrationData? calibrationData = await ImportCalibration();
+
+            if (calibrationData is not null && !string.IsNullOrEmpty(FolderPathTextBox.Text))
+            {
+                string fileSpec = FolderPathTextBox.Text;
+                await LoadSurveyFiles(fileSpec, 
+                                      IncludeSubfoldersCheckBox.IsChecked == true,
+                                      true/*recalc*/,
+                                      trueSaveFalseNoSave/*Save back to survey files*/, 
+                                      calibrationData);
+                UpdateButtons();
+            }
+        }
+
+
+        /// <summary>
+        /// Import calibration data into the survey
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async Task<CalibrationData?> ImportCalibration()
+        {
+            CalibrationData? calibrationData = null;
+
+            // Create the file picker object
+            FileOpenPicker openPicker = new()
+            {
+                ViewMode = PickerViewMode.Thumbnail,
+                SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+            };
+
+            // Add file type filters
+            openPicker.FileTypeFilter.Add(".calib");
+            openPicker.FileTypeFilter.Add(".json");
+            openPicker.FileTypeFilter.Add(".jsn");
+
+            // Associate the file picker with the current window
+            IntPtr hWnd = WindowNative.GetWindowHandle(this/*App.MainWindow*/);
+            InitializeWithWindow.Initialize(openPicker, hWnd);
+
+            // Show the picker and allow multiple file selection
+            StorageFile file = await openPicker.PickSingleFileAsync();
+
+            // Check if files were picked and handle them
+            if (file is not null)
+            {
+                string? calibrationFileSpec = file.Path;
+
+                // Load the calibration file
+                calibrationData = new();
+                int ret = calibrationData.LoadFromFile(calibrationFileSpec);
+
+                if (ret != 0)
+                {
+                    report?.Warning("", $"Failed to read from calibration file: {calibrationFileSpec}, return = {ret}");
+                    calibrationData = null;
+                }
+            }
+
+            return calibrationData;
+        }
+
+
+        /// <summary>
+        /// Export all the data from each selected survey to an excel spreadsheet
+        /// </summary>
+        /// <param name="package"></param>
+        /// <param name="worksheet"></param>
+        /// <returns></returns>
         private async Task ExportDatatSheet(ExcelPackage package, ExcelWorksheet worksheet)
         {
             // Ensure a Hyperlink named style exists on the workbook
@@ -585,6 +975,7 @@ namespace Surveyor.User_Controls
             worksheet.Cells[1, (int)ExportExcelColmns.HorizontalOffset].Value = "Horiontal Offset";
             worksheet.Cells[1, (int)ExportExcelColmns.VerticalOffset].Value = "Vertical Offset";
             worksheet.Cells[1, (int)ExportExcelColmns.RMS].Value = "RMS";
+            worksheet.Cells[1, (int)ExportExcelColmns.RMSWorst].Value = "RMSWorst";
             worksheet.Cells[1, (int)ExportExcelColmns.RulesPassed].Value = "Rules Passed";
             worksheet.Cells[1, (int)ExportExcelColmns.Species].Value = "Species";
             worksheet.Cells[1, (int)ExportExcelColmns.Genus].Value = "Genus";
@@ -600,8 +991,9 @@ namespace Surveyor.User_Controls
             {
                 await Task.Delay(row % 10 == 0 ? 10 : 0); // Throttle to avoid UI freeze
 
+                // Open the survey with no auto save
                 var survey = new Survey(null!);
-                if (await survey.SurveyLoad(fileEntry.FilePath) == 0)
+                if (await survey.SurveyLoad(fileEntry.FilePath, false/*autoSave*/) == 0)
                 {
                     //??? Debug Line
                     //if (survey.Data.Info.SurveyCode == "STU_5m_E2-E3_2025-07-14")
@@ -696,7 +1088,8 @@ namespace Surveyor.User_Controls
                                 worksheet.Cells[row, (int)ExportExcelColmns.Range].Value = surveyRulesCalc?.Range ?? 0;
                                 worksheet.Cells[row, (int)ExportExcelColmns.HorizontalOffset].Value = surveyRulesCalc?.XOffset ?? 0;
                                 worksheet.Cells[row, (int)ExportExcelColmns.VerticalOffset].Value = surveyRulesCalc?.YOffset ?? 0;
-                                worksheet.Cells[row, (int)ExportExcelColmns.RMS].Value = surveyRulesCalc?.RMS ?? 0;
+                                worksheet.Cells[row, (int)ExportExcelColmns.RMS].Value = surveyRulesCalc?.RMSMean ?? 0;
+                                worksheet.Cells[row, (int)ExportExcelColmns.RMSWorst].Value = surveyRulesCalc?.RMSWorst ?? 0;
                                 worksheet.Cells[row, (int)ExportExcelColmns.RulesPassed].Value = surveyRulesCalc?.SurveyRules;
 
                                 // Species, Genus, Family, Code
@@ -782,26 +1175,14 @@ namespace Surveyor.User_Controls
             }
         }
 
-        private void UpdateButtons()
+        private void SurveyGrid_LoadingRow(object sender, DataGridRowEventArgs e)
         {
-            // Ensure SurveyGrid.ItemsSource is accessible
-            if (SurveyGrid.ItemsSource is IEnumerable<object> items)
+            if (e.Row.DataContext is SurveyFileEntry sfe && sfe.IsTotalRow)
             {
-                // Convert to list for reuse
-                var itemList = items.Cast<object>().ToList();
-
-                // Enable ExportDataButton if any item has Include == true
-                ExportButton.IsEnabled = itemList
-                    .OfType<SurveyFileEntry>()
-                    .Any(entry => entry.Include);
-            }
-            else
-            {
-                // Fallback: disable both buttons
-                ExportButton.IsEnabled = false;
+                e.Row.Background = (Brush)Application.Current.Resources["SystemFillColorAttentionBackgroundBrush"];
+                // Font weight customization omitted due to namespace limitations
             }
         }
-
 
         /// <summary>
         /// Check if the survey file name, survey code and actual file name are consistent.
@@ -858,9 +1239,74 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// Called to set the validation test and icon status
+        /// </summary>
+        /// <param name="validTRUEInvalidFALSE"></param>
+        /// <param name="glyph"></param>
+        /// <param name="validationText"></param>
+        /// <param name="text"></param>
+        private static void SetValidationText(bool? validTRUEInvalidFALSE, StackPanel? panel, FontIcon glyph, TextBlock validationText, string text, string tooltip)
+        {
+            if (validTRUEInvalidFALSE is null)
+            {
+                if (panel is not null)
+                    panel.Visibility = Visibility.Collapsed;
+
+                glyph.Glyph = "";
+                validationText.Text = "";
+            }
+            else if ((bool)validTRUEInvalidFALSE == true)
+            {
+                // Get the brush from the application resources
+                var themeBrush = (Brush)Application.Current.Resources["SystemFillColorSuccessBrush"];
+
+                if (panel is not null)
+                    panel.Visibility = Visibility.Visible;
+
+                glyph.Glyph = "\uE73E";     // Tick
+                glyph.Foreground = themeBrush;
+                validationText.Text = text;
+            }
+            else
+            {
+                // Get the brush from the application resources
+                var themeBrush = (Brush)Application.Current.Resources["SystemFillColorCriticalBrush"];
+
+                if (panel is not null)
+                    panel.Visibility = Visibility.Visible;
+
+                glyph.Glyph = "\uE783";    // Information 
+                glyph.Foreground = themeBrush;
+                validationText.Text = text;
+            }
+
+            // Retrieve the tooltip programmatically
+            bool applyTooltip = false;
+
+            if (ToolTipService.GetToolTip(validationText) is not ToolTip existingToolTip)
+            {
+                applyTooltip = true;
+            }
+            else if ((string)existingToolTip.Content != tooltip)
+            {
+                // Update tooltip
+                existingToolTip.Content = tooltip;
+            }
+
+            // Change the tooltip
+            if (applyTooltip)
+            {
+                ToolTip toolTip = new() { Content = tooltip };
+                ToolTipService.SetToolTip(validationText, toolTip);
+            }
+        }
+
     }
     public partial class SurveyFileEntry : INotifyPropertyChanged
     {
+        public bool IsTotalRow { get; set; } = false; // flag for totals row
+
         private bool _include;
 
         public bool Include
@@ -886,11 +1332,14 @@ namespace Surveyor.User_Controls
         public string TransectList { get; set; } = string.Empty;
         public string RulesRange { get; set; } = string.Empty;
         public string RulesRMS { get; set; } = string.Empty;
-        public string RulesCalc { get; set; } = string.Empty;
+        public string RulesCalcNull { get; set; } = string.Empty;
+        public string RulesCalcFailed { get; set; } = string.Empty;
+        public int  RulesHash { get; set; } = -1;           // Not displayed
         public string Species { get; set; } = string.Empty;
         public string RulesHorizontal { get; set; } = string.Empty;
         public string RulesVertical { get; set; } = string.Empty;
         public string Calibration { get; set; } = string.Empty;
+        public string CalibrationHash { get; set; } = string.Empty;
         public string SyncPoint { get; set; } = string.Empty;
         public string Analyst { get; set; } = string.Empty;
         public string SurveyCode { get; set; } = string.Empty;
@@ -903,6 +1352,17 @@ namespace Surveyor.User_Controls
 
         private void OnPropertyChanged(string propertyName) =>
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+
+    public class BoolHideWhenTrueConverter : IValueConverter
+    {
+        public object Convert(object value, Type targetType, object parameter, string language)
+        {
+            if (value is bool b && b)
+                return Visibility.Collapsed;
+            return Visibility.Visible;
+        }
+        public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
     }
 
 }

@@ -1,19 +1,6 @@
-using CommunityToolkit.WinUI.Controls;
-using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text.RegularExpressions;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
 using static Surveyor.Survey.DataClass;
 
 
@@ -25,13 +12,7 @@ namespace Surveyor.User_Controls
         private Reporter? report = null;
 
         // Survey Rules
-        //private Survey.DataClass.SurveyRulesClass? surveyRulesClass = null;     // This is the container class in Survey.DataClass for SurveyRulesData
-        private SurveyRulesClass? surveyRules = null;
-
-        // Called from
-        //SettingsExpander? settingsSurveyRules = null;
-        //SettingsExpander? settingsFieldTripRules = null;  // To be implemented once Field Trip are supported
-
+        private SurveyRulesClass? surveyRules = null;  // Bound to xaml
 
         public SettingsSurveyRules()
         {

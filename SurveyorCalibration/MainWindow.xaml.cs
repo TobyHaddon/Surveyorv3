@@ -365,29 +365,32 @@ namespace Surveyor
             {
                 CalibrationMediaUserControl.SaveForContentDialog(calibProject);
 
+                // Save the calib project file
+                var file = await PickCalibFileToSaveAsync(this); // 'this' refers to your Window instance
+                if (file != null)
+                {
+                    try
+                    {
+                        // Save the calib project data to the file
+                        await calibProject.Save(file.Path);
+                        Debug.WriteLine($"Calibration project saved to {file.Path}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error saving calibration project: {ex.Message}");
+                        // Handle the error, e.g., show a message to the user
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine("No file selected for saving calibration project.");
+                }
+
+                // Open the mdeia
                 await OpenMedia(calibProject, false/*forceUsdCacheIfAvalable*/, false/*noPrompts*/);
             }
 
-            // Save the calib project file
-            var file = await PickCalibFileToSaveAsync(this); // 'this' refers to your Window instance
-            if (file != null)
-            {
-                try
-                {
-                    // Save the calib project data to the file
-                    await calibProject.Save(file.Path);
-                    Debug.WriteLine($"Calibration project saved to {file.Path}");
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error saving calibration project: {ex.Message}");
-                    // Handle the error, e.g., show a message to the user
-                }
-            }
-            else
-            {
-                Debug.WriteLine("No file selected for saving calibration project.");
-            }
+
         }
         public async Task<StorageFile?> PickCalibFileToSaveAsync(Window window)
         {
@@ -398,11 +401,11 @@ namespace Surveyor
             InitializeWithWindow.Initialize(savePicker, hWnd);
 
             // Set file type choices and default extension
-            savePicker.FileTypeChoices.Add("Calibration File", new List<string>() { ".calib" });
+            savePicker.FileTypeChoices.Add("Calibration Project", [".calib"]);
             savePicker.DefaultFileExtension = ".calib";
 
             // Optional: set suggested file name
-            savePicker.SuggestedFileName = "my_calibration";
+            savePicker.SuggestedFileName = "my_calibration_project";
 
             StorageFile file = await savePicker.PickSaveFileAsync();
             return file;
@@ -446,7 +449,7 @@ namespace Surveyor
                     var dialog = new ContentDialog
                     {
                         Title = "Load Failed",
-                        Content = "Failed to load the selected calibration project file.",
+                        Content = "Failed to load the selected calibration project.",
                         CloseButtonText = "OK",
                         XamlRoot = this.Content.XamlRoot
                     };
@@ -1088,7 +1091,7 @@ namespace Surveyor
                             WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hwnd);
 
                             savePicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
-                            savePicker.FileTypeChoices.Add("Calibration Data", new List<string>() { ".json" });
+                            savePicker.FileTypeChoices.Add("Calibration Data", [".json"]);
                             savePicker.SuggestedFileName = "CalibrationData";
 
                             Windows.Storage.StorageFile file = await savePicker.PickSaveFileAsync();

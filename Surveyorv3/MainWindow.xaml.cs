@@ -167,7 +167,7 @@ namespace Surveyor
             NetworkConnectionIndicator.Text = "    ";
             networkManager.RegisterAction((_isOnline, _isMetered, _bars) =>
             {
-                if ((isOnlineRememberedStatus is null && _isOnline) ||      // If first time online state seen
+                if ((isOnlineRememberedStatus is null && _isOnline) ||      // If first time online status seen
                     (_isOnline && !(bool)isOnlineRememberedStatus!) ||      // If online status has changed
                     /*(useInternetRememberedEnabled is null && _isOnline) ||  // If online and */
                     (useInternetRememberedEnabled is not null && _isOnline && useInternetRememberedEnabled != SettingsManagerLocal.UseInternetEnabled))  // If online and the Use Internet option has changed
@@ -404,7 +404,7 @@ namespace Surveyor
                         report.Info("", $"Start position: {startPositionTS:hh\\:mm\\:ss\\.ff} ({startPositionTS.TotalSeconds:F2}");
                         await Task.Delay(100); // optional but helps UI be ready
                         await mediaStereoController.FrameMove(SurveyorMediaPlayer.eCameraSide.None/*Stereo*/, 1);
-                        await Task.Delay(200); // optional but helps UI be ready
+                        await Task.Delay(200); // optional but helps UI be_ready
                         mediaStereoController.FrameJump(SurveyorMediaPlayer.eCameraSide.None/*Stereo*/, startPositionTS);
                     }
                 });
@@ -938,36 +938,77 @@ namespace Surveyor
 
                             if (proceed)
                             {
-                                // ***OLD CODE START***
-                                // Open Media Files
-                                ///???await OpenSVSMediaFiles();
-                                // ***OLD CODE END***
+                                int ret = 0;
 
-                                // ***NEW CODE START*** (Force the NewSurvey logical through the save OpenSurvey Logic)
                                 // Force a Save
-                                int ret = await FileSurveySaveOrSaveAs();
+                                ret = await FileSurveySaveOrSaveAs();
 
-                                if (ret == 0 && surveyClass.Data.Info.SurveyPath is not null && surveyClass.Data.Info.SurveyFileName is not null)
+                                if (ret == 0)
                                 {
-                                    // Remember the survey path
-                                    string surveyPath = Path.Combine(surveyClass.Data.Info.SurveyPath, surveyClass.Data.Info.SurveyFileName);
+                                    if (surveyClass.Data.Info.SurveyPath is not null && surveyClass.Data.Info.SurveyFileName is not null)
+                                    { 
+                                        // Make survey path
+                                        string surveyPath = Path.Combine(surveyClass.Data.Info.SurveyPath, surveyClass.Data.Info.SurveyFileName);
 
-                                    // Close the Survey
-                                    await CheckForOpenSurveyAndClose();
+                                        // Close the Survey
+                                        await CheckForOpenSurveyAndClose();
 
-                                    // Re-Open in a standard way (so everyone gets hooked up and initialized correctly)
-                                    ret = await OpenSurvey(surveyPath);
+                                        // Re-Open in a standard way (so everyone gets hooked up and initialized correctly)
+                                        ret = await OpenSurvey(surveyPath);
 
-                                    if (ret != 0)
+                                        if (ret != 0)
+                                        {
+                                            report.Warning("", $"FileSurveyNew_Click: OpenSurvey() failed, survey path:{surveyPath}, ret = {ret}");
+                                        }
+                                    }
+                                    else
                                     {
-                                        report.Warning("", $"FileSurveyNew_Click: OpenSurvey() failed, survey path:{surveyPath}, ret = {ret}");
+                                        ret = -1;
+                                        report.Warning("", $"FileSurveyNew_Click: Missing survey path.");
                                     }
                                 }
                                 else
                                 {
-                                    report.Warning("", $"FileSurveyNew_Click: FileSurveySaveOrSaveAs() failed");
+                                    report.Warning("", $"FileSurveyNew_Click: FileSurveySaveOrSaveAs() failed, ret = {ret}");
                                 }
-                                // ***NEW CODE END***
+
+                                if (ret != 0)
+                                {
+                                    // Report the missing survey file
+                                    // Survey needs to be saved before a frame can be saved
+                                    var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
+
+                                    // Add a content dialog to report the survey save error
+                                    // and display the user to look at the Output tab for more information
+                                    var dialog = new ContentDialog
+                                    {
+                                        Title = $"Failed to save Survey file",
+                                        Content = new StackPanel
+                                        {
+                                            Orientation = Orientation.Horizontal,
+                                            Spacing = 10,
+                                            Children =
+                                            {
+                                                warningIcon, // Add the exclamation icon to the dialog content
+                                                new TextBlock
+                                                {
+                                                    Text = $"Please check the Output tab for more information on the failure",
+                                                    TextWrapping = TextWrapping.Wrap,
+                                                    MaxWidth = 400 // Adjust based on your app's layout
+                                                }
+                                            }
+                                        },
+
+                                        CloseButtonText = "Cancel",
+                                        DefaultButton = ContentDialogButton.Close, // Set "Cancel" as the default button
+
+                                        // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
+                                        XamlRoot = this.Content.XamlRoot
+                                    };
+
+                                    // Show the dialog and await the result
+                                    await dialog.ShowAsync();
+                                }
                             }
                         }
                     }
@@ -1054,7 +1095,14 @@ namespace Surveyor
         /// <param name="e"></param>
         private async void FileSurveySave_Click(object? sender, RoutedEventArgs? e)
         {
-            await FileSurveySaveOrSaveAs();
+            int ret;
+
+            ret = await FileSurveySaveOrSaveAs();
+
+            if (ret != 0)
+            {
+                report.Warning("", $"FileSurveySave_Click: FileSurveySaveOrSaveAs() failed, ret = {ret}");
+            }
         }
 
 
@@ -1065,7 +1113,14 @@ namespace Surveyor
         /// <param name="e"></param>
         private async void FileSurveySaveAs_Click(object? sender, RoutedEventArgs? e)
         {
-            await SaveAsSurvey();
+            int ret;
+
+            ret = await SaveAsSurvey();
+
+            if (ret != 0)
+            {
+                report.Warning("", $"FileSurveySave_Click: FileSurveySaveOrSaveAs() failed, ret = {ret}");
+            }
 
             report.Save();
 
@@ -1603,7 +1658,7 @@ namespace Surveyor
                         {
                             // Create a SymbolIcon with an exclamation mark
                             var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
-                           
+                          
                             var dialog = new ContentDialog
                             {
                                 Title = "Lock Media Players",
@@ -1623,8 +1678,7 @@ namespace Surveyor
                                                 {
                                                     Text = "There is synchronization information already in this survey that is currently disabled. Do you want to re-enable it or do you want to lock the players at their current position?",
                                                     TextWrapping = TextWrapping.Wrap,
-                                                    MaxWidth = 320, // Limit width to allow wrapping
-                                                    HorizontalAlignment = HorizontalAlignment.Left
+                                                    MaxWidth = 320 // Limit width to allow wrapping
                                                 }
                                             }
                                         }
@@ -1633,8 +1687,10 @@ namespace Surveyor
                                 PrimaryButtonText = "Enable",
                                 SecondaryButtonText = "Current Position",
                                 CloseButtonText = "Cancel",
-                                DefaultButton = ContentDialogButton.Primary,
-                                XamlRoot = this.Content.XamlRoot // Ensure this points to the correct XamlRoot
+                                DefaultButton = ContentDialogButton.Primary, // Set "OK" as the default button
+
+                                // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
+                                XamlRoot = this.Content.XamlRoot
                             };
 
                             var result = await dialog.ShowAsync();
@@ -1693,7 +1749,7 @@ namespace Surveyor
                         PrimaryButtonText = "Unlock",
                         CloseButtonText = "Cancel",
                         DefaultButton = ContentDialogButton.Close,
-                        XamlRoot = this.Content.XamlRoot  // Ensure dialog attaches to correct window
+                        XamlRoot = this.Content.XamlRoot
                     };
 
                     // Add a warning icon + text
@@ -2358,7 +2414,7 @@ namespace Surveyor
 
                     // Write data to the file
                     // Save As
-                    await surveyClass.SurveySaveAs(file.Path);
+                    ret = await surveyClass.SurveySaveAs(file.Path);
 
 
                     // Let Windows know that we're finished changing the file so the other app can update the remote version of the file.
@@ -2823,8 +2879,8 @@ namespace Surveyor
                 MenuSettings.IsEnabled = true;      // Always allow settings and setting will adjust of no survey is open
                 // Survey Transect Marker
                 MenuTransectStartStopMarker.IsEnabled = false;
+                }
             }
-        }
 
 
         /// <summary>
@@ -2884,7 +2940,9 @@ namespace Surveyor
             CalibrationClass? calibrationClass = surveyClass?.Data?.Calibration;
             CalibrationData? calibrationDataPreferred = calibrationClass?.GetPreferredCalibationData(frameWidth, frameHeight);
 
-            if (calibrationClass is not null && (frameWidth is not null || frameHeight is not null))
+            if (calibrationClass is not null && 
+                calibrationClass.CalibrationDataList.Count > 0 && 
+                (frameWidth is not null || frameHeight is not null))
             {
                 if (calibrationDataPreferred is not null)
                 {
@@ -2918,7 +2976,7 @@ namespace Surveyor
                     {
                         tooltip = $"Failed to return Preferred Calibration Data for frame size ({frameWidth},{frameHeight})!\nAvailable calibration sets:\n" + MakeCalibrationDescriptionListTooltip(calibrationClass);
                         // Show the calibration icon
-                        CalibratedIndicator.Text = calibratedIndictorText + "!";
+                        CalibratedIndicator.Text = calibratedIndictorText + "\uE814";
                     }
                     else
                     {
@@ -2989,124 +3047,24 @@ namespace Surveyor
             // Get the Calibration ID from the preferred calibration data
             if (surveyClass is not null && MediaPlayerLeft.IsOpen())
             {
-                CalibrationData? calibrationData = surveyClass!.Data.Calibration.GetPreferredCalibationData(MediaPlayerLeft.FrameWidth, MediaPlayerLeft.FrameHeight);
-
-                if (calibrationData is not null)
-                {
-                    Guid? calibrationID = calibrationData.CalibrationID;
-
-                    if (calibrationID is not null)
-                    {
-                        // Check if the preferred calibration data is the one being using for
-                        // the current event measurements calculations
-                        bool upToDate = true;
-                        foreach (Event evt in surveyClass.Data.Events.EventList)
-                        {
-                            if (evt.EventDataType == SurveyDataType.SurveyMeasurementPoints && evt.EventData is not null)
-                            {
-                                SurveyMeasurement surveyMeasurement = (SurveyMeasurement)evt.EventData;
-                                if (surveyMeasurement.CalibrationID != calibrationID || surveyMeasurement.Measurment == -1)
-                                {
-                                    upToDate = false;
-                                    break;
-                                }
-                            }
-                            else if (evt.EventDataType == SurveyDataType.SurveyStereoPoint && evt.EventData is not null)
-                            {
-                                SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
-                                if (surveyStereoPoint.CalibrationID != calibrationID)
-                                {
-                                    upToDate = false;
-                                    break;
-                                }
-                            }
-                        }
-
-
-                        if (!upToDate && !forceReCalc)
-                        {
-                            // Ask the user if they want to update the event measurements
-                            string message = $"The current event measurements are not up to date with the preferred calibration data. Do you want to update the event measurements?";
-                            string primaryButtonText = "Yes";
-                            string secondaryButtonText = "No";
-
-                            // Ask the user
-                            ContentDialog confirmationDialog = new()
-                            {
-                                Title = "Update Measurements",
-                                Content = message,
-                                PrimaryButtonText = primaryButtonText,
-                                SecondaryButtonText = secondaryButtonText,
-                                CloseButtonText = "Cancel",
-
-                                // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
-                                XamlRoot = this.Content.XamlRoot
-                            };
-
-                            // Display the dialog
-                            ContentDialogResult result = await confirmationDialog.ShowAsync();
-
-                            if (result == ContentDialogResult.Primary)
-                            {
-                                upToDate = false;
-                            } 
-                            else if (result == ContentDialogResult.Secondary)
-                            {
-                                upToDate = true;
-                            }
-                        }
-
-                        if (!upToDate || forceReCalc)
-                        { 
-                            // Update the event measurements if the Calibration ID is different
-                            // there has been a recalibration
-                            foreach (Event evt in surveyClass.Data.Events.EventList)
-                            {
-                                if (evt.EventData is not null)
-                                {
-                                    if (evt.EventDataType == SurveyDataType.SurveyMeasurementPoints)
-                                    {
-                                        SurveyMeasurement surveyMeasurement = (SurveyMeasurement)evt.EventData;
-                                        if (surveyMeasurement.CalibrationID != calibrationID || surveyMeasurement.Measurment == -1 || forceReCalc)
-                                        {
-                                            // Recalculate for a measurement
-                                            if (DoMeasurementAndRulesCalculations(surveyMeasurement))
-                                            {
-                                                // Updates were make to the event
-                                                ret = true;
-                                                surveyClass.Data.Events.IsDirty = true;
-                                            }
-                                        }
-                                    }
-                                    else if (evt.EventDataType == SurveyDataType.SurveyStereoPoint)
-                                    {
-                                        SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
-                                        if (surveyStereoPoint.CalibrationID != calibrationID || forceReCalc)
-                                        {
-                                            // Recalculate for a stero point
-                                            if (DoRulesCalculations(surveyStereoPoint))
-                                            {
-                                                // Updates were make to the event
-                                                ret = true;
-                                                surveyClass.Data.Events.IsDirty = true;
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                ret = await SurveyMeasurementHelper.CheckIfEventMeasurementsAreUpToDate(
+                                                            stereoProjection,
+                                                            surveyClass,
+                                                            MediaPlayerLeft.FrameWidth,
+                                                            MediaPlayerLeft.FrameHeight,
+                                                            this.Content.XamlRoot, 
+                                                            forceReCalc);
                             
-                            if (ret == true && surveyClass is not null)
-                            {
-                                // Reset the event list
-                                eventsControl.SetEvents([]);
-                                // Need to wait for the events to be updated otherwise the reset is missed
-                                await Task.Delay(500);
-                                // Refresh the event list (it will not automatic detect changes within existing events)
-                                eventsControl.SetEvents(surveyClass.Data.Events.EventList);
+                if (ret == true && surveyClass is not null)
+                {
+                    // Reset the event list
+                    eventsControl.SetEvents([]);
 
-                            }
-                        }
-                    }
+                    // Need to wait for the events to be updated otherwise the reset is missed
+                    await Task.Delay(500);
+
+                    // Refresh the event list (it will not automatic detect changes within existing events)
+                    eventsControl.SetEvents(surveyClass.Data.Events.EventList);
                 }
             }
 
@@ -3126,47 +3084,12 @@ namespace Surveyor
         {
             bool updated = false;
 
-            if (stereoProjection.PointsLoad(
-                new Point(surveyMeasurement.LeftXA, surveyMeasurement.LeftYA),
-                new Point(surveyMeasurement.LeftXB, surveyMeasurement.LeftYB),
-                new Point(surveyMeasurement.RightXA, surveyMeasurement.RightYA),
-                new Point(surveyMeasurement.RightXB, surveyMeasurement.RightYB)) == true)
+            if (surveyClass is not null)
             {
-
-                // Calculate fish length
-                double? measurement = stereoProjection.Measurement();
-                surveyMeasurement.Measurment = measurement;
-
-                SurveyRulesCalc newRules = new();
-                newRules.ApplyCalcs(stereoProjection);
-
-                // Apply the survey rules
-                if (surveyClass is not null &&                     
-                    surveyClass.Data.SurveyRules.SurveyRulesActive == true)
-                {
-                    newRules.ApplyRules(surveyClass.Data.SurveyRules.SurveyRulesData);
-                }
-                else
-                {
-                    // No rules applied
-                    newRules.ClearRules();  // This clears the rules and but the calcs
-                }
-
-                if (!newRules.Equals(surveyMeasurement.SurveyRulesCalc))
-                {
-                    surveyMeasurement.SurveyRulesCalc = newRules;
-                    updated = true;
-                }
-
-                // Record the calidation data Guid used to calculate the measurement
-                // This is used to enable recalulation of the measurement if the calibration data is changed
-                Guid? newCalibrationID = stereoProjection.GetCalibrationID();
-                Guid? currentCalibrationID = surveyMeasurement.CalibrationID;
-                if (!Nullable.Equals(currentCalibrationID, newCalibrationID))
-                {
-                    surveyMeasurement.CalibrationID = newCalibrationID;
-                    updated = true;
-                }
+                updated = SurveyMeasurementHelper.DoMeasurementAndRulesCalculations(
+                                    stereoProjection,
+                                    surveyClass,
+                                    surveyMeasurement);
             }
 
             return updated;
@@ -3185,44 +3108,17 @@ namespace Surveyor
         {
             bool updated = false;
 
-            if (stereoProjection.PointsLoad(
-                new Point(surveyStereoPoint.LeftX, surveyStereoPoint.LeftY),
-                new Point(surveyStereoPoint.RightX, surveyStereoPoint.RightY)) == true)
+            if (surveyClass is not null)
             {
-                SurveyRulesCalc newRules = new();
-                newRules.ApplyCalcs(stereoProjection);
-
-                // Apply the survey rules
-                if (surveyClass is not null &&
-                    surveyClass.Data.SurveyRules.SurveyRulesActive == true)
-                {
-                    newRules.ApplyRules(surveyClass.Data.SurveyRules.SurveyRulesData);
-                }
-                else
-                {
-                    // No rules to apply
-                    newRules.ClearRules();  // This clears the rules and but the calcs
-                }
-
-                if (!newRules.Equals(surveyStereoPoint.SurveyRulesCalc))
-                {
-                    surveyStereoPoint.SurveyRulesCalc = newRules;
-                    updated = true;
-                }
-
-                // Record the calidation data Guid used to calculate the measurement
-                // This is used to enable recalulation of the measurement if the calibration data is changed
-                Guid? newCalibrationID = stereoProjection.GetCalibrationID();
-                Guid? currentCalibrationID = surveyStereoPoint.CalibrationID;
-                if (!Nullable.Equals(currentCalibrationID, newCalibrationID))
-                {
-                    surveyStereoPoint.CalibrationID = newCalibrationID;
-                    updated = true;
-                }
+                updated = SurveyMeasurementHelper.DoRulesCalculations(
+                                    stereoProjection,
+                                    surveyClass, 
+                                    surveyStereoPoint);
             }
 
             return updated;
         }
+
 
         /// <summary>
         /// Set the title text elements of the titlebar title text
@@ -3848,9 +3744,14 @@ namespace Surveyor
 
 
 
-
-
         // ** End of MainWindow **
+
+        // Placeholder methods to satisfy handler references if not already defined (guard against duplication)
+        internal void MediaSynchronizedPlaceholder(TimeSpan? positionOffset) { }
+        internal void MediaUnsynchronizedPlaceholder() { }
+        internal void DisplayDynamicMeasurementPlaceholder(bool showRMSCombinedOnly, double? measurement, double? range, double? rmsCombined, double? rmsTargetA, double? rmsTargetB) { }
+        internal void _SetDiagnosticInformationPlaceholder(bool diag) { }
+        internal void _SetExperimentalPlaceholder(bool a, bool b, bool c, bool d) { }
     }
 
 

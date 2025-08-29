@@ -324,7 +324,7 @@ namespace Surveyor.Tests
                 if (measuredLength is not null)
                 {
                     // This function just returns the calculated RMS distance error average of the two points
-                    double? rms = stereoProjection.RMS(null);
+                    double? rms = stereoProjection.RMS(StereoProjection.RMSMode.Worst);
 
                     if (rms is not null)
                     {
@@ -336,8 +336,8 @@ namespace Surveyor.Tests
                         double tolerance = 0.01;
 
                         // Validate the measurement
-                        Assert.IsTrue(Math.Abs((double)rms - expectedLength) < tolerance,
-                            $"Range length {rms} differs from expected {expectedLength}");
+                        Assert.IsLessThan(tolerance,
+                                          Math.Abs((double)rms - expectedLength), $"Range length {rms} differs from expected {expectedLength}");
                     }
                     else
                     {

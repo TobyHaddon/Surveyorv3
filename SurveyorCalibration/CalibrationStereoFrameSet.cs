@@ -217,12 +217,12 @@ namespace Surveyor.Calibration
             if (LockFrameIndexLeft < LockFrameIndexRight)
             {
                 // Media locked and right sided filming first
-                return (LockFrameIndexRight - LockFrameIndexLeft, 0);
+                return (0, LockFrameIndexRight - LockFrameIndexLeft);
             }
             else if (LockFrameIndexLeft > LockFrameIndexRight)
             {
                 // Media locked and left sided filming first
-                return (0, LockFrameIndexLeft - LockFrameIndexRight);
+                return (LockFrameIndexLeft - LockFrameIndexRight, 0);                
             }
             else
             {

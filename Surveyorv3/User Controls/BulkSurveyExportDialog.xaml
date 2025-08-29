@@ -5,6 +5,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Surveyor.User_Controls"
     xmlns:dg="using:CommunityToolkit.WinUI.UI.Controls"   
+    xmlns:converters="using:Surveyor.Converters"    
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ex="using:WinUIEx"
@@ -16,13 +17,17 @@
     Title="Bulk survey export">
 
     <Grid Padding="20">
+        <Grid.Resources>
+            <converters:EmptyStringToVisibilityConverter x:Key="EmptyStringToVisibilityConverter"/>
+            <local:BoolHideWhenTrueConverter x:Key="BoolHideWhenTrueConverter"/>
+        </Grid.Resources>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>         <!-- 0: Title -->
-            <RowDefinition Height="Auto"/>         <!-- 1: Instructions -->
-            <RowDefinition Height="Auto"/>         <!-- 2: Folder select -->
-            <RowDefinition Height="Auto"/>         <!-- 3: Select All Checkbox -->
-            <RowDefinition Height="*"/>            <!-- 4: DataGrid -->
-            <RowDefinition Height="Auto"/>         <!-- 5: Buttons -->
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <Grid.ColumnDefinitions>
@@ -37,55 +42,104 @@
                    Grid.Row="1"
                    TextWrapping="Wrap" Margin="0,10,0,20"/>
 
-        <!--SELECT FOLDER-->
-        <StackPanel Orientation="Horizontal" Grid.Row="2" Margin="0,0,0,10">
-            <TextBox x:Name="FolderPathTextBox" Width="500" Margin="0,0,10,0" IsReadOnly="True"/>
-            <Button Content="Select Folder" Click="SelectFolder_Click" Margin="0,0,10,0"/>
-            <CheckBox x:Name="IncludeSubfoldersCheckBox" Content="Include Subfolders" IsChecked="True" VerticalAlignment="Center" Margin="0,0,0,10"/>
-            <!--LOADING...-->
-            <ProgressRing x:Name="LoadingRing"
+        <!--SELECT FOLDER ROW-->
+        <Grid Grid.Row="2" Margin="0,0,0,10">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>   <!-- Spacer pushes actions right -->
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="FolderPathTextBox" Grid.Column="0" Width="500" Margin="0,0,10,0" IsReadOnly="True" VerticalAlignment="Top"/>
+            <Button Grid.Column="1" Content="Select Folder" Click="SelectFolder_Click"  VerticalAlignment="Top" Margin="0,0,10,0"/>
+            <StackPanel Grid.Column="2" Orientation="Vertical" Margin="0,0,10,0">
+                <CheckBox x:Name="IncludeSubfoldersCheckBox" Content="Include Subfolders" IsChecked="True" HorizontalAlignment="Left"/>
+                <ProgressRing x:Name="LoadingRing"
                   IsActive="False"
                   Width="24"
                   Height="24"
                   Visibility="Collapsed"
                   VerticalAlignment="Center"
-                  Margin="10,0,0,0"/>
+                  Margin="-40,0,80,0"/>
+            </StackPanel>
+            <!-- Spacer column 3 -->
+            <DropDownButton Grid.Column="4" Content="More actions" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,0,0,0">
+                <DropDownButton.Flyout>
+                    <MenuFlyout>
+                        <MenuFlyoutItem Text="Recalc/No Save" Click="RecalcNoSave_Click"
+                                        ToolTipService.ToolTip="Recalculate measurements but don't save back to the survey files&#x0a;Used to see if the total change before saving them. This option disables the 'Export' until one of the save options it selected."/>
+                        <MenuFlyoutItem Text="Recalc/Save" Click="RecalcSave_Click"
+                                        ToolTipService.ToolTip="Recalculate measurements and save back to the survey files"/>
+                        <MenuFlyoutItem Text="New Calib/Recalc/No Save" Click="NewCalibRecalcNoSave_Click"
+                                        ToolTipService.ToolTip="Recalculate measurements with new calibration data and don't save&#x0a;Import a new calibration data set and use it to recalculate the measurements. Used to see if the total change before saving them. This option disables the 'Export' until one of the save options it selected."/>
+                        <MenuFlyoutItem Text="New Calib/Recalc/Save" Click="NewCalibRecalcSave_Click"
+                                        ToolTipService.ToolTip="Recalculate measurements with new calibration and save&#x0a;Import a new calibration data set and use it to recalculate the measurements"/>
+                    </MenuFlyout>
+                </DropDownButton.Flyout>
+            </DropDownButton>
+        </Grid>
+
+        <StackPanel Orientation="Horizontal" Grid.Row="3" Margin="0,0,0,10">
+            <CheckBox x:Name="HeaderSelectAllCheckBox"            
+                          Content="Select All"
+                          IsThreeState="True"
+                          Checked="HeaderSelectAllCheckBox_Checked"
+                          Unchecked="HeaderSelectAllCheckBox_Unchecked"
+                          Indeterminate="HeaderSelectAllCheckBox_Indeterminate"
+                          ToolTipService.ToolTip="Toggle all rows on or off"
+                          VerticalAlignment="Top"
+                          Margin="0,0,0,10"/>
+            <StackPanel Orientation="Vertical" Grid.Row="3" Margin="0,0,0,0">
+                <!--Rules Mismatch-->
+                <StackPanel x:Name="RulesMismatchPanel" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Left" 
+                            Margin="0,0,0,4"
+                            Visibility="{Binding ElementName=RulesMismatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
+                    <FontIcon x:Name="RulesMismatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
+                    <TextBlock x:Name="RulesMismatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                </StackPanel>
+                <!--Calibration Data Mismatch-->
+                <StackPanel x:Name="CalibrationDataMismatchPanel" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Left"  
+                            Margin="0,0,0,0"
+                            Visibility="{Binding ElementName=CalibrationDataMismatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
+                    <FontIcon x:Name="CalibrationDataMismatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
+                    <TextBlock x:Name="CalibrationDataMismatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                </StackPanel>
+            </StackPanel>
         </StackPanel>
-
-        <CheckBox x:Name="HeaderSelectAllCheckBox"
-                      Grid.Row="3"
-                      Content="Select All"
-                      IsThreeState="True"
-                      Checked="HeaderSelectAllCheckBox_Checked"
-                      Unchecked="HeaderSelectAllCheckBox_Unchecked"
-                      Indeterminate="HeaderSelectAllCheckBox_Indeterminate"
-                      ToolTipService.ToolTip="Toggle all rows on or off"
-                      Margin="0,0,0,10"/>
-
+        
         <!--SURVEY DATAGRID-->
         <dg:DataGrid x:Name="SurveyGrid" Grid.Row="4" AutoGenerateColumns="False"
                      MinColumnWidth="20"
                     HeadersVisibility="Column"
                     Padding="0"
-                    ColumnHeaderHeight="40">
+                    ColumnHeaderHeight="40"
+                     LoadingRow="SurveyGrid_LoadingRow">
             <dg:DataGrid.Columns>
-                <dg:DataGridCheckBoxColumn Width="50" Header="" Binding="{Binding Include, Mode=TwoWay}"/>
+                <dg:DataGridTemplateColumn Width="50">
+                    <dg:DataGridTemplateColumn.CellTemplate>
+                        <DataTemplate>
+                            <CheckBox IsChecked="{Binding Include, Mode=TwoWay}" Visibility="{Binding IsTotalRow, Converter={StaticResource BoolHideWhenTrueConverter}}"/>
+                        </DataTemplate>
+                    </dg:DataGridTemplateColumn.CellTemplate>
+                </dg:DataGridTemplateColumn>
                 <dg:DataGridTextColumn Header="File Name" Binding="{Binding FileName}" Width="300"/>
                 <dg:DataGridTextColumn Header="Depth" Binding="{Binding Depth}" Width="100"/>
                 <dg:DataGridTextColumn Header="Total" Binding="{Binding TotalEntries}" Width="120"/>
                 <dg:DataGridTextColumn Header="Measurements" Binding="{Binding TotalMeasurements}" Width="120"/>
                 <dg:DataGridTextColumn Header="3D" Binding="{Binding Total3DPoints}" Width="120"/>
                 <dg:DataGridTextColumn Header="Single" Binding="{Binding TotalSinglePoints}" Width="120"/>
-
                 <dg:DataGridTextColumn Header="Transects" Binding="{Binding TransectList}" Width="120"/>
                 <dg:DataGridTextColumn Header="Range Rule" Binding="{Binding RulesRange}" Width="120"/>
-                <dg:DataGridTextColumn Header="Horz Rule" Binding="{Binding RulesHorizontal}" Width="120"/>
-                <dg:DataGridTextColumn Header="Vert Rule" Binding="{Binding RulesVertical}" Width="120"/>
+                <dg:DataGridTextColumn Header="Horz Rule" Binding="{Binding RulesHorizontal}" Width="150"/>
+                <dg:DataGridTextColumn Header="Vert Rule" Binding="{Binding RulesVertical}" Width="150"/>
                 <dg:DataGridTextColumn Header="RMS Rule" Binding="{Binding RulesRMS}" Width="120"/>
-                <dg:DataGridTextColumn Header="Rules Calc'd" Binding="{Binding RulesCalc}" Width="120"/>
-                <dg:DataGridTextColumn Header="Species" Binding="{Binding Species}" Width="120"/>
-                <dg:DataGridTextColumn Header="Calibration" Binding="{Binding Calibration}" Width="120"/>
-                <dg:DataGridTextColumn Header="Sync'd" Binding="{Binding SyncPoint}" Width="120"/>
+                <dg:DataGridTextColumn Header="Rules Calc'd" Binding="{Binding RulesCalcNull}" Width="110"/>
+                <dg:DataGridTextColumn Header="Rules Failed" Binding="{Binding RulesCalcFailed}" Width="110"/>
+                <dg:DataGridTextColumn Header="Species" Binding="{Binding Species}" Width="110"/>
+                <dg:DataGridTextColumn Header="Calibration" Binding="{Binding Calibration}" Width="110"/>
+                <dg:DataGridTextColumn Header="Calibration Hash" Binding="{Binding CalibrationHash}" Width="120"/>
+                <dg:DataGridTextColumn Header="Sync'd" Binding="{Binding SyncPoint}" Width="100"/>
                 <dg:DataGridTextColumn Header="Analyst" Binding="{Binding Analyst}" Width="180"/>
                 <dg:DataGridTextColumn Header="Survey Code" Binding="{Binding SurveyCode}" Width="180"/>
                 <dg:DataGridTextColumn Header="LeftMediaFile" Binding="{Binding LeftMediaFile}" Width="250"/>

@@ -18,7 +18,7 @@ using System.Text;
 namespace Surveyor
 {
 
-    public partial class SurveyRulesData : INotifyPropertyChanged
+    public partial class SurveyRulesData : INotifyPropertyChanged, IEquatable<SurveyRulesData>
     {
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -214,21 +214,11 @@ namespace Surveyor
         }
 
 
-        public override bool Equals(object? obj)
+        public bool Equals(SurveyRulesData? other)
         {
-            if (ReferenceEquals(this, obj))
-            {
-                return true;
-            }
+            if (other is null) return false;
+            if (ReferenceEquals(this, other)) return true;
 
-            if (obj is null || GetType() != obj.GetType())
-            {
-                return false;
-            }
-
-            SurveyRulesData other = (SurveyRulesData)obj;
-
-            
             return RangeRuleActive == other.RangeRuleActive &&
                    RangeMin == other.RangeMin &&
                    RangeMax == other.RangeMax &&
@@ -239,28 +229,19 @@ namespace Surveyor
                    HorizontalRangeRight == other.HorizontalRangeRight &&
                    VerticalRangeRuleActive == other.VerticalRangeRuleActive &&
                    VerticalRangeTop == other.VerticalRangeTop &&
-                   VerticalRangeBottom == other.VerticalRangeBottom;        
+                   VerticalRangeBottom == other.VerticalRangeBottom;
         }
 
-        public static bool operator ==(SurveyRulesData left, SurveyRulesData right)
-        {
-            if (ReferenceEquals(left, right))
-            {
-                return true;
-            }
+        // Keep object.Equals delegating to the typed one
+        public override bool Equals(object? obj) => Equals(obj as SurveyRulesData);
 
-            if (left is null || right is null)
-            {
-                return false;
-            }
 
-            return left.Equals(right);
-        }
+        // (optional) keep your operators using Equals:
+        public static bool operator ==(SurveyRulesData? left, SurveyRulesData? right)
+            => Equals(left, right);
 
-        public static bool operator !=(SurveyRulesData left, SurveyRulesData right)
-        {
-            return !(left == right);
-        }
+        public static bool operator !=(SurveyRulesData? left, SurveyRulesData? right)
+            => !Equals(left, right);
 
         public void Clear()
         {
@@ -293,7 +274,6 @@ namespace Surveyor
             }
         }
 
-
         /// 
         /// EVENTS
         /// 
@@ -304,7 +284,7 @@ namespace Surveyor
 
     }
 
-    public class SurveyRulesCalc
+    public class SurveyRulesCalc : IEquatable<SurveyRulesCalc>
     {
         public bool? SurveyRules { get; set; } = null;          // null = no survey rules, false = measurement failed the rules, true = measurement passed the rules
         public string SurveyRulesText { get; set; } = "";    // Info on blocken rules
@@ -313,7 +293,8 @@ namespace Surveyor
         public double? XOffset { get; set; } = null;            // X Distance between the camera system mid-point and the measurement mid-point
         public double? YOffset { get; set; } = null;            // Y Distance between the camera system mid-point and the measurement mid-point
         
-        public double? RMS { get; set; } = null;
+        public double? RMSWorst { get; set; } = null;
+        public double? RMSMean { get; set; } = null;
         public double? RMSTargetA { get; set; } = null;
         public double? RMSTargetB { get; set; } = null;
         // RMS errors in mm
@@ -329,9 +310,13 @@ namespace Surveyor
         public void ClearCalcs()
         {
             Range = null;
-            RMS = null;
+            RMSWorst = null;
             XOffset = null;
             YOffset = null;
+            RMSWorst = null;
+            RMSMean = null;
+            RMSTargetA = null;
+            RMSTargetB = null;
         }
         public void ClearRules()
         {
@@ -359,7 +344,8 @@ namespace Surveyor
             YOffset = stereoProjection.YOffsetFromCameraSystemCentrePointToMeasurementCentrePoint();
 
             // Calculate RMS
-            RMS = stereoProjection.RMS(null/*TruePointAFalsePointBNullWorstCase*/);
+            RMSWorst = stereoProjection.RMS(StereoProjection.RMSMode.Worst);
+            RMSMean = stereoProjection.RMS(StereoProjection.RMSMode.Mean);
 
             // RMS for Target A and B
             (RMSTargetA, RMSTargetB) = stereoProjection.GetRMSElements();
@@ -405,10 +391,10 @@ namespace Surveyor
             // Check the RMS rule
             if (surveyRulesData.RMSRuleActive == true)
             {
-                if (RMS is not null)
+                if (RMSWorst is not null)
                 {
-                    ruleText = $"RMS: {Math.Round((double)RMS * 1000, 1)}mm (Max allowed: {surveyRulesData.RMSMax}mm) ";
-                    if (RMS/*in metres*/ * 1000 > surveyRulesData.RMSMax/*in mm*/)
+                    ruleText = $"RMS: {Math.Round((double)RMSWorst * 1000, 1)}mm (Max allowed: {surveyRulesData.RMSMax}mm) ";
+                    if (RMSWorst/*in metres*/ * 1000 > surveyRulesData.RMSMax/*in mm*/)
                     {
                         SurveyRules = false;
                         if (surveyRulesFailedText.Length > 0)
@@ -493,29 +479,34 @@ namespace Surveyor
         /// </summary>
         /// <param name="obj"></param>
         /// <returns></returns>
-        public override bool Equals(object? obj)
+        public override bool Equals(object? obj) => Equals(obj as SurveyRulesCalc);
+        public bool Equals(SurveyRulesCalc? other)
         {
-            if (obj is not SurveyRulesCalc other)
-                return false;
+            if (other is null) return false;
+            if (ReferenceEquals(this, other)) return true;
 
             return Nullable.Equals(SurveyRules, other.SurveyRules) &&
-                   string.Equals(SurveyRulesText, other.SurveyRulesText, StringComparison.Ordinal) &&
                    Nullable.Equals(Range, other.Range) &&
                    Nullable.Equals(XOffset, other.XOffset) &&
                    Nullable.Equals(YOffset, other.YOffset) &&
-                   Nullable.Equals(RMS, other.RMS);
+                   Nullable.Equals(RMSWorst, other.RMSWorst) &&
+                   Nullable.Equals(RMSMean, other.RMSMean) &&
+                   Nullable.Equals(RMSTargetA, other.RMSTargetA) &&
+                   Nullable.Equals(RMSTargetB, other.RMSTargetB);
         }
 
         public override int GetHashCode()
         {
-            return HashCode.Combine(
-                SurveyRules,
-                SurveyRulesText,
-                Range,
-                XOffset,
-                YOffset,
-                RMS
-            );
+            var hash = new HashCode();
+            hash.Add(SurveyRules);
+            hash.Add(Range);
+            hash.Add(XOffset);
+            hash.Add(YOffset);
+            hash.Add(RMSWorst);
+            hash.Add(RMSMean);
+            hash.Add(RMSTargetA);
+            hash.Add(RMSTargetB);
+            return hash.ToHashCode();
         }
     }
 }

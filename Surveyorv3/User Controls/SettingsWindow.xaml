@@ -72,16 +72,17 @@
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
 
-                <!--SURVEY SETTINGS > CALIBRATION-->
-                <toolkit:SettingsCard x:Name="CalibrationExpander" Header="Calibration"
+                <!--SURVEY CALIBRATION-->
+                <!--<toolkit:SettingsCard x:Name="CalibrationExpander" Header="Calibration"
                                     ToolTipService.ToolTip="Calibration information for the stereo camera rig.">
                     <toolkit:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xEB3C;" />
                     </toolkit:SettingsCard.HeaderIcon>
-                    <!--<ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="MagnifierWindowAutomatic_Toggled" />-->
-                </toolkit:SettingsCard>
+                    --><!--<ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="MagnifierWindowAutomatic_Toggled" />--><!--
+                </toolkit:SettingsCard>-->
+                <surveyorControls:SettingsCalibration x:Name="SettingsCalibration"/>
 
-                <!--SURVEY SETTINGS > SURVEY RULES-->
+                <!--SURVEY RULES-->
                 <surveyorControls:SettingsSurveyRules x:Name="SettingsSurveyRules"/>
 
 

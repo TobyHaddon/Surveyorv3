@@ -70,7 +70,7 @@ namespace Surveyor.Controls
 
         private readonly Microsoft.UI.Dispatching.DispatcherQueue dispatcherQueue;
 
-        private enum AppMode { Open, FindCalibrationsFrames, BestFramesCalc, BestFramesView };
+        private enum AppMode { Open, FindCalibrationsFrames, BestFramesCalc, BestFramesView, BestFramesSave };
         private AppMode appMode = AppMode.Open;
 
         //???private readonly CalibrationData[] calibrationDataArray = new CalibrationData[Enum.GetValues(typeof(CalibrationParameters)).Length];
@@ -1831,57 +1831,32 @@ namespace Surveyor.Controls
             if (Head.Equals("stereo", StringComparison.InvariantCultureIgnoreCase))
                 trueMonoHeadfalseStereoHead = false;
 
-            if (appMode == AppMode.Open)
+            switch (appMode)
             {
-                try
-                {
-                    if (frameCalibrationData is not null)
-                        CalibrationStereoFrameSet.DrawMarkersToMat(frameCalibrationData, frame, trueMonoHeadfalseStereoHead);
+                case AppMode.Open:
+                case AppMode.BestFramesView:
+                case AppMode.BestFramesCalc:
+                    try
+                    {
+                        if (frameCalibrationData is not null)
+                            CalibrationStereoFrameSet.DrawMarkersToMat(frameCalibrationData, frame, trueMonoHeadfalseStereoHead);
 
+                        DrawFrameToScreen(frame, wb);
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"ProcessFrame: Error processing ChArUco board, appMode:{appMode}, {ex.Message}");
+                    }
+
+                    SetUIControls();
+                    break;
+
+                case AppMode.FindCalibrationsFrames:
+                case AppMode.BestFramesSave:
                     DrawFrameToScreen(frame, wb);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"ProcessFrame: Error processing ChArUco board, appMode:{appMode}, {ex.Message}");
-                }
-
-                SetUIControls();
+                    break;
             }
-            else if (appMode == AppMode.FindCalibrationsFrames)
-            {
-                DrawFrameToScreen(frame, wb);
-            }
-            else if (appMode == AppMode.BestFramesView)
-            {
-                try
-                {
-                    if (frameCalibrationData is not null)
-                        CalibrationStereoFrameSet.DrawMarkersToMat(frameCalibrationData, frame, trueMonoHeadfalseStereoHead);
 
-                    DrawFrameToScreen(frame, wb);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"ProcessFrame: Error processing ChArUco board, appMode:{appMode}, {ex.Message}");
-                }
-
-                SetUIControls();
-            }
-            else if (appMode == AppMode.BestFramesCalc)
-
-            {
-                try
-                {
-                    if (frameCalibrationData is not null)
-                        CalibrationStereoFrameSet.DrawMarkersToMat(frameCalibrationData, frame, trueMonoHeadfalseStereoHead);
-
-                    DrawFrameToScreen(frame, wb);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"ProcessFrame: Error processing ChArUco board, appMode:{appMode}, {ex.Message}");
-                }
-            }
         }
 
 
@@ -2107,6 +2082,12 @@ namespace Surveyor.Controls
         {
             bool ret = false;
 
+            // Remember the current app mode
+            AppMode appModeOld = appMode;
+
+            // Set the app mode to 
+            appMode = AppMode.BestFramesSave;
+
             string documentsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "SurveyorCalibration");
 
             string baseName = string.Empty;
@@ -2197,6 +2178,10 @@ namespace Surveyor.Controls
                     }
                 }
             }
+
+            // Restore the original app mode
+            appMode = appModeOld;
+
 
             return ret;
         }
