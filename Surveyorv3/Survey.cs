@@ -776,6 +776,15 @@ namespace Surveyor
                 }
 
 
+                /// <summary>
+                /// Get the hash code for the CalibrationClass instance. (ignores IsDirty)
+                /// </summary>
+                /// <returns></returns>
+                public override int GetHashCode()
+                {
+                    return HashCode.Combine(Version, AllowMultipleCalibrationData, PreferredCalibrationDataIndex, CalibrationDataList);
+                }
+
                 /// 
                 /// EVENTS
                 /// 

@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Surveyor.User_Controls.SettingsCalibrationTest"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+	<toolkit:SettingsExpander  x:Name="SettingsExpanderCalibrationTest"
+							   Header="Calibration Test"
+							   Description="Known length calibration test">
+		<toolkit:SettingsExpander.HeaderIcon>
+			<FontIcon Glyph="&#xEB3C;" />
+		</toolkit:SettingsExpander.HeaderIcon>
+
+		<toolkit:SettingsExpander.Items>
+			<StackPanel Spacing="12" Margin="10,10,10,0">
+				<TextBlock TextWrapping="WrapWholeWords">
+					This is used to typically test more than one calibration set by creating a survey where an object of known length is displayed to the camera rig at various positions on the frame and at various distances from the camera rig. For example, put the camera rig on some kind of stand. Swim across the top of the frame, left to right, at 2m from the cameras. Repeat this by swimming across the bottom of the frame at 2m from the cameras.  Do this again at 4m and 6m from the camera rig.
+				</TextBlock>
+				<TextBlock TextWrapping="WrapWholeWords">
+					Load the survey and mark the known lengths (like you would measure a fish) at one second intervals. Import as many calibration sets as you want to test. Remember if you want to simultaneously test multiple calibration sets you need to go to Settings &gt; Survey &gt; Calibration and set 'Multiple Calibration Sets' to 'On'. Next close the survey (File &gt; Close Survey). Return to Settings and expand this setting again and find the survey you created and enter the known length in mm.  Next press the 'Test' button.  The application will create a spreadsheet in the Documents folder with the same name as the survey file. The spreadsheet will contain recalculated measurements for each of the measurements you setup using multiple calibration set and compare each measurement to the known length value.
+				</TextBlock>
+				<TextBlock TextWrapping="WrapWholeWords">
+					This allows you to see which calibration set is returning the most accurate results at different positions in the frame and at different distances from the camera rig. You can then use this to select the best calibration set to use for your surveys.
+				</TextBlock>
+
+				<Grid ColumnSpacing="12" RowSpacing="12">
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto" />
+						<RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+					</Grid.RowDefinitions>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="Auto" />
+						<ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+					<!-- Survey file picker -->
+					<TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="Survey File:"/>
+                    <StackPanel Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
+						<TextBox x:Name="SurveyFilePathTextBox" IsReadOnly="True" MinWidth="400"/>
+						<Button x:Name="BrowseSurveyFileButton" Content="Browse..." Click="BrowseSurveyFileButton_Click" />
+					</StackPanel>
+
+					<!-- Known length -->
+					<TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="Known Length:"/>
+					<StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+						<TextBox Text="{x:Bind KnownLength, Mode=TwoWay}" Width="35" TextChanging="KnownLengthNumberTextBox_TextChanging"/>
+						<TextBlock VerticalAlignment="Center" Text="mm"/>
+					</StackPanel>
+
+					<!-- Run Calculations button -->
+                    <Button Grid.Row="1" Grid.Column="2"
+							x:Name="RunCalibrationTestButton"
+							Click="RunCalculations_Button"
+							IsEnabled="True"
+							MinWidth="160">
+
+                        <Grid>
+                            <!-- Text shown when idle -->
+                            <TextBlock x:Name="RunCalcsButtonText" 
+                                       Text="Run Calculations"
+									   HorizontalAlignment="Center"
+									   VerticalAlignment="Center"
+									   Visibility="Visible" />
+
+                            <!-- Spinner shown when busy -->
+                            <ProgressRing x:Name="RunCalcsButtonProgressRing" 
+									      IsActive="False"
+										  Width="20" Height="20"
+										  HorizontalAlignment="Center"
+										  VerticalAlignment="Center"
+										  Visibility="Collapsed" />
+                        </Grid>
+                    </Button>
+
+                    <!-- Results -->
+                    <StackPanel Grid.Row="2" Grid.ColumnSpan="3" Orientation="Vertical" Margin="10,0,10,0">
+						<TextBox x:Name="ResultTextBox"
+								IsReadOnly="True"
+								TextWrapping="Wrap"
+								ScrollViewer.VerticalScrollBarVisibility="Auto"
+								Height="96" 
+								Visibility="Collapsed"/>
+                        <TextBlock x:Name="ResultTextBoxNote" Text="* Preferred Calibration Set"
+                                Visibility="Collapsed"/>
+                    </StackPanel>
+                </Grid>
+			</StackPanel>
+		</toolkit:SettingsExpander.Items>
+	</toolkit:SettingsExpander>
+
+</UserControl>

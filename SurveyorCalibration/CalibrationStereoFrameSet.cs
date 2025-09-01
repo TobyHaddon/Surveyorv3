@@ -5,6 +5,7 @@ using Emgu.CV.Structure;
 using Emgu.CV.Util;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using SurveyorCalibrationData;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -15,8 +16,6 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using SurveyorCalibrationData;
-using Windows.Devices.Bluetooth.Advertisement;
 
 namespace Surveyor.Calibration
 {
@@ -514,7 +513,7 @@ namespace Surveyor.Calibration
         /// Extract a list of the best frames for calibration based on the movement and blur factors.
         /// </summary>
         /// <returns></returns>
-        public bool SelectBestStereoFramesUsingSensorBinOnly(double maxMovementFactor, double maxBlurFactor)
+        public bool SelectBestStereoFramesUsingSensorBinOnly(double maxMovementFactor, double maxBlurFactor, int charucoCornersThreshold)
         {
             HashSet<int> frameIndexSet = [];
 
@@ -524,80 +523,126 @@ namespace Surveyor.Calibration
             // Check if mono or stereo by checking for null right values
             mono = !Frames.TryGetValue(Frames.Keys.FirstOrDefault(), out var tuple) || tuple.Item2 is null;
 
-
+            
             foreach (var (gx, gy) in FrameCalibrationData.SensorBinGridLayers)
             {
                 for (int biny = 0; biny < gy; biny++)
                 {
+                    StringBuilder sb = new();
                     for (int binx = 0; binx < gx; binx++)
                     {
                         var targetBin = (gx, gy, binx, biny);
 
                         if (mono)
                         {
-                            frameIndexes = Frames
-                                             .Where(kvp =>
-                                             {
-                                                 var (left, _, _) = kvp.Value;
-                                                 return left.CharucoCorners.Length > 50 &&
-                                                        left.SensorBinsOccupied.Contains(targetBin) &&
-                                                        left.MovementFactor <= maxMovementFactor &&
-                                                        left.BlurFactor <= maxBlurFactor;
-                                             })
-                                             .OrderByDescending(kvp => kvp.Value.Item1.CharucoCorners.Length) // correspondingCount descending
-                                             .ThenBy(kvp =>
-                                             {
-                                                 var (left, _, _) = kvp.Value;
-                                                 return left.MovementFactor;
-                                             })
-                                             .ThenBy(kvp =>
-                                             {
-                                                 var (left, _, _) = kvp.Value;
-                                                 return left.BlurFactor;
-                                             })
-                                             .Take(2)
-                                             .Select(kvp => kvp.Key)
-                                             .ToList(); ;
+                            //frameIndexes = Frames
+                            //                 .Where(kvp =>
+                            //                 {
+                            //                     var (left, _, _) = kvp.Value;
+                            //                     return left.CharucoCorners.Length > charucoCornersThreshold &&
+                            //                            left.SensorBinsOccupied.Contains(targetBin) &&
+                            //                            left.MovementFactor <= maxMovementFactor &&
+                            //                            left.BlurFactor <= maxBlurFactor;
+                            //                 })
+                            //                 .OrderByDescending(kvp => kvp.Value.Item1.CharucoCorners.Length) // correspondingCount descending
+                            //                 .ThenBy(kvp =>
+                            //                 {
+                            //                     var (left, _, _) = kvp.Value;
+                            //                     return left.MovementFactor;
+                            //                 })
+                            //                 .ThenBy(kvp =>
+                            //                 {
+                            //                     var (left, _, _) = kvp.Value;
+                            //                     return left.BlurFactor;
+                            //                 })
+                            //                 .Take(2)
+                            //                 .Select(kvp => kvp.Key)
+                            //                 .ToList();
+                            frameIndexes = Frames.Select(kvp => (Key: kvp.Key, Left: kvp.Value.Item1)) // pull out only what we sort/filter on
+                                                 .Where(x =>
+                                                     x.Left.CharucoCorners != null &&
+                                                     x.Left.CharucoCorners.Length > charucoCornersThreshold &&
+                                                     x.Left.SensorBinsOccupied != null &&
+                                                     x.Left.SensorBinsOccupied.Contains(targetBin) &&
+                                                     x.Left.MovementFactor <= maxMovementFactor &&
+                                                     x.Left.BlurFactor <= maxBlurFactor)
+                                                 .OrderByDescending(x => x.Left.CharucoCorners.Length) // more corners first
+                                                 .ThenBy(x => x.Left.MovementFactor)                   // less movement next
+                                                 .ThenBy(x => x.Left.BlurFactor)                       // less blur next
+                                                 .ThenBy(x => x.Key)                                   // stable tiebreaker (optional)
+                                                 .Take(2)
+                                                 .Select(x => x.Key)
+                                                 .ToList();
                         }
                         else
                         {
-                            frameIndexes = Frames
-                                            .Where(kvp =>
-                                            {
-                                                var (left, right, correspondingCount) = kvp.Value;
-                                                return correspondingCount > 50 &&
-                                                       left.SensorBinsOccupied.Contains(targetBin) &&
-                                                       left.MovementFactor <= maxMovementFactor &&
-                                                       left.BlurFactor <= maxBlurFactor &&
-                                                       right != null &&
-                                                       right.MovementFactor <= maxMovementFactor &&
-                                                       right.BlurFactor <= maxBlurFactor;
-                                            })
-                                            .OrderByDescending(kvp => kvp.Value.Item3) // correspondingCount descending
-                                            .ThenBy(kvp =>
-                                            {
-                                                var (left, right, _) = kvp.Value;
-                                                return right is null ? left.MovementFactor
-                                                                     : Math.MaxMagnitude(left.MovementFactor, right.MovementFactor);
-                                            })
-                                            .ThenBy(kvp =>
-                                            {
-                                                var (left, right, _) = kvp.Value;
-                                                return right is null ? left.BlurFactor
-                                                                     : Math.MaxMagnitude(left.BlurFactor, right.BlurFactor);
-                                            })
-                                            .Take(2)
-                                            .Select(kvp => kvp.Key)
-                                            .ToList(); ;
+                            //frameIndexes = Frames
+                            //                .Where(kvp =>
+                            //                {
+                            //                    var (left, right, correspondingCount) = kvp.Value;
+                            //                    return correspondingCount > charucoCornersThreshold &&
+                            //                           left.SensorBinsOccupied.Contains(targetBin) &&
+                            //                           left.MovementFactor <= maxMovementFactor &&
+                            //                           left.BlurFactor <= maxBlurFactor &&
+                            //                           right != null &&
+                            //                           right.MovementFactor <= maxMovementFactor &&
+                            //                           right.BlurFactor <= maxBlurFactor;
+                            //                })
+                            //                .OrderByDescending(kvp => kvp.Value.Item3) // correspondingCount descending
+                            //                .ThenBy(kvp =>
+                            //                {
+                            //                    var (left, right, _) = kvp.Value;
+                            //                    return right is null ? left.MovementFactor
+                            //                                         : Math.MaxMagnitude(left.MovementFactor, right.MovementFactor);
+                            //                })
+                            //                .ThenBy(kvp =>
+                            //                {
+                            //                    var (left, right, _) = kvp.Value;
+                            //                    return right is null ? left.BlurFactor
+                            //                                         : Math.MaxMagnitude(left.BlurFactor, right.BlurFactor);
+                            //                })
+                            //                .Take(2)
+                            //                .Select(kvp => kvp.Key)
+                            //                .ToList();
+                            frameIndexes = Frames.Select(kvp => new {
+                                                        Key = kvp.Key,
+                                                        Left = kvp.Value.Item1,
+                                                        Right = kvp.Value.Item2,
+                                                        Count = kvp.Value.Item3
+                                                    })
+                                                    .Where(x =>
+                                                        x.Count > charucoCornersThreshold &&
+                                                        x.Left?.SensorBinsOccupied != null &&
+                                                        x.Left.SensorBinsOccupied.Contains(targetBin) &&
+                                                        x.Left.MovementFactor <= maxMovementFactor &&
+                                                        x.Left.BlurFactor <= maxBlurFactor &&
+                                                        x.Right != null &&
+                                                        x.Right.MovementFactor <= maxMovementFactor &&
+                                                        x.Right.BlurFactor <= maxBlurFactor)
+                                                    .OrderByDescending(x => x.Count) // correspondingCount desc
+                                                    .ThenBy(x => Math.MaxMagnitude(x.Left.MovementFactor, x.Right!.MovementFactor))
+                                                    .ThenBy(x => Math.MaxMagnitude(x.Left.BlurFactor, x.Right!.BlurFactor))
+                                                    .ThenBy(x => x.Key) // optional: deterministic tiebreaker
+                                                    .Take(2)
+                                                    .Select(x => x.Key)
+                                                    .ToList();
                         }
 
+                        if (binx > 0)
+                            sb.Append(' ');
+                        sb.Append($"{frameIndexes.Count}");
+
                         foreach (var index in frameIndexes)
-                            frameIndexSet.Add(index);
+                        {
+                            bool wasAdded = frameIndexSet.Add(index);
+                        }
+                        
                     }
+                    Debug.WriteLine(sb.ToString());
                 }
             }
 
-            BestFrameIndexes = frameIndexSet.ToList();
+            BestFrameIndexes = [.. frameIndexSet];
             return true;
         }
 
@@ -921,34 +966,6 @@ namespace Surveyor.Calibration
                 startCalibration = -1;
                 stopCalibration = -1;
             }
-
-            //// This callback stores the calibration target search results and
-            //// then calls the 'callbackDisplay' for screen updating
-            //// a tuple is passed through the userData
-            //static void FrameProcessingCallbackFindCalibrationTimeLineRange(
-            //        int stereoFrameIndex,
-            //        int stereoFrameTotal,
-            //        int leftFrameIndex,
-            //        Mat leftMat,
-            //        FrameCalibrationTarget? leftFrameCalibrationTarget,
-            //        int rightFrameIndex,
-            //        Mat? rightMat,
-            //        FrameCalibrationTarget? rightFrameCalibrationTarget,
-            //        object userData)
-            //{
-            //    // Unpack the userData tuple
-            //    var (_, calibrationTargetSearch, callBackDisplay) =  ((bool, SortedDictionary<int, bool>, FrameProcessingCallback?))userData;
-
-
-            //    // Call the display callback if provided
-            //    if (callBackDisplay is not null)
-            //    {
-            //        callBackDisplay(stereoFrameIndex, stereoFrameTotal,
-            //                        leftFrameIndex, leftMat, leftFrameCalibrationTarget,
-            //                        rightFrameIndex, rightMat, rightFrameCalibrationTarget,
-            //                        userData);
-            //    }
-            //}
 
             return (startCalibration, stopCalibration);
         }
@@ -2123,7 +2140,7 @@ namespace Surveyor.Calibration
         /// </summary>
         /// <param name="values"></param>
         /// <returns></returns>
-        private double GetUpperFence(List<double> values)
+        private static double GetUpperFence(List<double> values)
         {
             int count = values.Count;
             if (count < 4) return double.MaxValue; // not enough data to compute IQR reliably

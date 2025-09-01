@@ -3528,9 +3528,21 @@ namespace Surveyor
 
                     await tcs.Task;
 
-
                     // Re-enable the main window after closing settings
                     SetWindowEnabled(mainWindowHandle, true);
+
+                    // Check if the settings windows indicated a recalculation is required
+                    if (settingsWindow.RecalcRequired())
+                    {
+                        InfoBarReCalc.IsOpen = true;
+                        await Task.Delay(500); // Give the user a chance to see the info bar open
+
+                        // User has changed something that requires a recalculation of all event measurements
+                        await CheckIfEventMeasurementsAreUpToDate(true);
+
+
+                        InfoBarReCalc.IsOpen = false;
+                    }
                 }
             }
             catch (Exception ex)

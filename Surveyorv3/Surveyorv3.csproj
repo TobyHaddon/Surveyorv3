@@ -162,6 +162,9 @@
     <None Update="Species.txt">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <Page Update="User Controls\SettingsCalibrationTest.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="User Controls\Distortion3DView.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

@@ -43,8 +43,10 @@
             VerticalScrollMode="Auto">
             <StackPanel Spacing="{StaticResource SettingsCardSpacing}">
                 <StackPanel.ChildrenTransitions>
-                    <EntranceThemeTransition FromVerticalOffset="50" />
-                    <RepositionThemeTransition IsStaggeringEnabled="False" />
+                    <TransitionCollection>
+                        <EntranceThemeTransition FromVerticalOffset="50" />
+                        <RepositionThemeTransition IsStaggeringEnabled="False" />
+                    </TransitionCollection>
                 </StackPanel.ChildrenTransitions>
 
                 <!--SURVEY SETTINGS-->
@@ -65,6 +67,7 @@
                             VerticalAlignment="Center"/>
                     </StackPanel>
                             
+
                     <toolkit:SettingsExpander.Items>
                         <toolkit:SettingsCard x:Name="SettingsCardSurveyInfoAndMedia">
                             <surveyorControls:SurveyInfoAndMedia x:Name="SurveyInfoAndMedia"/>
@@ -83,7 +86,7 @@
                 <surveyorControls:SettingsCalibration x:Name="SettingsCalibration"/>
 
                 <!--SURVEY RULES-->
-                <surveyorControls:SettingsSurveyRules x:Name="SettingsSurveyRules"/>
+                <surveyorControls:SettingsSurveyRules x:Name="SettingsSurveyRules"/> 
 
 
                 <!--SYSTEM SETTINGS-->
@@ -220,7 +223,7 @@
 
                         <!-- SpeciesCodeList Item Count-->
                         <TextBlock x:Name="SpeciesCodeListItemCount" Text="{x:Bind mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                        <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>  
 
 
                         <!-- SpeciesCodeList New Button -->
@@ -298,6 +301,7 @@
                         <FontIcon Glyph="&#xE722;" />
                     </toolkit:SettingsExpander.HeaderIcon>
                                             
+
                     <toolkit:SettingsExpander.Items>
                         <toolkit:SettingsCard HorizontalContentAlignment="Left" ContentAlignment="Vertical">
                             <StackPanel Orientation="Vertical" Margin="50,10,50,0">
@@ -378,6 +382,7 @@
                                 <FontIcon Glyph="&#xE8A5;" />
                             </toolkit:SettingsCard.HeaderIcon>
                             
+
                             <StackPanel Orientation="Horizontal">
 
                                 <!-- Cache Folder information-->
@@ -407,7 +412,7 @@
                         </toolkit:SettingsCard>
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
-                
+
                 <!-- Experimental Code -->
                 <toolkit:SettingsCard Header="Experimental Features" Description="Experimental code, should not be used for real surveys" >
                     <toolkit:SettingsCard.HeaderIcon>
@@ -483,6 +488,7 @@
                         <toolkit:SettingsCard HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" MaxWidth="1200">
                             <StackPanel>
                                 
+
                                 <!-- Column Headers -->
                                 <Grid Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" MaxWidth="1200">
                                     <Grid.ColumnDefinitions>
@@ -633,6 +639,7 @@
                                                     <ColumnDefinition Width="200"/>
                                                 </Grid.ColumnDefinitions>
                                                 
+
                                                 <Grid.RowDefinitions>
                                                     <RowDefinition Height="Auto"/>
                                                     <RowDefinition Height="Auto"/>
@@ -697,6 +704,9 @@
 
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
+
+                <!-- Calibration Test control under Advanced section -->
+                <surveyorControls:SettingsCalibrationTest x:Name="SettingsCalibrationTest" />
 
                 <!--  ABOUT  -->
                 <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="About"  MaxWidth="1200"/>

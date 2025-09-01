@@ -331,24 +331,25 @@ namespace Surveyor
         /// even if the rules are not on
         /// </summary>
         /// <param name="stereoProjection"></param>
-        public void ApplyCalcs(StereoProjection stereoProjection)
+        /// <param name="calibrationDataIndex">Optional index of CalibrationDataList to use; -1 uses preferred.</param>
+        public void ApplyCalcs(StereoProjection stereoProjection, int calibrationDataIndex = -1)
         {
             // Reset
             Clear();
 
             // Calculate range (distance from origin)
-            Range = stereoProjection.RangeFromCameraSystemCentrePointToMeasurementCentrePoint();
+            Range = stereoProjection.RangeFromCameraSystemCentrePointToMeasurementCentrePoint(calibrationDataIndex);
 
             // Calculate the X & Y offset between the camera system mid-point and the measurement point mid-point
-            XOffset = stereoProjection.XOffsetFromCameraSystemCentrePointToMeasurementCentrePoint();
-            YOffset = stereoProjection.YOffsetFromCameraSystemCentrePointToMeasurementCentrePoint();
+            XOffset = stereoProjection.XOffsetFromCameraSystemCentrePointToMeasurementCentrePoint(calibrationDataIndex);
+            YOffset = stereoProjection.YOffsetFromCameraSystemCentrePointToMeasurementCentrePoint(calibrationDataIndex);
 
             // Calculate RMS
-            RMSWorst = stereoProjection.RMS(StereoProjection.RMSMode.Worst);
-            RMSMean = stereoProjection.RMS(StereoProjection.RMSMode.Mean);
+            RMSWorst = stereoProjection.RMS(StereoProjection.RMSMode.Worst, calibrationDataIndex);
+            RMSMean = stereoProjection.RMS(StereoProjection.RMSMode.Mean, calibrationDataIndex);
 
             // RMS for Target A and B
-            (RMSTargetA, RMSTargetB) = stereoProjection.GetRMSElements();
+            (RMSTargetA, RMSTargetB) = stereoProjection.GetRMSElements(calibrationDataIndex);
         }
 
 

@@ -118,6 +118,7 @@ namespace Surveyor.Helper
             return foregroundWindow == mainWindowHandle;
         }
 
+
         [DllImport("user32.dll")]
         private static extern IntPtr GetForegroundWindow();
     }

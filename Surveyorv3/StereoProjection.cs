@@ -1,8 +1,15 @@
 ﻿// StereoProjection
 // Stereo projection maths support
 // 
+// Previous:
 // Version 1.1  02 Feb 2025
-// Added code to calculate the RMS
+//  Added code to calculate the RMS
+// 
+// Version 1.2  30 Aug 2025
+//  Added optional calibrationDataIndex parameter to several public methods (except CalculateEpipolarPoints)
+//   to select which CalibrationDataList item to use; defaults to PreferredCalibrationDataIndex.
+// Added ResolveIndex helper and bounds checks; minor logging adjustments.
+//
 
 using Emgu.CV;
 using Emgu.CV.CvEnum;
@@ -64,6 +71,11 @@ namespace Surveyor
 
         private static bool InBounds(int i, int n) => i >= 0 && i < n;
         private int PreferredIndex => calibrationClass?.PreferredCalibrationDataIndex ?? -1;
+
+        private int ResolveIndex(int calibrationDataIndex)
+        {
+            return calibrationDataIndex >= 0 ? calibrationDataIndex : PreferredIndex;
+        }
 
         private double? GetPreferred(double?[]? arr)
         {
@@ -131,7 +143,7 @@ namespace Surveyor
             calibrationClass = null;
         }
          
-        
+
         /// <summary>
         /// This class has access the current survey rules instance so it can use the min and max range rule
         /// If it is setup.  
@@ -299,49 +311,45 @@ namespace Surveyor
         /// Calulate the distane between the two measurement points
         /// </summary>
         /// <returns></returns>
-        public (double?, double?[]) MeasurementAll()
-        {
-            double?[] measurementAlt = new double?[3];
-            double? ret = null;
-            return (ret, measurementAlt);
-        }
-        public double? Measurement()
+        public double? Measurement(int calibrationDataIndex = -1)
         {
             double? ret = null;
 
             if (IsReadyCalibrationData())
             {
 
-                if (IsReadyUndistortedPoints())
+                if (IsReadyUndistortedPoints() && calibrationClass is not null)
                 {
-                    MCvPoint3D64f? vecA = vecAUndistortedArray![calibrationClass!.PreferredCalibrationDataIndex];
-                    MCvPoint3D64f? vecB = vecBUndistortedArray![calibrationClass!.PreferredCalibrationDataIndex];
+                    int idx = ResolveIndex(calibrationDataIndex);
+                    if (!InBounds(idx, calibrationClass.CalibrationDataList.Count)) return null;
 
-                    // Preferred calibration data instance measure calculation
+                    MCvPoint3D64f? vecA = vecAUndistortedArray![idx];
+                    MCvPoint3D64f? vecB = vecBUndistortedArray![idx];
+
+                    // Selected calibration data instance measure calculation
                     if (vecA is not null && vecB is not null)
                     {
                         ret = DistanceBetween3DPoints((MCvPoint3D64f)vecA, (MCvPoint3D64f)vecB);
-
-
-                        report?.Out(Reporter.WarningLevel.Info, "", $"---Length using preferred Calibration Data[{calibrationClass!.CalibrationDataList[calibrationClass!.PreferredCalibrationDataIndex].Description}] Measurement = {Math.Round((double)ret * 1000,1)}mm");
+                        report?.Out(Reporter.WarningLevel.Info, "", $"---Length using {(idx == calibrationClass.PreferredCalibrationDataIndex ? "preferred" : "selected")} Calibration Data[{calibrationClass!.CalibrationDataList[idx].Description}] Measurement = {Math.Round((double)ret * 1000,1)}mm");
                     }
 
-                    // Non-Preferred calibration data instance measure calculation
-                    for (int i = 0; i < calibrationClass!.CalibrationDataList.Count; i++)
+                    // If default was used (preferred) and no explicit index provided, also log other available calibrations for info
+                    if (calibrationDataIndex == -1)
                     {
-                        if (i != calibrationClass!.PreferredCalibrationDataIndex)
+                        for (int i = 0; i < calibrationClass!.CalibrationDataList.Count; i++)
                         {
-                            if (calibrationClass!.CalibrationDataList[i].FrameSizeCompare(frameWidth, frameHeight))
+                            if (i != calibrationClass!.PreferredCalibrationDataIndex)
                             {
-                                vecA = vecAUndistortedArray![i];
-                                vecB = vecBUndistortedArray![i];
-
-                                // Preferred calibration data instance measure calculation
-                                if (vecA is not null && vecB is not null)
+                                if (calibrationClass!.CalibrationDataList[i].FrameSizeCompare(frameWidth, frameHeight))
                                 {
-                                    double measurementAlt = DistanceBetween3DPoints((MCvPoint3D64f)vecA, (MCvPoint3D64f)vecB);
+                                    vecA = vecAUndistortedArray![i];
+                                    vecB = vecBUndistortedArray![i];
 
-                                    report?.Out(Reporter.WarningLevel.Info, "", $"---Length using non-preferred Calibration Data[{calibrationClass!.CalibrationDataList[i].Description}] Measurement = {Math.Round(measurementAlt * 1000,1)}mm");
+                                    if (vecA is not null && vecB is not null)
+                                    {
+                                        double measurementAlt = DistanceBetween3DPoints((MCvPoint3D64f)vecA, (MCvPoint3D64f)vecB);
+                                        report?.Out(Reporter.WarningLevel.Info, "", $"---Length using non-preferred Calibration Data[{calibrationClass!.CalibrationDataList[i].Description}] Measurement = {Math.Round(measurementAlt * 1000,1)}mm");
+                                    }
                                 }
                             }
                         }
@@ -439,15 +447,18 @@ namespace Surveyor
         /// of the measurement points
         /// </summary>
         /// <returns></returns>
-        public double? RangeFromCameraSystemCentrePointToMeasurementCentrePoint()
+        public double? RangeFromCameraSystemCentrePointToMeasurementCentrePoint(int calibrationDataIndex = -1)
         {
             double? ret = null;
 
             // Check if the calibration data and the undistored points are ready
-            if (IsReadyUndistortedPoints())
+            if (IsReadyUndistortedPoints() && calibrationClass is not null)
             {
-                MCvPoint3D64f? cameraSystemCentre = cameraSystemCentreArray![calibrationClass!.PreferredCalibrationDataIndex];
-                MCvPoint3D64f? vecABMid = vecABMidArray![calibrationClass!.PreferredCalibrationDataIndex];
+                int idx = ResolveIndex(calibrationDataIndex);
+                if (!InBounds(idx, calibrationClass.CalibrationDataList.Count)) return null;
+
+                MCvPoint3D64f? cameraSystemCentre = cameraSystemCentreArray![idx];
+                MCvPoint3D64f? vecABMid = vecABMidArray![idx];
 
                 if (cameraSystemCentre is not null && vecABMid is not null)
                 {
@@ -465,15 +476,18 @@ namespace Surveyor
         /// centre of the measurement points
         /// </summary>
         /// <returns></returns>
-        public double? XOffsetFromCameraSystemCentrePointToMeasurementCentrePoint()
+        public double? XOffsetFromCameraSystemCentrePointToMeasurementCentrePoint(int calibrationDataIndex = -1)
         {
             double? ret = null;
 
             // Check if the calibration data and the undistored points are ready
-            if (IsReadyUndistortedPoints())
+            if (IsReadyUndistortedPoints() && calibrationClass is not null)
             { 
-                MCvPoint3D64f? cameraSystemCentre = cameraSystemCentreArray![calibrationClass!.PreferredCalibrationDataIndex];
-                MCvPoint3D64f? vecABMid = vecABMidArray![calibrationClass!.PreferredCalibrationDataIndex];
+                int idx = ResolveIndex(calibrationDataIndex);
+                if (!InBounds(idx, calibrationClass.CalibrationDataList.Count)) return null;
+
+                MCvPoint3D64f? cameraSystemCentre = cameraSystemCentreArray![idx];
+                MCvPoint3D64f? vecABMid = vecABMidArray![idx];
 
                 if (cameraSystemCentre is not null && vecABMid is not null)
                 {
@@ -490,15 +504,18 @@ namespace Surveyor
         /// centre of the measurement points
         /// </summary>
         /// <returns></returns>
-        public double? YOffsetFromCameraSystemCentrePointToMeasurementCentrePoint()
+        public double? YOffsetFromCameraSystemCentrePointToMeasurementCentrePoint(int calibrationDataIndex = -1)
         {
             double? ret = null;
 
             // Check if the calibration data and the undistored points are ready
-            if (IsReadyUndistortedPoints())
+            if (IsReadyUndistortedPoints() && calibrationClass is not null)
             {
-                MCvPoint3D64f? cameraSystemCentre = cameraSystemCentreArray![calibrationClass!.PreferredCalibrationDataIndex];
-                MCvPoint3D64f? vecABMid = vecABMidArray![calibrationClass!.PreferredCalibrationDataIndex];
+                int idx = ResolveIndex(calibrationDataIndex);
+                if (!InBounds(idx, calibrationClass.CalibrationDataList.Count)) return null;
+
+                MCvPoint3D64f? cameraSystemCentre = cameraSystemCentreArray![idx];
+                MCvPoint3D64f? vecABMid = vecABMidArray![idx];
 
                 if (cameraSystemCentre is not null && vecABMid is not null)
                 {
@@ -524,10 +541,21 @@ namespace Surveyor
             Quadrature,
             Worst
         }
-        public double? RMS(RMSMode mode)
+        public double? RMS(RMSMode mode, int calibrationDataIndex = -1)
         {
-            var a = RMSErrorA_Current;
-            var b = RMSErrorB_Current;
+            double? a, b;
+            if (calibrationDataIndex == -1)
+            {
+                a = RMSErrorA_Current;
+                b = RMSErrorB_Current;
+            }
+            else
+            {
+                if (RMSErrorAArray is null || RMSErrorBArray is null) return null;
+                if (!InBounds(calibrationDataIndex, RMSErrorAArray.Length)) return null;
+                a = RMSErrorAArray[calibrationDataIndex];
+                b = RMSErrorBArray[calibrationDataIndex];
+            }
 
             switch (mode)
             {
@@ -560,7 +588,16 @@ namespace Surveyor
         /// Get the individual RMS errors for the measurement points A & B
         /// </summary>
         /// <returns></returns>
-        public (double? A, double? B) GetRMSElements() => (RMSErrorA_Current, RMSErrorB_Current);
+        public (double? A, double? B) GetRMSElements(int calibrationDataIndex = -1)
+        {
+            if (calibrationDataIndex == -1)
+            {
+                return (RMSErrorA_Current, RMSErrorB_Current);
+            }
+            if (RMSErrorAArray is null || RMSErrorBArray is null) return (null, null);
+            if (!InBounds(calibrationDataIndex, RMSErrorAArray.Length)) return (null, null);
+            return (RMSErrorAArray[calibrationDataIndex], RMSErrorBArray[calibrationDataIndex]);
+        }
 
 
 
@@ -573,55 +610,10 @@ namespace Surveyor
         /// <param name="epiLine_b"></param>
         /// <param name="epiLine_c"></param>
         /// <returns></returns>
-        //public bool CalculateEpipolarLine(int calibrationDataIndex, bool TrueLeftFalseRight, Point point, out double epiLine_a, out double epiLine_b, out double epiLine_c)
-        //{
-        //    bool ret = false;
-
-        //    // Reset
-        //    epiLine_a = 0;
-        //    epiLine_b = 0;
-        //    epiLine_c = 0;
-
-
-        //    if (IsReadyCalibrationData())
-        //    {
-        //        // Calculate the epipolar line for the left image
-        //        CalibrationData? calibrationData = calibrationClass!.CalibrationDataList[calibrationDataIndex];
-        //        if (calibrationData is not null && calibrationData.FrameSizeCompare(frameWidth, frameHeight))
-        //        {
-        //            Point pointUndistorted;
-        //            if (TrueLeftFalseRight)
-        //                pointUndistorted = UndistortPoint(calibrationData.LeftCameraCalibration, point);
-        //            else
-        //                pointUndistorted = UndistortPoint(calibrationData.RightCameraCalibration, point);
-
-
-        //            // Convert point to homogeneous coordinates
-        //            Matrix<double> pointLHomogeneous = new Matrix<double>(3, 1);
-        //            pointLHomogeneous[0, 0] = pointUndistorted.X;
-        //            pointLHomogeneous[1, 0] = pointUndistorted.Y;
-        //            pointLHomogeneous[2, 0] = 1.0;
-
-        //            // Compute the epipolar line in the right image
-        //            Matrix<double> epipLine = fundamentalMatrixArray![calibrationDataIndex] * pointLHomogeneous;
-
-        //            epiLine_a = epipLine[0, 0];
-        //            epiLine_b = epipLine[1, 0];
-        //            epiLine_c = epipLine[2, 0];
-
-        //            // Indicate success
-        //            ret = true;
-        //        }
-        //    }
-
-        //    return ret;
-        //}
-
-        public bool CalculateEpipolarLine(
-            int calibrationDataIndex,
-            bool TrueLeftFalseRight,
-            Point point,
-            out double epiLine_a, out double epiLine_b, out double epiLine_c)
+        public bool CalculateEpipolarLine(int calibrationDataIndex,
+                                          bool TrueLeftFalseRight,
+                                          Point point,
+                                          out double epiLine_a, out double epiLine_b, out double epiLine_c)
         {
             epiLine_a = epiLine_b = epiLine_c = 0.0;
 
@@ -653,8 +645,9 @@ namespace Surveyor
         }
 
         public bool CalculateEpipolarLine(bool TrueLeftFalseRight, Point point, out double epiLine_a, out double epiLine_b, out double epiLine_c, 
-                                            out double focalLength, out double baseline,
-                                            out double principalXLeft, out double principalYLeft, out double principalXRight, out double principalYRight)
+                                          out double focalLength, out double baseline,
+                                          out double principalXLeft, out double principalYLeft, out double principalXRight, out double principalYRight,
+                                          int calibrationDataIndex = -1)
         {
             bool ret = false;
 
@@ -669,9 +662,12 @@ namespace Surveyor
             principalXRight = 0.0;
             principalYRight = 0.0;
 
-            if (IsReadyCalibrationData())
+            if (IsReadyCalibrationData() && calibrationClass is not null)
             {
-                ret = CalculateEpipolarLine(calibrationClass!.PreferredCalibrationDataIndex,
+                int idx = ResolveIndex(calibrationDataIndex);
+                if (!InBounds(idx, calibrationClass.CalibrationDataList.Count)) return false;
+
+                ret = CalculateEpipolarLine(idx,
                                                 TrueLeftFalseRight,
                                                 point,
                                                 out epiLine_a,
@@ -679,8 +675,8 @@ namespace Surveyor
                                                 out epiLine_c);
                 if (ret == true)
                 {
-                    // Get the preferred calibration data instance
-                    CalibrationData calibrationData = calibrationClass!.CalibrationDataList[calibrationClass!.PreferredCalibrationDataIndex];
+                    // Get the selected calibration data instance
+                    CalibrationData calibrationData = calibrationClass!.CalibrationDataList[idx];
 
                     // Extract focal length from left camera matrix
                     focalLength = calibrationData.LeftCameraCalibration.Intrinsic?[0, 0] ?? 0.0; 
@@ -760,7 +756,7 @@ namespace Surveyor
 
 
         ///
-        /// PIRVATE METHODS
+        /// PRIVATE METHODS
         ///
 
 
@@ -1406,105 +1402,7 @@ namespace Surveyor
         /// <param name="distanceToTarget">The real-world distance from the system center to the target.</param>
         /// <param name="isLeftCamera">True if the input point is from the left camera, false if from the right.</param>
         /// <returns>The corresponding distorted point in the opposite camera's image.</returns>
-        //???public static Point ComputeCorrespondingDistortedPointByDistanceFromTarget(CalibrationData cd, Point inputPoint, double distanceToTarget, bool isLeftCamera)
-        //{
-        //    // Select appropriate calibration data based on the input camera
-        //    var sourceCamera = isLeftCamera ? cd.LeftCameraCalibration : cd.RightCameraCalibration;
-        //    var targetCamera = isLeftCamera ? cd.RightCameraCalibration : cd.LeftCameraCalibration;
-
-        //    var R = cd.StereoCameraCalibration.Rotation;
-        //    var T = cd.StereoCameraCalibration.Translation;
-
-        //    if (sourceCamera.Intrinsic == null || targetCamera.Intrinsic == null || R == null || T == null || sourceCamera.Distortion == null || targetCamera.Distortion == null)
-        //        throw new InvalidOperationException("Calibration matrices are not initialized.");
-
-        //    // Extract intrinsic parameters of the source camera
-        //    double fx = sourceCamera.Intrinsic[0, 0];
-        //    double fy = sourceCamera.Intrinsic[1, 1];
-        //    double cx = sourceCamera.Intrinsic[0, 2];
-        //    double cy = sourceCamera.Intrinsic[1, 2];
-
-        //    // Extract intrinsic parameters of the target camera
-        //    double fx_t = targetCamera.Intrinsic[0, 0];
-        //    double fy_t = targetCamera.Intrinsic[1, 1];
-        //    double cx_t = targetCamera.Intrinsic[0, 2];
-        //    double cy_t = targetCamera.Intrinsic[1, 2];
-
-        //    // Convert distance from system center to depth in the source camera's coordinate system
-        //    double depthSourceCamera = distanceToTarget;
-
-        //    // Undistort the input point
-        //    Point undistortedInputPoints = UndistortPoint(sourceCamera, inputPoint);
-
-        //    double xUndistorted = undistortedInputPoints.X;   
-        //    double yUndistorted = undistortedInputPoints.Y;   
-
-        //    // Convert to 3D coordinates in the source camera space
-        //    double Xs = (xUndistorted - cx) * depthSourceCamera / fx;
-        //    double Ys = (yUndistorted - cy) * depthSourceCamera / fy;
-
-        //    //// Transform to the target camera coordinate system
-        //    //Mat Ps = new(3, 1, DepthType.Cv64F, 1);
-        //    //Ps.SetTo([Xs, Ys, depthSourceCamera]);
-
-        //    //// Transpose the T matrix to be 3x1 (we store as 1x3)
-        //    //Emgu.CV.Matrix<double>? tT = T.Transpose();
-        //    //if (!isLeftCamera)
-        //    //{
-        //    //    CvInvoke.ScaleAdd(T, -1.0, tT, tT); // negated 
-        //    //}
-
-
-        //    //// Create
-        //    //Mat Pt = new();
-        //    //CvInvoke.Gemm(R, Ps, 1.0, tT, 1.0, Pt); // Adjust translation direction based on camera order
-
-
-        //    // Build the 3D point along the source ray (in SOURCE camera coords)
-        //    Mat Ps = new(3, 1, DepthType.Cv64F, 1);
-        //    Ps.SetTo([Xs, Ys, depthSourceCamera]);
-
-        //    // Choose transform from SOURCE -> TARGET
-        //    // If source is LEFT (isLeftCamera==true):  X_r = R * X_l + T
-        //    // If source is RIGHT (isLeftCamera==false): X_l = Rᵀ * X_r - Rᵀ * T
-        //    Mat R_use = new();
-        //    Mat t_use = new(3, 1, DepthType.Cv64F, 1);
-
-        //    if (isLeftCamera)
-        //    {
-        //        // Use underlying Mat objects for copy
-        //        R.Mat.CopyTo(R_use);
-        //        T.Mat.CopyTo(t_use);
-        //    }
-        //    else
-        //    {
-        //        // R_use = Rᵀ
-        //        CvInvoke.Transpose(R.Mat, R_use);
-
-        //        // t_use = -Rᵀ * T
-        //        Mat Rt = new();
-        //        CvInvoke.Transpose(R.Mat, Rt);
-        //        CvInvoke.Gemm(Rt, T.Mat, -1.0, null, 0.0, t_use);
-        //    }
-
-        //    // Transform to TARGET camera
-        //    Mat Pt = new();
-        //    CvInvoke.Gemm(R_use, Ps, 1.0, t_use, 1.0, Pt);
-
-        //    // Extract transformed 3D coordinates
-        //    double[] PtData = new double[3];
-        //    Pt.CopyTo(PtData);
-        //    double Xt = PtData[0];
-        //    double Yt = PtData[1];
-        //    double Zt = PtData[2];
-
-        //    // Project onto the target camera's image plane (undistorted)
-        //    double xTargetUndistorted = (fx_t * Xt / Zt) + cx_t;
-        //    double yTargetUndistorted = (fy_t * Yt / Zt) + cy_t;
-
-        //    // Apply distortion to match the unrectified target image
-        //    return DistortPoint(targetCamera, new Point(xTargetUndistorted, yTargetUndistorted)) ?? new Point(xTargetUndistorted, yTargetUndistorted);
-        //}
+        
 
 
         /// <summary>
@@ -1526,14 +1424,18 @@ namespace Surveyor
             bool TrueLeftFalseRight,
             Point sourcePixel,
             double distanceToTarget,
-            out Point? correspondingDistortedPixel)
+            out Point? correspondingDistortedPixel,
+            int calibrationDataIndex = -1)
         {
             correspondingDistortedPixel = default;
 
             if (!IsReadyCalibrationData() || calibrationClass is null)
                 return false;
 
-            int idx = calibrationClass.PreferredCalibrationDataIndex;
+            int idx = ResolveIndex(calibrationDataIndex);
+            if (!InBounds(idx, calibrationClass.CalibrationDataList.Count))
+                return false;
+
             var cd = calibrationClass.CalibrationDataList[idx];
             if (cd is null || !cd.FrameSizeCompare(frameWidth, frameHeight))
                 return false;

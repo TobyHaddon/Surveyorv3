@@ -240,6 +240,13 @@
 
         <!-- Info Bar Zone -->
         <StackPanel Grid.Row="1" Orientation="Vertical">
+            <!--RECALC IN PROGRESS-->
+            <InfoBar x:Name="InfoBarReCalc" IsOpen="False"
+                        Severity="Informational" HorizontalAlignment="Stretch"
+                        Title="Recalculation In Progress"
+                        Message="Please wait..."
+                        IsClosable="false">
+            </InfoBar>
             <!--CALIBRATION MISSING WARNING-->
             <InfoBar x:Name="InfoBarCalibrationMissing" IsOpen="False"
                         Severity="Warning" HorizontalAlignment="Stretch"

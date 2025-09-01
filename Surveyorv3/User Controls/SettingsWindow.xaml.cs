@@ -80,6 +80,16 @@ namespace Surveyor.User_Controls
         private DispatcherTimer? _qrCodeUpdateTimer;
         private bool _containsOT = false;
 
+        // Remember the hash for the SurveyRules so we can detect changes 
+        // and update any Survey Rules embedded in measurements or 3D points
+        private readonly int surveyRulesHash = -1;
+
+        // Remember the hash for the SurveyRules so we can detect changes 
+        // and update any Survey Rules embedded in measurements or 3D points
+        private int calibrationDataHash = -1;
+
+        // Signal to the caller that a recalculation is required
+        private bool recalcRequired = false;
 
         public SettingsWindow(SurveyorMediator _mediator, MainWindow _mainWindow, Survey? surveyClass, Reporter? _report, string section = "")
         {
@@ -99,8 +109,8 @@ namespace Surveyor.User_Controls
 
             this.InitializeComponent();
             this.Closed += SettingsWindow_Closed;
+            
 
-           
             // React to theme changes
             uiSettings.ColorValuesChanged += UiSettings_ColorValuesChanged;
 
@@ -113,16 +123,22 @@ namespace Surveyor.User_Controls
             SetSettingsTheme(SettingsManagerLocal.ApplicationTheme);
 
             // Inform the SurveyInfoAndMedia user control that is is being used in the SettingsWindow
-            if (surveyClass is not null)
-                SurveyInfoAndMedia.SetupForSettingWindow(SettingsCardSurveyInfoAndMedia, surveyClass);
+            if (survey is not null)
+                SurveyInfoAndMedia.SetupForSettingWindow(SettingsCardSurveyInfoAndMedia, survey);
 
             // Inform the SettingsSurveyRules user control that it is being used in the SettingsWindow for a survey (as opposed to a Field Trip)
-            if (surveyClass is not null)
-                SettingsSurveyRules.SetupForSurveySettingWindow(surveyClass);
+            if (survey is not null)
+            {
+                surveyRulesHash = survey.Data.SurveyRules.GetHashCode();
+                SettingsSurveyRules.SetupForSurveySettingWindow(survey);
+            }
 
             // Inform the SettingsCalibration user control that it is being used in the SettingsWindow for a survey (as opposed to a Field Trip)
-            if (surveyClass is not null)
-                SettingsCalibration.SetupForSurveySettingWindow(surveyClass);
+            if (survey is not null)
+            {
+                calibrationDataHash = survey.Data.Calibration.GetHashCode();
+                SettingsCalibration.SetupForSurveySettingWindow(survey);
+            }
 
             // Remove the separate title bar from the window
             ExtendsContentIntoTitleBar = true;
@@ -130,8 +146,14 @@ namespace Surveyor.User_Controls
             // Force QR Standard Setup
             _ = SetQRCodeSelection(null);  // null selects the first item in the list
 
+            // Inform the Calibration Test user control of the reporter so it can log messages
+            SettingsCalibrationTest.SetReporter(report!);
+
+            // Inform the Calilbration Test user control of the hosting Window (used by File Picker)
+            SettingsCalibrationTest.SetHostingWindow(this);
+
             // Hide the Survey Settings if the Survey is null
-            if (surveyClass is null)
+            if (survey is null)
             {
                 // Hide the survey settings section
                 SurveySettingsTitle.Visibility = Visibility.Collapsed;
@@ -225,6 +247,14 @@ namespace Surveyor.User_Controls
 
         }
 
+
+        /// <summary>
+        /// Return is a recalculation of the event measurements is required
+        /// </summary>
+        public bool RecalcRequired()
+        {
+            return recalcRequired;
+        }
 
 
         ///
@@ -434,8 +464,20 @@ namespace Surveyor.User_Controls
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private void SettingsWindow_Closed(object sender, WindowEventArgs e)
-        {
-            //  But: don't await anything directly here!
+        {            
+            if (survey is not null)
+            {
+                // Check if survey rules changed
+                if (surveyRulesHash != survey.Data.SurveyRules.GetHashCode())
+                {
+                    recalcRequired = true;
+                }
+                // Check if calibration data changed
+                if (calibrationDataHash != survey.Data.Calibration.GetHashCode())
+                { 
+                    recalcRequired = true; 
+                }
+            }
 
             // If the experiment status changed then broadcast the changes via mediator
             BroadcastExperimentalStatus();

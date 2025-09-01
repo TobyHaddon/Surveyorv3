@@ -592,7 +592,11 @@ namespace Surveyor.Controls
                 if (!useMonoCacheValues)
                 {
                     // Create a list of the best calibation frames best on the sensor bin only
-                    calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold, blurMinThreshold);
+                    if (trueLeftFalseRight)
+                        Debug.WriteLine($"Mono Left SelectBestStereoFramesUsingSensorBinOnly, Min move={movementMinThreshold}, Min blur={blurMinThreshold}, Corners threshold={monoCornersMinThreshold}:");
+                    else
+                        Debug.WriteLine($"Mono Right SelectBestStereoFramesUsingSensorBinOnly, Min move={movementMinThreshold}, Min blur={blurMinThreshold}, Corners threshold={monoCornersMinThreshold}:");
+                    calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold, blurMinThreshold, monoCornersMinThreshold);
 
                     // Next top-up with pose diverse frames
                     calibrationStereoFrameSet.AddBestStereoFramesUsingPoseBins(movementMinThreshold, blurMinThreshold);
@@ -707,7 +711,7 @@ namespace Surveyor.Controls
                     if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
                     {
                         // Create a list of the best calibation frames best on the sensor bin only
-                        calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold, blurMinThreshold);
+                        calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold, blurMinThreshold, stereoCornersMinThreshold);
 
                         // Parse the Frames and calculate the yaw and pitch for each frame using the pass1 calibration
                         await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBin(leftMonoCalibrationCameraData, rightMonoCalibrationCameraData, frameSize);
@@ -774,7 +778,7 @@ namespace Surveyor.Controls
                         if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
                         {
                             // Create a list of the best calibation frames best on the sensor bin only
-                            calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold, blurMinThreshold);
+                            calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold, blurMinThreshold, stereoCornersMinThreshold);
 
                             // Parse the Frames and calculate the yaw and pitch for each frame using the pass1 calibration
                             await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBin(leftMonoCalibrationCameraData, rightMonoCalibrationCameraData, frameSize);
