@@ -111,7 +111,7 @@ namespace Surveyor.Events
         public SpeciesInfo SpeciesInfo { get; set; } = new();
 
         // Fish measurement
-        public double? Measurment { get; set; } = -1; 
+        public double? Measurement { get; set; } = -1; 
 
         // Survey rules result used to calculate the rules
         public SurveyRulesCalc SurveyRulesCalc { get; set; } = new();
@@ -256,6 +256,25 @@ namespace Surveyor.Events
             if (eventInstance.EventData != null && jsonObject["EventData"] != null)
             {
                 serializer.Populate(jsonObject["EventData"]!.CreateReader(), eventInstance.EventData);
+
+                // Backward compatibility for SurveyMeasurement.Measurement (was "Measurment" in older JSON)
+                if (eventInstance.EventDataType == SurveyDataType.SurveyMeasurementPoints && eventInstance.EventData is SurveyMeasurement sm)
+                {
+                    if (sm.Measurement == null || sm.Measurement <= 0)
+                    {
+                        var legacy = (jsonObject["EventData"] as JObject)?["Measurment"];
+                        if (legacy != null && legacy.Type != JTokenType.Null)
+                        {
+                            try
+                            {
+                                var val = legacy.ToObject<double?>();
+                                if (val.HasValue)
+                                    sm.Measurement = val.Value;
+                            }
+                            catch { /* ignore parse errors */ }
+                        }
+                    }
+                }
             }
 
             return eventInstance;

@@ -289,6 +289,7 @@ namespace Surveyor.User_Controls
 
                 // Cumlative Divergence from the known length for each calibration set
                 double[] knownLengthCumulativeDivergenceArray = new double[calList.Count];
+                double[] knownLengthCumulativeRMSArray = new double[calList.Count];
 
 
                 foreach (var evt in survey.Data.Events.EventList)
@@ -364,6 +365,10 @@ namespace Surveyor.User_Controls
                         {
                             knownLengthCumulativeDivergenceArray[i] += Math.Abs((double)(measurement * 1000) - KnownLength);
                         }
+                        if (newRules.RMSMean is not null)
+                        {
+                            knownLengthCumulativeRMSArray[i] += Math.Abs((double)(newRules.RMSMean * 1000));
+                        }
 
                         row++;
                     }
@@ -383,24 +388,39 @@ namespace Surveyor.User_Controls
                                                                 .Where(t => !double.IsNaN(t.value))
                                                                 .MinBy(t => t.value).index;
 
+                // Find the index of knownLengthCumulativeRMSArray[] with the smallest value
+                int smallestCumulativeRMSIndex = knownLengthCumulativeRMSArray
+                                                                .Select((value, index) => (value, index))
+                                                                .Where(t => !double.IsNaN(t.value))
+                                                                .MinBy(t => t.value).index;
+
                 // Analyse result
-                ResultText = "Cumulative divergence from known length per calibration set:\n";
+                ResultText = "Cumulative divergence from known length per calibration set:\r\n";
                 for (int i = 0; i < calList.Count; i++)
                 {
                     // Indicate which calilbration set is the preferred one
                     if (i == preferredIdx)
                         ResultText += "*";
-                    // Best indicator
-                    string best = string.Empty;
+
+                    // Best Known length indicator
+                    string bestKnownLenth = string.Empty;
                     if (i == smallestCumulativeDivergenceIndex)
                     {
-                        best = "(best)";
+                        bestKnownLenth = "(best)";
+                    }
+
+                    // Best RMS indicator
+                    string bestRMS = string.Empty;
+                    if (i == smallestCumulativeRMSIndex)
+                    {
+                        bestRMS = "(best)";
                     }
 
                     // Append to the result text
                     double aveError = knownLengthCumulativeDivergenceArray[i] / measurementCount;
                     double aveErrorRatio = KnownLength > 0 ? aveError / KnownLength : 0.0;
-                    ResultText += $"Calib set:{i}: Average error:{aveError:F1}mm({aveErrorRatio:P1}){best}  {calList[i].Description}\n";
+                    double aveRMS = knownLengthCumulativeRMSArray[i] / measurementCount;
+                    ResultText += $"Calib set:{i}: Average error:{aveError:F0}mm({aveErrorRatio:P1}){bestKnownLenth} Ave RMS:{aveRMS:F0}{bestRMS}  {calList[i].Description}\r\n";
                 }
             }
             catch (Exception ex)

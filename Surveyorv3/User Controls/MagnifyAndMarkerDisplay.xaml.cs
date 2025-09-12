@@ -74,6 +74,8 @@ using Windows.Graphics.Imaging;         // BitmapTransform
 using Windows.Storage.Streams;
 using static Surveyor.User_Controls.MediaPlayerEventData;
 using static Surveyor.User_Controls.SettingsWindowEventData;
+using static Surveyor.User_Controls.SurveyorMediaPlayer;
+
 
 
 
@@ -1130,13 +1132,13 @@ namespace Surveyor.User_Controls
                                 {
                                     // Set Target A
                                     SetTargetOnCanvasMag(TargetAMag, pointerRelativeToImageMag.Position.X, pointerRelativeToImageMag.Position.Y, TargetIconType.Locked);
-                                    // Clear any selectec Target (if necessary)
+                                    // Clear any selected Target (if necessary)
                                     SetSelectedTarget(null);
                                 }
                                 else if (TargetBMag.Visibility == Visibility.Collapsed)
                                 {
                                     SetTargetOnCanvasMag(TargetBMag, pointerRelativeToImageMag.Position.X, pointerRelativeToImageMag.Position.Y, TargetIconType.Locked);
-                                    // Clear any selectec Target (if necessary)
+                                    // Clear any selected Target (if necessary)
                                     SetSelectedTarget(null);
                                 }
                             }
@@ -1531,6 +1533,106 @@ namespace Surveyor.User_Controls
                     }
                 }
 
+                // Edit Measurement
+                // Edit 3D Point
+                else if (item == CanvasFrameMenuEditMeasurement || item == CanvasFrameMenuEdit3DPoint)
+                {
+                    if (hoveringOverGuid is not null)
+                    {
+                        Event? evt = GetEventByGuid((Guid)hoveringOverGuid);
+
+                        if (evt is not null && 
+                            (evt.EventDataType == SurveyDataType.SurveyMeasurementPoints || evt.EventDataType == SurveyDataType.SurveyStereoPoint))
+                        {
+                            bool? trueMeasurementFalse3DPoint = null;
+                            Point thisCameraA;
+                            Point? thisCameraB = null;
+                            Point otherCameraA;
+                            Point? otherCameraB = null;
+                            Point magWindowCentrePoint;
+
+                            if (evt.EventData is SurveyMeasurement surveyMeasurement)
+                            {
+                                trueMeasurementFalse3DPoint = true;
+                                if (CameraSide == SurveyorMediaPlayer.eCameraSide.Left)
+                                {
+                                    // We are the left camera so thisCamera is Left and otherCamera is Right
+                                    thisCameraA = new(surveyMeasurement.LeftXA, surveyMeasurement.LeftYA);
+                                    thisCameraB = new(surveyMeasurement.LeftXB, surveyMeasurement.LeftYB);
+                                    otherCameraA = new(surveyMeasurement.RightXA, surveyMeasurement.RightYA);
+                                    otherCameraB = new(surveyMeasurement.RightXB, surveyMeasurement.RightYB);
+                                }
+                                else
+                                {
+                                    // We are the right camera so thisCamera is Right and otherCamera is Left
+                                    thisCameraA = new(surveyMeasurement.RightXA, surveyMeasurement.RightYA);
+                                    thisCameraB = new(surveyMeasurement.RightXB, surveyMeasurement.RightYB);
+                                    otherCameraA = new(surveyMeasurement.LeftXA, surveyMeasurement.LeftYA);
+                                    otherCameraB = new(surveyMeasurement.LeftXB, surveyMeasurement.LeftYB);
+                                }
+                                magWindowCentrePoint = new((thisCameraA.X + thisCameraB.Value.X) / 2, (thisCameraA.Y + thisCameraB.Value.Y) / 2);
+                            }
+                            else if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
+                            {
+                                trueMeasurementFalse3DPoint = false;
+                                if (CameraSide == SurveyorMediaPlayer.eCameraSide.Left)
+                                {
+                                    // We are the left camera so thisCamera is Left and otherCamera is Right
+                                    thisCameraA = new(surveyStereoPoint.LeftX, surveyStereoPoint.LeftY);
+                                    otherCameraA = new(surveyStereoPoint.RightX, surveyStereoPoint.RightY);
+                                }
+                                else
+                                {
+                                    // We are the right camera so thisCamera is Right and otherCamera is Left
+                                    thisCameraA = new(surveyStereoPoint.RightX, surveyStereoPoint.RightY);
+                                    otherCameraA = new(surveyStereoPoint.LeftX, surveyStereoPoint.LeftY);
+                                }
+                                magWindowCentrePoint = thisCameraA;
+                            }
+                            else
+                                return;
+
+
+                            // Remove any exist targets
+                            ResetAllTargets();
+
+                            // Set Target A and if necessary Target B on this instance
+                            SetTargets(thisCameraA, thisCameraB);
+
+                            // Lock the mag windows at the centre point of the measurement or 3D point
+                            MagWindow(magWindowCentrePoint);
+                            MagLockInCurrentPoisition(magWindowCentrePoint, PointerDeviceType.Mouse);
+
+                            //// Set Target A on this instance
+                            //TOBE DELETED
+                            //???SetTargetOnCanvasMag(TargetAMag, thisCameraA.X, thisCameraA.Y, TargetIconType.Locked);
+                            //TOBE DELETED
+                            //// Set Target B on this instance if measurement and not 3D point
+                            //if (trueMeasurementFalse3DPoint == true && thisCameraB is not null)
+                            //    SetTargetOnCanvasMag(TargetBMag, thisCameraB.Value.X, thisCameraB.Value.Y, TargetIconType.Locked);
+
+                            // Set Target A on the other instance                        
+                            MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.SelectTargetPoint, CameraSide)
+                            {
+                                TruePointAFalsePointB = true,
+                                pointA = otherCameraA
+                            };
+                            magnifyAndMarkerControlHandler?.Send(data);
+
+                            // Set Target B on the other instance if measurement and not 3D point
+                            if (trueMeasurementFalse3DPoint == true)
+                            {
+                                data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.SelectTargetPoint, CameraSide)
+                                {
+                                    TruePointAFalsePointB = false,
+                                    pointB = otherCameraB
+                                };
+                                magnifyAndMarkerControlHandler?.Send(data);
+                            }
+                        }
+                    }
+                }
+
                 // Edit Species Info
                 else if (item == CanvasFrameMenuEditSpeciesInfo) 
                 {
@@ -1808,6 +1910,35 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// Sibling control is requesting to set Target A or Target B
+        /// </summary>
+        /// <param name="truePointAFalsePointB"></param>
+        /// <param name="pointA"></param>
+        /// <param name="pointB"></param>
+        internal void _SelectTargetPoint(bool truePointAFalsePointB, Point pointA, Point pointB)
+        {
+            CheckIsUIThread();
+            // Check the ImageFrame is setup 
+            Debug.Assert(imageUIElement is not null, $"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: _SelectTargetPoint: TruePointAFalsePointB:{truePointAFalsePointB}, PointA({pointA.X:F1},{pointA.Y:F1}), PointB({pointB.X:F1},{pointB.Y:F1})");
+            if (truePointAFalsePointB)
+            {
+                // Set Target A
+                SetTargetOnCanvasMag(TargetAMag, pointA.X, pointA.Y, TargetIconType.Locked);
+                pointTargetA = pointA;
+                Debug.WriteLineIf(pointTargetA is not null, $"After Select Target A   Target A Centre ({pointTargetA!.Value.X:F1},{pointTargetA!.Value.Y:F1})");
+            }
+            else
+            {
+                // Set Target B
+                SetTargetOnCanvasMag(TargetBMag, pointB.X, pointB.Y, TargetIconType.Locked);
+                pointTargetB = pointB;
+                Debug.WriteLineIf(pointTargetB is not null, $"After Select Target B   Target B Centre ({pointTargetB!.Value.X:F1},{pointTargetB!.Value.Y:F1})");
+            }
+        }
+
+
         /// <summary>        
         /// This function resets all value associated with the previous frame and 
         /// setups up for the new frame.  It is called from the mediator message
@@ -1867,6 +1998,22 @@ namespace Surveyor.User_Controls
             if (CameraSide == SurveyorMediaPlayer.eCameraSide.Left && _cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
                 return true;
             else if (CameraSide == SurveyorMediaPlayer.eCameraSide.Right && _cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
+                return true;
+            else
+                return false;
+        }
+
+
+        /// <summary>
+        /// Check if the message was from my sibling MagnifyAndMarkerDisplay and I should process the message
+        /// </summary>
+        /// <param name="message"></param>
+        /// <returns></returns>
+        internal bool _FromSiblingControlForMe(SurveyorMediaPlayer.eCameraSide _cameraSide)
+        {
+            if (CameraSide == SurveyorMediaPlayer.eCameraSide.Left && _cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
+                return true;
+            else if (CameraSide == SurveyorMediaPlayer.eCameraSide.Right && _cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
                 return true;
             else
                 return false;
@@ -2023,10 +2170,12 @@ namespace Surveyor.User_Controls
                 if (countMeasurements > 0)
                 {
                     CanvasFrameMenuDeleteMeasurement.IsEnabled = true;
+                    CanvasFrameMenuEditMeasurement.IsEnabled = true;
                 }
                 else
                 {
                     CanvasFrameMenuDeleteMeasurement.IsEnabled = false;
+                    CanvasFrameMenuEditMeasurement.IsEnabled = false;
                 }
 
                 // Delete 3D Point
@@ -2036,10 +2185,12 @@ namespace Surveyor.User_Controls
                 if (count3DPoints > 0)
                 {
                     CanvasFrameMenuDelete3DPoint.IsEnabled = true;
+                    CanvasFrameMenuEdit3DPoint.IsEnabled = true;
                 }
                 else
                 {
                     CanvasFrameMenuDelete3DPoint.IsEnabled = false;
+                    CanvasFrameMenuEdit3DPoint.IsEnabled = false;
                 }
 
                 // Delete Single Point
@@ -2201,7 +2352,7 @@ namespace Surveyor.User_Controls
                 .GroupBy(s => s!.Code)
                 .Select(g => new { Species = g.First(), Count = g.Count() })
                 .OrderByDescending(x => x.Count)
-                .Take(10);
+                .Take(20);
 
             bool anySubMenuItems = false;
 
@@ -2744,6 +2895,9 @@ namespace Surveyor.User_Controls
                                 BorderMag.Height = rectMagWindowScreen.Height + 2;
                                 BorderMag.Visibility = Visibility.Visible;
 
+                                // Update the last seen time
+                                lastTimePointerSeenInMagWindow = DateTime.Now;
+
 
                                 // Check if Target A is in the scope of the Mag Window                        
                                 if (pointTargetA is not null)
@@ -3071,8 +3225,8 @@ namespace Surveyor.User_Controls
                         }
 
 
-                        if (surveyMeasurement is not null && surveyMeasurement.Measurment is not null)
-                            DrawEventStereoMeasurementPoints(evt.Guid, pointA, pointB, surveyMeasurement.SpeciesInfo, (double)surveyMeasurement.Measurment);
+                        if (surveyMeasurement is not null && surveyMeasurement.Measurement is not null)
+                            DrawEventStereoMeasurementPoints(evt.Guid, pointA, pointB, surveyMeasurement.SpeciesInfo, (double)surveyMeasurement.Measurement);
                     }
                     // Draw the SurveyStereoPoint
                     else if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
@@ -3115,16 +3269,6 @@ namespace Surveyor.User_Controls
 
             if (events is not null && events.Count > 0 && position is not null)
             {
-                // Loop through the events and draw them on the canvas
-                //???TOBEDELETEDforeach (Event evt in events)
-                //{
-                //    // Is the event for this frame?
-                //    if ((CameraSide == SurveyorMediaPlayer.eCameraSide.Left && evt.TimeSpanLeftFrame == position) ||
-                //        (CameraSide == SurveyorMediaPlayer.eCameraSide.Right && evt.TimeSpanRightFrame == position))
-                //    {
-                //        eventsForThisFrame.Add(evt);
-                //    }
-                //}
                 foreach (Event evt in events)
                 {
                     // Is the event for this frame?
@@ -3138,6 +3282,34 @@ namespace Surveyor.User_Controls
 
             return eventsForThisFrame;
         }
+
+
+        /// <summary>
+        /// Retrieves an event from the collection that matches the specified GUID.
+        /// </summary>
+        /// <remarks>This method searches through the collection of events to find the first event with a
+        /// GUID that matches the specified value. If the collection is empty or <see langword="null"/>, the method
+        /// returns <see langword="null"/>.</remarks>
+        /// <param name="guid">The unique identifier of the event to retrieve.</param>
+        /// <returns>The <see cref="Event"/> that matches the specified GUID, or <see langword="null"/> if no matching event is
+        /// found.</returns>
+        private Event? GetEventByGuid(Guid guid)
+        {
+            Event? foundEvent = null;
+            if (events is not null && events.Count > 0)
+            {
+                foreach (Event evt in events)
+                {
+                    if (evt.Guid == guid)
+                    {
+                        foundEvent = evt;
+                        break;
+                    }
+                }
+            }
+            return foundEvent;
+        }
+
 
 
         /// <summary>
@@ -3297,9 +3469,9 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// Reset all the target 
-        /// Called from this instance and via mediator from the sibling instnace
+        /// Called from this instance and via mediator from the sibling instance
         /// </summary>
-        internal void  ResetAllTargets()
+        internal void ResetAllTargets()
         {
             Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: ResetAllTargets");
 
@@ -3516,7 +3688,7 @@ namespace Surveyor.User_Controls
                     {
                         // Unlock/Hide the Mag Window
                         MagHide();  // This function will unlock and/or hide the Mag Window
-                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Timer_Tick: Mag Window hidden due to inactivity, isPointerOnUs={isPointerOnUs}, mainWindowActivated={mainWindowActivated}, canvasMagContextMenuOpen={canvasMagContextMenuOpen}, inZoomModeProcessing={inZoomModeProcessing}");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Timer_Tick: Mag Window hidden due to inactivity, isPointerOnUs={isPointerOnUs}, mainWindowActivated={mainWindowActivated}, canvasMagContextMenuOpen={canvasMagContextMenuOpen}, inZoomModeProcessing={inZoomModeProcessing}, elasped={elapsed.TotalMilliseconds}ms");
                     }
                 }
             }
@@ -3932,15 +4104,16 @@ namespace Surveyor.User_Controls
 
         public enum MagnifyAndMarkerControlEvent
         {
-            TargetPointSelected,
-            TargetDeleteAll,
-            DeleteMeasure3DPointOrSinglePoint,
+            TargetPointSelected,                    // Used to inform other components that a target point has been selected or reset
+            TargetDeleteAll,                        // Used to inform sibling MagnifyAndMarkerControl to delete all targets
+            DeleteMeasure3DPointOrSinglePoint,           
             AddMeasurementRequest,
             Add3DPointRequest,
             AddSinglePointRequest,
             EditSpeciesInfoRequest,
             UserReqMagWindowSizeSelect,
             UserReqMagZoomSelect,
+            SelectTargetPoint,                      // Used to inform the sibling MagnifyAndMarkerControl to select a target point (used for re-editting measurments or 3D points)
             Error
         }
 
@@ -4015,7 +4188,17 @@ namespace Surveyor.User_Controls
                     switch (data.magnifyAndMarkerControlEvent)
                     {
                         case MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.TargetDeleteAll:
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MagnifyAndMarkerControlHandler: TargetDeleteAll: From:{data.cameraSide}, IsFromSibling:{_magnifyAndMarkerControl._FromSiblingControlForMe(data.cameraSide)} [pointA={data.pointA}, pointB={data.pointB}, TruePointAFalsePointB={data.TruePointAFalsePointB}, eventGuid={data.eventGuid}]");
                             SafeUICall(() => _magnifyAndMarkerControl.ResetAllTargets());
+                            break;
+
+                        case MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.SelectTargetPoint:
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MagnifyAndMarkerControlHandler: SelectTargetPoint: From:{data.cameraSide}, IsFromSibling:{_magnifyAndMarkerControl._FromSiblingControlForMe(data.cameraSide)} [pointA={data.pointA}, pointB={data.pointB}, TruePointAFalsePointB={data.TruePointAFalsePointB}, eventGuid={data.eventGuid}]");
+                            if (_magnifyAndMarkerControl._FromSiblingControlForMe(data.cameraSide) && 
+                                data.TruePointAFalsePointB is not null && data.pointA is not null && data.pointB is not null)
+                            {
+                                SafeUICall(() => _magnifyAndMarkerControl._SelectTargetPoint((bool)data.TruePointAFalsePointB, (Point)data.pointA, (Point)data.pointB));
+                            }
                             break;
                     }
                 }

@@ -18,7 +18,6 @@ using Windows.ApplicationModel.DataTransfer;
 
 
 
-
 namespace Surveyor.User_Controls
 {
     public sealed partial class EventsControl : UserControl
@@ -147,13 +146,65 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// 
+        /// Find the Event with this Guid
         /// </summary>
         /// <param name="guid"></param>
         /// <returns></returns>
         public Event? FindEvent(Guid guid)
         {
             return events.FirstOrDefault(e => e.Guid == guid);
+        }
+
+
+        /// <summary>
+        /// Find the Event nearest to the specified time. This considers both the
+        /// closest event at or before 'ts' and the closest event after 'ts', then
+        /// returns whichever is nearest. On an exact tie, the earlier event is preferred.
+        /// </summary>
+        public Event? FindEvent(TimeSpan ts)
+        {
+            // Old behavior (kept for reference): choose the last event at or before ts
+            // return events
+            //     .Where(e => e.TimeSpanTimelineController <= ts)
+            //     .OrderByDescending(e => e.TimeSpanTimelineController)
+            //     .FirstOrDefault();
+
+            if (events is null || events.Count == 0)
+                return null;
+
+            Event? bestBefore = null;
+            Event? bestAfter = null;
+            TimeSpan bestBeforeDelta = TimeSpan.MaxValue;
+            TimeSpan bestAfterDelta = TimeSpan.MaxValue;
+
+            foreach (var e in events)
+            {
+                var t = e.TimeSpanTimelineController;
+                if (t <= ts)
+                {
+                    var d = ts - t;
+                    if (d < bestBeforeDelta)
+                    {
+                        bestBeforeDelta = d;
+                        bestBefore = e;
+                    }
+                }
+                else // t > ts
+                {
+                    var d = t - ts;
+                    if (d < bestAfterDelta)
+                    {
+                        bestAfterDelta = d;
+                        bestAfter = e;
+                    }
+                }
+            }
+
+            if (bestBefore == null) return bestAfter;
+            if (bestAfter == null) return bestBefore;
+
+            // Prefer the earlier event on ties
+            return bestBeforeDelta <= bestAfterDelta ? bestBefore : bestAfter;
         }
 
 
@@ -180,8 +231,14 @@ namespace Surveyor.User_Controls
         /// <param name="evt"></param>
         public async void Display(Event evt)
         {
-            // Primary is the copy to clipboard button
-            EventDialog.PrimaryButtonText = "&#xE8C8;";
+            // Set the content dialog title
+            EventDialog.Title = "Event Properties";
+
+            // Override the Close Button Text to say 'Close' instead of 'Cancel'
+            // and disable the primary button
+            EventDialog.PrimaryButtonText = null;
+            EventDialog.IsPrimaryButtonEnabled = false;
+            EventDialog.CloseButtonText = "Close";
 
             // Set the content dialog title
             switch (evt.EventDataType)
@@ -242,8 +299,8 @@ namespace Surveyor.User_Controls
 
                             // Measurement
                             sb.AppendLine($"Species: {surveyMeasurement.SpeciesInfo.Species}\r\n");
-                            if (surveyMeasurement.Measurment is not null && surveyMeasurement.Measurment != -1)
-                                sb.AppendLine($"Measurement: {Math.Round((double)surveyMeasurement.Measurment * 1000, 0)}mm");
+                            if (surveyMeasurement.Measurement is not null && surveyMeasurement.Measurement != -1)
+                                sb.AppendLine($"Measurement: {Math.Round((double)surveyMeasurement.Measurement * 1000, 0)}mm");
                             else
                                 sb.AppendLine($"Measurement: missing");
 
@@ -881,13 +938,13 @@ namespace Surveyor.User_Controls
                 {
                     // Get the species info/Measurement/Survey rules calcs
                     SpeciesInfo? speciesInfo = null;
-                    double? measurment = null;
+                    double? measurement = null;
                     SurveyRulesCalc? surveyRulesCalc = null;
 
                     if (eventItem.EventData is Surveyor.Events.SurveyMeasurement surveyMeasurement)
                     {
                         speciesInfo = surveyMeasurement.SpeciesInfo;
-                        measurment = surveyMeasurement.Measurment;
+                        measurement = surveyMeasurement.Measurement;
                         surveyRulesCalc = surveyMeasurement.SurveyRulesCalc;
                     }
                     else if (eventItem.EventData is Surveyor.Events.SurveyStereoPoint surveyStereoPoint)
@@ -898,11 +955,11 @@ namespace Surveyor.User_Controls
 
 
                     // Length of the fish
-                    if (measurment is not null && (measurment != -1/*no measurement*/ && measurment > 0))
+                    if (measurement is not null && (measurement != -1/*no measurement*/ && measurement > 0))
                     {
                         if (sb.Length > 0)
                             sb.Append(", ");
-                        sb.Append($"{Math.Round((double)measurment * 1000, 0)}mm "); // Round up to the nearest whole number
+                        sb.Append($"{Math.Round((double)measurement * 1000, 0)}mm "); // Round up to the nearest whole number
                     }
                     else if (eventItem.EventData is Surveyor.Events.SurveyMeasurement)
                     {

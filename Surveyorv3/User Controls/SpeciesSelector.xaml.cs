@@ -45,6 +45,9 @@ namespace Surveyor.User_Controls
         private bool userSelectedGenus = false; // Set to true if the user selected a genus from the AutoSuggestBox or typed in a name as opposed to it being calculated from the species
         private bool userSelectedFamily = false; // Set to true if the user selected a family from the AutoSuggestBox or typed in a name as opposed to it being calculated from the species or genus
 
+        // Context used to show RMS InfoBar based on rules
+        private IPointData? _pointContext;
+        private Surveyor.Survey.DataClass.SurveyRulesClass? _rulesContext;
 
         // Updatable image list to hold the fish images. Dynamically bound to the GridView
         public ObservableCollection<ImageDataObject> ImageList { get; set; } = [];
@@ -101,10 +104,7 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Create a new species record
         /// </summary>
-        /// <param name="mainWindow"></param>
-        /// <param name="speciesInfo"></param>
-        /// <returns></returns>
-        internal async Task<bool> SpeciesNew(MainWindow mainWindow, SpeciesInfo speciesInfo, string preselectedSpecies, SpeciesImageAndInfoCache speciesImageCache)
+        internal async Task<bool> SpeciesNew(MainWindow mainWindow, SpeciesInfo speciesInfo, string preselectedSpecies, SpeciesImageAndInfoCache speciesImageCache, IPointData? pointContext = null, Surveyor.Survey.DataClass.SurveyRulesClass? rulesContext = null)
         {
             // Clear the speciesInfo instance as this is a New species assignment
             speciesInfo.Clear();
@@ -113,19 +113,21 @@ namespace Surveyor.User_Controls
             {
                 speciesInfo.Species = preselectedSpecies;
             }
+
+            _pointContext = pointContext;
+            _rulesContext = rulesContext;
             
             return await SpeciesEditorNew(mainWindow, speciesInfo, false/*removeButton*/, speciesImageCache);
         }
 
 
         /// <summary>
-        /// Exist an existing species info record
+        /// Edit an existing species info record
         /// </summary>
-        /// <param name="mainWindow"></param>
-        /// <param name="speciesInfo"></param>
-        /// <returns></returns>
-        internal async Task<bool> SpeciesEdit(MainWindow mainWindow, SpeciesInfo speciesInfo, SpeciesImageAndInfoCache speciesImageCache)
+        internal async Task<bool> SpeciesEdit(MainWindow mainWindow, SpeciesInfo speciesInfo, SpeciesImageAndInfoCache speciesImageCache, IPointData? pointContext = null, Surveyor.Survey.DataClass.SurveyRulesClass? rulesContext = null)
         {
+            _pointContext = pointContext;
+            _rulesContext = rulesContext;
             return await SpeciesEditorNew(mainWindow, speciesInfo, true/*removeButton*/, speciesImageCache);
         }
 
@@ -163,16 +165,19 @@ namespace Surveyor.User_Controls
             Environment.Text = string.Empty;
             Distribution.Text = string.Empty;
             SpeciesSize.Text = string.Empty;
+
+            // Hide InfoBar by default
+            if (RmsRuleInfoBar is not null)
+            {
+                RmsRuleInfoBar.IsOpen = false;
+                RmsRuleInfoBar.Message = string.Empty;
+            }
         }
 
 
         /// <summary>
         /// Handle the edit or new (create) species info dialog
         /// </summary>
-        /// <param name="mainWindow"></param>
-        /// <param name="speciesInfo"></param>
-        /// <param name="editExisting"></param>
-        /// <returns>true is the speciesInfo parameter has been changed</returns>
         private async Task<bool> SpeciesEditorNew(MainWindow mainWindow, SpeciesInfo speciesInfo, bool editExisting, SpeciesImageAndInfoCache _speciesImageCache)
         {
             bool ret = false;
@@ -206,6 +211,9 @@ namespace Surveyor.User_Controls
             // Setup an open dialog handler
             dialog.Opened += Dialog_Opened;
 
+            // Evaluate RMS rule now (on open) if context and rules available
+            EvaluateAndShowRmsRule();
+
             // Set which class property from ComboItem to use for the display text
             // in the auto suggest boxes
             AutoSuggestSpecies.TextMemberPath = "Species";
@@ -214,18 +222,6 @@ namespace Surveyor.User_Controls
             AutoSuggestSpecies.DisplayMemberPath = "Species";
             AutoSuggestGenus.DisplayMemberPath = "Genus";
             AutoSuggestFamily.DisplayMemberPath = "Family";
-
-
-            // Load the Life Stage Combo AD - Adult , F - Female, J - Juvenal , M - Male
-            // ???NOT NEEDED BY OPWALL - REMOVE
-            //???List<string> lifeStages = new()
-            //{
-            //    "Adult",
-            //    "Juvenile",
-            //    "Female",
-            //    "Male"
-            //};
-            //ComboBoxLifeStage.ItemsSource = lifeStages;
 
             // Hide the species info expander
             SpeciesInfoExpander.Visibility = Visibility.Collapsed;
@@ -369,16 +365,6 @@ namespace Surveyor.User_Controls
                     ret = true;
                 }
 
-                // Life stage of the fish
-                //???Not used by Opwall
-                //???if (speciesInfo.Stage != ComboBoxLifeStage.SelectedItem as string)
-                //{
-                //    speciesInfo.Stage = ComboBoxLifeStage.SelectedItem as string;
-                //    ret = true;
-                //}
-
-                // Activity of the fish (not used yet)
-
                 // Comment
                 if (speciesInfo.Comment != TextBoxComment.Text)
                 {
@@ -396,7 +382,66 @@ namespace Surveyor.User_Controls
             ClearControls();
             dialog.Content = null;  // Detach the content after the dialog is closed
 
+            // Clear contexts
+            _pointContext = null;
+            _rulesContext = null;
+
             return ret;
+        }
+
+        private void EvaluateAndShowRmsRule()
+        {
+            try
+            {
+                if (_pointContext is null || _rulesContext is null)
+                {
+                    RmsRuleInfoBar.IsOpen = false;
+                    return;
+                }
+
+                var rules = _rulesContext;
+                if (rules is null || !rules.SurveyRulesActive || !rules.SurveyRulesData.RMSRuleActive)
+                {
+                    RmsRuleInfoBar.IsOpen = false;
+                    return;
+                }
+
+                double? rmsWorst = null;
+                if (_pointContext is SurveyMeasurement meas)
+                {
+                    rmsWorst = meas.SurveyRulesCalc?.RMSWorst;
+                }
+                else if (_pointContext is SurveyStereoPoint sp)
+                {
+                    rmsWorst = sp.SurveyRulesCalc?.RMSWorst;
+                }
+
+                if (rmsWorst is null)
+                {
+                    RmsRuleInfoBar.IsOpen = false;
+                    return;
+                }
+
+                // Compare as ints as requested
+                int worst = (int)Math.Round(rmsWorst.Value * 1000.0, MidpointRounding.AwayFromZero); // convert to mm if RMSWorst is in meters
+                int max = (int)Math.Round(rules.SurveyRulesData.RMSMax, MidpointRounding.AwayFromZero);
+
+                if (worst > max)
+                {
+                    RmsRuleInfoBar.Title = "RMS rule violation";
+                    RmsRuleInfoBar.Message = $"RMS value of {worst:F0}mm exceeds the rule";
+                    RmsRuleInfoBar.Severity = InfoBarSeverity.Error;
+                    RmsRuleInfoBar.IsOpen = true;                    
+                }
+                else
+                {
+                    RmsRuleInfoBar.IsOpen = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                report?.Warning("SpeciesSelector", $"Failed to evaluate RMS rule: {ex.Message}");
+            }
         }
 
 
@@ -408,14 +453,11 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Event handler called when the dialog is opened
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="args"></param>
         private void Dialog_Opened(ContentDialog sender, ContentDialogOpenedEventArgs args)
         {
             // Handle the dialog being opened
             EnableButtons();
         }
-
 
         /// <summary>
         /// Event handler called if the user edits the species auto suggest box text
@@ -640,12 +682,6 @@ namespace Surveyor.User_Controls
             }
         }
 
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
         private void TextBoxNumberOnly_TextChanged(object sender, TextChangedEventArgs e)
         {
             var tb = sender as TextBox;
@@ -864,6 +900,7 @@ namespace Surveyor.User_Controls
 
 
         // *** End of SpeciesSelector ***
+
     }
 
     /// <summary>

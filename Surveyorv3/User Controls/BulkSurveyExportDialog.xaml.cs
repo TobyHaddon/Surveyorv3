@@ -37,10 +37,18 @@ namespace Surveyor.User_Controls
     {
         public ObservableCollection<SurveyFileEntry> SurveyFiles { get; set; } = [];
 
-        private bool noSaveOptionSelected_NoExportAllowed = false;
+        private bool noSaveOptionSelected_ExportMetadataOnly = false;
+
+        private const string DraftWarningText = "*** DRAFT DATA - CALCULATED ON THE FLY DURING THE EXPORT PROCESS ***";
+
 
         // Reporter
         private readonly Reporter? report = null;
+
+        // AllMeasurements aggregator used during processing (confined to ProcessSurveyFiles execution)
+        private readonly AllMeasurements allMeasurements = new();
+        // Totals row summary text for Ave. Length
+        private string? totalsAveLengthSummary = string.Empty;
 
         // Export Excel columns
         public enum ExportExcelColmns { SurveyName = 1,
@@ -99,7 +107,7 @@ namespace Surveyor.User_Controls
             // Initial update
             UpdateSelectAllCheckBoxState();
             UpdateButtons();
-            RebuildTotalsRow();
+            RebuildTotalsRow(0);
         }
 
         private int selectFolderEntryCount = 0;
@@ -119,7 +127,7 @@ namespace Surveyor.User_Controls
                     if (folder != null)
                     {
                         FolderPathTextBox.Text = folder.Path;
-                        await LoadSurveyFiles(folder.Path, 
+                        await ProcessSurveyFiles(folder.Path, 
                                               IncludeSubfoldersCheckBox.IsChecked == true, 
                                               false/*recalce*/, 
                                               false/*Save back to survey files*/);
@@ -139,20 +147,27 @@ namespace Surveyor.User_Controls
 
         }
 
-        private async Task LoadSurveyFiles(string path, bool includeSubfolders, bool recalc, bool save, CalibrationData? calibrationData = null)
+        private async Task ProcessSurveyFiles(string path, bool includeSubfolders, bool recalc, bool save, CalibrationData? calibrationData = null)
         {
             SurveyFiles.Clear();
             ItemCountTextBlock.Text = "";
             LoadingRing.Visibility = Visibility.Visible;
             LoadingRing.IsActive = true;
 
+            // Reset average lengths aggregator
+            allMeasurements.Clear();
+            totalsAveLengthSummary = string.Empty;
+
             StereoProjection stereoProjection = new();
 
             // Run the expensive work on a background thread
-            var fileEntries = await Task.Run(async () =>
+            var result = await Task.Run(async () =>
             {
                 var entries = new List<SurveyFileEntry>();
+                int totalTransects = 0;
                 var files = SafeEnumerateFiles(path, "*.survey", includeSubfolders).ToList();
+
+                var distinctSpeciesPointsBySurvey = new DistinctSpeciesListForPointEventsPerSurvey();
 
                 foreach (var fileSpec in files)
                 {
@@ -214,6 +229,44 @@ namespace Surveyor.User_Controls
 
                                     if (ret)
                                     {
+                                        // If we are saving data back to the survey file and we provided calibration data
+                                        // then that calibration data needs to be added to the survey file and becomes the
+                                        // preferred calibration data
+                                        if (save && calibrationData is not null)
+                                        {
+                                            // First use the hash to confirm this calibration data is not already in the survey
+                                            int newCalHash = calibrationData.GetHashCode();
+                                            int foundIndex = -1;
+                                            int index = 0;
+                                            foreach (var calib in survey.Data.Calibration.CalibrationDataList)
+                                            {
+                                                if (calib.GetHashCode() == newCalHash)
+                                                {
+                                                    foundIndex = index;
+                                                    break;
+                                                }
+                                                index++;
+                                            }
+                                            if (foundIndex == -1)
+                                            {
+                                                // If there will be more than one calibration data set in the survey file
+                                                // then allow multiple calibration data sets
+                                                if (survey.Data.Calibration.CalibrationDataList.Count > 0)
+                                                    survey.Data.Calibration.AllowMultipleCalibrationData = true;
+
+                                                survey.Data.Calibration.CalibrationDataList.Add(calibrationData);
+                                                survey.Data.Calibration.PreferredCalibrationDataIndex = survey.Data.Calibration.CalibrationDataList.Count - 1;
+                                                report?.Error("", $"New calibration set:{calibrationData.Description} added and set as the preferred");
+                                            }
+                                            else
+                                            {
+                                                report?.Error("", $"New calibration set:{calibrationData.Description} was already in the survey file");
+
+                                                // Ensure it is the preferred calibration data
+                                                survey.Data.Calibration.PreferredCalibrationDataIndex = foundIndex;
+                                            }
+                                        }
+
                                         // Is a save required
                                         if (save)
                                         {
@@ -223,6 +276,10 @@ namespace Surveyor.User_Controls
                                 }
                             }
 
+                            // After any recalc/save, aggregate measurements and distinct species for point events
+                            allMeasurements.Add(survey.Data.Events.EventList);
+                            string surveyFileNameKey = survey.Data.Info.SurveyFileName ?? string.Empty;
+                            distinctSpeciesPointsBySurvey.Add(surveyFileNameKey, survey.Data.Events.EventList);
 
                             string fileName = Path.GetFileName(fileSpec);
 
@@ -291,6 +348,7 @@ namespace Surveyor.User_Controls
                                                 .Where(name => !string.IsNullOrWhiteSpace(name))
                                                 .Distinct()];
                             string transectList = string.Join(", ", transectMarkerList);
+                            totalTransects += transectMarkerList.Count;
 
                             // Check for the range rule
                             string rangeRule = string.Empty;
@@ -347,7 +405,25 @@ namespace Surveyor.User_Controls
                                 rulesCalcFailed = "All passed";
                             }
 
-                            // Check the number of measurment, 3D points and single points where the species has not been set
+                            // Total the cumlative RMSWorst
+                            double totalRMS = 0.0;
+
+                            // Sum SurveyMeasurementPoints RMS
+                            double sumSurveyMeasurementPointsRMS =
+                                survey.Data.Events.EventList
+                                    .Where(e => e.EventDataType == SurveyDataType.SurveyMeasurementPoints)
+                                    .Select(e => (e.EventData as SurveyMeasurement)?.SurveyRulesCalc?.RMSWorst ?? 0.0)
+                                    .Sum();
+
+                            // Sum SurveyStereoPoint RMS
+                            double sumSurveyStereoPointsRMS = survey.Data.Events.EventList
+                                    .Where(e => e.EventDataType == SurveyDataType.SurveyStereoPoint)
+                                    .Select(e => (e.EventData as SurveyStereoPoint)?.SurveyRulesCalc?.RMSWorst ?? 0.0)
+                                    .Sum();
+
+                            totalRMS += (sumSurveyMeasurementPointsRMS + sumSurveyStereoPointsRMS);
+
+                            // Check the number of measurement, 3D points and single points where the species has not been set
                             string species = string.Empty;
                             if (countSpeciesNull > 0)
                             {
@@ -451,7 +527,10 @@ namespace Surveyor.User_Controls
                             {
                                 Include = true,
                                 FilePath = fileSpec,
-                                FileName = (string.IsNullOrEmpty(surveyNameAndCodeCheck) ? "" : "*") + fileName + surveyNameAndCodeCheck,
+                                // Clean name for key/logic
+                                FileName = survey.Data.Info.SurveyFileName ?? string.Empty,
+                                // Decorated display for UI
+                                FileNameDisplay = (string.IsNullOrEmpty(surveyNameAndCodeCheck) ? string.Empty : "*") + fileName + surveyNameAndCodeCheck,
                                 Depth = depth,
                                 TotalMeasurements = totalMeasurements,
                                 Total3DPoints = total3DPoints,
@@ -465,6 +544,7 @@ namespace Surveyor.User_Controls
                                 RulesRMS = rmsRule,
                                 RulesCalcNull = rulesCalcNull,          // Count of where the rules actually applied
                                 RulesCalcFailed = rulesCalcFailed,      // Count of where the rules have failed
+                                TotalRMS = totalRMS,
                                 Species = species,
                                 Calibration = calibration,
                                 CalibrationHash = calibrationHash,
@@ -485,8 +565,22 @@ namespace Surveyor.User_Controls
                     }
                 }
 
-                return entries;
+                // Compute per-survey summaries now that allMeasurements and distinctPoints have been filled
+                foreach (var e in entries)
+                {
+                    var summary = distinctSpeciesPointsBySurvey.GetSummaryText(e.FileName, allMeasurements);
+                    e.AveLengthSummary = summary;
+                }
+
+                // Compute totals summary
+                var totals = distinctSpeciesPointsBySurvey.GetTotalsSummary(allMeasurements);
+
+                return (entries, totals, totalTransects);
             });
+
+            var fileEntries = result.entries;
+            totalsAveLengthSummary = result.totals;
+            int totalTransects = result.totalTransects;
 
             // Check if the media files have been used more than once
             var duplicateMediaFiles = fileEntries
@@ -519,7 +613,7 @@ namespace Surveyor.User_Controls
                 SurveyFiles.Add(entry);
             }
             
-            RebuildTotalsRow();
+            RebuildTotalsRow(totalTransects);
 
             // Check for non-matching rules
             if (!CheckThatAllRulesMatch(fileEntries))
@@ -674,9 +768,12 @@ namespace Surveyor.User_Controls
                     // start fresh in case file existed
                     stream.SetLength(0);
 
-                    // Write the fish by fish data
-                    var worksheetData = package.Workbook.Worksheets.Add("Data");
-                    await ExportDatatSheet(package, worksheetData);
+                    if (!noSaveOptionSelected_ExportMetadataOnly)
+                    {
+                        // Write the fish by fish data
+                        var worksheetData = package.Workbook.Worksheets.Add("Data");
+                        await ExportDatatSheet(package, worksheetData, file.Path);
+                    }
 
                     // Write the survey by survey metadata
                     var worksheetMetadata = package.Workbook.Worksheets.Add("Metadata");
@@ -747,19 +844,12 @@ namespace Surveyor.User_Controls
 
         private void UpdateButtons()
         {
-            if (noSaveOptionSelected_NoExportAllowed)
-            {
-                ExportButton.IsEnabled = false;
-            }
-            else
-            {
-                // Exclude total row from export logic
-                ExportButton.IsEnabled = SurveyFiles.Any(e => e.Include && !e.IsTotalRow);
-            }
+            // Exclude total row from export logic
+            ExportButton.IsEnabled = SurveyFiles.Any(e => e.Include && !e.IsTotalRow);
         }
 
 
-        private void RebuildTotalsRow()
+        private void RebuildTotalsRow(int totalTransects)
         {
             // Remove existing total row if present
             var existing = SurveyFiles.FirstOrDefault(f => f.IsTotalRow);
@@ -776,22 +866,26 @@ namespace Surveyor.User_Controls
             {
                 IsTotalRow = true,
                 FileName = "Totals",
+                FileNameDisplay = "Totals",
                 Depth = $"{data.Select(d=>d.Depth).Where(d=>!string.IsNullOrWhiteSpace(d)).Distinct(StringComparer.OrdinalIgnoreCase).Count()} depth(s)",
                 TotalEntries = data.Sum(d => d.TotalEntries),
                 TotalMeasurements = data.Sum(d => d.TotalMeasurements),
                 Total3DPoints = data.Sum(d => d.Total3DPoints),
                 TotalSinglePoints = data.Sum(d => d.TotalSinglePoints),
+                TransectList = totalTransects.ToString(),
                 RulesRange = AllSameOrIndicator(data.Select(d=>d.RulesRange)),
                 RulesHorizontal = AllSameOrIndicator(data.Select(d=>d.RulesHorizontal)),
                 RulesVertical = AllSameOrIndicator(data.Select(d=>d.RulesVertical)),
                 RulesRMS = AllSameOrIndicator(data.Select(d=>d.RulesRMS)),
                 RulesCalcNull = data.Sum(d => ParseLeadingInt(d.RulesCalcNull)).ToString(),
                 RulesCalcFailed = data.Sum(d => ParseLeadingInt(d.RulesCalcFailed)).ToString(),
+                TotalRMS = data.Sum(d => d.TotalRMS),
                 Species = $"{data.Sum(d => ParseLeadingInt(d.Species))} missing", // d.Species like "3 missing" or "Ok"
                 Calibration = $"{data.Count(d=> string.Equals(d.Calibration,"None",StringComparison.OrdinalIgnoreCase))} not set",
                 CalibrationHash = $"{data.Select(d=>d.CalibrationHash).Where(h=>!string.IsNullOrWhiteSpace(h)).Distinct().Count()} set(s)",
                 SyncPoint = $"{data.Count(d=> !string.Equals(d.SyncPoint,"Set",StringComparison.OrdinalIgnoreCase))} not set",
-                Analyst = data.Select(d=>d.Analyst).Where(a=>!string.IsNullOrWhiteSpace(a)).Distinct(StringComparer.OrdinalIgnoreCase).Count().ToString()
+                Analyst = data.Select(d=>d.Analyst).Where(a=>!string.IsNullOrWhiteSpace(a)).Distinct(StringComparer.OrdinalIgnoreCase).Count().ToString(),
+                AveLengthSummary = string.IsNullOrWhiteSpace(totalsAveLengthSummary) ? string.Empty : totalsAveLengthSummary
             };
 
             // Convert numeric-only fields for consistency
@@ -825,7 +919,8 @@ namespace Surveyor.User_Controls
         private async void RecalcNoSave_Click(object sender, RoutedEventArgs e)
         {
             // No save option selected. Don't allow export to avoid confusion
-            noSaveOptionSelected_NoExportAllowed = true;
+            noSaveOptionSelected_ExportMetadataOnly = true;
+            ExportButton.Content = "Export Metadata";
 
             await Recalc(false/*trueSaveFalseNoSave*/);
         }
@@ -833,7 +928,8 @@ namespace Surveyor.User_Controls
         private async void RecalcSave_Click(object sender, RoutedEventArgs e)
         {
             // Save option selected. Export allowed
-            noSaveOptionSelected_NoExportAllowed = false;
+            noSaveOptionSelected_ExportMetadataOnly = false;
+            ExportButton.Content = "Export";
 
             await Recalc(true/*trueSaveFalseNoSave*/);
         }
@@ -849,10 +945,10 @@ namespace Surveyor.User_Controls
             if (!string.IsNullOrEmpty(FolderPathTextBox.Text))
             {
                 string fileSpec = FolderPathTextBox.Text;
-                await LoadSurveyFiles(fileSpec,
-                                      IncludeSubfoldersCheckBox.IsChecked == true,
-                                      true/*recalc*/,
-                                      trueSaveFalseNoSave/*Save back to survey files*/);
+                await ProcessSurveyFiles(fileSpec,
+                                         IncludeSubfoldersCheckBox.IsChecked == true,
+                                         true/*recalc*/,
+                                         trueSaveFalseNoSave/*Save back to survey files*/);
                 UpdateButtons();
             }
         }
@@ -860,7 +956,8 @@ namespace Surveyor.User_Controls
         private async void NewCalibRecalcNoSave_Click(object sender, RoutedEventArgs e)
         {
             // No save option selected. Don't allow export to avoid confusion
-            noSaveOptionSelected_NoExportAllowed = true;
+            noSaveOptionSelected_ExportMetadataOnly = true;
+            ExportButton.Content = "Export Metadata";
 
             await NewCalibRecalc(false/*save*/);
         }
@@ -868,7 +965,8 @@ namespace Surveyor.User_Controls
         private async void NewCalibRecalcSave_Click(object sender, RoutedEventArgs e)
         {
             // Save option selected. Export allowed
-            noSaveOptionSelected_NoExportAllowed = false;
+            noSaveOptionSelected_ExportMetadataOnly = false;
+            ExportButton.Content = "Export";
 
             await NewCalibRecalc(true/*save*/);
         }
@@ -887,11 +985,11 @@ namespace Surveyor.User_Controls
             if (calibrationData is not null && !string.IsNullOrEmpty(FolderPathTextBox.Text))
             {
                 string fileSpec = FolderPathTextBox.Text;
-                await LoadSurveyFiles(fileSpec, 
-                                      IncludeSubfoldersCheckBox.IsChecked == true,
-                                      true/*recalc*/,
-                                      trueSaveFalseNoSave/*Save back to survey files*/, 
-                                      calibrationData);
+                await ProcessSurveyFiles(fileSpec, 
+                                         IncludeSubfoldersCheckBox.IsChecked == true,
+                                         true/*recalc*/,
+                                         trueSaveFalseNoSave/*Save back to survey files*/, 
+                                         calibrationData);
                 UpdateButtons();
             }
         }
@@ -951,8 +1049,14 @@ namespace Surveyor.User_Controls
         /// <param name="package"></param>
         /// <param name="worksheet"></param>
         /// <returns></returns>
-        private async Task ExportDatatSheet(ExcelPackage package, ExcelWorksheet worksheet)
+        private async Task ExportDatatSheet(ExcelPackage package, ExcelWorksheet worksheet, string exportFile)
         {
+            int rowIndex = 1;
+            bool failed = false;
+            int problemCount = 0;
+            int exportLineCount = 0;
+
+
             // Ensure a Hyperlink named style exists on the workbook
             var linkStyle = package.Workbook.Styles.NamedStyles
                 .FirstOrDefault(s => s.Name == "Hyperlink")
@@ -961,35 +1065,48 @@ namespace Surveyor.User_Controls
             linkStyle.Style.Font.UnderLine = true;
             linkStyle.Style.Font.Color.SetColor(System.Drawing.Color.Blue);
 
+
+            // Any warning message?
+            if (noSaveOptionSelected_ExportMetadataOnly)
+            {
+                ApplyWarningMessage(worksheet, rowIndex, 1/*colIndex*/);
+                rowIndex += 2; // leave one blank row before table
+            }
+
+            // Check if we should apply average measurement to the Single and 3d Point events
+            bool applyAverageLengths = false;
+            if (ApplyAverageLengths.IsChecked == true)
+                applyAverageLengths = true;
+
             // Write headers
-            worksheet.Cells[1, (int)ExportExcelColmns.SurveyName].Value = "Survey Name";
-            worksheet.Cells[1, (int)ExportExcelColmns.Depth].Value = "Depth";
-            worksheet.Cells[1, (int)ExportExcelColmns.Transect].Value = "Transect";
-            worksheet.Cells[1, (int)ExportExcelColmns.Analyst].Value = "Operator";
-            worksheet.Cells[1, (int)ExportExcelColmns.Time].Value = "Position Time";
-            worksheet.Cells[1, (int)ExportExcelColmns.TimeSecs].Value = "Position Secs";
-            worksheet.Cells[1, (int)ExportExcelColmns.Type].Value = "Type";
-            worksheet.Cells[1, (int)ExportExcelColmns.FishCount].Value = "Fish Count";
-            worksheet.Cells[1, (int)ExportExcelColmns.Measurement].Value = "Measurement";
-            worksheet.Cells[1, (int)ExportExcelColmns.Range].Value = "Distance";
-            worksheet.Cells[1, (int)ExportExcelColmns.HorizontalOffset].Value = "Horiontal Offset";
-            worksheet.Cells[1, (int)ExportExcelColmns.VerticalOffset].Value = "Vertical Offset";
-            worksheet.Cells[1, (int)ExportExcelColmns.RMS].Value = "RMS";
-            worksheet.Cells[1, (int)ExportExcelColmns.RMSWorst].Value = "RMSWorst";
-            worksheet.Cells[1, (int)ExportExcelColmns.RulesPassed].Value = "Rules Passed";
-            worksheet.Cells[1, (int)ExportExcelColmns.Species].Value = "Species";
-            worksheet.Cells[1, (int)ExportExcelColmns.Genus].Value = "Genus";
-            worksheet.Cells[1, (int)ExportExcelColmns.Family].Value = "Family";
-            worksheet.Cells[1, (int)ExportExcelColmns.SpeciesCode].Value = "Species Code";
-            worksheet.Cells[1, (int)ExportExcelColmns.NoSpeciesCode].Value = "Species Not Coded";
-            worksheet.Cells[1, (int)ExportExcelColmns.Comment].Value = "Comment";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.SurveyName].Value = "Survey Name";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Depth].Value = "Depth";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Transect].Value = "Transect";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Analyst].Value = "Operator";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Time].Value = "Position Time";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.TimeSecs].Value = "Position Secs";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Type].Value = "Type";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.FishCount].Value = "Fish Count";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurement].Value = "Measurement(m)";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Range].Value = "Distance (m)";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.HorizontalOffset].Value = "Horiontal Offset(m)";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.VerticalOffset].Value = "Vertical Offset(m)";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.RMS].Value = "RMS(m)";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.RMSWorst].Value = "RMSWorst(m)";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.RulesPassed].Value = "Rules Passed";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Species].Value = "Species";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Genus].Value = "Genus";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Family].Value = "Family";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesCode].Value = "Species Code";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.NoSpeciesCode].Value = "Species Not Coded";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Comment].Value = "Comment";
             worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
+            rowIndex++;
 
-
-            int row = 2;
+            
             foreach (var fileEntry in SurveyFiles.Where(f => f.Include))
             {
-                await Task.Delay(row % 10 == 0 ? 10 : 0); // Throttle to avoid UI freeze
+                await Task.Delay(rowIndex % 10 == 0 ? 10 : 0); // Throttle to avoid UI freeze
 
                 // Open the survey with no auto save
                 var survey = new Survey(null!);
@@ -1013,15 +1130,15 @@ namespace Surveyor.User_Controls
                                 int fishCount = 0;
 
                                 // Common data
-                                worksheet.Cells[row, (int)ExportExcelColmns.SurveyName].Value = survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName;
-                                worksheet.Cells[row, (int)ExportExcelColmns.Depth].Value = survey.Data.Info.SurveyDepth;
-                                worksheet.Cells[row, (int)ExportExcelColmns.Analyst].Value = survey.Data.Info.SurveyAnalystName;
-                                worksheet.Cells[row, (int)ExportExcelColmns.Time].Value = evt.TimeSpanTimelineController;
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.SurveyName].Value = survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName;
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Depth].Value = survey.Data.Info.SurveyDepth;
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Analyst].Value = survey.Data.Info.SurveyAnalystName;
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Time].Value = evt.TimeSpanTimelineController;
 
                                 // Hyperlink column
                                 var encodedPath = Uri.EscapeDataString(fileEntry.FilePath);
                                 var secs = evt.TimeSpanTimelineController.TotalSeconds.ToString(CultureInfo.InvariantCulture);
-                                var cellTimeSecs = worksheet.Cells[row, (int)ExportExcelColmns.TimeSecs];
+                                var cellTimeSecs = worksheet.Cells[rowIndex, (int)ExportExcelColmns.TimeSecs];
                                 cellTimeSecs.Value = $"{evt.TimeSpanTimelineController.TotalSeconds:F2}";
                                 cellTimeSecs.Hyperlink = new ExcelHyperLink($"underwatersurveyor://open?file={encodedPath}&start={secs}");
                                 // Apply the built-in Hyperlink style so it looks like Excel's default (blue underline)
@@ -1029,150 +1146,206 @@ namespace Surveyor.User_Controls
 
                                 // Frame time
                                 var timeValue = evt.TimeSpanTimelineController;
-                                var cell = worksheet.Cells[row, (int)ExportExcelColmns.Time];
+                                var cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.Time];
                                 cell.Value = timeValue;
                                 cell.Style.Numberformat.Format = "hh:mm:ss";
 
 
                                 // Calculated transect
                                 string transectNumber = EventsControl.GetTransectMarkerNameForEvent(survey.Data.Events.EventList, evt) ?? string.Empty;
-                                worksheet.Cells[row, (int)ExportExcelColmns.Transect].Value = transectNumber;
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Transect].Value = transectNumber;
 
                                 // Type
                                 switch (evt.EventDataType)
                                 {
                                     case Events.SurveyDataType.SurveyMeasurementPoints:
-                                        worksheet.Cells[row, (int)ExportExcelColmns.Type].Value = "Measurement";
+                                        worksheet.Cells[rowIndex, (int)ExportExcelColmns.Type].Value = "Measurement";
                                         if (evt.EventData is SurveyMeasurement surveyMeasurement)
                                         {
                                             speciesInfo = surveyMeasurement.SpeciesInfo;
                                             surveyRulesCalc = surveyMeasurement.SurveyRulesCalc;
-                                            measurement = surveyMeasurement.Measurment;
+                                            measurement = surveyMeasurement.Measurement;
                                             if (!int.TryParse(speciesInfo.Number, out fishCount))
                                                 fishCount = 1;
                                         }
                                         break;
 
                                     case Events.SurveyDataType.SurveyStereoPoint:
-                                        worksheet.Cells[row, (int)ExportExcelColmns.Type].Value = "3D";
+                                    case Events.SurveyDataType.SurveyPoint:
                                         if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
                                         {
+                                            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Type].Value = "3D";
                                             speciesInfo = surveyStereoPoint.SpeciesInfo;
                                             surveyRulesCalc = surveyStereoPoint.SurveyRulesCalc;
-                                            if (!int.TryParse(speciesInfo.Number, out fishCount))
-                                                fishCount = 1;
                                         }
-                                        break;
-
-                                    case Events.SurveyDataType.SurveyPoint:
-                                        worksheet.Cells[row, (int)ExportExcelColmns.Type].Value = "Point";
-                                        if (evt.EventData is SurveyPoint surveyPoint)
+                                        else if (evt.EventData is SurveyPoint surveyPoint)
                                         {
+                                            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Type].Value = "Point";
                                             speciesInfo = surveyPoint.SpeciesInfo;
+                                        }
+                                        // Check the fish count
+                                        if (speciesInfo is not null)
+                                        {
                                             if (!int.TryParse(speciesInfo.Number, out fishCount))
                                                 fishCount = 1;
+
+                                            // Apply average measurement if requested
+                                            if (applyAverageLengths && !string.IsNullOrWhiteSpace(speciesInfo.Genus) && !string.IsNullOrWhiteSpace(speciesInfo.Species))
+                                            {
+                                                measurement = allMeasurements.GetAverageLength(speciesInfo.Genus!, speciesInfo.Species!);
+                                            }
                                         }
                                         break;
                                 }
 
                                 // Load the fish count
-                                worksheet.Cells[row, (int)ExportExcelColmns.FishCount].Value = fishCount;
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.FishCount].Value = fishCount;
 
                                 // Load measurement
                                 if (measurement is not null)
-                                    worksheet.Cells[row, (int)ExportExcelColmns.Measurement].Value = measurement;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurement].Value = measurement;
                                 else
-                                    worksheet.Cells[row, (int)ExportExcelColmns.Measurement].Value = "";
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurement].Value = "";
 
                                 // Range Horizontal and vertical offsets and RMS
-                                worksheet.Cells[row, (int)ExportExcelColmns.Range].Value = surveyRulesCalc?.Range ?? 0;
-                                worksheet.Cells[row, (int)ExportExcelColmns.HorizontalOffset].Value = surveyRulesCalc?.XOffset ?? 0;
-                                worksheet.Cells[row, (int)ExportExcelColmns.VerticalOffset].Value = surveyRulesCalc?.YOffset ?? 0;
-                                worksheet.Cells[row, (int)ExportExcelColmns.RMS].Value = surveyRulesCalc?.RMSMean ?? 0;
-                                worksheet.Cells[row, (int)ExportExcelColmns.RMSWorst].Value = surveyRulesCalc?.RMSWorst ?? 0;
-                                worksheet.Cells[row, (int)ExportExcelColmns.RulesPassed].Value = surveyRulesCalc?.SurveyRules;
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Range].Value = surveyRulesCalc?.Range ?? 0;
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.HorizontalOffset].Value = surveyRulesCalc?.XOffset ?? 0;
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.VerticalOffset].Value = surveyRulesCalc?.YOffset ?? 0;
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.RMS].Value = surveyRulesCalc?.RMSMean ?? 0;
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.RMSWorst].Value = surveyRulesCalc?.RMSWorst ?? 0;
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.RulesPassed].Value = surveyRulesCalc?.SurveyRules;
 
                                 // Species, Genus, Family, Code
-                                worksheet.Cells[row, (int)ExportExcelColmns.Species].Value = speciesInfo?.Species ?? "";
-                                worksheet.Cells[row, (int)ExportExcelColmns.Genus].Value = speciesInfo?.Genus ?? "";
-                                worksheet.Cells[row, (int)ExportExcelColmns.Family].Value = speciesInfo?.Family ?? "";
-                                worksheet.Cells[row, (int)ExportExcelColmns.SpeciesCode].Value = speciesInfo?.Code ?? "";
-                                worksheet.Cells[row, (int)ExportExcelColmns.Comment].Value = speciesInfo?.Comment ?? "";
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Species].Value = speciesInfo?.Species ?? "";
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Genus].Value = speciesInfo?.Genus ?? "";
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Family].Value = speciesInfo?.Family ?? "";
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesCode].Value = speciesInfo?.Code ?? "";
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Comment].Value = speciesInfo?.Comment ?? "";
 
                                 // Check if a species code was actually used or was it plan text or the species code is blank
                                 bool validSpeciesCode = true;
-                                if (speciesInfo is null || 
+                                if (speciesInfo is null ||
                                     string.IsNullOrEmpty(speciesInfo.Code) ||
                                     speciesInfo.Species is null ||
                                     speciesInfo.Species.IndexOf('/') == -1)
                                 {
                                     validSpeciesCode = false;
                                 }
-                                worksheet.Cells[row, (int)ExportExcelColmns.NoSpeciesCode].Value = !validSpeciesCode ? true : ""; 
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.NoSpeciesCode].Value = !validSpeciesCode ? true : "";
 
                                 // Debug
-                                Debug.WriteLine($"Export:{row},{survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName},{survey.Data.Info.SurveyDepth},{survey.Data.Info.SurveyAnalystName},{evt.TimeSpanTimelineController}");
+                                Debug.WriteLine($"Export:{rowIndex},{survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName},{survey.Data.Info.SurveyDepth},{survey.Data.Info.SurveyAnalystName},{evt.TimeSpanTimelineController}");
 
-                                row++;
+                                rowIndex++;
+                                exportLineCount++;
                             }
                         }
                         catch (Exception ex) when (ex is ObjectDisposedException)
                         {
                             report?.Error("", $"Export_Click ... {ex}");
+                            failed = true;
                             break; // exits the foreach immediately
                         }
                         catch (Exception ex)
                         {
                             report?.Warning("", $"Export_Click ... {ex}");
+                            problemCount++;
                         }
                     }
                 }
             }
 
+            if (failed)
+            {
+                report?.Error("", $"Export Failed, file:{exportFile}, partial export lines:{exportLineCount}");
+            }
+            else if (problemCount > 0)
+            {
+                report?.Warning("", $"Export Completed, file:{exportFile}, problemed lines:{problemCount}, partial export lines:{exportLineCount}");
+            }
+            else
+            {
+                report?.Info("", $"Export Completed, file:{exportFile}, export lines:{exportLineCount}");
+            }
         }
 
 
+        /// <summary>
+        /// Write the export metadata to an Excel sheet
+        /// </summary>
+        /// <param name="worksheet"></param>
         private void ExportMetadatatSheet(ExcelWorksheet worksheet)
         {
-            // Write headers
-            int colIndex = 1;
-            foreach (var col in SurveyGrid.Columns)
+            int rowIndex = 1;
+
+            // Optional draft warning
+            if (noSaveOptionSelected_ExportMetadataOnly)
             {
-                // Use Header if it's text; otherwise use index
-                string headerText = col.Header?.ToString() ?? $"Column {colIndex}";
-                worksheet.Cells[1, colIndex].Value = headerText;
-                colIndex++;
+                ApplyWarningMessage(worksheet, rowIndex, 1);
+                rowIndex += 2; // leave one blank row before table
             }
 
-            // Write rows
-            var items = SurveyGrid.ItemsSource?.Cast<object>()?.ToList();
-            if (items is null)
+            // Use only bound columns to keep header/data aligned
+            var boundColumns = SurveyGrid.Columns
+                .OfType<DataGridBoundColumn>()
+                .Select(col => new
+                {
+                    Header = col.Header?.ToString(),
+                    Path = (col.Binding as Binding)?.Path?.Path
+                })
+                .Where(x => !string.IsNullOrWhiteSpace(x.Header) && !string.IsNullOrWhiteSpace(x.Path))
+                .ToList();
+
+            if (boundColumns.Count == 0)
                 return;
 
-            for (int rowIndex = 0; rowIndex < items.Count; rowIndex++)
+            // Headers
+            int colIndex = 1;
+            foreach (var bc in boundColumns)
+                worksheet.Cells[rowIndex, colIndex++].Value = bc.Header;
+            rowIndex++;
+
+            // Rows
+            var items = SurveyGrid.ItemsSource?.Cast<object>()?.ToList();
+            if (items is null) return;
+
+            foreach (var item in items)
             {
-                var item = items[rowIndex];
-                for (int c = 0; c < SurveyGrid.Columns.Count; c++)
+                // Only export rows marked Include == true
+                var propInclude = item.GetType().GetProperty("Include");
+                if (propInclude is not null && (bool?)propInclude.GetValue(item) == true)
                 {
-                    var column = SurveyGrid.Columns[c];
-
-                    // Extract binding path
-                    string? path = (column as DataGridBoundColumn)?.Binding is Binding binding
-                        ? binding.Path?.Path
-                        : null;
-
-                    // Fallback for template columns: skip them or use reflection on known types
-                    if (path == null)
-                        continue;
-
-                    var prop = item.GetType().GetProperty(path);
-                    if (prop != null)
+                    colIndex = 1; // reset per row
+                    foreach (var bc in boundColumns)
                     {
-                        var value = prop.GetValue(item);
-                        worksheet.Cells[rowIndex + 2, c + 1].Value = value;
+                        var prop = item.GetType().GetProperty(bc.Path!);
+                        var value = prop?.GetValue(item);
+                        worksheet.Cells[rowIndex, colIndex++].Value = value;
                     }
-                }
+                    rowIndex++;
+                }              
             }
+
+            // Auto-fit visible range (headers + data)
+            worksheet.Cells[1, 1, rowIndex - 1, boundColumns.Count].AutoFitColumns();
+        }
+
+
+        /// <summary>
+        /// Apply a warning message to indicate that recalculation were done on the fly
+        /// during the export (and therefore harder to reproduce)
+        /// </summary>
+        /// <param name="worksheet"></param>
+        /// <param name="row"></param>
+        /// <param name="column"></param>
+        private void ApplyWarningMessage(ExcelWorksheet worksheet, int row, int column)
+        {
+            if (worksheet is null) return;
+
+            var cell = worksheet.Cells[row, column];
+            cell.Value = DraftWarningText;
+            cell.Style.Font.Bold = true;
+            cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
         }
 
         private void SurveyGrid_LoadingRow(object sender, DataGridRowEventArgs e)
@@ -1303,6 +1476,11 @@ namespace Surveyor.User_Controls
         }
 
     }
+
+
+    /// <summary>
+    /// This is the case that is bound to the SurveyGrid DataGrid
+    /// </summary>
     public partial class SurveyFileEntry : INotifyPropertyChanged
     {
         public bool IsTotalRow { get; set; } = false; // flag for totals row
@@ -1323,7 +1501,8 @@ namespace Surveyor.User_Controls
         }
 
         public string FilePath { get; set; } = string.Empty;
-        public string FileName { get; set; } = string.Empty;
+        public string FileName { get; set; } = string.Empty; // clean metadata name
+        public string FileNameDisplay { get; set; } = string.Empty; // decorated for UI
         public string Depth { get; set; } = string.Empty;
         public int TotalEntries { get; set; }
         public int TotalMeasurements { get; set; }
@@ -1335,6 +1514,7 @@ namespace Surveyor.User_Controls
         public string RulesCalcNull { get; set; } = string.Empty;
         public string RulesCalcFailed { get; set; } = string.Empty;
         public int  RulesHash { get; set; } = -1;           // Not displayed
+        public double TotalRMS { get; set; }
         public string Species { get; set; } = string.Empty;
         public string RulesHorizontal { get; set; } = string.Empty;
         public string RulesVertical { get; set; } = string.Empty;
@@ -1347,6 +1527,7 @@ namespace Surveyor.User_Controls
         public string RightMediaFile { get; set; } = string.Empty;
         public string SurveyPath { get; set; } = string.Empty;
         public string MediaPath { get; set; } = string.Empty;
+        public string AveLengthSummary { get; set; } = string.Empty;
 
         public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -1354,6 +1535,12 @@ namespace Surveyor.User_Controls
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 
+
+    /// <summary>
+    /// Used to hide a UI element when the bound bool is true
+    /// Specifically used to hide the Include checkbox when the row 
+    /// is the totals row
+    /// </summary>
     public class BoolHideWhenTrueConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
@@ -1363,6 +1550,171 @@ namespace Surveyor.User_Controls
             return Visibility.Visible;
         }
         public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotImplementedException();
+    }
+
+
+    // Stores all measurements per (genus,species) across surveys using normalized, case-insensitive keys
+    // Used to provide average length for point events that do not have a measurement
+    internal sealed class AllMeasurements
+    {
+        // Key is normalized lower/trimmed genus/species
+        private readonly Dictionary<(string genus, string species), (double sum, int count)> map = new();
+
+        private static (string genus, string species) Key(string genus, string species)
+            => ((genus ?? string.Empty).Trim().ToLowerInvariant(), (species ?? string.Empty).Trim().ToLowerInvariant());
+
+        public void Clear() => map.Clear();
+
+
+        /// <summary>
+        /// Parses the events and extract all the measurement events.  Those thoses are added
+        /// to a list so that a genus length for this genus and an average length for the 
+        /// species can both be access later
+        /// </summary>
+        /// <param name="events"></param>
+        public void Add(ObservableCollection<Event> events)
+        {
+            if (events is null) return;
+            foreach (var e in events)
+            {
+                if (e.EventDataType != SurveyDataType.SurveyMeasurementPoints) continue;
+                if (e.EventData is not SurveyMeasurement m) continue;
+                if (!m.Measurement.HasValue || m.Measurement.Value <= 0) continue;
+
+                var gi = m.SpeciesInfo?.Genus;
+                if (string.IsNullOrWhiteSpace(gi) ) continue;
+
+                // Add a genus only measurements (used for averages where only the genus ID is available)
+                var kgi = Key(gi, string.Empty);
+                var (sumgi, countgi) = map.TryGetValue(kgi, out var vgi) ? vgi : (0d, 0);
+                map[kgi] = (sumgi + m.Measurement!.Value, countgi + 1);
+
+                // Add genus/species measurements
+                var si = m.SpeciesInfo?.Species;
+                if (string.IsNullOrWhiteSpace(si)) continue;
+
+                var k = Key(gi, si);
+                var (sum, count) = map.TryGetValue(k, out var v) ? v : (0d, 0);
+                map[k] = (sum + m.Measurement!.Value, count + 1);
+            }
+        }
+
+        public double? GetAverageLength(string genus, string species)
+        {
+            var k = Key(genus, species);
+            if (map.TryGetValue(k, out var v) && v.count > 0)
+                return v.sum / v.count;
+            return null;
+        }
+
+        /// <summary>
+        /// Returns true if an average length is available for the given genus/species key
+        /// (i.e. the normalized key exists in the map)
+        /// </summary>
+        public bool IsAveragwLengthAvailable(string genus, string species)
+        {
+            var k = Key(genus, species);
+            return map.ContainsKey(k);
+        }
+    }
+
+
+    // Holds per-survey distinct species for point events (Single and 3D)
+    // It is a list for each survey of the species (genus,species) that have
+    // Single Point  3D Point events. Those point events may required a average 
+    // measurement to be implied at export time
+    internal sealed class DistinctSpeciesListForPointEventsPerSurvey
+    {
+        private readonly Dictionary<string, HashSet<(string genus, string species)>> bySurvey = new(StringComparer.OrdinalIgnoreCase);
+
+        private static (string genus, string species) Key(string genus, string species)
+            => ((genus ?? string.Empty).Trim().ToLowerInvariant(), (species ?? string.Empty).Trim().ToLowerInvariant());
+
+
+        /// <summary>
+        /// 
+        /// 
+        /// </summary>
+        /// <remarks>This method processes the provided events to extract species measurementinformation from survey
+        /// points and associates the resulting data with the specified survey file name. Only events of type <see
+        /// cref="SurveyDataType.SurveyPoint"/> or <see cref="SurveyDataType.SurveyStereoPoint"/> are considered. If no
+        /// qualifying points are found, the survey file name is removed from the collection to indicate the absence of
+        /// relevant data.</remarks>
+        /// <param name="surveyFileName">The name of the survey file. This value cannot be null, empty, or whitespace.</param>
+        /// <param name="events">A collection of events to process and add to the survey data. This value cannot be null.</param>
+        public void Add(string surveyFileName, ObservableCollection<Event> events)
+        {
+            if (string.IsNullOrWhiteSpace(surveyFileName) || events is null) return;
+
+            if (!bySurvey.TryGetValue(surveyFileName, out var set))
+            {
+                set = new();
+                bySurvey[surveyFileName] = set;
+            }
+
+            foreach (var e in events)
+            {
+                if (e.EventDataType != SurveyDataType.SurveyPoint && e.EventDataType != SurveyDataType.SurveyStereoPoint) continue;
+                SpeciesInfo? s = e.EventData switch
+                {
+                    SurveyPoint sp => sp.SpeciesInfo,
+                    SurveyStereoPoint s3d => s3d.SpeciesInfo,
+                    _ => null
+                };
+                var genus = s?.Genus;
+                var species = s?.Species;
+                if (string.IsNullOrWhiteSpace(genus) || string.IsNullOrWhiteSpace(species)) continue;
+                set.Add(Key(genus!, species!));
+            }
+
+            if (set.Count == 0)
+            {
+                // if none found, remove to keep dictionary tidy and to signal "no qualifying points"
+                bySurvey.Remove(surveyFileName);
+            }
+        }
+
+
+        /// <summary>
+        /// Returns the text to used in the AveLengthSummary column for the given survey
+        /// </summary>
+        /// <param name="surveyFileName"></param>
+        /// <param name="all"></param>
+        /// <returns></returns>
+        public string GetSummaryText(string surveyFileName, AllMeasurements all)
+        {
+            if (string.IsNullOrWhiteSpace(surveyFileName)) return string.Empty;
+            if (!bySurvey.TryGetValue(surveyFileName, out var set) || set.Count == 0) return string.Empty;
+
+            int missing = 0;
+            foreach (var (genus, species) in set)
+            {
+                var avg = all.GetAverageLength(genus, species);
+                if (!avg.HasValue) missing++;
+            }
+            return missing == 0 ? "Available" : $"{missing} unavailable";
+        }
+
+
+        /// <summary>
+        /// Returns the text used in the totals row AveLengthSummary column
+        /// </summary>
+        /// <param name="all"></param>
+        /// <returns></returns>
+        public string GetTotalsSummary(AllMeasurements all)
+        {
+            var union = new HashSet<(string genus, string species)>();
+            foreach (var kvp in bySurvey)
+                union.UnionWith(kvp.Value);
+            if (union.Count == 0) return string.Empty; // nothing to report
+            int missing = 0;
+            foreach (var (genus, species) in union)
+            {
+                var avg = all.GetAverageLength(genus, species);
+                if (!avg.HasValue) missing++;
+            }
+            return missing == 0 ? "All available" : $"{missing} unavailable";
+        }
     }
 
 }

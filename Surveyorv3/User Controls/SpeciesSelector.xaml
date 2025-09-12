@@ -56,37 +56,57 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <!-- RMS rule info bar -->
+        <InfoBar x:Name="RmsRuleInfoBar"
+                 Grid.Row="0" Grid.ColumnSpan="2"
+                 IsOpen="False"
+                 IsClosable="True"
+                 Severity="Error"
+                 Title="RMS rule violation"                 
+                 Margin="0,0,0,8">
+            <ToolTipService.ToolTip>
+                <ToolTip MaxWidth="520">
+                    <StackPanel>
+                        <TextBlock Text="The RMS shows the accuracy of the target points selected" TextWrapping="Wrap" />
+                        <TextBlock Text="Cancel &amp; re-measure to ensure this measurement is included in the final survey results" TextWrapping="Wrap" />
+                    </StackPanel>
+                </ToolTip>
+            </ToolTipService.ToolTip>
+        </InfoBar>
 
-        <TextBlock Grid.Row ="0" Grid.Column="0" Text="Species:" VerticalAlignment="Center"/>
-        <AutoSuggestBox x:Name="AutoSuggestSpecies" Grid.Row ="0" Grid.Column="1" Margin="10,10,0,0" HorizontalAlignment="Left"
+        <!-- Species -->
+        <TextBlock Grid.Row ="1" Grid.Column="0" Text="Species:" VerticalAlignment="Center"/>
+        <AutoSuggestBox x:Name="AutoSuggestSpecies" Grid.Row ="1" Grid.Column="1" Margin="10,10,0,0" HorizontalAlignment="Left"
                         PlaceholderText="Search" QueryIcon="Find" Width="350"
                         TextChanged="AutoSuggestBoxSpecies_TextChanged"
                         QuerySubmitted="AutoSuggestBoxSpecies_QuerySubmitted"
                         SuggestionChosen="AutoSuggestBoxSpecies_SuggestionChosen"/>
-
-        <TextBlock Grid.Row ="1" Grid.Column="0" Text="Genus:" VerticalAlignment="Center"/>
-        <AutoSuggestBox x:Name="AutoSuggestGenus" Grid.Row ="1" Grid.Column="1" Margin="10,10,0,0" HorizontalAlignment="Left"
+        <!-- Genus -->
+        <TextBlock Grid.Row ="2" Grid.Column="0" Text="Genus:" VerticalAlignment="Center"/>
+        <AutoSuggestBox x:Name="AutoSuggestGenus" Grid.Row ="2" Grid.Column="1" Margin="10,10,0,0" HorizontalAlignment="Left"
                         PlaceholderText="Search" QueryIcon="Find" Width="350"
                         TextChanged="AutoSuggestBoxGenus_TextChanged"
                         QuerySubmitted="AutoSuggestBoxGenus_QuerySubmitted"
                         SuggestionChosen="AutoSuggestBoxGenus_SuggestionChosen"/>
-
-        <TextBlock Grid.Row ="2" Grid.Column="0" Text="Family:" VerticalAlignment="Center"/>
-        <AutoSuggestBox x:Name="AutoSuggestFamily" Grid.Row ="2" Grid.Column="1" Margin="10,10,0,0" HorizontalAlignment="Left"
+        <!-- Family -->
+        <TextBlock Grid.Row ="3" Grid.Column="0" Text="Family:" VerticalAlignment="Center"/>
+        <AutoSuggestBox x:Name="AutoSuggestFamily" Grid.Row ="3" Grid.Column="1" Margin="10,10,0,0" HorizontalAlignment="Left"
                         PlaceholderText="Search" QueryIcon="Find" Width="350"
                         TextChanged="AutoSuggestBoxFamily_TextChanged"
                         QuerySubmitted="AutoSuggestBoxFamily_QuerySubmitted"
                         SuggestionChosen="AutoSuggestBoxFamily_SuggestionChosen"/>
 
-        <TextBlock Grid.Row ="3" Grid.Column="0" Text="Number of Fish:" VerticalAlignment="Center"/>
+        <!-- Number of fish -->
+        <TextBlock Grid.Row ="4" Grid.Column="0" Text="Number of Fish:" VerticalAlignment="Center"/>
         <!--<NumberBox x:Name="NumberBoxNumberOfFish" Grid.Row ="3" Grid.Column="1" Margin="10,10,0,0"
                         Value="1" Width="70" HorizontalAlignment="Left"
                         SpinButtonPlacementMode="Compact" SmallChange="1" LargeChange="10" Minimum="1" Maximum="999" />-->
         <TextBox x:Name="NumberBoxNumberOfFish"
-                         Grid.Row="3" Grid.Column="1" Margin="10,10,0,0"
+                         Grid.Row="4" Grid.Column="1" Margin="10,10,0,0"
                          Width="70" HorizontalAlignment="Left"
                          Text="1"
                          PreviewKeyDown="TextBoxNumberOnly_PreviewKeyDown"
@@ -97,13 +117,13 @@
         <ComboBox x:Name="ComboBoxLifeStage" />-->
 
         <!--<TextBlock Grid.Row ="4" Grid.Column="0" Text="Comment:" Margin="0,10,0,2"/>-->
-        <TextBox x:Name="TextBoxComment" Grid.Row ="5" Grid.Column="0" Grid.ColumnSpan="2" 
+        <TextBox x:Name="TextBoxComment" Grid.Row ="6" Grid.Column="0" Grid.ColumnSpan="2" 
                  PlaceholderText="Comment"
                  Margin="0,10,0,0"/>
 
 
         <!-- Shows the Source and genus/Species and when expanded the Environment, Distrubtion and Size info -->
-        <Expander x:Name="SpeciesInfoExpander" IsExpanded="False" Grid.Row ="6" Grid.ColumnSpan="2"  MaxWidth="460" 
+        <Expander x:Name="SpeciesInfoExpander" IsExpanded="False" Grid.Row ="7" Grid.ColumnSpan="2"  MaxWidth="460" 
                   HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Margin="0,10,0,0">
             <Expander.Header>
                 <Grid Height="Auto" VerticalAlignment="Center">
@@ -165,7 +185,7 @@
 
 
         <GridView x:Name="ImageGridView"
-                    Grid.Row="7" Grid.Column="0" Grid.ColumnSpan="2" 
+                    Grid.Row="8" Grid.Column="0" Grid.ColumnSpan="2" 
                     MaxWidth="490"
                     Width="Auto"
                     ItemsSource="{x:Bind ImageList, Mode=OneWay}"

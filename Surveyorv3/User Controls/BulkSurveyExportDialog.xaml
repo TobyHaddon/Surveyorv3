@@ -67,14 +67,47 @@
             <DropDownButton Grid.Column="4" Content="More actions" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,0,0,0">
                 <DropDownButton.Flyout>
                     <MenuFlyout>
-                        <MenuFlyoutItem Text="Recalc/No Save" Click="RecalcNoSave_Click"
-                                        ToolTipService.ToolTip="Recalculate measurements but don't save back to the survey files&#x0a;Used to see if the total change before saving them. This option disables the 'Export' until one of the save options it selected."/>
-                        <MenuFlyoutItem Text="Recalc/Save" Click="RecalcSave_Click"
-                                        ToolTipService.ToolTip="Recalculate measurements and save back to the survey files"/>
-                        <MenuFlyoutItem Text="New Calib/Recalc/No Save" Click="NewCalibRecalcNoSave_Click"
-                                        ToolTipService.ToolTip="Recalculate measurements with new calibration data and don't save&#x0a;Import a new calibration data set and use it to recalculate the measurements. Used to see if the total change before saving them. This option disables the 'Export' until one of the save options it selected."/>
-                        <MenuFlyoutItem Text="New Calib/Recalc/Save" Click="NewCalibRecalcSave_Click"
-                                        ToolTipService.ToolTip="Recalculate measurements with new calibration and save&#x0a;Import a new calibration data set and use it to recalculate the measurements"/>
+                        <MenuFlyoutItem Text="Recalc/No Save" Click="RecalcNoSave_Click">
+                            <ToolTipService.ToolTip>
+                                <TextBlock TextWrapping="Wrap" MaxWidth="420">
+                                Recalculate measurements but don't save anything back to the survey file
+                                <LineBreak/><LineBreak/>
+                                This is used so you can see any changes in the totals in the listbox below before deciding whether to save them.&#xA0;
+                                Only the metadata (totals in the listbox below) can be exported because the data export comes from the survey files&#xA0;
+                                and because nothing is saved that data would be inconsistant with the metadata.
+                                </TextBlock>
+                            </ToolTipService.ToolTip>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="Recalc/Save" Click="RecalcSave_Click">
+                            <ToolTipService.ToolTip>
+                                <TextBlock TextWrapping="Wrap" MaxWidth="420">
+                                Recalculate measurements and saves them back to the survey file
+                                </TextBlock>
+                            </ToolTipService.ToolTip>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="New Calib/Recalc/No Save" Click="NewCalibRecalcNoSave_Click">
+                            <ToolTipService.ToolTip>
+                                <TextBlock TextWrapping="Wrap" MaxWidth="420">
+                                Recalculate measurements with new calibration set but don't save anything back to the survey file
+                                <LineBreak/><LineBreak/>
+                                Propers you to import a new calibration set and use it to recalculate the measurements.&#xA0;
+                                This is used so you can see any changes in the totals in the listbox below before deciding whether to save them.&#xA0;
+                                Only the metadata (totals in the listbox below) can be exported because the data export comes from the survey files&#xA0;
+                                and because nothing is saved that data would be inconsistant with the metadata.
+                                </TextBlock>
+                            </ToolTipService.ToolTip>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Text="New Calib/Recalc/Save" Click="NewCalibRecalcSave_Click">
+                            <ToolTipService.ToolTip>
+                                <TextBlock TextWrapping="Wrap" MaxWidth="420">
+                                Recalculate measurements with new calibration set and saves those measurements back to the survey file
+                                <LineBreak/><LineBreak/>
+                                Propers you to import a new calibration set and use it to recalculate the measurements.&#xA0;
+                                The new calibration set also saved back to the survey file.&#xA0;
+                                The old calibration set is retained in the survey file but the new calibration set becomes the preferred calibrate set
+                                </TextBlock>                
+                            </ToolTipService.ToolTip>
+                        </MenuFlyoutItem>
                     </MenuFlyout>
                 </DropDownButton.Flyout>
             </DropDownButton>
@@ -123,7 +156,7 @@
                         </DataTemplate>
                     </dg:DataGridTemplateColumn.CellTemplate>
                 </dg:DataGridTemplateColumn>
-                <dg:DataGridTextColumn Header="File Name" Binding="{Binding FileName}" Width="300"/>
+                <dg:DataGridTextColumn Header="File Name" Binding="{Binding FileNameDisplay}" Width="300"/>
                 <dg:DataGridTextColumn Header="Depth" Binding="{Binding Depth}" Width="100"/>
                 <dg:DataGridTextColumn Header="Total" Binding="{Binding TotalEntries}" Width="120"/>
                 <dg:DataGridTextColumn Header="Measurements" Binding="{Binding TotalMeasurements}" Width="120"/>
@@ -131,17 +164,19 @@
                 <dg:DataGridTextColumn Header="Single" Binding="{Binding TotalSinglePoints}" Width="120"/>
                 <dg:DataGridTextColumn Header="Transects" Binding="{Binding TransectList}" Width="120"/>
                 <dg:DataGridTextColumn Header="Range Rule" Binding="{Binding RulesRange}" Width="120"/>
-                <dg:DataGridTextColumn Header="Horz Rule" Binding="{Binding RulesHorizontal}" Width="150"/>
+                <dg:DataGridTextColumn Header="Horiz Rule" Binding="{Binding RulesHorizontal}" Width="150"/>
                 <dg:DataGridTextColumn Header="Vert Rule" Binding="{Binding RulesVertical}" Width="150"/>
                 <dg:DataGridTextColumn Header="RMS Rule" Binding="{Binding RulesRMS}" Width="120"/>
                 <dg:DataGridTextColumn Header="Rules Calc'd" Binding="{Binding RulesCalcNull}" Width="110"/>
                 <dg:DataGridTextColumn Header="Rules Failed" Binding="{Binding RulesCalcFailed}" Width="110"/>
+                <dg:DataGridTextColumn Header="Ttl RMS" Binding="{Binding TotalRMS}" Width="110"/>
                 <dg:DataGridTextColumn Header="Species" Binding="{Binding Species}" Width="110"/>
                 <dg:DataGridTextColumn Header="Calibration" Binding="{Binding Calibration}" Width="110"/>
                 <dg:DataGridTextColumn Header="Calibration Hash" Binding="{Binding CalibrationHash}" Width="120"/>
                 <dg:DataGridTextColumn Header="Sync'd" Binding="{Binding SyncPoint}" Width="100"/>
                 <dg:DataGridTextColumn Header="Analyst" Binding="{Binding Analyst}" Width="180"/>
                 <dg:DataGridTextColumn Header="Survey Code" Binding="{Binding SurveyCode}" Width="180"/>
+                <dg:DataGridTextColumn Header="Ave. Length" Binding="{Binding AveLengthSummary}" Width="120"/>
                 <dg:DataGridTextColumn Header="LeftMediaFile" Binding="{Binding LeftMediaFile}" Width="250"/>
                 <dg:DataGridTextColumn Header="RightMediaFile" Binding="{Binding RightMediaFile}" Width="250"/>
                 <dg:DataGridTextColumn Header="Survey Path" Binding="{Binding SurveyPath}" Width="250"/>
@@ -159,6 +194,11 @@
 
             <!-- Right side: Buttons -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Column="1">
+                <CheckBox x:Name="ApplyAverageLengths" Content="Apply Average Lengths to Points" IsChecked="True" Margin="0,0,10,0">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="Apply the average measurement length for any given species to Single Point and 3D Point of the sames species.  All the surveys in this particular export will be used to create an average length per species from all the measurements. This can then be applied to all the Single Point and 3D Point values."/>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
                 <Button x:Name="ExportButton" Content="Export" Click="Export_Click" Margin="0,0,10,0">
                     <ToolTipService.ToolTip>
                         <ToolTip Content="Save the contains for the selected survey files in a sheet called 'Data' and the table above into a sheet called 'Metadata'"/>

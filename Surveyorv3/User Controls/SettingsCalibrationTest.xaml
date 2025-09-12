@@ -18,13 +18,22 @@
 		<toolkit:SettingsExpander.Items>
 			<StackPanel Spacing="12" Margin="10,10,10,0">
 				<TextBlock TextWrapping="WrapWholeWords">
-					This is used to typically test more than one calibration set by creating a survey where an object of known length is displayed to the camera rig at various positions on the frame and at various distances from the camera rig. For example, put the camera rig on some kind of stand. Swim across the top of the frame, left to right, at 2m from the cameras. Repeat this by swimming across the bottom of the frame at 2m from the cameras.  Do this again at 4m and 6m from the camera rig.
+				This is used to typically test more than one calibration set by creating a survey where an object of known length is displayed to the camera rig at various positions on the frame and at various distances from the camera rig.&#xA0;
+                For example, put the camera rig on some kind of stand. Swim across the top of the frame, left to right, at 2m from the cameras.&#xA0;
+                Repeat this by swimming across the bottom of the frame at 2m from the cameras.  Do this again at 4m and 6m from the camera rig.
 				</TextBlock>
 				<TextBlock TextWrapping="WrapWholeWords">
-					Load the survey and mark the known lengths (like you would measure a fish) at one second intervals. Import as many calibration sets as you want to test. Remember if you want to simultaneously test multiple calibration sets you need to go to Settings &gt; Survey &gt; Calibration and set 'Multiple Calibration Sets' to 'On'. Next close the survey (File &gt; Close Survey). Return to Settings and expand this setting again and find the survey you created and enter the known length in mm.  Next press the 'Test' button.  The application will create a spreadsheet in the Documents folder with the same name as the survey file. The spreadsheet will contain recalculated measurements for each of the measurements you setup using multiple calibration set and compare each measurement to the known length value.
+			    Load the survey and mark the known lengths (like you would measure a fish) at one second intervals.&#xA0;
+                Import as many calibration sets as you want to test.&#xA0;
+                Remember if you want to simultaneously test multiple calibration sets you need to go to Settings &gt; Survey &gt; Calibration and set 'Multiple Calibration Sets' to 'On'.&#xA0;
+                Next close the survey (File &gt; Close Survey).&#xA0;
+                Return to Settings and expand this setting again and find the survey you created and enter the known length in mm.&#xA0;
+                Next press the 'Test' button.  The application will create a spreadsheet in the Documents folder with the same name as the survey file.&#xA0;
+                The spreadsheet will contain recalculated measurements for each of the measurements you setup using all the calibration sets and compare each measurement to the known length value.
 				</TextBlock>
 				<TextBlock TextWrapping="WrapWholeWords">
-					This allows you to see which calibration set is returning the most accurate results at different positions in the frame and at different distances from the camera rig. You can then use this to select the best calibration set to use for your surveys.
+				This allows you to see which calibration set is returning the most accurate results at different positions in the frame and at different distances from the camera rig.&#xA0;
+                You can then use this to select the best calibration set to use for your surveys.
 				</TextBlock>
 
 				<Grid ColumnSpacing="12" RowSpacing="12">
@@ -80,12 +89,15 @@
 
                     <!-- Results -->
                     <StackPanel Grid.Row="2" Grid.ColumnSpan="3" Orientation="Vertical" Margin="10,0,10,0">
-						<TextBox x:Name="ResultTextBox"
-								IsReadOnly="True"
-								TextWrapping="Wrap"
-								ScrollViewer.VerticalScrollBarVisibility="Auto"
-								Height="96" 
-								Visibility="Collapsed"/>
+                        <TextBox x:Name="ResultTextBox"
+								 IsReadOnly="True"
+                                 AcceptsReturn="True"
+								 TextWrapping="NoWrap"
+								 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+								 ScrollViewer.HorizontalScrollMode="Enabled"
+								 ScrollViewer.VerticalScrollBarVisibility="Auto"
+								 Height="120"
+								 Visibility="Collapsed"/>
                         <TextBlock x:Name="ResultTextBoxNote" Text="* Preferred Calibration Set"
                                 Visibility="Collapsed"/>
                     </StackPanel>

@@ -7,6 +7,8 @@
 // Added the CameraID to the MediaClass
 // Version 1.3
 // Fixed GetHashCode()  21 Aug 2025
+// Version 1.4
+// Support loading SurveyMeasurement.Measurement and SurveyMeasurement.Measurment
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -499,7 +501,7 @@ namespace Surveyor
                 }
 
                 // Events class version
-                public float Version { get; set; } = 1.0f;
+                public float Version { get; set; } = 2.0f;
 
                 [JsonIgnore]
                 private SortedEventCollection _eventList = new();

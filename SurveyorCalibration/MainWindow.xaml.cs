@@ -250,8 +250,8 @@ namespace Surveyor
         private bool? findStatus = null;  // false started, true done
         private bool? saveStatus = null;  // None - Can't save, false - In Save, true - can save
 
-        public double MovementMaxThreshold { get; set; } = 20.0;
-        public double BlurMaxThreshold { get; set; } = 2.5;
+        public double MovementMaxThreshold { get; set; } = 400.0;   // Set so high that these values are effectively ignored
+        public double BlurMaxThreshold { get; set; } = 50;          // Set so high that these values are effectively ignored
         public int MonoCornersMinThreshold { get; set; } = CalibrationStereoFrameSet.MONO_CORNER_COUNT_THESHOLD;
         public int StereoCornersMinThreshold { get; set; } = CalibrationStereoFrameSet.STEREO_CORNER_COUNT_THESHOLD;
 

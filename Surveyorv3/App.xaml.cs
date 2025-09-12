@@ -111,8 +111,9 @@ namespace Surveyor
         {
             try
             {
+#if !DEBUG
                 TelemetryLogger.TrackAppStartStop(TrackAppStartStopType.AppStopCrash);
-
+#endif
                 string message = e.Exception?.Message ?? "Unknown error";
 
                 Debug.WriteLine($"Unhandled Exception: {message}");

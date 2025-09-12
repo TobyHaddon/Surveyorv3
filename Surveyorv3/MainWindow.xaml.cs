@@ -5,6 +5,7 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
@@ -13,6 +14,7 @@ using Surveyor.DesktopWap.Helper;
 using Surveyor.Events;
 using Surveyor.Helper;
 using Surveyor.User_Controls;
+using SurveyorCalibrationData;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -29,20 +31,14 @@ using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Provider;
+using Windows.UI;
 using WinRT.Interop;
 using WinUIEx;
 using static Surveyor.Helper.TelemetryLogger;
 using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.Survey.DataClass;
-using static Surveyor.User_Controls.SettingsWindowEventData;
-using SurveyorCalibrationData;
-using static System.Collections.Specialized.BitVector32;
-using MathNet.Numerics.Distributions;
 using static Surveyor.User_Controls.MediaPlayerEventData;
-using System.Collections;
-using Windows.UI;
-using Microsoft.UI.Xaml.Documents;
-using System.Security.Cryptography;
+using static Surveyor.User_Controls.SettingsWindowEventData;
 
 
 namespace Surveyor
@@ -401,11 +397,24 @@ namespace Surveyor
                     {
                         TimeSpan startPositionTS = TimeSpan.FromSeconds((double)startSeconds);
 
-                        report.Info("", $"Start position: {startPositionTS:hh\\:mm\\:ss\\.ff} ({startPositionTS.TotalSeconds:F2}");
-                        await Task.Delay(100); // optional but helps UI be ready
+                        report.Info("", $"Start position: {startPositionTS:hh\\:mm\\:ss\\.ff} ({startPositionTS.TotalSeconds:F2})");
+                        await Task.Delay(150); // optional but helps UI be ready
                         await mediaStereoController.FrameMove(SurveyorMediaPlayer.eCameraSide.None/*Stereo*/, 1);
-                        await Task.Delay(200); // optional but helps UI be_ready
+                        await Task.Delay(400); // optional but helps UI be_ready
                         mediaStereoController.FrameJump(SurveyorMediaPlayer.eCameraSide.None/*Stereo*/, startPositionTS);
+
+                        // Find the event at or before this position
+                        Event? evt = eventsControl.FindEvent(startPositionTS);                        
+                        if ( evt is not null)
+                        {
+                            // Jump to the correct event in the eventcontrol and display the correct frame
+                            report.Info("", $"Start event: {evt.TimeSpanTimelineController:hh\\:mm\\:ss\\.ff} ({evt.TimeSpanTimelineController.TotalSeconds:F2})");
+                            eventsControl.GoToEvent(evt);
+                        }
+                        else
+                        {
+                            report.Info("", $"No event found at or before start position");
+                        }                                               
                     }
                 });
             }
@@ -722,7 +731,7 @@ namespace Surveyor
                     // Check if the preferred calibration data is the one being using for
                     // the current event measurements calculations
                     await CheckIfEventMeasurementsAreUpToDate(false/*recalc only if necessary*/);
-}
+                }
                 else
                 { 
                     report.Warning("", $"FileSurveyOpen_Click: OpenSurvey() failed, survey path:{surveyPath}, ret = {ret}");
@@ -731,6 +740,16 @@ namespace Surveyor
                 // Enable/Disable menu items based on the current survey state
                 SetMenuStatusBasedOnSurveyState();
             }
+        }
+
+
+        /// <summary>
+        /// Return the SurveyRulesClass from the current open survey
+        /// </summary>
+        /// <returns>null is no survey</returns>
+        public SurveyRulesClass? GetSurveyRulesClass()
+        {
+            return surveyClass!.Data.SurveyRules;
         }
 
 

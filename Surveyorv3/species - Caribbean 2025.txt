@@ -82,7 +82,6 @@ Pomacanthidae/Angelfishes	Holacanthus	tricolor/Rock beauty	FishBase:3610
 Pomacanthidae/Angelfishes	Pomacanthus	arcuatus/Grey angelfish	FishBase:1117
 Pomacanthidae/Angelfishes	Pomacanthus	paru/French angelfish	FishBase:1118
 Pomacentridae/Damselfishes	Abudefduf	saxatilis/Sergeant major	FishBase:1119
-Pomacentridae/Damselfishes	Azurina	multilineata/Yellow-edge chromis	FishBase:1121
 Pomacentridae/Damselfishes	Azurina	multilineata/Brown chromis	FishBase:1121
 Pomacentridae/Damselfishes	Chromis	cyanea/Blue chromis	FishBase:3642
 Pomacentridae/Damselfishes	Chromis	insolata/Sunshinefish	FishBase:3644

@@ -50,6 +50,16 @@
                     <BitmapIcon x:Name="SpeciesEditIcon" UriSource="ms-appx:///Assets/fish-dark.png" ShowAsMonochrome="False"/>
                 </MenuFlyoutItem.Icon>
             </MenuFlyoutItem>
+            <MenuFlyoutItem x:Name="CanvasFrameMenuEditMeasurement" Text="Edit Measurement"  Click="CanvasFrameContextMenu_Click">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xED5E;" />
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+            <MenuFlyoutItem x:Name="CanvasFrameMenuEdit3DPoint" Text="Edit 3D Point"  Click="CanvasFrameContextMenu_Click">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xECAF;" />
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
             <MenuFlyoutSubItem x:Name="RecentSpeciesSubItem" Text="Recent Assigned Species" IsEnabled="False"/>
         </MenuFlyout>
     </UserControl.Resources>

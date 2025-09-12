@@ -1108,6 +1108,8 @@ namespace Surveyor
 
                 if (evt is not null)
                 {
+                    IPointData? pointData = evt.EventData;
+
                     SpeciesInfo? speciesInfo = null;
                     if (evt.EventData is SurveyMeasurement surveyMeasurement)
                         speciesInfo = surveyMeasurement.SpeciesInfo;
@@ -1120,7 +1122,7 @@ namespace Surveyor
                     if (speciesInfo is not null)
                     {
                         // Assigned the species info via a user dialog box
-                        if (await speciesSelector.SpeciesEdit(mainWindow, speciesInfo, speciesImageCache) == true)
+                        if (await speciesSelector.SpeciesEdit(mainWindow, speciesInfo, speciesImageCache, pointData, mainWindow.GetSurveyRulesClass()) == true)
                         {
                             eventsControl?.AddEvent(evt);
                         }
@@ -1825,7 +1827,8 @@ namespace Surveyor
 
                 // Check that logically Target Left A correponds to Target Right A and Target Left B is correponds to Target Right B
                 // This is incase the user selected the points the wrong way around. If so the target will be swapped
-                SurveyMeasurementHelper.EnsureCorrectCorrespondence(surveyMeasurement);
+                //???This function isn't working properly
+                //???SurveyMeasurementHelper.EnsureCorrectCorrespondence(surveyMeasurement);
 
                 // Check if suitable calibration data is available for this frame size
                 bool isReady = await mainWindow.CheckIfMeasurementSetupIsReady();
@@ -1835,12 +1838,12 @@ namespace Surveyor
                     if (mainWindow.DoMeasurementAndRulesCalculations(surveyMeasurement))
                     {
                         stopwatch.Stop();
-                        Debug.WriteLine($"DisplayDynamicMeasurment: Measurement={surveyMeasurement.Measurment * 1000:F0}mm Range={surveyMeasurement.SurveyRulesCalc.Range:F2}m RMS={surveyMeasurement.SurveyRulesCalc.RMSWorst * 1000:F0}mm, elasped {stopwatch.ElapsedMilliseconds}ms");
+                        Debug.WriteLine($"DisplayDynamicMeasurment: Measurement={surveyMeasurement.Measurement * 1000:F0}mm Range={surveyMeasurement.SurveyRulesCalc.Range:F2}m RMS={surveyMeasurement.SurveyRulesCalc.RMSWorst * 1000:F0}mm, elasped {stopwatch.ElapsedMilliseconds}ms");
 
                         mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.DisplayDynamicMeasurement)
                         {
                             showRMSCombinedOnly = trueShowRMSCombinedOnly,
-                            measurement = surveyMeasurement.Measurment,
+                            measurement = surveyMeasurement.Measurement,
                             rmsCombined = surveyMeasurement.SurveyRulesCalc?.RMSWorst,
                             range = surveyMeasurement.SurveyRulesCalc?.Range,
                             //???rangeRulePassed = surveyMeasurement.SurveyRulesCalc?.,
@@ -1935,8 +1938,8 @@ namespace Surveyor
 
                 // Check that logically Target Left A correponds to Target Right A and Target Left B is correponds to Target Right B
                 // This is incase the user selected the points the wrong way around. If so the target will be swapped
-                SurveyMeasurementHelper.EnsureCorrectCorrespondence(surveyMeasurement);
-
+                //???This function isn't working properly
+                //???SurveyMeasurementHelper.EnsureCorrectCorrespondence(surveyMeasurement);
                 await AddMeasurementOr3DPointOrSinglePointRequest(surveyMeasurement, species);
             }
         }
@@ -2072,16 +2075,72 @@ namespace Surveyor
                 else
                     throw new Exception("MediaStereoController.AddMeasurementOr3DPointRequest: Unknown point data type");
 
+                // Calculations and rules
+
+                // If stereo point do the measurement calculations
+                if (isMeasurement || is3DPoint)
+                {
+                    // Check if suitable calibration data is available for this frame size
+                    bool isReady = await mainWindow.CheckIfMeasurementSetupIsReady();
+                    if (isReady)
+                    {
+                        if (pointData is SurveyMeasurement surveyMeasurement2)
+                        {
+                            // This call calculates the distance, range, X & Y offset between the camera system mid-point and the measurement point mid-point
+                            mainWindow.DoMeasurementAndRulesCalculations(surveyMeasurement2);
+                            // No need to check if IsDirty needs to be set as this is a event item and
+                            // as such adding to the event list will set the IsDirty flag
+                        }
+                        else if (pointData is SurveyStereoPoint surveyStereoPoint2)
+                        {
+
+                            // This call calculates the distance, range, X & Y offset between
+                            // the camera system mid-point and the measurement point mid-point
+                            // Note false is returned if there is an error (i.e. it's not that a rules was broken)
+                            mainWindow.DoRulesCalculations(surveyStereoPoint2);
+                            // No need to check if IsDirty needs to be set as this is a event item and
+                            // as such adding to the event list will set the IsDirty flag
+                        }
+                    }
+                    // Note. We still log the event even if no measurement done
+                    // Calibration data may not be available at this time but when
+                    // calibration data is available all measurements will be recalculated
+                }
+
 
                 // Assigned the species info via a user dialog box
                 bool add = true;
 
-                SpeciesInfo specifiesInfo = new();
-
-                if (await speciesSelector.SpeciesNew(mainWindow, specifiesInfo, preSelectedSpecies, speciesImageCache) == false)
+                SpeciesInfo specifiesInfo = new(); 
+                
+                if (await speciesSelector.SpeciesNew(mainWindow, 
+                                                    specifiesInfo, 
+                                                    preSelectedSpecies, 
+                                                    speciesImageCache, 
+                                                    pointData,
+                                                    mainWindow.GetSurveyRulesClass()) == false)
                 {
                     // Species info cancelled, check the user still want to add the measurement
-                    add = await SpeciesInfoMissingWarningDialog(isMeasurement, is3DPoint, isSinglePoint);
+                    // (but only if the Survey Rules all passed, this is some we don't encourage bad RMS
+                    // measurements to be saved instead of corrected)
+                    bool? surveyRulesPassed = false;
+                    if (pointData is SurveyMeasurement surveyMeasurement2 && surveyMeasurement2 is not null)
+                    {
+                        surveyRulesPassed = surveyMeasurement2.SurveyRulesCalc.SurveyRules;
+                    }
+                    else if (pointData is SurveyStereoPoint surveyStereoPoint2 && surveyStereoPoint2 is not null)
+                    {
+                        surveyRulesPassed = surveyStereoPoint2.SurveyRulesCalc.SurveyRules;
+                    }
+
+                    if (surveyRulesPassed == true)
+                    {
+                        add = await SpeciesInfoMissingWarningDialog(isMeasurement, is3DPoint, isSinglePoint);
+                    }
+                    else
+                    {
+                        add = false;
+                    }
                 }
 
                 if (add)
@@ -2107,35 +2166,6 @@ namespace Surveyor
                         surveyPoint.SpeciesInfo = specifiesInfo;
                     }
 
-                    // If stereo point do the measurement calculations
-                    if (isMeasurement || is3DPoint)                    
-                    {
-                        // Check if suitable calibration data is available for this frame size
-                        bool isReady = await mainWindow.CheckIfMeasurementSetupIsReady();
-                        if (isReady)
-                        {
-                            if (pointData is SurveyMeasurement surveyMeasurement2)
-                            {
-                                // This call calculates the distance, range, X & Y offset between the camera system mid-point and the measurement point mid-point
-                                mainWindow.DoMeasurementAndRulesCalculations(surveyMeasurement2);
-                                // No need to check if IsDirty needs to be set as this is a event item and
-                                // as such adding to the event list will set the IsDirty flag
-                            }
-                            else if (pointData is SurveyStereoPoint surveyStereoPoint2)
-                            {
-
-                                // This call calculates the distance, range, X & Y offset between
-                                // the camera system mid-point and the measurement point mid-point
-                                // Note false is returned if there is an error (i.e. it's not that a rules was broken)
-                                mainWindow.DoRulesCalculations(surveyStereoPoint2);
-                                // No need to check if IsDirty needs to be set as this is a event item and
-                                // as such adding to the event list will set the IsDirty flag
-                            }
-                        }
-                        // Note. We still log the event even if no measurement done
-                        // Calibration data may not be available at this time but when
-                        // calibration data is available all measurements will be recalculated
-                    }
 
 
                     // Add the event to the list and clear down

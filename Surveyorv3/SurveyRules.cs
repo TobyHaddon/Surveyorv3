@@ -374,7 +374,7 @@ namespace Surveyor
             {
                 if (Range is not null)
                 {
-                    ruleText = $"Range: {Math.Round((double)Range, 2)}m (Range allowed from {surveyRulesData.RangeMin}m to {surveyRulesData.RangeMax}m) ";
+                    ruleText = $"Range: {Math.Round((double)Range, 2)}m (Range allowed from {surveyRulesData.RangeMin}m to {surveyRulesData.RangeMax}m)";
                     if (Range < surveyRulesData.RangeMin || Range > surveyRulesData.RangeMax)
                     {
                         SurveyRules = false;
@@ -394,8 +394,8 @@ namespace Surveyor
             {
                 if (RMSWorst is not null)
                 {
-                    ruleText = $"RMS: {Math.Round((double)RMSWorst * 1000, 1)}mm (Max allowed: {surveyRulesData.RMSMax}mm) ";
-                    if (RMSWorst/*in metres*/ * 1000 > surveyRulesData.RMSMax/*in mm*/)
+                    ruleText = $"RMS: {Math.Round((double)RMSWorst * 1000, 1)}mm (Max allowed: {surveyRulesData.RMSMax}mm)";
+                    if ((int)(RMSWorst/*in metres*/ * 1000) > (int)(surveyRulesData.RMSMax/*in mm*/))
                     {
                         SurveyRules = false;
                         if (surveyRulesFailedText.Length > 0)
@@ -414,8 +414,10 @@ namespace Surveyor
             {
                 if (XOffset is not null)
                 {
-                    ruleText = $"Horizontal Range: {Math.Round((double)XOffset, 2)}m (Allowed between: left {surveyRulesData.HorizontalRangeLeft}m and right {surveyRulesData.HorizontalRangeRight}m) ";
-                    if (XOffset < -surveyRulesData.HorizontalRangeLeft || XOffset > surveyRulesData.HorizontalRangeRight)
+                    double xOffsetRounded = Math.Round((double)XOffset, 2);
+
+                    ruleText = $"Horizontal Range: {xOffsetRounded}m (Allowed between: left {surveyRulesData.HorizontalRangeLeft}m and right {surveyRulesData.HorizontalRangeRight}m)";
+                    if (xOffsetRounded < -surveyRulesData.HorizontalRangeLeft || xOffsetRounded > surveyRulesData.HorizontalRangeRight)
                     {
                         SurveyRules = false;
                         SurveyRulesCalc.AppendRulesText(surveyRulesFailedText, ruleText);
@@ -432,8 +434,9 @@ namespace Surveyor
             {
                 if (YOffset is not null)
                 {
-                    ruleText = $"Vertical Range: {Math.Round((double)YOffset, 2)}m (Allowed between: top {-surveyRulesData.VerticalRangeBottom}m and bottom {surveyRulesData.VerticalRangeTop}m) ";
-                    if (YOffset < -surveyRulesData.VerticalRangeBottom || YOffset > surveyRulesData.VerticalRangeTop)
+                    double yOffsetRounded = Math.Round((double)YOffset, 2);
+                    ruleText = $"Vertical Range: {yOffsetRounded}m (Allowed between: top {-surveyRulesData.VerticalRangeBottom}m and bottom {surveyRulesData.VerticalRangeTop}m)";
+                    if (yOffsetRounded < -surveyRulesData.VerticalRangeBottom || yOffsetRounded > surveyRulesData.VerticalRangeTop)
                     {
                         SurveyRules = false;
                         if (surveyRulesFailedText.Length > 0)
@@ -493,7 +496,8 @@ namespace Surveyor
                    Nullable.Equals(RMSWorst, other.RMSWorst) &&
                    Nullable.Equals(RMSMean, other.RMSMean) &&
                    Nullable.Equals(RMSTargetA, other.RMSTargetA) &&
-                   Nullable.Equals(RMSTargetB, other.RMSTargetB);
+                   Nullable.Equals(RMSTargetB, other.RMSTargetB) &&
+                   Nullable.Equals(SurveyRulesText, other.SurveyRulesText);
         }
 
         public override int GetHashCode()

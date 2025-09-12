@@ -29,9 +29,29 @@ namespace Surveyor.Helper
         /// <param name="measurement"></param>
         public static void EnsureCorrectCorrespondence(SurveyMeasurement measurement)
         {
+            //** THIS FUNCTION ISN'T AWAYS RETURNING THE RIGHT RESULT
+            //** SPECIFICALLY IF THE FISH IS FAIRLY NEAR AND CENTRAL TO
+            //** THE CAMERAS.  TRY TO FIX THAT WITH THE if (Math.Abs(angleLeft) - Math.Abs(angleRight) < 45)
+            //** LINE BUT IT NEEDS MORE WORK (BUT THE GENERAL IDEA IS GOOD)
+            // EXAMPLE OF A MEASUREMENT WHERE IT FAILS
+            // Left A = (2081, 1785)
+            // Left B = (2042, 1732)
+            // Angle A = -126.2degs
+            // Right A = (884, 1785)
+            // Right B = (919, 1730)
+            // Angle B = 59.6degs
+            throw new Exception("Not working properly, do not use");
+
             // Calculate angles in degrees
             double angleLeft = CalculateAngle(measurement.LeftXA, measurement.LeftYA, measurement.LeftXB, measurement.LeftYB);
             double angleRight = CalculateAngle(measurement.RightXA, measurement.RightYA, measurement.RightXB, measurement.RightYB);
+
+            // Check if the angles are similiar but mirrored e.g. left: 55deg, right: -59degs
+            // You see this when the fish is near to camera and fairly central
+            if (Math.Abs(angleLeft) - Math.Abs(angleRight) < 45)
+            {
+                return;
+            }
 
             // Check if the angles are significantly different (> 45 degrees)
             if (Math.Abs(angleLeft - angleRight) > 45)
@@ -73,7 +93,7 @@ namespace Surveyor.Helper
                                 if (evt.EventDataType == SurveyDataType.SurveyMeasurementPoints && evt.EventData is not null)
                                 {
                                     SurveyMeasurement surveyMeasurement = (SurveyMeasurement)evt.EventData;
-                                    if (surveyMeasurement.CalibrationID != calibrationID || surveyMeasurement.Measurment == -1)
+                                    if (surveyMeasurement.CalibrationID != calibrationID || surveyMeasurement.Measurement == -1)
                                     {
                                         upToDate = false;
                                         break;
@@ -135,7 +155,7 @@ namespace Surveyor.Helper
                                     if (evt.EventDataType == SurveyDataType.SurveyMeasurementPoints)
                                     {
                                         SurveyMeasurement surveyMeasurement = (SurveyMeasurement)evt.EventData;
-                                        if (surveyMeasurement.CalibrationID != calibrationID || surveyMeasurement.Measurment == -1 || forceReCalc)
+                                        if (surveyMeasurement.CalibrationID != calibrationID || surveyMeasurement.Measurement == -1 || forceReCalc)
                                         {
                                             // Recalculate for a measurement
                                             if (DoMeasurementAndRulesCalculations(stereoProjection, 
@@ -195,7 +215,7 @@ namespace Surveyor.Helper
 
                 // Calculate fish length
                 double? measurement = stereoProjection.Measurement();
-                surveyMeasurement.Measurment = measurement;
+                surveyMeasurement.Measurement = measurement;
 
                 SurveyRulesCalc newRules = new();
                 newRules.ApplyCalcs(stereoProjection);

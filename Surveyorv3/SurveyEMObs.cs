@@ -268,7 +268,7 @@ namespace Surveyor
                             eventItem = new Event(SurveyDataType.SurveyMeasurementPoints);
                             eventItem.SetData(SurveyDataType.SurveyMeasurementPoints);
                             SurveyMeasurement surveyMeasurement = (SurveyMeasurement)eventItem.EventData!;                            
-                            surveyMeasurement.Measurment/*fish length*/ = item.Length;
+                            surveyMeasurement.Measurement/*fish length*/ = item.Length;
                             surveyMeasurement.LeftXA = item.PointLX1;
                             surveyMeasurement.LeftYA = item.PointLY1;
                             surveyMeasurement.LeftXB = item.PointLX2;
