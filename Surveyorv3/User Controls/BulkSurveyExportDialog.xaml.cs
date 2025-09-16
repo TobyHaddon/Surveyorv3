@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.WinUI.UI.Controls;
 using GoProMP4MetadataExtraction;
+using MathNet.Numerics;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
@@ -47,6 +48,8 @@ namespace Surveyor.User_Controls
 
         // AllMeasurements aggregator used during processing (confined to ProcessSurveyFiles execution)
         private readonly AllMeasurements allMeasurements = new();
+        // NEW: AllEvents aggregator for species derivation
+        private readonly AllEvents allEvents = new();
         // Totals row summary text for Ave. Length
         private string? totalsAveLengthSummary = string.Empty;
 
@@ -59,19 +62,26 @@ namespace Surveyor.User_Controls
                                         TimeSecs,
                                         Type,
                                         FishCount,
-                                        Measurement,
+                                        Measurementm,
+                                        Measurementmm,
                                         Range,
                                         HorizontalOffset,
                                         VerticalOffset,
                                         RMS,
                                         RMSWorst,
                                         RulesPassed,
-                                        Species,
+                                        SpeciesScientific,
+                                        SpeciesCommon,
                                         Genus,
-                                        Family,
+                                        GenusSpeciesScientific,
+                                        FamilyScientific,
+                                        FamilyCommon,
                                         SpeciesCode,
                                         NoSpeciesCode,
-                                        Comment };
+                                        Comment,
+                                        DerivedSpecies,
+                                        DerivedLength
+        };
 
         public BulkSurveyExportDialog(Reporter? _report)
         {
@@ -156,6 +166,8 @@ namespace Surveyor.User_Controls
 
             // Reset average lengths aggregator
             allMeasurements.Clear();
+            // Reset events aggregator
+            allEvents.Clear();
             totalsAveLengthSummary = string.Empty;
 
             StereoProjection stereoProjection = new();
@@ -278,6 +290,13 @@ namespace Surveyor.User_Controls
 
                             // After any recalc/save, aggregate measurements and distinct species for point events
                             allMeasurements.Add(survey.Data.Events.EventList);
+                            // Aggregate all events for species derivation (needs site/depth/year)
+                            allEvents.Add(
+                                survey.Data.Info.SurveyFileName ?? string.Empty,
+                                survey.Data.Info.SurveyDepth,
+                                survey.Data.Info.SurveyCode,
+                                survey.Data.Events.EventList);
+
                             string surveyFileNameKey = survey.Data.Info.SurveyFileName ?? string.Empty;
                             distinctSpeciesPointsBySurvey.Add(surveyFileNameKey, survey.Data.Events.EventList);
 
@@ -1073,6 +1092,12 @@ namespace Surveyor.User_Controls
                 rowIndex += 2; // leave one blank row before table
             }
 
+
+            // Check if we should try to derive the species if missing
+            bool deriveMissingSpecies = false;
+            if (DeriveMissingSpecies.IsChecked == true)
+                deriveMissingSpecies = true;
+
             // Check if we should apply average measurement to the Single and 3d Point events
             bool applyAverageLengths = false;
             if (ApplyAverageLengths.IsChecked == true)
@@ -1087,19 +1112,28 @@ namespace Surveyor.User_Controls
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.TimeSecs].Value = "Position Secs";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.Type].Value = "Type";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.FishCount].Value = "Fish Count";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurement].Value = "Measurement(m)";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementm].Value = "Measurement(m)";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementmm].Value = "Measurement(mm)";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.Range].Value = "Distance (m)";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.HorizontalOffset].Value = "Horiontal Offset(m)";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.VerticalOffset].Value = "Vertical Offset(m)";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.RMS].Value = "RMS(m)";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.RMSWorst].Value = "RMSWorst(m)";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.RulesPassed].Value = "Rules Passed";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Species].Value = "Species";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesScientific].Value = "Species Scientific";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesCommon].Value = "Species Common";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.Genus].Value = "Genus";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Family].Value = "Family";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.GenusSpeciesScientific].Value = "Genus Species Scientific";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.FamilyScientific].Value = "Family Scientific";
+            worksheet.Cells[rowIndex, (int)ExportExcelColmns.FamilyCommon].Value = "Family Common";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesCode].Value = "Species Code";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.NoSpeciesCode].Value = "Species Not Coded";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.Comment].Value = "Comment";
+            if (applyAverageLengths || deriveMissingSpecies)
+            {
+                worksheet.Cells[rowIndex, (int)ExportExcelColmns.DerivedSpecies].Value = "Derived Species";
+                worksheet.Cells[rowIndex, (int)ExportExcelColmns.DerivedLength].Value = "Derived Length";
+            }
             worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
             rowIndex++;
 
@@ -1128,6 +1162,8 @@ namespace Surveyor.User_Controls
                                 SurveyRulesCalc? surveyRulesCalc = null;
                                 double? measurement = null;
                                 int fishCount = 0;
+                                bool derivedSpecies = false;
+                                bool derivedLength = false;
 
                                 // Common data
                                 worksheet.Cells[rowIndex, (int)ExportExcelColmns.SurveyName].Value = survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName;
@@ -1155,7 +1191,8 @@ namespace Surveyor.User_Controls
                                 string transectNumber = EventsControl.GetTransectMarkerNameForEvent(survey.Data.Events.EventList, evt) ?? string.Empty;
                                 worksheet.Cells[rowIndex, (int)ExportExcelColmns.Transect].Value = transectNumber;
 
-                                // Type
+
+                                // Get the speciesInfo, surveyRulesCalc & measurement depending on the event type 
                                 switch (evt.EventDataType)
                                 {
                                     case Events.SurveyDataType.SurveyMeasurementPoints:
@@ -1193,9 +1230,92 @@ namespace Surveyor.User_Controls
                                             if (applyAverageLengths && !string.IsNullOrWhiteSpace(speciesInfo.Genus) && !string.IsNullOrWhiteSpace(speciesInfo.Species))
                                             {
                                                 measurement = allMeasurements.GetAverageLength(speciesInfo.Genus!, speciesInfo.Species!);
+                                                derivedLength = true;
                                             }
                                         }
                                         break;
+                                }
+
+                                // Extract the species scientific name and common name
+                                // Also make the genus+species combined name
+                                string speciesScientificName = string.Empty;
+                                string speciesCommonName = string.Empty;
+                                string genusSpeciesScientific = string.Empty;
+                                if (speciesInfo is not null)
+                                {
+                                    if (!string.IsNullOrWhiteSpace(speciesInfo.Species))
+                                    {
+                                        int slash = speciesInfo.Species.IndexOf('/');
+                                        // If there is a slash and it isn't right at the end
+                                        if (slash > 0 && slash < speciesInfo.Species.Length - 1)
+                                        {
+                                            speciesScientificName = speciesInfo.Species[..slash].Trim();
+                                            speciesCommonName = speciesInfo.Species[(slash + 1)..].Trim();
+                                        }
+                                        // Slash must be at the end
+                                        else if (slash > 0)
+                                        {
+                                            // Get all but the last character
+                                            speciesScientificName = speciesInfo.Species[..^1].Trim();
+                                        }
+                                        else
+                                            speciesScientificName = speciesInfo.Species.Trim();
+
+                                        // Name the Genus+Species scentific full name
+                                        if (!string.IsNullOrEmpty(speciesInfo.Genus))
+                                            genusSpeciesScientific = $"{speciesInfo.Genus} {speciesScientificName}";
+                                        else
+                                            genusSpeciesScientific = speciesScientificName;
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(speciesInfo.Genus))
+                                    {
+                                        genusSpeciesScientific = speciesInfo.Genus.Trim();
+                                    }
+                                }
+
+                                // Extract the family scientific name and common name
+                                string familyScientificName = string.Empty;
+                                string familyCommonName = string.Empty;
+                                if (speciesInfo is not null)
+                                {
+                                    if (!string.IsNullOrWhiteSpace(speciesInfo.Family))
+                                    {
+                                        int slash = speciesInfo.Family.IndexOf('/');
+                                        // If there is a slash and it isn't right at the end
+                                        if (slash > 0 && slash < speciesInfo.Family.Length - 1)
+                                        {
+                                            familyScientificName = speciesInfo.Family[..slash].Trim();
+                                            familyCommonName = speciesInfo.Family[(slash + 1)..].Trim();
+                                        }
+                                        // Slash must be at the end
+                                        else if (slash > 0)
+                                        {
+                                            // Get all but the last character
+                                            familyScientificName = speciesInfo.Family[..^1].Trim();
+                                        }
+                                        else
+                                            familyScientificName = speciesInfo.Family.Trim();
+                                    }
+                                }
+
+                                // If the species is missing and we have a genus and the user request
+                                // we dervice missing species and try to derive the species
+                                if (deriveMissingSpecies &&
+                                    speciesInfo is not null &&
+                                    string.IsNullOrEmpty(speciesScientificName) &&
+                                    !string.IsNullOrEmpty(speciesInfo.Genus))
+                                {
+                                    string surveyNameForSite = survey.Data.Info.SurveyFileName ?? string.Empty;
+                                    string? depthForScope = survey.Data.Info.SurveyDepth;
+                                    int? year = AllEvents.TryExtractYear(survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName);
+
+                                    var derived = allEvents.DeriveSpeciesScientific(surveyNameForSite, depthForScope, speciesInfo.Genus!, year);
+                                    if (!string.IsNullOrEmpty(derived))
+                                    {
+                                        speciesScientificName = derived!;
+                                        genusSpeciesScientific = $"{speciesInfo.Genus} {speciesScientificName}";
+                                        derivedSpecies = true;
+                                    }
                                 }
 
                                 // Load the fish count
@@ -1203,9 +1323,15 @@ namespace Surveyor.User_Controls
 
                                 // Load measurement
                                 if (measurement is not null)
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurement].Value = measurement;
+                                {
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementm].Value = measurement;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementmm].Value = measurement * 1000;
+                                }
                                 else
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurement].Value = "";
+                                {
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementm].Value = "";
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementmm].Value = "";
+                                }
 
                                 // Range Horizontal and vertical offsets and RMS
                                 worksheet.Cells[rowIndex, (int)ExportExcelColmns.Range].Value = surveyRulesCalc?.Range ?? 0;
@@ -1216,10 +1342,15 @@ namespace Surveyor.User_Controls
                                 worksheet.Cells[rowIndex, (int)ExportExcelColmns.RulesPassed].Value = surveyRulesCalc?.SurveyRules;
 
                                 // Species, Genus, Family, Code
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Species].Value = speciesInfo?.Species ?? "";
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesScientific].Value = speciesScientificName;
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesCommon].Value = speciesCommonName;
                                 worksheet.Cells[rowIndex, (int)ExportExcelColmns.Genus].Value = speciesInfo?.Genus ?? "";
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Family].Value = speciesInfo?.Family ?? "";
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.GenusSpeciesScientific].Value = genusSpeciesScientific;
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.FamilyScientific].Value = familyScientificName;
+                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.FamilyCommon].Value = familyCommonName;
                                 worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesCode].Value = speciesInfo?.Code ?? "";
+
+                                // Comment (if any)
                                 worksheet.Cells[rowIndex, (int)ExportExcelColmns.Comment].Value = speciesInfo?.Comment ?? "";
 
                                 // Check if a species code was actually used or was it plan text or the species code is blank
@@ -1232,6 +1363,13 @@ namespace Surveyor.User_Controls
                                     validSpeciesCode = false;
                                 }
                                 worksheet.Cells[rowIndex, (int)ExportExcelColmns.NoSpeciesCode].Value = !validSpeciesCode ? true : "";
+
+                                // Derived Species and Derived Length flags
+                                if (applyAverageLengths || deriveMissingSpecies)
+                                {
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.DerivedSpecies].Value = derivedSpecies ? true : null;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.DerivedLength].Value = derivedLength ? true : null;
+                                }
 
                                 // Debug
                                 Debug.WriteLine($"Export:{rowIndex},{survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName},{survey.Data.Info.SurveyDepth},{survey.Data.Info.SurveyAnalystName},{evt.TimeSpanTimelineController}");
@@ -1615,6 +1753,195 @@ namespace Surveyor.User_Controls
         {
             var k = Key(genus, species);
             return map.ContainsKey(k);
+        }
+    }
+
+
+    // NEW: Aggregator of events for deriving most common species by scope
+    internal sealed class AllEvents
+    {
+        // Scope -> Genus -> Species -> Count
+        private readonly Dictionary<string, Dictionary<string, Dictionary<string, int>>> bySurvey = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<(string site, string? depth), Dictionary<string, Dictionary<string, int>>> bySiteDepth = new();
+        private readonly Dictionary<string, Dictionary<string, Dictionary<string, int>>> bySite = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<int, Dictionary<string, Dictionary<string, int>>> byYear = new();
+
+        private static string Norm(string? s) => (s ?? string.Empty).Trim();
+        private static string NormKey(string? s) => (s ?? string.Empty).Trim().ToLowerInvariant();
+
+        public void Clear()
+        {
+            bySurvey.Clear();
+            bySiteDepth.Clear();
+            bySite.Clear();
+            byYear.Clear();
+        }
+
+        // Required by prompt: Add that takes only events (no context). No-op without SetContext.
+        public void Add(ObservableCollection<Event> events) { /* intentionally not used in this workflow */ }
+
+        public void Add(string surveyFileName, string? depth, string? surveyCode, ObservableCollection<Event> events)
+        {
+            if (events is null) return;
+            string surveyKey = Norm(surveyFileName);
+            string site = ExtractSiteFromSurveyName(surveyFileName);
+            int? year = TryExtractYear(surveyCode ?? surveyFileName);
+
+            if (!bySurvey.TryGetValue(surveyKey, out var surveyMap))
+            {
+                surveyMap = new(StringComparer.OrdinalIgnoreCase);
+                bySurvey[surveyKey] = surveyMap;
+            }
+            var siteDepthKey = (site, depth);
+            if (!bySiteDepth.TryGetValue(siteDepthKey, out var siteDepthMap))
+            {
+                siteDepthMap = new Dictionary<string, Dictionary<string, int>>(StringComparer.OrdinalIgnoreCase);
+                bySiteDepth[siteDepthKey] = siteDepthMap;
+            }
+            if (!bySite.TryGetValue(site, out var siteMap))
+            {
+                siteMap = new(StringComparer.OrdinalIgnoreCase);
+                bySite[site] = siteMap;
+            }
+            Dictionary<string, Dictionary<string, int>>? yearMap = null;
+            if (year.HasValue)
+            {
+                if (!byYear.TryGetValue(year.Value, out yearMap))
+                {
+                    yearMap = new(StringComparer.OrdinalIgnoreCase);
+                    byYear[year.Value] = yearMap;
+                }
+            }
+
+            foreach (var e in events)
+            {
+                SpeciesInfo? s = e.EventData switch
+                {
+                    SurveyMeasurement m => m.SpeciesInfo,
+                    SurveyStereoPoint s3d => s3d.SpeciesInfo,
+                    SurveyPoint sp => sp.SpeciesInfo,
+                    _ => null
+                };
+                if (s is null) continue;
+                var genus = NormKey(s.Genus);
+                if (string.IsNullOrWhiteSpace(genus)) continue;
+                var species = NormKey(ExtractScientificFromSpeciesField(s.Species));
+                if (string.IsNullOrWhiteSpace(species)) continue;
+
+                Increment(surveyMap, genus, species);
+                Increment(siteDepthMap, genus, species);
+                Increment(siteMap, genus, species);
+                if (yearMap is not null) Increment(yearMap, genus, species);
+            }
+        }
+
+        private static void Increment(Dictionary<string, Dictionary<string, int>> target, string genus, string species)
+        {
+            if (!target.TryGetValue(genus, out var sp))
+            {
+                sp = new(StringComparer.OrdinalIgnoreCase);
+                target[genus] = sp;
+            }
+            sp[species] = sp.TryGetValue(species, out var c) ? c + 1 : 1;
+        }
+
+        public string? MostCommonSpeciesForGenusInSurvey(string surveyFileName, string genus)
+        {
+            if (!bySurvey.TryGetValue(Norm(surveyFileName), out var m)) return null;
+            return Top1(m, genus);
+        }
+
+        public string? MostCommonSpeciesForGenusInSiteDepth(string surveyFileName, string? depth, string genus)
+        {
+            string site = ExtractSiteFromSurveyName(surveyFileName);
+            if (!bySiteDepth.TryGetValue((site, depth), out var m)) return null;
+            return Top1(m, genus);
+        }
+
+        public string? MostCommonSpeciesForGenusInSite(string surveyFileName, string genus)
+        {
+            string site = ExtractSiteFromSurveyName(surveyFileName);
+            if (!bySite.TryGetValue(site, out var m)) return null;
+            return Top1(m, genus);
+        }
+
+        public string? MostCommonSpeciesForGenusInYear(int year, string genus)
+        {
+            if (!byYear.TryGetValue(year, out var m)) return null;
+            return Top1(m, genus);
+        }
+
+        public string? DeriveSpeciesScientific(string surveyFileName, string? depth, string genus, int? year)
+        {
+            // 1) Survey
+            var s1 = MostCommonSpeciesForGenusInSurvey(surveyFileName, genus);
+            if (!string.IsNullOrWhiteSpace(s1)) return s1;
+            // 2) Site+Depth
+            var s2 = MostCommonSpeciesForGenusInSiteDepth(surveyFileName, depth, genus);
+            if (!string.IsNullOrWhiteSpace(s2)) return s2;
+            // 3) Site
+            var s3 = MostCommonSpeciesForGenusInSite(surveyFileName, genus);
+            if (!string.IsNullOrWhiteSpace(s3)) return s3;
+            // 4) Year
+            if (year.HasValue)
+            {
+                var s4 = MostCommonSpeciesForGenusInYear(year.Value, genus);
+                if (!string.IsNullOrWhiteSpace(s4)) return s4;
+            }
+            return null;
+        }
+
+        private static string? Top1(Dictionary<string, Dictionary<string, int>> scopeMap, string genus)
+        {
+            var gk = NormKey(genus);
+            if (!scopeMap.TryGetValue(gk, out var speciesMap) || speciesMap.Count == 0) return null;
+            // return highest count; tie-breaker: alphabetical
+            return speciesMap
+                .OrderByDescending(kv => kv.Value)
+                .ThenBy(kv => kv.Key, StringComparer.OrdinalIgnoreCase)
+                .Select(kv => kv.Key)
+                .FirstOrDefault();
+        }
+
+        internal static string ExtractSiteFromSurveyName(string surveyFileName)
+        {
+            var name = Path.GetFileNameWithoutExtension(Norm(surveyFileName));
+            if (string.IsNullOrEmpty(name)) return string.Empty;
+            int us = name.IndexOf('_');
+            int hy = name.IndexOf('-');
+            int cut = -1;
+            if (us >= 0 && hy >= 0) cut = Math.Min(us, hy);
+            else if (us >= 0) cut = us;
+            else if (hy >= 0) cut = hy;
+            return cut > 0 ? name[..cut] : name;
+        }
+
+        internal static int? TryExtractYear(string? text)
+        {
+            if (string.IsNullOrWhiteSpace(text)) return null;
+            // look for 4 consecutive digits between 1900..2100, choose the last match
+            int? year = null;
+            for (int i = 0; i + 3 < text.Length; i++)
+            {
+                if (char.IsDigit(text[i]) && char.IsDigit(text[i + 1]) && char.IsDigit(text[i + 2]) && char.IsDigit(text[i + 3]))
+                {
+                    if (int.TryParse(text.AsSpan(i, 4), out int y) && y >= 1900 && y <= 2100)
+                    {
+                        year = y; // keep last seen
+                        i += 3;
+                    }
+                }
+            }
+            return year;
+        }
+
+        private static string ExtractScientificFromSpeciesField(string? field)
+        {
+            if (string.IsNullOrWhiteSpace(field)) return string.Empty;
+            int slash = field.IndexOf('/');
+            if (slash > 0) return field[..slash].Trim();
+            if (slash == field.Length - 1) return field[..^1].Trim();
+            return field.Trim();
         }
     }
 

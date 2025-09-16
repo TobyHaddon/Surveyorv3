@@ -149,7 +149,7 @@
                     ColumnHeaderHeight="40"
                      LoadingRow="SurveyGrid_LoadingRow">
             <dg:DataGrid.Columns>
-                <dg:DataGridTemplateColumn Width="50">
+                <dg:DataGridTemplateColumn Width="35">
                     <dg:DataGridTemplateColumn.CellTemplate>
                         <DataTemplate>
                             <CheckBox IsChecked="{Binding Include, Mode=TwoWay}" Visibility="{Binding IsTotalRow, Converter={StaticResource BoolHideWhenTrueConverter}}"/>
@@ -194,7 +194,19 @@
 
             <!-- Right side: Buttons -->
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Column="1">
-                <CheckBox x:Name="ApplyAverageLengths" Content="Apply Average Lengths to Points" IsChecked="True" Margin="0,0,10,0">
+                <CheckBox x:Name="DeriveMissingSpecies" Content="Derive Missing Species" IsChecked="True" Margin="0,0,20,0">
+                    <ToolTipService.ToolTip>
+                        <TextBlock TextWrapping="Wrap" MaxWidth="420">
+                            If the fish has only been identified to the genus level then derive the species based on the following method. As soon as one of the steps find a species the method stops:
+                            <LineBreak/><LineBreak/>
+                            1. Find the most common species for that genus in the same survey
+                            2. Find the most common species for that genus from the same site at the same depth
+                            3. Find the most common species for that genus from same site
+                            4. Find the most common species for that genus from any survey that year
+                        </TextBlock>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
+                <CheckBox x:Name="ApplyAverageLengths" Content="Apply Average Lengths to Points" IsChecked="True" Margin="0,0,20,0">
                     <ToolTipService.ToolTip>
                         <ToolTip Content="Apply the average measurement length for any given species to Single Point and 3D Point of the sames species.  All the surveys in this particular export will be used to create an average length per species from all the measurements. This can then be applied to all the Single Point and 3D Point values."/>
                     </ToolTipService.ToolTip>
