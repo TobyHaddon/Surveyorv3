@@ -287,17 +287,21 @@ namespace Surveyor
     public class SurveyRulesCalc : IEquatable<SurveyRulesCalc>
     {
         public bool? SurveyRules { get; set; } = null;          // null = no survey rules, false = measurement failed the rules, true = measurement passed the rules
-        public string SurveyRulesText { get; set; } = "";    // Info on blocken rules
+        public string SurveyRulesText { get; set; } = "";       // Info on blocken rules
 
-        public double? Range { get; set; } = null;                // Distance from the left camera to the centre of the two points
+        public double? Range { get; set; } = null;              // Distance from the left camera to the centre of the two points
+        public bool? SurveyRuleRange { get; set; } = null;      // True if the range rule is passed, false if failed, null if rule not active
         public double? XOffset { get; set; } = null;            // X Distance between the camera system mid-point and the measurement mid-point
+        public bool? SurveyRuleHoriz { get; set; } = null;      // True if the range rule is passed, false if failed, null if rule not active
         public double? YOffset { get; set; } = null;            // Y Distance between the camera system mid-point and the measurement mid-point
-        
+        public bool? SurveyRuleVert { get; set; } = null;       // True if the range rule is passed, false if failed, null if rule not active
+
         public double? RMSWorst { get; set; } = null;
         public double? RMSMean { get; set; } = null;
         public double? RMSTargetA { get; set; } = null;
         public double? RMSTargetB { get; set; } = null;
-        // RMS errors in mm
+        public bool? SurveyRuleRMS { get; set; } = null;        // True if the range rule is passed, false if failed, null if rule not active
+
 
         /// <summary>
         /// Clear both calcs and rules data
@@ -309,18 +313,25 @@ namespace Surveyor
         }
         public void ClearCalcs()
         {
+            SurveyRules = null;
+
             Range = null;
-            RMSWorst = null;
+            SurveyRuleRange = null;
+
             XOffset = null;
+            SurveyRuleHoriz = null;
             YOffset = null;
+            SurveyRuleVert = null;
+
+            RMSWorst = null;
             RMSWorst = null;
             RMSMean = null;
             RMSTargetA = null;
             RMSTargetB = null;
+            SurveyRuleRMS = null;
         }
         public void ClearRules()
         {
-            SurveyRules = null;
             SurveyRulesText = "";
         }
 
@@ -368,16 +379,25 @@ namespace Surveyor
             StringBuilder surveyRulesFailedText = new();
             StringBuilder surveyRulesPassedText = new();
             string ruleText = "";
+            SurveyRuleRange = null;
+            SurveyRuleHoriz = null;
+            SurveyRuleVert = null;
+            SurveyRuleRMS = null;
 
             // Check the range rule
             if (surveyRulesData.RangeRuleActive == true)
             {
                 if (Range is not null)
                 {
+                    // Default to range rule passed
+                    SurveyRuleRange = true;
+
                     ruleText = $"Range: {Math.Round((double)Range, 2)}m (Range allowed from {surveyRulesData.RangeMin}m to {surveyRulesData.RangeMax}m)";
                     if (Range < surveyRulesData.RangeMin || Range > surveyRulesData.RangeMax)
                     {
+                        // Failed range rule
                         SurveyRules = false;
+                        SurveyRuleRange = false;
                         if (surveyRulesFailedText.Length > 0)
                             surveyRulesFailedText.Append(", ");
                         surveyRulesFailedText.Append(ruleText);
@@ -394,10 +414,16 @@ namespace Surveyor
             {
                 if (RMSWorst is not null)
                 {
+                    // Default to RMS rule passed
+                    SurveyRuleRMS = true;
+
                     ruleText = $"RMS: {Math.Round((double)RMSWorst * 1000, 1)}mm (Max allowed: {surveyRulesData.RMSMax}mm)";
                     if ((int)(RMSWorst/*in metres*/ * 1000) > (int)(surveyRulesData.RMSMax/*in mm*/))
                     {
+                        // Failed RMS rule
                         SurveyRules = false;
+                        SurveyRuleRMS = false;
+
                         if (surveyRulesFailedText.Length > 0)
                             surveyRulesFailedText.Append(", ");
                         surveyRulesFailedText.Append(ruleText);
@@ -414,12 +440,18 @@ namespace Surveyor
             {
                 if (XOffset is not null)
                 {
+                    // Default to horizontal rule passed
+                    SurveyRuleHoriz = true;
+
                     double xOffsetRounded = Math.Round((double)XOffset, 2);
 
                     ruleText = $"Horizontal Range: {xOffsetRounded}m (Allowed between: left {surveyRulesData.HorizontalRangeLeft}m and right {surveyRulesData.HorizontalRangeRight}m)";
                     if (xOffsetRounded < -surveyRulesData.HorizontalRangeLeft || xOffsetRounded > surveyRulesData.HorizontalRangeRight)
                     {
+                        // Failed horizontal rule
                         SurveyRules = false;
+                        SurveyRuleHoriz = false;
+
                         SurveyRulesCalc.AppendRulesText(surveyRulesFailedText, ruleText);
                     }
                     else
@@ -434,11 +466,17 @@ namespace Surveyor
             {
                 if (YOffset is not null)
                 {
+                    // Default to vertical rule passed
+                    SurveyRuleVert = true;
+
                     double yOffsetRounded = Math.Round((double)YOffset, 2);
                     ruleText = $"Vertical Range: {yOffsetRounded}m (Allowed between: top {-surveyRulesData.VerticalRangeBottom}m and bottom {surveyRulesData.VerticalRangeTop}m)";
                     if (yOffsetRounded < -surveyRulesData.VerticalRangeBottom || yOffsetRounded > surveyRulesData.VerticalRangeTop)
                     {
+                        // Failed vertical rule
                         SurveyRules = false;
+                        SurveyRuleVert = false;
+
                         if (surveyRulesFailedText.Length > 0)
                             surveyRulesFailedText.Append(", ");
 
@@ -491,12 +529,16 @@ namespace Surveyor
 
             return Nullable.Equals(SurveyRules, other.SurveyRules) &&
                    Nullable.Equals(Range, other.Range) &&
+                   Nullable.Equals(SurveyRuleRange, other.SurveyRuleRange) &&
                    Nullable.Equals(XOffset, other.XOffset) &&
+                   Nullable.Equals(SurveyRuleHoriz, other.SurveyRuleHoriz) &&
                    Nullable.Equals(YOffset, other.YOffset) &&
+                   Nullable.Equals(SurveyRuleVert, other.SurveyRuleVert) &&
                    Nullable.Equals(RMSWorst, other.RMSWorst) &&
                    Nullable.Equals(RMSMean, other.RMSMean) &&
                    Nullable.Equals(RMSTargetA, other.RMSTargetA) &&
                    Nullable.Equals(RMSTargetB, other.RMSTargetB) &&
+                   Nullable.Equals(SurveyRuleRMS, other.SurveyRuleRMS) &&
                    Nullable.Equals(SurveyRulesText, other.SurveyRulesText);
         }
 
@@ -505,12 +547,16 @@ namespace Surveyor
             var hash = new HashCode();
             hash.Add(SurveyRules);
             hash.Add(Range);
+            hash.Add(SurveyRuleRange);
             hash.Add(XOffset);
+            hash.Add(SurveyRuleHoriz);
             hash.Add(YOffset);
+            hash.Add(SurveyRuleVert);
             hash.Add(RMSWorst);
             hash.Add(RMSMean);
             hash.Add(RMSTargetA);
             hash.Add(RMSTargetB);
+            hash.Add(SurveyRuleRMS);
             return hash.ToHashCode();
         }
     }

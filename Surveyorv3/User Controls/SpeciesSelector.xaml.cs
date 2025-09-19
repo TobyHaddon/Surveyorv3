@@ -167,10 +167,10 @@ namespace Surveyor.User_Controls
             SpeciesSize.Text = string.Empty;
 
             // Hide InfoBar by default
-            if (RmsRuleInfoBar is not null)
+            if (RMSRuleInfoBar is not null)
             {
-                RmsRuleInfoBar.IsOpen = false;
-                RmsRuleInfoBar.Message = string.Empty;
+                RMSRuleInfoBar.IsOpen = false;
+                RMSRuleInfoBar.Message = string.Empty;
             }
         }
 
@@ -212,7 +212,7 @@ namespace Surveyor.User_Controls
             dialog.Opened += Dialog_Opened;
 
             // Evaluate RMS rule now (on open) if context and rules available
-            EvaluateAndShowRmsRule();
+            EvaluateAndShowRuleInfoBars();
 
             // Set which class property from ComboItem to use for the display text
             // in the auto suggest boxes
@@ -389,53 +389,144 @@ namespace Surveyor.User_Controls
             return ret;
         }
 
-        private void EvaluateAndShowRmsRule()
+
+        /// <summary>
+        /// Evaluates the RMS (Root Mean Square) rule based on the current point and rules context,  and displays a
+        /// notification if the rule is violated.
+        /// </summary>
+        /// <remarks>This method checks whether the RMS value of the current survey measurement or stereo
+        /// point  exceeds the maximum allowed value defined in the active survey rules. If the RMS value  violates the
+        /// rule, an error notification is displayed in the <see cref="RMSRuleInfoBar"/>.  If no violation occurs or the
+        /// required context is unavailable, the notification is hidden.</remarks>
+        private void EvaluateAndShowRuleInfoBars()
         {
             try
             {
                 if (_pointContext is null || _rulesContext is null)
                 {
-                    RmsRuleInfoBar.IsOpen = false;
+                    RMSRuleInfoBar.IsOpen = false;
                     return;
                 }
 
                 var rules = _rulesContext;
                 if (rules is null || !rules.SurveyRulesActive || !rules.SurveyRulesData.RMSRuleActive)
                 {
-                    RmsRuleInfoBar.IsOpen = false;
+                    RMSRuleInfoBar.IsOpen = false;
                     return;
                 }
 
-                double? rmsWorst = null;
-                if (_pointContext is SurveyMeasurement meas)
+                // Extract the SurveyRulesCalc from the point context
+                SurveyRulesCalc? surveyRulesCalc = _pointContext switch
                 {
-                    rmsWorst = meas.SurveyRulesCalc?.RMSWorst;
-                }
-                else if (_pointContext is SurveyStereoPoint sp)
-                {
-                    rmsWorst = sp.SurveyRulesCalc?.RMSWorst;
-                }
+                    SurveyMeasurement surveyMeasurement => surveyMeasurement.SurveyRulesCalc,
+                    SurveyStereoPoint surveyStereoPoint => surveyStereoPoint.SurveyRulesCalc,
+                    _ => null
+                };
 
-                if (rmsWorst is null)
+                // Check if the RMS warning InfoBar is required
+                if (surveyRulesCalc is not null && surveyRulesCalc.RMSWorst is not null)
                 {
-                    RmsRuleInfoBar.IsOpen = false;
-                    return;
-                }
+                    // Compare as ints as requested
+                    int worst = (int)Math.Round(surveyRulesCalc.RMSWorst.Value * 1000.0, MidpointRounding.AwayFromZero); // convert to mm if RMSWorst is in meters
+                    int max = (int)Math.Round(rules.SurveyRulesData.RMSMax, MidpointRounding.AwayFromZero);
 
-                // Compare as ints as requested
-                int worst = (int)Math.Round(rmsWorst.Value * 1000.0, MidpointRounding.AwayFromZero); // convert to mm if RMSWorst is in meters
-                int max = (int)Math.Round(rules.SurveyRulesData.RMSMax, MidpointRounding.AwayFromZero);
-
-                if (worst > max)
-                {
-                    RmsRuleInfoBar.Title = "RMS rule violation";
-                    RmsRuleInfoBar.Message = $"RMS value of {worst:F0}mm exceeds the rule";
-                    RmsRuleInfoBar.Severity = InfoBarSeverity.Error;
-                    RmsRuleInfoBar.IsOpen = true;                    
+                    if (surveyRulesCalc.SurveyRuleRMS == false)
+                    {
+                        RMSRuleInfoBar.Title = "RMS rule violation";
+                        RMSRuleInfoBar.Message = $"{worst:F0}mm exceeds the {max:F0}mm rule";
+                        RMSRuleInfoBar.Severity = InfoBarSeverity.Error;
+                        RMSRuleInfoBar.IsOpen = true;
+                    }
+                    else
+                    {
+                        RMSRuleInfoBar.IsOpen = false;
+                    }
                 }
                 else
                 {
-                    RmsRuleInfoBar.IsOpen = false;
+                    RMSRuleInfoBar.IsOpen = false;
+                    return;
+                }
+
+                // Check if the Range warning InfoBar is required
+                if (surveyRulesCalc is not null && surveyRulesCalc.Range is not null)
+                {                   
+                    double range = (double)surveyRulesCalc.Range;
+
+                    if (surveyRulesCalc.SurveyRuleRange == false)
+                    {
+                        RangeRuleInfoBar.Title = "Range rule violation";
+                        if (range < rules.SurveyRulesData.RangeMin)
+                            RangeRuleInfoBar.Message = $"{range:F0}m < {rules.SurveyRulesData.RangeMin:F2}m rule";
+                        else
+                            RangeRuleInfoBar.Message = $"{range:F0}m > {rules.SurveyRulesData.RangeMax:F2}m rule";
+                        
+                        RangeRuleInfoBar.Severity = InfoBarSeverity.Warning;
+                        RangeRuleInfoBar.IsOpen = true;
+                    }
+                    else
+                    {
+                        RangeRuleInfoBar.IsOpen = false;
+                    }
+                }
+                else
+                {
+                    RangeRuleInfoBar.IsOpen = false;
+                    return;
+                }
+
+                // Check if the Horizontal warning InfoBar is required
+                if (surveyRulesCalc is not null && surveyRulesCalc.XOffset is not null)
+                {                    
+                    double xOffset = (double)surveyRulesCalc.XOffset;
+
+                    if (surveyRulesCalc.SurveyRuleHoriz == false)
+                    {
+                        HorizRangeRuleInfoBar.Title = "Horizontal rule violation";
+                        if (xOffset > 0)
+                            HorizRangeRuleInfoBar.Message = $"{xOffset:F0}m exceeds the right: {rules.SurveyRulesData.HorizontalRangeRight:F2}m rule";
+                        else
+                            HorizRangeRuleInfoBar.Message = $"{xOffset:F0}m exceeds the left: {rules.SurveyRulesData.HorizontalRangeLeft:F2}m rule";
+
+                        HorizRangeRuleInfoBar.Severity = InfoBarSeverity.Warning;
+                        HorizRangeRuleInfoBar.IsOpen = true;
+                    }
+                    else
+                    {
+                        HorizRangeRuleInfoBar.IsOpen = false;
+                    }
+                }
+                else
+                {
+                    HorizRangeRuleInfoBar.IsOpen = false;
+                    return;
+                }
+
+                // Check if the vertical warning InfoBar is required
+                if (surveyRulesCalc is not null && surveyRulesCalc.YOffset is not null)
+                {
+                    double yOffset = (double)surveyRulesCalc.YOffset;
+
+                    if (surveyRulesCalc.SurveyRuleVert == false)
+                    {
+                        VertRangeRuleInfoBar.Title = "Vertical rule violation";
+                        if (yOffset > 0)
+                            VertRangeRuleInfoBar.Message = $"{yOffset:F0}m exceeds the up: {rules.SurveyRulesData.VerticalRangeTop:F2}m rule";
+                        else
+                            VertRangeRuleInfoBar.Message = $"{yOffset:F0}m exceeds the down: {rules.SurveyRulesData.VerticalRangeBottom:F2}m rule";
+
+                        VertRangeRuleInfoBar.Severity = InfoBarSeverity.Warning;
+                        VertRangeRuleInfoBar.IsOpen = true;
+                    }
+                    else
+                    {
+                        VertRangeRuleInfoBar.IsOpen = false;
+                    }
+                }
+                else
+                {
+                    VertRangeRuleInfoBar.IsOpen = false;
+                    return;
                 }
             }
             catch (Exception ex)

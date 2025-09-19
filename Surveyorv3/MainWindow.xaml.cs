@@ -1904,7 +1904,7 @@ namespace Surveyor
                 if (entryCount == 1)
                 {
                     // Initialize if necessary
-                    var dialog = new BulkSurveyExportDialog(report);
+                    var dialog = new BulkSurveyExportDialog(report, mediaStereoController.speciesSelector.speciesCodeList);
 
                     // Get the HWND (window handle) for both windows
                     IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);

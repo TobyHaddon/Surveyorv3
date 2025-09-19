@@ -9,6 +9,10 @@
 // Fixed GetHashCode()  21 Aug 2025
 // Version 1.4
 // Support loading SurveyMeasurement.Measurement and SurveyMeasurement.Measurment
+// Version 1.5
+// I've moved the version number in the SurveyRulesClass to 2.0 because I've added flags to SurveyRulesCalc
+// to indicate which of the specific rules passed/failed
+
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -25,7 +29,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using SurveyorCalibrationData;
 using System.Diagnostics;
-using Emgu.CV.Flann;
+
 
 namespace Surveyor
 {
@@ -818,7 +822,7 @@ namespace Surveyor
                 }
 
                 // SurveyRulesClass version
-                public float Version { get; set; } = 1.1f;
+                public float Version { get; set; } = 2.0f;
 
                 // Values
                 [JsonIgnore]

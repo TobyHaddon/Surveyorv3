@@ -61,7 +61,7 @@
         </Grid.RowDefinitions>
 
         <!-- RMS rule info bar -->
-        <InfoBar x:Name="RmsRuleInfoBar"
+        <InfoBar x:Name="RMSRuleInfoBar"
                  Grid.Row="0" Grid.ColumnSpan="2"
                  IsOpen="False"
                  IsClosable="True"
@@ -77,7 +77,61 @@
                 </ToolTip>
             </ToolTipService.ToolTip>
         </InfoBar>
+        
+        <!-- Range rule info bar -->
+        <InfoBar x:Name="RangeRuleInfoBar"
+                 Grid.Row="0" Grid.ColumnSpan="2"
+                 IsOpen="False"
+                 IsClosable="True"
+                 Severity="Error"
+                 Title="Range rule violation"                 
+                 Margin="0,0,0,8">
+            <ToolTipService.ToolTip>
+                <ToolTip MaxWidth="520">
+                    <StackPanel>
+                        <TextBlock Text="Outside of the allowed distance from the camera rig" TextWrapping="Wrap" />
+                        <TextBlock Text="If the fish is nearer to the cameras at some other point in the video then Cancel &amp; re-measure at that point to ensure the fish is included in the final survey results" TextWrapping="Wrap" />
+                    </StackPanel>
+                </ToolTip>
+            </ToolTipService.ToolTip>
+        </InfoBar>
 
+        <!-- Horizontal rule info bar -->
+        <InfoBar x:Name="HorizRangeRuleInfoBar"
+                 Grid.Row="0" Grid.ColumnSpan="2"
+                 IsOpen="False"
+                 IsClosable="True"
+                 Severity="Error"
+                 Title="Horizontal rule violation"                 
+                 Margin="0,0,0,8">
+            <ToolTipService.ToolTip>
+                <ToolTip MaxWidth="520">
+                    <StackPanel>
+                        <TextBlock Text="Outside of the allowed horizontal range from the camera rig centre" TextWrapping="Wrap" />
+                        <TextBlock Text="If the fish is nearer to the camera centre at some other point in the video then Cancel &amp; re-measure at that point to ensure the fish is included in the final survey results" TextWrapping="Wrap" />
+                    </StackPanel>
+                </ToolTip>
+            </ToolTipService.ToolTip>
+        </InfoBar>
+
+        <!-- Vertical rule info bar -->
+        <InfoBar x:Name="VertRangeRuleInfoBar"
+                 Grid.Row="0" Grid.ColumnSpan="2"
+                 IsOpen="False"
+                 IsClosable="True"
+                 Severity="Error"
+                 Title="Vertical rule violation"                 
+                 Margin="0,0,0,8">
+            <ToolTipService.ToolTip>
+                <ToolTip MaxWidth="520">
+                    <StackPanel>
+                        <TextBlock Text="Outside of the allowed vertical range from the camera rig centre" TextWrapping="Wrap" />
+                        <TextBlock Text="If the fish is nearer to the camera centre at some other point in the video then Cancel &amp; re-measure at that point to ensure the fish is included in the final survey results" TextWrapping="Wrap" />
+                    </StackPanel>
+                </ToolTip>
+            </ToolTipService.ToolTip>
+        </InfoBar>
+        
         <!-- Species -->
         <TextBlock Grid.Row ="1" Grid.Column="0" Text="Species:" VerticalAlignment="Center"/>
         <AutoSuggestBox x:Name="AutoSuggestSpecies" Grid.Row ="1" Grid.Column="1" Margin="10,10,0,0" HorizontalAlignment="Left"
