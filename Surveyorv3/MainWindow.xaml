@@ -261,10 +261,20 @@
             <InfoBar x:Name="InfoBarSpeciesInfoMissing" IsOpen="False"
                         Severity="Warning" HorizontalAlignment="Stretch"
                         Title="Species Info Missing"
-                        Message="One or more Measurements, 3D Points or Single Point are missing their species information." 
+                        Message="One or more Measurements, 3D Points or Single Point are missing their species information. PLACEHOLDER TEXT ONLY THIS MESSAGE IS DYNAMICALLY SET" 
                         Closed="InfoBarSpeciesInfoMissing_Closed">
                 <InfoBar.ActionButton>
                     <Button Content="Go to" Click="GoToFirstMissingSpeciesEvent_Click" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+            <!--RMS RULE VALIDATIONS WARNING-->
+            <InfoBar x:Name="InfoBarRMSRuleViolation" IsOpen="False"
+                        Severity="Warning" HorizontalAlignment="Stretch"
+                        Title="RMS Rule Violation"
+                        Message="One or more Measurements or 3D Points have RMS rule violations. PLACEHOLDER TEXT ONLY THIS MESSAGE IS DYNAMICALLY SET" 
+                        Closed="InfoBarRMSRuleViolation_Closed">
+                <InfoBar.ActionButton>
+                    <Button Content="Go to" Click="GoToFirstRMSRuleViolationEvent_Click" />
                 </InfoBar.ActionButton>
             </InfoBar>
         </StackPanel>

@@ -867,6 +867,9 @@ namespace Surveyor.User_Controls
 
             if (speciesImageCache is not null)
             {
+                // Ensure the max length info bar is hidden
+                MaxLengthInfoBar.IsOpen = false;
+
                 try
                 {
                     // Populate image
@@ -911,8 +914,6 @@ namespace Surveyor.User_Controls
                             // box was displayed
                             SpeciesInfoExpander.IsExpanded = false;
 
-                            //???TOBEDELELTED SourceGenusSpecies.Text = $"Source: {source} {genusSpecies}";
-
                             Debug.WriteLine($"SpeciesSelector: AutoSuggestBoxSpecies_SuggestionChosen: {genusSpecies} {source} {speciesItem.Code}");
                         }
 
@@ -934,10 +935,45 @@ namespace Surveyor.User_Controls
                         }
 
                         // Get the species environment, distribution and species size information from the cache
-                        (string environment, string distribution, string speciesSize) = speciesImageCache.GetInfo(speciesItem!.Code);
+                        (string environment, string distribution, string speciesSize, double? maxLength, string lengthType) = speciesImageCache.GetInfo(speciesItem!.Code);
                         Environment.Text = environment;
                         Distribution.Text = distribution;
                         SpeciesSize.Text = speciesSize;
+
+                        // Can we check the max length
+                        if (_pointContext is not null && _pointContext is SurveyMeasurement surveyMeasurement &&
+                            maxLength is not null && maxLength > 0) 
+                        {
+                            if (surveyMeasurement.Measurement is not null && 
+                                surveyMeasurement.Measurement > 0 &&
+                                surveyMeasurement.Measurement/*m*/ > maxLength/*m*/)
+                            {
+                                MaxLengthInfoBar.Message = $"Length {surveyMeasurement.Measurement * 1000:F0}mm, max {maxLength * 1000:F0}mm";
+                                MaxLengthInfoBar.IsOpen = true;
+
+                                // If the max length is for the total length (TL)  (Snout tip to end of longest tail fin)
+                                // then Severity is error
+                                if (lengthType.Equals("TL", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    MaxLengthInfoBar.Severity = InfoBarSeverity.Error;
+                                    MaxLengthInfoBar.Title = "Total Length(TL) exceeded";                                                                  
+                                }
+                                // If the max length is for the standard length (SL) (snout tip to base of tail)
+                                // then Severity is Warning
+                                else if (lengthType.Equals("SL", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    MaxLengthInfoBar.Severity = InfoBarSeverity.Warning;
+                                    MaxLengthInfoBar.Title = "Standard Length(SL) exceeded";
+                                }
+                                // If the max length is for the fork length (FL) (Snout tip to middle of tail fork)
+                                // then Severity is Warning
+                                else if (lengthType.Equals("FL", StringComparison.OrdinalIgnoreCase))
+                                {
+                                    MaxLengthInfoBar.Severity = InfoBarSeverity.Warning;
+                                    MaxLengthInfoBar.Title = "Standard Length(FL) exceeded";
+                                }
+                            }
+                        }
 
                         // Hide any blank information rows (note there is no Visibility property on a grid row)
                         GridRowsVisibility(SpeciesInfoGrid, string.IsNullOrEmpty(environment) ? Visibility.Collapsed : Visibility.Visible, 0/*fromRowIndex*/, 0/*toRowIndex*/);

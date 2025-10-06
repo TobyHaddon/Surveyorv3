@@ -141,7 +141,7 @@ namespace Surveyor
                 }
 
                 /// <summary>
-                /// This is used for a string that IDs the survey i.e. [ReefCode]-[Depth]-[TransetNo]-[YYYY-MM-DD]  e.g. CVW-10-1-2024-07-28 for Coral View , 10m depth, transect 1 on the 28th July 2024
+                /// This is used for a string that IDs the survey i.e. [ReefCode]-[Depth]-[TransectNumber]-[YYYY-MM-DD]  e.g. CVW-10-1-2024-07-28 for Coral View , 10m depth, transect 1 on the 28th July 2024
                 /// </summary>
                 public string? SurveyCode
                 {

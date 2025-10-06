@@ -10,9 +10,9 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ex="using:WinUIEx"
     MinWidth="700"
-    MinHeight="800"
-    MaxHeight="1000"
     MaxWidth="1100"
+    MinHeight="900"
+    MaxHeight="900"
     mc:Ignorable="d"
     Title="Bulk survey export">
 
@@ -190,34 +190,61 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
             <!-- Left side: Item count -->
-            <TextBlock x:Name="ItemCountTextBlock" VerticalAlignment="Center" Margin="0,0,20,0" Grid.Column="0" />
+            <TextBlock x:Name="ItemCountTextBlock" VerticalAlignment="Bottom" Margin="0,0,20,0" Grid.Column="0" />
 
-            <!-- Right side: Buttons -->
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Column="1">
-                <CheckBox x:Name="DeriveMissingSpecies" Content="Derive Missing Species" IsChecked="True" Margin="0,0,20,0">
+            <!-- Right side: Checkboxes & Buttons -->
+            <Grid VerticalAlignment="Top" HorizontalAlignment="Right" Grid.Column="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <CheckBox x:Name="IncludeFailedRMS" Grid.Column="0" Grid.Row="0" Content="Include Failed RMS" IsChecked="True" Margin="0,0,10,0">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="Include in the export any measurements or 3D Points that failed their RMS rule. This is useful if you want to see which measurements failed and possibly re-measure so the fish are included in the final survey data."/>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
+
+                <CheckBox x:Name="IncludeOtherFailedRules" Grid.Column="0" Grid.Row="1" Content="Include Other Failed Rules" IsChecked="True" Margin="0,0,10,0">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="Include in the export any measurements of 3D Points that failed the range, horizontal or vertical rules. i.e. include in the export measurements or 3D Points that are outside of the survey area."/>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
+
+                <CheckBox x:Name="DeriveMissingSpecies" Grid.Column="1" Grid.Row="0" Content="Derive Missing Species" IsChecked="True" Margin="0,0,10,0">
                     <ToolTipService.ToolTip>
                         <TextBlock TextWrapping="Wrap" MaxWidth="420">
-                            If the fish has only been identified to the genus level then derive the species based on the following method. As soon as one of the steps find a species the method stops:
-                            <LineBreak/><LineBreak/>
-                            1. Find the most common species for that genus in the same survey
-                            2. Find the most common species for that genus from the same site at the same depth
-                            3. Find the most common species for that genus from same site
-                            4. Find the most common species for that genus from any survey that year
+                                If the fish has only been identified to the genus level then derive the species based on the following method. As soon as one of the steps find a species the method stops:
+                                <LineBreak/><LineBreak/>
+                                1. Find the most common species for that genus in the same survey
+                                2. Find the most common species for that genus from the same site at the same depth
+                                3. Find the most common species for that genus from same site
+                                4. Find the most common species for that genus from any survey that year
                         </TextBlock>
                     </ToolTipService.ToolTip>
                 </CheckBox>
-                <CheckBox x:Name="ApplyAverageLengths" Content="Apply Average Lengths to Points" IsChecked="True" Margin="0,0,20,0">
+
+                <CheckBox x:Name="ApplyAverageLengths" Grid.Column="1" Grid.Row="1" Content="Apply Average Lengths to Points" IsChecked="True" Margin="0,0,10,0">
                     <ToolTipService.ToolTip>
                         <ToolTip Content="Apply the average measurement length for any given species to Single Point and 3D Point of the sames species.  All the surveys in this particular export will be used to create an average length per species from all the measurements. This can then be applied to all the Single Point and 3D Point values."/>
                     </ToolTipService.ToolTip>
                 </CheckBox>
-                <Button x:Name="ExportButton" Content="Export" Click="Export_Click" Margin="0,0,10,0">
-                    <ToolTipService.ToolTip>
-                        <ToolTip Content="Save the contains for the selected survey files in a sheet called 'Data' and the table above into a sheet called 'Metadata'"/>
-                    </ToolTipService.ToolTip>
-                </Button>
-                <Button Content="Cancel" Click="Cancel_Click"/>
-            </StackPanel>
+
+                <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                    <Button x:Name="ExportButton" Content="Export" VerticalAlignment="Bottom" Click="Export_Click" Margin="0,0,10,0">
+                        <ToolTipService.ToolTip>
+                            <ToolTip Content="Save the contains for the selected survey files in a sheet called 'Data' and the table above into a sheet called 'Metadata'"/>
+                        </ToolTipService.ToolTip>
+                    </Button>
+                    <Button Content="Cancel" VerticalAlignment="Bottom"  Click="Cancel_Click"/>
+                </StackPanel>
+            </Grid>
+
         </Grid>
     </Grid>
 </ex:WindowEx>

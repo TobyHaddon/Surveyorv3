@@ -18,6 +18,7 @@ using Surveyor.Events;
 using Surveyor.Helper;
 using Surveyor.User_Controls;
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Threading.Tasks;
@@ -1678,95 +1679,78 @@ namespace Surveyor
                 {
                     // Either:
                     // We have just selected a target A on the left camera and there is no selected Target A on the right side
+                    // or
                     // We have just selected a target B on the left camera and there is no selected Target B on the right side
-                    if ((TruePointAFalsePointB == true && TargetARight is null) || (TruePointAFalsePointB == false && TargetBRight is null))
+                    if ((TruePointAFalsePointB == true && TargetALeft is not null && TargetARight is null) ||
+                        (TruePointAFalsePointB == false && TargetBLeft is not null && TargetBRight is null))
+                    {
                         needEpipolarLine = true;
+                    }
+                    // or the point is being removed
+                    else if ((TruePointAFalsePointB == true && TargetALeft is null) ||
+                             (TruePointAFalsePointB == false && TargetBLeft is null))
+                    {
+                        clearEpipolarLine = true;
+                    }
+
                 }
                 else if (cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
                 {
                     // Either:
                     // We have just selected a target A on the right camera and there is no selected Target A on the left side
+                    // or
                     // We have just selected a target B on the right camera and there is no selected Target B on the left side
-                    if ((TruePointAFalsePointB == true && TargetALeft is null) || (TruePointAFalsePointB == false && TargetBLeft is null))
+                    if ((TruePointAFalsePointB == true && TargetARight is not null && TargetALeft is null) ||
+                        (TruePointAFalsePointB == false && TargetBRight is not null && TargetBLeft is null))
+                    {
                         needEpipolarLine = true;
+                    }
+                    // or the point is being removed
+                    else if ((TruePointAFalsePointB == true && TargetARight is null) ||
+                             (TruePointAFalsePointB == false && TargetBRight is null))
+                    {
+                        clearEpipolarLine = true;
+                    }
                 }
 
                 if (point is not null && needEpipolarLine)
                 {
-                    if (experimentalFeatureSetAEnabled is null || !(bool)experimentalFeatureSetAEnabled)
+                    // *** Epipolar Line Calculation ***
+                    if (stereoProjection.CalculateEpipolarLine((bool)TrueLeftFalseRight, (Point)point,
+                                out double epiLine_a, out double epiLine_b, out double epiLine_c))
                     {
+                        Debug.WriteLine($"{cameraSideAlt} Epipolar for Point({point.Value.X:F2}, {point.Value.Y:F2})  ax+by+c=0: {epiLine_a:F5}x + {epiLine_b:F5}y + {epiLine_c:F5} = 0");
+                        Debug.WriteLine($"{cameraSideAlt} Epipolar left border intersect (0, {-epiLine_c / epiLine_b})");
 
-                        // *** Epipolar Line Calculation - Approach 1 ***
-                        // Display Epipolar line
-                        if (stereoProjection.CalculateEpipolarLine((bool)TrueLeftFalseRight, (Point)point,
-                                    out double epiLine_a, out double epiLine_b, out double epiLine_c, out double _focalLength, out double _baseline,
-                                    out double _principalXLeft, out double _principalYLeft, out double _principalXRight, out double _principalYRight))
+                        // Signal to the MagnifyAndMarkerControl to display the epipolar line
+                        //???TO BE DELETED Epipolar line is obsolete
+                        //MagnifyAndMarkerControlData data = new(MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarLine, cameraSideAlt)
+                        //{
+                        //    TrueEpipolarLinePointAFalseEpipolarLinePointB = (bool)TruePointAFalsePointB,
+                        //    epipolarLine_a = (double)epiLine_a,
+                        //    epipolarLine_b = (double)epiLine_b,
+                        //    epipolarLine_c = (double)epiLine_c,
+                        //    channelWidth = 0
+                        //};
+                        //mediaControllerHandler?.Send(data);
+
+                        // Calulcate the points for an epipolar curve
+                        if (stereoProjection.CalculateEpipolarCurveDistortedPoints(
+                                    (bool)TrueLeftFalseRight,
+                                    (double)epiLine_a, (double)epiLine_b, (double)epiLine_c,
+                                    out List<Point>? epipolarCurvePoints))
                         {
-                            Debug.WriteLine($"{cameraSideAlt} Epipolar for Point({point.Value.X:F2}, {point.Value.Y:F2})  ax+by+c=0: {epiLine_a:F5}x + {epiLine_b:F5}y + {epiLine_c:F5} = 0");
-                            Debug.WriteLine($"{cameraSideAlt} Epipolar left border intersect (0, {-epiLine_c / epiLine_b})");
+                            Debug.WriteLine($"{cameraSideAlt} {epipolarCurvePoints!.Count} epipolar Curve points");
 
-                            // Signal to the MagnifyAndMarkerControl to display the epipolar line
-                            MagnifyAndMarkerControlData data = new(MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarLine, cameraSideAlt)
+                            // Signal to the MagnifyAndMarkerControl to display the epipolar curve
+                            MagnifyAndMarkerControlData data = new(MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarCurve, cameraSideAlt)
                             {
                                 TrueEpipolarLinePointAFalseEpipolarLinePointB = (bool)TruePointAFalsePointB,
-                                epipolarLine_a = (double)epiLine_a,
-                                epipolarLine_b = (double)epiLine_b,
-                                epipolarLine_c = (double)epiLine_c,
-                                focalLength = _focalLength,
-                                baseline = _baseline,
-                                principalXLeft = _principalXLeft,
-                                principalYLeft = _principalYLeft,
-                                principalXRight = _principalXRight,
-                                principalYRight = _principalYRight,
+                                epipolarCurvePoints = epipolarCurvePoints,
                                 channelWidth = 0
                             };
                             mediaControllerHandler?.Send(data);
                         }
-                        //// *** Epipolar Line Calculation - Approach 2 ***
-                        //// Calculate the near, far and middle points on the epipolar line from the SurveyRules
-                        //// if not SurveyRules for range in place then use 1m,10m and 5.5m
-                        //if(stereoProjection.CalculateEpipolarPoints((bool)TrueLeftFalseRight, (Point)point, out Point _pointNear, out Point _pointMiddle, out Point _pointFar))
-                        //{
-                        //    Debug.WriteLine($"{cameraSideAlt} Epipolar Points for Point({point.Value.X:F2}, {point.Value.Y:F2})  {cameraSide} Near({_pointNear.X:F2}, {_pointNear.Y:F2}), Middle({_pointMiddle.X:F2}, {_pointMiddle.Y:F2}), Far({_pointFar.X:F2}, {_pointFar.Y:F2})");
-                        //    // Signal to the MagnifyAndMarkerControl to display the epipolar points
-                        //    MagnifyAndMarkerControlData data = new(MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarPoints, cameraSideAlt)
-                        //    {
-                        //        TrueEpipolarLinePointAFalseEpipolarLinePointB = (bool)TruePointAFalsePointB,
-                        //        pointNear = _pointNear,
-                        //        pointMiddle = _pointMiddle,
-                        //        pointFar = _pointFar,
-                        //        channelWidth = 0
-                        //    };
-                        //    mediaControllerHandler?.Send(data);
-                        //}
-                    }
-                    else
-                    {
-                        // Epipolar Curve
-                        //if (stereoProjection.CalculateEpipolarCurve((bool)TrueLeftFalseRight, (Point)point,
-                        //            out double epiLine_a, out double epiLine_b, out double epiLine_c, out double _focalLength, out double _baseline,
-                        //            out double _principalXLeft, out double _principalYLeft, out double _principalXRight, out double _principalYRight))
-                        //{
-                        //    Debug.WriteLine($"{cameraSideAlt} Epipolar for Point({point.Value.X:F2}, {point.Value.Y:F2})  ax+by+c=0: {epiLine_a:F5}x + {epiLine_b:F5}y + {epiLine_c:F5} = 0");
-                        //    Debug.WriteLine($"{cameraSideAlt} Epipolar left border intersect (0, {-epiLine_c / epiLine_b})");
-
-                        //    // Signal to the MagnifyAndMarkerControl to display the epipolar line
-                        //    MagnifyAndMarkerControlData data = new(MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarCurve, cameraSideAlt)
-                        //    {
-                        //        TrueEpipolarLinePointAFalseEpipolarLinePointB = (bool)TruePointAFalsePointB,
-                        //        epipolarLine_a = (double)epiLine_a,
-                        //        epipolarLine_b = (double)epiLine_b,
-                        //        epipolarLine_c = (double)epiLine_c,
-                        //        focalLength = _focalLength,
-                        //        baseline = _baseline,
-                        //        principalXLeft = _principalXLeft,
-                        //        principalYLeft = _principalYLeft,
-                        //        principalXRight = _principalXRight,
-                        //        principalYRight = _principalYRight,
-                        //        channelWidth = 0
-                        //    };
-                        //    mediaControllerHandler?.Send(data);
-                        //}
                     }
                 }
                 else
@@ -1779,23 +1763,15 @@ namespace Surveyor
 
                 if (clearEpipolarLine)
                 {
-                    // Remove Epipolar line from the other camera                       
-                    MagnifyAndMarkerControlData data = new(MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarLine, cameraSideAlt)
+                    // Remove Epipolar Curve from the other camera                       
+                    MagnifyAndMarkerControlData data = new(MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarCurve, cameraSideAlt)
                     {
                         TrueEpipolarLinePointAFalseEpipolarLinePointB = (bool)TruePointAFalsePointB,
                         channelWidth = -1 /* Clear the epipolar line */
                     };
                     mediaControllerHandler?.Send(data);
 
-                    // Signal to the MagnifyAndMarkerControl to display the epipolar points
-                    //MagnifyAndMarkerControlData data2 = new(MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarPoints, cameraSideAlt)
-                    //{
-                    //    TrueEpipolarLinePointAFalseEpipolarLinePointB = (bool)TruePointAFalsePointB,
-                    //    channelWidth = -1 /* Clear the epipolar points */
-                    //};
-                    //mediaControllerHandler?.Send(data2);
                 }
-
             }
         }
 
@@ -1846,13 +1822,14 @@ namespace Surveyor
                             measurement = surveyMeasurement.Measurement,
                             rmsCombined = surveyMeasurement.SurveyRulesCalc?.RMSWorst,
                             range = surveyMeasurement.SurveyRulesCalc?.Range,
-                            //???rangeRulePassed = surveyMeasurement.SurveyRulesCalc?.,
+                            rangeRulePassed = surveyMeasurement.SurveyRulesCalc?.SurveyRuleRange,
                             xOffset = surveyMeasurement.SurveyRulesCalc?.XOffset,
-                            //???horizontalRulePassed = surveyMeasurement.SurveyRulesCalc?.,
+                            horizontalRulePassed = surveyMeasurement.SurveyRulesCalc?.SurveyRuleHoriz,
                             yOffset = surveyMeasurement.SurveyRulesCalc?.YOffset,
-                            //???verticalRulePassed = surveyMeasurement.SurveyRulesCalc?.
+                            verticalRulePassed = surveyMeasurement.SurveyRulesCalc?.SurveyRuleVert,
                             rmsTargetA = surveyMeasurement.SurveyRulesCalc?.RMSTargetA,
-                            rmsTargetB = surveyMeasurement.SurveyRulesCalc?.RMSTargetB
+                            rmsTargetB = surveyMeasurement.SurveyRulesCalc?.RMSTargetB,
+                            rmsRulePassed = surveyMeasurement.SurveyRulesCalc?.SurveyRuleRMS
                         });
                     }
                 }
@@ -2420,6 +2397,7 @@ namespace Surveyor
         public double? rmsCombined;
         public double? rmsTargetA;
         public double? rmsTargetB;
+        public bool? rmsRulePassed;
         public double? range;
         public bool? rangeRulePassed;
         public double? xOffset;

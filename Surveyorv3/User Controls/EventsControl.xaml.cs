@@ -92,13 +92,21 @@ namespace Surveyor.User_Controls
             ListViewEvent.SelectedItem = evt;
             ListViewEvent.ScrollIntoView(evt);
 
-            // If the event type could contain SpeciesInfo then set the info bar
+            // If the event type could contain SpeciesInfo then check for the info bar
             // to show missing species info if necessary
             if (evt.EventData is SurveyMeasurement ||
                 evt.EventData is SurveyStereoPoint ||
                 evt.EventData is SurveyPoint )
             {
                 mainWindow?.SetInfoBarSpeciesInfoMissing();
+            }
+
+            // If the event type could contain RMS Calc then check for the info bar
+            // to show any RMS rule violoations if necessary
+            if (evt.EventData is SurveyMeasurement ||
+                evt.EventData is SurveyStereoPoint)
+            {
+                mainWindow?.SetInfoBarRMSRuleViolation();
             }
         }
 
@@ -118,6 +126,14 @@ namespace Surveyor.User_Controls
                 evt.EventData is SurveyPoint)
             {
                 mainWindow?.SetInfoBarSpeciesInfoMissing();
+            }
+
+            // If the event type could contain RMS Calc then check for the info bar
+            // to show any RMS rule violoations if necessary
+            if (evt.EventData is SurveyMeasurement ||
+                evt.EventData is SurveyStereoPoint)
+            {
+                mainWindow?.SetInfoBarRMSRuleViolation();
             }
         }
 

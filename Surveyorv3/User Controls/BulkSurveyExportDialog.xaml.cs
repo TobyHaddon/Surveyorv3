@@ -1,7 +1,5 @@
 ﻿using CommunityToolkit.WinUI.UI.Controls;
 using GoProMP4MetadataExtraction;
-using MathNet.Numerics;
-using MathNet.Numerics.LinearAlgebra.Factorization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
@@ -644,11 +642,19 @@ namespace Surveyor.User_Controls
             {
                 SetValidationText(false/*invalid*/, RulesMismatchPanel, RulesMismatchGlyph, RulesMismatchValidationText, "Not every survey has the same rules settings", "Check the different rules columns to find the survey(s) with differing rules");
             }
+            else
+            {
+                SetValidationText(null/*hide*/, RulesMismatchPanel, RulesMismatchGlyph, RulesMismatchValidationText, "", "");
+            }
 
             // Check for non-matching calibration data
             if (!CheckThatAllCalibrationDataMatch(fileEntries))
             {
                 SetValidationText(false/*invalid*/, CalibrationDataMismatchPanel, CalibrationDataMismatchGlyph, CalibrationDataMismatchValidationText, "Not every survey is using the same calibration data", "This can happen if the camera rig needed to be recalibrated at some stage.");
+            }
+            else
+            {
+                SetValidationText(null/*hide*/, CalibrationDataMismatchPanel, CalibrationDataMismatchGlyph, CalibrationDataMismatchValidationText, "", "");
             }
 
             UpdateItemCountText();
@@ -1108,6 +1114,14 @@ namespace Surveyor.User_Controls
             if (ApplyAverageLengths.IsChecked == true)
                 applyAverageLengths = true;
 
+            // Include failed RMS and other rules in the export
+            bool includeFailedRMS = false;
+            bool includeOtherFailedRules = false;
+            if (IncludeFailedRMS.IsChecked == true)
+                includeFailedRMS = true;
+            if (IncludeOtherFailedRules.IsChecked == true)
+                includeOtherFailedRules = true;
+
             // Write headers
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.SurveyName].Value = "Survey Name";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.Depth].Value = "Depth";
@@ -1141,8 +1155,7 @@ namespace Surveyor.User_Controls
             }
             // Freeze panes at D2 (freeze row 1 and columns A-C)
             worksheet.View.FreezePanes(2, 4);
-            worksheet.Cells[worksheet.Dimension.Address].AutoFitColumns();
-
+          
             rowIndex++;
 
 
@@ -1188,32 +1201,7 @@ namespace Surveyor.User_Controls
                                 int fishCount = 0;
                                 bool derivedSpecies = false;
                                 bool derivedLength = false;
-
-                                // Common data
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.SurveyName].Value = survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName;
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Depth].Value = survey.Data.Info.SurveyDepth;
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Analyst].Value = survey.Data.Info.SurveyAnalystName;
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Time].Value = evt.TimeSpanTimelineController;
-
-                                // Hyperlink column
-                                var encodedPath = Uri.EscapeDataString(fileEntry.FilePath);
-                                var secs = evt.TimeSpanTimelineController.TotalSeconds.ToString(CultureInfo.InvariantCulture);
-                                var cellTimeSecs = worksheet.Cells[rowIndex, (int)ExportExcelColmns.TimeSecs];
-                                cellTimeSecs.Value = $"{evt.TimeSpanTimelineController.TotalSeconds:F2}";
-                                cellTimeSecs.Hyperlink = new ExcelHyperLink($"underwatersurveyor://open?file={encodedPath}&start={secs}");
-                                // Apply the built-in Hyperlink style so it looks like Excel's default (blue underline)
-                                cellTimeSecs.StyleName = "Hyperlink";
-
-                                // Frame time
-                                var timeValue = evt.TimeSpanTimelineController;
-                                var cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.Time];
-                                cell.Value = timeValue;
-                                cell.Style.Numberformat.Format = "hh:mm:ss";
-
-
-                                // Calculated transect
-                                //??? CALC'D ABOVE string transectNumber = EventsControl.GetTransectMarkerNameForEvent(survey.Data.Events.EventList, evt) ?? string.Empty;
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Transect].Value = transectNumber;
+                                bool includeRowinExport = true;
 
 
                                 // Get the speciesInfo, surveyRulesCalc & measurement depending on the event type 
@@ -1260,211 +1248,259 @@ namespace Surveyor.User_Controls
                                         break;
                                 }
 
-                                // Extract the species scientific name and common name
-                                // Also make the genus+species combined name
-                                string speciesScientificName = string.Empty;
-                                string speciesCommonName = string.Empty;
-                                string genusSpeciesScientific = string.Empty;
-                                string speciesCode = string.Empty;
-                                if (speciesInfo is not null)
+                                // Do we want to include failed RMS measurements and 3D Points in the export?
+                                if (!includeFailedRMS && surveyRulesCalc is not null)
                                 {
-                                    if (!string.IsNullOrWhiteSpace(speciesInfo.Species))
-                                    {
-                                        int slash = speciesInfo.Species.IndexOf('/');
-                                        // If there is a slash and it isn't right at the end
-                                        if (slash > 0 && slash < speciesInfo.Species.Length - 1)
-                                        {
-                                            speciesScientificName = speciesInfo.Species[..slash].Trim();
-                                            speciesCommonName = speciesInfo.Species[(slash + 1)..].Trim();
-                                        }
-                                        // Slash must be at the end
-                                        else if (slash > 0)
-                                        {
-                                            // Get all but the last character
-                                            speciesScientificName = speciesInfo.Species[..^1].Trim();
-                                        }
-                                        else
-                                            speciesScientificName = speciesInfo.Species.Trim();
-
-                                        // Name the Genus+Species scentific full name
-                                        if (!string.IsNullOrEmpty(speciesInfo.Genus))
-                                            genusSpeciesScientific = $"{speciesInfo.Genus} {speciesScientificName}";
-                                        else
-                                            genusSpeciesScientific = speciesScientificName;
-                                    }
-                                    else if (!string.IsNullOrWhiteSpace(speciesInfo.Genus))
-                                    {
-                                        genusSpeciesScientific = speciesInfo.Genus.Trim();
-                                    }
-
-                                    speciesCode = speciesInfo.Code ?? "";
+                                    if (surveyRulesCalc.SurveyRuleRMS.HasValue && surveyRulesCalc.SurveyRuleRMS == false)
+                                        includeRowinExport = false;
                                 }
 
-                                // Extract the family scientific name and common name
-                                string familyScientificName = string.Empty;
-                                string familyCommonName = string.Empty;
-                                if (speciesInfo is not null)
+                                // Do we want to include other failed rules measurements and 3D Points in the export?
+                                if (!includeOtherFailedRules && surveyRulesCalc is not null)
                                 {
-                                    if (!string.IsNullOrWhiteSpace(speciesInfo.Family))
+                                    if ((surveyRulesCalc.SurveyRuleRange.HasValue && surveyRulesCalc.SurveyRuleRange == false) ||
+                                        (surveyRulesCalc.SurveyRuleHoriz.HasValue && surveyRulesCalc.SurveyRuleHoriz == false) ||
+                                        (surveyRulesCalc.SurveyRuleVert.HasValue && surveyRulesCalc.SurveyRuleVert == false))
                                     {
-                                        int slash = speciesInfo.Family.IndexOf('/');
-                                        // If there is a slash and it isn't right at the end
-                                        if (slash > 0 && slash < speciesInfo.Family.Length - 1)
-                                        {
-                                            familyScientificName = speciesInfo.Family[..slash].Trim();
-                                            familyCommonName = speciesInfo.Family[(slash + 1)..].Trim();
-                                        }
-                                        // Slash must be at the end
-                                        else if (slash > 0)
-                                        {
-                                            // Get all but the last character
-                                            familyScientificName = speciesInfo.Family[..^1].Trim();
-                                        }
-                                        else
-                                            familyScientificName = speciesInfo.Family.Trim();
+                                        includeRowinExport = false;
                                     }
                                 }
 
-                                // If the species is missing and we have a genus and the user request
-                                // we dervice missing species and try to derive the species
-                                if (deriveMissingSpecies &&
-                                    speciesInfo is not null &&
-                                    string.IsNullOrEmpty(speciesScientificName) &&
-                                    !string.IsNullOrEmpty(speciesInfo.Genus))
+                                if (includeRowinExport)
                                 {
-                                    string surveyNameForSite = survey.Data.Info.SurveyFileName ?? string.Empty;
-                                    string? depthForScope = survey.Data.Info.SurveyDepth;
-                                    var derived = allEvents.DeriveSpeciesScientific(surveyNameForSite, depthForScope, transectNumber, speciesInfo.Genus!);
-                                    if (!string.IsNullOrEmpty(derived))
-                                    {
-                                        // We now know the species scientific name so store that and
-                                        // make the scientific  genus/species name
-                                        speciesScientificName = derived!;
-                                        genusSpeciesScientific = $"{speciesInfo.Genus} {speciesScientificName}";
-                                        derivedSpecies = true;
 
-                                        // Lookup the species in the species code list to complete
-                                        // the comment names and the species code
-                                        string speciesSearchName = string.Empty; // This is the species name return according to the settings i.e. scientific/common or scientific 
-                                        if (speciesCodeList.SearchSpecies(derived, "", ""))
+                                    // Common data
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.SurveyName].Value = survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Depth].Value = survey.Data.Info.SurveyDepth;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Analyst].Value = survey.Data.Info.SurveyAnalystName;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Time].Value = evt.TimeSpanTimelineController;
+
+                                    // Hyperlink column
+                                    var encodedPath = Uri.EscapeDataString(fileEntry.FilePath);
+                                    var secs = evt.TimeSpanTimelineController.TotalSeconds.ToString(CultureInfo.InvariantCulture);
+                                    var cellTimeSecs = worksheet.Cells[rowIndex, (int)ExportExcelColmns.TimeSecs];
+                                    cellTimeSecs.Value = $"{evt.TimeSpanTimelineController.TotalSeconds:F2}";
+                                    cellTimeSecs.Hyperlink = new ExcelHyperLink($"underwatersurveyor://open?file={encodedPath}&start={secs}");
+                                    // Apply the built-in Hyperlink style so it looks like Excel's default (blue underline)
+                                    cellTimeSecs.StyleName = "Hyperlink";
+
+                                    // Frame time
+                                    var timeValue = evt.TimeSpanTimelineController;
+                                    var cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.Time];
+                                    cell.Value = timeValue;
+                                    cell.Style.Numberformat.Format = "hh:mm:ss";
+
+
+                                    // Calculated transect
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Transect].Value = transectNumber;
+
+
+                                    // Extract the species scientific name and common name
+                                    // Also make the genus+species combined name
+                                    string speciesScientificName = string.Empty;
+                                    string speciesCommonName = string.Empty;
+                                    string genusSpeciesScientific = string.Empty;
+                                    string speciesCode = string.Empty;
+                                    if (speciesInfo is not null)
+                                    {
+                                        if (!string.IsNullOrWhiteSpace(speciesInfo.Species))
                                         {
-                                            if (speciesCodeList.SpeciesComboItems.Count == 1)
+                                            int slash = speciesInfo.Species.IndexOf('/');
+                                            // If there is a slash and it isn't right at the end
+                                            if (slash > 0 && slash < speciesInfo.Species.Length - 1)
                                             {
-                                                SpeciesItem speciesItem = speciesCodeList.SpeciesComboItems[0];
-                                                familyScientificName = speciesItem.FamilyScientific;
-                                                familyCommonName = speciesItem.FamilyCommon;
-                                                speciesSearchName = speciesItem.Species;
-                                                speciesCommonName = speciesItem.SpeciesCommon;
-                                                speciesCode = speciesItem.Code;
+                                                speciesScientificName = speciesInfo.Species[..slash].Trim();
+                                                speciesCommonName = speciesInfo.Species[(slash + 1)..].Trim();
+                                            }
+                                            // Slash must be at the end
+                                            else if (slash > 0)
+                                            {
+                                                // Get all but the last character
+                                                speciesScientificName = speciesInfo.Species[..^1].Trim();
+                                            }
+                                            else
+                                                speciesScientificName = speciesInfo.Species.Trim();
 
+                                            // Name the Genus+Species scentific full name
+                                            if (!string.IsNullOrEmpty(speciesInfo.Genus))
+                                                genusSpeciesScientific = $"{speciesInfo.Genus} {speciesScientificName}";
+                                            else
+                                                genusSpeciesScientific = speciesScientificName;
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(speciesInfo.Genus))
+                                        {
+                                            genusSpeciesScientific = speciesInfo.Genus.Trim();
+                                        }
+
+                                        speciesCode = speciesInfo.Code ?? "";
+                                    }
+
+                                    // Extract the family scientific name and common name
+                                    string familyScientificName = string.Empty;
+                                    string familyCommonName = string.Empty;
+                                    if (speciesInfo is not null)
+                                    {
+                                        if (!string.IsNullOrWhiteSpace(speciesInfo.Family))
+                                        {
+                                            int slash = speciesInfo.Family.IndexOf('/');
+                                            // If there is a slash and it isn't right at the end
+                                            if (slash > 0 && slash < speciesInfo.Family.Length - 1)
+                                            {
+                                                familyScientificName = speciesInfo.Family[..slash].Trim();
+                                                familyCommonName = speciesInfo.Family[(slash + 1)..].Trim();
+                                            }
+                                            // Slash must be at the end
+                                            else if (slash > 0)
+                                            {
+                                                // Get all but the last character
+                                                familyScientificName = speciesInfo.Family[..^1].Trim();
+                                            }
+                                            else
+                                                familyScientificName = speciesInfo.Family.Trim();
+                                        }
+                                    }
+
+                                    // If the species is missing and we have a genus and the user request
+                                    // we dervice missing species and try to derive the species
+                                    if (deriveMissingSpecies &&
+                                        speciesInfo is not null &&
+                                        string.IsNullOrEmpty(speciesScientificName) &&
+                                        !string.IsNullOrEmpty(speciesInfo.Genus))
+                                    {
+                                        string surveyNameForSite = survey.Data.Info.SurveyFileName ?? string.Empty;
+                                        string? depthForScope = survey.Data.Info.SurveyDepth;
+                                        var derived = allEvents.DeriveSpeciesScientific(surveyNameForSite, depthForScope, transectNumber, speciesInfo.Genus!);
+                                        if (!string.IsNullOrEmpty(derived))
+                                        {
+                                            // We now know the species scientific name so store that and
+                                            // make the scientific  genus/species name
+                                            speciesScientificName = derived!;
+                                            genusSpeciesScientific = $"{speciesInfo.Genus} {speciesScientificName}";
+                                            derivedSpecies = true;
+
+                                            // Lookup the species in the species code list to complete
+                                            // the comment names and the species code
+                                            string speciesSearchName = string.Empty; // This is the species name return according to the settings i.e. scientific/common or scientific 
+                                            if (speciesCodeList.SearchSpecies(derived, "", ""))
+                                            {
+                                                if (speciesCodeList.SpeciesComboItems.Count == 1)
+                                                {
+                                                    SpeciesItem speciesItem = speciesCodeList.SpeciesComboItems[0];
+                                                    familyScientificName = speciesItem.FamilyScientific;
+                                                    familyCommonName = speciesItem.FamilyCommon;
+                                                    speciesSearchName = speciesItem.Species;
+                                                    speciesCommonName = speciesItem.SpeciesCommon;
+                                                    speciesCode = speciesItem.Code;
+
+                                                }
+                                            }
+
+
+
+                                            // Apply average measurement if requested
+                                            if (applyAverageLengths && !string.IsNullOrWhiteSpace(speciesInfo.Genus) && !string.IsNullOrWhiteSpace(speciesSearchName))
+                                            {
+                                                measurement = allMeasurements.GetAverageLength(speciesInfo.Genus!, speciesSearchName);
+                                                derivedLength = true;
                                             }
                                         }
-
-
-
-                                        // Apply average measurement if requested
-                                        if (applyAverageLengths && !string.IsNullOrWhiteSpace(speciesInfo.Genus) && !string.IsNullOrWhiteSpace(speciesSearchName))
-                                        {
-                                            measurement = allMeasurements.GetAverageLength(speciesInfo.Genus!, speciesSearchName);
-                                            derivedLength = true;
-                                        }
                                     }
-                                }
 
-                                // Load the fish count                               
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.FishCount].Value = fishCount;
+                                    // Load the fish count                               
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.FishCount].Value = fishCount;
 
-                                // Load measurement
-                                if (measurement is not null)
-                                {
-                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementm];
-                                    cell.Value = measurement;
+                                    // Load measurement
+                                    if (measurement is not null)
+                                    {
+                                        cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementm];
+                                        cell.Value = measurement;
+                                        cell.Style.Numberformat.Format = "0.000";
+
+                                        cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementmm];
+                                        cell.Value = measurement * 1000;
+                                        cell.Style.Numberformat.Format = "0";
+                                    }
+                                    else
+                                    {
+                                        worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementm].Value = "";
+                                        worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementmm].Value = "";
+                                    }
+
+                                    // Range value (mark in red text if rule not passed)
+                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.Range];
+                                    cell.Value = surveyRulesCalc?.Range ?? 0;
                                     cell.Style.Numberformat.Format = "0.000";
-                                    
-                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementmm];
-                                    cell.Value = measurement * 1000;
-                                    cell.Style.Numberformat.Format = "0";
+                                    if (surveyRulesCalc?.SurveyRuleRange == false)
+                                        cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
+
+                                    // Range Horizontal and vertical offsets and RMS
+                                    // Horizontal value (mark in red text if rule not passed)
+                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.HorizontalOffset];
+                                    cell.Value = surveyRulesCalc?.XOffset ?? 0;
+                                    cell.Style.Numberformat.Format = "0.000";
+                                    if (surveyRulesCalc?.SurveyRuleHoriz == false)
+                                        cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
+
+                                    // Vertical value (mark in red text if rule not passed)
+                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.VerticalOffset];
+                                    cell.Value = surveyRulesCalc?.YOffset ?? 0;
+                                    cell.Style.Numberformat.Format = "0.000";
+                                    if (surveyRulesCalc?.SurveyRuleVert == false)
+                                        cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
+
+                                    // RMS values (mark RMSWorst in red text if rule not passed)
+                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.RMS];
+                                    cell.Value = surveyRulesCalc?.RMSMean ?? 0;
+                                    cell.Style.Numberformat.Format = "0.000";
+
+                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.RMSWorst];
+                                    cell.Value = surveyRulesCalc?.RMSWorst ?? 0;
+                                    cell.Style.Numberformat.Format = "0.000";
+                                    if (surveyRulesCalc?.SurveyRuleRMS == false)
+                                        cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
+
+                                    // Rules passed summary
+                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.RulesPassed];
+                                    cell.Value = surveyRulesCalc?.SurveyRules;
+                                    if (surveyRulesCalc?.SurveyRules == false)
+                                        cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
+
+                                    // Species, Genus, Family, Code
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesScientific].Value = speciesScientificName;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesCommon].Value = speciesCommonName;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Genus].Value = speciesInfo?.Genus ?? "";
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.GenusSpeciesScientific].Value = genusSpeciesScientific;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.FamilyScientific].Value = familyScientificName;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.FamilyCommon].Value = familyCommonName;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesCode].Value = speciesCode;
+
+                                    // Comment (if any)
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Comment].Value = speciesInfo?.Comment ?? "";
+
+                                    // Check if a species code was actually used or was it plan text or the species code is blank
+                                    bool validSpeciesCode = true;
+                                    if (speciesInfo is null ||
+                                        string.IsNullOrEmpty(speciesInfo.Code) ||
+                                        speciesInfo.Species is null ||
+                                        speciesInfo.Species.IndexOf('/') == -1)
+                                    {
+                                        validSpeciesCode = false;
+                                    }
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.NoSpeciesCode].Value = !validSpeciesCode ? true : "";
+
+                                    // Derived Species and Derived Length flags
+                                    if (applyAverageLengths || deriveMissingSpecies)
+                                    {
+                                        worksheet.Cells[rowIndex, (int)ExportExcelColmns.DerivedSpecies].Value = derivedSpecies ? true : null;
+                                        worksheet.Cells[rowIndex, (int)ExportExcelColmns.DerivedLength].Value = derivedLength ? true : null;
+                                    }
+
+                                    // Debug
+                                    Debug.WriteLine($"Export:{rowIndex},{survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName},{survey.Data.Info.SurveyDepth},{survey.Data.Info.SurveyAnalystName},{evt.TimeSpanTimelineController}");
+
+                                    rowIndex++;
+                                    exportLineCount++;
                                 }
-                                else
-                                {
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementm].Value = "";
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementmm].Value = "";
-                                }
-
-                                // Range value (mark in red text if rule not passed)
-                                cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.Range];
-                                cell.Value = surveyRulesCalc?.Range ?? 0;
-                                cell.Style.Numberformat.Format = "0.000";
-                                if (surveyRulesCalc?.SurveyRuleRange == false)
-                                    cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
-
-                                // Range Horizontal and vertical offsets and RMS
-                                // Horizontal value (mark in red text if rule not passed)
-                                cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.HorizontalOffset];
-                                cell.Value = surveyRulesCalc?.XOffset ?? 0;
-                                cell.Style.Numberformat.Format = "0.000";
-                                if (surveyRulesCalc?.SurveyRuleHoriz == false)
-                                    cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
-
-                                // Vertical value (mark in red text if rule not passed)
-                                cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.VerticalOffset];
-                                cell.Value = surveyRulesCalc?.YOffset ?? 0;
-                                cell.Style.Numberformat.Format = "0.000";
-                                if (surveyRulesCalc?.SurveyRuleVert == false)
-                                    cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
-
-                                // RMS values (mark RMSWorst in red text if rule not passed)
-                                cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.RMS];
-                                cell.Value = surveyRulesCalc?.RMSMean ?? 0;
-                                cell.Style.Numberformat.Format = "0.000";
-
-                                cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.RMSWorst];
-                                cell.Value = surveyRulesCalc?.RMSWorst ?? 0;
-                                cell.Style.Numberformat.Format = "0.000";
-                                if (surveyRulesCalc?.SurveyRuleRMS == false)
-                                    cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
-
-                                // Rules passed summary
-                                cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.RulesPassed];
-                                cell.Value = surveyRulesCalc?.SurveyRules;
-                                if (surveyRulesCalc?.SurveyRules == false)
-                                    cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
-
-                                // Species, Genus, Family, Code
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesScientific].Value = speciesScientificName;
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesCommon].Value = speciesCommonName;
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Genus].Value = speciesInfo?.Genus ?? "";
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.GenusSpeciesScientific].Value = genusSpeciesScientific;
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.FamilyScientific].Value = familyScientificName;
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.FamilyCommon].Value = familyCommonName;
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesCode].Value = speciesCode;
-
-                                // Comment (if any)
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.Comment].Value = speciesInfo?.Comment ?? "";
-
-                                // Check if a species code was actually used or was it plan text or the species code is blank
-                                bool validSpeciesCode = true;
-                                if (speciesInfo is null ||
-                                    string.IsNullOrEmpty(speciesInfo.Code) ||
-                                    speciesInfo.Species is null ||
-                                    speciesInfo.Species.IndexOf('/') == -1)
-                                {
-                                    validSpeciesCode = false;
-                                }
-                                worksheet.Cells[rowIndex, (int)ExportExcelColmns.NoSpeciesCode].Value = !validSpeciesCode ? true : "";
-
-                                // Derived Species and Derived Length flags
-                                if (applyAverageLengths || deriveMissingSpecies)
-                                {
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.DerivedSpecies].Value = derivedSpecies ? true : null;
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.DerivedLength].Value = derivedLength ? true : null;
-                                }
-
-                                // Debug
-                                Debug.WriteLine($"Export:{rowIndex},{survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName},{survey.Data.Info.SurveyDepth},{survey.Data.Info.SurveyAnalystName},{evt.TimeSpanTimelineController}");
-
-                                rowIndex++;
-                                exportLineCount++;
                             }
                         }
                         catch (Exception ex) when (ex is ObjectDisposedException)
@@ -1481,6 +1517,18 @@ namespace Surveyor.User_Controls
                     }
                 }
             }
+
+            // Apply an AutoFilter on the header row across the used data range
+            int lastCol = (applyAverageLengths || deriveMissingSpecies)
+                ? (int)ExportExcelColmns.DerivedLength
+                : (int)ExportExcelColmns.Comment;
+            int headerRow = noSaveOptionSelected_ExportMetadataOnly ? 3 : 1; // header shifts down when warning row is present
+            int lastRow = Math.Max(headerRow, rowIndex - 1);
+            worksheet.Cells[headerRow, 1, lastRow, lastCol].AutoFilter = true;
+
+            // Size the excel columns nicely (limit to used range)
+            worksheet.Cells[headerRow, 1, lastRow, lastCol].AutoFitColumns();
+
 
             if (failed)
             {

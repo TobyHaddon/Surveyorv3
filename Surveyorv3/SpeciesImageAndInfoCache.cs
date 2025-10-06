@@ -130,6 +130,10 @@ namespace Surveyor
             public string Environment { get; set; } = "";
             public string Distribution { get; set; } = "";
             public string SpeciesSize { get; set; } = "";
+
+            // In turn extracted from SpeciesSize
+            public  double? MaxLength { get; set; } = null;
+            public string LengthType { get; set; } = "";
         }
 
         public class SpeciesImageItem
@@ -258,13 +262,17 @@ namespace Surveyor
         /// </summary>
         /// <param name="speciesCode"></param>
         /// <returns></returns>
-        public (string, string, string) GetInfo(string speciesCode)
+        public (string environment, string distribution, string speciesSize, double? maxLength, string lengthType) GetInfo(string speciesCode)
         {
             if (speciesStates.TryGetValue(speciesCode, out var speciesCacheState))
             {
-                return (speciesCacheState.Environment, speciesCacheState.Distribution, speciesCacheState.SpeciesSize);
+                return (speciesCacheState.Environment, 
+                        speciesCacheState.Distribution, 
+                        speciesCacheState.SpeciesSize, 
+                        speciesCacheState.MaxLength, 
+                        speciesCacheState.LengthType);
             }
-            return ("","","");
+            return ("","","", null, "");
         }
 
 
@@ -937,6 +945,10 @@ namespace Surveyor
                 state.Distribution = metadata.Distribution ?? "";
                 // SpeciesSize
                 state.SpeciesSize = metadata.SpeciesSize ?? "";
+
+                // Extract species size info for easier used
+                (double? maxLength_cm, state.LengthType) = HtmlFishBaseParser.ParseSpeciesSize(state.SpeciesSize);
+                state.MaxLength = maxLength_cm / 100.0; // to metres
 
                 // Calculate hash
                 state.Hash = await ComputeHashAsync(state);

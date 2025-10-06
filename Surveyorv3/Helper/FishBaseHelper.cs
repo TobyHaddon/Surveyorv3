@@ -1,15 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using HtmlAgilityPack;
+using System;
+using System.IO;
 using System.Linq;
-using System.Text;
+using System.Net;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using System.Xml;
 using Windows.Storage;
-using HtmlAgilityPack;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using System.IO;
-using System.Net;
 
 
 namespace Surveyor.Helper
@@ -287,6 +283,34 @@ namespace Surveyor.Helper
             result.SpeciesSize = CleanSpanInnerText(sizeNode);
 
             return result;
+        }
+
+
+        /// <summary>
+        /// Extract the maximum length and length type from a species size string
+        /// Examples:
+        /// Maturity: Lm range ? - ? cm Max length : 20.0 cm TL male/unsexed;
+        /// Maturity: Lm , range 48 - ? cm Max length : 122 cm FL male/unsexed; ; common length : 94.0 cm FL male/unsexed; ; max. published weight: 36.0 kg ; max. reported age: 23 years
+        /// Maturity: Lm range ? - ? cm Max length : 40.0 cm SL male/unsexed; ; common length : 20.0 cm TL male/unsexed; ; max. published weight: 300.00 g
+        /// Maturity: Lm , range 34 - ? cm Max length : 101 cm FL male/unsexed; ; common length : 60.0 cm TL male/unsexed; ; max. published weight: 13.4 kg
+        /// </summary>
+        /// <param name="speciesSize"></param>
+        /// <returns></returns>
+        public static (double? maxLength, string lengthType) ParseSpeciesSize(string speciesSize)
+        {
+            if (string.IsNullOrWhiteSpace(speciesSize))
+                return (null, "");
+            // Regex to match patterns like "12.5 cm SL", "20 cm TL", "15.0 cm FL", etc.
+            var match = Regex.Match(speciesSize, @"(\d+(\.\d+)?)\s*cm\s*(SL|TL|FL)?", RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                if (double.TryParse(match.Groups[1].Value, out double maxLength))
+                {
+                    string lengthType = match.Groups[3].Success ? match.Groups[3].Value.ToUpper() : "";
+                    return (maxLength, lengthType);
+                }
+            }
+            return (null, "");
         }
     }
 }

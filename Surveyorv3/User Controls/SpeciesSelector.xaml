@@ -77,7 +77,27 @@
                 </ToolTip>
             </ToolTipService.ToolTip>
         </InfoBar>
-        
+
+        <!-- Max Length exceeded info bar -->
+        <InfoBar x:Name="MaxLengthInfoBar"
+                 Grid.Row="0" Grid.ColumnSpan="2"
+                 IsOpen="False"
+                 IsClosable="True"
+                 Severity="Error"
+                 Title="Max Length Exceeded"                 
+                 Margin="0,0,0,8">
+            <ToolTipService.ToolTip>
+                <ToolTip MaxWidth="520">
+                    <StackPanel>
+                        <TextBlock Text="Max Length" TextWrapping="Wrap" />
+                        <TextBlock Text="If the maximum is TL this means 'Total Length' this is Snout tip to end of longest tail fin" TextWrapping="Wrap" />
+                        <TextBlock Text="If the maximum is SL this means 'Standard Length' this is snout tip to base of tail" TextWrapping="Wrap" />
+                        <TextBlock Text="If the maximum is FL this means 'Fork Length' this is Snout tip to middle of tail fork" TextWrapping="Wrap" />
+                    </StackPanel>
+                </ToolTip>
+            </ToolTipService.ToolTip>
+        </InfoBar>
+
         <!-- Range rule info bar -->
         <InfoBar x:Name="RangeRuleInfoBar"
                  Grid.Row="0" Grid.ColumnSpan="2"

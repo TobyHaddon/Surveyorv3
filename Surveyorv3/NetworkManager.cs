@@ -39,7 +39,7 @@ namespace Surveyor
             _httpClient = new HttpClient();
             _registeredActions = new ConcurrentDictionary<Priority, ConcurrentBag<RegisteredAction>>();
             foreach (Priority p in Enum.GetValues(typeof(Priority)))
-                _registeredActions[p] = new ConcurrentBag<RegisteredAction>();
+                _registeredActions[p] = [];
 
             _timer = new System.Timers.Timer(10_000); // 10 seconds
             _timer.Elapsed +=  (s, e) => CheckConnection();

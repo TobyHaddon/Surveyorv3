@@ -66,10 +66,10 @@
             <!--Survey code-->
             <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,8,0,0">
                 <TextBox x:Name="SurveyCode" Width="480" 
-                         PlaceholderText="[ReefCode]-[Depth]m-[TransetNo]-[YYYY-MM-DD]" 
+                         PlaceholderText="[ReefCode]-[Depth]m-[TransectNumber]-[YYYY-MM-DD]" 
                          HorizontalAlignment="Left" 
                          TextChanged="SurveyCode_TextChanged" 
-                         ToolTipService.ToolTip="[ReefCode]-[Depth]m-[TransetNo]-[YYYY-MM-DD]"/>
+                         ToolTipService.ToolTip="[ReefCode]-[Depth]m-[TransectNumber]-[YYYY-MM-DD]"/>
                 <FontIcon x:Name="SurveyCodeValidationGlyph" FontSize="16" VerticalAlignment="Center" Margin="8,0,0,0"/>
                 <TextBlock x:Name="SurveyCodeValidationText"  VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>

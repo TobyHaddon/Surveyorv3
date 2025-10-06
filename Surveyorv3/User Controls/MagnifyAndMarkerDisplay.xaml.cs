@@ -45,7 +45,6 @@
 // Move the MagnifyAndMarkerDisplay to be a child of the MediaPlayer control
 
 
-using MathNet.Numerics.Distributions;
 using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
@@ -53,7 +52,6 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Shapes;
 using Surveyor.DesktopWap.Helper;
@@ -64,7 +62,6 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Diagnostics;
-using System.Drawing.Text;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading;
@@ -72,9 +69,9 @@ using System.Threading.Tasks;
 using Windows.Foundation;               // Point class
 using Windows.Graphics.Imaging;         // BitmapTransform
 using Windows.Storage.Streams;
+using static QRCoder.PayloadGenerator;
 using static Surveyor.User_Controls.MediaPlayerEventData;
 using static Surveyor.User_Controls.SettingsWindowEventData;
-using static Surveyor.User_Controls.SurveyorMediaPlayer;
 
 
 
@@ -261,7 +258,8 @@ namespace Surveyor.User_Controls
         // Mousewheel calibration
         private int _lowestMouseWheelDeltaSeen = Int32.MaxValue;
 
-
+        // Bookmark management
+        private MagnifyAndMarkerDisplayBookmark bookmark = new();
 
 
         public MagnifyAndMarkerDisplay()
@@ -629,7 +627,7 @@ namespace Surveyor.User_Controls
         /// <param name="newHeight"></param>
         public void RenderedPixelScreenSizeChanged(double newWidth, double newHeight)
         {
-            if (!double.IsNaN(CanvasFrame.ActualWidth))
+            if (!double.IsNaN(CanvasFrame.ActualWidth) && newWidth != 0)
             {
                 canvasScaleFactor = CanvasFrame.ActualWidth / newWidth;
             }
@@ -646,7 +644,12 @@ namespace Surveyor.User_Controls
                 }
                 else
                 {
-                    report?.Info(CameraSide.ToString(), $"RenderedPixelScreenSizeChanged: canvasScaleFactor={canvasScaleFactor}, CanvasFrame.ActualWidth=NaN, newWidth={newWidth}");
+                    report?.Error(CameraSide.ToString(), $"RenderedPixelScreenSizeChanged: canvasScaleFactor={canvasScaleFactor}, CanvasFrame.ActualWidth=NaN, newWidth={newWidth}");
+                }
+
+                if (newWidth == 0)
+                {
+                    report?.Error(CameraSide.ToString(), $"RenderedPixelScreenSizeChanged: canvasScaleFactor={canvasScaleFactor}, CanvasFrame.ActualWidth={CanvasFrame.ActualWidth}, newWidth={newWidth}");
                 }
             }
 
@@ -1464,8 +1467,21 @@ namespace Surveyor.User_Controls
                     await RequestSinglePoint(string.Empty/*no preselected species*/);
                 }
 
+                // Add bookmark
+                else if (item == CanvasFrameMenuAddBookmark)
+                {
+                    if (position is not null && hoveringOverTargetPoint is Point pt)
+                    {
+                        // Set bookmark at current frame and pointer position on the CanvasFrame
+                        bookmark.SetBookmark(CameraSide, (TimeSpan)position, pt);
+                        // Draw bookmark immediately
+                        RemoveCanvasShapesByTag(CanvasFrame, "Bookmark");
+                        bookmark.DrawBookmark(CanvasFrame, CanvasFrame_PointerMoved, CanvasFrame_PointerPressed);
+                    }
+                }
+
                 // Context menu - Delete the Target on the Canvas Frame we are hoving over
-                else if (item == CanvasFrameMenuDeleteTarget) 
+                else if (item == CanvasFrameMenuDeleteTarget)
                 {
                     bool? TruePointAFalsePointB = null;
 
@@ -1521,16 +1537,25 @@ namespace Surveyor.User_Controls
                 // Delete Measurement
                 // Delete 3D Point
                 // Delete Single Point
-                else if (item == CanvasFrameMenuDeleteMeasurement || item == CanvasFrameMenuDelete3DPoint || item == CanvasFrameMenuDeleteSinglePoint) 
+                else if (item == CanvasFrameMenuDeleteMeasurement || item == CanvasFrameMenuDelete3DPoint || item == CanvasFrameMenuDeleteSinglePoint)
                 {
                     if (hoveringOverGuid is not null)
-                    { 
+                    {
                         // Signal delete Measurement, 3D point or Single Point
                         magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.DeleteMeasure3DPointOrSinglePoint, CameraSide)
                         {
                             eventGuid = hoveringOverGuid
                         });
                     }
+                }
+
+                // Remove bookmark
+                else if (item == CanvasFrameMenuRemoveBookmark)
+                {
+                    // Remove bookmark variables but don't redraw the canvas
+                    bookmark.ClearBookmark();
+
+
                 }
 
                 // Edit Measurement
@@ -1541,7 +1566,7 @@ namespace Surveyor.User_Controls
                     {
                         Event? evt = GetEventByGuid((Guid)hoveringOverGuid);
 
-                        if (evt is not null && 
+                        if (evt is not null &&
                             (evt.EventDataType == SurveyDataType.SurveyMeasurementPoints || evt.EventDataType == SurveyDataType.SurveyStereoPoint))
                         {
                             bool? trueMeasurementFalse3DPoint = null;
@@ -1634,7 +1659,7 @@ namespace Surveyor.User_Controls
                 }
 
                 // Edit Species Info
-                else if (item == CanvasFrameMenuEditSpeciesInfo) 
+                else if (item == CanvasFrameMenuEditSpeciesInfo)
                 {
                     if (hoveringOverGuid is not null)
                     {
@@ -1904,9 +1929,12 @@ namespace Surveyor.User_Controls
             // Remove Events and epipolar lines
             RemoveCanvasShapesByTag(CanvasFrame, "Event");
             RemoveCanvasShapesByTag(CanvasFrame, "EpipolarLine");
-            RemoveCanvasShapesByTag(CanvasFrame, "EpipolarPoints");
+            RemoveCanvasShapesByTag(CanvasFrame, "EpipolarCurve");
             RemoveCanvasShapesByTag(CanvasMag, "EpipolarLine");
-            RemoveCanvasShapesByTag(CanvasMag, "EpipolarPoints");
+            RemoveCanvasShapesByTag(CanvasMag, "EpipolarCurve");
+
+            // Remove bookmark
+            RemoveCanvasShapesByTag(CanvasFrame, "Bookmark");
         }
 
 
@@ -1970,8 +1998,11 @@ namespace Surveyor.User_Controls
             _ResetCanvas();
 
             // Clear Epipolar
-            SetCanvasFrameEpipolarLine(true/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/, 0.0, 0.0, 0.0, -1);
-            SetCanvasFrameEpipolarLine(false/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/, 0.0, 0.0, 0.0, -1);
+            //???TO BE DELELTED Epipolar Line is obsolete
+            //SetCanvasFrameEpipolarLine(true/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/, 0.0, 0.0, 0.0, -1);
+            //SetCanvasFrameEpipolarLine(false/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/, 0.0, 0.0, 0.0, -1);
+            SetCanvasFrameEpipolarCurve(true/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/, null, -1);
+            SetCanvasFrameEpipolarCurve(false/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/, null, -1);
 
             // Clear 'other instance' data
             OtherInstanceTargetSet(false, false);
@@ -2176,6 +2207,17 @@ namespace Surveyor.User_Controls
                 {
                     CanvasFrameMenuDeleteMeasurement.IsEnabled = false;
                     CanvasFrameMenuEditMeasurement.IsEnabled = false;
+                }
+
+                // Remove bookmark
+                if (position is not null && 
+                    bookmark.IsBookmarkSet(CameraSide, (TimeSpan)position))
+                {
+                    CanvasFrameMenuRemoveBookmark.IsEnabled = true;
+                }
+                else
+                {
+                    CanvasFrameMenuRemoveBookmark.IsEnabled = false;
                 }
 
                 // Delete 3D Point
@@ -2444,6 +2486,13 @@ namespace Surveyor.User_Controls
             TransferExistingEvents();
             TransferTargetsBetweenVariableAndCanvasFrame(true/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
             TransferTargetsBetweenVariableAndCanvasFrame(false/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);                
+
+            // Bookmark
+            if (position is not null && 
+                bookmark.IsBookmarkSet(CameraSide, (TimeSpan)position))
+            {
+                bookmark.DrawBookmark(CanvasFrame, CanvasFrame_PointerMoved, CanvasFrame_PointerPressed);
+            }
         }
 
         private void AdjustCanvasSizeAndScaling()
@@ -2597,22 +2646,6 @@ namespace Surveyor.User_Controls
                     ButtonMagAddMeasurement.IsEnabled = true;
                 else
                     ButtonMagAddMeasurement.IsEnabled = false;
-
-                // Enable/Display cursor buttons
-                if (targetSelected is not null)
-                {
-                    ButtonMagLeft.IsEnabled = true;
-                    ButtonMagUp.IsEnabled = true;
-                    ButtonMagDown.IsEnabled = true;
-                    ButtonMagRight.IsEnabled = true;
-                }
-                else
-                {
-                    ButtonMagLeft.IsEnabled = false;
-                    ButtonMagUp.IsEnabled = false;
-                    ButtonMagDown.IsEnabled = false;
-                    ButtonMagRight.IsEnabled = false;
-                }
 
                 // Enable Mag Enlarge/Reduce Button
                 ButtonMagEnlarge.IsEnabled = true;
@@ -2938,16 +2971,26 @@ namespace Surveyor.User_Controls
                                 // Check for epipolar line for Target A
                                 if (epipolarLineTargetActiveA)
                                 {
-                                    SetMagWindowEpipolarLine(true/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
+                                    //???TO BE DELELTED Epipoplar line obselete
+                                    //SetMagWindowEpipolarLine(true/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
+                                    //                         rectMagWindowSource,
+                                    //                         0/*draw line*/);
+
+                                    SetMagWindowEpipolarCurve(true/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
                                                                 rectMagWindowSource,
-                                                                0 /*draw line*/);
+                                                                0/*draw line*/);
                                 }
                                 // Check for epipolar line for Target B
                                 if (epipolarLineTargetActiveB)
                                 {
-                                    SetMagWindowEpipolarLine(false/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
+                                    //???TO BE DELELTED Epipoplar line obselete
+                                    //SetMagWindowEpipolarLine(false/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
+                                    //                         rectMagWindowSource,
+                                    //                         0/*draw line*/);
+
+                                    SetMagWindowEpipolarCurve(false/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
                                                                 rectMagWindowSource,
-                                                                0 /*draw line*/);
+                                                                0/*draw line*/);
                                 }
                             }
                             else
@@ -3554,7 +3597,7 @@ namespace Surveyor.User_Controls
         /// Set the target rectangles icon at it current position and ensure it is visable
         /// </summary>
         /// <param name="rectangle"></param>
-        /// <param name="TrueLockFalseMove"></param>
+        /// <param name="targetIconType"></param>
         private void SetTargetIconOnCanvas(Rectangle rectangle, TargetIconType targetIconType)
         {
             // Change to the the moving target icon
@@ -3648,7 +3691,6 @@ namespace Surveyor.User_Controls
             return ret;
 
         }
-
 
 
 
@@ -4049,8 +4091,9 @@ namespace Surveyor.User_Controls
 
         public enum MagnifyAndMarkerControlEvent
         {
-            EpipolarLine,
-            EpipolarPoints,
+            //???TO BE DELELTED Epipolar line is obselete
+            //EpipolarLine,
+            EpipolarCurve,
             Error
         }
         public MagnifyAndMarkerControlEvent magnifyAndMarkerControlEvent;
@@ -4058,35 +4101,35 @@ namespace Surveyor.User_Controls
         // Used for all
         public readonly SurveyorMediaPlayer.eCameraSide cameraSide;
 
-        // Used for all
+        // Used by all
         public TimeSpan? frame;
 
-        // Used in EpipolarLine & EpipolarPoints
+        // Used in EpipolarLine & EpipolarCurve
         public bool TrueEpipolarLinePointAFalseEpipolarLinePointB;
 
-        // Used in EpipolarLine
+        //???TO BE DELETED Epipolar Line is obsolete
+        // Used for EpipolarLine
         // ax+by+c = 0
         // Where:
         // a is the coefficient of x
         // b is the coefficient of y
         // c is the constant term
-        public double epipolarLine_a;
-        public double epipolarLine_b;
-        public double epipolarLine_c;
-        public double focalLength;
-        public double baseline;
-        public double principalXLeft;
-        public double principalYLeft;
-        public double principalXRight;
-        public double principalYRight;
+        //public double epipolarLine_a;
+        //public double epipolarLine_b;
+        //public double epipolarLine_c;
+        //???TO BE DELETE
+        //public double focalLength;
+        //public double baseline;
+        //public double principalXLeft;
+        //public double principalYLeft;
+        //public double principalXRight;
+        //public double principalYRight;
 
-        // Used in EpipolarPoints
-        // Because the iamge are distorted and the epipolar line is not straight, we need to define 3 points
-        public Point pointNear;
-        public Point pointMiddle;
-        public Point pointFar;
 
-        // Used in EpipolarLine & EpipolarPoints
+        // Used in EpipolarCurve
+        public List<Point>? epipolarCurvePoints = null;
+
+        // Used in EpipolarCurve
         public int channelWidth; /* 1=Line, >1 = channel, -1 remove line*/
     }
 
@@ -4166,16 +4209,17 @@ namespace Surveyor.User_Controls
                 {
                     switch (data.magnifyAndMarkerControlEvent)
                     {
-                        case MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarLine:
-                            SafeUICall(() => _magnifyAndMarkerControl.SetCanvasFrameEpipolarLine(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
-                                                                                                 data.epipolarLine_a, data.epipolarLine_b, data.epipolarLine_c,
-                                                                                                 data.channelWidth));
-                            break;
+                        //???TO BE DELETED Epipolar line is obselete
+                        //case MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarLine:
+                        //    SafeUICall(() => _magnifyAndMarkerControl.SetCanvasFrameEpipolarLine(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
+                        //                                                                         data.epipolarLine_a, data.epipolarLine_b, data.epipolarLine_c,
+                        //                                                                         data.channelWidth));
+                        //    break;
 
-                        case MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarPoints:  // Experimental
-                            //SafeUICall(() => _magnifyAndMarkerControl.SetEpipolarPoints(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
-                            //                                                            data.pointNear, data.pointMiddle, data.pointFar,
-                            //                                                            data.channelWidth));
+                        case MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarCurve:  // Experimental
+                            SafeUICall(() => _magnifyAndMarkerControl.SetCanvasFrameEpipolarCurve(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
+                                                                                                  data.epipolarCurvePoints,
+                                                                                                  data.channelWidth));
                             break;
                     }
                 }

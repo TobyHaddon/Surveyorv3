@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.VisualBasic;
 using Microsoft.Windows.AppLifecycle;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Events;
@@ -20,9 +21,11 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Policy;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,6 +46,14 @@ using static Surveyor.User_Controls.SettingsWindowEventData;
 
 namespace Surveyor
 {
+    public enum SurveyType
+    {
+        Unknown = 0,
+        StereoFish,
+        MonoFish,
+        MonoBenthic
+    }
+
     /// <summary>
     /// An empty window that can be used on its own or navigated to within a Frame.
     /// </summary>
@@ -95,6 +106,7 @@ namespace Surveyor
         // InfoBar Dismissed Status
         private bool infoBarCalibrationMissingDismissed = false;
         private bool infoBarSpeciesInfoMissingDismissed = false;
+        private bool infoBarRMSRuleViolationDismissed = false;
 
         // Experimental
         private bool experimentalEnabled = false;
@@ -651,6 +663,7 @@ namespace Surveyor
             }
         }
 
+
         /// <summary>
         /// The method is called to display the 'Species Info missing' info bar if necessary
         /// i.e. one of more Measurement, 3d Point or Single Point events are missing species
@@ -659,10 +672,13 @@ namespace Surveyor
         public void SetInfoBarSpeciesInfoMissing()
         {
             bool showMissingSpeciesInfoInfoBar = false;
+            int countMeasurementPointsMissingSpecies = 0;
+            int countStereoPointsMissingSpecies = 0;
+            int countSinglePointsMissingSpecies = 0;
 
             if (surveyClass is not null)
             {
-                int countMeasurementPointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
+                countMeasurementPointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
                     .Where(e => e.EventDataType == SurveyDataType.SurveyMeasurementPoints)
                     .Select(e => e.EventData as SurveyMeasurement)
                     .Count(m => m != null && m.SpeciesInfo?.Species == null);
@@ -673,7 +689,7 @@ namespace Surveyor
                 }
                 else
                 {
-                    int countStereoPointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
+                    countStereoPointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
                         .Where(e => e.EventDataType == SurveyDataType.SurveyStereoPoint)
                         .Select(e => e.EventData as SurveyStereoPoint)
                         .Count(s => s != null && s.SpeciesInfo?.Species == null);
@@ -683,7 +699,7 @@ namespace Surveyor
                     }
                     else
                     {
-                        int countSinglePointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
+                        countSinglePointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
                             .Where(e => e.EventDataType == SurveyDataType.SurveyPoint)
                             .Select(e => e.EventData as SurveyPoint)
                             .Count(p => p != null && p.SpeciesInfo?.Species == null);
@@ -697,7 +713,45 @@ namespace Surveyor
 
             if (!infoBarSpeciesInfoMissingDismissed/*User Dismissed Already*/  && showMissingSpeciesInfoInfoBar)
             {
+                // Set the InfoBar message text
+                // One or more Measurements, 3D Points or Single Point are missing their species information.
+                int total = countMeasurementPointsMissingSpecies + countStereoPointsMissingSpecies + countSinglePointsMissingSpecies;
+                string message;
+
+                StringBuilder sb = new();
+                if (countMeasurementPointsMissingSpecies > 1)
+                    sb.Append($"{countMeasurementPointsMissingSpecies} Measurements");
+                else
+                    sb.Append($"{countMeasurementPointsMissingSpecies} Measurement");
+
+                if (countStereoPointsMissingSpecies > 0)
+                {
+                    if (sb.Length > 0)
+                        sb.Append(", ");
+
+                    if (countStereoPointsMissingSpecies > 1)
+                        sb.Append($"{countStereoPointsMissingSpecies} 3D Points");
+                    else
+                        sb.Append($"{countStereoPointsMissingSpecies} 3D Point");
+                }
+                if (countSinglePointsMissingSpecies > 0)
+                {
+                    if (sb.Length > 0)
+                        sb.Append(", ");
+
+                    if (countSinglePointsMissingSpecies > 1)
+                        sb.Append($"{countSinglePointsMissingSpecies} Single Points");
+                    else
+                        sb.Append($"{countSinglePointsMissingSpecies} Single Point");
+                }
+
+                if (total >  1)
+                    message = sb.ToString() + $" are missing their species information.";
+                else
+                    message = sb.ToString() + $" is missing it's species information.";
+
                 // Show the info bar
+                InfoBarSpeciesInfoMissing.Message = message;
                 InfoBarSpeciesInfoMissing.IsOpen = true;
                 InfoBarSpeciesInfoMissing.Visibility = Visibility.Visible;
             }
@@ -706,6 +760,74 @@ namespace Surveyor
                 // Hide the info bar
                 InfoBarSpeciesInfoMissing.IsOpen = false;
                 InfoBarSpeciesInfoMissing.Visibility = Visibility.Collapsed;
+            }
+        }
+
+
+        /// <summary>
+        /// The method is called to display the 'RMS Rule Violation' info bar if necessary
+        /// i.e. one of more Measurement or 3D Point events have violated the RMS rule
+        /// information
+        /// </summary>
+        public void SetInfoBarRMSRuleViolation()
+        {
+            bool showRMSRuleViolationInfoInfoBar = false;
+            int countMeasurementPointsMissingSpecies = 0;
+            int countStereoPointsMissingSpecies = 0;
+
+            if (surveyClass is not null)
+            {
+                countMeasurementPointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
+                    .Where(e => e.EventDataType == SurveyDataType.SurveyMeasurementPoints)
+                    .Select(e => e.EventData as SurveyMeasurement)
+                    .Count(m => m != null && m.SurveyRulesCalc.SurveyRuleRMS is false);
+
+                if (countMeasurementPointsMissingSpecies > 0)
+                {
+                    showRMSRuleViolationInfoInfoBar = true;
+                }
+                else
+                {
+                    countStereoPointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
+                        .Where(e => e.EventDataType == SurveyDataType.SurveyStereoPoint)
+                        .Select(e => e.EventData as SurveyStereoPoint)
+                        .Count(s => s != null && s.SurveyRulesCalc.SurveyRuleRMS is false);
+                    if (countStereoPointsMissingSpecies > 0)
+                    {
+                        showRMSRuleViolationInfoInfoBar = true;
+                    }
+                }
+            }
+
+            if (!infoBarRMSRuleViolationDismissed/*User Dismissed Already*/  && showRMSRuleViolationInfoInfoBar)
+            {
+                // Set the InfoBar message Text
+                // One or more Measurements or 3D Points have RMS rule violations.
+                int total = countMeasurementPointsMissingSpecies + countStereoPointsMissingSpecies;
+                string message;
+
+                if (total > 1)
+                {
+                    message = $"{total} Measurements or 3D Points have RMS rule violations.";
+                }
+                else
+                {
+                    if (countMeasurementPointsMissingSpecies == 1)
+                        message = $"1 Measurement has a RMS rule violation.";
+                    else
+                        message = $"1 3D Points has a RMS rule violation.";
+                }
+
+                // Show the info bar
+                InfoBarRMSRuleViolation.Message = message;
+                InfoBarRMSRuleViolation.IsOpen = true;
+                InfoBarRMSRuleViolation.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                // Hide the info bar
+                InfoBarRMSRuleViolation.IsOpen = false;
+                InfoBarRMSRuleViolation.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -1888,6 +2010,30 @@ namespace Surveyor
 
 
         /// <summary>
+        /// InfoBar Go To first event with RMS Rule Violation
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void GoToFirstRMSRuleViolationEvent_Click(object sender, RoutedEventArgs e)
+        {
+            if (surveyClass is not null)
+            {
+                Event? firstRMSRuleViolationEvent = surveyClass.Data.Events.EventList
+                                .Cast<Event>() // or .AsEnumerable()/.ToList() depending on your context
+                                .FirstOrDefault(e =>
+                                    (e.EventDataType == SurveyDataType.SurveyMeasurementPoints && (e.EventData as SurveyMeasurement)?.SurveyRulesCalc.SurveyRuleRMS == false) ||
+                                    (e.EventDataType == SurveyDataType.SurveyStereoPoint && (e.EventData as SurveyStereoPoint)?.SurveyRulesCalc.SurveyRuleRMS == false));
+
+                if (firstRMSRuleViolationEvent is not null)
+                {
+                    // Go to the frame in the media player and scroll to the event in the events list
+                    eventsControl?.GoToEvent(firstRMSRuleViolationEvent);
+                }
+            }
+        }
+
+
+        /// <summary>
         /// Export data
         /// </summary>
         /// <param name="sender"></param>
@@ -2236,6 +2382,20 @@ namespace Surveyor
 
 
         /// <summary>
+        /// User dismissed the InfoBar warning about RMS Rule violations info
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void InfoBarRMSRuleViolation_Closed(InfoBar sender, InfoBarClosedEventArgs args)
+        {
+            // Remember the user dismissed the warning
+            if (args.Reason == InfoBarCloseReason.CloseButton)
+            {
+                infoBarRMSRuleViolationDismissed = true;
+            }
+        }
+
+        /// <summary>
         /// The ViewPorts that control the area the MediaPlayer/ImageFrame/CanvasFrame 
         /// changed physical dimensions
         /// </summary>
@@ -2390,9 +2550,13 @@ namespace Surveyor
             infoBarCalibrationMissingDismissed = false;
             SetInfoBarCalibrationMissing();
 
-            // Display the missing species warnung InfoBar if necessary
+            // Display the missing species warning InfoBar if necessary
             infoBarSpeciesInfoMissingDismissed = false;
             SetInfoBarSpeciesInfoMissing();
+
+            // Display the missing RMS Rule Violation InfoBar if necessary
+            infoBarRMSRuleViolationDismissed = false;
+            SetInfoBarRMSRuleViolation();
 
             return ret;
         }
@@ -2605,9 +2769,13 @@ namespace Surveyor
             infoBarCalibrationMissingDismissed = false;
             SetInfoBarCalibrationMissing();
 
-            // Display the missing species warnung InfoBar if necessary
+            // Display the missing species warning InfoBar if necessary
             infoBarSpeciesInfoMissingDismissed = false;
             SetInfoBarSpeciesInfoMissing();
+
+            // Display the missing RMS Rule Violation InfoBar if necessary
+            infoBarRMSRuleViolationDismissed = false;
+            SetInfoBarRMSRuleViolation();
 
             return ret;
         }
@@ -3783,6 +3951,8 @@ namespace Surveyor
         internal void DisplayDynamicMeasurementPlaceholder(bool showRMSCombinedOnly, double? measurement, double? range, double? rmsCombined, double? rmsTargetA, double? rmsTargetB) { }
         internal void _SetDiagnosticInformationPlaceholder(bool diag) { }
         internal void _SetExperimentalPlaceholder(bool a, bool b, bool c, bool d) { }
+
+
     }
 
 

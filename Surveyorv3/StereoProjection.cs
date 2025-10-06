@@ -15,12 +15,16 @@ using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
+using Microsoft.Graphics.Canvas;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Shapes;
 using Surveyor.Helper;
 using Surveyor.User_Controls;
+using SurveyorCalibrationData;
 using System;
+using System.Collections.Generic;
 using System.Text;
 using Windows.Foundation;   // We use the Point class from here
-using SurveyorCalibrationData;
 
 
 namespace Surveyor
@@ -330,7 +334,7 @@ namespace Surveyor
                     if (vecA is not null && vecB is not null)
                     {
                         ret = DistanceBetween3DPoints((MCvPoint3D64f)vecA, (MCvPoint3D64f)vecB);
-                        report?.Out(Reporter.WarningLevel.Info, "", $"---Length using {(idx == calibrationClass.PreferredCalibrationDataIndex ? "preferred" : "selected")} Calibration Data[{calibrationClass!.CalibrationDataList[idx].Description}] Measurement = {Math.Round((double)ret * 1000,1)}mm");
+                        report?.Out(Reporter.WarningLevel.Info, "", $"---Length using {(idx == calibrationClass.PreferredCalibrationDataIndex ? "preferred" : "selected")} Calibration Data[{calibrationClass!.CalibrationDataList[idx].Description}] Measurement = {Math.Round((double)ret * 1000,1)}mm, RMS A:{(RMSErrorAArray![idx] * 1000) ?? -1:F0}mm B:{(RMSErrorBArray![idx] * 1000) ?? -1:F0}mm");
                     }
 
                     // If default was used (preferred) and no explicit index provided, also log other available calibrations for info
@@ -348,7 +352,7 @@ namespace Surveyor
                                     if (vecA is not null && vecB is not null)
                                     {
                                         double measurementAlt = DistanceBetween3DPoints((MCvPoint3D64f)vecA, (MCvPoint3D64f)vecB);
-                                        report?.Out(Reporter.WarningLevel.Info, "", $"---Length using non-preferred Calibration Data[{calibrationClass!.CalibrationDataList[i].Description}] Measurement = {Math.Round(measurementAlt * 1000,1)}mm");
+                                        report?.Out(Reporter.WarningLevel.Info, "", $"---Length using non-preferred Calibration Data[{calibrationClass!.CalibrationDataList[i].Description}] Measurement = {Math.Round(measurementAlt * 1000,1)}mm, RMS A:{(RMSErrorAArray![i] * 1000) ?? -1:F0}mm B:{(RMSErrorBArray![i] * 1000) ?? -1:F0}mm");
                                     }
                                 }
                             }
@@ -610,40 +614,44 @@ namespace Surveyor
         /// <param name="epiLine_b"></param>
         /// <param name="epiLine_c"></param>
         /// <returns></returns>
-        public bool CalculateEpipolarLine(int calibrationDataIndex,
-                                          bool TrueLeftFalseRight,
+        public bool CalculateEpipolarLine(bool TrueLeftFalseRight,
                                           Point point,
                                           out double epiLine_a, out double epiLine_b, out double epiLine_c)
         {
             epiLine_a = epiLine_b = epiLine_c = 0.0;
 
-            if (!IsReadyCalibrationData()) return false;
-            var calibrationData = calibrationClass!.CalibrationDataList[calibrationDataIndex];
-            if (calibrationData is null || !calibrationData.FrameSizeCompare(frameWidth, frameHeight))
-                return false;
+            if (IsReadyCalibrationData() && calibrationClass is not null)
+            {
+                var calibrationData = calibrationClass!.CalibrationDataList[calibrationClass.PreferredCalibrationDataIndex];
+                if (calibrationData is null || !calibrationData.FrameSizeCompare(frameWidth, frameHeight))
+                    return false;
 
-            // IMPORTANT: F was built from E and K (undistorted pinhole model).
-            // So we must undistort the input pixel before using F.
-            var sourceCal = TrueLeftFalseRight ? calibrationData.LeftCameraCalibration
-                                               : calibrationData.RightCameraCalibration;
-            var pU = UndistortPoint(sourceCal, point);
+                // IMPORTANT: F was built from E and K (undistorted pinhole model).
+                // So we must undistort the input pixel before using F.
+                var sourceCal = TrueLeftFalseRight ? calibrationData.LeftCameraCalibration
+                                                   : calibrationData.RightCameraCalibration;
+                var pU = UndistortPoint(sourceCal, point);
 
-            var x = new Matrix<double>(3, 1);
-            x[0, 0] = pU.X; x[1, 0] = pU.Y; x[2, 0] = 1.0;
+                var x = new Matrix<double>(3, 1);
+                x[0, 0] = pU.X; x[1, 0] = pU.Y; x[2, 0] = 1.0;
 
-            var F = fundamentalMatrixArray![calibrationDataIndex];
-            if (F is null) return false;
+                var F = fundamentalMatrixArray![calibrationClass.PreferredCalibrationDataIndex];
+                if (F is null) return false;
 
-            Matrix<double> line = TrueLeftFalseRight ? (F * x) : (F.Transpose() * x);
+                Matrix<double> line = TrueLeftFalseRight ? (F * x) : (F.Transpose() * x);
 
-            double a = line[0, 0], b = line[1, 0], c = line[2, 0];
-            double norm = Math.Sqrt(a * a + b * b);
-            if (norm > 0) { a /= norm; b /= norm; c /= norm; }
+                double a = line[0, 0], b = line[1, 0], c = line[2, 0];
+                double norm = Math.Sqrt(a * a + b * b);
+                if (norm > 0) { a /= norm; b /= norm; c /= norm; }
 
-            epiLine_a = a; epiLine_b = b; epiLine_c = c;
+                epiLine_a = a; epiLine_b = b; epiLine_c = c;
+            }
+
             return true;
         }
 
+
+        [Obsolete ("Use the other CalculateEpipolarLine() method")]
         public bool CalculateEpipolarLine(bool TrueLeftFalseRight, Point point, out double epiLine_a, out double epiLine_b, out double epiLine_c, 
                                           out double focalLength, out double baseline,
                                           out double principalXLeft, out double principalYLeft, out double principalXRight, out double principalYRight,
@@ -664,19 +672,15 @@ namespace Surveyor
 
             if (IsReadyCalibrationData() && calibrationClass is not null)
             {
-                int idx = ResolveIndex(calibrationDataIndex);
-                if (!InBounds(idx, calibrationClass.CalibrationDataList.Count)) return false;
-
-                ret = CalculateEpipolarLine(idx,
-                                                TrueLeftFalseRight,
-                                                point,
-                                                out epiLine_a,
-                                                out epiLine_b,
-                                                out epiLine_c);
+                ret = CalculateEpipolarLine(TrueLeftFalseRight,
+                                            point,
+                                            out epiLine_a,
+                                            out epiLine_b,
+                                            out epiLine_c);
                 if (ret == true)
                 {
                     // Get the selected calibration data instance
-                    CalibrationData calibrationData = calibrationClass!.CalibrationDataList[idx];
+                    CalibrationData calibrationData = calibrationClass!.CalibrationDataList[calibrationClass.PreferredCalibrationDataIndex];
 
                     // Extract focal length from left camera matrix
                     focalLength = calibrationData.LeftCameraCalibration.Intrinsic?[0, 0] ?? 0.0; 
@@ -702,53 +706,123 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Calculate the corresponding epipolar points for a given point in the left or right image
-        /// Near, Middle and Far points are calculated. If the Range rule is active used the RangeMin and RangeMax for near and far.
-        /// If the Range rule is not active then use near=0.4m, middle=(10-0.4/2)m and far=10m
+        /// Draw a sampled epipolar curve (distortion aware). The approach:
+        /// 1. Decide sampling axis from line angle (slope).
+        /// 2. Iterate in 25px steps generating distorted input samples (x or y).
+        /// 3. Undistort the input sample point (identity placeholder if calibration not available).
+        /// 4. Solve line in undistorted space for the missing coordinate.
+        /// 5. Distort the resulting undistorted point (identity placeholder if calibration not available).
+        /// 6. Collect distorted output points and render as a polyline.
         /// </summary>
-        /// <param name="TrueLeftFalseRight"></param>
-        /// <param name="point"></param>
-        /// <param name="pointNear"></param>
-        /// <param name="pointMiddle"></param>
-        /// <param name="pointFar"></param>
-        /// <returns></returns>
-        public bool CalculateEpipolarPoints(bool TrueLeftFalseRight, Point point, out Point pointNear, out Point pointMiddle, out Point pointFar)
+        public bool CalculateEpipolarCurveDistortedPoints(
+                                       bool TrueLeftFalseRight,
+                                       double epiLine_a, double epiLine_b, double epiLine_c,
+                                       out List<Point>? epipolarCurvePoints)
         {
             bool ret = false;
-            pointNear = new Point(-1, -1);
-            pointMiddle = new Point(-1, -1);
-            pointFar = new Point(-1, -1);
 
-            // Target distance  
-            double nearTargetDistance = 0.4;
-            double farTargetDistance = 10.0;
+            epipolarCurvePoints = null;
 
-            // Check if the survey rules are active
-            if (surveyRulesClass is not null && surveyRulesClass.SurveyRulesActive && surveyRulesClass.SurveyRulesData.RangeRuleActive)
+            if (IsReadyCalibrationData() && calibrationClass is not null)
             {
-                nearTargetDistance = surveyRulesClass.SurveyRulesData.RangeMin;
-                farTargetDistance = surveyRulesClass.SurveyRulesData.RangeMax;
-            }
+                var calibrationData = calibrationClass!.CalibrationDataList[calibrationClass.PreferredCalibrationDataIndex];
+                if (calibrationData is null || !calibrationData.FrameSizeCompare(frameWidth, frameHeight))
+                    return false;
 
-            // Calculate the middle target distance
-            double middleTargetDistance = nearTargetDistance + (farTargetDistance - nearTargetDistance) / 2.0;
+                // IMPORTANT: F was built from E and K (undistorted pinhole model).
+                // So we must undistort the input pixel before using F.
+                var sourceCal = TrueLeftFalseRight ? calibrationData.LeftCameraCalibration
+                                                   : calibrationData.RightCameraCalibration;
 
-            // Calculate the corresponding points
+                // Guard against degenerate line
+                if (Math.Abs(epiLine_a) < 1e-9 && Math.Abs(epiLine_b) < 1e-9)
+                    return false;
 
-            if (ComputeCorrespondingDistortedPointByDistanceFromTarget(TrueLeftFalseRight, point, nearTargetDistance, out Point? _pointNear))
-            {
-                if (ComputeCorrespondingDistortedPointByDistanceFromTarget(TrueLeftFalseRight, point, middleTargetDistance, out Point? _pointMiddle))
+                // Decide sampling axis: if |slope| <= 1 sample x else sample y
+                bool sampleX = true;
+                if (Math.Abs(epiLine_b) > 1e-9)
                 {
-                    if (ComputeCorrespondingDistortedPointByDistanceFromTarget(TrueLeftFalseRight, point, farTargetDistance, out Point? _pointFar))
-                    {
-                        // Set the output points
-                        pointNear = _pointNear ?? new Point(-1, -1);
-                        pointMiddle = _pointMiddle ?? new Point(-1, -1);
-                        pointFar = _pointFar ?? new Point(-1, -1);
+                    double slope = -epiLine_a / epiLine_b; // dy/dx
+                    if (double.IsFinite(slope) && Math.Abs(slope) > 1.0) sampleX = false;
+                }
+                else
+                {
+                    // b==0 => vertical line => sample y
+                    sampleX = false;
+                }
 
-                        ret = true;
+                const double step = 25.0; // pixels
+                epipolarCurvePoints = [];
+
+                // Distorted coords need to fit inside the frame
+                Rect clippingWindow = new(0, 0, frameWidth, frameHeight);
+
+                if (sampleX)
+                {
+                    double startX = clippingWindow.X;
+                    double endX = clippingWindow.X + clippingWindow.Width;
+                    for (double xDist = startX; xDist <= endX; xDist += step)
+                    {
+                        // Choose a nominal y for undistortion input (use window mid Y)
+                        double nominalY = clippingWindow.Y + clippingWindow.Height / 2.0;
+                        Point distortedInput = new(xDist, nominalY);
+                        Point undistortedInput = UndistortPoint(sourceCal, distortedInput);
+
+                        double xU = undistortedInput.X;
+                        double yU;
+                        if (Math.Abs(epiLine_b) < 1e-9)
+                        {
+                            // b ~ 0 => ax + c = 0, vertical line. y unconstrained; use nominal
+                            yU = undistortedInput.Y;
+                        }
+                        else
+                        {
+                            yU = (-(epiLine_a * xU) - epiLine_c) / epiLine_b;
+                        }
+
+                        Point undistortedPointOnEpipolarLine = new(xU, yU);
+                        Point? distortedOutput = DistortPoint(sourceCal, undistortedPointOnEpipolarLine);
+
+                        if (distortedOutput is not null && clippingWindow.Contains((Point)distortedOutput))
+                        {
+                            epipolarCurvePoints.Add((Point)distortedOutput);
+                        }
                     }
                 }
+                else
+                {
+                    double startY = clippingWindow.Y;
+                    double endY = clippingWindow.Y + clippingWindow.Height;
+                    for (double yDist = startY; yDist <= endY; yDist += step)
+                    {
+                        double nominalX = clippingWindow.X + clippingWindow.Width / 2.0;
+                        Point distortedInput = new(nominalX, yDist);
+                        Point undistortedInput = UndistortPoint(sourceCal, distortedInput);
+
+                        double yU = undistortedInput.Y;
+                        double xU;
+                        if (Math.Abs(epiLine_a) < 1e-9)
+                        {
+                            // a ~ 0 => by + c = 0, horizontal line. x unconstrained; use nominal
+                            xU = undistortedInput.X;
+                        }
+                        else
+                        {
+                            xU = (-(epiLine_b * yU) - epiLine_c) / epiLine_a;
+                        }
+
+                        Point undistortedPointOnEpipolarLine = new(xU, yU);
+                        Point? distortedOutput = DistortPoint(sourceCal, undistortedPointOnEpipolarLine); // TODO: replace with real distort
+
+                        if (distortedOutput is not null && clippingWindow.Contains((Point)distortedOutput))
+                        {
+                            epipolarCurvePoints.Add((Point)distortedOutput);
+                        }
+                    }
+                }
+
+                if (epipolarCurvePoints.Count >= 2)
+                    ret = true;  // Do we have enough points to draw?
             }
 
             return ret;

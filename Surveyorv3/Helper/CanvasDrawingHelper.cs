@@ -10,6 +10,7 @@ using Microsoft.UI.Xaml.Shapes;
 using System;
 using System.Diagnostics;
 using System.Numerics;
+using Windows.Devices.Radios;
 using Windows.Foundation;
 
 namespace Surveyor.Helper
@@ -27,6 +28,7 @@ namespace Surveyor.Helper
         {
             CanvasDrawingHelper.DrawLine(canvas, start, end, 2/*strokeThickness*/, brush, canvasTag, pointerMoved, pointerPressed);
         }
+
         public static void DrawLine(Canvas canvas, Point start, Point end, double strokeThickness, Brush brush, CanvasTag canvasTag, PointerEventHandler? pointerMoved, PointerEventHandler? pointerPressed)
         {
             try
@@ -64,34 +66,93 @@ namespace Surveyor.Helper
         /// <param name="brush"></param>
         /// <param name="canvasTag"></param>
         /// <param name="canvas"></param>
-        public static void DrawDot(Canvas canvas, Point centre, double diameter, Brush brush, object canvasTag, PointerEventHandler? pointerMoved, PointerEventHandler? pointerPressed)
+        public static void DrawDot(Canvas canvas, Point centre, double diameter, Brush brush, CanvasTag canvasTag, PointerEventHandler? pointerMoved, PointerEventHandler? pointerPressed)
         {
-            // Create an ellipse (circle) with a diameter of 6
-            Ellipse ellipse = new()
+            try
+            { 
+                // Create an ellipse (circle) with a diameter of 6
+                Ellipse ellipse = new()
+                {
+                    Width = diameter,
+                    Height = diameter,
+                    Fill = brush, // Set the fill color
+                    Stroke = brush, // Set the outline color
+                    StrokeThickness = 1, // Set the thickness of the outline
+                    Tag = canvasTag
+                };
+
+                // Set event handlers if necessary
+                if (pointerMoved is not null)
+                    ellipse.PointerMoved += pointerMoved;
+                if (pointerPressed is not null)
+                    ellipse.PointerPressed += pointerPressed;
+
+                // Set the position of the ellipse on the canvas
+                Canvas.SetLeft(ellipse, centre.X - (diameter / 2)); // Subtract half the width to center
+                Canvas.SetTop(ellipse, centre.Y - (diameter / 2)); // Subtract half the height to center
+
+                // Add the ellipse to the canvas
+                canvas.Children.Add(ellipse);
+            }
+            catch (Exception ex)
             {
-                Width = diameter,
-                Height = diameter,
-                Fill = brush, // Set the fill color
-                Stroke = brush, // Set the outline color
-                StrokeThickness = 1, // Set the thickness of the outline
-                Tag = canvasTag
-            };
-
-            // Set event handlers if necessary
-            if (pointerMoved is not null)
-                ellipse.PointerMoved += pointerMoved;
-            if (pointerPressed is not null)
-                ellipse.PointerPressed += pointerPressed;
-
-            // Set the position of the ellipse on the canvas
-            Canvas.SetLeft(ellipse, centre.X - (diameter / 2)); // Subtract half the width to center
-            Canvas.SetTop(ellipse, centre.Y - (diameter / 2)); // Subtract half the height to center
-
-
-            // Add the ellipse to the canvas
-            canvas.Children.Add(ellipse);
+                Debug.WriteLine($"CanvasDrawingHelper.DrawDot: Exception raised, centre ({centre.X},{centre.Y}), diameter={diameter}, {canvasTag.TagType}/{canvasTag.TagSubType}, {ex.Message}");
+            }
         }
 
+        /// <summary>
+        /// Draw a circle centered at the given point with optional fill and pointer handlers.
+        /// </summary>
+        public static void DrawCircle(Canvas canvas,
+                                      Point centre,
+                                      double radius,
+                                      Brush strokeBrush,
+                                      double strokeThickness,
+                                      Brush? fillBrush,
+                                      CanvasTag canvasTag,
+                                      PointerEventHandler? pointerMoved,
+                                      PointerEventHandler? pointerPressed)
+        {
+            try
+            {
+                double diameter = radius * 2.0;
+                Ellipse ellipse = new()
+                {
+                    Width = diameter,
+                    Height = diameter,
+                    Stroke = strokeBrush,
+                    StrokeThickness = strokeThickness,
+                    Fill = fillBrush,
+                    Tag = canvasTag
+                };
+
+                if (pointerMoved is not null)
+                    ellipse.PointerMoved += pointerMoved;
+                if (pointerPressed is not null)
+                    ellipse.PointerPressed += pointerPressed;
+
+                Canvas.SetLeft(ellipse, centre.X - radius);
+                Canvas.SetTop(ellipse, centre.Y - radius);
+
+                canvas.Children.Add(ellipse);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"CanvasDrawingHelper.DrawCircle: Exception raised, centre ({centre.X},{centre.Y}), r={radius}, {canvasTag.TagType}/{canvasTag.TagSubType}, {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Convenience overload: outlined circle only (no fill), default thickness 1.
+        /// </summary>
+        public static void DrawCircle(Canvas canvas,
+                                      Point centre,
+                                      double radius,
+                                      Brush strokeBrush,
+                                      CanvasTag canvasTag)
+        {
+            DrawCircle(canvas, centre, radius, strokeBrush, 1.0, null, canvasTag, null, null);
+        }
 
 
         /// <summary>
@@ -105,17 +166,24 @@ namespace Surveyor.Helper
         /// <param name="arrowEnd"></param>
         public static void DrawLineWithArrowHeads(Canvas canvas, Point start, Point end, float arrowLength, Brush brush, CanvasTag canvasTag, bool arrowStart, bool arrowEnd, PointerEventHandler? pointerMoved, PointerEventHandler? pointerPressed)
         {
-            // First draw the line
-            DrawLine(canvas, start, end, brush, canvasTag, pointerMoved, pointerPressed);
+            try
+            { 
+                // First draw the line
+                DrawLine(canvas, start, end, brush, canvasTag, pointerMoved, pointerPressed);
 
-            // Calculate the direction vector
-            Vector2 lineDirection = new((float)(end.X - start.X), (float)(end.Y - start.Y));
+                // Calculate the direction vector
+                Vector2 lineDirection = new((float)(end.X - start.X), (float)(end.Y - start.Y));
 
-            // Draw the arrow heads as required
-            if (arrowStart)
-                DrawArrowHead(canvas, start, -lineDirection, arrowLength, brush, canvasTag, pointerMoved, pointerPressed);
-            if (arrowEnd)
-                DrawArrowHead(canvas, end, lineDirection, arrowLength, brush, canvasTag, pointerMoved, pointerPressed);
+                // Draw the arrow heads as required
+                if (arrowStart)
+                    DrawArrowHead(canvas, start, -lineDirection, arrowLength, brush, canvasTag, pointerMoved, pointerPressed);
+                if (arrowEnd)
+                    DrawArrowHead(canvas, end, lineDirection, arrowLength, brush, canvasTag, pointerMoved, pointerPressed);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"CanvasDrawingHelper.DrawLineWithArrowHeads: Exception raised, start ({start.X},{start.Y}), end ({end.X},{end.Y}), {canvasTag.TagType}/{canvasTag.TagSubType}, {ex.Message}");
+            }
         }
 
 
@@ -128,26 +196,32 @@ namespace Surveyor.Helper
         /// <param name="tag"></param>
         public static void DrawArrowHead(Canvas canvas, Point end, Vector2 direction, float arrowLength, Brush brush, CanvasTag canvasTag, PointerEventHandler? pointerMoved, PointerEventHandler? pointerPressed)
         {
-            //???const float arrowLength = 10f;  // Length of the arrow lines
-            const float arrowAngle = 30f;   // Angle of the arrow lines
+            try 
+            { 
+                const float arrowAngle = 30f;   // Angle of the arrow lines
 
-            // Normalize and scale the direction vector
-            direction = Vector2.Normalize(direction) * arrowLength;
+                // Normalize and scale the direction vector
+                direction = Vector2.Normalize(direction) * arrowLength;
 
-            // Calculate the two points that form the arrow lines
-            Point arrowEnd1 = new(
-                end.X - (direction.X * Math.Cos(arrowAngle * Math.PI / 180) - direction.Y * Math.Sin(arrowAngle * Math.PI / 180)),
-                end.Y - (direction.X * Math.Sin(arrowAngle * Math.PI / 180) + direction.Y * Math.Cos(arrowAngle * Math.PI / 180))
-            );
+                // Calculate the two points that form the arrow lines
+                Point arrowEnd1 = new(
+                    end.X - (direction.X * Math.Cos(arrowAngle * Math.PI / 180) - direction.Y * Math.Sin(arrowAngle * Math.PI / 180)),
+                    end.Y - (direction.X * Math.Sin(arrowAngle * Math.PI / 180) + direction.Y * Math.Cos(arrowAngle * Math.PI / 180))
+                );
 
-            Point arrowEnd2 = new(
-                end.X - (direction.X * Math.Cos(-arrowAngle * Math.PI / 180) - direction.Y * Math.Sin(-arrowAngle * Math.PI / 180)),
-                end.Y - (direction.X * Math.Sin(-arrowAngle * Math.PI / 180) + direction.Y * Math.Cos(-arrowAngle * Math.PI / 180))
-            );
+                Point arrowEnd2 = new(
+                    end.X - (direction.X * Math.Cos(-arrowAngle * Math.PI / 180) - direction.Y * Math.Sin(-arrowAngle * Math.PI / 180)),
+                    end.Y - (direction.X * Math.Sin(-arrowAngle * Math.PI / 180) + direction.Y * Math.Cos(-arrowAngle * Math.PI / 180))
+                );
 
-            // Draw the arrow lines
-            DrawLine(canvas, end, arrowEnd1, brush, canvasTag, pointerMoved, pointerPressed);
-            DrawLine(canvas, end, arrowEnd2, brush, canvasTag, pointerMoved, pointerPressed);
+                // Draw the arrow lines
+                DrawLine(canvas, end, arrowEnd1, brush, canvasTag, pointerMoved, pointerPressed);
+                DrawLine(canvas, end, arrowEnd2, brush, canvasTag, pointerMoved, pointerPressed);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"CanvasDrawingHelper.DrawLineWithArrowHeads: Exception raised, end ({end.X},{end.Y}), direction vector={direction}, {canvasTag.TagType}/{canvasTag.TagSubType}, {ex.Message}");
+            }
         }
 
 
@@ -159,35 +233,42 @@ namespace Surveyor.Helper
         /// <param name="canvasTag"></param>
         public static void DrawPolygonAcrylic(Canvas canvas, PointCollection points, Brush brush, CanvasTag canvasTag)
         {
-            Windows.UI.Color tintColor;
+            try
+            { 
+                Windows.UI.Color tintColor;
 
-            // Extract from brush if SolidColorBrush
-            if (brush is SolidColorBrush solidColorBrush)
-                tintColor = solidColorBrush.Color;
-            else
-                tintColor = Colors.Black;
+                // Extract from brush if SolidColorBrush
+                if (brush is SolidColorBrush solidColorBrush)
+                    tintColor = solidColorBrush.Color;
+                else
+                    tintColor = Colors.Black;
 
-            // Create a Polygon
-            Polygon polygon = new()
+                // Create a Polygon
+                Polygon polygon = new()
+                {
+                    Points = points,
+                    Tag = canvasTag
+                };
+
+
+                // Define the AcrylicBrush
+                AcrylicBrush acrylicBrush = new()
+                {
+                    TintColor = tintColor,
+                    TintOpacity = 0.1,
+                    FallbackColor = Colors.White
+                };
+
+                // Set the Fill of the Polygon
+                polygon.Fill = acrylicBrush;
+
+                // Add the Polygon to the Canvas
+                canvas.Children.Add(polygon);
+            }
+            catch (Exception ex)
             {
-                Points = points,
-                Tag = canvasTag
-            };
-
-
-            // Define the AcrylicBrush
-            AcrylicBrush acrylicBrush = new()
-            {
-                TintColor = tintColor,
-                TintOpacity = 0.1,
-                FallbackColor = Colors.White
-            };
-
-            // Set the Fill of the Polygon
-            polygon.Fill = acrylicBrush;
-
-            // Add the Polygon to the Canvas
-            canvas.Children.Add(polygon);
+                Debug.WriteLine($"MagnifyAndMarkerDisplay.DrawPolygonAcrylic: Exception raised, {canvasTag.TagType}/{canvasTag.TagSubType}, {ex.Message}");
+            }
         }
     }
 

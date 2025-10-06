@@ -1,7 +1,5 @@
 ﻿// MagnifyAndMarkerDisplay.EventsAndEpipolar.cs
 // Extension to the main class to handle the drawing of events and epipolar lines
-using MathNet.Numerics.LinearAlgebra.Factorization;
-using Microsoft.UI;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -9,15 +7,14 @@ using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
+using Surveyor.Events;
+using Surveyor.Helper;
 using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
 using Windows.Foundation;
-
-using Surveyor.Events;
-using Surveyor.Helper;
 
 
 namespace Surveyor.User_Controls
@@ -36,27 +33,18 @@ namespace Surveyor.User_Controls
         // Remembered Epipolar line
         private bool epipolarLineTargetActiveA = false;
         private bool epipolarLineTargetActiveB = false;
-        //???private Point? epipolarStartCanvasFrameTargetA = null;
-        //???private Point? epipolarEndCanvasFrameTargetA = null;
-        //???private Point? epipolarStartCanvasFrameTargetB = null;
-        //???private Point? epipolarEndCanvasFrameTargetB = null;
-        private double epipolarLine_aTargetA = 0.0;
-        private double epipolarLine_bTargetA = 0.0;
-        private double epipolarLine_cTargetA = 0.0;
-        private double epipolarLine_aTargetB = 0.0;
-        private double epipolarLine_bTargetB = 0.0;
-        private double epipolarLine_cTargetB = 0.0;
+        //???TO BE DELELTED Epipolar Line is obsolete
+        //private double epipolarLine_aTargetA = 0.0;
+        //private double epipolarLine_bTargetA = 0.0;
+        //private double epipolarLine_cTargetA = 0.0;
+        //private double epipolarLine_aTargetB = 0.0;
+        //private double epipolarLine_bTargetB = 0.0;
+        //private double epipolarLine_cTargetB = 0.0;
 
-        // Remember Epipolar Points
-        //???private bool epipolarPointsActiveA = false;
-        private Point? epipolarPointNearA = null;
-        private Point? epipolarPointMiddleA = null;
-        private Point? epipolarPointFarA = null;
-        //???private bool epipolarPointsActiveB = false;
-        private Point? epipolarPointNearB = null;
-        private Point? epipolarPointMiddleB = null;
-        private Point? epipolarPointFarB = null;
-
+        // Remember Epipolar Curve Distorted Points
+        private List<Point>? epipolarCurveDistortedPointsTargetA = null;
+        private List<Point>? epipolarCurveDistortedPointsTargetB = null;
+       
 
         private void ClearEventsAndEpipolar()
         {
@@ -69,25 +57,19 @@ namespace Surveyor.User_Controls
         
             epipolarLineTargetActiveA = false;
             epipolarLineTargetActiveB = false;
-            //???epipolarStartCanvasFrameTargetA = null;
-            //???epipolarEndCanvasFrameTargetA = null;
-            //???epipolarStartCanvasFrameTargetB = null;
-            //???epipolarEndCanvasFrameTargetB = null;
-            epipolarLine_aTargetA = 0.0;
-            epipolarLine_bTargetA = 0.0;
-            epipolarLine_cTargetA = 0.0;
-            epipolarLine_aTargetB = 0.0;
-            epipolarLine_bTargetB = 0.0;
-            epipolarLine_cTargetB = 0.0;
 
-            //???epipolarPointsActiveA = false;
-            epipolarPointNearA = null;
-            epipolarPointMiddleA = null;
-            epipolarPointFarA = null;
-            //???epipolarPointsActiveB = false;
-            epipolarPointNearB = null;
-            epipolarPointMiddleB = null;
-            epipolarPointFarB = null;
+            // Clear epipiolar line 
+            //???TO BE DELELTED Epipolar Line is obsolete
+            //epipolarLine_aTargetA = 0.0;
+            //epipolarLine_bTargetA = 0.0;
+            //epipolarLine_cTargetA = 0.0;
+            //epipolarLine_aTargetB = 0.0;
+            //epipolarLine_bTargetB = 0.0;
+            //epipolarLine_cTargetB = 0.0;
+
+            // Clear epipolar lines from the CanvasFrame and CanvasMag
+            epipolarCurveDistortedPointsTargetA = null;
+            epipolarCurveDistortedPointsTargetB = null;
         }
 
         /// <summary>
@@ -333,57 +315,57 @@ namespace Surveyor.User_Controls
         /// **A ChannelWidth of 0 draws a simple epipolar line.
         /// **A ChannelWidth of -1 clears the epipolar line**.
         /// </summary>
-        internal void SetCanvasFrameEpipolarLine(bool TrueEpipolarLinePointAFalseEpipolarLinePointB,
-                                                 double epiLine_a, double epiLine_b, double epiLine_c,                                                  
-                                                 double channelWidth)
-        {
-            Rect clippingWindow = new(0, 0, CanvasFrame.Width, CanvasFrame.Height);
+        //???TO BE DELELTED Epipolar Line is obsolete
+        //internal void SetCanvasFrameEpipolarLine(bool TrueEpipolarLinePointAFalseEpipolarLinePointB,
+        //                                         double epiLine_a, double epiLine_b, double epiLine_c,                                                  
+        //                                         double channelWidth)
+        //{
+        //    Rect clippingWindow = new(0, 0, CanvasFrame.Width, CanvasFrame.Height);
 
-            // Set the epipolar line and also removes any existing lines
-            SetEpipolarLine(TrueEpipolarLinePointAFalseEpipolarLinePointB,
-                            clippingWindow,
-                            epiLine_a, epiLine_b, epiLine_c,
-                            0.0/*focalLength*/, 0.0/*baseline*/, 0.0/*principalXLeft*/, 0.0/*principalYLeft*/, 0.0/*principalXRight*/, 0.0/*principalYRight*/, // Experimental parameters
-                            0/*Draw line*/,
-                            true/*trueCanvasFrameFalseMagWindow*/);
+        //    // Draw the epipolar line and also removes any existing lines
+        //    DrawEpipolarLine(TrueEpipolarLinePointAFalseEpipolarLinePointB,
+        //                    clippingWindow,
+        //                    epiLine_a, epiLine_b, epiLine_c,
+        //                    0/*Draw line*/,
+        //                    true/*trueCanvasFrameFalseMagWindow*/);
 
-            if (channelWidth == 0)
-            {
-                // Remember the epipolar coefficients for use by the Mag Window
-                if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
-                {
-                    epipolarLineTargetActiveA = true;
-                    epipolarLine_aTargetA = epiLine_a;
-                    epipolarLine_bTargetA = epiLine_b;
-                    epipolarLine_cTargetA = epiLine_c;
-                }
-                else
-                {
-                    epipolarLineTargetActiveB = true;
-                    epipolarLine_aTargetB = epiLine_a;
-                    epipolarLine_bTargetB = epiLine_b;
-                    epipolarLine_cTargetB = epiLine_c;
-                }
-            }
-            else if (channelWidth == -1)
-            {
-                // Remove the epipolar line
-                if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
-                {
-                    epipolarLineTargetActiveA = false;
-                    epipolarLine_aTargetA = 0.0;
-                    epipolarLine_bTargetA = 0.0;
-                    epipolarLine_cTargetA = 0.0;
-                }
-                else
-                {
-                    epipolarLineTargetActiveB = false;
-                    epipolarLine_aTargetB = 0.0;
-                    epipolarLine_bTargetB = 0.0;
-                    epipolarLine_cTargetB = 0.0;
-                }
-            }
-        }
+        //    if (channelWidth == 0)
+        //    {
+        //        // Remember the epipolar coefficients for use by the Mag Window
+        //        if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
+        //        {
+        //            epipolarLineTargetActiveA = true;
+        //            epipolarLine_aTargetA = epiLine_a;
+        //            epipolarLine_bTargetA = epiLine_b;
+        //            epipolarLine_cTargetA = epiLine_c;
+        //        }
+        //        else
+        //        {
+        //            epipolarLineTargetActiveB = true;
+        //            epipolarLine_aTargetB = epiLine_a;
+        //            epipolarLine_bTargetB = epiLine_b;
+        //            epipolarLine_cTargetB = epiLine_c;
+        //        }
+        //    }
+        //    else if (channelWidth == -1)
+        //    {
+        //        // Remove the epipolar line
+        //        if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
+        //        {
+        //            epipolarLineTargetActiveA = false;
+        //            epipolarLine_aTargetA = 0.0;
+        //            epipolarLine_bTargetA = 0.0;
+        //            epipolarLine_cTargetA = 0.0;
+        //        }
+        //        else
+        //        {
+        //            epipolarLineTargetActiveB = false;
+        //            epipolarLine_aTargetB = 0.0;
+        //            epipolarLine_bTargetB = 0.0;
+        //            epipolarLine_cTargetB = 0.0;
+        //        }
+        //    }
+        //}
 
 
         /// <summary>
@@ -391,31 +373,29 @@ namespace Surveyor.User_Controls
         /// **A ChannelWidth of 0 draws a simple epipolar line.
         /// **A ChannelWidth of -1 clears the epipolar line**.
         /// </summary>
+        //???TO BE DELELTED Epipolar Line is obsolete
+        //private void SetMagWindowEpipolarLine(bool TrueEpipolarLinePointAFalseEpipolarLinePointB,
+        //                                      Rect magWindow,                                
+        //                                      double channelWidth)
+        //{
+        //    if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
+        //    {
+        //        DrawEpipolarLine(TrueEpipolarLinePointAFalseEpipolarLinePointB,
+        //                        magWindow,
+        //                        epipolarLine_aTargetA, epipolarLine_bTargetA, epipolarLine_cTargetA,
+        //                        0/*Draw line*/,
+        //                        false/*trueCanvasFrameFalseMagWindow*/);
+        //    }
+        //    else
+        //    {
+        //        DrawEpipolarLine(TrueEpipolarLinePointAFalseEpipolarLinePointB,
+        //                        magWindow,
+        //                        epipolarLine_aTargetB, epipolarLine_bTargetB, epipolarLine_cTargetB,
+        //                        0/*Draw line*/,
+        //                        false/*trueCanvasFrameFalseMagWindow*/);
+        //    }
 
-        private void SetMagWindowEpipolarLine(bool TrueEpipolarLinePointAFalseEpipolarLinePointB,
-                                               Rect magWindow,                                
-                                               double channelWidth)
-        {
-            if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
-            {
-                SetEpipolarLine(TrueEpipolarLinePointAFalseEpipolarLinePointB,
-                                magWindow,
-                                epipolarLine_aTargetA, epipolarLine_bTargetA, epipolarLine_cTargetA,
-                                0.0/*focalLength*/, 0.0/*baseline*/, 0.0/*principalXLeft*/, 0.0/*principalYLeft*/, 0.0/*principalXRight*/, 0.0/*principalYRight*/, // Experimental parameters
-                                0/*Draw line*/,
-                                false/*trueCanvasFrameFalseMagWindow*/);
-            }
-            else
-            {
-                SetEpipolarLine(TrueEpipolarLinePointAFalseEpipolarLinePointB,
-                                magWindow,
-                                epipolarLine_aTargetB, epipolarLine_bTargetB, epipolarLine_cTargetB,
-                                0.0/*focalLength*/, 0.0/*baseline*/, 0.0/*principalXLeft*/, 0.0/*principalYLeft*/, 0.0/*principalXRight*/, 0.0/*principalYRight*/, // Experimental parameters
-                                0/*Draw line*/,
-                                false/*trueCanvasFrameFalseMagWindow*/);
-            }
-
-        }
+        //}
 
         /// <summary>
         /// Called you display the epipolar line on the canvas.
@@ -439,71 +419,202 @@ namespace Surveyor.User_Controls
         /// <param name="epiLine_b"></param>
         /// <param name="epiLine_c"></param>
         /// <param name="channelWidth"></param>
-        private void SetEpipolarLine(bool trueEpipolarLinePointAFalseEpipolarLinePointB,
-                                     Rect clippingWindow,
-                                     double epiLine_a, double epiLine_b, double epiLine_c, 
-                                     double focalLength, double baseline, double principalXLeft, double principalYLeft, double principalXRight, double principalYRight, // Experimental parameters
-                                     double channelWidth,
-                                     bool trueCanvasFrameFalseMagWindow)
+        //???TO BE DELELTED Epipolar Line is obsolete
+        //private void DrawEpipolarLine(bool trueEpipolarLinePointAFalseEpipolarLinePointB,
+        //                             Rect clippingWindow,
+        //                             double epiLine_a, double epiLine_b, double epiLine_c, 
+        //                             double channelWidth,
+        //                             bool trueCanvasFrameFalseMagWindow)
+        //{
+        //    // The tagValue is used to indicate if Point A or B
+        //    string tagValue = trueEpipolarLinePointAFalseEpipolarLinePointB.ToString();
+
+        //    if (trueCanvasFrameFalseMagWindow)
+        //    {
+        //        // Remove any existing epipolar lines
+        //        RemoveCanvasShapesByTag(CanvasFrame, new CanvasTag("EpipolarLine", "Line", tagValue));
+        //    }
+        //    else
+        //    {
+        //        // Remove any existing epipolar lines
+        //        RemoveCanvasShapesByTag(CanvasMag, new CanvasTag("EpipolarLine", "Line", tagValue));
+        //    }
+
+        //    // If channelWidth is 0 then draw a simple epipolar line
+        //    if (channelWidth == 0)
+        //    {
+        //        // Create points for the line start and end points
+        //        var (start, end) = GetEpipolarLineEndpoints(epiLine_a, epiLine_b, epiLine_c,
+        //                                                    clippingWindow);
+
+        //        if (start is not null && end is not null)
+        //        {
+        //            // Set the brush colour
+        //            Brush brush;
+        //            if (trueEpipolarLinePointAFalseEpipolarLinePointB)
+        //                brush = epipolarALineColour;
+        //            else
+        //                brush = epipolarBLineColour;
+
+        //            // Epipolar line with an arrow head on the end with the larger depth 
+        //            if (trueCanvasFrameFalseMagWindow)
+        //            {
+        //                CanvasDrawingHelper.DrawLineWithArrowHeads(CanvasFrame, (Point)start, (Point)end, 10f * (float)canvasScaleFactor/*arrow length*/, brush, new CanvasTag("EpipolarLine", "Line", tagValue), false, true, EventElement_PointerMoved, EventElement_PointerPressed);
+        //            }
+        //            else
+        //            {
+        //                Point magWindowEpipolarStart = new(start.Value.X - clippingWindow.X, start.Value.Y - clippingWindow.Y);
+        //                Point magWindowEpipolarEnd = new(end.Value.X - clippingWindow.X, end.Value.Y - clippingWindow.Y);
+        //                CanvasDrawingHelper.DrawLine(CanvasMag, (Point)magWindowEpipolarStart, (Point)magWindowEpipolarEnd, 1/*thickness*/, brush, new CanvasTag("EpipolarLine", "Line", tagValue), EventElement_PointerMoved, EventElement_PointerPressed);
+        //            }
+        //        }
+        //    }
+
+        //    if (trueCanvasFrameFalseMagWindow && channelWidth != -1)
+        //    {
+        //        // Show TeachingTip is necessary
+        //        if (SettingsManagerLocal.TeachingTipsEnabled == true && !SettingsManagerLocal.HasTeachingTipBeenShown("EpipolarLineTeachingTip"))
+        //        {
+        //            EpipolarLineTeachingTip.IsOpen = true;
+        //        }
+        //    }
+        //}
+
+                                                             
+        /// <summary>
+        /// Called from mediatior to display the epipolar curve on the canvas frame.
+        /// **A ChannelWidth of 0 draws a simple epipolar curve.
+        /// **A ChannelWidth of -1 clears the epipolar curve**.
+        /// </summary>
+        internal void SetCanvasFrameEpipolarCurve(bool TrueEpipolarLinePointAFalseEpipolarLinePointB,
+                                                  List <Point>? epipolarCurveDistortedPoints,
+                                                  double channelWidth)
         {
-            // The tagValue is used to indicate if Point A or B
-            string tagValue = trueEpipolarLinePointAFalseEpipolarLinePointB.ToString();
+            Rect clippingWindow = new(0, 0, CanvasFrame.Width, CanvasFrame.Height);
 
-            if (trueCanvasFrameFalseMagWindow)
-            {
-                // Remove any existing epipolar lines
-                RemoveCanvasShapesByTag(CanvasFrame, new CanvasTag("EpipolarLine", "Polygon1", tagValue));
-                RemoveCanvasShapesByTag(CanvasFrame, new CanvasTag("EpipolarLine", "Polygon1", tagValue));
-                RemoveCanvasShapesByTag(CanvasFrame, new CanvasTag("EpipolarLine", "Line", tagValue));
-            }
-            else
-            {
-                // Remove any existing epipolar lines
-                RemoveCanvasShapesByTag(CanvasMag, new CanvasTag("EpipolarLine", "Polygon1", tagValue));
-                RemoveCanvasShapesByTag(CanvasMag, new CanvasTag("EpipolarLine", "Polygon1", tagValue));
-                RemoveCanvasShapesByTag(CanvasMag, new CanvasTag("EpipolarLine", "Line", tagValue));
-            }
+            // Draw the epipolar curve and also removes any existing curves
+            DrawEpipolarCurve(TrueEpipolarLinePointAFalseEpipolarLinePointB,
+                              clippingWindow,
+                              epipolarCurveDistortedPoints,
+                              true/*trueCanvasFrameFalseMagWindow*/);
 
-            // If channelWidth is 0 then draw a simple epipolar line
             if (channelWidth == 0)
             {
-                // Create points for the line start and end points
-                var (start, end) = GetEpipolarLineEndpoints(epiLine_a, epiLine_b, epiLine_c,
-                                                            clippingWindow);
-
-                if (start is not null && end is not null)
+                // Remember the epipolar coefficients for use by the Mag Window
+                if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
                 {
-                    // Set the brush colour
-                    Brush brush;
-                    if (trueEpipolarLinePointAFalseEpipolarLinePointB)
-                        brush = epipolarALineColour;
-                    else
-                        brush = epipolarBLineColour;
-
-                    // Epipolar line with an arrow head on the end with the larger depth 
-                    if (trueCanvasFrameFalseMagWindow)
-                    {
-                        CanvasDrawingHelper.DrawLineWithArrowHeads(CanvasFrame, (Point)start, (Point)end, 10f * (float)canvasScaleFactor/*arrow length*/, brush, new CanvasTag("EpipolarLine", "Line", tagValue), false, true, EventElement_PointerMoved, EventElement_PointerPressed);
-                    }
-                    else
-                    {
-                        Point magWindowEpipolarStart = new(start.Value.X - clippingWindow.X, start.Value.Y - clippingWindow.Y);
-                        Point magWindowEpipolarEnd = new(end.Value.X - clippingWindow.X, end.Value.Y - clippingWindow.Y);
-                        CanvasDrawingHelper.DrawLine(CanvasMag, (Point)magWindowEpipolarStart, (Point)magWindowEpipolarEnd, 1/*thickness*/, brush, new CanvasTag("EpipolarLine", "Line", tagValue), EventElement_PointerMoved, EventElement_PointerPressed);
-                    }
+                    epipolarLineTargetActiveA = true;
+                    epipolarCurveDistortedPointsTargetA = epipolarCurveDistortedPoints;
+                }
+                else
+                {
+                    epipolarLineTargetActiveB = true;
+                    epipolarCurveDistortedPointsTargetB = epipolarCurveDistortedPoints;
                 }
             }
-
-            if (trueCanvasFrameFalseMagWindow && channelWidth != -1)
+            else if (channelWidth == -1)
             {
-                // Show TeachingTip is necessary
-                if (SettingsManagerLocal.TeachingTipsEnabled == true && !SettingsManagerLocal.HasTeachingTipBeenShown("EpipolarLineTeachingTip"))
+                // Remove the epipolar line
+                if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
                 {
-                    EpipolarLineTeachingTip.IsOpen = true;
+                    epipolarLineTargetActiveA = false;
+                    epipolarCurveDistortedPointsTargetA = null;
+                }
+                else
+                {
+                    epipolarLineTargetActiveB = false;
+                    epipolarCurveDistortedPointsTargetB = null;
                 }
             }
         }
 
+
+
+        /// <summary>
+        /// Called from MagWindow() method to display the epipolar curve on the mag window.
+        /// **A ChannelWidth of 0 draws a simple epipolar line.
+        /// **A ChannelWidth of -1 clears the epipolar line**.
+        /// </summary>
+        private void SetMagWindowEpipolarCurve(bool TrueEpipolarLinePointAFalseEpipolarLinePointB,
+                                               Rect magWindow,
+                                               double channelWidth)
+        {
+            if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
+            {
+                DrawEpipolarCurve(TrueEpipolarLinePointAFalseEpipolarLinePointB,
+                                 magWindow,
+                                 epipolarCurveDistortedPointsTargetA,
+                                 false/*trueCanvasFrameFalseMagWindow*/);
+            }
+            else
+            {
+                DrawEpipolarCurve(TrueEpipolarLinePointAFalseEpipolarLinePointB,
+                                 magWindow,
+                                 epipolarCurveDistortedPointsTargetB,
+                                 false/*trueCanvasFrameFalseMagWindow*/);
+            }
+
+        }
+
+
+        /// <summary>
+        /// Draw a sampled epipolar curve (distortion aware). The approach:
+        /// 1. Decide sampling axis from line angle (slope).
+        /// 2. Iterate in 25px steps generating distorted input samples (x or y).
+        /// 3. Undistort the input sample point (identity placeholder if calibration not available).
+        /// 4. Solve line in undistorted space for the missing coordinate.
+        /// 5. Distort the resulting undistorted point (identity placeholder if calibration not available).
+        /// 6. Collect distorted output points and render as a polyline.
+        /// </summary>
+        private void DrawEpipolarCurve(bool trueEpipolarLinePointAFalseEpipolarLinePointB,
+                                       Rect clippingWindow,
+                                       List <Point>? epipolarCurveDistortedPoints,
+                                       bool trueCanvasFrameFalseMagWindow)
+        {
+
+            // Tag value encodes whether A or B
+            string tagValue = trueEpipolarLinePointAFalseEpipolarLinePointB.ToString();
+            Canvas targetCanvas = trueCanvasFrameFalseMagWindow ? CanvasFrame : CanvasMag;
+
+            // Remove any existing curve for this target
+            RemoveCanvasShapesByTag(targetCanvas, new CanvasTag("EpipolarLine", "Curve", tagValue));
+
+            if (epipolarCurveDistortedPoints is not null)
+            {
+
+                Polyline polyline = new()
+                {
+                    StrokeThickness = 1/*thickness*/,
+                    Tag = new CanvasTag("EpipolarLine", "Curve", tagValue),
+                    Stroke = trueEpipolarLinePointAFalseEpipolarLinePointB ? epipolarALineColour : epipolarBLineColour
+                };
+
+
+                if (trueCanvasFrameFalseMagWindow)
+                {
+                    foreach (var p in epipolarCurveDistortedPoints)
+                        polyline.Points.Add(p);
+                }
+                else
+                {
+                    // Adjust points for mag window offset
+                    foreach (var p in epipolarCurveDistortedPoints)
+                    {
+                        Point magWindowPoint = new(p.X - clippingWindow.X, p.Y - clippingWindow.Y);
+                        polyline.Points.Add(magWindowPoint);
+                    }
+                }
+
+                polyline.PointerMoved += EventElement_PointerMoved;
+                polyline.PointerPressed += EventElement_PointerPressed;
+
+                targetCanvas.Children.Add(polyline);
+            }
+        }
+
+        // Placeholder distortion helpers (identity). Replace with calls into StereoProjection when calibration available.
+        private static Point PlaceholderUndistort(Point p) => p;
+        private static Point PlaceholderDistort(Point p) => p;
 
         /// <summary>
         /// Compute Epipolar Line Endpoints and clip to be witin the rectClip
@@ -567,309 +678,6 @@ namespace Surveyor.User_Controls
                 return (null, null);
             }
         }
-        //??? older version (keep for a while 02 Feb 2025)
-        //public static (Point? start, Point? end) GetEpipolarLineEndpoints(double a, double b, double c, double canvasWidth, double canvasHeight)
-        //{
-        //    List<Point> intersections = [];
-
-        //    // Left boundary (x = 0), solve for y
-        //    if (b != 0)
-        //    {
-        //        double yLeft = (-c - a * 0) / b;
-        //        if (yLeft >= 0 && yLeft <= canvasHeight)
-        //            intersections.Add(new Point(0, yLeft));
-        //    }
-
-        //    // Right boundary (x = canvasWidth), solve for y
-        //    if (b != 0)
-        //    {
-        //        double yRight = (-c - a * canvasWidth) / b;
-        //        if (yRight >= 0 && yRight <= canvasHeight)
-        //            intersections.Add(new Point(canvasWidth, yRight));
-        //    }
-
-        //    // Top boundary (y = 0), solve for x
-        //    if (a != 0)
-        //    {
-        //        double xTop = (-c - b * 0) / a;
-        //        if (xTop >= 0 && xTop <= canvasWidth)
-        //            intersections.Add(new Point(xTop, 0));
-        //    }
-
-        //    // Bottom boundary (y = canvasHeight), solve for x
-        //    if (a != 0)
-        //    {
-        //        double xBottom = (-c - b * canvasHeight) / a;
-        //        if (xBottom >= 0 && xBottom <= canvasWidth)
-        //            intersections.Add(new Point(xBottom, canvasHeight));
-        //    }
-
-        //    // Ensure we have two valid points to draw the line
-        //    if (intersections.Count >= 2)
-        //    {
-        //        return (intersections[0], intersections[1]);
-        //    }
-        //    else
-        //    {
-        //        Debug.WriteLine("GetEpipolarLineEndpoints: Epipolar line does not intersect the canvas correctly.");
-        //        return (null, null);
-        //    }
-        //}
-
-
-
-        /// <summary>
-        /// Failed
-        /// Calculate the epipolar line for unrectified stereo images that is between the min and max depth
-        /// </summary>
-        /// <param name="a"></param>
-        /// <param name="b"></param>
-        /// <param name="c"></param>
-        /// <param name="canvasWidth"></param>
-        /// <param name="canvasHeight"></param>
-        /// <param name="focalLength"></param>
-        /// <param name="baseline"></param>
-        /// <param name="principalXLeft"></param>
-        /// <param name="principalYLeft"></param>
-        /// <param name="principalXRight"></param>
-        /// <param name="principalYRight"></param>
-        /// <param name="minDepth"></param>
-        /// <param name="maxDepth"></param>
-        /// <returns></returns>
-        //??? NOT CURRENT USED
-        //public static (Point start, Point end) GetEpipolarLineForUnrectifiedStereo(double a, double b, double c, double canvasWidth, double canvasHeight,
-        //                                            double focalLength, double baseline, 
-        //                                            double principalXLeft, double principalYLeft, double principalXRight, double principalYRight,
-        //                                            double minDepth, double maxDepth)                                                    
-        //{
-        //    // Ensure valid depth range
-        //    if (minDepth == 0) minDepth = 0.01;  // Prevent division by zero
-        //    if (maxDepth <= minDepth) maxDepth = minDepth + 0.1;
-
-        //    // Compute disparity range
-        //    double maxDisparity = (focalLength * baseline) / minDepth; // Closest object (largest disparity)
-        //    double minDisparity = (focalLength * baseline) / maxDepth; // Farthest object (smallest disparity)
-
-        //    // Convert disparity to right image coordinates
-        //    double xMinRight = principalXLeft - minDisparity + (principalXRight - principalXLeft);
-        //    double xMaxRight = principalXLeft - maxDisparity + (principalXRight - principalXLeft);
-
-        //    // Adjust for principalY difference (if right image is shifted)
-        //    double yMinRight = (-c - a * xMinRight) / b + (principalYRight - principalYLeft);
-        //    double yMaxRight = (-c - a * xMaxRight) / b + (principalYRight - principalYLeft);
-
-        //    // Ensure the epipolar line is clipped within the canvas bounds
-        //    var (canvasStart, canvasEnd) = GetEpipolarLineEndpoints(a, b, c, canvasWidth, canvasHeight);
-
-        //    if (canvasStart is not null && canvasEnd is not null)
-        //    {
-        //        xMinRight = Math.Clamp(xMinRight, Math.Min(canvasStart.Value.X, canvasEnd.Value.X), Math.Max(canvasStart.Value.X, canvasEnd.Value.X));
-        //        yMinRight = Math.Clamp(yMinRight, Math.Min(canvasStart.Value.Y, canvasEnd.Value.Y), Math.Max(canvasStart.Value.Y, canvasEnd.Value.Y));
-
-        //        xMaxRight = Math.Clamp(xMaxRight, Math.Min(canvasStart.Value.X, canvasEnd.Value.X), Math.Max(canvasStart.Value.X, canvasEnd.Value.X));
-        //        yMaxRight = Math.Clamp(yMaxRight, Math.Min(canvasStart.Value.Y, canvasEnd.Value.Y), Math.Max(canvasStart.Value.Y, canvasEnd.Value.Y));
-        //    }
-
-        //    return (new Point(xMinRight, yMinRight), new Point(xMaxRight, yMaxRight));
-        //}
-
-
-        /// <summary>
-        /// Used to applied an epipolar curved line to the canvas and rememeber the line points for later use
-        /// by the mag window.
-        /// </summary>
-        /// <param name="TrueEpipolarLinePointAFalseEpipolarLinePointB"></param>
-        /// <param name="pointNear"></param>
-        /// <param name="pointMiddle"></param>
-        /// <param name="pointFar"></param>
-        /// <param name="channelWidth"></param>
-        internal void SetEpipolarPoints(bool TrueEpipolarLinePointAFalseEpipolarLinePointB, Point pointNear, Point pointMiddle, Point pointFar, int channelWidth)
-        {
-            // The tagValue is used to indicate if Point A or B
-            string tagValue = TrueEpipolarLinePointAFalseEpipolarLinePointB.ToString();
-
-            // Remove any existing epipolar lines
-            RemoveCanvasShapesByTag(CanvasFrame, new CanvasTag("EpipolarPoints", "Curve", tagValue));
-
-
-            // If channelWidth is 0 then draw a simple epipolar line
-            if (channelWidth == 0)
-            {
-                // Set the brush colour
-                Brush brush;
-                if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
-                    brush = epipolarALineColour;
-                else
-                    brush = epipolarBLineColour;
-
-                // Epipolar line with an arrow head on the end with the larger depth 
-                CanvasDrawingHelper.DrawLine(CanvasFrame, pointNear, pointMiddle, brush, new CanvasTag("EpipolarPoints", "Curve", tagValue), EventElement_PointerMoved, EventElement_PointerPressed);
-                CanvasDrawingHelper.DrawLineWithArrowHeads(CanvasFrame, (Point)pointMiddle, (Point)pointFar, 10/*arrow length*/, brush, new CanvasTag("EpipolarPoints", "Curve", tagValue), false, true, EventElement_PointerMoved, EventElement_PointerPressed);
-                CanvasDrawingHelper.DrawDot(CanvasFrame, pointMiddle, 10/*diameter*/, brush, new CanvasTag("EpipolarPoints", "Curve", tagValue), EventElement_PointerMoved, EventElement_PointerPressed);
-
-                // Remember the epipolar line
-                if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
-                {
-                    //???epipolarPointsActiveA = true;
-                    epipolarPointNearA = pointNear;
-                    epipolarPointMiddleA = pointMiddle;
-                    epipolarPointFarA = pointFar;
-                }
-                else
-                {
-                    //???epipolarPointsActiveB = true;
-                    epipolarPointNearB = pointNear;
-                    epipolarPointMiddleB = pointMiddle;
-                    epipolarPointFarB = pointFar;
-                }
-
-            }
-            else if (channelWidth != -1)
-            {
-                // Remove the epipolar line
-                if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
-                {
-                    //???epipolarPointsActiveA = true;
-                    epipolarPointNearA = null;
-                    epipolarPointMiddleA = null;
-                    epipolarPointFarA = null;
-                }
-                else
-                {
-                    //???epipolarPointsActiveB = true;
-                    epipolarPointNearB = null;
-                    epipolarPointMiddleB = null;
-                    epipolarPointFarB = null;
-                }
-            }
-
-            if (channelWidth != -1)
-            {
-                // Show TeachingTip is necessary
-                if (SettingsManagerLocal.TeachingTipsEnabled == true && !SettingsManagerLocal.HasTeachingTipBeenShown("EpipolarPointsTeachingTip"))
-                {
-                    EpipolarPointsTeachingTip.IsOpen = true;
-                }
-            }
-        }
-
-
-        /// <summary>
-        /// Solve line for Y
-        /// </summary>
-        /// <param name="x"></param>
-        /// <param name="A"></param>
-        /// <param name="B"></param>
-        /// <param name="C"></param>
-        /// <param name="channelWidth"></param>
-        /// <returns></returns>
-        private double LineSolveForY(double x, double A, double B, double C, double channelWidth)
-        {
-            double sqrtTerm = Math.Sqrt(A * A + B * B);
-            double D1 = C + channelWidth * sqrtTerm;
-
-            double y = (-A / B) * x - (D1 / B);
-
-            return y;
-        }
-
-        /// <summary>
-        /// Solve line for X
-        /// </summary>
-        /// <param name="x"></param>
-        /// <param name="epiLine_a"></param>
-        /// <param name="epiLine_b"></param>
-        /// <param name="epiLine_c"></param>
-        /// <param name="channelWidth"></param>
-        /// <returns></returns>
-        private double LineSolveForX(double y, double A, double B, double C, double channelWidth)
-        {
-            double sqrtTerm = Math.Sqrt(A * A + B * B);
-            double D1 = C + channelWidth * sqrtTerm;
-
-            double x = (-B / A) * y - (D1 / A);
-            return x;
-        }
-
-
-        /// <summary>
-        ///  ax+by+(c+channelWidth)=0
-        ///  y = -(a/b)x - (c/b)
-        ///  x = -(b/a)y - (c/a)
-        /// </summary>
-        /// <param name="epiLine_a"></param>
-        /// <param name="epiLine_b"></param>
-        /// <param name="epiLine_c"></param>
-        /// <param name="channelWidth"></param>
-        /// <param name="canvasWidth"></param>
-        /// <param name="canvasHeight"></param>
-        /// <param name="polyLineLeftIntersect"></param>
-        /// <param name="polyLineRightIntersect"></param>
-        /// <param name="polyLineTopIntersect"></param>
-        /// <param name="polyLineBottomIntersect"></param>
-        ///??? Not Used 02 Feb 2025 
-        //private void XXCalculateCanvasIntersectPointForEpipolarLine(double A, double B, double C,
-        //    double channelWidth,
-        //    double canvasWidth, double canvasHeight,
-        //    out double? polyLineLeftIntersect,
-        //    out double? polyLineRightIntersect,
-        //    out double? polyLineTopIntersect,
-        //    out double? polyLineBottomIntersect)
-        //{
-        //    // Reset
-        //    polyLineLeftIntersect = null;
-        //    polyLineRightIntersect = null;
-        //    polyLineTopIntersect = null;
-        //    polyLineBottomIntersect = null;
-
-        //    // Does polygon1 line intersect left canvas boundary
-        //    // Range is between 0 and (canvasHeight - 2) inclusive, (canvasHeight - 1) is classified as the bottom boundary
-        //    // y = ((-a * x) - (c + cw)) / b so if x = 0 then y = -(c + cw) / b
-        //    if (B != 0)
-        //    {
-        //        polyLineLeftIntersect = LineSolveForY(0 /*x=0*/, A, B, C, channelWidth);
-
-        //        // Check if the intersect is out of bounds
-        //        if (polyLineLeftIntersect < 0 || polyLineLeftIntersect >= (canvasHeight - 1))
-        //            polyLineLeftIntersect = null;
-        //    }
-
-        //    // Does polygon line intersect right canvas boundary
-        //    // Range is greater than 0 and (canvasHeight - 1) inclusive, 0 is classified as the top boundary
-        //    // y = ((-a * x) - (c + cw)) / b  so if x=(canvasWidth - 1) then y = ((-a * (canvasWidth - 1)) - (c + cw)) / b
-        //    if (B != 0)
-        //    {
-        //        polyLineRightIntersect = LineSolveForY(canvasWidth - 1 /*x=canvasWidth - 1*/, A, B, C, channelWidth);
-
-        //        // Check if the intersect is out of bounds
-        //        if (polyLineRightIntersect <= 0 || polyLineRightIntersect > canvasHeight - 1)
-        //            polyLineRightIntersect = null;
-        //    }
-
-        //    // Does polygon1 line intersect top canvas boundary
-        //    // Range is greater than 0 and (canvasWidth - 1) inclusive, 0 is classified as the lef boundary
-        //    // x = ((-b * y) - (c + cw)) / a  so if y = 0  then x = (-(c + cw) / a
-        //    if (A != 0)
-        //    {
-        //        polyLineTopIntersect = LineSolveForX(0/*y=0*/, A, B, C, channelWidth);
-
-        //        // Check if the intersect is out of bounds
-        //        if (polyLineTopIntersect <= 0 || polyLineTopIntersect > canvasWidth - 1)
-        //            polyLineTopIntersect = null;
-        //    }
-
-        //    // Does polygon1 line intersect bottom canvas boundary
-        //    // Range is between 0 and least than (canvasWidth - 1) inclusive, (canvasWidth - 1) is classified as the right boundary
-        //    // x = ((-b * y) - (c + cw)) / a  so if y = (canvasHeight - 1)  then x = ((-b * (canvasHeight - 1)) - (c + cw)) / a
-        //    if (A != 0)
-        //    {
-        //        polyLineBottomIntersect = LineSolveForX(canvasHeight - 1/*y=canvasHeight - 1*/, A, B, C, channelWidth);
-
-        //        // Check if the intersect is out of bounds
-        //        if (polyLineBottomIntersect <= 0 || polyLineBottomIntersect > canvasWidth - 1)
-        //            polyLineBottomIntersect = null;
-        //    }
-        //}
 
 
         /// <summary>
