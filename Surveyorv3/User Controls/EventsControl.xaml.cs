@@ -1,4 +1,3 @@
-using MathNet.Numerics.LinearAlgebra.Factorization;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -299,8 +298,8 @@ namespace Surveyor.User_Controls
                     case SurveyDataType.StereoSyncPoint:  // No EventData for this type 
 
                         sb.AppendLine($"Sync media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}");
-                        sb.AppendLine($"Left media position: {TimePositionHelper.Format(evt.TimeSpanLeftFrame, displayToDecimalPlaces)}");
-                        sb.AppendLine($"Right media position: {TimePositionHelper.Format(evt.TimeSpanRightFrame, displayToDecimalPlaces)}");
+                        sb.AppendLine($"Left media position: {TimePositionHelper.Format(evt.TimeSpanLeftFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexLeft}");
+                        sb.AppendLine($"Right media position: {TimePositionHelper.Format(evt.TimeSpanRightFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexRight}");
                         break;
 
                     case SurveyDataType.SurveyMeasurementPoints:
@@ -308,12 +307,20 @@ namespace Surveyor.User_Controls
                         SurveyRulesCalc? surveyRulesCalc = null;
                         if (evt.EventData is SurveyMeasurement surveyMeasurement)
                         {
+                            // Media Position
                             if (surveyTransectName is not null)
-                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Transect #{surveyTransectName}\r\n");
+                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Transect #{surveyTransectName}");
                             else
-                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
+                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}");
+
+                            if (SettingsManagerLocal.DiagnosticInformation)
+                            {
+                                sb.AppendLine($"Left media position: {TimePositionHelper.Format(evt.TimeSpanLeftFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexLeft}");
+                                sb.AppendLine($"Right media position: {TimePositionHelper.Format(evt.TimeSpanRightFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexRight}");
+                            }
 
                             // Measurement
+                            sb.AppendLine("");
                             sb.AppendLine($"Species: {surveyMeasurement.SpeciesInfo.Species}\r\n");
                             if (surveyMeasurement.Measurement is not null && surveyMeasurement.Measurement != -1)
                                 sb.AppendLine($"Measurement: {Math.Round((double)surveyMeasurement.Measurement * 1000, 0)}mm");

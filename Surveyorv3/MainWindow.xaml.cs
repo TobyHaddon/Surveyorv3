@@ -9,7 +9,6 @@ using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
-using Microsoft.VisualBasic;
 using Microsoft.Windows.AppLifecycle;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Events;
@@ -21,11 +20,9 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Security.Policy;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -46,13 +43,6 @@ using static Surveyor.User_Controls.SettingsWindowEventData;
 
 namespace Surveyor
 {
-    public enum SurveyType
-    {
-        Unknown = 0,
-        StereoFish,
-        MonoFish,
-        MonoBenthic
-    }
 
     /// <summary>
     /// An empty window that can be used on its own or navigated to within a Frame.
@@ -999,7 +989,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void FileSurveyNew_Click(object sender, RoutedEventArgs e)
+        private async void FileSurveyNewStereo_Click(object sender, RoutedEventArgs e)
         {
             // First check if an existing survey is already open
             if (await CheckForOpenSurveyAndClose() == true)
@@ -1065,7 +1055,7 @@ namespace Surveyor
                         ContentDialogResult result = await SurveyInfoAndMediaContentDialog.ShowAsync();
                         if (result == ContentDialogResult.Primary)
                         {
-                            // Copy the survey info and media info setup in the dialog into the surevey class
+                            // Copy the survey info and media info setup in the dialog into the survey class
                             bool inheritanceRequested = SurveyInfoAndMediaUserControl.SaveForContentDialog(surveyClass);
 
                             // Inherit information from recent survey if user requested
@@ -1168,6 +1158,15 @@ namespace Surveyor
             infoBarSpeciesInfoMissingDismissed = false;
         }
 
+        private void FileSurveyNewMono_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void FileSurveyNewBenthic_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
 
         /// <summary>
         /// Open an existing survey file
@@ -2976,7 +2975,8 @@ namespace Surveyor
                         depthUnderwater = 0;
 
                     // Open the new media
-                    retOpen = await mediaStereoController.MediaOpen(mediaFileLeft,
+                    retOpen = await mediaStereoController.MediaOpen(surveyClass.Data.Info.SurveyType,
+                                                                    mediaFileLeft,
                                                                     mediaFileRight,
                                                                     surveyClass.Data.Events.EventList,
                                                                     surveyClass.Data.Sync.IsSynchronized == true ? surveyClass.Data.Sync.TimeSpanOffset : null,
@@ -3951,7 +3951,6 @@ namespace Surveyor
         internal void DisplayDynamicMeasurementPlaceholder(bool showRMSCombinedOnly, double? measurement, double? range, double? rmsCombined, double? rmsTargetA, double? rmsTargetB) { }
         internal void _SetDiagnosticInformationPlaceholder(bool diag) { }
         internal void _SetExperimentalPlaceholder(bool a, bool b, bool c, bool d) { }
-
 
     }
 

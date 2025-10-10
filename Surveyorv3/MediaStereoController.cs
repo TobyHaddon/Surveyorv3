@@ -84,6 +84,9 @@ namespace Surveyor
         // StereoProjection class        
         public StereoProjection stereoProjection;
 
+        // Type of survey that is open
+        Survey.SurveyType surveyType = Survey.SurveyType.Unknown;
+
         // Used to allow the user not to see the dialog that appears if the user adds a
         // Measurement Point, 3D Point or a Single Point and doesn't setup the species info
         private bool justSaveEventDoAsk = false;
@@ -219,7 +222,7 @@ namespace Surveyor
         /// <param name="mediaFileSpecRight"></param>
         /// <param name="tempSpanOffset"></param>
         /// <returns></returns>
-        public async Task<int> MediaOpen(string mediaFileSpecLeft, string mediaFileSpecRight, ObservableCollection<Event>? existingEvents, TimeSpan? timeSpanOffset, uint depthUnderwater)
+        public async Task<int> MediaOpen(Survey.SurveyType _surveyType, string mediaFileSpecLeft, string mediaFileSpecRight, ObservableCollection<Event>? existingEvents, TimeSpan? timeSpanOffset, uint depthUnderwater)
         {
             CheckIsUIThread();
 
@@ -233,6 +236,9 @@ namespace Surveyor
             durationSetByThisClass = false;
             _frameRate = 0.0;
             mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
+
+            // Remember the survey type
+            surveyType = _surveyType;
 
             // This is an 'are you sure' dialog if the user has not set the species info
             justSaveEventDoAsk = false;
@@ -345,6 +351,8 @@ namespace Surveyor
                 durationSetByThisClass = false;
                 _frameRate = 0.0;
                 mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
+
+                surveyType = Survey.SurveyType.Unknown;
             }
             catch (Exception ex)
             {
@@ -363,26 +371,6 @@ namespace Surveyor
 
             return (mediaPlayerLeft.IsOpen() || mediaPlayerRight.IsOpen());
         }
-
-
-        /// <summary>
-        /// Lock the two mediaplayer together at their current offset position
-        /// </summary>
-        /// <returns></returns>
-        //???TOBEDELETED Only used MediaLockMediaPlayers(TimeSpan?)
-        //public async Task<bool> MediaLockMediaPlayers()
-        //{
-        //    CheckIsUIThread();
-
-        //    bool ret = false;
-
-        //    if (!mediaSynchronized)
-        //    {
-        //        // Lock the players at their current position
-        //        ret = await MediaLockMediaPlayers(null);
-        //    }
-        //    return ret;
-        //}
 
 
         /// <summary>
@@ -1972,8 +1960,10 @@ namespace Surveyor
         {
             if (cameraSide != eCameraSide.None)
             {
-                SurveyPoint surveyPoint = new();
-                surveyPoint.TrueLeftfalseRight = cameraSide == eCameraSide.Left;
+                SurveyPoint surveyPoint = new()
+                {
+                    TrueLeftfalseRight = cameraSide == eCameraSide.Left
+                };
 
                 if (cameraSide == eCameraSide.Left && TruePointAFalsePointB)
                 {

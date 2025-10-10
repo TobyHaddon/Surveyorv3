@@ -65,11 +65,29 @@
             <MenuBar x:Name="AppMenuBar" Grid.Row="0" Grid.Column="2" VerticalAlignment="Top">
                 <!-- FILE MENU-->
                 <MenuBarItem Title="File">
-                    <MenuFlyoutItem Name="MenuSurveyNew" Text="New Survey" Click="FileSurveyNew_Click">
-                        <MenuFlyoutItem.Icon>
-                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8A5;" />
-                        </MenuFlyoutItem.Icon>
-                    </MenuFlyoutItem>
+                    <MenuFlyoutSubItem Text="New Survey">
+                        <MenuFlyoutItem Name="MenuSurveyNewStereo" Text="New Stereo Fish Survey" Click="FileSurveyNewStereo_Click"
+                            ToolTipService.ToolTip="Create a new stereo (SVS) fish survey project. Uses video from a stereo camera system. Allows fish measurements to made and species to be assigned.">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8A5;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+
+                        <MenuFlyoutItem Name="MenuSurveyNewMono" Text="New Mono Fish Survey" Click="FileSurveyNewMono_Click"
+                            ToolTipService.ToolTip="Create a new single-camera fish survey. Uses video from a single camera. Uses video from a stereo camera system. Allows species to be assigned">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEB9F;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+
+                        <MenuFlyoutItem Name="MenuSurveyNewBenthic" Text="New Benthic Survey" IsEnabled="False" Click="FileSurveyNewBenthic_Click"
+                            ToolTipService.ToolTip="Create a new benthic survey.">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE809;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                    </MenuFlyoutSubItem>
+                    
                     <MenuFlyoutItem Name="MenuSurveyOpen" Text="Open Survey..." Click="FileSurveyOpen_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8E5;" />

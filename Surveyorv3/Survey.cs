@@ -35,6 +35,15 @@ namespace Surveyor
 {
     public partial class Survey : INotifyPropertyChanged
     {
+        // Type of survey
+        public enum SurveyType
+        {
+            Unknown = 0,
+            StereoFish,
+            MonoFish,
+            MonoBenthic
+        }
+
         // Used to report info, warnings and errors to the user
         private Reporter? Report { get; set; } = null;
 
@@ -86,7 +95,7 @@ namespace Surveyor
 
 
             public partial class InfoClass : INotifyPropertyChanged
-            {                
+            {
                 public event PropertyChangedEventHandler? PropertyChanged;
 
                 /// <summary>
@@ -94,6 +103,7 @@ namespace Surveyor
                 /// </summary>
                 public void Clear()
                 {
+                    _surveyType = SurveyType.Unknown;
                     _surveyFileName = null;
                     _surveyPath = null;
                     _isDirty = false;
@@ -107,6 +117,7 @@ namespace Surveyor
                 public float Version { get; set; } = 1.0f;
 
                 // Values
+                private SurveyType _surveyType = SurveyType.Unknown;
                 private string? _surveyFileName = null;
                 private string? _surveyPath = null;
                 private string? _surveyCode = null;
@@ -114,6 +125,19 @@ namespace Surveyor
                 private string? _surveyDepth = null;  // Normally 5,8,10,13,15 or Flat, Crest or Slope 
 
                 // Setters and getters
+                public SurveyType SurveyType
+                {
+                    get => _surveyType;
+                    set
+                    {
+                        if (_surveyType != value)
+                        {
+                            _surveyType = value;
+                            IsDirty = true;
+                        }
+                    }
+                }
+
                 public string? SurveyFileName
                 {
                     get => _surveyFileName;
@@ -1251,10 +1275,9 @@ namespace Surveyor
         /// <returns></returns>
         public async Task<int> SurveySaveAs(string surveyFileSpec)
         {
-            int ret = -1;
 
             // Set the survey name using the stem of the file name and extract the survey path
-            ret = SetSurveyNameAndPath(surveyFileSpec);
+            int ret = SetSurveyNameAndPath(surveyFileSpec);
 
             if (ret == 0)
             {

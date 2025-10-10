@@ -1543,6 +1543,8 @@ namespace Surveyor
 
             // Intrinsic parameters (SOURCE)
             var Ksrc = srcCal.Intrinsic;
+            if (Ksrc is null) return false;
+
             double fx_s = Ksrc[0, 0], fy_s = Ksrc[1, 1], cx_s = Ksrc[0, 2], cy_s = Ksrc[1, 2];
 
             // Ray direction in SOURCE camera coords (not normalized; scale is fine)
