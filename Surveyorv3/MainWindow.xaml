@@ -435,7 +435,7 @@
             MaxHeight="400"
             IsPrimaryButtonEnabled="True"
             RequestedTheme="Default">
-                <surveyorControls:SurveyInfoAndMedia x:Name="SurveyInfoAndMediaUserControl" />
+                <surveyorControls:SurveyInfoAndMedia x:Name="SurveyStereoInfoAndMediaUserControl" />
             </ContentDialog>
         </Grid>
     </Grid>

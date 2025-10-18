@@ -13,6 +13,7 @@ Carangidae/Jacks	Caranx	crysos/Blue runner	FishBase:1933
 Carangidae/Jacks	Caranx	latus/Horse-eye jack	FishBase:1935
 Carangidae/Jacks	Caranx	ruber/Bar jack	FishBase:1918
 Carangidae/Jacks and pompanos	Selar	crumenophthalmus/Bigeye scad	FishBase:387
+Carangidae/Jacks and pompanos	Seriola	rivoliana/Longfin yellowtail	FishBase:1007
 Carangidae/Jacks	Trachinotus	falcatus/Permit	FishBase:1010
 Chaetodontidae/Butterflyfishes	Chaetodon	capistratus/Four-eye butterflyfish	FishBase:3602
 Chaetodontidae/Butterflyfishes	Chaetodon	ocellatus/Spotfin butterflyfish	FishBase:3604

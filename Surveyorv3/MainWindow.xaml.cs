@@ -985,188 +985,76 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Create a new survey 
+        /// Create a new stereo fish survey 
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private async void FileSurveyNewStereo_Click(object sender, RoutedEventArgs e)
         {
-            // First check if an existing survey is already open
-            if (await CheckForOpenSurveyAndClose() == true)
+            bool ret;
+
+            if (surveyClass is not null)
             {
-                // Get to use to select media files for the survey
-                FileOpenPicker openPicker = new()
+                surveyClass.Data.Info.SurveyType = Survey.SurveyType.StereoFish;
+
+                ret = await SurveyCreateAllTypes(surveyClass.Data.Info.SurveyType);
+
+                if (ret == false)
                 {
-                    ViewMode = PickerViewMode.Thumbnail,
-                    SuggestedStartLocation = PickerLocationId.DocumentsLibrary
-                };
-
-                // Add file type filters
-                openPicker.FileTypeFilter.Add(".mp4");
-
-                // Associate the file picker with the current window
-                IntPtr hWnd = WindowNative.GetWindowHandle(this/*App.MainWindow*/);
-                InitializeWithWindow.Initialize(openPicker, hWnd);
-
-                // Show the picker and allow multiple file selection            
-                // The DispatcherQueue is used to ensure the file picker returned objects are created on the UI thread (ChapGPT)
-                IReadOnlyList<StorageFile> mediaFilesSelected = await DispatcherQueue.EnqueueAsync(async () =>
-                {
-                    return await openPicker.PickMultipleFilesAsync();
-                });
-
-                // Proceed is files selected
-                if (mediaFilesSelected.Count > 0)
-                {
-                    // Create a new empty survey
-                    surveyClass = new Survey(report);
-                    surveyClass.PropertyChanged += Survey_PropertyChanged;
-
-                    // Inform the EventControl of the new survey events
-                    eventsControl.SetEvents(surveyClass.Data.Events.EventList);
-
-                    // Get the name (if any) of a potential survey to inherit information from
-                    string potentialSurveyToInheritFrom = string.Empty;                    
-                    string[]? recentSurveys = ApplicationData.Current.LocalSettings.Values[RECENT_SURVEYS_KEY] as string[];
-                    if (recentSurveys is not null && recentSurveys.Length > 0)
-                    {
-                        potentialSurveyToInheritFrom = recentSurveys[0];
-                        if (File.Exists(potentialSurveyToInheritFrom) == false)
-                            potentialSurveyToInheritFrom = string.Empty;
-                    }
-
-                    // Load the Info and Media user control to setup the survey
-                    SurveyInfoAndMediaUserControl.SetupForContentDialog(SurveyInfoAndMediaContentDialog, 
-                                                                        mediaFilesSelected,
-                                                                        Path.GetFileName(potentialSurveyToInheritFrom)/*used to display the name of the inheritance survey only*/);
-                    SurveyInfoAndMediaUserControl.SetReporter(report);
-
-                    try
-                    {
-                        // ** Important notes **
-                        // The UserControl SurveyInfoAndMedia is displayed within a ContentDialog for 
-                        // the purpose of setting up a new survey (also using from a SettingsCard)
-                        // I stuggled to get the ContentDialog to show width necessary to fully display
-                        // the UserControl.  The solution was to:
-                        // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
-                        // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
-                        // This took a lot of trail and error. It seems to effect the title bar is left in
-                        // default row zero.
-                        ContentDialogResult result = await SurveyInfoAndMediaContentDialog.ShowAsync();
-                        if (result == ContentDialogResult.Primary)
-                        {
-                            // Copy the survey info and media info setup in the dialog into the survey class
-                            bool inheritanceRequested = SurveyInfoAndMediaUserControl.SaveForContentDialog(surveyClass);
-
-                            // Inherit information from recent survey if user requested
-                            bool proceed = true;
-                            if (inheritanceRequested == true && !string.IsNullOrEmpty(potentialSurveyToInheritFrom))
-                            {
-                                // Copies select information (calibration and/or rules)
-                                SurveyInheritance surveyInheritance = new();
-                                proceed = await surveyInheritance.InheritFromSurvey(this, report, surveyClass, potentialSurveyToInheritFrom);
-                            }
-
-                            if (proceed)
-                            {
-                                int ret = 0;
-
-                                // Force a Save
-                                ret = await FileSurveySaveOrSaveAs();
-
-                                if (ret == 0)
-                                {
-                                    if (surveyClass.Data.Info.SurveyPath is not null && surveyClass.Data.Info.SurveyFileName is not null)
-                                    { 
-                                        // Make survey path
-                                        string surveyPath = Path.Combine(surveyClass.Data.Info.SurveyPath, surveyClass.Data.Info.SurveyFileName);
-
-                                        // Close the Survey
-                                        await CheckForOpenSurveyAndClose();
-
-                                        // Re-Open in a standard way (so everyone gets hooked up and initialized correctly)
-                                        ret = await OpenSurvey(surveyPath);
-
-                                        if (ret != 0)
-                                        {
-                                            report.Warning("", $"FileSurveyNew_Click: OpenSurvey() failed, survey path:{surveyPath}, ret = {ret}");
-                                        }
-                                    }
-                                    else
-                                    {
-                                        ret = -1;
-                                        report.Warning("", $"FileSurveyNew_Click: Missing survey path.");
-                                    }
-                                }
-                                else
-                                {
-                                    report.Warning("", $"FileSurveyNew_Click: FileSurveySaveOrSaveAs() failed, ret = {ret}");
-                                }
-
-                                if (ret != 0)
-                                {
-                                    // Report the missing survey file
-                                    // Survey needs to be saved before a frame can be saved
-                                    var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
-
-                                    // Add a content dialog to report the survey save error
-                                    // and display the user to look at the Output tab for more information
-                                    var dialog = new ContentDialog
-                                    {
-                                        Title = $"Failed to save Survey file",
-                                        Content = new StackPanel
-                                        {
-                                            Orientation = Orientation.Horizontal,
-                                            Spacing = 10,
-                                            Children =
-                                            {
-                                                warningIcon, // Add the exclamation icon to the dialog content
-                                                new TextBlock
-                                                {
-                                                    Text = $"Please check the Output tab for more information on the failure",
-                                                    TextWrapping = TextWrapping.Wrap,
-                                                    MaxWidth = 400 // Adjust based on your app's layout
-                                                }
-                                            }
-                                        },
-
-                                        CloseButtonText = "Cancel",
-                                        DefaultButton = ContentDialogButton.Close, // Set "Cancel" as the default button
-
-                                        // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
-                                        XamlRoot = this.Content.XamlRoot
-                                    };
-
-                                    // Show the dialog and await the result
-                                    await dialog.ShowAsync();
-                                }
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        // Log or handle the exception as needed
-                        report.Error("", $"FileSurveyNew_Click: {ex.Message}");
-                    }
+                    surveyClass.Data.Info.SurveyType = Survey.SurveyType.Unknown;
+                    report.Warning("", $"FileSurveyNewStereo_Click: SurveyCreateAllTypes() failed");
                 }
             }
-            
-            SetMenuStatusBasedOnSurveyState();
-
-            // Reset Info Bar dismissed status
-            infoBarCalibrationMissingDismissed = false;
-            infoBarSpeciesInfoMissingDismissed = false;
         }
 
-        private void FileSurveyNewMono_Click(object sender, RoutedEventArgs e)
+
+        /// <summary>
+        /// Create a new mono fish survey 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void FileSurveyNewMono_Click(object sender, RoutedEventArgs e)
         {
+            bool ret;
 
+            if (surveyClass is not null)
+            {
+                surveyClass.Data.Info.SurveyType = Survey.SurveyType.MonoFish;
+
+                ret = await SurveyCreateAllTypes(surveyClass.Data.Info.SurveyType);
+
+                if (ret == false)
+                {
+                    surveyClass.Data.Info.SurveyType = Survey.SurveyType.Unknown;
+                    report.Warning("", $"FileSurveyNewMono_Click: SurveyCreateAllTypes() failed");
+                }
+            }
         }
 
-        private void FileSurveyNewBenthic_Click(object sender, RoutedEventArgs e)
+
+        /// <summary>
+        /// Create a new benthic survey
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void FileSurveyNewBenthic_Click(object sender, RoutedEventArgs e)
         {
+            bool ret;
 
+            if (surveyClass is not null)
+            {
+                surveyClass.Data.Info.SurveyType = Survey.SurveyType.MonoBenthic;
+
+                ret = await SurveyCreateAllTypes(surveyClass.Data.Info.SurveyType);
+
+                if (ret == false)
+                {
+                    surveyClass.Data.Info.SurveyType = Survey.SurveyType.Unknown;
+                    report.Warning("", $"FileSurveyNewBenthic_Click: SurveyCreateAllTypes() failed");
+                }
+            }
         }
+
 
         /// <summary>
         /// Open an existing survey file
@@ -2450,10 +2338,193 @@ namespace Surveyor
         }
 
 
-
         ///
         /// PRIVATE
         /// 
+
+
+        /// <summary>
+        /// Called by the file new survey menu events for stereo fish survey
+        /// mono fish survey and benthic surveys
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async Task<bool> SurveyCreateAllTypes(Survey.SurveyType surveyType)
+        {
+            bool ret = false;
+
+            // First check if an existing survey is already open
+            if (await CheckForOpenSurveyAndClose() == true)
+            {
+                // Get to use to select media files for the survey
+                FileOpenPicker openPicker = new()
+                {
+                    ViewMode = PickerViewMode.Thumbnail,
+                    SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+                };
+
+                // Add file type filters
+                openPicker.FileTypeFilter.Add(".mp4");
+
+                // Associate the file picker with the current window
+                IntPtr hWnd = WindowNative.GetWindowHandle(this/*App.MainWindow*/);
+                InitializeWithWindow.Initialize(openPicker, hWnd);
+
+                // Show the picker and allow multiple file selection            
+                // The DispatcherQueue is used to ensure the file picker returned objects are created on the UI thread (ChapGPT)
+                IReadOnlyList<StorageFile> mediaFilesSelected = await DispatcherQueue.EnqueueAsync(async () =>
+                {
+                    return await openPicker.PickMultipleFilesAsync();
+                });
+
+                // Proceed is files selected
+                if (mediaFilesSelected.Count > 0)
+                {
+                    // Create a new empty survey
+                    surveyClass = new Survey(report);
+                    surveyClass.PropertyChanged += Survey_PropertyChanged;
+
+                    // Inform the EventControl of the new survey events
+                    eventsControl.SetEvents(surveyClass.Data.Events.EventList);
+
+                    // Get the name (if any) of a potential survey to inherit information from
+                    string potentialSurveyToInheritFrom = string.Empty;
+                    string[]? recentSurveys = ApplicationData.Current.LocalSettings.Values[RECENT_SURVEYS_KEY] as string[];
+                    if (recentSurveys is not null && recentSurveys.Length > 0)
+                    {
+                        potentialSurveyToInheritFrom = recentSurveys[0];
+                        if (File.Exists(potentialSurveyToInheritFrom) == false)
+                            potentialSurveyToInheritFrom = string.Empty;
+                    }
+
+                    // Load the Info and Media user control to setup the survey
+                    SurveyStereoInfoAndMediaUserControl.SetupForContentDialog(SurveyInfoAndMediaContentDialog,
+                                                                        mediaFilesSelected,
+                                                                        Path.GetFileName(potentialSurveyToInheritFrom)/*used to display the name of the inheritance survey only*/);
+                    SurveyStereoInfoAndMediaUserControl.SetReporter(report);
+
+                    try
+                    {
+                        // ** Important notes **
+                        // The UserControl SurveyInfoAndMedia is displayed within a ContentDialog for 
+                        // the purpose of setting up a new survey (also using from a SettingsCard)
+                        // I stuggled to get the ContentDialog to show width necessary to fully display
+                        // the UserControl.  The solution was to:
+                        // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
+                        // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
+                        // This took a lot of trail and error. It seems to effect the title bar is left in
+                        // default row zero.
+                        ContentDialogResult result = await SurveyInfoAndMediaContentDialog.ShowAsync();
+                        if (result == ContentDialogResult.Primary)
+                        {
+                            // Copy the survey info and media info setup in the dialog into the survey class
+                            bool inheritanceRequested = SurveyStereoInfoAndMediaUserControl.SaveForContentDialog(surveyClass);
+
+                            // Inherit information from recent survey if user requested
+                            bool proceed = true;
+                            if (inheritanceRequested == true && !string.IsNullOrEmpty(potentialSurveyToInheritFrom))
+                            {
+                                // Copies select information (calibration and/or rules)
+                                SurveyInheritance surveyInheritance = new();
+                                proceed = await surveyInheritance.InheritFromSurvey(this, report, surveyClass, potentialSurveyToInheritFrom);
+                            }
+
+                            if (proceed)
+                            {
+                                int ret2 = 0;
+
+                                // Force a Save
+                                ret2 = await FileSurveySaveOrSaveAs();
+
+                                if (ret2 == 0)
+                                {
+                                    if (surveyClass.Data.Info.SurveyPath is not null && surveyClass.Data.Info.SurveyFileName is not null)
+                                    {
+                                        // Make survey path
+                                        string surveyPath = Path.Combine(surveyClass.Data.Info.SurveyPath, surveyClass.Data.Info.SurveyFileName);
+
+                                        // Close the Survey
+                                        await CheckForOpenSurveyAndClose();
+
+                                        // Re-Open in a standard way (so everyone gets hooked up and initialized correctly)
+                                        ret2 = await OpenSurvey(surveyPath);
+
+                                        if (ret2 == 0)
+                                        {
+                                            ret = true;
+                                        }
+                                        else
+                                        {
+                                            report.Warning("", $"FileSurveyNew_Click: OpenSurvey() failed, survey path:{surveyPath}, ret = {ret2}");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        ret2 = -1;
+                                        report.Warning("", $"FileSurveyNew_Click: Missing survey path.");
+                                    }
+                                }
+                                else
+                                {
+                                    report.Warning("", $"FileSurveyNew_Click: FileSurveySaveOrSaveAs() failed, ret = {ret2}");
+                                }
+
+                                if (ret2 != 0)
+                                {
+                                    // Report the missing survey file
+                                    // Survey needs to be saved before a frame can be saved
+                                    var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
+
+                                    // Add a content dialog to report the survey save error
+                                    // and display the user to look at the Output tab for more information
+                                    var dialog = new ContentDialog
+                                    {
+                                        Title = $"Failed to save Survey file",
+                                        Content = new StackPanel
+                                        {
+                                            Orientation = Orientation.Horizontal,
+                                            Spacing = 10,
+                                            Children =
+                                            {
+                                                warningIcon, // Add the exclamation icon to the dialog content
+                                                new TextBlock
+                                                {
+                                                    Text = $"Please check the Output tab for more information on the failure",
+                                                    TextWrapping = TextWrapping.Wrap,
+                                                    MaxWidth = 400 // Adjust based on your app's layout
+                                                }
+                                            }
+                                        },
+
+                                        CloseButtonText = "Cancel",
+                                        DefaultButton = ContentDialogButton.Close, // Set "Cancel" as the default button
+
+                                        // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
+                                        XamlRoot = this.Content.XamlRoot
+                                    };
+
+                                    // Show the dialog and await the result
+                                    await dialog.ShowAsync();
+                                }
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log or handle the exception as needed
+                        report.Error("", $"FileSurveyNew_Click: {ex.Message}");
+                    }
+                }
+            }
+
+            SetMenuStatusBasedOnSurveyState();
+
+            // Reset Info Bar dismissed status
+            infoBarCalibrationMissingDismissed = false;
+            infoBarSpeciesInfoMissingDismissed = false;
+
+            return ret;
+        }
 
 
         /// <summary>
