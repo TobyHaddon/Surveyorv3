@@ -198,6 +198,7 @@
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -212,30 +213,36 @@
 
                 <CheckBox x:Name="IncludeOtherFailedRules" Grid.Column="0" Grid.Row="1" Content="Include Other Failed Rules" IsChecked="True" Margin="0,0,10,0">
                     <ToolTipService.ToolTip>
-                        <ToolTip Content="Include in the export any measurements of 3D Points that failed the range, horizontal or vertical rules. i.e. include in the export measurements or 3D Points that are outside of the survey area."/>
+                        <ToolTip Content="Include in the export any measurements of 3D Points that failed the range, horizontal or vertical rules. i.e. include in the export measurements or 3D Points that are outside of the survey area. This is useful if you want to see which fish will not be included in the final survey data. It maybe that the fish swims into the survey zone at a different point in the survey video and can be re-measured at that point."/>
                     </ToolTipService.ToolTip>
                 </CheckBox>
 
-                <CheckBox x:Name="DeriveMissingSpecies" Grid.Column="1" Grid.Row="0" Content="Derive Missing Species" IsChecked="True" Margin="0,0,10,0">
+                <CheckBox x:Name="IncludePartialIdentification" Grid.Column="1" Grid.Row="0" Content="Include Partial Identification" IsChecked="True" Margin="0,0,10,0">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="Include in the export any fish that have either not been identified or have only been identified to family level. This is useful if you want to see which fish may been further identification to be included in the final survey data."/>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
+
+                <CheckBox x:Name="DeriveMissingSpecies" Grid.Column="2" Grid.Row="0" Content="Derive Missing Species" IsChecked="True" Margin="0,0,10,0">
                     <ToolTipService.ToolTip>
                         <TextBlock TextWrapping="Wrap" MaxWidth="420">
                                 If the fish has only been identified to the genus level then derive the species based on the following method. As soon as one of the steps find a species the method stops:
                                 <LineBreak/><LineBreak/>
-                                1. Find the most common species for that genus in the same survey
-                                2. Find the most common species for that genus from the same site at the same depth
-                                3. Find the most common species for that genus from same site
+                                1. Find the most common species for that genus in the same survey<LineBreak/>
+                                2. Find the most common species for that genus from the same site at the same depth<LineBreak/>
+                                3. Find the most common species for that genus from same site<LineBreak/>
                                 4. Find the most common species for that genus from any survey that year
                         </TextBlock>
                     </ToolTipService.ToolTip>
                 </CheckBox>
 
-                <CheckBox x:Name="ApplyAverageLengths" Grid.Column="1" Grid.Row="1" Content="Apply Average Lengths to Points" IsChecked="True" Margin="0,0,10,0">
+                <CheckBox x:Name="ApplyAverageLengths" Grid.Column="2" Grid.Row="1" Content="Apply Average Lengths to Points" IsChecked="True" Margin="0,0,10,0">
                     <ToolTipService.ToolTip>
-                        <ToolTip Content="Apply the average measurement length for any given species to Single Point and 3D Point of the sames species.  All the surveys in this particular export will be used to create an average length per species from all the measurements. This can then be applied to all the Single Point and 3D Point values."/>
+                        <ToolTip Content="Apply the average measurement length for any given species to Single Point and 3D Point of the same species.  All the surveys in this particular export will be used to create an average length per species from all the measurements. This can then be applied to all the Single Point and 3D Point values."/>
                     </ToolTipService.ToolTip>
                 </CheckBox>
 
-                <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                <StackPanel Grid.Column="3" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
                     <Button x:Name="ExportButton" Content="Export" VerticalAlignment="Bottom" Click="Export_Click" Margin="0,0,10,0">
                         <ToolTipService.ToolTip>
                             <ToolTip Content="Save the contains for the selected survey files in a sheet called 'Data' and the table above into a sheet called 'Metadata'"/>

@@ -1117,13 +1117,16 @@ namespace Surveyor.User_Controls
             // Include failed RMS and other rules in the export
             bool includeFailedRMS = false;
             bool includeOtherFailedRules = false;
+            bool includePartialIdentification = false;
             if (IncludeFailedRMS.IsChecked == true)
                 includeFailedRMS = true;
             if (IncludeOtherFailedRules.IsChecked == true)
                 includeOtherFailedRules = true;
+            if (IncludePartialIdentification.IsChecked == true)
+                includePartialIdentification = true;
 
-            // Write headers
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.SurveyName].Value = "Survey Name";
+                // Write headers
+                worksheet.Cells[rowIndex, (int)ExportExcelColmns.SurveyName].Value = "Survey Name";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.Depth].Value = "Depth";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.Transect].Value = "Transect";
             worksheet.Cells[rowIndex, (int)ExportExcelColmns.Analyst].Value = "Operator";
@@ -1264,6 +1267,12 @@ namespace Surveyor.User_Controls
                                     {
                                         includeRowinExport = false;
                                     }
+                                }
+
+                                // Do we want to include partial or unidentified fish in the export?
+                                if (!includePartialIdentification && speciesInfo is not null && string.IsNullOrWhiteSpace(speciesInfo.Genus))
+                                {
+                                    includeRowinExport = false;
                                 }
 
                                 if (includeRowinExport)
