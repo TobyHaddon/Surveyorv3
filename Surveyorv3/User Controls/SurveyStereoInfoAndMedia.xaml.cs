@@ -1,9 +1,12 @@
+using CommunityToolkit.WinUI.Controls;
+using GoProMP4MetadataExtraction;
+using Microsoft.UI.Dispatching;
 ///
 /// *** Remember when editting this User Control code that it is used from both   ***
 /// *** the context of a ContentDialog (for a new Survey) and from a SettingCard  ***
 /// *** from the SettingsWindow.                                                  ***  
 ///
-// SurveyInfoAndMedia  
+// SurveyStereoInfoAndMedia  
 // This is a user control is used to setup and edit the Survey information and media file list
 // 
 // Version 1.1
@@ -12,8 +15,9 @@
 // 2025-01-16 Added Setup method for calling from ContentDialog and one for Settings Window
 // Version 1.3
 // 2025-01-17 Initial functionally complete
+// Version 1.4
+// 2025-10-31 Renamed to SurveyStereoInfoAndMediaUserControl 
 
-using Surveyor; 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
@@ -24,22 +28,19 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
-using Windows.Storage;
-using CommunityToolkit.WinUI.Controls;
-using Microsoft.UI.Dispatching;
-using System.Diagnostics;
-using GoProMP4MetadataExtraction;
 using System.Threading.Tasks;
+using Windows.Storage;
 
 
 
 namespace Surveyor.User_Controls
 {
-    public sealed partial class SurveyInfoAndMedia : UserControl
+    public sealed partial class SurveyStereoInfoAndMedia : UserControl
     {        
         // Reporter
         private Reporter? report = null;
@@ -49,11 +50,11 @@ namespace Surveyor.User_Controls
         private ContentDialog? ParentDialog { get; set; } = null;
         private SettingsCard? ParentSettings { get; set; } = null;        
 
-        private ObservableCollection<MediaFileItem> LeftMediaFileItemList { get; set; }
-        private ObservableCollection<MediaFileItem> RightMediaFileItemList { get; set; }
+        private ObservableCollection<StereoMediaFileItem> LeftMediaFileItemList { get; set; }
+        private ObservableCollection<StereoMediaFileItem> RightMediaFileItemList { get; set; }
 
 
-        public SurveyInfoAndMedia()
+        public SurveyStereoInfoAndMedia()
         {
             this.InitializeComponent();
 
@@ -81,7 +82,7 @@ namespace Surveyor.User_Controls
         /// <param name="_mediaFilesSelected"></param>
         public void SetupForContentDialog(ContentDialog dialog, IReadOnlyList<StorageFile> _mediaFilesSelected, string potentialInhertanceSurvey)
         {
-            Debug.WriteLine($"SetMediaFiles() Started");
+            Debug.WriteLine($"SetupForContentDialog() Started");
             ParentDialog = dialog;
 
             // Reset Fields
@@ -126,10 +127,10 @@ namespace Surveyor.User_Controls
                 if (mediaFilesSelected is not null && mediaFilesSelected.Count > 0)
                 {
                     // Convert storage files list to a MediaFileItem list and connect other attributes: thumbnail, creation date, GoPro serial number, Frame size, etc.
-                    List<MediaFileItem> mediaFileItemList = [];
+                    List<StereoMediaFileItem> mediaFileItemList = [];
                     foreach (StorageFile file in mediaFilesSelected)
                     {
-                        MediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
+                        StereoMediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
 
                         mediaFileItemList.Add(item);
                     }
@@ -242,20 +243,10 @@ namespace Surveyor.User_Controls
                         string fileSpec = survey.GetLeftMediaFileSpec(index);
 
                         StorageFile file = await StorageFile.GetFileFromPathAsync(fileSpec);
-                        MediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
+                        StereoMediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
 
                         LeftMediaFileItemList.Add(item);
                     }
-                    //???TOBEDELETED
-                    //foreach (string fileName in survey.Data.Media.LeftMediaFileNames)
-                    //{
-                    //    string fileSpec = Path.Combine(survey.Data.Media.MediaPath, fileName);
-
-                    //    StorageFile file = await StorageFile.GetFileFromPathAsync(fileSpec);
-                    //    MediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
-
-                    //    LeftMediaFileItemList.Add(item);
-                    //}
                 }
 
                 // Load right the media files
@@ -266,20 +257,10 @@ namespace Surveyor.User_Controls
                         string fileSpec = survey.GetRightMediaFileSpec(index);
 
                         StorageFile file = await StorageFile.GetFileFromPathAsync(fileSpec);
-                        MediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
+                        StereoMediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
 
                         RightMediaFileItemList.Add(item);
                     }
-                    //???TOBEDELETED
-                    //foreach (string fileName in survey.Data.Media.RightMediaFileNames)
-                    //{
-                    //    string fileSpec = Path.Combine(survey.Data.Media.MediaPath, fileName);
-
-                    //    StorageFile file = await StorageFile.GetFileFromPathAsync(fileSpec);
-                    //    MediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
-
-                    //    RightMediaFileItemList.Add(item);
-                    //}
                 }
             }
 
@@ -309,8 +290,15 @@ namespace Surveyor.User_Controls
         {
             bool ret = false;
 
+            // Remember the survey type
+            Survey.SurveyType surveyType = surveyClass.Data.Info.SurveyType;
+
+            // Reset the Info and Media classes
             surveyClass.Data.Info.Clear();
             surveyClass.Data.Media.Clear();
+
+            // Restore the Survey type
+            surveyClass.Data.Info.SurveyType = surveyType;
 
             // Save the survey code (name of the survey)
             surveyClass.Data.Info.SurveyCode = SurveyCode.Text;
@@ -333,30 +321,30 @@ namespace Surveyor.User_Controls
             if (LeftMediaFileNames is not null && RightMediaFileNames is not null && (LeftMediaFileNames.Items.Count + RightMediaFileNames.Items.Count > 0))
             {
                 if (LeftMediaFileNames.Items.Count > 0)
-                    surveyClass.Data.Media.MediaPath = Path.GetDirectoryName(((MediaFileItem)LeftMediaFileNames.Items[0]).MediaFilePath);
+                    surveyClass.Data.Media.MediaPath = Path.GetDirectoryName(((StereoMediaFileItem)LeftMediaFileNames.Items[0]).MediaFilePath);
                 else if (RightMediaFileNames.Items.Count > 0)
-                    surveyClass.Data.Media.MediaPath = Path.GetDirectoryName(((MediaFileItem)RightMediaFileNames.Items[0]).MediaFilePath);
+                    surveyClass.Data.Media.MediaPath = Path.GetDirectoryName(((StereoMediaFileItem)RightMediaFileNames.Items[0]).MediaFilePath);
 
                 // Load left media
-                foreach (MediaFileItem item in LeftMediaFileNames.Items)
+                foreach (StereoMediaFileItem item in LeftMediaFileNames.Items)
                 {
                     if (item.MediaFileName is not null)
                         surveyClass.Data.Media.LeftMediaFileNames.Add(item.MediaFileName);
                 }
                 // Get and remember left GoPro serial number
                 if (surveyClass.Data.Media.LeftMediaFileNames.Count > 0) 
-                    surveyClass.Data.Media.LeftCameraID = ((MediaFileItem)LeftMediaFileNames.Items[0]).GoProSerialNumber;
+                    surveyClass.Data.Media.LeftCameraID = ((StereoMediaFileItem)LeftMediaFileNames.Items[0]).GoProSerialNumber;
 
 
                 // Load right media
-                foreach (MediaFileItem item in RightMediaFileNames.Items)
+                foreach (StereoMediaFileItem item in RightMediaFileNames.Items)
                 {
                     if (item.MediaFileName is not null)
                         surveyClass.Data.Media.RightMediaFileNames.Add(item.MediaFileName);
                 }
                 // Get and remember right GoPro serial number
                 if (surveyClass.Data.Media.RightMediaFileNames.Count > 0)
-                    surveyClass.Data.Media.RightCameraID = ((MediaFileItem)RightMediaFileNames.Items[0]).GoProSerialNumber;
+                    surveyClass.Data.Media.RightCameraID = ((StereoMediaFileItem)RightMediaFileNames.Items[0]).GoProSerialNumber;
 
             }
 
@@ -437,7 +425,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void MoveItemUp_Click(object sender, RoutedEventArgs e)
         {
-            if (LeftMediaFileNames.SelectedItem is MediaFileItem selectedItem)
+            if (LeftMediaFileNames.SelectedItem is StereoMediaFileItem selectedItem)
             {
                 int index = LeftMediaFileItemList.IndexOf(selectedItem);
                 if (index > 0)
@@ -445,7 +433,7 @@ namespace Surveyor.User_Controls
                     LeftMediaFileItemList.Move(index, index - 1);
                 }
             }
-            else if (RightMediaFileNames.SelectedItem is MediaFileItem rightSelectedItem)
+            else if (RightMediaFileNames.SelectedItem is StereoMediaFileItem rightSelectedItem)
             {
                 int index = RightMediaFileItemList.IndexOf(rightSelectedItem);
                 if (index > 0)
@@ -464,7 +452,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void MoveItemDown_Click(object sender, RoutedEventArgs e)
         {
-            if (LeftMediaFileNames.SelectedItem is MediaFileItem selectedItem)
+            if (LeftMediaFileNames.SelectedItem is StereoMediaFileItem selectedItem)
             {
                 int index = LeftMediaFileItemList.IndexOf(selectedItem);
                 if (index < LeftMediaFileItemList.Count - 1)
@@ -472,7 +460,7 @@ namespace Surveyor.User_Controls
                     LeftMediaFileItemList.Move(index, index + 1);
                 }
             }
-            else if (RightMediaFileNames.SelectedItem is MediaFileItem rightSelectedItem)
+            else if (RightMediaFileNames.SelectedItem is StereoMediaFileItem rightSelectedItem)
             {
                 int index = RightMediaFileItemList.IndexOf(rightSelectedItem);
                 if (index < RightMediaFileItemList.Count - 1)
@@ -491,7 +479,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void MoveItemAcrossRight_Click(object sender, RoutedEventArgs e)
         {
-            if (LeftMediaFileNames.SelectedItem is MediaFileItem selectedItem && RightMediaFileItemList.Count < 5)
+            if (LeftMediaFileNames.SelectedItem is StereoMediaFileItem selectedItem && RightMediaFileItemList.Count < 5)
             {
                 LeftMediaFileItemList.Remove(selectedItem);
                 RightMediaFileItemList.Add(selectedItem);
@@ -507,7 +495,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void MoveItemAcrossLeft_Click(object sender, RoutedEventArgs e)
         {
-            if (RightMediaFileNames.SelectedItem is MediaFileItem selectedItem && LeftMediaFileItemList.Count < 5)
+            if (RightMediaFileNames.SelectedItem is StereoMediaFileItem selectedItem && LeftMediaFileItemList.Count < 5)
             {
                 RightMediaFileItemList.Remove(selectedItem);
                 LeftMediaFileItemList.Add(selectedItem);
@@ -523,11 +511,11 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void DeleteItem_Click(object sender, RoutedEventArgs e)
         {
-            if (LeftMediaFileNames.SelectedItem is MediaFileItem selectedItem)
+            if (LeftMediaFileNames.SelectedItem is StereoMediaFileItem selectedItem)
             {
                 LeftMediaFileItemList.Remove(selectedItem);
             }
-            else if (RightMediaFileNames.SelectedItem is MediaFileItem rightSelectedItem)
+            else if (RightMediaFileNames.SelectedItem is StereoMediaFileItem rightSelectedItem)
             {
                 RightMediaFileItemList.Remove(rightSelectedItem);
             }
@@ -680,11 +668,11 @@ namespace Surveyor.User_Controls
         /// <param name="file1"></param>
         /// <param name="file2"></param>
         /// <returns></returns>
-        private static (ObservableCollection<MediaFileItem> LeftFiles, ObservableCollection<MediaFileItem> RightFiles, double Certainty) DetectLeftAndRightMediaFile(List<MediaFileItem> mediaFiles)
+        private static (ObservableCollection<StereoMediaFileItem> LeftFiles, ObservableCollection<StereoMediaFileItem> RightFiles, double Certainty) DetectLeftAndRightMediaFile(List<StereoMediaFileItem> mediaFiles)
         {
             double certainty = 1.0;
-            ObservableCollection<MediaFileItem> leftFiles = [];
-            ObservableCollection<MediaFileItem> rightFiles = [];
+            ObservableCollection<StereoMediaFileItem> leftFiles = [];
+            ObservableCollection<StereoMediaFileItem> rightFiles = [];
 
             // Regex to identify and isolcate 'L' or 'R'
             // Regex pattern explanation:
@@ -698,7 +686,7 @@ namespace Surveyor.User_Controls
             Regex leftSimpleRegex = new("(?i)(left|l[^a-z])");
             Regex rightSimpleRegex = new("(?i)(right|r[^a-z])");
 
-            foreach (MediaFileItem file in mediaFiles)
+            foreach (StereoMediaFileItem file in mediaFiles)
             {
                 if (file is null || file.MediaFileName is null)
                     continue;
@@ -1149,12 +1137,12 @@ namespace Surveyor.User_Controls
 
             if (LeftMediaFileItemList.Count > 0 && LeftMediaFileItemList[0] is not null && LeftMediaFileItemList[0].MediaFilePath is not null)
             {
-                MediaFileItem item = LeftMediaFileItemList[0];
+                StereoMediaFileItem item = LeftMediaFileItemList[0];
                 path = Path.GetDirectoryName(item.MediaFilePath);
             }
             else if (RightMediaFileItemList.Count > 0 && RightMediaFileItemList[0] is not null && RightMediaFileItemList[0].MediaFilePath is not null)
             {
-                MediaFileItem item = RightMediaFileItemList[0];
+                StereoMediaFileItem item = RightMediaFileItemList[0];
                 path = Path.GetDirectoryName(item.MediaFilePath);
             }
             else
@@ -1163,7 +1151,7 @@ namespace Surveyor.User_Controls
             if (ret == true)
             {
                 // Check all the left media files
-                foreach (MediaFileItem item in LeftMediaFileItemList)
+                foreach (StereoMediaFileItem item in LeftMediaFileItemList)
                 {
                     if (item.MediaFilePath is not null && string.Compare(Path.GetDirectoryName(item.MediaFilePath), path, true) != 0)
                     {
@@ -1175,7 +1163,7 @@ namespace Surveyor.User_Controls
             if (ret == true)
             {
                 // Check all the right media files
-                foreach (MediaFileItem item in RightMediaFileItemList)
+                foreach (StereoMediaFileItem item in RightMediaFileItemList)
                 {
                     if (item.MediaFilePath is not null && string.Compare(Path.GetDirectoryName(item.MediaFilePath), path, true) != 0)
                     {
@@ -1195,7 +1183,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="mediaFileItemList"></param>
         /// <returns></returns>
-        private static DateTime? CheckMediaDatesMatch(ObservableCollection<MediaFileItem> mediaFileItemList)
+        private static DateTime? CheckMediaDatesMatch(ObservableCollection<StereoMediaFileItem> mediaFileItemList)
         {
             if (mediaFileItemList.Count <= 1)
             {
@@ -1229,7 +1217,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="mediaFileItemList"></param>
         /// <returns></returns>
-        private static bool CheckGoProSNMatch(ObservableCollection<MediaFileItem> mediaFileItemList)
+        private static bool CheckGoProSNMatch(ObservableCollection<StereoMediaFileItem> mediaFileItemList)
         {
             bool ret = true;
 
@@ -1254,7 +1242,7 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Check the left side media is from a different GoPro to the right side
         /// </summary>
-        private static bool CheckGoProSNLeftAndRightAreDifferent(ObservableCollection<MediaFileItem> leftMediaFileItemList, ObservableCollection<MediaFileItem> rightMediaFileItemList)
+        private static bool CheckGoProSNLeftAndRightAreDifferent(ObservableCollection<StereoMediaFileItem> leftMediaFileItemList, ObservableCollection<StereoMediaFileItem> rightMediaFileItemList)
         {
             // Extract unique serial numbers from both lists
             var leftSerials = new HashSet<string>(
@@ -1277,11 +1265,11 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="mediaFileItemList"></param>
         /// <returns></returns>
-        private static bool CheckMediaIsContigious(ObservableCollection<MediaFileItem> mediaFileItemList)
+        private static bool CheckMediaIsContigious(ObservableCollection<StereoMediaFileItem> mediaFileItemList)
         {
             bool ret = true;
 
-            MediaFileItem item;
+            StereoMediaFileItem item;
 
             for (int i = 0; i < mediaFileItemList.Count - 1; i++)
             {
@@ -1325,13 +1313,13 @@ namespace Surveyor.User_Controls
             {
                 if (LeftMediaFileItemList.Count > 0 && LeftMediaFileItemList[0] is not null)
                 {
-                    MediaFileItem item = LeftMediaFileItemList[0];
+                    StereoMediaFileItem item = LeftMediaFileItemList[0];
                     mediaFrameHeight = item.MediaFrameHeight;
                     mediaFrameWidth = item.MediaFrameWidth;
                 }
                 else if (RightMediaFileItemList.Count > 0 && RightMediaFileItemList[0] is not null && RightMediaFileItemList[0].MediaFilePath is not null)
                 {
-                    MediaFileItem item = RightMediaFileItemList[0];
+                    StereoMediaFileItem item = RightMediaFileItemList[0];
                     mediaFrameHeight = item.MediaFrameHeight;
                     mediaFrameWidth = item.MediaFrameWidth;
                 }
@@ -1341,7 +1329,7 @@ namespace Surveyor.User_Controls
                 if (ret == true)
                 {
                     // Check all the left media files
-                    foreach (MediaFileItem item in LeftMediaFileItemList)
+                    foreach (StereoMediaFileItem item in LeftMediaFileItemList)
                     {
                         if (mediaFrameHeight != item.MediaFrameHeight && mediaFrameWidth != item.MediaFrameWidth)
                         {
@@ -1353,7 +1341,7 @@ namespace Surveyor.User_Controls
                 if (ret == true)
                 {
                     // Check all the right media files
-                    foreach (MediaFileItem item in RightMediaFileItemList)
+                    foreach (StereoMediaFileItem item in RightMediaFileItemList)
                     {
                         if (mediaFrameHeight != item.MediaFrameHeight && mediaFrameWidth != item.MediaFrameWidth)
                         {
@@ -1382,12 +1370,12 @@ namespace Surveyor.User_Controls
             {
                 if (LeftMediaFileItemList.Count > 0 && LeftMediaFileItemList[0] is not null)
                 {
-                    MediaFileItem item = LeftMediaFileItemList[0];
+                    StereoMediaFileItem item = LeftMediaFileItemList[0];
                     mediaFrameRate = item.MediaFrameRate;
                 }
                 else if (RightMediaFileItemList.Count > 0 && RightMediaFileItemList[0] is not null && RightMediaFileItemList[0].MediaFilePath is not null)
                 {
-                    MediaFileItem item = RightMediaFileItemList[0];
+                    StereoMediaFileItem item = RightMediaFileItemList[0];
                     mediaFrameRate = item.MediaFrameRate;
                 }
                 else
@@ -1396,7 +1384,7 @@ namespace Surveyor.User_Controls
                 if (ret == true)
                 {
                     // Check all the left media files
-                    foreach (MediaFileItem item in LeftMediaFileItemList)
+                    foreach (StereoMediaFileItem item in LeftMediaFileItemList)
                     {
                         if (mediaFrameRate != item.MediaFrameRate)
                         {
@@ -1408,7 +1396,7 @@ namespace Surveyor.User_Controls
                 if (ret == true)
                 {
                     // Check all the right media files
-                    foreach (MediaFileItem item in RightMediaFileItemList)
+                    foreach (StereoMediaFileItem item in RightMediaFileItemList)
                     {
                         if (mediaFrameRate != item.MediaFrameRate)
                         {
@@ -1464,9 +1452,9 @@ namespace Surveyor.User_Controls
         /// <param name="file"></param>
         /// <param name="thumbnailDefault"></param>
         /// <returns></returns>
-        private static async Task<MediaFileItem> GetMediaFileInfo(StorageFile file, BitmapImage thumbnailDefault)
+        private static async Task<StereoMediaFileItem> GetMediaFileInfo(StorageFile file, BitmapImage thumbnailDefault)
         {
-            MediaFileItem item = new() { MediaFilePath = file.Path, MediaFileThumbnail = thumbnailDefault };
+            StereoMediaFileItem item = new() { MediaFilePath = file.Path, MediaFileThumbnail = thumbnailDefault };
 
             try
             {
@@ -1571,7 +1559,7 @@ namespace Surveyor.User_Controls
         private void EnableDisableControlButtons()
         {
 
-            if (LeftMediaFileNames.SelectedItem is MediaFileItem selectedItem)
+            if (LeftMediaFileNames.SelectedItem is StereoMediaFileItem selectedItem)
             {
                 int index = LeftMediaFileItemList.IndexOf(selectedItem);
 
@@ -1599,7 +1587,7 @@ namespace Surveyor.User_Controls
                 else
                     DeleteItem.IsEnabled = false;
             }
-            else if (RightMediaFileNames.SelectedItem is MediaFileItem rightSelectedItem)
+            else if (RightMediaFileNames.SelectedItem is StereoMediaFileItem rightSelectedItem)
             {
                 int index = RightMediaFileItemList.IndexOf(rightSelectedItem);
 
@@ -1649,11 +1637,11 @@ namespace Surveyor.User_Controls
         }
 
 
-        // **END OF SurveyInfoAndMedia**
+        // **END OF SurveyStereoInfoAndMedia**
     }
 
 
-    public partial class MediaFileItem : INotifyPropertyChanged
+    public partial class StereoMediaFileItem : INotifyPropertyChanged
     {
         private string? _mediaFilePath = null;
         private BitmapImage? _mediaFileThumbnail = null;
@@ -1725,54 +1713,5 @@ namespace Surveyor.User_Controls
             }
         }
     }
-
-
-    /// <summary>
-    /// This converter is used by the XAML to convert a DateTime to a string
-    /// </summary>
-    public partial class SurveyDateTimeToStringConverter : IValueConverter
-    {
-        public object? Convert(object value, Type targetType, object parameter, string language)
-        {
-            if (value is DateTime dateTime && parameter is string format)
-            {
-                return dateTime.ToString(format);
-            }
-            return value?.ToString();
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, string language)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-
-    /// <summary>
-    /// This converter is used by the XAML to convert a TimeSpan to a string
-    /// </summary>
-    public partial class SurveyTimeSpanToStringConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, string language)
-        {
-            if (value == null || value is not TimeSpan)
-                return "";
-
-            if (TimeSpan.TryParse(value.ToString(), out TimeSpan timeSpan))
-            {
-                string format = parameter as string ?? @"hh\:mm\:ss";
-                return timeSpan.ToString(format);
-            }
-
-            return "Invalid";
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, string language)
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-
 }
 

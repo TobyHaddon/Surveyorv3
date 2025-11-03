@@ -88,6 +88,10 @@ namespace Surveyor.User_Controls
         // Is is only updated on the primary media control
         private bool mediaSynchronized = false;
 
+        // Used to always hide the full screen and full screen alternative buttons
+        // Mono or benthic survey are always full screen so no need to show these buttons
+        private bool trueVisibleIfNeededFalseAlwaysHidden = true;
+
         public SurveyorMediaControl()
         {
             this.InitializeComponent();
@@ -410,13 +414,25 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Call when a survey is created or opened.  Stereo fish (SVS) surveys need
+        /// the full screen buttons to display either of the media players full screen
+        /// mono fish and benthic surveys only ever need one media player so full screen 
+        /// is always on and the buttons are hidden
+        /// </summary>
+        /// <param name="_trueVisibleIfNeededFalseAlwaysHidden"></param>
+        public void FullScreenButtonVisability(bool _trueVisibleIfNeededFalseAlwaysHidden)
+        {
+            trueVisibleIfNeededFalseAlwaysHidden = _trueVisibleIfNeededFalseAlwaysHidden;
+        }
+
+        /// <summary>
         /// Called to inform the MediaControl User Control that the MediaSteroController has responsed to our
         /// request to display full screen and this media player has the whole grid if True or it has been
         /// restored to its original size if False
         /// </summary>
         /// <param name="TrueYouAreFullFalseYouAreRestored"></param>
         /// <param name="cameraSide">Only used if TrueYouAreFullFalseYouAreRestored = true</param>
-        internal void MediaFullScreen(bool TrueYouAreFullFalseYouAreRestored, eCameraSide? cameraSide)
+        public void MediaFullScreen(bool TrueYouAreFullFalseYouAreRestored, eCameraSide? cameraSide)
         {
             // Remember if this MediaControl has the ful screen or not
             _TrueYouAreFullFalseYouAreRestored = TrueYouAreFullFalseYouAreRestored;
@@ -1393,75 +1409,105 @@ namespace Surveyor.User_Controls
             {
                 if (_TrueYouAreFullFalseYouAreRestored)
                 {
-                    // One media player is enlarged so we need both FullScreen/BackToWindow buttons to be
-                    // visible. One button will show the BackToWindow glyph and the other will show the
-                    // FullScreen glyph
-                    ControlFullScreen.Visibility = Visibility.Visible;
-                    ControlFullScreenAlternative.Visibility = Visibility.Visible;
-
-                    if (_fullScreenCameraSide is not null)
+                    // Proceed only if buttons are allowed to be visible
+                    if (trueVisibleIfNeededFalseAlwaysHidden)
                     {
-                        if (_fullScreenCameraSide == eCameraSide.Left)
+                        // One media player is enlarged so we need both FullScreen/BackToWindow buttons to be
+                        // visible. One button will show the BackToWindow glyph and the other will show the
+                        // FullScreen glyph
+                        ControlFullScreen.Visibility = Visibility.Visible;
+                        ControlFullScreenAlternative.Visibility = Visibility.Visible;
+
+                        if (_fullScreenCameraSide is not null)
                         {
-                            fontIcon.Glyph = "\uE73F";  // Set the BackToWindow Icon so the user can restore the window
-                            fontIconAlt.Glyph = "\uE740";  // Set the FullScreen Icon so the user can go full screen
-                            ToolTipService.SetToolTip(ControlFullScreen, "Show both media players (Press Esc or L)");
-                            ToolTipService.SetToolTip(ControlFullScreenAlternative, "Show only the right media player (Press R)");
-                            AppBarButtonReplaceShortcut(ControlFullScreen, VirtualKeyModifiers.None, 
-                                VirtualKey.Escape, 
-                                VirtualKeyModifiers.None, VirtualKey.L);
-                            AppBarButtonReplaceShortcut(ControlFullScreenAlternative, 
-                                VirtualKeyModifiers.None, VirtualKey.R);
+                            if (_fullScreenCameraSide == eCameraSide.Left)
+                            {
+                                fontIcon.Glyph = "\uE73F";  // Set the BackToWindow Icon so the user can restore the window
+                                fontIconAlt.Glyph = "\uE740";  // Set the FullScreen Icon so the user can go full screen
+                                ToolTipService.SetToolTip(ControlFullScreen, "Show both media players (Press Esc or L)");
+                                ToolTipService.SetToolTip(ControlFullScreenAlternative, "Show only the right media player (Press R)");
+                                AppBarButtonReplaceShortcut(ControlFullScreen, VirtualKeyModifiers.None,
+                                    VirtualKey.Escape,
+                                    VirtualKeyModifiers.None, VirtualKey.L);
+                                AppBarButtonReplaceShortcut(ControlFullScreenAlternative,
+                                    VirtualKeyModifiers.None, VirtualKey.R);
+                            }
+                            else if (_fullScreenCameraSide == eCameraSide.Right)
+                            {
+                                fontIcon.Glyph = "\uE740";  // Set the FullScreen Icon so the user can go full screen
+                                fontIconAlt.Glyph = "\uE73F";  // Set the BackToWindow Icon so the user can restore the window
+                                ToolTipService.SetToolTip(ControlFullScreen, "Show only the left media player (Press L)");
+                                ToolTipService.SetToolTip(ControlFullScreenAlternative, "Show both media players (Press Esc or R)");
+                                AppBarButtonReplaceShortcut(ControlFullScreen, VirtualKeyModifiers.None, VirtualKey.L);
+                                AppBarButtonReplaceShortcut(ControlFullScreenAlternative,
+                                    VirtualKeyModifiers.None,
+                                    VirtualKey.Escape, VirtualKeyModifiers.None, VirtualKey.R);
+                            }
                         }
-                        else if (_fullScreenCameraSide == eCameraSide.Right)
-                        {
-                            fontIcon.Glyph = "\uE740";  // Set the FullScreen Icon so the user can go full screen
-                            fontIconAlt.Glyph = "\uE73F";  // Set the BackToWindow Icon so the user can restore the window
-                            ToolTipService.SetToolTip(ControlFullScreen, "Show only the left media player (Press L)");
-                            ToolTipService.SetToolTip(ControlFullScreenAlternative, "Show both media players (Press Esc or R)");
-                            AppBarButtonReplaceShortcut(ControlFullScreen, VirtualKeyModifiers.None, VirtualKey.L);
-                            AppBarButtonReplaceShortcut(ControlFullScreenAlternative, 
-                                VirtualKeyModifiers.None, 
-                                VirtualKey.Escape, VirtualKeyModifiers.None, VirtualKey.R);
-                        }
+                    }
+                    else
+                    {
+                        ControlFullScreen.Visibility = Visibility.Collapsed;
+                        ControlFullScreenAlternative.Visibility = Visibility.Collapsed;
                     }
                 }
                 else
                 {
                     if (mediaSynchronized)
                     {
-                        // We are in regular stereo view and the media is synchronized so we need both
-                        // FullScreen/BackToWindow buttons to be visible. Both buttons will show the
-                        // FullScreen glyph
-                        ControlFullScreen.Visibility = Visibility.Visible;
-                        ControlFullScreenAlternative.Visibility = Visibility.Visible;
-                        fontIcon.Glyph = "\uE740";  // Set the FullScreen Icon so the user can go full screen
-                        fontIconAlt.Glyph = "\uE740";  // Set the FullScreen Icon so the user can go full screen
-                        ToolTipService.SetToolTip(ControlFullScreen, "Show only the left media player (Press L)");
-                        ToolTipService.SetToolTip(ControlFullScreenAlternative, "Show only the right media player (Press R)");
-                        AppBarButtonReplaceShortcut(ControlFullScreen, 
-                            VirtualKeyModifiers.None, VirtualKey.L);
-                        AppBarButtonReplaceShortcut(ControlFullScreenAlternative, 
-                            VirtualKeyModifiers.None, VirtualKey.R);
+                        // Proceed only if buttons are allowed to be visible
+                        if (trueVisibleIfNeededFalseAlwaysHidden)
+                        {
+                            // We are in regular stereo view and the media is synchronized so we need both
+                            // FullScreen/BackToWindow buttons to be visible. Both buttons will show the
+                            // FullScreen glyph
+                            ControlFullScreen.Visibility = Visibility.Visible;
+                            ControlFullScreenAlternative.Visibility = Visibility.Visible;
+
+                            fontIcon.Glyph = "\uE740";  // Set the FullScreen Icon so the user can go full screen
+                            fontIconAlt.Glyph = "\uE740";  // Set the FullScreen Icon so the user can go full screen
+                            ToolTipService.SetToolTip(ControlFullScreen, "Show only the left media player (Press L)");
+                            ToolTipService.SetToolTip(ControlFullScreenAlternative, "Show only the right media player (Press R)");
+                            AppBarButtonReplaceShortcut(ControlFullScreen,
+                                VirtualKeyModifiers.None, VirtualKey.L);
+                            AppBarButtonReplaceShortcut(ControlFullScreenAlternative,
+                                VirtualKeyModifiers.None, VirtualKey.R);
+                        }
+                        else
+                        {
+                            ControlFullScreen.Visibility = Visibility.Collapsed;
+                            ControlFullScreenAlternative.Visibility = Visibility.Collapsed;
+                        }
                     }
                     else
                     {
-                        // We are in regular stereo view and the media is not synchronized so we only
-                        // need one FullScreen/BackToWindow button to be visible. The button will show the
-                        // FullScreen glyph
-                        ControlFullScreen.Visibility = Visibility.Visible;
-                        ControlFullScreenAlternative.Visibility = Visibility.Collapsed;
-                        fontIcon.Glyph = "\uE740";  // Set the FullScreen Icon so the user can go full screen
-                        if (ControlType == eControlType.Primary)
+                        // Proceed only if buttons are allowed to be visible
+                        if (trueVisibleIfNeededFalseAlwaysHidden)
                         {
-                            ToolTipService.SetToolTip(ControlFullScreen, $"Show only the left media player (Press L)");
-                            AppBarButtonReplaceShortcut(ControlFullScreen, VirtualKeyModifiers.None, VirtualKey.L);
+
+                            // We are in regular stereo view and the media is not synchronized so we only
+                            // need one FullScreen/BackToWindow button to be visible. The button will show the
+                            // FullScreen glyph
+                            ControlFullScreen.Visibility = Visibility.Visible;
+                            ControlFullScreenAlternative.Visibility = Visibility.Collapsed;
+
+                            fontIcon.Glyph = "\uE740";  // Set the FullScreen Icon so the user can go full screen
+                            if (ControlType == eControlType.Primary)
+                            {
+                                ToolTipService.SetToolTip(ControlFullScreen, $"Show only the left media player (Press L)");
+                                AppBarButtonReplaceShortcut(ControlFullScreen, VirtualKeyModifiers.None, VirtualKey.L);
+                            }
+                            else if (ControlType == eControlType.Secondary)
+                            {
+                                ToolTipService.SetToolTip(ControlFullScreen, $"Show only the right media player (Press R)");
+                                AppBarButtonReplaceShortcut(ControlFullScreen, VirtualKeyModifiers.None, VirtualKey.R);
+                            }
                         }
-                        else if (ControlType == eControlType.Secondary)
+                        else
                         {
-                            ToolTipService.SetToolTip(ControlFullScreen, $"Show only the right media player (Press R)");
-                            AppBarButtonReplaceShortcut(ControlFullScreen, VirtualKeyModifiers.None, VirtualKey.R);
-                        }   
+                            ControlFullScreen.Visibility = Visibility.Collapsed;
+                            ControlFullScreenAlternative.Visibility = Visibility.Collapsed;
+                        }
                     }
                 }
             }

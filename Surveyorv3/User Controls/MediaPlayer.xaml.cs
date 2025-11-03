@@ -110,7 +110,7 @@ namespace Surveyor.User_Controls
         // Calculated frame rate
         private double frameRate = -1;
         private TimeSpan frameRateTimeSpan = TimeSpan.Zero;
-        private readonly int displayToDecimalPlaces = 2;     // If we start using frame rate of 120fps then we will need to increase this to 3dp
+        private readonly int displayToDecimalPlaces = 3;     // If we start using frame rate of 120fps then we will need to increase this to 3dp
 
         // Used in the redenering of a frame to the screen
         private readonly VideoFrameManager vidFrameMgr = new();
@@ -123,6 +123,9 @@ namespace Surveyor.User_Controls
 
         // Depth used for colour correction
         private uint depthUnderwater = 0;
+
+        // Survey type Stereo, Mono or Benthic
+        Survey.SurveyType surveyType = Survey.SurveyType.Unknown;
 
         // Cached diagnostic information flag
         private bool diagnosticInformation = false;
@@ -202,7 +205,7 @@ namespace Surveyor.User_Controls
         /// Opens the indicated media file in the Media Player
         /// </summary>
         /// <param name="mediaFileSpec"></param>
-        internal async Task Open(string mediaFileSpec, uint _depthUnderwater)
+        internal async Task Open(Survey.SurveyType _surveyType, string mediaFileSpec, uint _depthUnderwater)
         {
             WinUIGuards.CheckIsUIThread();
 
@@ -213,6 +216,9 @@ namespace Surveyor.User_Controls
 
             if (!IsOpen() && mediaFileSpec is not null)
             {
+                // Remember the survey type
+                surveyType = _surveyType;
+
                 // Remember the depth the video was shot at (for colour correction)
                 depthUnderwater = _depthUnderwater;
 
@@ -241,7 +247,7 @@ namespace Surveyor.User_Controls
                         MediaPlayerElement.SetMediaPlayer(new MediaPlayer());
 
                         // Setup the Magnifier and Marker Diaplay instance
-                        MagnifyAndMarkerDisplay.Setup(report!, ImageFrame, CameraSide);
+                        MagnifyAndMarkerDisplay.Setup(report!, surveyType, ImageFrame, CameraSide);
 
                         // Event subscriptions MediaPlayer 
                         MediaPlayer mp = MediaPlayerElement.MediaPlayer;
@@ -406,6 +412,8 @@ namespace Surveyor.User_Controls
                     frameRate = -1;
                     frameRateTimeSpan = TimeSpan.Zero;
                     positionPausedMode = TimeSpan.Zero;
+                    depthUnderwater = 0;
+                    surveyType = Survey.SurveyType.Unknown;
 
                     // Signal the media close event via mediator
                     mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Closed, CameraSide, mode));
@@ -666,30 +674,28 @@ namespace Surveyor.User_Controls
                 // Can only use this function if the media is not synchronized
                 if (!IsMediaSynchronized())
                 {
+                    // Pause media
+                    mode = Mode.modeFrame;
+                    MediaPlayerElement.MediaPlayer.Pause();
+
                     // Start the frame server so we can render the frames
                     FrameServerEnable(true);
 
                     // Wait for at least one frame so frame is display on the image frame Control
                     // Note the VideoFrameAvailable event shows the image frame control
-                    if (vidFrameMgr.RequestOneMoreFrame() == true)
-                    {
-                        await vidFrameMgr.WaitOneMoreFrame();
-                    }
+                    //if (vidFrameMgr.RequestOneMoreFrame() == true)
+                    //{
+                    //    await vidFrameMgr.WaitOneMoreFrame();
+                    //}
 
-                    // Pause media
-                    mode = Mode.modeFrame;
-                    MediaPlayerElement.MediaPlayer.Pause();
 
-                    // Settle
-                    await Task.Delay(50);
+                    //GrabAndDisplayFrame();
 
-                    //???// Move back one frame and forward one frame. This is a workaround to get the frame
-                    //// server to sync with the frame the player. Otherwise the the server frame is typically
-                    //// behind the player frame. However sometimes the displayed frame in
-                    //// the player sometimes behind the MediaPlaybackSession.Position.  In this case the
-                    //// server will sync to that forward position. This is the best we can do currently.
-                    //MediaPlayerElement.MediaPlayer.StepBackwardOneFrame();
-                    //???MediaPlayerElement.MediaPlayer.StepForwardOneFrame();
+                    // Settle - I removed this
+                    //???await Task.Delay(50);
+
+                    // Hard to get this to work well - adding this back frame seems to help                    
+                    MediaPlayerElement.MediaPlayer.StepBackwardOneFrame();
 
                 }
                 else
@@ -799,8 +805,11 @@ namespace Surveyor.User_Controls
                 if (!IsMediaSynchronized())
                 {
                     if (mode == Mode.modePlayer)
-                        //???MediaPlayerElement.MediaPlayer.Pause();  // Was using this but maybe need to use local Pause() instead
                         await Pause();
+                    else if (mode == Mode.modeFrame)
+                        // Enable Frame Server
+                        FrameServerEnable(true);
+
 
                     // Check move is in bounds
                     if (position < TimeSpan.Zero)
@@ -1073,7 +1082,7 @@ namespace Surveyor.User_Controls
                 Monitor.TryEnter(lockVideoFrameAvailable, ref lockTaken);
                 if (lockTaken)
                 {
-                    // Check the frame dimensions are as excepted
+                    // Check the frame dimensions are as expected ones
                     if (vidFrameMgr.FrameWidth != mp.PlaybackSession.NaturalVideoWidth || vidFrameMgr.FrameHeight != mp.PlaybackSession.NaturalVideoHeight)
                         Debug.WriteLine($"{CameraSide}: Warning dimension change, SoftwareBitmap setup at ({vidFrameMgr.FrameWidth},{vidFrameMgr.FrameHeight}), this frame is ({mp.PlaybackSession.NaturalVideoWidth},{mp.PlaybackSession.NaturalVideoHeight})");
 
@@ -1273,7 +1282,7 @@ namespace Surveyor.User_Controls
                                 GetFrameRateAndTimePerFrame();
                             }
 
-                            // Inform the media control that the media is playing
+                            // Inform the media control that the media is paused
                             mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Paused, CameraSide, mode));
 
                             //???Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info PlaybackSession_PlaybackStateChanged: Paused & video frame event enabled");
@@ -1405,7 +1414,7 @@ namespace Surveyor.User_Controls
                 if (!IsMediaSynchronized())
                 {
                     // If the media isn't syncronised signal the position of the MediaPlayer
-                    // (If sync'd the timeline controller sends the poisition message)
+                    // (If sync'd the timeline controller sends the position message)
                     MediaPlayerEventData data = new(MediaPlayerEventData.eMediaPlayerEvent.Position, CameraSide, mode)
                     {
                         position = playbackSession.Position                       
@@ -1414,7 +1423,7 @@ namespace Surveyor.User_Controls
                 }
             });
 
-            //??? Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info PlaybackSession_PositionChanged:{TimePositionHelper.Format(sender.Position, displayToDecimalPlaces)}, mode {mode}");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info PlaybackSession_PositionChanged:{TimePositionHelper.Format(sender.Position, displayToDecimalPlaces)}, mode {mode}");
         }
 
         private void PlaybackSession_SeekableRangesChanged(MediaPlaybackSession sender, object args)
@@ -1515,8 +1524,9 @@ namespace Surveyor.User_Controls
 
                     // This flag is used to indicate to the class that the media is open
                     mediaOpen = true;
+                    mode = Mode.modeFrame;
 
-                    // Signel the media open event via mediator
+                    // Signal the media open event via mediator
                     MediaPlayerEventData data = new(MediaPlayerEventData.eMediaPlayerEvent.Opened, CameraSide, mode)
                     {
                         mediaFileSpec = this.mediaUri

@@ -11,7 +11,6 @@
 
 
     <UserControl.Resources>
-        <local:EventTimeSpanToStringConverter x:Key="TimeSpanToStringConverter"/>
         <local:EventDataTypeToStringConverter x:Key="EventDataTypeToStringConverter"/>
         <local:EventDataToStringConverter x:Key="EventDataToStringConverter"/>
         <local:EventTypeToGlyphConverter x:Key="EventTypeToGlyphConverter" />
@@ -57,12 +56,13 @@
                                    Foreground="{x:Bind Mode=OneWay, Converter={StaticResource EventTypeToBrushConverter}}"
                                    Width="16" TextAlignment="Left" Margin="0,0,10,0" FontFamily="Segoe Fluent Icons"/>
 
-                        <!-- Column 1: Left Frame -->
-                        <TextBlock Grid.Column="1" Text="{x:Bind TimeSpanTimelineController, Mode=OneWay, Converter={StaticResource TimeSpanToStringConverter}}" 
-                                   Width="180" TextAlignment="Left" Margin="0,0,10,0"/>
-
+                        <!-- Column 1: Display TimeSpanTimelineController or Left Frame TimeSpan -->
+                        <TextBlock Grid.Column="1"
+                                    Text="{x:Bind local:EventsControl.SelectDisplayTimeString(TimeSpanTimelineController, TimeSpanLeftFrame), Mode=OneWay}"
+                                    Width="180" TextAlignment="Left" Margin="0,0,10,0"/> 
+                        
                         <!-- Column 3: Event Type -->
-                        <TextBlock Grid.Column="3" Text="{x:Bind EventDataType, Mode=OneWay, Converter={StaticResource EventDataTypeToStringConverter}}" 
+                        <TextBlock Grid.Column="3" Text="{x:Bind EventDataType, Mode=OneWay}" 
                                    Width="160" TextAlignment="Left" Margin="0,0,0,0" />
 
                         <!-- Column 4: Event Data -->

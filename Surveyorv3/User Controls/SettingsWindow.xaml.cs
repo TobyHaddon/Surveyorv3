@@ -11,12 +11,10 @@
 
 using CommunityToolkit.WinUI;
 using CommunityToolkit.WinUI.Controls;
-using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
@@ -33,8 +31,8 @@ using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
 using Windows.Storage;
 using WinUIEx;
-using static Surveyor.InternetQueue;
-using static Surveyor.SpeciesImageAndInfoCache;
+//???using static Surveyor.InternetQueue;
+//???using static Surveyor.SpeciesImageAndInfoCache;
 using static Surveyor.User_Controls.SettingsWindowEventData;
 
 
@@ -126,15 +124,19 @@ namespace Surveyor.User_Controls
             if (survey is not null)
                 SurveyInfoAndMedia.SetupForSettingWindow(SettingsCardSurveyInfoAndMedia, survey);
 
-            // Inform the SettingsSurveyRules user control that it is being used in the SettingsWindow for a survey (as opposed to a Field Trip)
-            if (survey is not null)
+            // Only use Survey Rules for Stereo fish (SVS) surveys
+            // Inform the SettingsSurveyRules user control that it is being used in the SettingsWindow for a survey
+            // (as opposed to a Field Trip)
+            if (survey is not null && survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
             {
                 surveyRulesHash = survey.Data.SurveyRules.GetHashCode();
                 SettingsSurveyRules.SetupForSurveySettingWindow(survey);
             }
+            
 
-            // Inform the SettingsCalibration user control that it is being used in the SettingsWindow for a survey (as opposed to a Field Trip)
-            if (survey is not null)
+            // Inform the SettingsCalibration user control that it is being used in the SettingsWindow for a survey
+            // (as opposed to a Field Trip)
+            if (survey is not null && survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
             {
                 calibrationDataHash = survey.Data.Calibration.GetHashCode();
                 SettingsCalibration.SetupForSurveySettingWindow(survey);
@@ -166,8 +168,17 @@ namespace Surveyor.User_Controls
                 // Show the survey settings section
                 SurveySettingsTitle.Visibility = Visibility.Visible;
                 SurveyInfoAndMediaExpander.Visibility = Visibility.Visible;
-                SettingsCalibration.Visibility = Visibility.Visible;   
-                SettingsSurveyRules.Visibility = Visibility.Visible;
+                if (survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
+                {
+                    SettingsCalibration.Visibility = Visibility.Visible;
+                    SettingsSurveyRules.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    // Mono fish and benthic don't need calibration or survey rules
+                    SettingsCalibration.Visibility = Visibility.Collapsed;
+                    SettingsSurveyRules.Visibility = Visibility.Collapsed;
+                }
             }
 
             // Remember the experimental status so we can broadcast any changed

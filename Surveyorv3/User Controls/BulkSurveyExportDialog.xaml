@@ -143,11 +143,13 @@
         
         <!--SURVEY DATAGRID-->
         <dg:DataGrid x:Name="SurveyGrid" Grid.Row="4" AutoGenerateColumns="False"
-                     MinColumnWidth="20"
+                    MinColumnWidth="20"
                     HeadersVisibility="Column"
                     Padding="0"
                     ColumnHeaderHeight="40"
-                     LoadingRow="SurveyGrid_LoadingRow">
+                    HorizontalScrollBarVisibility="Visible"
+                    VerticalScrollBarVisibility="Visible"
+                    LoadingRow="SurveyGrid_LoadingRow">
             <dg:DataGrid.Columns>
                 <dg:DataGridTemplateColumn Width="35">
                     <dg:DataGridTemplateColumn.CellTemplate>
@@ -157,6 +159,7 @@
                     </dg:DataGridTemplateColumn.CellTemplate>
                 </dg:DataGridTemplateColumn>
                 <dg:DataGridTextColumn Header="File Name" Binding="{Binding FileNameDisplay}" Width="300"/>
+                <dg:DataGridTextColumn Header="Type" Binding="{Binding SurveyType}" Width="100"/>
                 <dg:DataGridTextColumn Header="Depth" Binding="{Binding Depth}" Width="100"/>
                 <dg:DataGridTextColumn Header="Total" Binding="{Binding TotalEntries}" Width="120"/>
                 <dg:DataGridTextColumn Header="Measurements" Binding="{Binding TotalMeasurements}" Width="120"/>

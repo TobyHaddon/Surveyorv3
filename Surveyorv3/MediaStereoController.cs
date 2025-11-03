@@ -252,54 +252,103 @@ namespace Surveyor
             }
 
 
-            // Open both files
-            if (!string.IsNullOrEmpty(mediaFileSpecLeft))
-                await mediaPlayerLeft.Open(mediaFileSpecLeft, depthUnderwaterPassed);
-
-            if (!string.IsNullOrEmpty(mediaFileSpecRight))
-                await mediaPlayerRight.Open(mediaFileSpecRight, 0/*depthUnderwaterPassed*/);
-
-            // Wait for media to open
-            int tries = 0;
-            while ((!string.IsNullOrEmpty(mediaFileSpecLeft) && !mediaPlayerLeft.IsOpen()) &&
-                   (!string.IsNullOrEmpty(mediaFileSpecRight) && !mediaPlayerRight.IsOpen()) &&
-                   tries < 20)
+            // Open both files        
+            if (surveyType == Survey.SurveyType.StereoFish)
             {
-                // Sleep 100ms
-                await Task.Delay(250);
-                tries++;
-            }
+                // Open both media files in parallel
+                var openLeftTask = string.IsNullOrEmpty(mediaFileSpecLeft)
+                    ? Task.CompletedTask
+                    : mediaPlayerLeft.Open(surveyType, mediaFileSpecLeft, depthUnderwaterPassed);
 
-            // If the timeSpanOffset is not null and both media files opened then request the media
-            // players to be locked together
-            if (timeSpanOffset != null)
-            {
-                // Lock the media
-                await Task.Delay(100);
-                await MediaLockMediaPlayers((TimeSpan)timeSpanOffset, existingEvents);
+                var openRightTask = string.IsNullOrEmpty(mediaFileSpecRight)
+                    ? Task.CompletedTask
+                    : mediaPlayerRight.Open(surveyType, mediaFileSpecRight, 0 /*depthUnderwaterPassed*/);
 
-                // Move in one frame to engage frame server (i.e. display the pause frame in the ImageFrame
-                // instead of the MediaPlayer). This ensure all the code around the canvas and displaying
-                // things like dimensions get setup fully
-                await Task.Delay(100);
-                await FrameMove(eCameraSide.None, 1);            
+                // Run both opens concurrently
+                await Task.WhenAll(openLeftTask, openRightTask);
+
+                // Wait for media to open
+                int tries = 0;
+                while (((!string.IsNullOrEmpty(mediaFileSpecLeft) && !mediaPlayerLeft.IsOpen()) ||
+                        (!string.IsNullOrEmpty(mediaFileSpecRight) && !mediaPlayerRight.IsOpen())) &&
+                       tries < 20)
+                {
+                    await Task.Delay(100);
+                    tries++;
+                }
+
+                // If the timeSpanOffset is not null and both media files opened then request the media
+                // players to be locked together
+                if (timeSpanOffset != null)
+                {
+                    // Lock the media
+                    await Task.Delay(100);
+                    await MediaLockMediaPlayers((TimeSpan)timeSpanOffset, existingEvents);
+
+                    // Move in one frame to engage frame server (i.e. display the pause frame in the ImageFrame
+                    // instead of the MediaPlayer). This ensure all the code around the canvas and displaying
+                    // things like dimensions get setup fully
+                    await Task.Delay(100);
+                    await FrameMove(eCameraSide.None, 1);
+                }
+                else
+                {
+                    MediaUnlockMediaPlayers();
+
+                    // Move in one frame to engage frame server (i.e. display the pause frame in the ImageFrame
+                    // instead of the MediaPlayer). This ensure all the code around the canvas and displaying
+                    // things like dimensions get setup fully
+                    await Task.Delay(100);
+                    await FrameMove(eCameraSide.Left, 1);
+                    await FrameMove(eCameraSide.Right, 1);
+                }
+
+                // Make sure the media players and controls are not in full screen mode
+                mainWindow.MediaBackToWindow();
+                mediaControlPrimary.FullScreenButtonVisability(true/*trueVisibleIfNeededFalseAlwaysHidden*/);
+                mediaControlPrimary.MediaFullScreen(false/*TrueYouAreFullFalseYouAreRestored*/, null);
+                mediaControlSecondary.MediaFullScreen(false/*TrueYouAreFullFalseYouAreRestored*/, null);
+
+                // Enable media controls
+                mediaControlPrimary.IsEnabled = true;
+                mediaControlSecondary.IsEnabled = true;
             }
             else
             {
-                MediaUnlockMediaPlayers();
+                // Mono/Benthic survey - open only the left media file
+                if (!string.IsNullOrEmpty(mediaFileSpecLeft))
+                {
+                    await mediaPlayerLeft.Open(surveyType, mediaFileSpecLeft, depthUnderwaterPassed);
+                    // Wait for media to open
+                    int tries = 0;
+                    while (!mediaPlayerLeft.IsOpen() && tries < 20)
+                    {
+                        await Task.Delay(100);
+                        tries++;
+                    }
 
-                // Move in one frame to engage frame server (i.e. display the pause frame in the ImageFrame
-                // instead of the MediaPlayer). This ensure all the code around the canvas and displaying
-                // things like dimensions get setup fully
-                await Task.Delay(100);
-                await FrameMove(eCameraSide.Left, 1);
-                await FrameMove(eCameraSide.Right, 1);
+                    // Recalc the frame index. They are not saved and if the media is
+                    // sync'd that done in MediaLockMediaPlayers( ... ). 
+                    CalcFrameIndexesForAllEvents(existingEvents);
+
+                    // Set the events if the players are locked
+                    mediaPlayerLeft.SetEvents(existingEvents);
+
+                    // Move in one frame to engage frame server (i.e. display the pause frame in the ImageFrame
+                    // instead of the MediaPlayer). This ensure all the code around the canvas and displaying
+                    // things like dimensions get setup fully
+                    await Task.Delay(100);
+                    await FrameMove(eCameraSide.Left, 1);
+                }
+
+                mainWindow.MediaFullScreen(true/*TrueLeftFalseRight*/);
+                mainWindow.SetTitleCameraSide("");
+                mediaControlPrimary.FullScreenButtonVisability(false/*trueVisibleIfNeededFalseAlwaysHidden*/);
+                mediaControlPrimary.MediaFullScreen(true/*TrueYouAreFullFalseYouAreRestored*/, eCameraSide.Left);
+                // Disable the other media control we keystroke aren't directed there
+                mediaControlPrimary.IsEnabled = true;
+                mediaControlSecondary.IsEnabled = false;
             }
-
-            // Make sure the media players and controls are not in full screen mode
-            mainWindow.MediaBackToWindow();
-            mediaControlPrimary.MediaFullScreen(false/*TrueYouAreFullFalseYouAreRestored*/, null);
-            mediaControlSecondary.MediaFullScreen(false/*TrueYouAreFullFalseYouAreRestored*/, null);
 
             return ret;
         }
@@ -511,14 +560,7 @@ namespace Surveyor
 
 
                 // Calculate the frame index for each event from the position timespan
-                if (existingEvents is not null)
-                {
-                    foreach (Event evt in existingEvents)
-                    {
-                        evt.FrameIndexLeft = mediaPlayerLeft.GetFrameIndexFromPosition(evt.TimeSpanLeftFrame);
-                        evt.FrameIndexRight = mediaPlayerRight.GetFrameIndexFromPosition(evt.TimeSpanRightFrame);
-                    }
-                }
+                CalcFrameIndexesForAllEvents(existingEvents);
 
                 // Set the events if the players are locked
                 mediaPlayerLeft.SetEvents(existingEvents);
@@ -540,6 +582,22 @@ namespace Surveyor
             }
 
             return ret;
+        }
+
+        /// <summary>
+        /// Parse the events and recalculate the frame indexes (they are not saved)
+        /// </summary>
+        /// <param name=""></param>
+        private void CalcFrameIndexesForAllEvents(ObservableCollection<Event>? existingEvents)
+        {
+            if (existingEvents is not null)
+            {
+                foreach (Event evt in existingEvents)
+                {
+                    evt.FrameIndexLeft = mediaPlayerLeft.GetFrameIndexFromPosition(evt.TimeSpanLeftFrame);
+                    evt.FrameIndexRight = mediaPlayerRight.GetFrameIndexFromPosition(evt.TimeSpanRightFrame);
+                }
+            }
         }
 
 
@@ -800,6 +858,7 @@ namespace Surveyor
         }
 
 
+
         /// <summary>
         /// Move the media forward(positive) or back(negative) by the timespan duration
         /// The function will move both players if they are locked together. If they are not locked together
@@ -879,14 +938,14 @@ namespace Surveyor
             {
                 if (cameraSide == eCameraSide.Left)
                 {
-                    TimeSpan leftTimePerFrame = (TimeSpan)mediaPlayerLeft.TimePerFrame;
-                    TimeSpan timeSpan = leftTimePerFrame * frames;
+                    TimeSpan timePerFrame = (TimeSpan)mediaPlayerLeft.TimePerFrame;
+                    TimeSpan timeSpan = timePerFrame * frames;
                     await mediaPlayerLeft.FrameMove(timeSpan);
                 }
                 else
                 {
-                    TimeSpan leftTimePerFrame = (TimeSpan)mediaPlayerRight.TimePerFrame;
-                    TimeSpan timeSpan = leftTimePerFrame * frames;
+                    TimeSpan timePerFrame = (TimeSpan)mediaPlayerRight.TimePerFrame;
+                    TimeSpan timeSpan = timePerFrame * frames;
                     await mediaPlayerRight.FrameMove(timeSpan);
                 }
             }
@@ -1415,7 +1474,7 @@ namespace Surveyor
             else 
             {
                 // In non-synchronized mode, when the in full screen mode, the primary (left) media control
-                // controls the left player and the secondart (right) media control controls the right player
+                // controls the left player and the secondary (right) media control controls the right player
                 if (cameraSide == eCameraSide.Left)
                 {
                     mainWindow.MediaFullScreen(true/*TrueLeftFalseRight*/);
@@ -2159,7 +2218,7 @@ namespace Surveyor
         private void SetMediaPoistionAddEventClearTargets(Event evt)
         {
             // Log the event (even if no measurement done)
-            if (mediaTimelineController is not null)
+            if (surveyType == Survey.SurveyType.StereoFish && mediaTimelineController is not null)
             {
                 TimeSpan? timelineConntrollerPoistion = mediaTimelineController.Position;
                 TimeSpan? leftPosition = mediaPlayerLeft.Position;
@@ -2186,6 +2245,34 @@ namespace Surveyor
                     mediaPlayerLeft.SetTargets(null, null);
                     mediaPlayerRight.SetTargets(null, null);
                 }
+            }
+            else if (surveyType == Survey.SurveyType.MonoFish)
+            {
+                TimeSpan? leftPosition = mediaPlayerLeft.Position;
+
+                if (leftPosition is not null)
+                {
+                    // Add media position information
+                    evt.TimeSpanTimelineController = (TimeSpan)leftPosition;
+                    evt.TimeSpanLeftFrame = (TimeSpan)leftPosition;
+
+                    // Add frame indexes (not saved, values always calc'd)
+                    evt.FrameIndexLeft = mediaPlayerLeft.GetFrameIndexFromPosition((TimeSpan)leftPosition);
+                    evt.FrameIndexRight = -1;
+
+                    // Add the species info to the Events list
+                    eventsControl?.AddEvent(evt);
+
+                    // Remove targets from memory
+                    ClearCachedTargets();
+
+                    // Remove target from the canvas
+                    mediaPlayerLeft.SetTargets(null, null);
+                }
+            }
+            else if (surveyType == Survey.SurveyType.MonoBenthic)
+            {
+                // To do
             }
         }
 

@@ -98,7 +98,9 @@
 								 ScrollViewer.VerticalScrollBarVisibility="Auto"
 								 Height="120"
 								 Visibility="Collapsed"/>
-                        <TextBlock x:Name="ResultTextBoxNote" Text="* Preferred Calibration Set"
+                        <TextBlock x:Name="ResultTextBoxNote1" Text="* Currently set as 'Preferred Calibration Set'"
+                                Visibility="Collapsed"/>
+                        <TextBlock x:Name="ResultTextBoxNote2" Text="+ Calibration set that returned the most accurate results"
                                 Visibility="Collapsed"/>
                     </StackPanel>
                 </Grid>

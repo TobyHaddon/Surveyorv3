@@ -1,3 +1,4 @@
+
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -176,7 +177,7 @@ namespace Surveyor.User_Controls
         /// closest event at or before 'ts' and the closest event after 'ts', then
         /// returns whichever is nearest. On an exact tie, the earlier event is preferred.
         /// </summary>
-        public Event? FindEvent(TimeSpan ts)
+        public Event? FindEventFromTimeSpanTimelineController(TimeSpan ts)
         {
             // Old behavior (kept for reference): choose the last event at or before ts
             // return events
@@ -345,8 +346,12 @@ namespace Surveyor.User_Controls
                         else if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
                         {
                             sb.AppendLine($"Species: {surveyStereoPoint.SpeciesInfo.Species}\r\n");
-                            sb.AppendLine($"Survey Rules: {surveyStereoPoint.SurveyRulesCalc.SurveyRulesText}");
-                            sb.AppendLine($"");
+
+                            // Survey Rules
+                            string surveyRulesText = !string.IsNullOrWhiteSpace(surveyStereoPoint.SurveyRulesCalc.SurveyRulesText) ? surveyStereoPoint.SurveyRulesCalc.SurveyRulesText : "No Survey Rules";
+                            sb.AppendLine($"Survey Rules: {surveyRulesText}\r\n");
+
+                            // 2D Points
                             sb.AppendLine($"2D Points:");
                             sb.AppendLine($"    Left Camera: ({Math.Round(surveyStereoPoint.LeftX, 1)}, {Math.Round(surveyStereoPoint.LeftY, 1)})");
                             sb.AppendLine($"    Right Camera: ({Math.Round(surveyStereoPoint.RightX, 1)}, {Math.Round(surveyStereoPoint.RightY, 1)})");
@@ -580,6 +585,20 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// Find the format the correct position (TimeSpan) to display in the 
+        /// events window
+        /// </summary>
+        /// <param name="timelineController"></param>
+        /// <param name="leftFrame"></param>
+        /// <returns></returns>
+        public static string SelectDisplayTimeString(TimeSpan timelineController, TimeSpan leftFrame)
+        {
+            return TimePositionHelper.Format(timelineController, 2);
+        }
+
+
+
         ///
         /// EVENTS
         ///
@@ -605,15 +624,15 @@ namespace Surveyor.User_Controls
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private void GoToFrameMenuItem_Click(object? sender, ItemClickEventArgs? e)
-        {
+        {           
             if (ListViewEvent.SelectedItem is Event selectedItem)
             {
                 // Attempt to go to the left frame
-                if (mediaStereoController is not null)
-                {
-                    // Jump to frame of this event
-                    mediaStereoController.UserReqFrameJump(SurveyorMediaControl.eControlType.Primary, selectedItem.TimeSpanTimelineController);
-                }                
+                // Jump to frame of this event
+                //???if (selectedItem.TimeSpanTimelineController != TimeSpan.Zero)
+                    mediaStereoController?.UserReqFrameJump(SurveyorMediaControl.eControlType.Primary, selectedItem.TimeSpanTimelineController);
+                //???else if (selectedItem.TimeSpanLeftFrame != TimeSpan.Zero)
+                //???    mediaStereoController?.UserReqFrameJump(SurveyorMediaControl.eControlType.Primary, selectedItem.TimeSpanLeftFrame);
             }
         }
 
@@ -767,28 +786,10 @@ namespace Surveyor.User_Controls
             // Not within a survey
             return null;
         }
+
     }
 
 
-    /// <summary>
-    /// Convert TimeSpanToStringConverter to 2DP
-    /// </summary>
-    public partial class EventTimeSpanToStringConverter : IValueConverter
-    {
-        public object Convert(object value, Type targetType, object parameter, string language)
-        {
-            if (value is TimeSpan timeSpan)
-            {
-                return TimePositionHelper.Format(timeSpan, 2);
-            }
-            return "0.00 secs";
-        }
-
-        public object ConvertBack(object value, Type targetType, object parameter, string language)
-        {
-            throw new NotImplementedException();
-        }
-    }
 
 
     /// <summary>

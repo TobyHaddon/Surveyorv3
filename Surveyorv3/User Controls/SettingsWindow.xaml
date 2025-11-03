@@ -70,7 +70,7 @@
 
                     <toolkit:SettingsExpander.Items>
                         <toolkit:SettingsCard x:Name="SettingsCardSurveyInfoAndMedia">
-                            <surveyorControls:SurveyInfoAndMedia x:Name="SurveyInfoAndMedia"/>
+                            <surveyorControls:SurveyStereoInfoAndMedia x:Name="SurveyInfoAndMedia"/>
                         </toolkit:SettingsCard>
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
@@ -294,14 +294,13 @@
                 </toolkit:SettingsExpander>
 
 
-                <!-- SYSTEM SETTINGS > CAMERA -->
-                <toolkit:SettingsExpander x:Name="CameraExpander" Header="Camera" Description="GoPro setup instructions" MaxWidth="1200"
+                <!-- SYSTEM SETTINGS > STEREO CAMERA -->
+                <toolkit:SettingsExpander x:Name="CameraExpander" Header="Stereo Cameras" Description="GoPro setup instructions" MaxWidth="1200"
                                           Expanded="CameraExpander_Expanded" Collapsed="CameraExpander_Collapsed">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE722;" />
                     </toolkit:SettingsExpander.HeaderIcon>
                                             
-
                     <toolkit:SettingsExpander.Items>
                         <toolkit:SettingsCard HorizontalContentAlignment="Left" ContentAlignment="Vertical">
                             <StackPanel Orientation="Vertical" Margin="50,10,50,0">

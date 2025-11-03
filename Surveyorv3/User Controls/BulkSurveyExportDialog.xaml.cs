@@ -309,8 +309,14 @@ namespace Surveyor.User_Controls
                             string surveyNameAndCodeCheck = CheckSurveyFileNameSurveyFileNameAndSurveyCodeAreConsistent(fileName, survey.Data.Info.SurveyFileName ?? "", survey.Data.Info.SurveyCode ?? "");
 
                             string surveyCode = survey.Data.Info.SurveyCode ?? "";
-                            string leftMediaFile = survey.Data.Media.LeftMediaFileNames[0] ?? "missing";
-                            string rightMediaFile = survey.Data.Media.RightMediaFileNames[0] ?? "missing";
+
+                            string leftMediaFile = survey.Data.Media.LeftMediaFileNames.Count > 0
+                                ? (survey.Data.Media.LeftMediaFileNames[0] ?? "Missing")
+                                : "Missing";
+                            string rightMediaFile = survey.Data.Media.RightMediaFileNames.Count > 0
+                                ? (survey.Data.Media.RightMediaFileNames[0] ?? "Missing")
+                                : "Missing";
+
                             string surveyPath = survey.Data.Info.SurveyPath ?? "missing";
                             string mediaPath = survey.Data.Media.MediaPath ?? "missing";
                             string depth = survey.Data.Info.SurveyDepth ?? "missing";
@@ -553,6 +559,7 @@ namespace Surveyor.User_Controls
                                 FileName = survey.Data.Info.SurveyFileName ?? string.Empty,
                                 // Decorated display for UI
                                 FileNameDisplay = (string.IsNullOrEmpty(surveyNameAndCodeCheck) ? string.Empty : "*") + fileName + surveyNameAndCodeCheck,
+                                SurveyType = survey.Data.Info.SurveyType.ToString(),
                                 Depth = depth,
                                 TotalMeasurements = totalMeasurements,
                                 Total3DPoints = total3DPoints,
@@ -1788,7 +1795,8 @@ namespace Surveyor.User_Controls
 
         public string FilePath { get; set; } = string.Empty;
         public string FileName { get; set; } = string.Empty; // clean metadata name
-        public string FileNameDisplay { get; set; } = string.Empty; // decorated for UI
+        public string FileNameDisplay { get; set; } = string.Empty; 
+        public string SurveyType { get; set; } = string.Empty;
         public string Depth { get; set; } = string.Empty;
         public int TotalEntries { get; set; }
         public int TotalMeasurements { get; set; }

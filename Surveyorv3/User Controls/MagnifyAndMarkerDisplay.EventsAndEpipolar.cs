@@ -33,13 +33,6 @@ namespace Surveyor.User_Controls
         // Remembered Epipolar line
         private bool epipolarLineTargetActiveA = false;
         private bool epipolarLineTargetActiveB = false;
-        //???TO BE DELELTED Epipolar Line is obsolete
-        //private double epipolarLine_aTargetA = 0.0;
-        //private double epipolarLine_bTargetA = 0.0;
-        //private double epipolarLine_cTargetA = 0.0;
-        //private double epipolarLine_aTargetB = 0.0;
-        //private double epipolarLine_bTargetB = 0.0;
-        //private double epipolarLine_cTargetB = 0.0;
 
         // Remember Epipolar Curve Distorted Points
         private List<Point>? epipolarCurveDistortedPointsTargetA = null;
@@ -57,15 +50,6 @@ namespace Surveyor.User_Controls
         
             epipolarLineTargetActiveA = false;
             epipolarLineTargetActiveB = false;
-
-            // Clear epipiolar line 
-            //???TO BE DELELTED Epipolar Line is obsolete
-            //epipolarLine_aTargetA = 0.0;
-            //epipolarLine_bTargetA = 0.0;
-            //epipolarLine_cTargetA = 0.0;
-            //epipolarLine_aTargetB = 0.0;
-            //epipolarLine_bTargetB = 0.0;
-            //epipolarLine_cTargetB = 0.0;
 
             // Clear epipolar lines from the CanvasFrame and CanvasMag
             epipolarCurveDistortedPointsTargetA = null;
@@ -790,6 +774,8 @@ namespace Surveyor.User_Controls
         private DateTime lastClickTime = DateTime.MinValue;
         private void EventElement_PointerPressed(object sender, PointerRoutedEventArgs e)
         {
+            // Temp
+            Debug.WriteLine($"EventElement_PointerPressed button click press detected");
 
             if (sender is FrameworkElement element)
             {

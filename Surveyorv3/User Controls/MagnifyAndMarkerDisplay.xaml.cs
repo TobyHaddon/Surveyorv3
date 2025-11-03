@@ -69,11 +69,8 @@ using System.Threading.Tasks;
 using Windows.Foundation;               // Point class
 using Windows.Graphics.Imaging;         // BitmapTransform
 using Windows.Storage.Streams;
-using static QRCoder.PayloadGenerator;
 using static Surveyor.User_Controls.MediaPlayerEventData;
 using static Surveyor.User_Controls.SettingsWindowEventData;
-
-
 
 
 namespace Surveyor.User_Controls
@@ -94,6 +91,9 @@ namespace Surveyor.User_Controls
 
         // Reporter
         private Reporter? report = null;
+
+        // Survey type Stereo, Mono or Benthic
+        Survey.SurveyType surveyType = Survey.SurveyType.Unknown;
 
         // Which camera side 
         private SurveyorMediaPlayer.eCameraSide CameraSide = SurveyorMediaPlayer.eCameraSide.None;
@@ -179,7 +179,6 @@ namespace Surveyor.User_Controls
 
         // Epipolar line colours
         private readonly Brush epipolarALineColour = new SolidColorBrush(Microsoft.UI.Colors.Red);
-        //???private readonly Brush epipolarBLineColour = new SolidColorBrush(Microsoft.UI.Colors.Green);
         private readonly Brush epipolarBLineColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 10, 228, 30));
 
 
@@ -374,14 +373,17 @@ namespace Surveyor.User_Controls
         /// Called initial to setup the Image control we are serving and the camera side
         /// This function must be called for the user control to work
         /// The imageFrame is only used so we know where to poisition the magnifier window. The
-        /// souece of the magnified image comes from the NewImageFrame() function
+        /// source of the magnified image comes from the NewImageFrame() function
         /// </summary>
         /// <param name="imageFrame"></param>
         /// <param name="cameraside"></param>
-        public void Setup(Reporter _report, Image imageFrame, SurveyorMediaPlayer.eCameraSide cameraside)
+        public void Setup(Reporter _report, Survey.SurveyType _surveyType, Image imageFrame, SurveyorMediaPlayer.eCameraSide cameraside)
         {
             // Remember the Report
             report = _report;
+
+            // Remember the Survey Type
+            surveyType = _surveyType;
 
             // Remember the Image control we are serving
             imageUIElement = imageFrame;
@@ -396,6 +398,36 @@ namespace Surveyor.User_Controls
 
             // Get the current MainWindow activation status
             mainWindowActivated = WindowHelper.IsMainWindowActive(_mainWindow);
+
+            // Taylor the CanvasContextMenu for the survey type
+            switch (surveyType)
+            {
+                case Survey.SurveyType.StereoFish:
+                    CanvasFrameMenuAddMeasurement.Visibility = Visibility.Visible;
+                    CanvasFrameMenuAdd3DPoint.Visibility = Visibility.Visible;
+                    CanvasFrameMenuDeleteAllTargets.Visibility = Visibility.Visible;
+                    CanvasFrameMenuDeleteMeasurement.Visibility = Visibility.Visible;
+                    CanvasFrameMenuDelete3DPoint.Visibility = Visibility.Visible;
+                    CanvasFrameMenuEditMeasurement.Visibility = Visibility.Visible;
+                    break;
+                case Survey.SurveyType.MonoFish:
+                    CanvasFrameMenuAddMeasurement.Visibility = Visibility.Collapsed;
+                    CanvasFrameMenuAdd3DPoint.Visibility = Visibility.Collapsed;                    
+                    CanvasFrameMenuDeleteAllTargets.Visibility = Visibility.Collapsed;
+                    CanvasFrameMenuDeleteMeasurement.Visibility = Visibility.Collapsed;
+                    CanvasFrameMenuDelete3DPoint.Visibility = Visibility.Collapsed;
+                    CanvasFrameMenuEditMeasurement.Visibility = Visibility.Collapsed;
+                    break;
+                case Survey.SurveyType.MonoBenthic:
+                    CanvasFrameMenuAddMeasurement.Visibility = Visibility.Collapsed;
+                    CanvasFrameMenuAdd3DPoint.Visibility = Visibility.Collapsed;
+                    CanvasFrameMenuDeleteAllTargets.Visibility = Visibility.Collapsed;
+                    CanvasFrameMenuDeleteMeasurement.Visibility = Visibility.Collapsed;
+                    CanvasFrameMenuDelete3DPoint.Visibility = Visibility.Collapsed;
+                    CanvasFrameMenuEditMeasurement.Visibility = Visibility.Collapsed;
+                    CanvasFrameMenuEditSpeciesInfo.Visibility = Visibility.Collapsed;
+                    break;
+            }
         }
 
 
@@ -411,6 +443,9 @@ namespace Surveyor.User_Controls
 
             // Clear values
             ClearEventsAndEpipolar();
+
+            // Reset survey type
+            surveyType = Survey.SurveyType.Unknown;
 
             // Assume the image in the ImageFrame is no longer loaded
             imageLoaded = false;
@@ -1017,6 +1052,9 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void CanvasMag_PointerPressed(object sender, PointerRoutedEventArgs e)
         {
+            // Temp
+            Debug.WriteLine($"CanvasMag_PointerPressed button click press detected");
+
             if (mainWindowActivated)
             {
                 draggingInitialPressTime = DateTime.MinValue;
@@ -1074,6 +1112,9 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void CanvasMag_PointerReleased(object sender, PointerRoutedEventArgs e)
         {
+            // Temp
+            Debug.WriteLine($"CanvasMag_PointerReleased button click release detected");
+
             if (mainWindowActivated)
             {
 
@@ -1130,15 +1171,20 @@ namespace Surveyor.User_Controls
 
                             if (e.OriginalSource is Canvas)
                             {
-                                // Set the measurement markers if none or only one target already selected
-                                if (TargetAMag.Visibility == Visibility.Collapsed)
+                                // StereoFish: Set the measurement markers if none or only one target already selected
+                                // Mono Fish: Set the measurement markers, reusing only argetA
+                                if ((surveyType == Survey.SurveyType.StereoFish && 
+                                    TargetAMag.Visibility == Visibility.Collapsed) ||
+                                    surveyType == Survey.SurveyType.MonoFish)
                                 {
                                     // Set Target A
                                     SetTargetOnCanvasMag(TargetAMag, pointerRelativeToImageMag.Position.X, pointerRelativeToImageMag.Position.Y, TargetIconType.Locked);
                                     // Clear any selected Target (if necessary)
                                     SetSelectedTarget(null);
                                 }
-                                else if (TargetBMag.Visibility == Visibility.Collapsed)
+                                // Only set Target B if survey type is StereoFish
+                                else if (surveyType == Survey.SurveyType.StereoFish && 
+                                         TargetBMag.Visibility == Visibility.Collapsed)
                                 {
                                     SetTargetOnCanvasMag(TargetBMag, pointerRelativeToImageMag.Position.X, pointerRelativeToImageMag.Position.Y, TargetIconType.Locked);
                                     // Clear any selected Target (if necessary)
@@ -1980,7 +2026,7 @@ namespace Surveyor.User_Controls
             // Check the ImageFrame is setup 
             Debug.Assert(imageUIElement is not null, $"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
 
-            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: _NewImageFrame: Position:{_position}, Width:{_imageSourceWidth}, Height:{_imageSourceHeight}");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: _NewImageFrame: Position:{TimePositionHelper.Format(_position, 3)}, Width:{_imageSourceWidth}, Height:{_imageSourceHeight}");
 
 
             // Hide the mag window if it is locked

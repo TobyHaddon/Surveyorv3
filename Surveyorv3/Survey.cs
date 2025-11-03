@@ -12,10 +12,13 @@
 // Version 1.5
 // I've moved the version number in the SurveyRulesClass to 2.0 because I've added flags to SurveyRulesCalc
 // to indicate which of the specific rules passed/failed
+// Version 1.6
+// Added SurveyType to InfoClass and moved it's version to 2.0
 
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Newtonsoft.Json.Converters;
 using Surveyor.Events;
 using Surveyor.Helper;
 using Surveyor.User_Controls;
@@ -114,7 +117,7 @@ namespace Surveyor
 
 
                 // Info class version
-                public float Version { get; set; } = 1.0f;
+                public float Version { get; set; } = 2.0f;
 
                 // Values
                 private SurveyType _surveyType = SurveyType.Unknown;
@@ -125,6 +128,8 @@ namespace Surveyor
                 private string? _surveyDepth = null;  // Normally 5,8,10,13,15 or Flat, Crest or Slope 
 
                 // Setters and getters
+                
+                [JsonConverter(typeof(StringEnumConverter))]
                 public SurveyType SurveyType
                 {
                     get => _surveyType;
@@ -1164,6 +1169,13 @@ namespace Surveyor
             {
                 ret = -8;
                 Report?.Warning("", $"Load survey failed because the survey has an unsupported extension type, file:{SurveyFileSpec}.");
+            }
+
+            // Data adjustments
+            if (Data.Info.SurveyType == SurveyType.Unknown && Data.Info.Version < 2.0)
+            {
+                // Default survey type to Stereo Fish (SVS) for Survey.Data.Info.Version < 2.0
+                Data.Info.SurveyType = SurveyType.StereoFish;
             }
 
             stopwatch.Stop();

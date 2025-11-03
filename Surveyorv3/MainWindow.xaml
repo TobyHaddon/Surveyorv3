@@ -65,7 +65,7 @@
             <MenuBar x:Name="AppMenuBar" Grid.Row="0" Grid.Column="2" VerticalAlignment="Top">
                 <!-- FILE MENU-->
                 <MenuBarItem Title="File">
-                    <MenuFlyoutSubItem Text="New Survey">
+                    <MenuFlyoutSubItem Name="MenuSurveyNew" Text="New Survey">
                         <MenuFlyoutItem Name="MenuSurveyNewStereo" Text="New Stereo Fish Survey" Click="FileSurveyNewStereo_Click"
                             ToolTipService.ToolTip="Create a new stereo (SVS) fish survey project. Uses video from a stereo camera system. Allows fish measurements to made and species to be assigned.">
                             <MenuFlyoutItem.Icon>
@@ -424,18 +424,31 @@
         
         <!--New Survey Dialog-->
         <Grid x:Name="SurveyInfoAndMediaContentDialogGrid" Grid.Row="3">
-            <ContentDialog x:Name="SurveyInfoAndMediaContentDialog"
-            Title="New Survey Setup"
-            PrimaryButtonText="OK"
-            SecondaryButtonText="Cancel"
-            DefaultButton="Primary"
-            MinWidth="300"
-            MaxWidth="800"
-            MinHeight="200"
-            MaxHeight="400"
-            IsPrimaryButtonEnabled="True"
-            RequestedTheme="Default">
-                <surveyorControls:SurveyInfoAndMedia x:Name="SurveyStereoInfoAndMediaUserControl" />
+            <ContentDialog x:Name="SurveyStereoInfoAndMediaContentDialog"
+                            Title="New Stereo Fish Survey Setup"
+                            PrimaryButtonText="OK"
+                            SecondaryButtonText="Cancel"
+                            DefaultButton="Primary"
+                            MinWidth="300"
+                            MaxWidth="800"
+                            MinHeight="200"
+                            MaxHeight="400"
+                            IsPrimaryButtonEnabled="True"
+                            RequestedTheme="Default">
+                <surveyorControls:SurveyStereoInfoAndMedia x:Name="SurveyStereoInfoAndMediaUserControl" />
+            </ContentDialog>
+            <ContentDialog x:Name="SurveyMonoInfoAndMediaContentDialog"
+                            Title="New Mono Survey Setup"
+                            PrimaryButtonText="OK"
+                            SecondaryButtonText="Cancel"
+                            DefaultButton="Primary"
+                            MinWidth="300"
+                            MaxWidth="800"
+                            MinHeight="200"
+                            MaxHeight="400"
+                            IsPrimaryButtonEnabled="True"
+                            RequestedTheme="Default">
+                <surveyorControls:SurveyMonoInfoAndMedia x:Name="SurveyMonoInfoAndMediaUserControl" />
             </ContentDialog>
         </Grid>
     </Grid>

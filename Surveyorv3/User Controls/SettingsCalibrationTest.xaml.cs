@@ -181,7 +181,8 @@ namespace Surveyor.User_Controls
         {
             ResultTextBox.Text = string.Empty;
             ResultTextBox.Visibility = Visibility.Collapsed;
-            ResultTextBoxNote.Visibility = Visibility.Collapsed;
+            ResultTextBoxNote1.Visibility = Visibility.Collapsed;
+            ResultTextBoxNote2.Visibility = Visibility.Collapsed;
 
             try
             {
@@ -196,7 +197,8 @@ namespace Surveyor.User_Controls
 
                 ResultTextBox.Text = ResultText;
                 ResultTextBox.Visibility = Visibility.Visible;
-                ResultTextBoxNote.Visibility = Visibility.Visible;
+                ResultTextBoxNote1.Visibility = Visibility.Visible;
+                ResultTextBoxNote2.Visibility = Visibility.Visible;
             }
             finally
             {
@@ -407,6 +409,7 @@ namespace Surveyor.User_Controls
                     if (i == smallestCumulativeDivergenceIndex)
                     {
                         bestKnownLenth = "(best)";
+                        ResultText += "+";
                     }
 
                     // Best RMS indicator
