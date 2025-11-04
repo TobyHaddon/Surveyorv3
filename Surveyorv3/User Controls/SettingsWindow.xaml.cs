@@ -121,8 +121,23 @@ namespace Surveyor.User_Controls
             SetSettingsTheme(SettingsManagerLocal.ApplicationTheme);
 
             // Inform the SurveyInfoAndMedia user control that is is being used in the SettingsWindow
-            if (survey is not null)
-                SurveyInfoAndMedia.SetupForSettingWindow(SettingsCardSurveyInfoAndMedia, survey);
+            if (survey is not null && survey.Data.Info is not null)
+            {
+                switch (survey.Data.Info.SurveyType)
+                {
+                    case Survey.SurveyType.StereoFish:
+                        SurveyStereoInfoAndMedia.SetupForSettingWindow(SettingsCardSurveyStereoInfoAndMedia, survey);
+                        SettingsCardSurveyStereoInfoAndMedia.Visibility = Visibility.Visible;
+                        SettingsCardSurveyMonoInfoAndMedia.Visibility = Visibility.Collapsed;
+                        break;
+                    case Survey.SurveyType.MonoFish:
+                    case Survey.SurveyType.MonoBenthic:
+                        SurveyMonoInfoAndMedia.SetupForSettingWindow(SettingsCardSurveyMonoInfoAndMedia, survey);
+                        SettingsCardSurveyStereoInfoAndMedia.Visibility = Visibility.Collapsed;
+                        SettingsCardSurveyMonoInfoAndMedia.Visibility = Visibility.Visible;
+                        break;
+                }
+            }
 
             // Only use Survey Rules for Stereo fish (SVS) surveys
             // Inform the SettingsSurveyRules user control that it is being used in the SettingsWindow for a survey
@@ -458,13 +473,15 @@ namespace Surveyor.User_Controls
         {
             // Close UI things
             GoProQRCode.Source = null;
-            SurveyInfoAndMedia.Shutdown();
+            SurveyStereoInfoAndMedia.Shutdown();
+            SurveyMonoInfoAndMedia.Shutdown();
             SettingsSurveyRules.Shutdown();
             mainWindow?.mediaStereoController.speciesImageCache.RefreshView(true/*reset*/);
             mainWindow?.internetQueue.RefreshView(true/*reset*/);
 
             // Optionally clear controls if they’re bound to static objects
-            SettingsCardSurveyInfoAndMedia.Content = null;
+            SettingsCardSurveyStereoInfoAndMedia.Content = null;
+            SettingsCardSurveyMonoInfoAndMedia.Content = null;
 
             uiSettings.ColorValuesChanged -= UiSettings_ColorValuesChanged;
         }

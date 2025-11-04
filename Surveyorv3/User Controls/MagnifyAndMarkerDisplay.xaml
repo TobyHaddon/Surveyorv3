@@ -66,6 +66,12 @@
                     <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xECAF;" />
                 </MenuFlyoutItem.Icon>
             </MenuFlyoutItem>
+            <MenuFlyoutItem x:Name="CanvasFrameMenuHideMeasurementsAndPoints" Text="Hide Measurements &amp; Points"  Click="CanvasFrameContextMenu_Click">
+                <MenuFlyoutItem.Icon>
+                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xED1A;" />
+                </MenuFlyoutItem.Icon>
+            </MenuFlyoutItem>
+
             <MenuFlyoutSubItem x:Name="RecentSpeciesSubItem" Text="Recent Assigned Species" IsEnabled="False"/>
         </MenuFlyout>
     </UserControl.Resources>

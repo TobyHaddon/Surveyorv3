@@ -67,10 +67,15 @@
                             VerticalAlignment="Center"/>
                     </StackPanel>
                             
-
                     <toolkit:SettingsExpander.Items>
-                        <toolkit:SettingsCard x:Name="SettingsCardSurveyInfoAndMedia">
-                            <surveyorControls:SurveyStereoInfoAndMedia x:Name="SurveyInfoAndMedia"/>
+                        <!-- Stereo Fish (SVS) -->
+                        <toolkit:SettingsCard x:Name="SettingsCardSurveyStereoInfoAndMedia">
+                            <surveyorControls:SurveyStereoInfoAndMedia x:Name="SurveyStereoInfoAndMedia"/>
+                        </toolkit:SettingsCard>
+                    
+                        <!-- Mono Fish and Benthic -->
+                        <toolkit:SettingsCard x:Name="SettingsCardSurveyMonoInfoAndMedia">
+                            <surveyorControls:SurveyMonoInfoAndMedia x:Name="SurveyMonoInfoAndMedia"/>
                         </toolkit:SettingsCard>
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>

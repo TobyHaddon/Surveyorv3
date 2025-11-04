@@ -236,6 +236,10 @@ namespace Surveyor.User_Controls
         // Display Pointer Coords
         public bool DisplayPointerCoords { get; set; } = false;
 
+        // Hide/show measurements and Points
+        private bool hideMeasurementsAndPoints = false;
+        private TimeSpan? hideMeasurementsAndPointsPosition = null;
+
         // Timer
         private bool isTimerProcessing = false; // Set to true when the timer is processing
         private const int timerInterval = 500; // 1/2 seconds
@@ -689,7 +693,7 @@ namespace Surveyor.User_Controls
             }
 
             if (imageLoaded && newWidth != 0)
-                GridSizeChanged();
+                ScaleCanvasAndTransferEvents();
         }
 
 
@@ -883,7 +887,7 @@ namespace Surveyor.User_Controls
         private void Grid_SizeChanged(object sender, SizeChangedEventArgs e)
         {
             if (imageLoaded)
-                GridSizeChanged();
+                ScaleCanvasAndTransferEvents();
         }
 
         
@@ -1169,7 +1173,8 @@ namespace Surveyor.User_Controls
                             duration.TotalMilliseconds < 200) // Adjust click threshold time as needed
                         {
 
-                            if (e.OriginalSource is Canvas)
+                            if (e.OriginalSource is Canvas  ||
+                                e.OriginalSource is Polyline)
                             {
                                 // StereoFish: Set the measurement markers if none or only one target already selected
                                 // Mono Fish: Set the measurement markers, reusing only argetA
@@ -1704,6 +1709,34 @@ namespace Surveyor.User_Controls
                     }
                 }
 
+                // Hide/Show Measurements and Points
+                else if (item == CanvasFrameMenuHideMeasurementsAndPoints)
+                {
+                    bool statusToSet = !hideMeasurementsAndPoints;
+
+                    if (hideMeasurementsAndPoints)
+                    {
+                        // Show all the measurements and points
+                        HideShowMeasurementsAndPoints(true/*trueShowFalseHide*/);
+                        hideMeasurementsAndPointsPosition = null;
+                        hideMeasurementsAndPoints = statusToSet;
+                    }
+                    else
+                    {
+                        // Hide all the measurements and points
+                        HideShowMeasurementsAndPoints(false/*trueShowFalseHide*/);
+                        hideMeasurementsAndPointsPosition = position;
+                        hideMeasurementsAndPoints = statusToSet;
+                    }
+
+                    // Signal to the slidling control to do the same
+                    MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.SetMeasurementsAndPointsVisibility, CameraSide)
+                    {
+                        hideMeasurementsAndPoints = statusToSet
+                    };
+                    magnifyAndMarkerControlHandler?.Send(data);
+                }
+
                 // Edit Species Info
                 else if (item == CanvasFrameMenuEditSpeciesInfo)
                 {
@@ -1834,6 +1867,35 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Parses all the measurements and points displayed on the canvas and
+        /// either sets the elements to Visability.Visable or Collapsed depending
+        /// on trueShowfalseHide
+        /// </summary>
+        /// <param name="trueShowfalseHide"></param>
+        private void HideShowMeasurementsAndPoints(bool trueShowfalseHide)
+        {
+            // Determine desired visibility based on the flag
+            var desiredVisibility = trueShowfalseHide ? Visibility.Visible : Visibility.Collapsed;
+
+            // Safety: ensure CanvasFrame exists
+            if (CanvasFrame is null || CanvasFrame.Children is null || CanvasFrame.Children.Count ==0)
+                return;
+
+            // Iterate over all canvas children and toggle visibility for items tagged as Event
+            for (int i =0; i < CanvasFrame.Children.Count; i++)
+            {
+                if (CanvasFrame.Children[i] is FrameworkElement fe && fe.Tag is CanvasTag tag)
+                {
+                    if (tag.IsTagType("Event"))
+                    {
+                        fe.Visibility = desiredVisibility;
+                    }
+                }
+            }
+        }
+
+
+        /// <summary>
         /// The Canvas Context menu is closing
         /// </summary>
         /// <param name="sender"></param>
@@ -1899,6 +1961,13 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void OnEventsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
+            // If the events collection changed we always cancel any
+            // suspression of the measurements and points
+            // Normally you hide measurements and points to declutter the canvas and
+            // allow you to clearly see fish 
+            hideMeasurementsAndPoints = false;
+            hideMeasurementsAndPointsPosition = null;
+
             // Replace and redraw
             TransferExistingEvents();
         }
@@ -2013,6 +2082,30 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// <summary>
+        /// Sibling control is requesting to hide/show measurements and points
+        /// </summary>
+        /// <param name="hideMeasurementsAndPoints"></param>
+        internal void _SetMeasurementsAndPointsVisibility(bool hideMeasurementsAndPoints)
+        {
+            // Slibling control requested we set status to match hideMeasurementsAndPoints
+            this.hideMeasurementsAndPoints = hideMeasurementsAndPoints;
+
+            if (hideMeasurementsAndPoints)
+            {
+                // Hide all the measurements and points
+                HideShowMeasurementsAndPoints(false/*trueShowFalseHide*/);
+                hideMeasurementsAndPointsPosition = position;
+            }
+            else
+            {
+                // Show all the measurements and points
+                HideShowMeasurementsAndPoints(true/*trueShowFalseHide*/);
+                hideMeasurementsAndPointsPosition = null;
+            }
+        }
+
+
         /// <summary>        
         /// This function resets all value associated with the previous frame and 
         /// setups up for the new frame.  It is called from the mediator message
@@ -2059,8 +2152,8 @@ namespace Surveyor.User_Controls
             // Set the image loaded flag
             imageLoaded = true;
 
-            // Calulate the scale factor between the actual image and the screen image            
-            GridSizeChanged();
+            // Calculate the scale factor between the actual image and the screen image            
+            ScaleCanvasAndTransferEvents();
         }
 
 
@@ -2305,6 +2398,16 @@ namespace Surveyor.User_Controls
                     CanvasFrameMenuEditSpeciesInfo.IsEnabled = false;
                 }
 
+                // Hide/Show any existing Measurements and Points
+                if (hideMeasurementsAndPoints)
+                {
+                    CanvasFrameMenuHideMeasurementsAndPoints.Text = "Show Measurements and Points";
+                }
+                else
+                {
+                    CanvasFrameMenuHideMeasurementsAndPoints.Text = "Hide Measurements and Points";
+                }
+
                 // Populate the recently selected species sub-menu
                 PopulateRecentAssignedSpeciesFromEvents();
 
@@ -2516,7 +2619,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="width"></param>
         /// <param name="height"></param>
-        private void GridSizeChanged()
+        private void ScaleCanvasAndTransferEvents()
         {
             // Check if the Image source is being display at it's full resolutions in which
             // case no auto magnify is required
@@ -2531,7 +2634,14 @@ namespace Surveyor.User_Controls
             // Reposition any target and events on the renewly size canvas
             TransferExistingEvents();
             TransferTargetsBetweenVariableAndCanvasFrame(true/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
-            TransferTargetsBetweenVariableAndCanvasFrame(false/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);                
+            TransferTargetsBetweenVariableAndCanvasFrame(false/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
+
+            // Hide measurements and points if there are being suspressed for this frame
+            if (hideMeasurementsAndPointsPosition == position &&
+                hideMeasurementsAndPoints)
+            {
+                HideShowMeasurementsAndPoints(false/*trueShowfalseHide*/);
+            }
 
             // Bookmark
             if (position is not null && 
@@ -2706,7 +2816,8 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Display and lock the Mag Window at its current position indicated
+        /// Displays and locks the Mag Window using the pointer (mouse) location passed in.
+        /// The Mag Window is locked to the pointer location and the target markers can be set
         /// </summary>
         /// <param name="pointerPoint"></param>
         public void MagLockInCurrentPoisition(Point pointerPosition, PointerDeviceType pointerDeviceType)
@@ -3740,7 +3851,6 @@ namespace Surveyor.User_Controls
 
 
 
-
         /// <summary>
         /// Utility timer
         /// </summary>
@@ -4137,8 +4247,6 @@ namespace Surveyor.User_Controls
 
         public enum MagnifyAndMarkerControlEvent
         {
-            //???TO BE DELELTED Epipolar line is obselete
-            //EpipolarLine,
             EpipolarCurve,
             Error
         }
@@ -4152,25 +4260,6 @@ namespace Surveyor.User_Controls
 
         // Used in EpipolarLine & EpipolarCurve
         public bool TrueEpipolarLinePointAFalseEpipolarLinePointB;
-
-        //???TO BE DELETED Epipolar Line is obsolete
-        // Used for EpipolarLine
-        // ax+by+c = 0
-        // Where:
-        // a is the coefficient of x
-        // b is the coefficient of y
-        // c is the constant term
-        //public double epipolarLine_a;
-        //public double epipolarLine_b;
-        //public double epipolarLine_c;
-        //???TO BE DELETE
-        //public double focalLength;
-        //public double baseline;
-        //public double principalXLeft;
-        //public double principalYLeft;
-        //public double principalXRight;
-        //public double principalYRight;
-
 
         // Used in EpipolarCurve
         public List<Point>? epipolarCurvePoints = null;
@@ -4203,6 +4292,7 @@ namespace Surveyor.User_Controls
             UserReqMagWindowSizeSelect,
             UserReqMagZoomSelect,
             SelectTargetPoint,                      // Used to inform the sibling MagnifyAndMarkerControl to select a target point (used for re-editting measurments or 3D points)
+            SetMeasurementsAndPointsVisibility,     // Used to inform the sibling MagnifyAndMarkerControl to set visible/collapse on measurements and points
             Error
         }
 
@@ -4231,6 +4321,9 @@ namespace Surveyor.User_Controls
 
         // Used by UserReqMagZoomSelect
         public double? canvasZoomFactor;
+
+        // Used by SetMeasurementsAndPointsVisibility
+        public bool? hideMeasurementsAndPoints;
     }
 
 
@@ -4255,13 +4348,6 @@ namespace Surveyor.User_Controls
                 {
                     switch (data.magnifyAndMarkerControlEvent)
                     {
-                        //???TO BE DELETED Epipolar line is obselete
-                        //case MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarLine:
-                        //    SafeUICall(() => _magnifyAndMarkerControl.SetCanvasFrameEpipolarLine(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
-                        //                                                                         data.epipolarLine_a, data.epipolarLine_b, data.epipolarLine_c,
-                        //                                                                         data.channelWidth));
-                        //    break;
-
                         case MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarCurve:  // Experimental
                             SafeUICall(() => _magnifyAndMarkerControl.SetCanvasFrameEpipolarCurve(data.TrueEpipolarLinePointAFalseEpipolarLinePointB,
                                                                                                   data.epipolarCurvePoints,
@@ -4288,6 +4374,15 @@ namespace Surveyor.User_Controls
                                 data.TruePointAFalsePointB is not null && data.pointA is not null && data.pointB is not null)
                             {
                                 SafeUICall(() => _magnifyAndMarkerControl._SelectTargetPoint((bool)data.TruePointAFalsePointB, (Point)data.pointA, (Point)data.pointB));
+                            }
+                            break;
+
+                        case MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.SetMeasurementsAndPointsVisibility:
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MagnifyAndMarkerControlHandler: SetMeasurementsAndPointsVisibility: From:{data.cameraSide}, IsFromSibling:{_magnifyAndMarkerControl._FromSiblingControlForMe(data.cameraSide)} [hideMeasurementsAndPoints={data.hideMeasurementsAndPoints}]");
+                            if (_magnifyAndMarkerControl._FromSiblingControlForMe(data.cameraSide) &&
+                                data.hideMeasurementsAndPoints is not null)
+                            {
+                                SafeUICall(() => _magnifyAndMarkerControl._SetMeasurementsAndPointsVisibility((bool)data.hideMeasurementsAndPoints));
                             }
                             break;
                     }

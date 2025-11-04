@@ -151,7 +151,6 @@ namespace Surveyor.User_Controls
             else
             {
                 SurveyDepth.IsEnabled = false;
-                SurveyMediaGrid.ColumnDefinitions[1].Width = new GridLength(0); // Hides the second column
             }
 
 
