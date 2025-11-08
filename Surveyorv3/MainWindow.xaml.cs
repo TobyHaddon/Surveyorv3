@@ -2560,23 +2560,12 @@ namespace Surveyor
                 // Inform the EventControl of the new survey events
                 eventsControl.SetEvents(surveyClass.Data.Events.EventList);
 
-                // Get the name (if any) of a potential survey to inherit information from
-                string potentialSurveyToInheritFrom = string.Empty;
-                string[]? recentSurveys = ApplicationData.Current.LocalSettings.Values[RECENT_SURVEYS_KEY] as string[];
-                if (recentSurveys is not null && recentSurveys.Length > 0)
-                {
-                    potentialSurveyToInheritFrom = recentSurveys[0];
-                    if (File.Exists(potentialSurveyToInheritFrom) == false)
-                        potentialSurveyToInheritFrom = string.Empty;
-                }
-
                 // Load the Info and Media user control to setup the survey
                 List<StorageFile> mediaFilesSelected = [];
                 mediaFilesSelected.Add(mediaFileSelected);
 
                 SurveyMonoInfoAndMediaUserControl.SetupForContentDialog(SurveyMonoInfoAndMediaContentDialog,
-                                                                    mediaFilesSelected,
-                                                                    Path.GetFileName(potentialSurveyToInheritFrom)/*used to display the name of the inheritance survey only*/);
+                                                                    mediaFilesSelected);
                 SurveyMonoInfoAndMediaUserControl.SetReporter(report);
 
                 try
@@ -2595,6 +2584,8 @@ namespace Surveyor
                     {
                         // Copy the survey info and media info setup in the dialog into the survey class                        
                         _ = SurveyMonoInfoAndMediaUserControl.SaveForContentDialog(surveyClass);
+
+                        ret = true;
                     }
                     else
                     {
@@ -4062,6 +4053,9 @@ namespace Surveyor
                         Text = System.IO.Path.GetFileName(surveyPath), // Use the file name as the menu item text
                         Tag = surveyPath // Store the full path in the Tag property
                     };
+
+                    // Add tooltip to show the full file specification
+                    ToolTipService.SetToolTip(menuItem, surveyPath);
 
                     // Optionally add a click event handler for the menu item
                     menuItem.Click += FileRecentSurvey_Click;

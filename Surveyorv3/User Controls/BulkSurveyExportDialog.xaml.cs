@@ -46,7 +46,7 @@ namespace Surveyor.User_Controls
         private readonly Reporter? report = null;
 
         // Species Code List
-        private readonly SpeciesCodeList speciesCodeList = null;
+        private readonly SpeciesCodeList speciesCodeList;
         // AllMeasurements aggregator used during processing (confined to ProcessSurveyFiles execution)
         private readonly AllMeasurements allMeasurements = new();
         // AllEvents aggregator for species derivation
@@ -784,12 +784,19 @@ namespace Surveyor.User_Controls
             LoadingRing.Visibility = Visibility.Visible;
             LoadingRing.IsActive = true;
 
+            // Get the default export file name
+            List<SurveyFileEntry> SurveyFilesIncluded = [.. SurveyFiles.Where(f => f.Include)];
+            string suggestedFileName = $"ExportedSurveys ({SurveyFilesIncluded.Count} surveys) {DateTime.Now:yyyy-MM-dd}";
+            if (SurveyFilesIncluded.Count == 1)
+                suggestedFileName = Path.GetFileNameWithoutExtension(SurveyFilesIncluded[0].FileName);
+
+            // Get the export excel file spec
             var savePicker = new Windows.Storage.Pickers.FileSavePicker();
             WinRT.Interop.InitializeWithWindow.Initialize(savePicker, WinRT.Interop.WindowNative.GetWindowHandle(this));
 
             savePicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
-            savePicker.FileTypeChoices.Add("Excel Workbook", new List<string>() { ".xlsx" });
-            savePicker.SuggestedFileName = "ExportedSurveys";
+            savePicker.FileTypeChoices.Add("Excel Workbook", [".xlsx"]);
+            savePicker.SuggestedFileName = suggestedFileName;
 
             StorageFile file = await savePicker.PickSaveFileAsync();
             if (file != null)

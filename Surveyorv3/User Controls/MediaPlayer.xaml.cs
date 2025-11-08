@@ -691,8 +691,8 @@ namespace Surveyor.User_Controls
 
                     //GrabAndDisplayFrame();
 
-                    // Settle - I removed this
-                    //???await Task.Delay(50);
+                    // Settle - not sure if it is really required
+                    await Task.Delay(10);
 
                     // Hard to get this to work well - adding this back frame seems to help                    
                     MediaPlayerElement.MediaPlayer.StepBackwardOneFrame();

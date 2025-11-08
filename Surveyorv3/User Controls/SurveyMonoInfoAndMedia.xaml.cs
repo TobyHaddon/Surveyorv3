@@ -73,7 +73,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="dialog"></param>
         /// <param name="_mediaFilesSelected"></param>
-        public void SetupForContentDialog(ContentDialog dialog, IReadOnlyList<StorageFile> _mediaFilesSelected, string potentialInhertanceSurvey)
+        public void SetupForContentDialog(ContentDialog dialog, IReadOnlyList<StorageFile> _mediaFilesSelected)
         {
             Debug.WriteLine($"SetupForContentDialog() Started");
             ParentDialog = dialog;
@@ -259,17 +259,17 @@ namespace Surveyor.User_Controls
             if (LeftMediaFileNames is not null && LeftMediaFileNames.Items.Count > 0)
             {
                 if (LeftMediaFileNames.Items.Count > 0)
-                    surveyClass.Data.Media.MediaPath = Path.GetDirectoryName(((StereoMediaFileItem)LeftMediaFileNames.Items[0]).MediaFilePath);
+                    surveyClass.Data.Media.MediaPath = Path.GetDirectoryName(((MonoMediaFileItem)LeftMediaFileNames.Items[0]).MediaFilePath);
 
                 // Load left media
-                foreach (StereoMediaFileItem item in LeftMediaFileNames.Items)
+                foreach (MonoMediaFileItem item in LeftMediaFileNames.Items)
                 {
                     if (item.MediaFileName is not null)
                         surveyClass.Data.Media.LeftMediaFileNames.Add(item.MediaFileName);
                 }
                 // Get and remember left GoPro serial number
                 if (surveyClass.Data.Media.LeftMediaFileNames.Count > 0) 
-                    surveyClass.Data.Media.LeftCameraID = ((StereoMediaFileItem)LeftMediaFileNames.Items[0]).GoProSerialNumber;
+                    surveyClass.Data.Media.LeftCameraID = ((MonoMediaFileItem)LeftMediaFileNames.Items[0]).GoProSerialNumber;
 
             }
 
@@ -464,7 +464,6 @@ namespace Surveyor.User_Controls
         {
             EntryFieldsValidReturn ret = EntryFieldsValidReturn.Valid;
             bool infoValid = true;
-            bool mediaValid = true;
 
             // Check survey code
             string surveyCode = SurveyCode.Text;
@@ -518,6 +517,9 @@ namespace Surveyor.User_Controls
             else
                 SetValidationText(null/*nothing*/, null, SurveyAnalystNameValidationGlyph, SurveyAnalystNameValidationText, "", "");
 
+            // Return Invalid if any invalid data
+            if (!infoValid)
+                ret = EntryFieldsValidReturn.Invalid;
 
             // Should we enable to OK button if we are inside a ContentDialog
             if (IsParentContentDialog())

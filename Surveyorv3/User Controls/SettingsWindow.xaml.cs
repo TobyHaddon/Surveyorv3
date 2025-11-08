@@ -142,7 +142,8 @@ namespace Surveyor.User_Controls
             // Only use Survey Rules for Stereo fish (SVS) surveys
             // Inform the SettingsSurveyRules user control that it is being used in the SettingsWindow for a survey
             // (as opposed to a Field Trip)
-            if (survey is not null && survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
+            if (survey is not null && survey.Data.Info is not null && 
+                survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
             {
                 surveyRulesHash = survey.Data.SurveyRules.GetHashCode();
                 SettingsSurveyRules.SetupForSurveySettingWindow(survey);
@@ -151,7 +152,8 @@ namespace Surveyor.User_Controls
 
             // Inform the SettingsCalibration user control that it is being used in the SettingsWindow for a survey
             // (as opposed to a Field Trip)
-            if (survey is not null && survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
+            if (survey is not null && survey.Data.Info is not null &&
+                survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
             {
                 calibrationDataHash = survey.Data.Calibration.GetHashCode();
                 SettingsCalibration.SetupForSurveySettingWindow(survey);
@@ -183,7 +185,8 @@ namespace Surveyor.User_Controls
                 // Show the survey settings section
                 SurveySettingsTitle.Visibility = Visibility.Visible;
                 SurveyInfoAndMediaExpander.Visibility = Visibility.Visible;
-                if (survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
+                if (survey.Data.Info is not null &&
+                    survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
                 {
                     SettingsCalibration.Visibility = Visibility.Visible;
                     SettingsSurveyRules.Visibility = Visibility.Visible;

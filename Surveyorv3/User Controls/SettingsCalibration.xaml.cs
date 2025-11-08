@@ -301,7 +301,7 @@ namespace Surveyor.User_Controls
                     return d.ToString("F2");
                 }
             }
-            return value.ToString();
+            return value.ToString() ?? "";
         }
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)

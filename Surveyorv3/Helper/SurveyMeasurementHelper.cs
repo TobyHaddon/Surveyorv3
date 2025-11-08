@@ -18,48 +18,6 @@ namespace Surveyor.Helper
 
     public static class SurveyMeasurementHelper
     {
-        /// <summary>
-        // Ensures the measurments points are not mixed up
-        // How it works:
-        // Calculate the angle using Math.Atan2(deltaY, deltaX), which gives the inclination of the line in degrees.
-        // Compare the angles:
-        //    -If their absolute difference is greater than 45 degrees, the corresponding points are incorrect.
-        //    -We then swap TargetBLeft and TargetBRight to correct the mistake.
-        /// </summary>
-        /// <param name="measurement"></param>
-        public static void EnsureCorrectCorrespondence(SurveyMeasurement measurement)
-        {
-            //** THIS FUNCTION ISN'T AWAYS RETURNING THE RIGHT RESULT
-            //** SPECIFICALLY IF THE FISH IS FAIRLY NEAR AND CENTRAL TO
-            //** THE CAMERAS.  TRY TO FIX THAT WITH THE if (Math.Abs(angleLeft) - Math.Abs(angleRight) < 45)
-            //** LINE BUT IT NEEDS MORE WORK (BUT THE GENERAL IDEA IS GOOD)
-            // EXAMPLE OF A MEASUREMENT WHERE IT FAILS
-            // Left A = (2081, 1785)
-            // Left B = (2042, 1732)
-            // Angle A = -126.2degs
-            // Right A = (884, 1785)
-            // Right B = (919, 1730)
-            // Angle B = 59.6degs
-            throw new Exception("Not working properly, do not use");
-
-            // Calculate angles in degrees
-            double angleLeft = CalculateAngle(measurement.LeftXA, measurement.LeftYA, measurement.LeftXB, measurement.LeftYB);
-            double angleRight = CalculateAngle(measurement.RightXA, measurement.RightYA, measurement.RightXB, measurement.RightYB);
-
-            // Check if the angles are similiar but mirrored e.g. left: 55deg, right: -59degs
-            // You see this when the fish is near to camera and fairly central
-            if (Math.Abs(angleLeft) - Math.Abs(angleRight) < 45)
-            {
-                return;
-            }
-
-            // Check if the angles are significantly different (> 45 degrees)
-            if (Math.Abs(angleLeft - angleRight) > 45)
-            {
-                SwapRightTargets(measurement);
-            }
-        }
-
 
         /// <summary>
         /// Get the Calibration ID from the preferred calibration data and check if was used for
