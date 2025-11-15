@@ -1,24 +1,33 @@
 using Emgu.CV.Aruco;
+using Microsoft.UI;
 using Microsoft.UI.Dispatching;
+using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Windowing;
+using Newtonsoft.Json;
 using Surveyor.Calibration;
-using SurveyorCalibrationData;
+using Surveyor.DesktopWap.Helper;
+using Surveyor.Helper;
 using Surveyor.User_Controls;
+using SurveyorCalibrationData;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
+using Windows.Foundation;
 using Windows.Storage;
-using WinUIEx;
-using static Emgu.CV.Aruco.Dictionary;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
-using Newtonsoft.Json;
-using System.Drawing;
-using System.Linq;
+using WinUIEx;
+using static Emgu.CV.Aruco.Dictionary;
 
 
 namespace Surveyor
@@ -37,206 +46,7 @@ namespace Surveyor
         public static bool? SaveBestFrames { get; set; } = null;
     }
 
-    public class CalibProject
-    {
-        public class DataClass
-        {
-            public class MediaClass
-            {
-                public MediaClass()
-                {
-                    Clear();
-                }
-
-                public CalibInfoAndMedia.StereoMonoMediaSetMode StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet;
-                public string LeftMonoMP4Path { get; set; } = string.Empty;
-                public string RightMonoMP4Path { get; set; } = string.Empty;
-                public string LeftStereoMP4Path { get; set; } = string.Empty;
-                public string RightStereoMP4Path { get; set; } = string.Empty;
-
-                public string LeftCameraID { get; set; } = string.Empty;
-
-                public string RightCameraID { get; set; } = string.Empty;
-
-                public void Clear()
-                {
-                    LeftMonoMP4Path = string.Empty;
-                    RightMonoMP4Path = string.Empty;
-                    LeftStereoMP4Path = string.Empty;
-                    RightStereoMP4Path = string.Empty;
-                    LeftCameraID = string.Empty;
-                    RightCameraID = string.Empty;
-                }
-            }
-
-            public string CalibFileSpec { get; set; } = string.Empty;
-
-            public MediaClass Media { get; set; } = new();
-
-            [JsonIgnore]
-            public CharucoBoardDefinition CharucoBoardDefinition { get; set; } = new();
-
-            // Frame Size
-            public Windows.Foundation.Size FrameSize { get; set; } = new(0 ,0); 
-            
-            // Left & right mono calibration result sets (different results for different calibration flags)
-            public MonoCalibrationCameraData?[] LeftMonoCalibrationCameraDataArray { get; set; } = new MonoCalibrationCameraData?[Enum.GetValues<CalibrationParameters>().Length];
-            public MonoCalibrationCameraData?[] RightMonoCalibrationCameraDataArray { get; set; } = new MonoCalibrationCameraData?[Enum.GetValues<CalibrationParameters>().Length];
-
-            // Stereo result sets  (different results for different calibration flags)
-            public CalibrationStereoCameraData?[] CalibrationStereoCameraDataArray { get; set; } = new CalibrationStereoCameraData?[Enum.GetValues<CalibrationParameters>().Length];
-        }
-
-        public DataClass Data = new();
-
-
-        /// <summary>
-        /// Save the calibration project data to a file as json.
-        /// </summary>
-        /// <param name="fileSpec"></param>
-        /// <returns></returns>
-        public async Task<bool> Save(string fileSpec)
-        {
-            // Remember the calib project file spec
-            Data.CalibFileSpec = fileSpec;
-
-            return await Save();
-        }
-
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <returns></returns>
-        public async Task<bool> Save()
-        {
-            bool ret = false;
-
-            if (string.IsNullOrEmpty(Data.CalibFileSpec))
-                return ret;
-
-            // Delete a .bak file if it exists
-            string bakFileSpec = Path.ChangeExtension(Data.CalibFileSpec, ".bak");
-            if (File.Exists(bakFileSpec))
-            {
-                try
-                {
-                    File.Delete(bakFileSpec);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error deleting backup file {bakFileSpec}: {ex.Message}");
-                }
-            }
-
-            // Rename fileSpec to a .bak file
-            if (File.Exists(Data.CalibFileSpec))
-            {
-                try
-                {
-                    File.Move(Data.CalibFileSpec, bakFileSpec);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error renaming file {Data.CalibFileSpec} to backup {bakFileSpec}: {ex.Message}");
-                    return false; // Return false if renaming fails
-                }
-            }
-
-            // Save the project data as json to the file
-            try
-            {
-                var options = CreateJsonOptions();
-                string json = JsonConvert.SerializeObject(Data, options);
-                await File.WriteAllTextAsync(Data.CalibFileSpec, json);
-                ret = true;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error saving calibration project data to {Data.CalibFileSpec}: {ex.Message}");
-            }
-
-            return ret;
-        }
-
-
-        /// <summary>
-        /// Load the calibration project data from a file as json.
-        /// </summary>
-        /// <param name="fileSpec"></param>
-        /// <returns></returns>
-        public bool Load(string fileSpec)
-        {
-            if (!File.Exists(fileSpec))
-            {
-                Debug.WriteLine($"Calibration project file {fileSpec} does not exist.");
-                return false;
-            }
-            try
-            {
-                string json = File.ReadAllText(fileSpec);
-                var options = CreateJsonOptions();
-                Data = JsonConvert.DeserializeObject<DataClass>(json, options) ?? new DataClass();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine($"Error loading calibration project data from {fileSpec}: {ex.Message}");
-                return false;
-            }
-        }
-
-
-        /// <summary>
-        /// Returns the stereo calibration result set with the best RMS
-        /// </summary>
-        /// <returns></returns>
-        public CalibrationParameters? ReturnBestStereoCalibrationCameraData()
-        {
-            double bestScore = double.MaxValue;
-            int bestIndex = -1;
-
-            for (int i = 0; i < Data.CalibrationStereoCameraDataArray.Length; i++)
-            {
-                var stereoResult = Data.CalibrationStereoCameraDataArray[i];
-
-
-                if (stereoResult is null)
-                    continue;
-
-                // Define weighted score (you can tune weights as needed)
-                double score = stereoResult.RMS /*???+ 0.2 * stereoResult.MaxError*/;
-
-                if (score < bestScore)
-                {
-                    bestScore = score;
-                    bestIndex = i;
-                }
-            }
-
-            if (bestIndex == -1)
-                return null;
-
-            return (CalibrationParameters?)bestIndex;
-        }
-
-
-        private static JsonSerializerSettings CreateJsonOptions()
-        {
-            var opts = new JsonSerializerSettings
-            {
-                Formatting = Formatting.Indented
-            };
-            //???opts.Converters.Add(new Double2DArrayConverter());
-            opts.Converters.Add(new MatrixJsonConverter());
-            // opts.Converters.Add(new Float2DArrayConverter()); // if needed
-            return opts;
-        }
-    }
-
    
-
-
     public sealed partial class MainWindow : WindowEx
     {
         private CalibProject calibProject = new();
@@ -263,6 +73,24 @@ namespace Surveyor
             MinWidth = 800;
 
             this.InitializeComponent();
+
+            // This is used to get/adjust the theme is necessary
+            ThemeHelper.Initialize();
+
+            // Set theme
+            SetTheme(SettingsManagerLocal.ApplicationTheme);
+
+            // Add listener for theme changes
+            var rootElement = (FrameworkElement)Content;
+            rootElement.ActualThemeChanged += OnActualThemeChanged;
+
+            // Allows the menu bar to extend into the title bar
+            // Assumes "this" is a XAML Window. In projects that don't use 
+            // WinUI 3 1.3 or later, use interop APIs to get the AppWindow.           
+            AppTitleBar.Loaded += AppTitleBar_Loaded;
+            AppTitleBar.SizeChanged += AppTitleBar_SizeChanged;
+            ExtendsContentIntoTitleBar = true;
+
 
             // Create Charuco Board Definition
             calibProject.Data.CharucoBoardDefinition.Setup(new Dictionary(PredefinedDictionaryName.Dict5X5_100),
@@ -342,9 +170,112 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// Set the theme of the application
+        /// </summary>
+        /// <param name="theme">Dark or Light</param>
+        public void SetTheme(ElementTheme theme)
+        {
+
+            var rootElement = (FrameworkElement)(Content);
+
+            if (theme == ElementTheme.Dark)
+            {
+                // Set the RequestedTheme of the root element to Dark
+                rootElement.RequestedTheme = ElementTheme.Dark;
+
+                // Use a dark theme icon
+                var bitmapImage = new BitmapImage(new Uri($"ms-appx:///Assets/SurveyorCalibration-Dark.png"));
+                TitleBarIcon.Source = bitmapImage;
+
+                TitleBarHelper.SetCaptionButtonColors(this, Colors.White);
+            }
+            else if (theme == ElementTheme.Light)
+            {
+                // Set the RequestedTheme of the root element to Light
+                rootElement.RequestedTheme = ElementTheme.Light;
+                rootElement.RequestedTheme = ElementTheme.Light;
+
+                // Use a light theme icon
+                var bitmapImage = new BitmapImage(new Uri($"ms-appx:///Assets/SurveyorCalibration-Light.png"));
+                TitleBarIcon.Source = bitmapImage;
+
+                TitleBarHelper.SetCaptionButtonColors(this, Colors.Black);
+            }
+            else
+            {
+                // Use the default system theme
+                rootElement.RequestedTheme = ElementTheme.Default;
+
+                // Get the background colour used by that theme
+                var color = TitleBarHelper.ApplySystemThemeToCaptionButtons(this) == Colors.White ? "Dark" : "Light";
+
+                // Based on the background colour select a suitable application icon 
+                if (color == "Dark")
+                    TitleBarIcon.Source = new BitmapImage(new Uri($"ms-appx:///Assets/SurveyorCalibration-Dark.png"));
+                else
+                    TitleBarIcon.Source = new BitmapImage(new Uri($"ms-appx:///Assets/SurveyorCalibration-Light.png"));
+            }
+
+            // If the theme has changed, announce the change to the user
+            UIHelper.AnnounceActionForAccessibility(rootElement, "Theme changed", "ThemeChangedNotificationActivityId");
+        }
+
+
+
         /// 
         /// EVENTS
         /// 
+
+        /// <summary>
+        /// Event raised when the AppTitleBar is loaded, used to set the interactive regions in 
+        /// the title bar area which allowed the menubar (which is on the title bar) to operate
+        /// properly
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void AppTitleBar_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (ExtendsContentIntoTitleBar == true)
+            {
+                // Set the initial interactive regions.
+                SetRegionsForCustomTitleBar();
+            }
+        }
+
+
+        /// <summary>
+        /// Event raised when the AppTitleBar size if changed, used to set the interactive regions in 
+        /// the title bar area which allowed the menubar (which is on the title bar) to operate
+        /// properly
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void AppTitleBar_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (ExtendsContentIntoTitleBar == true)
+            {
+                // Update interactive regions if the size of the window changes.
+                SetRegionsForCustomTitleBar();
+            }
+        }
+
+
+        /// <summary>
+        /// Event raised when the theme is changed in Windows
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void OnActualThemeChanged(FrameworkElement sender, object args)
+        {
+            // Handle the theme change
+            var newTheme = sender.ActualTheme;
+            Debug.WriteLine($"Theme changed to {newTheme}");
+
+            // Optionally, apply additional changes
+            SetTheme(newTheme);
+            SettingsManagerLocal.ApplicationTheme = ElementTheme.Default;
+        }
 
         private async void NewAppBarButton_Click(object sender, RoutedEventArgs e)
         {
@@ -430,7 +361,7 @@ namespace Surveyor
 
             // Set up picker filters
             openPicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
-            openPicker.FileTypeFilter.Add(".calib");
+            openPicker.FileTypeFilter.Add(".calproj");
 
             // Let user pick a single file
             var file = await openPicker.PickSingleFileAsync();
@@ -955,13 +886,13 @@ namespace Surveyor
                         Title = "Mono Calibration",
                         Content = $"There is an existing mono calibration set. If you wish to reuse (quick) press 'Yes' else to recalculate (slow) press 'No'?",
                         PrimaryButtonText = "Yes",
-                        CloseButtonText = "No"
+                        CloseButtonText = "No",
+                        XamlRoot = this.Content.XamlRoot // Set the XamlRoot for proper display
                     };
-                    dialog.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
                     var result = await dialog.ShowAsync();
                     if (result == ContentDialogResult.Primary)
                     {
-                        // Use the cahced mono calibration results
+                        // Use the cached mono calibration results
                         useMonoCacheValues = true;
                     }
                     else 
@@ -1062,8 +993,8 @@ namespace Surveyor
                                 StereoCameraCalibration = calibrationStereoCameraData,
                             };
                             calibrationData.LeftCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
-                            calibrationData.LeftCameraCalibration.ImageSize[0, 0] = (int)calibProject.Data.FrameSize.Width;
-                            calibrationData.LeftCameraCalibration.ImageSize[0, 1] = (int)calibProject.Data.FrameSize.Height;
+                            calibrationData.LeftCameraCalibration.ImageSize[0, 0] = (int)calibProject.Data.Media.FrameSize.Width;
+                            calibrationData.LeftCameraCalibration.ImageSize[0, 1] = (int)calibProject.Data.Media.FrameSize.Height;
 
                             calibrationData.LeftCameraCalibration.ImageTotal = leftMonoCalibrationCameraData.ImageTotal;
                             calibrationData.LeftCameraCalibration.ImageUseable = leftMonoCalibrationCameraData.ImageUseable;
@@ -1072,8 +1003,8 @@ namespace Surveyor
                             calibrationData.LeftCameraCalibration.RMS = leftMonoCalibrationCameraData.ReprojectionRMS;
 
                             calibrationData.RightCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
-                            calibrationData.RightCameraCalibration.ImageSize[0, 0] = (int)calibProject.Data.FrameSize.Width;
-                            calibrationData.RightCameraCalibration.ImageSize[0, 1] = (int)calibProject.Data.FrameSize.Height;
+                            calibrationData.RightCameraCalibration.ImageSize[0, 0] = (int)calibProject.Data.Media.FrameSize.Width;
+                            calibrationData.RightCameraCalibration.ImageSize[0, 1] = (int)calibProject.Data.Media.FrameSize.Height;
                             calibrationData.RightCameraCalibration.ImageTotal = rightMonoCalibrationCameraData.ImageTotal;
                             calibrationData.RightCameraCalibration.ImageUseable = rightMonoCalibrationCameraData.ImageUseable;
                             calibrationData.RightCameraCalibration.Intrinsic = rightMonoCalibrationCameraData.IntrinsicMatrix;
@@ -1091,7 +1022,7 @@ namespace Surveyor
                             WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hwnd);
 
                             savePicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
-                            savePicker.FileTypeChoices.Add("Calibration Data", [".json"]);
+                            savePicker.FileTypeChoices.Add("Calibration Data", [".calib"]);
                             savePicker.SuggestedFileName = "CalibrationData";
 
                             Windows.Storage.StorageFile file = await savePicker.PickSaveFileAsync();
@@ -1278,9 +1209,182 @@ namespace Surveyor
             StereoCornersMinThresholdText.Text = $"{StereoCornersMinThreshold}";
         }
 
+
+        /// <summary>
+        /// Create a new calibration project
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileProjectNew_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+
+        /// <summary>
+        /// Open a calibration project
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileProjectOpen_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+
+        /// <summary>
+        /// Save the open calibration project
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileProjectSave_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+
+        /// <summary>
+        /// Save the open calibration under a new file name
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileProjectSaveAs_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+
+        /// <summary>
+        /// Close the open calibration project
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileProjectClose_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void FileSelectMedia_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+        private void FileRunCalibration_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+
+        /// <summary>
+        /// Display the settings window
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void FileSettings_Click(object sender, RoutedEventArgs e)
+        {
+            await ShowSettingsWindow();
+        }
+
+
+        /// <summary>
+        /// Exit the application 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileExit_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+
+        /// <summary>
+        /// Keyboard accelerator to testing code
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private async void HelpAbout_Click(object sender, RoutedEventArgs e)
+        {
+            // Open the settings windows 'About' section
+            await ShowSettingsWindow("About");
+        }
+
+
+
         ///
         /// PRIVATE
         /// 
+
+
+        /// <summary>
+        /// Used to set the interactive regions in the title bar area which allowed the menubar
+        /// to operate properly
+        /// </summary>
+        private void SetRegionsForCustomTitleBar()
+        {
+            // Specify the interactive regions of the title bar.
+
+            double scaleAdjustment = AppTitleBar.XamlRoot.RasterizationScale;
+
+            RightPaddingColumn.Width = new GridLength(AppWindow.TitleBar.RightInset / scaleAdjustment);
+            LeftPaddingColumn.Width = new GridLength(AppWindow.TitleBar.LeftInset / scaleAdjustment);
+
+            // Area for the menu bar
+            GeneralTransform transformMenuBar = AppMenuBar.TransformToVisual(null);
+            Rect boundsMenuBar = transformMenuBar.TransformBounds(new Rect(0, 0,
+                                                             AppMenuBar.ActualWidth,
+                                                             AppMenuBar.ActualHeight));
+            Windows.Graphics.RectInt32 MenuBarRect = GetRect(boundsMenuBar, scaleAdjustment);
+
+            // Area for the search box
+#if IF_YOU_NEED_A_SEARCHBOX
+            GeneralTransform transformTitleBar = TitleBarSearchBox.TransformToVisual(null);
+            Rect boundstransformTitleBar = transformTitleBar.TransformBounds(new Rect(0, 0,
+                                                             TitleBarSearchBox.ActualWidth,
+                                                             TitleBarSearchBox.ActualHeight));
+            Windows.Graphics.RectInt32 SearchBoxRect = GetRect(boundstransformTitleBar, scaleAdjustment);
+#endif // IF_YOU_NEED_A_SEARCHBOX
+
+#if IF_YOU_NEED_A_LOGIN_INDICTOR
+            transformPersonPic = PersonPic.TransformToVisual(null);
+            bounds = transformPersonPic.TransformBounds(new Rect(0, 0,
+                                                        PersonPic.ActualWidth,
+                                                        PersonPic.ActualHeight));
+            Windows.Graphics.RectInt32 PersonPicRect = GetRect(bounds, scaleAdjustment);
+#endif // IF_YOU_NEED_A_LOGIN_INDICTOR
+
+            // Area of the lock/unlock indicator
+            GeneralTransform transformLockUnLockIndicator = LockUnLockIndicator.TransformToVisual(null);
+            Rect boundsLockUnLockIndicator = transformLockUnLockIndicator.TransformBounds(new Rect(0, 0,
+                                                                                 LockUnLockIndicator.ActualWidth,
+                                                                                 LockUnLockIndicator.ActualHeight));
+            Windows.Graphics.RectInt32 LockUnLockIndicatorRect = GetRect(boundsLockUnLockIndicator, scaleAdjustment);
+
+            // Area of the Calibrated indicator
+            //??? Delele
+            //GeneralTransform transformCalibratedIndicator = CalibratedIndicator.TransformToVisual(null);
+            //Rect boundsCalibratedIndicator = transformCalibratedIndicator.TransformBounds(new Rect(0, 0,
+            //                                                                     CalibratedIndicator.ActualWidth,
+            //                                                                     CalibratedIndicator.ActualHeight));
+            //Windows.Graphics.RectInt32 CalibratedIndicatorRect = GetRect(boundsCalibratedIndicator, scaleAdjustment);
+
+
+            // Create list of regions that should not be draggable
+            var rectArray = new Windows.Graphics.RectInt32[] { MenuBarRect/*, SearchBoxRect*//*, PersonPicRect*/, LockUnLockIndicatorRect/*, CalibratedIndicatorRect*/ };
+
+            InputNonClientPointerSource nonClientInputSrc =
+                InputNonClientPointerSource.GetForWindowId(this.AppWindow.Id);
+            nonClientInputSrc.SetRegionRects(NonClientRegionKind.Passthrough, rectArray);
+        }
+        private static Windows.Graphics.RectInt32 GetRect(Rect bounds, double scale)
+        {
+            return new Windows.Graphics.RectInt32(
+                _X: (int)Math.Round(bounds.X * scale),
+                _Y: (int)Math.Round(bounds.Y * scale),
+                _Width: (int)Math.Round(bounds.Width * scale),
+                _Height: (int)Math.Round(bounds.Height * scale)
+            );
+        }
+
 
         /// <summary>
         /// Display a status text in the StatusText TextBlock
@@ -1579,6 +1683,98 @@ namespace Surveyor
                 return false; // No find operations are running
             }
         }
+
+        /// <summary>
+        /// Display the settings window
+        /// </summary>
+        private int settingsWindowEntryCount = 0;
+        private async Task ShowSettingsWindow(string section = "")
+        {
+            try
+            {
+                int entryCount = Interlocked.Increment(ref settingsWindowEntryCount);
+                // Make sure we only open the settings window once.
+                // This can happen if the survey and movies are loaded and the user clicks the settings a few times.
+                if (entryCount == 1)
+                {
+                    // Initialize if necessary
+                    SettingsWindow settingsWindow = new(this, calibProject, section);
+
+                    // Get the HWND (window handle) for both windows
+                    IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
+                    IntPtr settingsWindowHandle = WindowNative.GetWindowHandle(settingsWindow);
+
+                    // Get the AppWindow instances for both windows
+                    AppWindow mainAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(mainWindowHandle));
+
+                    // Disable the main window by setting it inactive
+                    SetWindowEnabled(mainWindowHandle, false);
+
+                    // Activate settings window
+                    settingsWindow.Activate();
+
+                    // Important not to block the UI thread.
+                    // We're still waiting for the Closed event.
+                    // The Closed handler runs on the UI thread, allowing WinUIEx to persist the window position.
+                    var tcs = new TaskCompletionSource();
+
+                    void OnClosed(object sender, WindowEventArgs args)
+                    {
+                        settingsWindow.Closed -= OnClosed;
+                        tcs.SetResult();
+                    }
+
+                    settingsWindow.Closed += OnClosed;
+
+                    await tcs.Task;
+
+                    // Re-enable the main window after closing settings
+                    SetWindowEnabled(mainWindowHandle, true);
+
+                }
+            }
+            catch (Exception ex)
+            {
+                // Handle any exceptions that occur during the process
+                Debug.WriteLine($"MainWindow.ShowSettingsWindow Error showing settings window: {ex.Message}");
+            }
+            finally
+            {
+                Interlocked.Decrement(ref settingsWindowEntryCount);
+            }
+        }
+
+
+
+        /// <summary>
+        /// Disables or enables a window in WinUI 3 using native Win32 API.
+        /// </summary>
+        private static void SetWindowEnabled(IntPtr hWnd, bool enabled)
+        {
+            const int GWL_STYLE = -16;
+            const int WS_DISABLED = 0x08000000;
+
+            int style = GetWindowLong(hWnd, GWL_STYLE);
+            if (enabled)
+            {
+                style &= ~WS_DISABLED; // Remove the disabled flag
+            }
+            else
+            {
+                style |= WS_DISABLED; // Add the disabled flag
+            }
+            SetWindowLong(hWnd, GWL_STYLE, style);
+        }
+
+        /// <summary>
+        /// Native Win32 API methods
+        /// </summary>
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+        [DllImport("user32.dll")]
+        private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
+
 
     }
 }

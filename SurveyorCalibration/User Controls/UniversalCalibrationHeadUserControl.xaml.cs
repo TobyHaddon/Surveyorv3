@@ -768,7 +768,7 @@ namespace Surveyor.Controls
                 if (calibrationParametersBest is not null)
                 {
                     ret = true;
-                    calibProject.Data.FrameSize = frameSize;
+                    calibProject.Data.Media.FrameSize = frameSize;
 
                     if (writeBestFramesToPng)
                     {

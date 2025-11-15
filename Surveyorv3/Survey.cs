@@ -219,6 +219,7 @@ namespace Surveyor
 
                 [JsonIgnore]
                 private bool _isDirty;
+
                 [JsonIgnore]
                 public bool IsDirty
                 {
@@ -1611,6 +1612,7 @@ namespace Surveyor
         ///
         /// EVENTS
         /// 
+
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));

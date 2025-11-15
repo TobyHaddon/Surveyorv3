@@ -1,6 +1,10 @@
 ﻿using Microsoft.UI.Xaml;
 using Surveyor.Helper;
+using System;
 using System.Diagnostics;
+using System.Linq;
+using System.Reflection;
+using Windows.ApplicationModel;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -66,5 +70,50 @@ namespace Surveyor
         }
 
         private Window? m_window;
+
+
+        public static string WinAppSdkDetails
+        {
+            get
+            {
+                var version = Package.Current.Id.Version;
+                return string.Format("Windows App SDK {0}.{1}.{2}.{3}",
+                    version.Major, version.Minor, version.Build, version.Revision);
+            }
+        }
+        public static string WinAppSdkRuntimeDetails
+        {
+            get
+            {
+                try
+                {
+                    // Retrieve Windows App Runtime version info dynamically
+                    var runtimeVersion =
+                        (from module in Process.GetCurrentProcess().Modules.OfType<ProcessModule>()
+                         where module.FileName.EndsWith("Microsoft.WindowsAppRuntime.Insights.Resource.dll")
+                         select FileVersionInfo.GetVersionInfo(module.FileName)).FirstOrDefault();
+
+                    if (runtimeVersion != null)
+                    {
+                        return WinAppSdkDetails + ", Windows App Runtime " + runtimeVersion.FileVersion;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Failed to retrieve Windows App Runtime details: {ex.Message}");
+                }
+
+                // Fallback
+                return WinAppSdkDetails + ", Windows App Runtime Unknown";
+            }
+        }
+        public static TEnum GetEnum<TEnum>(string text) where TEnum : struct
+        {
+            if (!typeof(TEnum).GetTypeInfo().IsEnum)
+            {
+                throw new InvalidOperationException("Generic parameter 'TEnum' must be an enum.");
+            }
+            return (TEnum)Enum.Parse(typeof(TEnum), text);
+        }
     }
 }

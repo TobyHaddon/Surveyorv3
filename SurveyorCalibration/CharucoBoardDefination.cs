@@ -1,35 +1,121 @@
 ﻿using Emgu.CV.Aruco;
-using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Newtonsoft.Json;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
+using static Emgu.CV.Aruco.Dictionary;
 
 namespace Surveyor
 {
-    public class CharucoBoardDefinition
+    public partial class CharucoBoardDefinition : INotifyPropertyChanged
     {
+        // Number of squares in X direction
+        private int _squaresX;
+        public int SquaresX 
+        { 
+            get => _squaresX; 
+            set
+            {   if (_squaresX != value)
+                {
+                    _squaresX = value;
+                    IsDirty = true;
+                }
+            }            
+        }
+
+        // Number of squares in Y direction
+        private int _squaresY;
+        public int SquaresY 
+        { 
+            get => _squaresY; 
+            set
+            {   if (_squaresY != value)
+                {
+                    _squaresY = value;
+                    IsDirty = true;
+                }
+            }            
+        }
+
+        // Square length in mm
+        private float _squareLength;
+        public float SquareLength 
+        { 
+            get => _squareLength; 
+            set
+            {   if (_squareLength != value)
+                {
+                    _squareLength = value;
+                    IsDirty = true;
+                }
+            }            
+        }
+
+        // Marker length in mm
+        private float _markerLength;
+        public float MarkerLength 
+        { 
+            get => _markerLength; 
+            set
+            {
+                if (_markerLength != value)
+                {
+                    _markerLength = value;
+                    IsDirty = true;
+                }
+            }
+
+        }
+
+        // Dictionary Name
+        private PredefinedDictionaryName _predefinedDictionaryName;
+
+        public PredefinedDictionaryName PredefinedDictionaryName
+        {
+            get => _predefinedDictionaryName;
+            set
+            {
+                if (_predefinedDictionaryName != value)
+                {
+                    _predefinedDictionaryName = value;
+                    IsDirty = true;
+                }
+            }
+        }
+
+        [JsonIgnore]
+        private bool _isDirty;
+
+        [JsonIgnore]
+        public bool IsDirty
+        {
+            get => _isDirty;
+            set
+            {
+                if (_isDirty != value)
+                {
+                    _isDirty = value;
+                    OnPropertyChanged();
+                }
+            }
+        }
+
         private CharucoBoard? _board;
+
+        [JsonIgnore]
         public CharucoBoard? Board { get => _board; }
 
-        public Dictionary? _dictionary;
+        private Dictionary? _dictionary;
+
+        [JsonIgnore]
         public Dictionary? Dictionary { get => _dictionary; }
 
-        public int _squaresX;
-        public int SquaresX { get => _squaresX; }
+        // Event handler for property changed
+        public event PropertyChangedEventHandler? PropertyChanged;
 
-        public int _squaresY;
-        public int SquaresY { get => _squaresY; }
-
-        public float _squareLength;
-        public float SquareLength { get => _squareLength; }
-
-        public float _markerLength;
-        public float MarkerLength { get => _markerLength; }
 
         public CharucoBoardDefinition()
         {
+            Clear();
         }
 
         public void Setup(Dictionary dictionary, int SquaresX, int SquaresY, float SquareLength, float MarkerLength)
@@ -49,6 +135,8 @@ namespace Surveyor
 
         public void Clear()
         {
+            _isDirty = false;
+
             this._dictionary = null;
             this._squaresX = 0;
             this._squaresY = 0;
@@ -56,5 +144,16 @@ namespace Surveyor
             this._markerLength = 0f;
             this._board = null;
         }
+
+
+        ///
+        /// EVENTS
+        /// 
+        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
     }
+
 }
+

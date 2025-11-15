@@ -15,6 +15,7 @@
     Height="1000">
     <Grid>
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>          <!-- Title Bar -->
             <RowDefinition Height="Auto" />         <!-- 0: CommandBar -->
             <RowDefinition Height="*" />            <!-- 1: Mono Heads -->
             <RowDefinition Height="8" />            <!-- 2: GridSplitter -->
@@ -22,7 +23,197 @@
             <RowDefinition Height="*" />            <!-- 4: Stereo Head -->            
         </Grid.RowDefinitions>
 
-        <StackPanel Orientation="Horizontal">
+        <!-- Custom Title Bar Area -->
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="Transparent" Height="40">
+            <Grid.ColumnDefinitions>
+                <!-- 0 Column -->
+                <ColumnDefinition x:Name="LeftPaddingColumn" Width="20"/>
+                <!-- 1 Column -->
+                <ColumnDefinition x:Name="IconColumn" Width="Auto"/>
+                <!-- 2 Column Separator -->
+                <ColumnDefinition x:Name="MenuColumn" Width="Auto"/>
+                <!-- 3 Column -->
+                <ColumnDefinition x:Name="SeparatorColumn" Width="1"/>
+                <!-- 4 Column -->
+                <ColumnDefinition x:Name="TitleColumn" Width="Auto"/>
+                <!-- 5 Column -->
+                <ColumnDefinition x:Name="LeftDragColumn" Width="*"/>
+                <!-- 6 Column -->
+                <ColumnDefinition x:Name="SearchColumn" Width="4*" MinWidth="220"/>
+                <!-- 7 Column -->
+                <ColumnDefinition x:Name="RightDragColumn" Width="*" MinWidth="48"/>
+                <!-- 8 Column -->
+                <ColumnDefinition x:Name="NetworkConnectColumn" Width="Auto"/>
+                <!-- 9 Column -->
+                <ColumnDefinition x:Name="LockUnLockColumn" Width="Auto"/>
+                <!-- 10 Column -->
+                <ColumnDefinition x:Name="CalibratedColumn" Width="Auto"/>
+                <!-- 11 Column -->
+                <ColumnDefinition x:Name="AccountColumn" Width="Auto"/>
+                <!-- 12 Column -->
+                <ColumnDefinition x:Name="RightPaddingColumn" Width="20"/>
+            </Grid.ColumnDefinitions>
+
+
+            <!-- App Icon -->
+            <Image x:Name="TitleBarIcon" Grid.Row="0" Grid.Column="1" Source="ms-appx:///Assets/SurveyorCalibration-light.png" Width="16" Height="16" Margin="8,0,4,0"/>
+
+
+            <!-- App Menu -->
+            <MenuBar x:Name="AppMenuBar" Grid.Row="0" Grid.Column="2" VerticalAlignment="Top">
+                <!-- FILE MENU-->
+                <MenuBarItem Title="File">
+                    <MenuFlyoutItem Name="MenuProjectNew" Text="New Project" Click="FileProjectNew_Click"
+                        ToolTipService.ToolTip="Create a new calibration project. Used to calibration either stereo or mono camera systems.">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8A5;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Name="MenuProjectOpen" Text="Open Project..." Click="FileProjectOpen_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8E5;" />
+                        </MenuFlyoutItem.Icon>
+                        <MenuFlyoutItem.KeyboardAccelerators>
+                            <KeyboardAccelerator Modifiers="Control" Key="O"/>
+                        </MenuFlyoutItem.KeyboardAccelerators>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Name="MenuProjectSave" Text="Save Project" IsEnabled="False" Click="FileProjectSave_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74E;" />
+                        </MenuFlyoutItem.Icon>
+                        <MenuFlyoutItem.KeyboardAccelerators>
+                            <KeyboardAccelerator Modifiers="Control" Key="S"/>
+                        </MenuFlyoutItem.KeyboardAccelerators>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Name="MenuProjectSaveAs" Text="Save As Project..." IsEnabled="False" Click="FileProjectSaveAs_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE792;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Name="MenuProjectClose" Text="Close Survey" IsEnabled="False" Click="FileProjectClose_Click"/>
+                    <MenuFlyoutSubItem Name="MenuRecentProjects" Text="Recent Projects">
+                        <MenuFlyoutSubItem.Icon>
+                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE823;" />
+                        </MenuFlyoutSubItem.Icon>
+                    </MenuFlyoutSubItem>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Name="MenuSelectMenu" Text="Select Media..." IsEnabled="False" Click="FileSelectMedia_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8B5;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutItem Name="MenuRunCalibration" Text="Run Calibration..." IsEnabled="True" Click="FileRunCalibration_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEB3C;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Name="MenuSettings" Text="Settings..." IsEnabled="True" Click="FileSettings_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE713;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Text="Exit" Click="FileExit_Click">
+                        <MenuFlyoutItem.KeyboardAccelerators>
+                            <KeyboardAccelerator Modifiers="Control" Key="E"/>
+                        </MenuFlyoutItem.KeyboardAccelerators>
+                    </MenuFlyoutItem>
+                </MenuBarItem>
+
+                <!-- HELP MENU-->
+                <MenuBarItem Name="MenuHelp" Title="Help">
+                    <MenuFlyoutSeparator x:Name="HelpDocumentsPDFSection" Visibility="Collapsed"/>
+                    <MenuFlyoutSeparator x:Name="HelpDocumentsVideosSection" Visibility="Collapsed"/>
+                    <MenuFlyoutSeparator x:Name="HelpDocumentsDOCSection" Visibility="Collapsed"/>
+                    <MenuFlyoutSeparator x:Name="HelpDocumentsXLSSection" Visibility="Collapsed"/>
+                    <MenuFlyoutSeparator x:Name="HelpDocumentsEnd"/>
+
+                    <MenuFlyoutItem Text="About Camera Calibration..." Click="HelpAbout_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE946;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                </MenuBarItem>
+
+            </MenuBar>
+
+            <!-- Add a Border element for the vertical line separator -->
+            <Border Grid.Row="0" Grid.Column="3" 
+                  Width="1" Height="20"
+                  Background="#FFC0C0C0"
+                  VerticalAlignment="Center" />
+
+
+            <!-- App Title or additional content can go here -->
+            <Border Grid.Row="0" Grid.Column="4" Background="{ThemeResource TitleBarBackgroundBrush}" Padding="8,0,8,0" VerticalAlignment="Center" Margin="16,0,0,0">
+                <!-- Lighter background around title -->
+                <TextBlock x:Name="TitleBarTextBlock"
+                   Text="Camera Calibration" 
+                   Style="{StaticResource CaptionTextBlockStyle}"
+                   VerticalAlignment="Center"
+                   HorizontalAlignment="Center"/>
+            </Border>
+
+
+            <!-- Enable Line below if you need a search box on the title bar -->
+            <!--<AutoSuggestBox x:Name="TitleBarSearchBox" 
+                            Grid.Column="6" 
+                            QueryIcon="Find"
+                            PlaceholderText="Search"
+                            VerticalAlignment="Center"
+                            MaxWidth="600"/>-->
+
+
+            <!-- Network connection status 
+                 We need sometime in the Text attribute so this element has suitable width
+                 on the title bar at startup. This is so this area isn't draggable and can 
+                 therefore display a tooltip.
+                 Note the glyph actually displayed is changed by the code behind -->
+            <TextBlock x:Name="NetworkConnectionIndicator"
+                       Grid.Row="0" Grid.Column="8"
+                       FontFamily="Segoe Fluent Icons"
+                       FontSize="14" 
+                       Text="&#xE701;"
+                       Style="{StaticResource CaptionTextBlockStyle}"                       
+                       VerticalAlignment="Top" Margin="0,8,16,0">
+            </TextBlock>
+
+            <!-- Lock/Unlock Glyph Lock E1F6, Unlock E1F7 set in code behind
+                 We need sometime in the Text attribute so this element has suitable width
+                 on the title bar at startup. This is so this area isn't draggable and can 
+                 therefore display a tooltip -->
+            <TextBlock x:Name="LockUnLockIndicator"
+                       Grid.Row="0" Grid.Column="9"
+                       FontFamily="Segoe Fluent Icons"
+                       FontSize="14" 
+                       Text="&#xE1F7;"
+                       Style="{StaticResource CaptionTextBlockStyle}"                       
+                       VerticalAlignment="Top" Margin="0,8,16,0">
+            </TextBlock>
+
+            <!-- Calibrated Glyph 1F4D0 set in code behind
+                 We need sometime in the Text attribute so this element has suitable width
+                 on the title bar at startup. This is so this area isn't draggable and can 
+                 therefore display a tooltip -->
+            <!--<TextBlock x:Name="CalibratedIndicator"
+                       Grid.Row="0" Grid.Column="10"
+                       FontFamily="Segoe Fluent Icons"
+                       FontSize="14" 
+                       Text="&#xEB3C;"
+                       Style="{StaticResource CaptionTextBlockStyle}"                       
+                       VerticalAlignment="Top" Margin="0,8,16,0">
+            </TextBlock>-->
+
+
+            <!-- Enable line below if you need a login indicator on the title bar -->
+            <!--<PersonPicture x:Name="PersonPic" 
+                           Grid.Row="0" Grid.Column="11" 
+                           Height="32" Margin="0,0,16,0"/>-->
+        </Grid>
+
+
+        <StackPanel Grid.Row ="1" Orientation="Horizontal">
             <ProgressRing x:Name="InProgress" IsActive="False" Width="20" Height="20" VerticalAlignment="Center" Margin="12,0"/>
             
             <TextBlock x:Name="StatusText" 
@@ -228,7 +419,7 @@
             </Grid>
         </StackPanel>
         
-        <Grid x:Name="MonoCalibrationHeads" Grid.Row="1">
+        <Grid x:Name="MonoCalibrationHeads" Grid.Row="2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
@@ -268,7 +459,7 @@
 
         <!-- Horizontal sizer -->        
 
-        <toolkit:GridSplitter Grid.Row="2"
+        <toolkit:GridSplitter Grid.Row="3"
                           Height="8"
                           HorizontalAlignment="Stretch"
                           VerticalAlignment="Top"
@@ -279,11 +470,11 @@
 
         <controls:UniversalCalibrationHeadUserControl x:Name="StereoCalibrationHead" 
                                                       Head="Stereo" 
-                                                      Grid.Row="4"                                                      
+                                                      Grid.Row="5"                                                      
                                                       Margin="5,5,5,5"/>
 
         <!--New Survey Dialog-->
-        <Grid x:Name="SurveyInfoAndMediaContentDialogGrid" Grid.Row="3">
+        <Grid x:Name="SurveyInfoAndMediaContentDialogGrid" Grid.Row="4">
                     <ContentDialog x:Name="CalibrationMediaContentDialog"
                         Title="Calibration Media Setup"
                         PrimaryButtonText="OK"

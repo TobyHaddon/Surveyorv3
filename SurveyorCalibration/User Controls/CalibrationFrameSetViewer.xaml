@@ -14,9 +14,19 @@
         <Grid>
              
             <ScrollViewer HorizontalScrollBarVisibility="Visible">
-                <StackPanel x:Name="MainPanel" Orientation="Horizontal" Padding="0" Spacing="0">
+                <Grid x:Name="MainPanel" Padding="0">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    
                     <!-- Box 1: Line graphs -->
-                    <Border BorderThickness="1" BorderBrush="Gray">
+                    <Border Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" BorderBrush="Gray" BorderThickness="1">
                         <Grid Width="300">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*"/>
@@ -27,8 +37,9 @@
                         </Grid>
                     </Border>
                     
-                    <!-- Sensor Bins -->
-                    <GridView x:Name="SensorBinGridItemsControl" IsItemClickEnabled="False" SelectionMode="None">
+                    <!-- Sensor Coverage Bins -->
+                    <TextBlock Text="Sensor Coverage" Grid.Column="1" Grid.Row="0" Padding="0" VerticalAlignment="Bottom" FontFamily="Segoe UI Variable" FontSize="10" HorizontalAlignment="Left" Margin="6,0,0,0"/>
+                    <GridView x:Name="SensorBinGridItemsControl" Grid.Column="1" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Left" IsItemClickEnabled="False" SelectionMode="None" Padding="0" Margin="0">
                         <GridView.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <ItemsWrapGrid Orientation="Vertical" MaximumRowsOrColumns="1"/>
@@ -46,7 +57,8 @@
                     </GridView>
 
                     <!-- Pose Bins -->
-                    <GridView x:Name="PoseBinGridItemsControl" IsItemClickEnabled="False" SelectionMode="None">
+                    <TextBlock Text="Pose Diversity" Grid.Column="2" Grid.Row="0" VerticalAlignment="Bottom" FontFamily="Segoe UI Variable" FontSize="10" HorizontalAlignment="Left" Margin="6,0,0,0"/>
+                    <GridView x:Name="PoseBinGridItemsControl" Grid.Column="2" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Left" IsItemClickEnabled="False" SelectionMode="None">
                         <GridView.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <ItemsWrapGrid Orientation="Vertical" MaximumRowsOrColumns="1"/>
@@ -63,7 +75,7 @@
                         </GridView.ItemContainerStyle>
                     </GridView>
 
-                </StackPanel>
+                </Grid>
             </ScrollViewer>
         </Grid>
     </UserControl.Content>

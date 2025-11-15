@@ -1,0 +1,224 @@
+<ex:WindowEx
+    x:Class="Surveyor.User_Controls.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"       
+    xmlns:surveyor="using:Surveyor" 
+    xmlns:ex="using:WinUIEx"
+    xmlns:surveyorControls="using:Surveyor.User_Controls"
+    xmlns:converters="using:Surveyor.Converters"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    MinWidth="1100"
+    MinHeight="800"
+    MaxHeight="1000"
+    MaxWidth="1200"
+    Title="Settings">
+
+
+    <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Unloaded="RootGrid_Unloaded">
+
+        <Grid.Resources>
+            <converters:BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        </Grid.Resources>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+
+        <!-- Custom Title Bar Area -->
+        <Grid x:Name="AppTitleBar" Background="Transparent" Height="40" Grid.Row="0">
+
+        </Grid>
+
+        <ScrollViewer
+            x:Name="contentSV"
+            Grid.Row="1"
+            Padding="36,0,36,0"
+            IsTabStop="False"
+            UseSystemFocusVisuals="False"
+            VerticalScrollBarVisibility="Auto"
+            VerticalScrollMode="Auto">
+            <StackPanel Spacing="{StaticResource SettingsCardSpacing}">
+                <StackPanel.ChildrenTransitions>
+                    <TransitionCollection>
+                        <EntranceThemeTransition FromVerticalOffset="50" />
+                        <RepositionThemeTransition IsStaggeringEnabled="False" />
+                    </TransitionCollection>
+                </StackPanel.ChildrenTransitions>
+
+                <!--CALIBRATION PROJECT SETTINGS-->
+                <TextBlock x:Name="SurveySettingsTitle" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Survey Settings"  MaxWidth="1200"/>
+
+                <!--CALIBRATION PROJECT INFO AND MEDIA-->
+                <toolkit:SettingsExpander x:Name="SurveyInfoAndMediaExpander" Header="Survey Info &amp; Media">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xF0E3;" ToolTipService.ToolTip="Survey setup information and survey media"/>
+                    </toolkit:SettingsExpander.HeaderIcon>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <TextBlock
+                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                            IsTextSelectionEnabled="True"
+                            Text="{x:Bind SettingsExpanderInfoText}" 
+                            VerticalAlignment="Center"/>
+                    </StackPanel>
+                            
+                    <toolkit:SettingsExpander.Items>
+                        <!-- Calibration media -->
+                        <toolkit:SettingsCard x:Name="SettingsCardSurveyStereoInfoAndMedia">
+                            <surveyorControls:CalibInfoAndMedia x:Name="SurveyStereoInfoAndMedia"/>
+                        </toolkit:SettingsCard>
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
+
+                <!--CALIBRATION BOARD-->
+                <surveyorControls:SettingsCalibrationBoard x:Name="SettingsCalibrationBoard"/>
+
+                <!--SYSTEM SETTINGS-->
+                <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="System Settings"  MaxWidth="1200"/>
+
+                <!--SYSTEM SETTINGS > GENERAL SETTINGS-->
+                <toolkit:SettingsExpander x:Name="GeneralSettingsExpander" Header="General Settings" MaxWidth="1200">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xE115;" />
+                    </toolkit:SettingsExpander.HeaderIcon>
+
+                    <toolkit:SettingsExpander.Items>
+                        <!-- Auto Save -->
+                        <toolkit:SettingsCard Header="Auto Save" Description="Automatically saves the survey periodically">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE74E;" ToolTipService.ToolTip="If enabled work is saved automatically every 20 secs."/>
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <ToggleSwitch x:Name="AutoSave" Toggled="AutoSave_Toggled" />
+                            </StackPanel>
+                        </toolkit:SettingsCard>
+
+                        <!-- Theme -->
+                        <toolkit:SettingsCard Description="Select which app theme to display" Header="App theme">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE790;" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <ComboBox x:Name="themeMode" AutomationProperties.AutomationId="themeModeComboBox" SelectionChanged="ThemeMode_SelectionChanged">
+                                <ComboBoxItem Content="Light" Tag="Light" />
+                                <ComboBoxItem Content="Dark" Tag="Dark" />
+                                <ComboBoxItem Content="Use system setting" Tag="Default" />
+                            </ComboBox>
+                        </toolkit:SettingsCard>
+
+                        <!-- Internet -->
+                        <toolkit:SettingsCard Header="Use Internet" Description="Allows the application to use the internet">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE701;" ToolTipService.ToolTip="When the internet is available the application is allowed to download images and upload data."/>
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <ToggleSwitch x:Name="UseInternet" Toggled="UseInternet_Toggled" />
+                        </toolkit:SettingsCard>
+
+                        <!-- Teaching Tips -->
+                        <toolkit:SettingsCard Header="Teaching Tips">
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE7BE;" />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                <Button x:Name="ReshowTeachingTips" Content="Reshow Tips" Click="ReshowTeachingTips_Click" Margin="0,0,10,0"/>
+                                <ToggleSwitch x:Name="TeachingTips" Toggled="TeachingTips_Toggled" />
+                            </StackPanel>
+                        </toolkit:SettingsCard>
+
+                      
+                        <!-- Microsoft Insights Telemetry -->
+                        <toolkit:SettingsCard Header="Telemetry" Description="Enable telemetry to be uploaded" >
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xE82F;" ToolTipService.ToolTip="Usage, crash and diagnostic information can be automatically uploaded. This is indepentant of the 'Use Internet' setting." />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <ToggleSwitch x:Name="Telemetry" Toggled="Telemetry_Toggled" />
+                        </toolkit:SettingsCard>
+
+                        
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
+
+               
+
+                <!--  ADVANCED  -->
+                <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Advanced"  MaxWidth="1200"/>
+
+                <!-- Diagnostic Info -->
+                <toolkit:SettingsExpander x:Name="DiagnosticsExpander" Header="Diagnostics">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xEBD3;"/>
+                    </toolkit:SettingsExpander.HeaderIcon>
+
+                    <toolkit:SettingsExpander.Items>
+                        <toolkit:SettingsCard Header="Diagnostic Information" Description="Increase the level of information sent to the Output window" >
+                            <toolkit:SettingsCard.HeaderIcon>
+                                <FontIcon Glyph="&#xEBE8;" ToolTipService.ToolTip="Enable diagnostic information and features. Some features need the application to be restarted." />
+                            </toolkit:SettingsCard.HeaderIcon>
+                            <ToggleSwitch x:Name="DiagnosticInformation" Toggled="DiagnosticInformation_Toggled" />
+                        </toolkit:SettingsCard>
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
+
+                <!-- Experimental Code -->
+                <toolkit:SettingsCard Header="Experimental Features" Description="Experimental code, should not be used for real surveys" >
+                    <toolkit:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xF196;" ToolTipService.ToolTip="These features are experimental or in test and may produce incorrect results." />
+                    </toolkit:SettingsCard.HeaderIcon>
+
+                    <StackPanel Orientation="Horizontal">
+                        <Button Content="Select Feature Sets" Margin="0,0,10,0">
+                            <Button.Flyout>
+                                <Flyout>
+                                    <StackPanel>
+                                        <CheckBox x:Name="ExperimentalFeatureSetA" Content="Feature Set A" Click="ExperimentalFeatureSetA_Click"/>
+                                        <CheckBox x:Name="ExperimentalFeatureSetB" Content="Feature Set B" Click="ExperimentalFeatureSetB_Click"/>
+                                        <CheckBox x:Name="ExperimentalFeatureSetC" Content="Feature Set C" Click="ExperimentalFeatureSetC_Click"/>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                        <ToggleSwitch x:Name="Experimental" Toggled="Experimental_Toggled" />
+                    </StackPanel>
+                </toolkit:SettingsCard>
+
+                                      
+                <!--  ABOUT  -->
+                <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="About"  MaxWidth="1200"/>
+
+                <toolkit:SettingsExpander x:Name="SettingsExpanderAbout" Description="© 2025 All rights reserved." Header="{StaticResource AppTitleName}" MaxWidth="1200">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <BitmapIcon x:Name="AboutAppIcon" ShowAsMonochrome="False" UriSource="/Assets/SurveyorCalibration-dark.png" />
+                    </toolkit:SettingsExpander.HeaderIcon>
+                    <TextBlock
+                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        IsTextSelectionEnabled="True"
+                        Text="{x:Bind Version}" />
+                    <toolkit:SettingsExpander.Items>
+
+                        <toolkit:SettingsCard
+                            HorizontalContentAlignment="Left"
+                            ContentAlignment="Vertical"
+                            Header="Dependencies &amp; references">
+                            <StackPanel Margin="-12,0,0,0" Orientation="Vertical">
+                                <HyperlinkButton Content="{x:Bind WinAppSdkRuntimeDetails}" NavigateUri="https://aka.ms/windowsappsdk" />
+                                <HyperlinkButton Content="Windows UI Library" NavigateUri="https://aka.ms/winui" />
+                                <HyperlinkButton Content="Windows Community Toolkit" NavigateUri="https://aka.ms/toolkit/windows" />
+                                <HyperlinkButton Content="Win2D" NavigateUri="https://github.com/Microsoft/Win2D" />
+                                <HyperlinkButton Content="OpenCV Apache 2.0 License"  NavigateUri="https://www.apache.org/licenses/LICENSE-2.0"/>
+                                <HyperlinkButton Content="Emgu.CV GPL V3" NavigateUri="https://www.nuget.org/packages/Emgu.CV" />
+                                <HyperlinkButton Content="Math.NET Numerics MIT License" NavigateUri="https://numerics.mathdotnet.com" />
+                                <HyperlinkButton Content="Json.NET MIT License" NavigateUri="https://www.newtonsoft.com/json" />
+                                <HyperlinkButton Content="EPPlus Polyform Noncommercial 1.0.0" NavigateUri="https://polyformproject.org/licenses/noncommercial/1.0.0/" />
+                                <HyperlinkButton Content="Caliper Icons icon from Noun Project CC BY 3.0" NavigateUri="https://thenounproject.com/browse/icons/term/caliper/" />
+                            </StackPanel>
+                        </toolkit:SettingsCard>
+                       
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
+                
+            </StackPanel>
+        </ScrollViewer>
+    </Grid>
+</ex:WindowEx>
