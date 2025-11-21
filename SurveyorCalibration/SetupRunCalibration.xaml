@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<winex:WindowEx
+    x:Class="Surveyor.SetupRunCalibration"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:winex="using:WinUIEx"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:local="using:Surveyor"
+    MinWidth="1100"
+    MinHeight="800"
+    MaxHeight="1000"
+    MaxWidth="1200"
+    Title="Run Calibration"
+    mc:Ignorable="d">
+
+    <winex:WindowEx.SystemBackdrop>
+        <MicaBackdrop/>
+    </winex:WindowEx.SystemBackdrop>
+
+    <Grid>
+        <NavigationView x:Name="NavView"
+                        PaneTitle="Calibration"
+                        IsBackButtonVisible="Collapsed"
+                        IsSettingsVisible="False"
+                        OpenPaneLength="240"   
+                        SelectionChanged="NavView_SelectionChanged">
+            <NavigationView.MenuItems>
+                <!-- SET THE CALIBRATION TARGET USED IN THE CALIBRATION VIDEOS -->
+                <NavigationViewItem x:Name="NavCalibrationTarget"
+                                    Tag="CalibrationTarget"
+                                    Content="Calibration Target Setup">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xEB3C;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <!-- CONFIGURE THE CALIBRATION SETTINGS -->
+                <NavigationViewItem x:Name="NavCalibrationSettings"
+                                    Tag="CalibrationSettings"
+                                    Content="Calibration Settings">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE9D5;"/>
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+
+                <!-- SUMMARY & RUN THE CALIBRATION PROCESS -->
+                <NavigationViewItem x:Name="NavCalibrationSummary"
+                                    Tag="CalibrationSummary"
+                                    Content="Run Calibration">
+                    <NavigationViewItem.Icon>
+                        <FontIcon Glyph="&#xE768;" />
+                    </NavigationViewItem.Icon>
+                </NavigationViewItem>
+            </NavigationView.MenuItems>
+            <Frame x:Name="ContentFrame"/>
+        </NavigationView>
+        <TeachingTip x:Name="CalibrationSummaryTeachingTip"
+                     Target="{Binding ElementName=NavCalibrationSummary}"
+                     Title="Run Calibration"
+                     Subtitle="Go to this page to run the calibration once the settings are ready and calibration target is setup"
+                     PreferredPlacement="Right"
+                     IsLightDismissEnabled="True"
+                     CloseButtonContent="Got it"
+                     CloseButtonClick="CalibrationSummaryTeachingTip_CloseButtonClick" />
+    </Grid>
+</winex:WindowEx>

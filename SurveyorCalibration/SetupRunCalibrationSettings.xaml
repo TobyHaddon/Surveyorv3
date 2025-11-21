@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Page
+    x:Class="Surveyor.SetupRunCalibrationSettings"
+	xmlns:local="using:Surveyor"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <ScrollViewer>
+        <StackPanel Spacing="16" Padding="24">
+            <TextBlock x:Name="ModeSelected" FontWeight="SemiBold" FontSize="16"/>
+			<TextBlock x:Name="ModeSelectedDescription" FontSize="12" TextWrapping="Wrap"/>
+
+            <Border x:Name="BorderCache" Padding="8" BorderBrush="Gray" BorderThickness="1" CornerRadius="4">
+                <CheckBox x:Name="ReuseCacheCheckBox"
+                          Content="Frame information has already been extracted from the media. Do you want to reuse it?"
+                          ToolTipService.ToolTip="If you reuse the cached frame infomation it is must quicker, however if you need to adjust any of the settings below then the cache can't be used"/>
+            </Border>
+
+            <Grid x:Name="FilterGrid" Margin="0,8,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Row 0 Movement -->
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Movement Filter:" VerticalAlignment="Center"/>
+                <TextBlock x:Name="MovementFilterMin" Grid.Row="0" Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="8,0,8,0"/>
+                <Slider x:Name="MovementFilterSlider" Grid.Row="0" Grid.Column="2" StepFrequency="1" Width="100" VerticalAlignment="Center" ValueChanged="OnSliderValueChanged"/>
+                <TextBlock x:Name="MovementFilterMax" Grid.Row="0" Grid.Column="3" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <TextBlock x:Name="MovementFilterValue" Grid.Row="1" Grid.Column="2" FontSize="10" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,-6,0,0"/>
+
+                <!-- Row 2 Blur -->
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Blur Filter:" VerticalAlignment="Center"/>
+                <TextBlock x:Name="BlurFilterMin" Grid.Row="2" Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="8,0,8,0"/>
+                <Slider x:Name="BlurFilterSlider" Grid.Row="2" Grid.Column="2" StepFrequency="1" Width="100" ValueChanged="OnSliderValueChanged"/>
+                <TextBlock x:Name="BlurFilterMax" Grid.Row="2" Grid.Column="3" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <TextBlock x:Name="BlurFilterValue" Grid.Row="3" Grid.Column="2" FontSize="10" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,-6,0,0"/>
+
+                <!-- Row 4 Mono Corner -->
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="Mono Corner Filter:" VerticalAlignment="Center"/>
+                <TextBlock x:Name="MonoCornerFilterMin" Grid.Row="4" Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="8,0,8,0"/>
+                <Slider x:Name="MonoCornerFilterSlider" Grid.Row="4" Grid.Column="2" StepFrequency="1" Width="100" VerticalAlignment="Center" ValueChanged="OnSliderValueChanged"/>
+                <TextBlock x:Name="MonoCornerFilterMax" Grid.Row="4" Grid.Column="3" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <TextBlock x:Name="MonoCornerFilterValue" Grid.Row="5" Grid.Column="2" FontSize="10" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,-6,0,0"/>
+
+                <!-- Row 6 Stereo Corner -->
+                <TextBlock Grid.Row="6" Grid.Column="0" Text="Stereo Corner Filter:" VerticalAlignment="Center"/>
+                <TextBlock x:Name="StereoCornerFilterMin" Grid.Row="6" Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="8,0,8,0"/>
+                <Slider x:Name="StereoCornerFilterSlider" Grid.Row="6" Grid.Column="2" StepFrequency="1" Width="100" VerticalAlignment="Center" ValueChanged="OnSliderValueChanged"/>
+                <TextBlock x:Name="StereoCornerFilterMax" Grid.Row="6" Grid.Column="3" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <TextBlock x:Name="StereoCornerFilterValue" Grid.Row="7" Grid.Column="2" FontSize="10" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,-6,0,0"/>
+            </Grid>
+
+            <CheckBox x:Name="SaveBestFrames" Content="Save Best Frame to Files"
+                      ToolTipService.ToolTip="Check this if you want the best identified frames saved to separate .png image files. This can be useful if you want to examine the images being used for calibration or you want to use these images in a separate calibration application"/>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

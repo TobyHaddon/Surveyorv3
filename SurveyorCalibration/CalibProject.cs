@@ -18,6 +18,53 @@ namespace Surveyor
 
         public partial class DataClass
         {
+            // Restored Info class previously declared inside DataClass
+            public partial class InfoClass : INotifyPropertyChanged
+            {
+                public event PropertyChangedEventHandler? PropertyChanged;
+
+                private string _projectFileName = string.Empty;
+                public string ProjectFileName
+                {
+                    get => _projectFileName;
+                    set
+                    {
+                        if (_projectFileName != value)
+                        {
+                            _projectFileName = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                private bool _isDirty;
+                [JsonIgnore]
+                public bool IsDirty
+                {
+                    get => _isDirty;
+                    set
+                    {
+                        if (_isDirty != value)
+                        {
+                            _isDirty = value;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public void Clear()
+                {
+                    ProjectFileName = string.Empty;
+                    IsDirty = false;
+                }
+
+                private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+                {
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                }
+            }
+
             public partial class MediaClass : INotifyPropertyChanged
             {
                 // Event handler for property changed
@@ -179,6 +226,9 @@ namespace Surveyor
 
             public string CalibFileSpec { get; set; } = string.Empty;
 
+            // Restored Info property
+            public InfoClass Info { get; set; } = new();
+
             public MediaClass Media { get; set; } = new();
             
             public CharucoBoardDefinition CharucoBoardDefinition { get; set; } = new();
@@ -199,7 +249,7 @@ namespace Surveyor
         {
             get
             {
-                if (/*Data.Info.IsDirty ||*/ Data.Media.IsDirty || /*Data.Sync.IsDirty || Data.Events.IsDirty || */Data.CharucoBoardDefinition.IsDirty)
+                if (Data.Info.IsDirty || Data.Media.IsDirty || Data.CharucoBoardDefinition.IsDirty)
                 {
                     return true;
                 }
@@ -207,10 +257,7 @@ namespace Surveyor
             }
             private set
             {
-                //Data.Info.IsDirty = value;
-                //Data.Media.IsDirty = value;
-                //Data.Sync.IsDirty = value;
-                //Data.Events.IsDirty = value;
+                Data.Info.IsDirty = value;
                 Data.CharucoBoardDefinition.IsDirty = value;
                 OnPropertyChanged();
             }

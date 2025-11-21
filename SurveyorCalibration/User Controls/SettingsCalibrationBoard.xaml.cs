@@ -110,6 +110,17 @@ namespace Surveyor.User_Controls
         {
 
         }
+
+        // Minimal preview refresh method; keep no-op if actual implementation lives elsewhere
+        private void UpdatePreview()
+        {
+            // Intentionally left blank; existing preview logic will call into here if present
+        }
+
+        private void ArucoDictionaryCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UpdatePreview();
+        }
     }
 
     public sealed partial class PreferredCalibrationItemVisibilityConverter : IValueConverter
