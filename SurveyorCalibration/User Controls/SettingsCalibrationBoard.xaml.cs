@@ -25,7 +25,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="settings"></param>
         /// <param name="project"></param>
-        public void SetupForSurveySettingWindow(CalibProject project)
+        public void SetupForProjectSettingWindow(CalibProject project)
         {
             // Remember the calibration daata
             charucoBoardDefinition = project.Data.CharucoBoardDefinition;

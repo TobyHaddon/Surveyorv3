@@ -49,12 +49,12 @@
                 </StackPanel.ChildrenTransitions>
 
                 <!--CALIBRATION PROJECT SETTINGS-->
-                <TextBlock x:Name="SurveySettingsTitle" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Survey Settings"  MaxWidth="1200"/>
+                <TextBlock x:Name="ProjectSettingsTitle" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Project Settings"  MaxWidth="1200"/>
 
                 <!--CALIBRATION PROJECT INFO AND MEDIA-->
-                <toolkit:SettingsExpander x:Name="SurveyInfoAndMediaExpander" Header="Survey Info &amp; Media">
+                <toolkit:SettingsExpander x:Name="CalibInfoAndMediaExpander" Header="Project Info &amp; Media">
                     <toolkit:SettingsExpander.HeaderIcon>
-                        <FontIcon Glyph="&#xF0E3;" ToolTipService.ToolTip="Survey setup information and survey media"/>
+                        <FontIcon Glyph="&#xF0E3;" ToolTipService.ToolTip="Project setup information and calibration media"/>
                     </toolkit:SettingsExpander.HeaderIcon>
 
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
@@ -67,8 +67,8 @@
                             
                     <toolkit:SettingsExpander.Items>
                         <!-- Calibration media -->
-                        <toolkit:SettingsCard x:Name="SettingsCardSurveyStereoInfoAndMedia">
-                            <surveyorControls:CalibInfoAndMedia x:Name="SurveyStereoInfoAndMedia"/>
+                        <toolkit:SettingsCard x:Name="SettingsCardProjectStereoInfoAndMedia">
+                            <surveyorControls:CalibInfoAndMedia x:Name="ProjectStereoInfoAndMedia"/>
                         </toolkit:SettingsCard>
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
@@ -87,7 +87,7 @@
 
                     <toolkit:SettingsExpander.Items>
                         <!-- Auto Save -->
-                        <toolkit:SettingsCard Header="Auto Save" Description="Automatically saves the survey periodically">
+                        <toolkit:SettingsCard Header="Auto Save" Description="Automatically saves the project periodically">
                             <toolkit:SettingsCard.HeaderIcon>
                                 <FontIcon Glyph="&#xE74E;" ToolTipService.ToolTip="If enabled work is saved automatically every 20 secs."/>
                             </toolkit:SettingsCard.HeaderIcon>
@@ -162,7 +162,7 @@
                 </toolkit:SettingsExpander>
 
                 <!-- Experimental Code -->
-                <toolkit:SettingsCard Header="Experimental Features" Description="Experimental code, should not be used for real surveys" >
+                <toolkit:SettingsCard Header="Experimental Features" Description="Experimental code, should not be used for real calibration projects" >
                     <toolkit:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xF196;" ToolTipService.ToolTip="These features are experimental or in test and may produce incorrect results." />
                     </toolkit:SettingsCard.HeaderIcon>

@@ -279,12 +279,12 @@ namespace Surveyor
 
         private async void NewAppBarButton_Click(object sender, RoutedEventArgs e)
         {
-            // Load the Info and Media user control to setup the survey
+            // Load the Info and Media user control to setup the project
             CalibrationMediaUserControl.SetupForContentDialog(CalibrationMediaContentDialog);
 
             // ** Important notes **
             // The UserControl CalibrationMediaContentDialog is displayed within a ContentDialog for 
-            // the purpose of setting up a new survey (also using from a SettingsCard)
+            // the purpose of setting up a new project (also using from a SettingsCard)
             // I stuggled to get the ContentDialog to show width necessary to fully display
             // the UserControl.  The solution was to:
             // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
@@ -726,7 +726,7 @@ namespace Surveyor
             catch (Exception ex)
             {
                 // Log or handle the exception as needed
-                Debug.WriteLine($"Error showing SurveyInfoAndMediaContentDialog: {ex.Message}");
+                Debug.WriteLine($"Error showing CalibInfoAndMediaContentDialog: {ex.Message}");
             }
 
         }
@@ -1694,7 +1694,7 @@ namespace Surveyor
             {
                 int entryCount = Interlocked.Increment(ref settingsWindowEntryCount);
                 // Make sure we only open the settings window once.
-                // This can happen if the survey and movies are loaded and the user clicks the settings a few times.
+                // This can happen if the project and movies are loaded and the user clicks the settings a few times.
                 if (entryCount == 1)
                 {
                     // Initialize if necessary

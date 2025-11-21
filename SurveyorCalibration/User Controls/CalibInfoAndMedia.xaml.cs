@@ -1,6 +1,6 @@
 ///
 /// *** Remember when editting this User Control code that it is used from both   ***
-/// *** the context of a ContentDialog (for a new Survey) and from a SettingCard  ***
+/// *** the context of a ContentDialog (for a new project) and from a SettingCard  ***
 /// *** from the SettingsWindow.                                                  ***  
 ///
 // CalibInfoAndMedia  
@@ -74,7 +74,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Called from the function that creates the ContentDailog used to setup a new survey
+        /// Called from the function that creates the ContentDailog used to setup a new calibration project
         /// </summary>
         /// <param name="dialog"></param>
         /// <param name="_mediaFilesSelected"></param>
@@ -119,7 +119,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Save the values from the survey information fields and media into the surveyClass 
+        /// Save the values from the calibration project information fields and media into CalibProject class 
         /// object
         /// </summary>
         /// <param name="calibProject"></param>
@@ -714,8 +714,8 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Called when anything change to test the validity of the survey information and media
-        /// This is also shows on the users control whick fields are invalid
+        /// Called when anything change to test the validity of the calibration project information and media
+        /// This is also shows on the users control which fields are invalid
         /// </summary>
         /// <returns></returns>
         /// 
@@ -743,14 +743,14 @@ namespace Surveyor.User_Controls
             bool mediaPathSame = CheckAllMediaPathAreTheSame();
             if (!mediaPathSame)
             {
-                SetValidationText(false/*invalid*/, SurveyMediaPathPanel, SurveyMediaPathGlyph, SurveyMediaPathValidationText, "All media files need to be in the same directory", "");
+                SetValidationText(false/*invalid*/, ProjectMediaPathPanel, ProjectMediaPathGlyph, ProjectMediaPathValidationText, "All media files need to be in the same directory", "");
                 mediaValid = false;
 
             }
             else
             {
                 // No need to show anything if the media is all from the same path
-                SetValidationText(null, SurveyMediaPathPanel, SurveyMediaPathGlyph, SurveyMediaPathValidationText, ""/*"All media files are in the same directory"*/, "");
+                SetValidationText(null, ProjectMediaPathPanel, ProjectMediaPathGlyph, ProjectMediaPathValidationText, ""/*"All media files are in the same directory"*/, "");
             }
 
 
@@ -769,7 +769,7 @@ namespace Surveyor.User_Controls
                         sameDateStereoLeftMedia is null ||
                         sameDateStereoRightMedia is null)
                     {
-                        SetValidationText(false/*invalid*/, SurveyMediaPathPanel, SurveyMediaPathGlyph, SurveyMediaPathValidationText, "We need a calibration file for mono left & right and stereo left & right", "");
+                        SetValidationText(false/*invalid*/, ProjectMediaPathPanel, ProjectMediaPathGlyph, ProjectMediaPathValidationText, "We need a calibration file for mono left & right and stereo left & right", "");
                         mediaValid = false;
                     }
                     break;
@@ -778,7 +778,7 @@ namespace Surveyor.User_Controls
                     if (sameDateStereoLeftMedia is null ||
                         sameDateStereoRightMedia is null)
                     {
-                        SetValidationText(false/*invalid*/, SurveyMediaPathPanel, SurveyMediaPathGlyph, SurveyMediaPathValidationText, "We need a calibration file for stereo left & right", "");
+                        SetValidationText(false/*invalid*/, ProjectMediaPathPanel, ProjectMediaPathGlyph, ProjectMediaPathValidationText, "We need a calibration file for stereo left & right", "");
                         mediaValid = false;
                     }
                     break;
@@ -787,7 +787,7 @@ namespace Surveyor.User_Controls
                     if (sameDateMonoLeftMedia is null ||
                         sameDateMonoRightMedia is null)
                     {
-                        SetValidationText(false/*invalid*/, SurveyMediaPathPanel, SurveyMediaPathGlyph, SurveyMediaPathValidationText, "We need a calibration file for mono left & right", "");
+                        SetValidationText(false/*invalid*/, ProjectMediaPathPanel, ProjectMediaPathGlyph, ProjectMediaPathValidationText, "We need a calibration file for mono left & right", "");
                         mediaValid = false;
                     }
                     break;
@@ -795,7 +795,7 @@ namespace Surveyor.User_Controls
                 case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
                     if (sameDateMonoLeftMedia is null)
                     {
-                        SetValidationText(false/*invalid*/, SurveyMediaPathPanel, SurveyMediaPathGlyph, SurveyMediaPathValidationText, "We need a mono calibration file", "");
+                        SetValidationText(false/*invalid*/, ProjectMediaPathPanel, ProjectMediaPathGlyph, ProjectMediaPathValidationText, "We need a mono calibration file", "");
                         mediaValid = false;
                     }
                     break;
@@ -812,30 +812,30 @@ namespace Surveyor.User_Controls
                      sameDateMonoRightMedia.Value.Date == sameDateStereoLeftMedia.Value.Date &&
                      sameDateStereoLeftMedia.Value.Date == sameDateStereoRightMedia.Value.Date))
                 {  
-                    SetValidationText(false/*invalid*/, SurveyMediaDatePanel, SurveyMediaDateGlyph, SurveyMediaDateValidationText, "The media file dates differ", "The date of the media files do not match each other.\nThis can happen if the dates on the GoPro isn't set correctly and isn't a problem. However if the dates are set correctly this is a problem.");
+                    SetValidationText(false/*invalid*/, ProjectMediaDatePanel, ProjectMediaDateGlyph, ProjectMediaDateValidationText, "The media file dates differ", "The date of the media files do not match each other.\nThis can happen if the dates on the GoPro isn't set correctly and isn't a problem. However if the dates are set correctly this is a problem.");
                     mediaDatesMatch = false;
                 }
                 else
                 {
-                    SetValidationText(true/*valid*/, SurveyMediaDatePanel, SurveyMediaDateGlyph, SurveyMediaDateValidationText, "The media files are all from the same date", "");
+                    SetValidationText(true/*valid*/, ProjectMediaDatePanel, ProjectMediaDateGlyph, ProjectMediaDateValidationText, "The media files are all from the same date", "");
                 }
             }
             else if ((sameDateMonoLeftMedia is null && LeftMonoMediaFileItemList.Count > 0) && sameDateMonoRightMedia is not null)
             {
-                SetValidationText(false/*invalid*/, SurveyMediaDatePanel, SurveyMediaDateGlyph, SurveyMediaDateValidationText, "Not all the media on the left side has the same date", "You would expect all the dates on the media to be the same.");
+                SetValidationText(false/*invalid*/, ProjectMediaDatePanel, ProjectMediaDateGlyph, ProjectMediaDateValidationText, "Not all the media on the left side has the same date", "You would expect all the dates on the media to be the same.");
 
             }
             else if (sameDateMonoLeftMedia is not null && (sameDateMonoRightMedia is null && RightMonoMediaFileItemList.Count > 0))
             {
-                SetValidationText(false/*invalid*/, SurveyMediaDatePanel, SurveyMediaDateGlyph, SurveyMediaDateValidationText, "Not all the media on the right side has the same date", "You would expect all the dates on the media to be the same.");
+                SetValidationText(false/*invalid*/, ProjectMediaDatePanel, ProjectMediaDateGlyph, ProjectMediaDateValidationText, "Not all the media on the right side has the same date", "You would expect all the dates on the media to be the same.");
             }
             else if ((sameDateMonoLeftMedia is null && LeftMonoMediaFileItemList.Count > 0) && (sameDateMonoRightMedia is null && RightMonoMediaFileItemList.Count > 0))
             {
-                SetValidationText(false/*invalid*/, SurveyMediaDatePanel, SurveyMediaDateGlyph, SurveyMediaDateValidationText, "Not all the media on the left side and on the right side has the same date", "You would expect all the dates on the media to be the same.");
+                SetValidationText(false/*invalid*/, ProjectMediaDatePanel, ProjectMediaDateGlyph, ProjectMediaDateValidationText, "Not all the media on the left side and on the right side has the same date", "You would expect all the dates on the media to be the same.");
             }
             else
             {
-                SetValidationText(null/*hide*/, SurveyMediaDatePanel, SurveyMediaDateGlyph, SurveyMediaDateValidationText, "", "");
+                SetValidationText(null/*hide*/, ProjectMediaDatePanel, ProjectMediaDateGlyph, ProjectMediaDateValidationText, "", "");
             }
 
 
@@ -872,7 +872,7 @@ namespace Surveyor.User_Controls
 
             if (!mediaGoProSNMatch)
             {
-                SetValidationText(false/*invalid*/, SurveyGoProMatchPanel, SurveyGoProMatchGlyph, SurveyGoProMatchValidationText, mediaGoProSNMatchWarningText, mediaGoProSNMatchWarningToolTip);
+                SetValidationText(false/*invalid*/, ProjectGoProMatchPanel, ProjectGoProMatchGlyph, ProjectGoProMatchValidationText, mediaGoProSNMatchWarningText, mediaGoProSNMatchWarningToolTip);
             }
             else
             {
@@ -882,11 +882,11 @@ namespace Surveyor.User_Controls
                     ((sameGoProLeftMedia is not null && LeftMonoMediaFileItemList.Count > 1) ||
                      (sameGoProRightMedia is not null && RightMonoMediaFileItemList.Count > 1)))
                 {
-                    SetValidationText(true/*valid*/, SurveyGoProMatchPanel, SurveyGoProMatchGlyph, SurveyGoProMatchValidationText, "GoPro serial numbers match", "");
+                    SetValidationText(true/*valid*/, ProjectGoProMatchPanel, ProjectGoProMatchGlyph, ProjectGoProMatchValidationText, "GoPro serial numbers match", "");
                 }
                 else
                 {
-                    SetValidationText(null/*hide*/, SurveyGoProMatchPanel, SurveyGoProMatchGlyph, SurveyGoProMatchValidationText, "", "");
+                    SetValidationText(null/*hide*/, ProjectGoProMatchPanel, ProjectGoProMatchGlyph, ProjectGoProMatchValidationText, "", "");
                 }
             }
 
@@ -900,19 +900,19 @@ namespace Surveyor.User_Controls
             const string contiguousTooltip = "If there are multiple media files on either the left or right side a check is perform to ensure that the start time of a media file is consistent with the stop time of the previous media file.";
             if (!leftMediaContiguous && !rightMediaContiguous)
             {
-                SetValidationText(false/*invalid*/, SurveyMediaContiguousPanel, SurveyMediaContiguousGlyph, SurveyMediaContiguousValidationText, "Neither the left or right media files are contiguous", contiguousTooltip);
+                SetValidationText(false/*invalid*/, ProjectMediaContiguousPanel, ProjectMediaContiguousGlyph, ProjectMediaContiguousValidationText, "Neither the left or right media files are contiguous", contiguousTooltip);
                 mediaContigious = false;
 
             }
             else if (!leftMediaContiguous)
             {
-                SetValidationText(false/*invalid*/, SurveyMediaContiguousPanel, SurveyMediaContiguousGlyph, SurveyMediaContiguousValidationText, "The left media files are not contiguous", contiguousTooltip);
+                SetValidationText(false/*invalid*/, ProjectMediaContiguousPanel, ProjectMediaContiguousGlyph, ProjectMediaContiguousValidationText, "The left media files are not contiguous", contiguousTooltip);
                 mediaContigious = false;
 
             }
             else if (!rightMediaContiguous)
             {
-                SetValidationText(false/*invalid*/, SurveyMediaContiguousPanel, SurveyMediaContiguousGlyph, SurveyMediaContiguousValidationText, "The right media files are not contiguous", contiguousTooltip);
+                SetValidationText(false/*invalid*/, ProjectMediaContiguousPanel, ProjectMediaContiguousGlyph, ProjectMediaContiguousValidationText, "The right media files are not contiguous", contiguousTooltip);
                 mediaContigious = false;
 
             }
@@ -922,11 +922,11 @@ namespace Surveyor.User_Controls
                 // there is more than one media file on either the left or right side
                 if (LeftMonoMediaFileItemList.Count > 1 || RightMonoMediaFileItemList.Count > 1)
                 {
-                    SetValidationText(true/*valid*/, SurveyMediaContiguousPanel, SurveyMediaContiguousGlyph, SurveyMediaContiguousValidationText, "All media is contingious", "");
+                    SetValidationText(true/*valid*/, ProjectMediaContiguousPanel, ProjectMediaContiguousGlyph, ProjectMediaContiguousValidationText, "All media is contingious", "");
                 }
                 else
                 {
-                    SetValidationText(null/*hdie*/, SurveyMediaContiguousPanel, SurveyMediaContiguousGlyph, SurveyMediaContiguousValidationText, "", "");
+                    SetValidationText(null/*hdie*/, ProjectMediaContiguousPanel, ProjectMediaContiguousGlyph, ProjectMediaContiguousValidationText, "", "");
                 }
             }
 
@@ -937,18 +937,18 @@ namespace Surveyor.User_Controls
                 mediaSameResolution = CheckAllMediaResolutionAreTheSame();
                 if (!mediaSameResolution)
                 {
-                    SetValidationText(false/*invalid*/, SurveyResolutionMatchPanel, SurveyResolutionMatchGlyph, SurveyResolutionMatchValidationText, "All media files need have the same frame resolution", "");
+                    SetValidationText(false/*invalid*/, ProjectResolutionMatchPanel, ProjectResolutionMatchGlyph, ProjectResolutionMatchValidationText, "All media files need have the same frame resolution", "");
 
                 }
                 else
                 {
-                    SetValidationText(true/*valid*/, SurveyResolutionMatchPanel, SurveyResolutionMatchGlyph, SurveyResolutionMatchValidationText, "All media files have the same frame resolution", "");
+                    SetValidationText(true/*valid*/, ProjectResolutionMatchPanel, ProjectResolutionMatchGlyph, ProjectResolutionMatchValidationText, "All media files have the same frame resolution", "");
                 }
             }
             else
             {
                 mediaSameResolution = true;
-                SetValidationText(null, SurveyResolutionMatchPanel, SurveyResolutionMatchGlyph, SurveyResolutionMatchValidationText, "", "");
+                SetValidationText(null, ProjectResolutionMatchPanel, ProjectResolutionMatchGlyph, ProjectResolutionMatchValidationText, "", "");
             }
 
             // Check if all the media has the same frame rate
@@ -1760,7 +1760,7 @@ namespace Surveyor.User_Controls
 
 
 
-        // **END OF CalibSurveyInfoAndMedia**
+        // **END OF CalibInfoAndMedia**
     }
 
 
@@ -1841,7 +1841,7 @@ namespace Surveyor.User_Controls
     /// <summary>
     /// This converter is used by the XAML to convert a DateTime to a string
     /// </summary>
-    public partial class SurveyDateTimeToStringConverter : IValueConverter
+    public partial class ProjectDateTimeToStringConverter : IValueConverter
     {
         public object? Convert(object value, Type targetType, object parameter, string language)
         {
@@ -1862,7 +1862,7 @@ namespace Surveyor.User_Controls
     /// <summary>
     /// This converter is used by the XAML to convert a TimeSpan to a string
     /// </summary>
-    public partial class SurveyTimeSpanToStringConverter : IValueConverter
+    public partial class ProjectTimeSpanToStringConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {

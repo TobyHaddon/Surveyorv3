@@ -11,23 +11,16 @@ using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
 using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
-using Windows.Storage;
 using WinUIEx;
-using static Surveyor.User_Controls.SettingsWindowEventData;
 
 
 
@@ -62,7 +55,7 @@ namespace Surveyor.User_Controls
             // Remember main window (needed for this method)
             mainWindow = _mainWindow;
 
-            // Remember the survey
+            // Remember the project
             project = _project;
 
 
@@ -83,26 +76,26 @@ namespace Surveyor.User_Controls
             SetSettingsTheme(SettingsManagerLocal.ApplicationTheme);
 
 
-            // Inform the SettingsCalibrationBoard user control that it is being used in the SettingsWindow for a survey
+            // Inform the SettingsCalibrationBoard user control that it is being used in the SettingsWindow for a project
             if (project is not null)
-                SettingsCalibrationBoard.SetupForSurveySettingWindow(project);
+                SettingsCalibrationBoard.SetupForProjectSettingWindow(project);
 
             // Remove the separate title bar from the window
             ExtendsContentIntoTitleBar = true;
 
-            // Hide the Survey Settings if the Survey is null
+            // Hide the Project Settings if the CalibProject is null
             if (project is null)
             {
-                // Hide the survey settings section
-                SurveySettingsTitle.Visibility = Visibility.Collapsed;
-                SurveyInfoAndMediaExpander.Visibility = Visibility.Collapsed;
+                // Hide the project settings section
+                ProjectSettingsTitle.Visibility = Visibility.Collapsed;
+                CalibInfoAndMediaExpander.Visibility = Visibility.Collapsed;
                 SettingsCalibrationBoard.Visibility = Visibility.Collapsed;
             }
             else
             {
-                // Show the survey settings section
-                SurveySettingsTitle.Visibility = Visibility.Visible;
-                SurveyInfoAndMediaExpander.Visibility = Visibility.Visible;
+                // Show the project settings section
+                ProjectSettingsTitle.Visibility = Visibility.Visible;
+                CalibInfoAndMediaExpander.Visibility = Visibility.Visible;
                 SettingsCalibrationBoard.Visibility = Visibility.Visible;
             }
 
@@ -281,10 +274,10 @@ namespace Surveyor.User_Controls
         private void RootGrid_Unloaded(object sender, RoutedEventArgs e)
         {
             // Close UI things
-            SurveyStereoInfoAndMedia.Shutdown();
+            ProjectStereoInfoAndMedia.Shutdown();
 
             // Optionally clear controls if they’re bound to static objects
-            SettingsCardSurveyStereoInfoAndMedia.Content = null;
+            SettingsCardProjectStereoInfoAndMedia.Content = null;
 
             uiSettings.ColorValuesChanged -= UiSettings_ColorValuesChanged;
         }
@@ -312,7 +305,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Toggle theauto save survey feature
+        /// Toggle the auto save project feature
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -632,12 +625,7 @@ namespace Surveyor.User_Controls
                 {
                     if (project.Data.CalibFileSpec is not null)
                     {
-                        sb.Append(Path.GetFileName(project.Data.CalibFileSpec));
-
-                        //???if (!string.IsNullOrEmpty(project.Data.Info.SurveyDepth))
-                        //{
-                        //    sb.Append($"/{project.Data.Info.SurveyDepth}");
-                        //}
+                        sb.Append(Path.GetFileName(project.Data.Info.ProjectFileName));
                     }
                 }
 

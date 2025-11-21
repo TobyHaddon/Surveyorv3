@@ -90,7 +90,7 @@
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE792;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem Name="MenuProjectClose" Text="Close Survey" IsEnabled="False" Click="FileProjectClose_Click"/>
+                    <MenuFlyoutItem Name="MenuProjectClose" Text="Close Project" IsEnabled="False" Click="FileProjectClose_Click"/>
                     <MenuFlyoutSubItem Name="MenuRecentProjects" Text="Recent Projects">
                         <MenuFlyoutSubItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE823;" />
@@ -473,8 +473,8 @@
                                                       Grid.Row="5"                                                      
                                                       Margin="5,5,5,5"/>
 
-        <!--New Survey Dialog-->
-        <Grid x:Name="SurveyInfoAndMediaContentDialogGrid" Grid.Row="4">
+        <!--New Calibration Project Dialog-->
+        <Grid x:Name="CalibInfoAndMediaContentDialogGrid" Grid.Row="4">
                     <ContentDialog x:Name="CalibrationMediaContentDialog"
                         Title="Calibration Media Setup"
                         PrimaryButtonText="OK"
