@@ -76,27 +76,30 @@ namespace Surveyor.User_Controls
             SetSettingsTheme(SettingsManagerLocal.ApplicationTheme);
 
 
-            // Inform the SettingsCalibrationBoard user control that it is being used in the SettingsWindow for a project
-            if (project is not null)
-                SettingsCalibrationBoard.SetupForProjectSettingWindow(project);
+            // Inform the SettingsProjectCalibrationBoard user control that it is being used in the SettingsWindow for a project            
+            SettingsProjectCalibrationBoard.SetupForProjectSettingWindow(project);
+
+            // Inform the SettingsDefaultCalibrationBoard user control that it is being used in the SettingsWindow
+            // And the null meants we are only working on the adjusting the default calibration board settings
+            SettingsDefaultCalibrationBoard.SetupForProjectSettingWindow(null);
 
             // Remove the separate title bar from the window
             ExtendsContentIntoTitleBar = true;
 
             // Hide the Project Settings if the CalibProject is null
-            if (project is null)
-            {
-                // Hide the project settings section
-                ProjectSettingsTitle.Visibility = Visibility.Collapsed;
-                CalibInfoAndMediaExpander.Visibility = Visibility.Collapsed;
-                SettingsCalibrationBoard.Visibility = Visibility.Collapsed;
-            }
-            else
+            if (project is not null)
             {
                 // Show the project settings section
                 ProjectSettingsTitle.Visibility = Visibility.Visible;
                 CalibInfoAndMediaExpander.Visibility = Visibility.Visible;
-                SettingsCalibrationBoard.Visibility = Visibility.Visible;
+                SettingsExpanderProjectCalibrationBoard.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                // Hide the project settings section
+                ProjectSettingsTitle.Visibility = Visibility.Collapsed;
+                CalibInfoAndMediaExpander.Visibility = Visibility.Collapsed;
+                SettingsExpanderProjectCalibrationBoard.Visibility = Visibility.Collapsed;
             }
 
             // Setup the Setting page

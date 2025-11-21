@@ -29,7 +29,7 @@ namespace Surveyor.Calibration
         public int FrameIndex { get; init; }
 
         // Corners and IDs
-        public PointF[] CharucoCorners { get; init; } = Array.Empty<PointF>();
+        public PointF[] CharucoCorners { get; init; } = [];
         public int[] CharucoIds { get; init; } = [];
 
 

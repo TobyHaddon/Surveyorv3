@@ -12,27 +12,59 @@
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <local:PreferredCalibrationItemVisibilityConverter x:Key="PreferredCalibrationItemVisibilityConverter" />
         <local:DoubleFormatConverter x:Key="Double2Converter" Format="F2" />
         <local:DoubleFormatConverter x:Key="Double3Converter" Format="F3" />
-        <local:CalibrationIntrinsicElementConverter x:Key="IntrinsicElementConverter" />
         <local:DoubleSubtractConverter x:Key="MinusCardPaddingConverter" />
-        <local:CalibrationDistortionElementConverter x:Key="DistortionElementConverter" />
-        <local:StereoMatrixVectorConverter x:Key="StereoMatrixVectorConverter" />
     </UserControl.Resources>
 
-    <toolkit:SettingsExpander  x:Name="SettingsExpanderCalibration" Header="Calibration">
-        <toolkit:SettingsExpander.HeaderIcon>
-            <FontIcon Glyph="&#xEB3C;" />
-        </toolkit:SettingsExpander.HeaderIcon>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
 
-        <toolkit:SettingsExpander.Items>
-            <!-- MULTIPLE CALIBRATION SETS -->
-            <toolkit:SettingsCard Header="Multiple Calibration Sets" Description="">
+        <!-- Board Type -->
+        <TextBlock Text="Target Type:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+        <ComboBox x:Name="TargetTypeCombo" Grid.Row="0" Grid.Column="1" Margin="5"
+                  SelectedItem="ChArUco">
+            <ComboBoxItem Content="ChArUco" Tag="ChArUco" />
+        </ComboBox>
 
-            </toolkit:SettingsCard>
+        <!-- Square Count -->
+        <TextBlock Text="Square Count:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+        <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" Margin="5">
+            <TextBox x:Name="SquareColsNumeric" Width="60" 
+                                   Text="{Binding charucoBoardDefinition.SquaresX, Mode=TwoWay}" Margin="0,0,10,0"/>
+            <TextBlock Text=" x " VerticalAlignment="Center" Margin="0,0,5,0"/>
+            <TextBox x:Name="SquareRowsNumeric" Width="60" 
+                                   Text="{Binding charucoBoardDefinition.SquaresY, Mode=TwoWay}"/>
+            
+        </StackPanel>
 
+        <!-- Square Size -->
 
-        </toolkit:SettingsExpander.Items>
-    </toolkit:SettingsExpander>
+        <!-- Marker Size -->
+
+        <!-- ArUco Dictionary -->
+        <TextBlock Text="ArUco Dictionary:" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+        <ComboBox x:Name="ArucoDictionaryCombo" Grid.Row="0" Grid.Column="1" Margin="5"
+                  SelectedItem="{Binding charucoBoardDefinition.ArucoDictionary, Mode=TwoWay}"/>
+        
+        <!-- Preview -->
+        <StackPanel Orientation="Vertical" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Margin="5">
+            <Border Grid.Row="5" Grid.ColumnSpan="2" Margin="5" BorderBrush="Gray" BorderThickness="1">
+                <Image x:Name="PreviewImage" Stretch="Uniform" MinHeight="160" />
+            </Border>
+            <TextBlock x:Name="PreviewCaption1" FontSize="10" Foreground="Gray" Margin="5,0,5,5"/>
+            <TextBlock x:Name="PreviewCaption2" FontSize="10" Foreground="Gray" Margin="5,0,5,5"/>
+        </StackPanel>
+    </Grid>
 </UserControl>

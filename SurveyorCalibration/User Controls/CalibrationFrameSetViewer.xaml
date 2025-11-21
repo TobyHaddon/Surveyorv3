@@ -38,7 +38,7 @@
                     </Border>
                     
                     <!-- Sensor Coverage Bins -->
-                    <TextBlock Text="Sensor Coverage" Grid.Column="1" Grid.Row="0" Padding="0" VerticalAlignment="Bottom" FontFamily="Segoe UI Variable" FontSize="10" HorizontalAlignment="Left" Margin="6,0,0,0"/>
+                    <TextBlock Text="Camera Sensor Coverage" Grid.Column="1" Grid.Row="0" Padding="0" VerticalAlignment="Bottom" FontFamily="Segoe UI Variable" FontSize="10" HorizontalAlignment="Left" Margin="6,0,0,0"/>
                     <GridView x:Name="SensorBinGridItemsControl" Grid.Column="1" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Left" IsItemClickEnabled="False" SelectionMode="None" Padding="0" Margin="0">
                         <GridView.ItemsPanel>
                             <ItemsPanelTemplate>
@@ -57,7 +57,7 @@
                     </GridView>
 
                     <!-- Pose Bins -->
-                    <TextBlock Text="Pose Diversity" Grid.Column="2" Grid.Row="0" VerticalAlignment="Bottom" FontFamily="Segoe UI Variable" FontSize="10" HorizontalAlignment="Left" Margin="6,0,0,0"/>
+                    <TextBlock Text="Frame Pose Diversity" Grid.Column="2" Grid.Row="0" VerticalAlignment="Bottom" FontFamily="Segoe UI Variable" FontSize="10" HorizontalAlignment="Left" Margin="6,0,0,0"/>
                     <GridView x:Name="PoseBinGridItemsControl" Grid.Column="2" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Left" IsItemClickEnabled="False" SelectionMode="None">
                         <GridView.ItemsPanel>
                             <ItemsPanelTemplate>

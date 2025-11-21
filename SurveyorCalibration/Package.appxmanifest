@@ -10,7 +10,7 @@
   <Identity
     Name="TobySolo.312674E3C56F2"
     Publisher="CN=tobyh"
-    Version="0.0.5.0" />
+    Version="1.0.5.0" />
 
   <mp:PhoneIdentity PhoneProductId="c2a65c42-2fb2-4674-bbf6-472a7cd95aff" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

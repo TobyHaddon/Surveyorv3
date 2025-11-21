@@ -49,7 +49,7 @@ namespace Surveyor
    
     public sealed partial class MainWindow : WindowEx
     {
-        private CalibProject calibProject = new();
+        private CalibProject? calibProject = null;
 
         // Add these fields to MainWindow class
         private DispatcherQueueTimer? _stereoLockCheckTimer;
@@ -93,79 +93,79 @@ namespace Surveyor
 
 
             // Create Charuco Board Definition
-            calibProject.Data.CharucoBoardDefinition.Setup(new Dictionary(PredefinedDictionaryName.Dict5X5_100),
-                                                        14/*SquareX*/, 9/*SquareY*/,
-                                                        39.92f / 1000.0f/*SquareLength*/,
-                                                        30.0f / 1000.0f/*MarkerLength*/);
+            //calibProject.Data.CharucoBoardDefinition.Setup(new Dictionary(PredefinedDictionaryName.Dict5X5_100),
+            //                                            14/*SquareX*/, 9/*SquareY*/,
+            //                                            39.92f / 1000.0f/*SquareLength*/,
+            //                                            30.0f / 1000.0f/*MarkerLength*/);
 
-            // Pass the calibration board settings to the  calibration heads
-            StereoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.CharucoBoardDefinition);
+            //// Pass the calibration board settings to the  calibration heads
+            //StereoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.CharucoBoardDefinition);
 
-            LeftMonoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.CharucoBoardDefinition);
+            //LeftMonoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.CharucoBoardDefinition);
 
-            RightMonoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.CharucoBoardDefinition);
+            //RightMonoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.CharucoBoardDefinition);
 
             // Get the Save Best Frame checkbox if /SaveBestFrames command line argument is set
-            if (AppLaunchArgs.SaveBestFrames is not null)
-            {
-                SaveBestFrames.IsChecked = (bool)AppLaunchArgs.SaveBestFrames;
-            }                       
+            //if (AppLaunchArgs.SaveBestFrames is not null)
+            //{
+            //    SaveBestFrames.IsChecked = (bool)AppLaunchArgs.SaveBestFrames;
+            //}                       
             
             // Set the sliders
-            SetMovementAndBlurSliderMax();
+            //SetMovementAndBlurSliderMax();
 
 
             // Check for command line            
-            bool isStereoLeft = false;
-            bool isStereoRight = false;
-            bool isMonoLeft = false;
-            bool isMonoRight = false;
+            //bool isStereoLeft = false;
+            //bool isStereoRight = false;
+            //bool isMonoLeft = false;
+            //bool isMonoRight = false;
 
-            if (!string.IsNullOrEmpty(AppLaunchArgs.StereoLeft) && File.Exists(AppLaunchArgs.StereoLeft))
-            {
-                calibProject.Data.Media.LeftStereoMP4Path = AppLaunchArgs.StereoLeft;
-                isStereoLeft = true;
-            }
-            if (!string.IsNullOrEmpty(AppLaunchArgs.StereoRight) && File.Exists(AppLaunchArgs.StereoRight))
-            {
-                calibProject.Data.Media.RightStereoMP4Path = AppLaunchArgs.StereoRight;
-                isStereoRight = true;
-            }
-            if (!string.IsNullOrEmpty(AppLaunchArgs.MonoLeft) && File.Exists(AppLaunchArgs.MonoLeft))
-            {
-                calibProject.Data.Media.LeftMonoMP4Path = AppLaunchArgs.MonoLeft;
-                isMonoLeft = true;
-            }
-            if (!string.IsNullOrEmpty(AppLaunchArgs.MonoRight) && File.Exists(AppLaunchArgs.MonoRight))
-            {
-                calibProject.Data.Media.RightMonoMP4Path = AppLaunchArgs.MonoRight;
-                isMonoRight = true;
-            }
+            //if (!string.IsNullOrEmpty(AppLaunchArgs.StereoLeft) && File.Exists(AppLaunchArgs.StereoLeft))
+            //{
+            //    calibProject.Data.Media.LeftStereoMP4Path = AppLaunchArgs.StereoLeft;
+            //    isStereoLeft = true;
+            //}
+            //if (!string.IsNullOrEmpty(AppLaunchArgs.StereoRight) && File.Exists(AppLaunchArgs.StereoRight))
+            //{
+            //    calibProject.Data.Media.RightStereoMP4Path = AppLaunchArgs.StereoRight;
+            //    isStereoRight = true;
+            //}
+            //if (!string.IsNullOrEmpty(AppLaunchArgs.MonoLeft) && File.Exists(AppLaunchArgs.MonoLeft))
+            //{
+            //    calibProject.Data.Media.LeftMonoMP4Path = AppLaunchArgs.MonoLeft;
+            //    isMonoLeft = true;
+            //}
+            //if (!string.IsNullOrEmpty(AppLaunchArgs.MonoRight) && File.Exists(AppLaunchArgs.MonoRight))
+            //{
+            //    calibProject.Data.Media.RightMonoMP4Path = AppLaunchArgs.MonoRight;
+            //    isMonoRight = true;
+            //}
 
-            if (isStereoLeft && isStereoRight && isMonoLeft && isMonoRight)
-            {
-                calibProject.Data.Media.StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet;
-                mediaFromCommandLine = true;
-            }
-            else if (isStereoLeft && isStereoRight)
-            {
-                calibProject.Data.Media.StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet;
-                mediaFromCommandLine = true;
-            }
-            else if (isMonoLeft && isMonoRight)
-            {
-                calibProject.Data.Media.StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet;
-                mediaFromCommandLine = true;
-            }
-            else if (isMonoLeft)
-            {
-                calibProject.Data.Media.StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet;
-                mediaFromCommandLine = true;
-            }
+            //if (isStereoLeft && isStereoRight && isMonoLeft && isMonoRight)
+            //{
+            //    calibProject.Data.Media.StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet;
+            //    mediaFromCommandLine = true;
+            //}
+            //else if (isStereoLeft && isStereoRight)
+            //{
+            //    calibProject.Data.Media.StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet;
+            //    mediaFromCommandLine = true;
+            //}
+            //else if (isMonoLeft && isMonoRight)
+            //{
+            //    calibProject.Data.Media.StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet;
+            //    mediaFromCommandLine = true;
+            //}
+            //else if (isMonoLeft)
+            //{
+            //    calibProject.Data.Media.StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet;
+            //    mediaFromCommandLine = true;
+            //}
 
 
-            if (mediaFromCommandLine)
-                _ = OpenMedia(calibProject, true/*forceUsdCacheIfAvalable*/, AppLaunchArgs.RunWithoutPrompts/*noPrompts*/);
+            //if (mediaFromCommandLine)
+            //    _ = OpenMedia(calibProject, true/*forceUsdCacheIfAvalable*/, AppLaunchArgs.RunWithoutPrompts/*noPrompts*/);
 
         }
 
@@ -277,53 +277,8 @@ namespace Surveyor
             SettingsManagerLocal.ApplicationTheme = ElementTheme.Default;
         }
 
-        private async void NewAppBarButton_Click(object sender, RoutedEventArgs e)
-        {
-            // Load the Info and Media user control to setup the project
-            CalibrationMediaUserControl.SetupForContentDialog(CalibrationMediaContentDialog);
 
-            // ** Important notes **
-            // The UserControl CalibrationMediaContentDialog is displayed within a ContentDialog for 
-            // the purpose of setting up a new project (also using from a SettingsCard)
-            // I stuggled to get the ContentDialog to show width necessary to fully display
-            // the UserControl.  The solution was to:
-            // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
-            // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
-            // This took a lot of trail and error. It seems to effect the title bar is left in
-            // default row zero.
-            ContentDialogResult result = await CalibrationMediaContentDialog.ShowAsync();
-            if (result == ContentDialogResult.Primary)
-            {
-                CalibrationMediaUserControl.SaveForContentDialog(calibProject);
-
-                // Save the calib project file
-                var file = await PickCalibFileToSaveAsync(this); // 'this' refers to your Window instance
-                if (file != null)
-                {
-                    try
-                    {
-                        // Save the calib project data to the file
-                        await calibProject.Save(file.Path);
-                        Debug.WriteLine($"Calibration project saved to {file.Path}");
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Error saving calibration project: {ex.Message}");
-                        // Handle the error, e.g., show a message to the user
-                    }
-                }
-                else
-                {
-                    Debug.WriteLine("No file selected for saving calibration project.");
-                }
-
-                // Open the mdeia
-                await OpenMedia(calibProject, false/*forceUsdCacheIfAvalable*/, false/*noPrompts*/);
-            }
-
-
-        }
-        public async Task<StorageFile?> PickCalibFileToSaveAsync(Window window)
+        private async Task<StorageFile?> PickCalibFileToSaveAsync(Window window)
         {
             var savePicker = new FileSavePicker();
 
@@ -820,7 +775,8 @@ namespace Surveyor
         /// <param name="e"></param>
         private async void SaveAppBarButton_Click(object sender, RoutedEventArgs e)
         {
-            await Save(calibProject);
+            if (calibProject is not null)
+                await Save(calibProject);
         }
 
         private async Task Save(CalibProject calibProject)
@@ -1215,9 +1171,51 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FileProjectNew_Click(object sender, RoutedEventArgs e)
+        private async void FileProjectNew_Click(object sender, RoutedEventArgs e)
         {
+            // Load the Info and Media user control to setup the project
+            CalibrationMediaUserControl.SetupForContentDialog(CalibrationMediaContentDialog);
 
+            // ** Important notes **
+            // The UserControl CalibrationMediaContentDialog is displayed within a ContentDialog for 
+            // the purpose of setting up a new project (also using from a SettingsCard)
+            // I stuggled to get the ContentDialog to show width necessary to fully display
+            // the UserControl.  The solution was to:
+            // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
+            // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
+            // This took a lot of trail and error. It seems to effect the title bar is left in
+            // default row zero.
+            ContentDialogResult result = await CalibrationMediaContentDialog.ShowAsync();
+            if (result == ContentDialogResult.Primary)
+            {
+                calibProject = new();
+
+                CalibrationMediaUserControl.SaveForContentDialog(calibProject);
+
+                // Save the calib project file
+                var file = await PickCalibFileToSaveAsync(this); // 'this' refers to your Window instance
+                if (file != null)
+                {
+                    try
+                    {
+                        // Save the calib project data to the file
+                        await calibProject.Save(file.Path);
+                        Debug.WriteLine($"Calibration project saved to {file.Path}");
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error saving calibration project: {ex.Message}");
+                        // Handle the error, e.g., show a message to the user
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine("No file selected for saving calibration project.");
+                }
+
+                // Open the mdeia
+                await OpenMedia(calibProject, false/*forceUsdCacheIfAvalable*/, false/*noPrompts*/);
+            }
         }
 
 
@@ -1269,9 +1267,15 @@ namespace Surveyor
 
         }
 
-        private void FileRunCalibration_Click(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Handles the click event for the "Run Calibration" menu item.
+        /// </summary>
+        /// <param name="sender">The source of the event, typically the menu item that was clicked.</param>
+        /// <param name="e">The event data associated with the click event.</param>
+        /// <returns></returns>
+        private async void FileRunCalibration_Click(object sender, RoutedEventArgs e)
         {
-
+            await ShowSetupRunCalibration();
         }
 
 
@@ -1655,7 +1659,8 @@ namespace Surveyor
                     if (AppLaunchArgs.RunWithoutPrompts)
                     {
                         Debug.WriteLine("Auto run: Save results after find is done.");
-                        await Save(calibProject); // Automatically save results if find is done
+                        if (calibProject is not null)
+                            await Save(calibProject); // Automatically save results if find is done
 
                         Debug.WriteLine("Auto run: Exit Aplication.");
                         //??? TODO
@@ -1741,6 +1746,66 @@ namespace Surveyor
             finally
             {
                 Interlocked.Decrement(ref settingsWindowEntryCount);
+            }
+        }
+
+
+        /// <summary>
+        /// Display the SetupRunCalibration window
+        /// </summary>
+        private int setupRunCalibrationCount = 0;
+        private async Task ShowSetupRunCalibration()
+        {
+            try
+            {
+                int entryCount = Interlocked.Increment(ref setupRunCalibrationCount);
+                // Make sure we only open the settings window once.
+                // This can happen if the project and movies are loaded and the user clicks the settings a few times.
+                if (entryCount == 1)
+                {
+                    // Initialize if necessary
+                    SetupRunCalibration setupRunCalibration = new(calibProject);
+
+                    // Get the HWND (window handle) for both windows
+                    IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
+                    IntPtr settingsWindowHandle = WindowNative.GetWindowHandle(setupRunCalibration);
+
+                    // Get the AppWindow instances for both windows
+                    AppWindow mainAppWindow = AppWindow.GetFromWindowId(Win32Interop.GetWindowIdFromWindow(mainWindowHandle));
+
+                    // Disable the main window by setting it inactive
+                    SetWindowEnabled(mainWindowHandle, false);
+
+                    // Activate settings window
+                    setupRunCalibration.Activate();
+
+                    // Important not to block the UI thread.
+                    // We're still waiting for the Closed event.
+                    // The Closed handler runs on the UI thread, allowing WinUIEx to persist the window position.
+                    var tcs = new TaskCompletionSource();
+
+                    void OnClosed(object sender, WindowEventArgs args)
+                    {
+                        setupRunCalibration.Closed -= OnClosed;
+                        tcs.SetResult();
+                    }
+
+                    setupRunCalibration.Closed += OnClosed;
+
+                    await tcs.Task;
+
+                    // Re-enable the main window after closing settings
+                    SetWindowEnabled(mainWindowHandle, true);
+                }
+            }
+            catch (Exception ex)
+            {
+                // Handle any exceptions that occur during the process
+                Debug.WriteLine($"MainWindow.ShowSetupRunCalibration Error showing settings window: {ex.Message}");
+            }
+            finally
+            {
+                Interlocked.Decrement(ref setupRunCalibrationCount);
             }
         }
 

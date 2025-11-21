@@ -73,11 +73,20 @@
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
 
-                <!--CALIBRATION BOARD-->
-                <surveyorControls:SettingsCalibrationBoard x:Name="SettingsCalibrationBoard"/>
+                <!--PROJECT CALIBRATION BOARD-->
+                <toolkit:SettingsExpander  x:Name="SettingsExpanderProjectCalibrationBoard" Header="Calibration Target Setup">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xEB3C;" />
+                    </toolkit:SettingsExpander.HeaderIcon>
 
-                <!--SYSTEM SETTINGS-->
-                <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="System Settings"  MaxWidth="1200"/>
+                    <toolkit:SettingsExpander.Items>
+                        <surveyorControls:SettingsCalibrationBoard x:Name="SettingsProjectCalibrationBoard"/>
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
+                
+
+                <!--APPLICAION SETTINGS-->
+                <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Application Settings"  MaxWidth="1200"/>
 
                 <!--SYSTEM SETTINGS > GENERAL SETTINGS-->
                 <toolkit:SettingsExpander x:Name="GeneralSettingsExpander" Header="General Settings" MaxWidth="1200">
@@ -140,7 +149,17 @@
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
 
-               
+                <!-- DEFAULT CALIBRATION BOARD -->
+                <toolkit:SettingsExpander x:Name="SettingsExpanderDefaultCalibrationBoard" Header="Default Calibration Target"
+                                          Description="Configure the default calibration board &amp; or generate board PDF file">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xEB3C;" />
+                    </toolkit:SettingsExpander.HeaderIcon>
+
+                    <toolkit:SettingsExpander.Items>
+                        <surveyorControls:SettingsCalibrationBoard x:Name="SettingsDefaultCalibrationBoard"/>
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
 
                 <!--  ADVANCED  -->
                 <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Advanced"  MaxWidth="1200"/>

@@ -97,11 +97,6 @@
                         </MenuFlyoutSubItem.Icon>
                     </MenuFlyoutSubItem>
                     <MenuFlyoutSeparator/>
-                    <MenuFlyoutItem Name="MenuSelectMenu" Text="Select Media..." IsEnabled="False" Click="FileSelectMedia_Click">
-                        <MenuFlyoutItem.Icon>
-                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8B5;" />
-                        </MenuFlyoutItem.Icon>
-                    </MenuFlyoutItem>
                     <MenuFlyoutItem Name="MenuRunCalibration" Text="Run Calibration..." IsEnabled="True" Click="FileRunCalibration_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEB3C;" />
@@ -230,10 +225,6 @@
                         DefaultLabelPosition="Bottom" 
                         IsSticky="True">
                 <CommandBar.PrimaryCommands>
-                    <AppBarButton x:Name="NewAppBarButton" 
-                                  Icon="Add" Label="New..." 
-                                  Click="NewAppBarButton_Click" 
-                                  ToolTipService.ToolTip="Create a new calibration project"/>
                     
                     <AppBarButton x:Name="OpenAppBarButton" 
                                   Icon="OpenFile" 
