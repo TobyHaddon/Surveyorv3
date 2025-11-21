@@ -49,14 +49,33 @@
         <TextBlock Text="Square Count:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
         <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" Margin="5">
             <TextBox x:Name="SquareColsNumeric" Width="60" 
-                                   Text="{Binding SquaresX, Mode=TwoWay}" Margin="0,0,0,0"/>
+                     Text="{Binding SquaresX, Mode=TwoWay}" 
+                     TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"/>
             <TextBlock Text=" x " VerticalAlignment="Center" Margin="0,0,5,0"/>
             <TextBox x:Name="SquareRowsNumeric" Width="60" 
-                                   Text="{Binding SquaresY, Mode=TwoWay}"/>
-            
+                     Text="{Binding SquaresY, Mode=TwoWay}"
+                     TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"/>
         </StackPanel>
 
-        <!-- ArUco Dictionary -->
+        <!-- Square size -->
+        <TextBlock Text="Square Size:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+        <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="1" Margin="5">
+            <TextBox x:Name="SquareSizeNumeric" Width="60" 
+                     Text="{Binding SquareLength, Mode=TwoWay}" 
+                     TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
+            <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
+        </StackPanel>
+
+        <!--Marker Size-->
+        <TextBlock Text="Marker Size:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+        <StackPanel Orientation="Horizontal" Grid.Row="3" Grid.Column="1" Margin="5">
+            <TextBox x:Name="MarkerSizeNumeric" Width="60" 
+                     Text="{Binding MarkerLength, Mode=TwoWay}" 
+                     TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
+            <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
+        </StackPanel>
+        
+                <!-- ArUco Dictionary -->
         <TextBlock Text="ArUco Dictionary:" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
         <ComboBox x:Name="ArucoDictionaryCombo" Grid.Row="4" Grid.Column="1" Margin="5"
                   SelectionChanged="ArucoDictionaryCombo_SelectionChanged"
