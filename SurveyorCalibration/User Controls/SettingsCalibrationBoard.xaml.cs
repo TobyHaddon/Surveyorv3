@@ -30,6 +30,8 @@ namespace Surveyor.User_Controls
             // Remember the calibration data
             charucoBoardDefinition = project?.Data.CharucoBoardDefinition;
 
+            // Bind runtime DataContext so XAML bindings (SquaresX/Y, PredefinedDictionaryName) work
+            DataContext = charucoBoardDefinition;
 
             UpdateButtons();
         }
@@ -119,7 +121,26 @@ namespace Surveyor.User_Controls
 
         private void ArucoDictionaryCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
+            // Keep model in sync if binding is not yet active
+            if (charucoBoardDefinition != null && ArucoDictionaryCombo.SelectedItem is Emgu.CV.Aruco.Dictionary.PredefinedDictionaryName dict)
+            {
+                charucoBoardDefinition.PredefinedDictionaryName = dict;
+            }
+
             UpdatePreview();
+        }
+
+        private void UserControl_Loaded(object sender, RoutedEventArgs e)
+        {
+            // Populate combo with the enum names/values
+            var values = Enum.GetValues(typeof(Emgu.CV.Aruco.Dictionary.PredefinedDictionaryName));
+            ArucoDictionaryCombo.ItemsSource = values;
+
+            // Ensure selection reflects current model
+            if (DataContext is CharucoBoardDefinition cbd)
+            {
+                ArucoDictionaryCombo.SelectedItem = cbd.PredefinedDictionaryName;
+            }
         }
     }
 

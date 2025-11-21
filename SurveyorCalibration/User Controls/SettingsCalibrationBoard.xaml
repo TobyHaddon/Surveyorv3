@@ -7,8 +7,10 @@
     xmlns:local="using:Surveyor.User_Controls"
     xmlns:cal="using:SurveyorCalibrationData"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:surveyor="using:Surveyor" 
+    d:DataContext="{d:DesignInstance Type=surveyor:CharucoBoardDefinition}"
     x:Name="Root"
+    Loaded="UserControl_Loaded"
     mc:Ignorable="d">
 
     <UserControl.Resources>
@@ -33,30 +35,32 @@
 
         <!-- Board Type -->
         <TextBlock Text="Target Type:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
-        <ComboBox x:Name="TargetTypeCombo" Grid.Row="0" Grid.Column="1" Margin="5"
-                  SelectedItem="ChArUco">
-            <ComboBoxItem Content="ChArUco" Tag="ChArUco" />
+        <!-- Locked to single supported option -->
+        <ComboBox x:Name="TargetTypeCombo"
+                  Grid.Row="0"
+                  Grid.Column="1"
+                  Margin="5"
+                  IsEnabled="False"
+                  SelectedIndex="0">
+            <ComboBoxItem Content="ChArUco" Tag="ChArUco"/>
         </ComboBox>
-
+        
         <!-- Square Count -->
         <TextBlock Text="Square Count:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
         <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" Margin="5">
             <TextBox x:Name="SquareColsNumeric" Width="60" 
-                                   Text="{Binding charucoBoardDefinition.SquaresX, Mode=TwoWay}" Margin="0,0,10,0"/>
+                                   Text="{Binding SquaresX, Mode=TwoWay}" Margin="0,0,0,0"/>
             <TextBlock Text=" x " VerticalAlignment="Center" Margin="0,0,5,0"/>
             <TextBox x:Name="SquareRowsNumeric" Width="60" 
-                                   Text="{Binding charucoBoardDefinition.SquaresY, Mode=TwoWay}"/>
+                                   Text="{Binding SquaresY, Mode=TwoWay}"/>
             
         </StackPanel>
 
-        <!-- Square Size -->
-
-        <!-- Marker Size -->
-
         <!-- ArUco Dictionary -->
         <TextBlock Text="ArUco Dictionary:" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
-        <ComboBox x:Name="ArucoDictionaryCombo" Grid.Row="0" Grid.Column="1" Margin="5"
-                  SelectedItem="{Binding charucoBoardDefinition.ArucoDictionary, Mode=TwoWay}"/>
+        <ComboBox x:Name="ArucoDictionaryCombo" Grid.Row="4" Grid.Column="1" Margin="5"
+                  SelectionChanged="ArucoDictionaryCombo_SelectionChanged"
+                  SelectedItem="{Binding PredefinedDictionaryName, Mode=TwoWay}"/>
         
         <!-- Preview -->
         <StackPanel Orientation="Vertical" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Margin="5">
