@@ -1,33 +1,29 @@
-using Emgu.CV.Aruco;
-using Microsoft.UI;
+using Microsoft.UI;                          
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
-using Microsoft.UI.Windowing;
-using Newtonsoft.Json;
 using Surveyor.Calibration;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
 using Surveyor.User_Controls;
 using SurveyorCalibrationData;
 using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Windows.ApplicationModel;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 using WinUIEx;
-using static Emgu.CV.Aruco.Dictionary;
 
 
 namespace Surveyor
@@ -64,6 +60,10 @@ namespace Surveyor
         public double BlurMaxThreshold { get; set; } = 50;          // Set so high that these values are effectively ignored
         public int MonoCornersMinThreshold { get; set; } = CalibrationStereoFrameSet.MONO_CORNER_COUNT_THESHOLD;
         public int StereoCornersMinThreshold { get; set; } = CalibrationStereoFrameSet.STEREO_CORNER_COUNT_THESHOLD;
+
+        // Help menu documents
+        private readonly HelpDocuments helpDocuments = new();
+
 
         public MainWindow()
         {
@@ -111,7 +111,7 @@ namespace Surveyor
             //{
             //    SaveBestFrames.IsChecked = (bool)AppLaunchArgs.SaveBestFrames;
             //}                       
-            
+
             // Set the sliders
             //SetMovementAndBlurSliderMax();
 
@@ -167,6 +167,19 @@ namespace Surveyor
 
             //if (mediaFromCommandLine)
             //    _ = OpenMedia(calibProject, true/*forceUsdCacheIfAvalable*/, AppLaunchArgs.RunWithoutPrompts/*noPrompts*/);
+
+            // Add the help documents to the Help menu
+            // Fix for CS1503: Argument 1: cannot convert from 'System.Collections.Generic.IList<Microsoft.UI.Xaml.Controls.MenuFlyoutItemBase>' to 'Microsoft.UI.Xaml.Controls.ItemCollection'
+
+            // The issue arises because `MenuHelp.Items` is of type `IList<MenuFlyoutItemBase>`,
+            // but the `Initialize` method of `HelpDocuments` expects an `ItemCollection`.
+            // To fix this, we need to pass the correct type to the `Initialize` method.
+
+            helpDocuments.Initialize(MenuHelp.Items, // Pass the MenuFlyoutSubItem directly instead of its Items property
+                                     HelpDocumentsPDFSection,
+                                     HelpDocumentsVideosSection,
+                                     HelpDocumentsDOCSection,
+                                     HelpDocumentsXLSSection);
 
         }
 
@@ -1317,6 +1330,43 @@ namespace Surveyor
 
         }
 
+        /// <summary>
+        /// Fire up email client
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void HelpContactSupport_Click(object sender, RoutedEventArgs e)
+        {
+            // Get app title from resources (fallback to window title)
+            string appTitle = Application.Current.Resources.TryGetValue("AppTitleName", out var titleObj)
+                ? titleObj as string ?? TitleBarTextBlock.Text
+                : TitleBarTextBlock.Text;
+
+            // Build version string
+            var v = Package.Current.Id.Version;
+            string version = $"{v.Major}.{v.Minor}.{v.Build}.{v.Revision}";
+
+            string subject = Uri.EscapeDataString($"Support regarding {appTitle} Version {version}");
+            string body = Uri.EscapeDataString("Please write your support email here.");
+
+            var mailto = new Uri($"mailto:toby.solo@outlook.com?subject={subject}&body={body}");
+            try
+            {
+                await Windows.System.Launcher.LaunchUriAsync(mailto);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"HelpContactSupport_Click: {ex.Message}");
+                var dialog = new ContentDialog
+                {
+                    Title = "Email",
+                    Content = "Unable to open the default email client.",
+                    CloseButtonText = "OK",
+                    XamlRoot = this.Content.XamlRoot
+                };
+                await dialog.ShowAsync();
+            }
+        }
 
         /// <summary>
         /// Keyboard accelerator to testing code
@@ -1868,7 +1918,7 @@ namespace Surveyor
         [DllImport("user32.dll")]
         private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
-
+       
     }
 }
 

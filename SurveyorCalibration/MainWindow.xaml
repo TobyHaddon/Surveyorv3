@@ -123,7 +123,11 @@
                     <MenuFlyoutSeparator x:Name="HelpDocumentsDOCSection" Visibility="Collapsed"/>
                     <MenuFlyoutSeparator x:Name="HelpDocumentsXLSSection" Visibility="Collapsed"/>
                     <MenuFlyoutSeparator x:Name="HelpDocumentsEnd"/>
-
+                    <MenuFlyoutItem x:Name="MenuContactSupport" Text="Contact Support..." Click="HelpContactSupport_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE715;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
                     <MenuFlyoutItem Text="About Camera Calibration..." Click="HelpAbout_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE946;" />

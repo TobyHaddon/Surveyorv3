@@ -6,13 +6,18 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+	d:DataContext="{d:DesignInstance Type=local:CalibProject}"
     mc:Ignorable="d">
 
     <StackPanel Padding="24" Spacing="16">
         <TextBlock x:Name="Summary" Text="Calibration summary will appear here." 
 				   TextWrapping="Wrap" 
-				   FontSize="16"
-				   />
+				   FontSize="16"/>
         <Button x:Name="RunCalibrationButton" Content="Run Calibration" Click="RunCalibrationButton_Click" Width="180"/>
-    </StackPanel>
+
+		<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+			<Button Content="Back" Click="SetupRunCalibrationSummaryBack_Click"/>			
+		</StackPanel>
+
+	</StackPanel>
 </Page>

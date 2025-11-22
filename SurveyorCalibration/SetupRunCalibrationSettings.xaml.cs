@@ -1,7 +1,9 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using System;
+using System.Linq;
 
 namespace Surveyor
 {
@@ -64,6 +66,54 @@ namespace Surveyor
                 else if (slider == MonoCornerFilterSlider) MonoCornerFilterValue.Text = e.NewValue.ToString("F0");
                 else if (slider == StereoCornerFilterSlider) StereoCornerFilterValue.Text = e.NewValue.ToString("F0");
             }
+        }
+
+        private void SetupRunCalibrationSettingsBack_Click(object sender, RoutedEventArgs e)
+        {
+            // Navigate to settings page, passing the current CalibProject (can be null)
+            Frame?.Navigate(typeof(SetupRunCalibrationBoard), _calibProject);
+
+            // Update NavView selection to "Calibration Settings"
+            var navView = FindParentNavigationView();
+            if (navView != null)
+            {
+                var targetItem = navView.MenuItems
+                                        .OfType<NavigationViewItem>()
+                                        .FirstOrDefault(i => (i.Tag as string) == "CalibrationTarget");
+                if (targetItem != null && (NavigationViewItem)navView.SelectedItem != targetItem)
+                {
+                    navView.SelectedItem = targetItem;
+                }
+            }
+        }
+
+        private void SetupRunCalibrationSettingsNext_Click(object sender, RoutedEventArgs e)
+        {
+            // Navigate to settings page, passing the current CalibProject (can be null)
+            Frame?.Navigate(typeof(SetupRunCalibrationSummary), _calibProject);
+
+            // Update NavView selection to "Calibration Settings"
+            var navView = FindParentNavigationView();
+            if (navView != null)
+            {
+                var targetItem = navView.MenuItems
+                                        .OfType<NavigationViewItem>()
+                                        .FirstOrDefault(i => (i.Tag as string) == "CalibrationSummary");
+                if (targetItem != null && (NavigationViewItem)navView.SelectedItem != targetItem)
+                {
+                    navView.SelectedItem = targetItem;
+                }
+            }
+        }
+        private NavigationView? FindParentNavigationView()
+        {
+            DependencyObject? parent = this;
+            while (parent != null)
+            {
+                if (parent is NavigationView nv) return nv;
+                parent = VisualTreeHelper.GetParent(parent);
+            }
+            return null;
         }
     }
 }

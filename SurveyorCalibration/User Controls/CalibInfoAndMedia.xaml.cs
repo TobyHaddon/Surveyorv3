@@ -1531,7 +1531,7 @@ namespace Surveyor.User_Controls
                 }
 
                 // Generate a thumbnail
-                BitmapImage? thumbnail = await VideoThumbnailHelper.GetBitmapImageFromVideoAsync(file.Path);
+                BitmapImage? thumbnail = await VideoThumbnailHelper.GetFileThumbnailAsync(file.Path, 256);
 
                 if (thumbnail is not null)
                 {

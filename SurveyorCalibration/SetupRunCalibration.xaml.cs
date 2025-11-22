@@ -14,7 +14,6 @@ namespace Surveyor
             this.ExtendsContentIntoTitleBar = true;
 
             // Navigate to default page
-            //ContentFrame.Navigate(typeof(SetupRunCalibrationSettings), _calibProject);
             ContentFrame.Navigate(typeof(SetupRunCalibrationBoard), _calibProject);
             NavView.SelectedItem = NavCalibrationTarget;
 

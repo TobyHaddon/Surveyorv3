@@ -1,4 +1,10 @@
-﻿using Microsoft.UI.Xaml.Media.Imaging;
+﻿// Extracts thumbnails from video files for display in the UI.
+//
+// Version 1.1 22 Nov 2025
+// Rename to GetFileThumbnailAsync and set default size to 64
+
+
+using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Storage;
 using Windows.Storage.FileProperties;
 using System;
@@ -9,7 +15,7 @@ namespace Surveyor.Helper
 {
     public static class VideoThumbnailHelper
     {
-        public static async Task<BitmapImage?> GetBitmapImageFromVideoAsync(string filePath)
+        public static async Task<BitmapImage?> GetFileThumbnailAsync(string filePath, uint size = 64)
         {
             try
             {
@@ -22,7 +28,7 @@ namespace Surveyor.Helper
                 if (thumbnail != null)
                 {
                     // Create a BitmapImage from the thumbnail stream
-                    BitmapImage bitmapImage = new BitmapImage();
+                    BitmapImage bitmapImage = new();
                     using (var stream = thumbnail.AsStream())
                     {
                         await bitmapImage.SetSourceAsync(stream.AsRandomAccessStream());
