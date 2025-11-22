@@ -310,11 +310,11 @@ namespace Surveyor
             // but the `Initialize` method of `HelpDocuments` expects an `ItemCollection`.
             // To fix this, we need to pass the correct type to the `Initialize` method.
 
-            helpDocuments.Initialize(MenuHelp.Items, // Pass the MenuFlyoutSubItem directly instead of its Items property
-                                     HelpDocumentsPDFSection,
-                                     HelpDocumentsVideosSection,
-                                     HelpDocumentsDOCSection,
-                                     HelpDocumentsXLSSection);
+            _ = helpDocuments.Initialize(MenuHelp.Items, // Pass the MenuFlyoutSubItem directly instead of its Items property
+                                         HelpDocumentsPDFSection,
+                                         HelpDocumentsVideosSection,
+                                         HelpDocumentsDOCSection,
+                                         HelpDocumentsXLSSection);
        
 
             // Report that the app has loaded

@@ -1,10 +1,21 @@
-﻿using System.Collections.Generic;
+﻿// Used to find doucments (PDF, MP4, DOC, XLS) in a "Help Documents" folder
+// and populate a menu with them.
+//
+// Version 1.0 01 May 2025
+// Version 1.1 22 Nov 2025
+// Updated to use VideoThumbnailHelper for video thumbnails
+
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Surveyor.Helper;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text.RegularExpressions;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
+using System.Threading.Tasks;
+using WinUIEx;
 
 namespace Surveyor;
 
@@ -17,17 +28,17 @@ public sealed class HelpDocuments
     private readonly List<HelpDocumentItem> docList = [];
     private readonly List<HelpDocumentItem> xlsList = [];
 
-    public void Initialize(IList<MenuFlyoutItemBase> helpMenuItems,
+    public async Task Initialize(IList<MenuFlyoutItemBase> helpMenuItems,
                            MenuFlyoutSeparator pdfSection,
                            MenuFlyoutSeparator videoSection,
                            MenuFlyoutSeparator docSection,
                            MenuFlyoutSeparator xlsSection)
     {
         Load();
-        Populate(helpMenuItems, pdfList, pdfSection, "\uE897"); // PDF icon
-        Populate(helpMenuItems, videoList, videoSection, "\uE7BE"); // MP4 icon
-        Populate(helpMenuItems, docList, docSection, "\uE8A5"); // DOC icon
-        Populate(helpMenuItems, xlsList, xlsSection, "\uE80A"); // XLS icon (grid)
+        await Populate(helpMenuItems, pdfList, pdfSection, "\uE897"); // PDF icon
+        await Populate(helpMenuItems, videoList, videoSection, "\uE7BE"); // MP4 icon
+        await Populate(helpMenuItems, docList, docSection, "\uE8A5"); // DOC icon
+        await Populate(helpMenuItems, xlsList, xlsSection, "\uE80A"); // XLS icon (grid)
     }
 
     private void Load()
@@ -71,7 +82,7 @@ public sealed class HelpDocuments
         SortList(xlsList);
     }
 
-    private void Populate(IList<MenuFlyoutItemBase> menuItems,
+    private async Task Populate(IList<MenuFlyoutItemBase> menuItems,
                           List<HelpDocumentItem> list,
                           MenuFlyoutSeparator section,
                           string iconUnicode)
@@ -85,12 +96,27 @@ public sealed class HelpDocuments
             {
                 Text = doc.MenuText,
                 Tag = doc.FileSpec,
-                Icon = new FontIcon
+            };
+
+            // Try to get the application icon if not an .MP4 file
+            BitmapImage? appIcon = null;
+
+            if (!Path.GetExtension(doc.FileSpec).Equals(".mp4", StringComparison.InvariantCultureIgnoreCase))
+                appIcon = await VideoThumbnailHelper.GetFileThumbnailAsync(doc.FileSpec);
+
+            if (appIcon is not null)
+            {
+                item.Icon = new ImageIcon { Source = appIcon };                
+            }
+            else
+            {
+                item.Icon = new FontIcon
                 {
                     Glyph = iconUnicode,
                     FontFamily = new Microsoft.UI.Xaml.Media.FontFamily("Segoe MDL2 Assets")
-                }
-            };
+                };
+            }
+
             item.Click += OnHelpDocumentClick;
             menuItems.Insert(++index, item);
         }

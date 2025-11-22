@@ -3,6 +3,7 @@
 //
 // Version 1.0 01 May 2025
 // Version 1.1 22 Nov 2025
+// Updated to use VideoThumbnailHelper for video thumbnails
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -97,11 +98,15 @@ public sealed class HelpDocuments
                 Tag = doc.FileSpec,
             };
 
-            // Try to get the application icon
-            BitmapImage? appIcon = await VideoThumbnailHelper.GetFileThumbnailAsync(doc.FileSpec);
-            if (appIcon != null)
+            // Try to get the application icon if not an .MP4 file
+            BitmapImage? appIcon = null;
+
+            if (!Path.GetExtension(doc.FileSpec).Equals(".mp4", StringComparison.InvariantCultureIgnoreCase))
+                appIcon = await VideoThumbnailHelper.GetFileThumbnailAsync(doc.FileSpec);
+
+            if (appIcon is not null)
             {
-                item.Icon = appIcon;
+                item.Icon = new ImageIcon { Source = appIcon };                
             }
             else
             {

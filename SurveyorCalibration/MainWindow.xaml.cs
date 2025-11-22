@@ -168,6 +168,7 @@ namespace Surveyor
             //if (mediaFromCommandLine)
             //    _ = OpenMedia(calibProject, true/*forceUsdCacheIfAvalable*/, AppLaunchArgs.RunWithoutPrompts/*noPrompts*/);
 
+
             // Add the help documents to the Help menu
             // Fix for CS1503: Argument 1: cannot convert from 'System.Collections.Generic.IList<Microsoft.UI.Xaml.Controls.MenuFlyoutItemBase>' to 'Microsoft.UI.Xaml.Controls.ItemCollection'
 
@@ -175,12 +176,12 @@ namespace Surveyor
             // but the `Initialize` method of `HelpDocuments` expects an `ItemCollection`.
             // To fix this, we need to pass the correct type to the `Initialize` method.
 
-            helpDocuments.Initialize(MenuHelp.Items, // Pass the MenuFlyoutSubItem directly instead of its Items property
-                                     HelpDocumentsPDFSection,
-                                     HelpDocumentsVideosSection,
-                                     HelpDocumentsDOCSection,
-                                     HelpDocumentsXLSSection);
-
+            // Setup any documents on the help menu
+            _ = helpDocuments.Initialize(MenuHelp.Items, // Pass the MenuFlyoutSubItem directly instead of its Items property
+                                         HelpDocumentsPDFSection,
+                                         HelpDocumentsVideosSection,
+                                         HelpDocumentsDOCSection,
+                                         HelpDocumentsXLSSection);
         }
 
 
