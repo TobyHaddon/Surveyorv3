@@ -38,6 +38,11 @@ namespace Surveyor
         private const string TeachingTipsEnabledKey = "TeachingTipsEnabled";
         private const string UseInternetEnabledKey = "UseInternetEnabled";
         private const string AutoSaveEnabledKey = "AutoSaveEnabled";
+        private const string DefaultCharucoBoardSquaresXKey = "DefaultCharucoBoard_SquaresX";
+        private const string DefaultCharucoBoardSquaresYKey = "DefaultCharucoBoard_SquaresY";
+        private const string DefaultCharucoBoardSquareLengthKey = "DefaultCharucoBoard_SquareLength";
+        private const string DefaultCharucoBoardMarkerLengthKey = "DefaultCharucoBoard_MarkerLength";
+        private const string DefaultCharucoBoardPredefinedDictionaryNameKey = "DefaultCharucoBoard_PredefinedDictionaryName";
 
 
         // Path where new media (MP4) are typically imported from
@@ -238,8 +243,35 @@ namespace Surveyor
             set => SetBool(AutoSaveEnabledKey, value);
         }
 
+        public static int DefaultCharucoBoard_SquaresX
+        {
+            get => GetInt(DefaultCharucoBoardSquaresXKey, 14/*default*/);
+            set => SetInt(DefaultCharucoBoardSquaresXKey, value);
+        }
 
+        public static int DefaultCharucoBoard_SquaresY
+        {
+            get => GetInt(DefaultCharucoBoardSquaresYKey, 9/*default*/);
+            set => SetInt(DefaultCharucoBoardSquaresYKey, value);
+        }
 
+        public static double DefaultCharucoBoard_SquareLength
+        {
+            get => GetDouble(DefaultCharucoBoardSquareLengthKey, 0.04/*default*/);  //40mm
+            set => SetDouble(DefaultCharucoBoardSquareLengthKey, value);
+        }
+
+        public static double DefaultCharucoBoard_MarkerLength
+        {
+            get => GetDouble(DefaultCharucoBoardMarkerLengthKey, 0.03/*default*/);  // 30mm
+            set => SetDouble(DefaultCharucoBoardMarkerLengthKey, value);
+        }
+
+        public static string DefaultCharucoBoard_PredefinedDictionaryName
+        {
+            get => GetString(DefaultCharucoBoardPredefinedDictionaryNameKey, "DICT5x5_100"/*default*/);  
+            set => SetString(DefaultCharucoBoardPredefinedDictionaryNameKey, value);
+        }
 
 
 
@@ -265,6 +297,17 @@ namespace Surveyor
         }
         private static void SetString(string key, string? value) => _localSettings.Values[key] = value;
 
+        private static int GetInt(string key, int defaultValue)
+        {
+            return _localSettings.Values[key] is int value ? value : defaultValue;
+        }
+        private static void SetInt(string key, int? value) => _localSettings.Values[key] = value;
+        
+        private static double GetDouble(string key, double defaultValue)
+        {
+            return _localSettings.Values[key] is double value ? value : defaultValue;
+        }
+        private static void SetDouble(string key, double? value) => _localSettings.Values[key] = value;
     }
 
     public class SettingsManagerApp

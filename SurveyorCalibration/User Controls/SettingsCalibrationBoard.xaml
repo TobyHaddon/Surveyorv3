@@ -18,76 +18,95 @@
         <local:DoubleFormatConverter x:Key="Double3Converter" Format="F3" />
         <local:DoubleSubtractConverter x:Key="MinusCardPaddingConverter" />
     </UserControl.Resources>
-
+    
     <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>   <!-- Board Parameter -->
+            <RowDefinition Height="Auto"/>   <!-- Preview -->
+            <RowDefinition Height="Auto"/>   <!-- Board Generation (only if Type="DefaultsManager) -->
         </Grid.RowDefinitions>
-        <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="Auto"/>
-        </Grid.ColumnDefinitions>
+        <Grid Grid.Row="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
 
-        <!-- Board Type -->
-        <TextBlock Text="Target Type:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
-        <!-- Locked to single supported option -->
-        <ComboBox x:Name="TargetTypeCombo"
-                  Grid.Row="0"
-                  Grid.Column="1"
-                  Margin="5"
-                  IsEnabled="False"
-                  SelectedIndex="0">
-            <ComboBoxItem Content="ChArUco" Tag="ChArUco"/>
-        </ComboBox>
+            <!-- Board Type -->
+            <TextBlock Text="Target Type:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+            <!-- Locked to single supported option -->
+            <ComboBox x:Name="TargetTypeCombo"
+                      Grid.Row="0"
+                      Grid.Column="1"
+                      Margin="5"
+                      IsEnabled="False"
+                      SelectedIndex="0">
+                <ComboBoxItem Content="ChArUco" Tag="ChArUco"/>
+            </ComboBox>
         
-        <!-- Square Count -->
-        <TextBlock Text="Square Count:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
-        <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" Margin="5">
-            <TextBox x:Name="SquareColsNumeric" Width="60" 
-                     Text="{Binding SquaresX, Mode=TwoWay}" 
-                     TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"/>
-            <TextBlock Text=" x " VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox x:Name="SquareRowsNumeric" Width="60" 
-                     Text="{Binding SquaresY, Mode=TwoWay}"
-                     TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"/>
-        </StackPanel>
+            <!-- Square Count -->
+            <TextBlock Text="Square Count:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+            <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" Margin="5">
+                <TextBox x:Name="SquareColsNumeric" Width="60" 
+                         Text="{Binding SquaresX, Mode=TwoWay}" 
+                         TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"
+                         TextChanged="NumericTextBox_TextChanged"/>
+                <TextBlock Text=" x " VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBox x:Name="SquareRowsNumeric" Width="60" 
+                         Text="{Binding SquaresY, Mode=TwoWay}"
+                         TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"
+                         TextChanged="NumericTextBox_TextChanged"/>
+            </StackPanel>
 
-        <!-- Square size -->
-        <TextBlock Text="Square Size:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
-        <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="1" Margin="5">
-            <TextBox x:Name="SquareSizeNumeric" Width="60" 
-                     Text="{Binding SquareLength, Mode=TwoWay}" 
-                     TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
-            <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
-        </StackPanel>
+            <!-- Square size -->
+            <TextBlock Text="Square Size:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+            <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="1" Margin="5">
+                <TextBox x:Name="SquareSizeNumeric" Width="60" 
+                         Text="{Binding SquareLength, Mode=TwoWay}" 
+                         TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
+                         TextChanged="NumericTextBox_TextChanged"/>
+                <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            </StackPanel>
 
-        <!--Marker Size-->
-        <TextBlock Text="Marker Size:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
-        <StackPanel Orientation="Horizontal" Grid.Row="3" Grid.Column="1" Margin="5">
-            <TextBox x:Name="MarkerSizeNumeric" Width="60" 
-                     Text="{Binding MarkerLength, Mode=TwoWay}" 
-                     TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"/>
-            <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
-        </StackPanel>
+            <!--Marker Size-->
+            <TextBlock Text="Marker Size:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+            <StackPanel Orientation="Horizontal" Grid.Row="3" Grid.Column="1" Margin="5">
+                <TextBox x:Name="MarkerSizeNumeric" Width="60" 
+                         Text="{Binding MarkerLength, Mode=TwoWay}" 
+                         TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
+                         TextChanged="NumericTextBox_TextChanged"/>
+                <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            </StackPanel>
         
-                <!-- ArUco Dictionary -->
-        <TextBlock Text="ArUco Dictionary:" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
-        <ComboBox x:Name="ArucoDictionaryCombo" Grid.Row="4" Grid.Column="1" Margin="5"
-                  SelectionChanged="ArucoDictionaryCombo_SelectionChanged"
-                  SelectedItem="{Binding PredefinedDictionaryName, Mode=TwoWay}"/>
+            <!-- ArUco Dictionary -->
+            <TextBlock Text="ArUco Dictionary:" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+            <ComboBox x:Name="ArucoDictionaryCombo" Grid.Row="4" Grid.Column="1" Margin="5"
+                      SelectionChanged="ArucoDictionaryCombo_SelectionChanged"
+                      SelectedItem="{Binding PredefinedDictionaryName, Mode=TwoWay}"/>
         
+        </Grid>
+
         <!-- Preview -->
-        <StackPanel Orientation="Vertical" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2" Margin="5">
-            <Border Grid.Row="5" Grid.ColumnSpan="2" Margin="5" BorderBrush="Gray" BorderThickness="1">
-                <Image x:Name="PreviewImage" Stretch="Uniform" MinHeight="160" />
-            </Border>
-            <TextBlock x:Name="PreviewCaption1" FontSize="10" Foreground="Gray" Margin="5,0,5,5"/>
-            <TextBlock x:Name="PreviewCaption2" FontSize="10" Foreground="Gray" Margin="5,0,5,5"/>
-        </StackPanel>
+        <Grid Grid.Row="1">
+            <StackPanel Orientation="Vertical" HorizontalAlignment="Left" Margin="0">
+                <Border Grid.Row="5" Grid.ColumnSpan="2" Margin="0,15,0,0" BorderBrush="Gray" BorderThickness="1" Width="500">
+                    <Image x:Name="PreviewImage" Stretch="Uniform" />
+                </Border>
+                <TextBlock x:Name="PreviewCaption1" FontSize="10" Foreground="Gray" Margin="5,5,5,0"/>
+                <TextBlock x:Name="PreviewCaption2" FontSize="10" Foreground="Gray" Margin="5,0,5,5"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Board Generation (only if Type="DefaultsManager) -->
+        <Grid x:Name="BoardGenerationGrid" Grid.Row="2">
+            <Button x:Name="SaveToPDFButton" Content="Save to PDF" Click="SaveToPDF_Click" Width="150" Margin="0,15,0,0"/> 
+        </Grid>
     </Grid>
 </UserControl>

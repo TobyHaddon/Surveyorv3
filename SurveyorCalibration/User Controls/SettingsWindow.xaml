@@ -157,7 +157,11 @@
                     </toolkit:SettingsExpander.HeaderIcon>
 
                     <toolkit:SettingsExpander.Items>
-                        <surveyorControls:SettingsCalibrationBoard x:Name="SettingsDefaultCalibrationBoard"/>
+                        <StackPanel Orientation="Vertical">
+                            <surveyorControls:SettingsCalibrationBoard x:Name="SettingsDefaultCalibrationBoard" InstanceType="DefaultsManager"/>
+                            
+                            
+                        </StackPanel>
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
 
