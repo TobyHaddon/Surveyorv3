@@ -80,7 +80,7 @@
                     </toolkit:SettingsExpander.HeaderIcon>
 
                     <toolkit:SettingsExpander.Items>
-                        <surveyorControls:SettingsCalibrationBoard x:Name="SettingsProjectCalibrationBoard"/>
+                        <surveyorControls:SettingsCalibrationBoard x:Name="SettingsProjectCalibrationBoard" InstanceType="BoardSetup"/>
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
                 

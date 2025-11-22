@@ -62,14 +62,14 @@
             <!-- App Menu -->
             <MenuBar x:Name="AppMenuBar" Grid.Row="0" Grid.Column="2" VerticalAlignment="Top">
                 <!-- FILE MENU-->
-                <MenuBarItem Title="File">
-                    <MenuFlyoutItem Name="MenuProjectNew" Text="New Project" Click="FileProjectNew_Click"
+                <MenuBarItem x:Name="MenuFile" Title="File">
+                    <MenuFlyoutItem x:Name="MenuProjectNew" Text="New Project" Click="FileProjectNew_Click"
                         ToolTipService.ToolTip="Create a new calibration project. Used to calibration either stereo or mono camera systems.">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8A5;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem Name="MenuProjectOpen" Text="Open Project..." Click="FileProjectOpen_Click">
+                    <MenuFlyoutItem x:Name="MenuProjectOpen" Text="Open Project..." Click="FileProjectOpen_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8E5;" />
                         </MenuFlyoutItem.Icon>
@@ -77,7 +77,7 @@
                             <KeyboardAccelerator Modifiers="Control" Key="O"/>
                         </MenuFlyoutItem.KeyboardAccelerators>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem Name="MenuProjectSave" Text="Save Project" IsEnabled="False" Click="FileProjectSave_Click">
+                    <MenuFlyoutItem x:Name="MenuProjectSave" Text="Save Project" IsEnabled="False" Click="FileProjectSave_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74E;" />
                         </MenuFlyoutItem.Icon>
@@ -85,25 +85,25 @@
                             <KeyboardAccelerator Modifiers="Control" Key="S"/>
                         </MenuFlyoutItem.KeyboardAccelerators>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem Name="MenuProjectSaveAs" Text="Save As Project..." IsEnabled="False" Click="FileProjectSaveAs_Click">
+                    <MenuFlyoutItem x:Name="MenuProjectSaveAs" Text="Save As Project..." IsEnabled="False" Click="FileProjectSaveAs_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE792;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem Name="MenuProjectClose" Text="Close Project" IsEnabled="False" Click="FileProjectClose_Click"/>
-                    <MenuFlyoutSubItem Name="MenuRecentProjects" Text="Recent Projects">
+                    <MenuFlyoutItem x:Name="MenuProjectClose" Text="Close Project" IsEnabled="False" Click="FileProjectClose_Click"/>
+                    <MenuFlyoutSubItem x:Name="MenuRecentProjects" Text="Recent Projects">
                         <MenuFlyoutSubItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE823;" />
                         </MenuFlyoutSubItem.Icon>
                     </MenuFlyoutSubItem>
                     <MenuFlyoutSeparator/>
-                    <MenuFlyoutItem Name="MenuRunCalibration" Text="Run Calibration..." IsEnabled="True" Click="FileRunCalibration_Click">
+                    <MenuFlyoutItem x:Name="MenuRunCalibration" Text="Run Calibration..." IsEnabled="True" Click="FileRunCalibration_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEB3C;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
                     <MenuFlyoutSeparator/>
-                    <MenuFlyoutItem Name="MenuSettings" Text="Settings..." IsEnabled="True" Click="FileSettings_Click">
+                    <MenuFlyoutItem x:Name="MenuSettings" Text="Settings..." IsEnabled="True" Click="FileSettings_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE713;" />
                         </MenuFlyoutItem.Icon>
@@ -117,7 +117,7 @@
                 </MenuBarItem>
 
                 <!-- HELP MENU-->
-                <MenuBarItem Name="MenuHelp" Title="Help">
+                <MenuBarItem x:Name="MenuHelp" Title="Help">
                     <MenuFlyoutSeparator x:Name="HelpDocumentsPDFSection" Visibility="Collapsed"/>
                     <MenuFlyoutSeparator x:Name="HelpDocumentsVideosSection" Visibility="Collapsed"/>
                     <MenuFlyoutSeparator x:Name="HelpDocumentsDOCSection" Visibility="Collapsed"/>
@@ -130,7 +130,6 @@
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
                 </MenuBarItem>
-
             </MenuBar>
 
             <!-- Add a Border element for the vertical line separator -->
@@ -480,6 +479,16 @@
                 <surveyorControls:CalibInfoAndMedia x:Name="CalibrationMediaUserControl" />
             </ContentDialog>
         </Grid>
+
+        <TeachingTip x:Name="MenuFileTeachingTip"
+             Title="Start Here!"
+             Subtitle="Start by either creating a new calibration project or opening an exist project"
+             Target="{x:Bind MenuFile}"
+             PreferredPlacement="Bottom"
+             IsOpen="False"
+             IsLightDismissEnabled="True"
+             ActionButtonContent="Got It"
+             ActionButtonClick="MenuFileTeachingTip_ActionButtonClick" />
     </Grid>
     
 </winex:WindowEx>

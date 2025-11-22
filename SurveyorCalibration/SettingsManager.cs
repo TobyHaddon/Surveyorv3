@@ -171,7 +171,7 @@ namespace Surveyor
         // Teaching Tips Enabled
         public static bool TeachingTipsEnabled
         {
-            get => GetBool(TeachingTipsEnabledKey, false/*default*/);
+            get => GetBool(TeachingTipsEnabledKey, true/*default*/);
             set => SetBool(TeachingTipsEnabledKey, value);
         }
 

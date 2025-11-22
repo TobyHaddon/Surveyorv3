@@ -72,8 +72,8 @@ namespace Surveyor
             MinHeight = 600;
             MinWidth = 800;
 
-            this.InitializeComponent();
-
+            InitializeComponent();
+            
             // This is used to get/adjust the theme is necessary
             ThemeHelper.Initialize();
 
@@ -82,6 +82,7 @@ namespace Surveyor
 
             // Add listener for theme changes
             var rootElement = (FrameworkElement)Content;
+            rootElement.Loaded += MainWindow_Loaded;
             rootElement.ActualThemeChanged += OnActualThemeChanged;
 
             // Allows the menu bar to extend into the title bar
@@ -226,6 +227,22 @@ namespace Surveyor
         /// 
         /// EVENTS
         /// 
+
+
+        /// <summary>
+        /// Called once the MainWindow is fully loaded
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MainWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (SettingsManagerLocal.TeachingTipsEnabled &&
+                !SettingsManagerLocal.HasTeachingTipBeenShown("MenuFile"))
+            {
+                MenuFileTeachingTip.IsOpen = true;
+            }
+        }
+
 
         /// <summary>
         /// Event raised when the AppTitleBar is loaded, used to set the interactive regions in 
@@ -1312,6 +1329,17 @@ namespace Surveyor
             await ShowSettingsWindow("About");
         }
 
+
+        /// <summary>
+        /// Handles the action button click event for the MenuFileTeachingTip.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void MenuFileTeachingTip_ActionButtonClick(TeachingTip sender, object args)
+        {
+            MenuFileTeachingTip.IsOpen = false;
+            SettingsManagerLocal.SetTeachingTipShown("MenuFile");
+        }
 
 
         ///

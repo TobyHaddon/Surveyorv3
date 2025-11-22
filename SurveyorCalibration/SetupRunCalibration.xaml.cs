@@ -14,7 +14,8 @@ namespace Surveyor
             this.ExtendsContentIntoTitleBar = true;
 
             // Navigate to default page
-            ContentFrame.Navigate(typeof(SetupRunCalibrationSettings), _calibProject);
+            //ContentFrame.Navigate(typeof(SetupRunCalibrationSettings), _calibProject);
+            ContentFrame.Navigate(typeof(SetupRunCalibrationBoard), _calibProject);
             NavView.SelectedItem = NavCalibrationTarget;
 
             // Show teaching tip once NavigationView (and its items) are loaded
@@ -46,12 +47,11 @@ namespace Surveyor
             {
                 switch (item.Tag as string)
                 {
+                    case "CalibrationTarget":
+                        ContentFrame.Navigate(typeof(SetupRunCalibrationBoard), _calibProject);
+                        break;
                     case "CalibrationSettings":
                         ContentFrame.Navigate(typeof(SetupRunCalibrationSettings), _calibProject);
-                        break;
-                    case "CalibrationTarget":
-                        
-                        ContentFrame.Navigate(typeof(SetupRunCalibrationBoard), _calibProject);
                         break;
                     case "CalibrationSummary":
                         ContentFrame.Navigate(typeof(SetupRunCalibrationSummary), _calibProject);

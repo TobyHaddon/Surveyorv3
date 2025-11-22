@@ -58,7 +58,7 @@
         <TeachingTip x:Name="CalibrationSummaryTeachingTip"
                      Target="{Binding ElementName=NavCalibrationSummary}"
                      Title="Run Calibration"
-                     Subtitle="Go to this page to run the calibration once the settings are ready and calibration target is setup"
+                     Subtitle="Go to this page to run the calibration once the calibration target is setup and the settings are ready"
                      PreferredPlacement="Right"
                      IsLightDismissEnabled="True"
                      CloseButtonContent="Got it"

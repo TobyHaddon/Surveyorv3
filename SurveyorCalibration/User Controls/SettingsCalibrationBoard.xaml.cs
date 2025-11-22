@@ -72,14 +72,14 @@ namespace Surveyor.User_Controls
         // Dependency Property to set the 'InstanceType' .xaml attribute (BoardSetup/DefaultsManager)
         public static readonly DependencyProperty InstanceTypeProperty =
         DependencyProperty.Register(nameof(InstanceType), typeof(string), typeof(SettingsCalibrationBoard),
-            new PropertyMetadata("BoardSetup", OnHeadChanged));  // This is the default 'InstanceType'
+            new PropertyMetadata("BoardSetup", OnInstanceTypeChanged));  // This is the default 'InstanceType'
         public string InstanceType
         {
             get => (string)GetValue(InstanceTypeProperty);
             set => SetValue(InstanceTypeProperty, value);
         }
 
-        private static void OnHeadChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+        private static void OnInstanceTypeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (d is SettingsCalibrationBoard ctrl)
                 ctrl.ApplyMode((string)e.NewValue);
@@ -96,7 +96,6 @@ namespace Surveyor.User_Controls
                 RootGrid.RowDefinitions[6].Height = new GridLength(0);
                 RootGrid.RowDefinitions[7].Height = new GridLength(0);
                 RootGrid.RowDefinitions[8].Height = new GridLength(0);
-                RootGrid.RowDefinitions[9].Height = new GridLength(0);
                 SaveToPDFButton.IsEnabled = false;
             }
             else if (IsDefaultsManagerMode)
@@ -105,7 +104,6 @@ namespace Surveyor.User_Controls
                 RootGrid.RowDefinitions[6].Height = new GridLength(1, GridUnitType.Star);
                 RootGrid.RowDefinitions[7].Height = new GridLength(1, GridUnitType.Star);
                 RootGrid.RowDefinitions[8].Height = new GridLength(1, GridUnitType.Star);
-                RootGrid.RowDefinitions[9].Height = new GridLength(1, GridUnitType.Star);
                 SaveToPDFButton.IsEnabled = true;
             }
             else
@@ -121,6 +119,11 @@ namespace Surveyor.User_Controls
             // Configure debounce timer
             _previewTimer.Interval = TimeSpan.FromMilliseconds(400);
             _previewTimer.Tick += PreviewTimer_Tick;
+
+            // ApplyMode is automatically called if the InstanceType is set
+            // to 'DefaultsManager' but not is it is left as default 'BoardSetup'.
+            // ApplyMode is called explicitly here to ensure the initial mode is applied.
+            ApplyMode(InstanceType); // ensure initial mode applied
         }
 
 
@@ -637,8 +640,7 @@ namespace Surveyor.User_Controls
                         .SetFontSize(captionFontSize)
                         .SetTextAlignment(iText.Layout.Properties.TextAlignment.CENTER);
 
-                    // Use absolute positioning
-                    iText.Layout.Properties.Property? _ = null;
+                    // Use absolute positioning                   
                     doc.ShowTextAligned(p,
                                         pageWidthPoints / 2f,
                                         captionY,
