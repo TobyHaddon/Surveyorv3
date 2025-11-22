@@ -21,14 +21,53 @@ using static Emgu.CV.Aruco.Dictionary;
 
 namespace Surveyor.User_Controls
 {
+
+    /// <summary>
+    /// DataContext for SettingsCalibrationBoard
+    /// </summary>
+    public partial class DataContextLocal : System.ComponentModel.INotifyPropertyChanged
+    {
+        private CharucoBoardDefinition? _cbd;
+        public CharucoBoardDefinition? Cbd
+        {
+            get => _cbd;
+            set { _cbd = value; OnPropertyChanged(nameof(Cbd)); }
+        }
+
+        private double _boardSizeX;
+        public double BoardSizeX
+        {
+            get => _boardSizeX;
+            set { _boardSizeX = value; OnPropertyChanged(nameof(BoardSizeX)); }
+        }
+
+        private double _boardSizeY;
+        public double BoardSizeY
+        {
+            get => _boardSizeY;
+            set { _boardSizeY = value; OnPropertyChanged(nameof(BoardSizeY)); }
+        }
+
+        private int _printDPI;
+        public int PrintDPI
+        {
+            get => _printDPI;
+            set { _printDPI = value; OnPropertyChanged(nameof(PrintDPI)); }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+        private void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    };
+
     public sealed partial class SettingsCalibrationBoard : UserControl
     {
+        // Class-level variables
         private CharucoBoardDefinition? charucoBoardDefinition = null;  // Passed in 
         private CharucoBoardDefinition? cbdWorking;                     // Working on
-
         private bool _loaded = false;
         private readonly DispatcherTimer _previewTimer = new();
         private bool _previewPending = false;
+
 
         // Dependency Property to set the 'InstanceType' .xaml attribute (BoardSetup/DefaultsManager)
         public static readonly DependencyProperty InstanceTypeProperty =
@@ -46,26 +85,34 @@ namespace Surveyor.User_Controls
                 ctrl.ApplyMode((string)e.NewValue);
             }
         }
+        private bool IsBoardSetupMode => InstanceType.Equals("BoardSetup", StringComparison.InvariantCultureIgnoreCase);
+        private bool IsDefaultsManagerMode => InstanceType.Equals("DefaultsManager", StringComparison.InvariantCultureIgnoreCase);
         private void ApplyMode(string mode)
         {
-            switch (mode.ToLowerInvariant())
+            if (IsBoardSetupMode)
             {
-                case "boardsetup":
-                    // Hide board dimension, dpi and Save to PDF button
-                    BoardGenerationGrid.Visibility = Visibility.Collapsed;
-                    SaveToPDFButton.IsEnabled = false;
-                    break;
-
-                case "defaultsmanager":
-                    // Show board dimension, dpi and Save to PDF button
-                    BoardGenerationGrid.Visibility = Visibility.Visible;
-                    SaveToPDFButton.IsEnabled = true;
-                    break;
-
-                default:
-                    throw new InvalidOperationException($"Unknown Type mode: {mode}");
+                // Hide board dimension, dpi and Save to PDF button
+                RootGrid.RowDefinitions[6].Height = new GridLength(0);
+                RootGrid.RowDefinitions[7].Height = new GridLength(0);
+                RootGrid.RowDefinitions[8].Height = new GridLength(0);
+                RootGrid.RowDefinitions[9].Height = new GridLength(0);
+                SaveToPDFButton.IsEnabled = false;
+            }
+            else if (IsDefaultsManagerMode)
+            {
+                // Show board dimension, dpi and Save to PDF button
+                RootGrid.RowDefinitions[6].Height = new GridLength(1, GridUnitType.Star);
+                RootGrid.RowDefinitions[7].Height = new GridLength(1, GridUnitType.Star);
+                RootGrid.RowDefinitions[8].Height = new GridLength(1, GridUnitType.Star);
+                RootGrid.RowDefinitions[9].Height = new GridLength(1, GridUnitType.Star);
+                SaveToPDFButton.IsEnabled = true;
+            }
+            else
+            {
+                throw new InvalidOperationException($"Unknown Type mode: {mode}");
             }
         }
+
 
         public SettingsCalibrationBoard()
         {
@@ -86,7 +133,7 @@ namespace Surveyor.User_Controls
             charucoBoardDefinition = project?.Data.CharucoBoardDefinition;
             
             // Check if are just managing defaults
-            if (charucoBoardDefinition == null)
+            if (IsDefaultsManagerMode)
             {
                 // Set default values for later use
                 if (!Enum.TryParse<PredefinedDictionaryName>(SettingsManagerLocal.DefaultCharucoBoard_PredefinedDictionaryName,
@@ -104,12 +151,13 @@ namespace Surveyor.User_Controls
                     MarkerLength = (float)SettingsManagerLocal.DefaultCharucoBoard_MarkerLength,
                     PredefinedDictionaryName = predefinedDictionaryName
                 };
-
             }
             else
             {
                 // Setup an actual board this project
                 cbdWorking = charucoBoardDefinition;
+                if (cbdWorking is null)
+                    return;
 
                 // Check if the defaults are required (i.e. first time setup)
                 if (cbdWorking.SquaresX == 0)
@@ -145,7 +193,15 @@ namespace Surveyor.User_Controls
                 }
             }
 
-            DataContext = cbdWorking;
+            // Setup DataContext for binding to the XAML controls
+            DataContext = new DataContextLocal()
+            {
+                Cbd = cbdWorking,
+                BoardSizeX = SettingsManagerLocal.DefaultBoard_SizeX,   // In metres
+                BoardSizeY = SettingsManagerLocal.DefaultBoard_SizeY,   // In metres
+                PrintDPI = SettingsManagerLocal.DefaultBoardDPI         // In DPI
+            };
+
             UpdateButtons();
             _ = BoardInputChanged();
         }
@@ -261,110 +317,131 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// Generates and displays a ChAruco board preview image based on the current settings.
-        /// If the charucoBoardDefinition == null then we are in a mode where we are setting up
+        /// If the IsDefaultsManagerMode is true then we are in a mode where we are setting up
         /// the default board for new projects.  In which we set the defaults to local storage.
         /// </summary>
         /// <returns></returns>
         private async Task BoardInputChanged()
         {
-            if (!_loaded && cbdWorking is not null)
+            if (!_loaded || cbdWorking is null) return;
+
+            try
             {
-                try
+                // 1. Get / clamp inputs
+                int squaresX = Math.Max(1, cbdWorking.SquaresX);
+                int squaresY = Math.Max(1, cbdWorking.SquaresY);
+                float squareLength = Math.Max(0.001f, cbdWorking.SquareLength);
+                float markerLength = Math.Max(0.001f, cbdWorking.MarkerLength);
+
+                // 2. Create dictionary & board
+                var dictionary = new Dictionary(cbdWorking.PredefinedDictionaryName);
+                using var board = new CharucoBoard(squaresX, squaresY, squareLength, markerLength, dictionary);
+
+                // 3. Choose a render size in *pixels*
+                //    This is just for on-screen preview, so pick something sensible.
+                const int pixelsPerSquare = 80; // adjust as you like
+                int imgWidth = squaresX * pixelsPerSquare;
+                int imgHeight = squaresY * pixelsPerSquare;
+
+                using var boardMat = new Mat();
+
+                // 4. Render the Charuco board into the Mat
+                // marginSize: white border around the board in pixels
+                // borderBits: width (in bits) of the marker border
+                board.GenerateImage(
+                    new System.Drawing.Size(imgWidth, imgHeight),
+                    boardMat,
+                    marginSize: 20,
+                    borderBits: 1);
+
+                // 5. Convert Mat -> PNG bytes (via System.Drawing.Bitmap)
+                // --- Mat -> PNG bytes using OpenCV (no System.Drawing) ---
+                using var buf = new VectorOfByte();
+                Emgu.CV.CvInvoke.Imencode(".png", boardMat, buf);
+                byte[] pngBytes = buf.ToArray();
+
+                // --- PNG bytes -> BitmapImage (WinUI 3) ---
+                using InMemoryRandomAccessStream ras = new();
+                await ras.WriteAsync(pngBytes.AsBuffer());
+                ras.Seek(0);
+
+                var bitmapImage = new BitmapImage();
+                await bitmapImage.SetSourceAsync(ras);
+
+                // 7. Set it as the source of your <Image>
+                PreviewImage.Source = bitmapImage;
+                PreviewCaption1.Text = $"{squaresX} x {squaresY} squares  {cbdWorking.PredefinedDictionaryName}  Square:{squareLength:F2}mm Marker:{markerLength:F2}mm";
+                PreviewCaption2.Text = $"This should look exactly the same as your physical board i.e. same number of squares and same markers in the same positions.";
+            }
+            catch (Exception ex)
+            {
+                PreviewCaption1.Text = $"Preview failed {ex.Message}";
+                PreviewCaption2.Text = $"";
+            }
+
+            // Set any changed defauls if necessary
+            if (IsDefaultsManagerMode)
+            {
+                // Did the default for SquaresX change?
+                if (SettingsManagerLocal.DefaultCharucoBoard_SquaresX != cbdWorking.SquaresX)
                 {
-                    // 1. Get / clamp inputs
-                    int squaresX = Math.Max(1, cbdWorking.SquaresX);
-                    int squaresY = Math.Max(1, cbdWorking.SquaresY);
-                    float squareLength = Math.Max(0.001f, cbdWorking.SquareLength);
-                    float markerLength = Math.Max(0.001f, cbdWorking.MarkerLength);
-
-                    // 2. Create dictionary & board
-                    var dictionary = new Dictionary(cbdWorking.PredefinedDictionaryName);
-                    using var board = new CharucoBoard(squaresX, squaresY, squareLength, markerLength, dictionary);
-
-                    // 3. Choose a render size in *pixels*
-                    //    This is just for on-screen preview, so pick something sensible.
-                    const int pixelsPerSquare = 80; // adjust as you like
-                    int imgWidth = squaresX * pixelsPerSquare;
-                    int imgHeight = squaresY * pixelsPerSquare;
-
-                    using var boardMat = new Mat();
-
-                    // 4. Render the Charuco board into the Mat
-                    // marginSize: white border around the board in pixels
-                    // borderBits: width (in bits) of the marker border
-                    board.GenerateImage(
-                        new System.Drawing.Size(imgWidth, imgHeight),
-                        boardMat,
-                        marginSize: 20,
-                        borderBits: 1);
-
-                    // 5. Convert Mat -> PNG bytes (via System.Drawing.Bitmap)
-                    // --- Mat -> PNG bytes using OpenCV (no System.Drawing) ---
-                    using var buf = new VectorOfByte();
-                    Emgu.CV.CvInvoke.Imencode(".png", boardMat, buf);
-                    byte[] pngBytes = buf.ToArray();
-
-                    // --- PNG bytes -> BitmapImage (WinUI 3) ---
-                    using InMemoryRandomAccessStream ras = new();
-                    await ras.WriteAsync(pngBytes.AsBuffer());
-                    ras.Seek(0);
-
-                    var bitmapImage = new BitmapImage();
-                    await bitmapImage.SetSourceAsync(ras);
-
-                    // 7. Set it as the source of your <Image>
-                    PreviewImage.Source = bitmapImage;
-                    PreviewCaption1.Text = $"{squaresX} x {squaresY} squares  {cbdWorking.PredefinedDictionaryName}  Square:{squareLength:F2}mm Marker:{markerLength:F2}mm";
-                    PreviewCaption2.Text = $"This should look exactly the same as your physical board i.e. same number of squares and same markers in the same positions.";
-                }
-                catch (Exception ex)
-                {
-                    PreviewCaption1.Text = $"Preview failed {ex.Message}";
-                    PreviewCaption2.Text = $"";
-                }
-
-                // Set any changed defauls if necessary
-                if (charucoBoardDefinition == null)
-                {
-                    // Did the default for SquaresX change?
-                    if (SettingsManagerLocal.DefaultCharucoBoard_SquaresX != cbdWorking.SquaresX)
-                    {
-                        SettingsManagerLocal.DefaultCharucoBoard_SquaresX = cbdWorking.SquaresX;
-                        Debug.WriteLine($"Updated default CharucoBoard SquaresX to {cbdWorking.SquaresX}");
-                    }
-
-                    // Did the default for SquaresY change?
-                    if (SettingsManagerLocal.DefaultCharucoBoard_SquaresY != cbdWorking.SquaresY)
-                    {
-                        SettingsManagerLocal.DefaultCharucoBoard_SquaresY = cbdWorking.SquaresY;
-                        Debug.WriteLine($"Updated default CharucoBoard SquaresY to {cbdWorking.SquaresY}");
-                    }
-
-                    // Did the default for SquareLength change?
-                    if (SettingsManagerLocal.DefaultCharucoBoard_SquareLength != cbdWorking.SquareLength)
-                    {
-                        SettingsManagerLocal.DefaultCharucoBoard_SquareLength = cbdWorking.SquareLength;
-                        Debug.WriteLine($"Updated default CharucoBoard SquareLength to {cbdWorking.SquareLength}");
-                    }
-
-                    // Did the default for MarkerLength change?
-                    if (SettingsManagerLocal.DefaultCharucoBoard_MarkerLength != cbdWorking.MarkerLength)
-                    {
-                        SettingsManagerLocal.DefaultCharucoBoard_MarkerLength = cbdWorking.MarkerLength;
-                        Debug.WriteLine($"Updated default CharucoBoard MarkerLength to {cbdWorking.MarkerLength}");
-                    }
-
-                    // Did the default for PredefinedDictionaryName change?
-                    if (SettingsManagerLocal.DefaultCharucoBoard_PredefinedDictionaryName != cbdWorking.PredefinedDictionaryName.ToString())
-                    {
-                        SettingsManagerLocal.DefaultCharucoBoard_PredefinedDictionaryName = cbdWorking.PredefinedDictionaryName.ToString();
-                        Debug.WriteLine($"Updated default CharucoBoard PredefinedDictionaryName to {cbdWorking.PredefinedDictionaryName}");
-                    }
+                    SettingsManagerLocal.DefaultCharucoBoard_SquaresX = cbdWorking.SquaresX;
+                    Debug.WriteLine($"Updated default CharucoBoard SquaresX to {cbdWorking.SquaresX}");
                 }
 
+                // Did the default for SquaresY change?
+                if (SettingsManagerLocal.DefaultCharucoBoard_SquaresY != cbdWorking.SquaresY)
+                {
+                    SettingsManagerLocal.DefaultCharucoBoard_SquaresY = cbdWorking.SquaresY;
+                    Debug.WriteLine($"Updated default CharucoBoard SquaresY to {cbdWorking.SquaresY}");
+                }
+
+                // Did the default for SquareLength change?
+                if (SettingsManagerLocal.DefaultCharucoBoard_SquareLength != cbdWorking.SquareLength)
+                {
+                    SettingsManagerLocal.DefaultCharucoBoard_SquareLength = cbdWorking.SquareLength;
+                    Debug.WriteLine($"Updated default CharucoBoard SquareLength to {cbdWorking.SquareLength}");
+                }
+
+                // Did the default for MarkerLength change?
+                if (SettingsManagerLocal.DefaultCharucoBoard_MarkerLength != cbdWorking.MarkerLength)
+                {
+                    SettingsManagerLocal.DefaultCharucoBoard_MarkerLength = cbdWorking.MarkerLength;
+                    Debug.WriteLine($"Updated default CharucoBoard MarkerLength to {cbdWorking.MarkerLength}");
+                }
+
+                // Did the default for PredefinedDictionaryName change?
+                if (SettingsManagerLocal.DefaultCharucoBoard_PredefinedDictionaryName != cbdWorking.PredefinedDictionaryName.ToString())
+                {
+                    SettingsManagerLocal.DefaultCharucoBoard_PredefinedDictionaryName = cbdWorking.PredefinedDictionaryName.ToString();
+                    Debug.WriteLine($"Updated default CharucoBoard PredefinedDictionaryName to {cbdWorking.PredefinedDictionaryName}");
+                }
+
+                // Access the board gneration settings from DataContext
+                DataContextLocal dcl = (DataContextLocal)DataContext;
+
+                // Did the default for Board Size X change?
+                if (SettingsManagerLocal.DefaultBoard_SizeX != dcl.BoardSizeX)
+                {
+                    SettingsManagerLocal.DefaultBoard_SizeX = dcl.BoardSizeX;
+                    Debug.WriteLine($"Updated default Board SizeX to {dcl.BoardSizeX}");
+                }
+
+                // Did the default for Board Size Y change?
+                if (SettingsManagerLocal.DefaultBoard_SizeY != dcl.BoardSizeY)
+                {
+                    SettingsManagerLocal.DefaultBoard_SizeY = dcl.BoardSizeY;
+                    Debug.WriteLine($"Updated default Board SizeY to {dcl.BoardSizeY}");
+                }
+
+                // Did the default for Print DPI change?
+                if (SettingsManagerLocal.DefaultBoardDPI != dcl.PrintDPI)
+                {
+                    SettingsManagerLocal.DefaultBoardDPI = dcl.PrintDPI;
+                    Debug.WriteLine($"Updated default Board DPI to {dcl.PrintDPI}");
+                }
             }
         }
-
 
         /// <summary>
         /// Generates a PDF containing a single page of size boardWidth x boardHeight (in meters)

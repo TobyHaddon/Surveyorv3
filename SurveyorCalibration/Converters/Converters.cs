@@ -4,9 +4,6 @@ using System;
 
 namespace Surveyor.Converters
 {
-    /// <summary>
-    /// This converter is used by the XAML to hide a whole StackPanel if a string null in one of it's elements is blank or null
-    /// </summary>
     public sealed partial class EmptyStringToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
@@ -23,10 +20,6 @@ namespace Surveyor.Converters
         }
     }
 
-
-    /// <summary>
-    /// XAML Converter 
-    /// </summary>
     public sealed partial class BooleanToVisibilityConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
@@ -45,6 +38,42 @@ namespace Surveyor.Converters
                 return visibility == Visibility.Visible;
             }
             return false;
+        }
+    }
+
+    // New: meters <-> millimeters converter for numeric TextBoxes
+    public sealed class MetersToMillimetersConverter : IValueConverter
+    {
+        public string? Format { get; set; } = "F2";
+
+        public object Convert(object value, Type targetType, object parameter, string language)
+        {
+            if (value is null) return string.Empty;
+
+            double meters = value switch
+            {
+                double d => d,
+                float f => f,
+                int i => i,
+                _ => 0.0
+            };
+
+            double mm = meters * 1000.0;
+            try
+            {
+                return mm.ToString(Format);
+            }
+            catch
+            {
+                return mm.ToString("F2");
+            }
+        }
+
+        public object ConvertBack(object value, Type targetType, object parameter, string language)
+        {
+            if (value is string s && double.TryParse(s, out double mm))
+                return mm / 1000.0; // store back in meters
+            return 0.0;
         }
     }
 }

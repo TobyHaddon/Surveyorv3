@@ -43,6 +43,10 @@ namespace Surveyor
         private const string DefaultCharucoBoardSquareLengthKey = "DefaultCharucoBoard_SquareLength";
         private const string DefaultCharucoBoardMarkerLengthKey = "DefaultCharucoBoard_MarkerLength";
         private const string DefaultCharucoBoardPredefinedDictionaryNameKey = "DefaultCharucoBoard_PredefinedDictionaryName";
+        private const string DefaultBoardSizeXKey = "DefaultBoard_SizeX";
+        private const string DefaultBoardSizeYKey = "DefaultBoard_SizeY";
+        private const string DefaultBoardDPIKey = "DefaultBoard_DPI";
+
 
 
         // Path where new media (MP4) are typically imported from
@@ -243,37 +247,78 @@ namespace Surveyor
             set => SetBool(AutoSaveEnabledKey, value);
         }
 
+
+        /// <summary>
+        /// Default Charuco Board Squares X
+        /// </summary>
         public static int DefaultCharucoBoard_SquaresX
         {
             get => GetInt(DefaultCharucoBoardSquaresXKey, 14/*default*/);
             set => SetInt(DefaultCharucoBoardSquaresXKey, value);
         }
 
+        /// <summary>
+        /// Default Charuco Board Squares Y
+        /// </summary>
         public static int DefaultCharucoBoard_SquaresY
         {
             get => GetInt(DefaultCharucoBoardSquaresYKey, 9/*default*/);
             set => SetInt(DefaultCharucoBoardSquaresYKey, value);
         }
 
+        /// <summary>
+        /// Size of each square in the Charuco board in metres
+        /// </summary>
         public static double DefaultCharucoBoard_SquareLength
         {
             get => GetDouble(DefaultCharucoBoardSquareLengthKey, 0.04/*default*/);  //40mm
             set => SetDouble(DefaultCharucoBoardSquareLengthKey, value);
         }
 
+        /// <summary>
+        /// Size of each ArUco marker in the Charuco board in metres
+        /// </summary>
         public static double DefaultCharucoBoard_MarkerLength
         {
             get => GetDouble(DefaultCharucoBoardMarkerLengthKey, 0.03/*default*/);  // 30mm
             set => SetDouble(DefaultCharucoBoardMarkerLengthKey, value);
         }
 
+        /// <summary>
+        /// Default dictionary name for the predefined ArUco dictionary used for the Charuco board
+        /// </summary>
         public static string DefaultCharucoBoard_PredefinedDictionaryName
         {
             get => GetString(DefaultCharucoBoardPredefinedDictionaryNameKey, "DICT5x5_100"/*default*/);  
             set => SetString(DefaultCharucoBoardPredefinedDictionaryNameKey, value);
         }
 
+        /// <summary>
+        /// Default Physical Board Size X in metres
+        /// </summary>
+        public static double DefaultBoard_SizeX
+        {
+            get => GetDouble(DefaultBoardSizeXKey, 0.6/*default*/);  // 600mm
+            set => SetDouble(DefaultBoardSizeXKey, value);
+        }
 
+        /// <summary>
+        /// Default Physical Board Size Y in metres
+        /// </summary>
+        public static double DefaultBoard_SizeY
+        {
+            get => GetDouble(DefaultBoardSizeYKey, 0.4/*default*/);  // 400mm
+            set => SetDouble(DefaultBoardSizeYKey, value);
+        }
+
+        /// <summary>
+        /// Default Board Dots Per Square Inch (DPI)
+        /// </summary>
+        public static int DefaultBoardDPI
+        {
+            get => GetInt(DefaultBoardDPIKey, 1200/*default*/);
+            set => SetInt(DefaultBoardDPIKey, value);
+        }
 
         /// <summary>
         /// 
