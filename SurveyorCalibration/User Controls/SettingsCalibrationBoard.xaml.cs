@@ -18,14 +18,14 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Windows.Storage.Streams;
 using static Emgu.CV.Aruco.Dictionary;
+using System.ComponentModel; 
 
 namespace Surveyor.User_Controls
 {
-
     /// <summary>
     /// DataContext for SettingsCalibrationBoard
     /// </summary>
-    public partial class DataContextLocal : System.ComponentModel.INotifyPropertyChanged
+    public partial class DataContextLocal : INotifyPropertyChanged
     {
         private CharucoBoardDefinition? _cbd;
         public CharucoBoardDefinition? Cbd
@@ -78,15 +78,16 @@ namespace Surveyor.User_Controls
             get => (string)GetValue(InstanceTypeProperty);
             set => SetValue(InstanceTypeProperty, value);
         }
+
         private static void OnHeadChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
         {
             if (d is SettingsCalibrationBoard ctrl)
-            {
                 ctrl.ApplyMode((string)e.NewValue);
-            }
         }
+
         private bool IsBoardSetupMode => InstanceType.Equals("BoardSetup", StringComparison.InvariantCultureIgnoreCase);
         private bool IsDefaultsManagerMode => InstanceType.Equals("DefaultsManager", StringComparison.InvariantCultureIgnoreCase);
+
         private void ApplyMode(string mode)
         {
             if (IsBoardSetupMode)
@@ -233,10 +234,10 @@ namespace Surveyor.User_Controls
                 int firstDotIndex = sender.Text.IndexOf('.');
                 if (firstDotIndex != -1)
                 {
-                    sender.Text = sender.Text.Substring(0, firstDotIndex + 1) + sender.Text.Substring(firstDotIndex + 1).Replace(".", "");
+                    sender.Text = sender.Text[..(firstDotIndex + 1)] + sender.Text[(firstDotIndex + 1)..].Replace(".", "");
                     int decimalCount = sender.Text.Length - firstDotIndex - 1;
                     if (decimalCount > 2)
-                        sender.Text = sender.Text.Substring(0, firstDotIndex + 3);
+                        sender.Text = sender.Text[..(firstDotIndex + 3)];
                 }
                 sender.SelectionStart = Math.Max(caretPosition, 0);
             }
@@ -255,40 +256,84 @@ namespace Surveyor.User_Controls
             SchedulePreviewUpdate();
         }
 
-        // TextChanged fallback in case binding updates only after change
-        private void NumericTextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            SchedulePreviewUpdate();
-        }
+        private void NumericTextBox_TextChanged(object sender, TextChangedEventArgs e) => SchedulePreviewUpdate();
 
+
+        private void GenerationTextBox_TextChanged(object sender, TextChangedEventArgs e) => UpdateButtons();
+        
         private void ArucoDictionaryCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (charucoBoardDefinition != null && ArucoDictionaryCombo.SelectedItem is Dictionary.PredefinedDictionaryName dict)
-                charucoBoardDefinition.PredefinedDictionaryName = dict;
-            SchedulePreviewUpdate();
+            if (cbdWorking != null && ArucoDictionaryCombo.SelectedItem is PredefinedDictionaryName dict)
+            {
+                cbdWorking.PredefinedDictionaryName = dict;
+                SchedulePreviewUpdate();
+            }
         }
 
+
+        /// <summary>
+        /// User control loaded.  
+        /// Populate Aruco dictionary combo box and setup initial preview.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
             _loaded = true;
-            ArucoDictionaryCombo.ItemsSource = Enum.GetValues(typeof(Dictionary.PredefinedDictionaryName));
-            if (DataContext is CharucoBoardDefinition cbd)
-                ArucoDictionaryCombo.SelectedItem = cbd.PredefinedDictionaryName;
+            ArucoDictionaryCombo.ItemsSource = Enum.GetValues(typeof(PredefinedDictionaryName));
+            if (DataContext is DataContextLocal ctx && ctx.Cbd is not null)
+                ArucoDictionaryCombo.SelectedItem = ctx.Cbd.PredefinedDictionaryName;
             _ = BoardInputChanged();
         }
 
-        private void SaveToPDF_Click(object sender, RoutedEventArgs e)
-        {
 
+        /// <summary>
+        /// Generate a print shop quality PDF of the current ChAruco board definition.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void SaveToPDF_Click(object sender, RoutedEventArgs e) 
+        {
+            if (DataContext is null) return;
+
+            // Access the board generation settings from DataContext
+            DataContextLocal dcl = (DataContextLocal)DataContext;
+
+            if (dcl.Cbd is null)
+                return;
+
+            // Show file save picker
+            var savePicker = new Windows.Storage.Pickers.FileSavePicker
+            {
+                SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary
+            };
+            savePicker.FileTypeChoices.Add("PDF Document", [".pdf"]);
+            savePicker.SuggestedFileName = $"ChArUco Target { dcl.Cbd.SquaresX}x{ dcl.Cbd.SquaresY} {dcl.Cbd.PredefinedDictionaryName} Square={(dcl.Cbd.SquareLength * 1000):F2}mm Marker={(dcl.Cbd.MarkerLength * 1000):F2}mm.pdf";
+
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
+            WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hwnd);
+            var fileTask = savePicker.PickSaveFileAsync().AsTask();
+            fileTask.Wait();
+            var file = fileTask.Result;
+            if (file is null)
+                return; // User cancelled
+
+            string fileSpec = file.Path;
+
+            // Board Caption
+            string caption = $"Camera Calibration  ChArUco Target  {dcl.Cbd.SquaresX} x {dcl.Cbd.SquaresY} squares  {dcl.Cbd.PredefinedDictionaryName}  Square:{(dcl.Cbd.SquareLength * 1000):F2}mm Marker:{(dcl.Cbd.MarkerLength * 1000):F2}mm";
+
+            // Generate the PDF
+            await GeneratePDFBoard(fileSpec,
+                                   dcl.Cbd,
+                                   dcl.BoardSizeX, dcl.BoardSizeY,
+                                   dcl.PrintDPI,
+                                   caption);
         }
 
 
-        /// 
-        /// PRIVATE
-        /// 
-
         /// <summary>
-        /// Timer used to refresh the board preview image
+        /// Update the board preview if necessary
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -302,21 +347,38 @@ namespace Surveyor.User_Controls
             }
         }
 
+
+        /// <summary>
+        /// Schedules a preview update after a short delay to debounce rapid input changes.
+        /// </summary>
         private void SchedulePreviewUpdate()
         {
-            if (!_loaded || charucoBoardDefinition == null) return;
+            if (!_loaded || cbdWorking == null) return;
             _previewPending = true;
             _previewTimer.Stop();
             _previewTimer.Start();
         }
+
+
+        /// <summary>
+        /// Update button states based on current inputs
+        /// </summary>
         private void UpdateButtons() 
         {
+            DataContextLocal dcl = (DataContextLocal)DataContext;
 
+            bool saveToPDFEnabled = dcl is not null &&
+                                    dcl.BoardSizeX > 0 &&
+                                    dcl.BoardSizeY > 0 &&
+                                    dcl.PrintDPI > 0;
+
+            SaveToPDFButton.IsEnabled = saveToPDFEnabled;
         }
 
 
         /// <summary>
         /// Generates and displays a ChAruco board preview image based on the current settings.
+        /// </summary>
         /// If the IsDefaultsManagerMode is true then we are in a mode where we are setting up
         /// the default board for new projects.  In which we set the defaults to local storage.
         /// </summary>
@@ -453,16 +515,17 @@ namespace Surveyor.User_Controls
         /// <param name="boardWidthMeters">Full board width in meters (e.g., 0.6 for 600 mm).</param>
         /// <param name="boardHeightMeters">Full board height in meters (e.g., 0.4 for 400 mm).</param>
         /// <param name="dpi">Target print DPI (e.g., 1200).</param>
-        public static void GeneratePDFBoard(string fileSpec,
-                                            CharucoBoardDefinition charucoBoardDefinition,
-                                            double boardWidthMeters,
-                                            double boardHeightMeters,
-                                            int dpi)
+        /// <param name="caption"></param>
+        public async Task GeneratePDFBoard(string fileSpec,
+                                           CharucoBoardDefinition charucoBoardDefinition,
+                                           double boardWidthMeters,
+                                           double boardHeightMeters,
+                                           int dpi,
+                                           string caption)
         {
-            if (dpi <= 0)
-                throw new ArgumentOutOfRangeException(nameof(dpi), "DPI must be positive.");
+            if (dpi <= 0) throw new ArgumentOutOfRangeException(nameof(dpi));
             if (boardWidthMeters <= 0 || boardHeightMeters <= 0)
-                throw new ArgumentOutOfRangeException("Board dimensions must be positive (in meters).");
+                throw new ArgumentOutOfRangeException("Board dimensions must be positive.");
 
             const double metersPerInch = 0.0254;
 
@@ -483,13 +546,12 @@ namespace Surveyor.User_Controls
             int patternHeightPx = Math.Max(1, (int)Math.Round(patternHeightInches * dpi));
 
             // --- 3. Generate ChArUco board image with Emgu (in pixels) ---
-            var dictionary = new Dictionary(PredefinedDictionaryName.Dict5X5_100);
-            using var board = new CharucoBoard(
-                squaresX,
-                squaresY,
-                (float)squareLengthMeters,
-                (float)markerLengthMeters,
-                dictionary);
+            var dictionary = new Dictionary(charucoBoardDefinition.PredefinedDictionaryName);
+            using var board = new CharucoBoard(squaresX,
+                                               squaresY,
+                                               (float)squareLengthMeters,
+                                               (float)markerLengthMeters,
+                                               dictionary);
 
             using var boardMat = new Mat();
 
@@ -514,39 +576,95 @@ namespace Surveyor.User_Controls
 
             var pageSize = new PageSize(pageWidthPoints, pageHeightPoints);
 
-            Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(fileSpec))!);
+            // Caption layout parameters
+            const float captionFontSize = 10f;
+            const float captionPaddingPoints = 6f; // space above/below text band
+            float captionHeight = captionFontSize + captionPaddingPoints; // reserved band at bottom
+            // If no room for caption (board exactly fills page), we still draw it overlapping the bottom.
+            bool haveCaptionRoom = (pageHeightPoints - patternHeightMeters * 72.0) >= captionHeight;
 
-            using var writer = new PdfWriter(fileSpec);
-            using var pdf = new PdfDocument(writer);
-            pdf.SetDefaultPageSize(pageSize);
+            try
+            {
+                Directory.CreateDirectory(System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(fileSpec))!);
 
-            using var doc = new Document(pdf, pageSize);
-            doc.SetMargins(0, 0, 0, 0);
+                using var writer = new PdfWriter(fileSpec);
+                using var pdf = new PdfDocument(writer);
+                pdf.SetDefaultPageSize(pageSize);
 
-            // --- 6. Create iText image from PNG ---
-            var imageData = ImageDataFactory.Create(pngBytes);
-            var img = new iText.Layout.Element.Image(imageData);
+                using var doc = new Document(pdf, pageSize);
+                doc.SetMargins(0, 0, 0, 0);
 
-            // Physical size of pattern on the page (in points), preserving 40 mm (or whatever) squares.
-            double patternWidthPoints = patternWidthInches * 72.0;
-            double patternHeightPoints = patternHeightInches * 72.0;
+                // --- 6. Create iText image from PNG ---
+                var imageData = ImageDataFactory.Create(pngBytes);
+                var img = new iText.Layout.Element.Image(imageData);
 
-            float patternWidthPointsF = (float)patternWidthPoints;
-            float patternHeightPointsF = (float)patternHeightPoints;
+                // Physical size of pattern on the page (in points), preserving 40 mm (or whatever) squares.
+                float patternWidthPointsF = (float)(patternWidthInches * 72.0);
+                float patternHeightPointsF = (float)(patternHeightInches * 72.0);
 
-            // Scale the bitmap to match the intended physical ChArUco pattern size
-            img.ScaleAbsolute(patternWidthPointsF, patternHeightPointsF);
+                // Scale the bitmap to match the intended physical ChArUco pattern size
+                img.ScaleAbsolute(patternWidthPointsF, patternHeightPointsF);
 
-            // --- 7. Center the ChArUco pattern on the board/page ---
-            float offsetX = (pageWidthPoints - patternWidthPointsF) / 2f;
-            float offsetY = (pageHeightPoints - patternHeightPointsF) / 2f;
+                // Compute vertical position:
+                // Reserve caption band at bottom if space allows; center pattern above that band.
+                float availableForPattern = haveCaptionRoom
+                    ? pageHeightPoints - captionHeight
+                    : pageHeightPoints; // fallback: no reservation, overlap may occur
 
-            img.SetFixedPosition(offsetX, offsetY);
+                float patternOffsetY = haveCaptionRoom
+                    ? ((availableForPattern - patternHeightPointsF) / 2f) + captionHeight
+                    : (pageHeightPoints - patternHeightPointsF) / 2f;
 
-            doc.Add(img);
-            doc.Close();
+
+                // --- 7. Center the ChArUco pattern on the board/page ---
+                float offsetX = (pageWidthPoints - patternWidthPointsF) / 2f;
+                //???float offsetY = (pageHeightPoints - patternHeightPointsF) / 2f;
+
+                img.SetFixedPosition(offsetX, patternOffsetY);
+
+                doc.Add(img);
+
+                // Add caption centered at bottom
+                if (!string.IsNullOrWhiteSpace(caption))
+                {
+                    // Draw at vertical center of caption band
+                    float captionY = captionFontSize / 2f + (captionPaddingPoints / 2f);
+                    // Ensure it stays inside page
+                    if (!haveCaptionRoom)
+                        captionY = captionFontSize / 2f + 2f; // minimal offset
+
+                    var p = new Paragraph(caption)
+                        .SetFontSize(captionFontSize)
+                        .SetTextAlignment(iText.Layout.Properties.TextAlignment.CENTER);
+
+                    // Use absolute positioning
+                    iText.Layout.Properties.Property? _ = null;
+                    doc.ShowTextAligned(p,
+                                        pageWidthPoints / 2f,
+                                        captionY,
+                                        pdf.GetNumberOfPages(),
+                                        iText.Layout.Properties.TextAlignment.CENTER,
+                                        iText.Layout.Properties.VerticalAlignment.MIDDLE,
+                                        0);
+                }
+
+                doc.Close();
+            }
+            catch (Exception ex)
+            {
+                // Warn the user that the PDF generation fails and report the ex.Message
+                ContentDialog dialog = new()
+                {
+                    Title = "PDF Generation Failed",
+                    Content = ex.Message,
+                    CloseButtonText = "OK",
+                    XamlRoot = this.XamlRoot
+                };
+                await dialog.ShowAsync();
+
+                Debug.WriteLine($"GeneratePDFBoard: PDF generation failed: {ex.Message}");
+            }
         }
-
     }
 
     public partial class DoubleFormatConverter : IValueConverter

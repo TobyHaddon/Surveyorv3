@@ -151,7 +151,7 @@
 
                 <!-- DEFAULT CALIBRATION BOARD -->
                 <toolkit:SettingsExpander x:Name="SettingsExpanderDefaultCalibrationBoard" Header="Default Calibration Target"
-                                          Description="Configure the default calibration board or generate board PDF file">
+                                          Description="Configure the default calibration board used for each new project or generate board PDF file">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xEB3C;" />
                     </toolkit:SettingsExpander.HeaderIcon>
