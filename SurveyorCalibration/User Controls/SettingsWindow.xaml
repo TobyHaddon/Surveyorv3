@@ -206,6 +206,27 @@
                     </StackPanel>
                 </toolkit:SettingsCard>
 
+                <!-- Cache Usage -->
+                <toolkit:SettingsCard Header="Cache Usage" Description="Disk space used in storing extracted calibration frame information." MaxWidth="1200">
+                    <toolkit:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xEDA2;" />
+                    </toolkit:SettingsCard.HeaderIcon>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                        <!-- Cache Folder information -->
+                        <Button Click="CacheFolderInfo_Click"
+                                ToolTipService.ToolTip="Folder for the calibration frame information cache (folder name has been copied to the clipboard)"
+                                Background="Transparent"
+                                BorderBrush="{x:Null}"
+                                Padding="3"
+                                Margin="0,0,10,0"
+                                HorizontalAlignment="Center"
+                                VerticalAlignment="Center">
+                            <FontIcon x:Name="CalibrationCacheFolderInfo" Glyph="&#xE946;" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                        </Button>
+                        <Button Content="Clear Cache" Click="ClearCache_Click" Margin="0,0,10,0" />
+                        <TextBlock x:Name="CalibrationCacheUsage" Text="{x:Bind CalibrationCacheUsageText, Mode=OneWay}" VerticalAlignment="Center" />
+                    </StackPanel>
+                </toolkit:SettingsCard>
                                       
                 <!--  ABOUT  -->
                 <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="About"  MaxWidth="1200"/>

@@ -73,8 +73,7 @@ namespace Surveyor.Controls
         private enum AppMode { Open, FindCalibrationsFrames, BestFramesCalc, BestFramesView, BestFramesSave };
         private AppMode appMode = AppMode.Open;
 
-        //???private readonly CalibrationData[] calibrationDataArray = new CalibrationData[Enum.GetValues(typeof(CalibrationParameters)).Length];
-
+        // XAML Attribute to indicate is the head is mono or stereo
         public static readonly DependencyProperty HeadProperty =
                 DependencyProperty.Register(nameof(Head), typeof(string), typeof(UniversalCalibrationHeadUserControl),
         new PropertyMetadata("Stereo", OnHeadChanged));

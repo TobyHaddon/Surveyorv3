@@ -600,7 +600,7 @@ namespace Surveyor.User_Controls
 
         
         /// <summary>
-        /// Any traching tips that had been marked not to be shown again will be shown again
+        /// Any tracking tips that had been marked not to be shown again will be shown again
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>

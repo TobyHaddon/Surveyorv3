@@ -1396,6 +1396,27 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// Handles the click event for the "Lock Media" button.
+        /// </summary>
+        /// <param name="sender">The source of the event, typically the button that was clicked.</param>
+        /// <param name="e">The event data associated with the click event.</param>
+        private void LockMediaButton_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
+
+        /// <summary>
+        /// Stop any processing in progress
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void CancelProcessingButton_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
+
         ///
         /// PRIVATE
         /// 
@@ -1498,6 +1519,33 @@ namespace Surveyor
         private void SetUIControls()
         {            
             bool? isLocked = StereoCalibrationHead.IsStereoLocked();
+
+            // File>New Project menu item
+            //MenuProjectNew
+
+            // File>Open Project menu item
+            //MenuProjectOpen
+
+            // File>Save/SaveAs Project menu item
+            //MenuProjectSave
+            //MenuProjectSaveAs
+
+            // File>Close Project menu item
+            // MenuProjectClose
+
+            // File>Lock/Unlock Media menu item
+            //MenuLockUnlockMediaPlayers
+
+            // File>Run Calibration menu item
+            //MenuRunCalibration
+
+            // Lock/Unlock Titlebar Icon
+
+            // Show/Hide Lock Media InfoBar
+            //InfoBarLockMedia
+
+            // Show/Hide Processing InfoBar
+            //InfoBarProcessing
 
             // Load Button
             if (mediaFromCommandLine)
@@ -1922,7 +1970,10 @@ namespace Surveyor
         [DllImport("user32.dll")]
         private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
-       
+        private void LockUnlockMediaPlayers_Click(object sender, RoutedEventArgs e)
+        {
+
+        }
     }
 }
 

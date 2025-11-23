@@ -21,6 +21,7 @@ using Windows.ApplicationModel;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
 using WinUIEx;
+using Surveyor; // CacheManager
 
 
 
@@ -49,6 +50,8 @@ namespace Surveyor.User_Controls
 
         private bool _isInitializing = false;
 
+        private readonly CacheManager cacheManager = new();
+
 
         public SettingsWindow(MainWindow _mainWindow, CalibProject? _project, string section = "")
         {
@@ -68,7 +71,7 @@ namespace Surveyor.User_Controls
             Surveyor.Helper.WindowHelper.TrackWindow(this);
 
             this.Closed += SettingsWindow_Closed;
-            
+
 
             // React to theme changes
             uiSettings.ColorValuesChanged += UiSettings_ColorValuesChanged;
@@ -106,6 +109,7 @@ namespace Surveyor.User_Controls
 
             // Setup the Setting page
             OnSettingsPageLoaded(SettingsManagerLocal.ApplicationTheme);
+            UpdateCalibrationCacheUsage();
         }
 
 
@@ -206,7 +210,6 @@ namespace Surveyor.User_Controls
         private void OnSettingsPageLoaded(ElementTheme theme)
         {         
             _isInitializing = true;
-
             try
             {
                 if (mainWindow is not null)
@@ -236,7 +239,7 @@ namespace Surveyor.User_Controls
 
                     // Load the Use Internet saved state
                     UseInternet.IsOn = SettingsManagerLocal.UseInternetEnabled;
-               
+
                     // Load the Telemtry setting
                     Telemetry.IsOn = SettingsManagerLocal.TelemetryEnabled;
 
@@ -293,7 +296,7 @@ namespace Surveyor.User_Controls
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private void SettingsWindow_Closed(object sender, WindowEventArgs e)
-        {            
+        {
 
             // Check if the theme has changed
             var rootElement = (FrameworkElement)(this.Content);
@@ -346,7 +349,7 @@ namespace Surveyor.User_Controls
             if (_isInitializing) return;
 
             var selectedTheme = ((ComboBoxItem)themeMode.SelectedItem)?.Tag?.ToString();
-            
+
             if (selectedTheme != null)
             {
                 // Get the root element of your application
@@ -368,7 +371,7 @@ namespace Surveyor.User_Controls
         }
 
 
-        
+
         /// <summary>
         /// Any traching tips that had been marked not to be shown again will be shown again
         /// </summary>
@@ -379,7 +382,7 @@ namespace Surveyor.User_Controls
             SettingsManagerLocal.RemoveAllTeachingTipShown();
         }
 
-        
+
         /// <summary>
         /// Toggle the allowed to use interst
         /// </summary>
@@ -460,7 +463,7 @@ namespace Surveyor.User_Controls
             var telemetryConfiguration = TelemetryConfiguration.CreateDefault();
 
             // Report the change to Insights (before if switching off)
-            if (telemetryConfiguration.DisableTelemetry != !settingValue/*Check it really changed before reporting*/ && 
+            if (telemetryConfiguration.DisableTelemetry != !settingValue/*Check it really changed before reporting*/ &&
                 settingValue == false/*switching off*/)
             {
                 TelemetryLogger.TrackTrace("User switching telemetry off");
@@ -653,7 +656,7 @@ namespace Surveyor.User_Controls
         }
 
 
- 
+
         /// <summary>
         /// Expand the expander and bring it into view
         /// </summary>
@@ -683,41 +686,66 @@ namespace Surveyor.User_Controls
             });
         }
 
+        // Cache Usage handlers
+        private void CacheFolderInfo_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                string localFolderPath = cacheManager.GetCachePath();
+                if (!string.IsNullOrEmpty(localFolderPath))
+                {
+                    var dataPackage = new DataPackage();
+                    dataPackage.SetText(localFolderPath);
+                    Clipboard.SetContent(dataPackage);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"CacheFolderInfo_Click: {ex.Message}");
+            }
+        }
+
+        private async void ClearCache_Click(object sender, RoutedEventArgs e)
+        {
+            bool result = cacheManager.ClearCacheOlderItems();
+            var dialog = new ContentDialog
+            {
+                Title = "Clear Cache",
+                Content = result ? "Older cache items cleared." : "Failed to clear cache items.",
+                CloseButtonText = "OK",
+                XamlRoot = this.Content.XamlRoot
+            };
+            await dialog.ShowAsync();
+            UpdateCalibrationCacheUsage();
+        }
+
+        private string _calibrationCacheUsageText = string.Empty;
+        public string CalibrationCacheUsageText => _calibrationCacheUsageText;
+
+        private void UpdateCalibrationCacheUsage()
+        {
+            try
+            {
+                long bytes = cacheManager.GetCacheTotalDiskSpaceUsed();
+                // Format to human readable
+                string[] sizes = { "B", "KB", "MB", "GB", "TB" };
+                double len = bytes;
+                int order = 0;
+                while (len >= 1024 && order < sizes.Length - 1)
+                {
+                    order++;
+                    len /= 1024;
+                }
+                _calibrationCacheUsageText = string.Format("{0:0.##} {1}", len, sizes[order]);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"UpdateCalibrationCacheUsage: {ex.Message}");
+                _calibrationCacheUsageText = "N/A";
+            }
+            // Force UI refresh for x:Bind OneWay
+            CalibrationCacheUsage.Text = _calibrationCacheUsageText;
+        }
         // ***END OF SettingsWindow***
     }
-
-
-    /// <summary>
-    /// Used by the SettingsWindow User Control to inform other components of settings changes
-    /// </summary>
-    public class SettingsWindowEventData
-    {
-        public SettingsWindowEventData(eSettingsWindowEvent e)
-        {
-            settingsWindowEvent = e;
-        }
-
-        public enum eSettingsWindowEvent
-        {
-            MagnifierWindow,        // The Magnifier Window has been toggled
-            DiagnosticInformation,  // Diagnostic Information has changed
-            Experimental            // Allow experimental features setting has changed
-        }
-
-        public readonly eSettingsWindowEvent settingsWindowEvent;
-
-        // Only used for settingsWindowEvent.MagnifierWindow
-        public bool? magnifierWindowAutomatic;
-
-        // Only used for settingsWindowEvent.DiagnosticInformation
-        public bool? diagnosticInformation;
-
-        // Only used for settingsWindowEvent.Experimental
-        public bool? experimentalEnabled;
-        public bool? experimentalFeatureSetAEnabled;
-        public bool? experimentalFeatureSetBEnabled;
-        public bool? experimentalFeatureSetCEnabled;
-    }
-
 }
-

@@ -97,6 +97,11 @@
                         </MenuFlyoutSubItem.Icon>
                     </MenuFlyoutSubItem>
                     <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Name="MenuLockUnlockMediaPlayers" Text="Lock Media Players" IsEnabled="False" Click="LockUnlockMediaPlayers_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon x:Name="MenuLockUnlockMediaPlayersIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE1F6;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
                     <MenuFlyoutItem x:Name="MenuRunCalibration" Text="Run Calibration..." IsEnabled="True" Click="FileRunCalibration_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEB3C;" />
@@ -210,6 +215,30 @@
                            Height="32" Margin="0,0,16,0"/>-->
         </Grid>
 
+        <!-- Info Bar Zone -->
+        <StackPanel Grid.Row="1" Orientation="Vertical">
+            <!--Media No Sync'd-->
+            <InfoBar x:Name="InfoBarLockMedia" IsOpen="False"
+                        Severity="Warning" HorizontalAlignment="Stretch"
+                        Title="Lock Media"
+                        Message="Stereo media needs to be synced before calibration can proceed"
+                        ToolTipService.ToolTip="Find the sync point in both stereo media files, this is normally a torch flash. Make sure you move both the left and right stereo media to the same first frame of the same torch false. Then press the 'Sync Stereo Media' button"
+                        IsClosable="false">
+                <InfoBar.ActionButton>
+                    <Button Content="Sync Stereo Media" Click="LockMediaButton_Click" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+            <!--Processing in Progress-->
+            <InfoBar x:Name="InfoBarProcessing" IsOpen="False"
+                        Severity="Informational" HorizontalAlignment="Stretch"
+                        Title="Processing"
+                        Message="Please wait..."
+                        IsClosable="false">
+                <InfoBar.ActionButton>
+                    <Button Content="Cancel" Click="CancelProcessingButton_Click" />
+                </InfoBar.ActionButton>
+            </InfoBar>
+        </StackPanel>
 
         <StackPanel Grid.Row ="1" Orientation="Horizontal">
             <ProgressRing x:Name="InProgress" IsActive="False" Width="20" Height="20" VerticalAlignment="Center" Margin="12,0"/>

@@ -50,6 +50,7 @@ namespace Surveyor
                 Media.Clear();
                 CharucoBoardDefinition.Clear();
                 CalibrationResults.Clear();
+                Sync.Clear();
             }
 
             public partial class InfoClass : INotifyPropertyChanged
@@ -63,7 +64,8 @@ namespace Surveyor
 
                 public void Clear()
                 {
-                    ProjectFileName = string.Empty;
+                    _projectFileName = string.Empty;
+                    _projectPath = string.Empty;
                     IsDirty = false;
                 }
 
@@ -144,20 +146,20 @@ namespace Surveyor
                 /// </summary>
                 public void Clear()
                 {
-                    StereoMonoMediaSetMode = StereoMonoMediaSetMode.None;
-                    MediaPath = string.Empty;
-                    LeftMonoMP4FileName = string.Empty;
-                    RightMonoMP4FileName = string.Empty;
-                    LeftStereoMP4FileName = string.Empty;
-                    RightStereoMP4FileName = string.Empty;
-                    LeftCameraID = string.Empty;
-                    RightCameraID = string.Empty;
-                    FrameSize = new(0, 0);
+                    _stereoMonoMediaSetMode = StereoMonoMediaSetMode.None;
+                    _mediaPath = string.Empty;
+                    _leftMonoMP4FileName = string.Empty;
+                    _rightMonoMP4FileName = string.Empty;
+                    _leftStereoMP4FileName = string.Empty;
+                    _rightStereoMP4FileName = string.Empty;
+                    _leftCameraID = string.Empty;
+                    _rightCameraID = string.Empty;
+                    _frameSize = new(0, 0);
 
                     _isDirty = false;
                 }
 
-                // Info class version
+                // Media class version
                 public float Version { get; set; } = 1.0f;
 
                 // Values
@@ -367,6 +369,102 @@ namespace Surveyor
 
             }
 
+            public partial class SyncClass : INotifyPropertyChanged
+            {
+                public event PropertyChangedEventHandler? PropertyChanged;
+
+                public SyncClass()
+                {
+                    Clear();
+                }
+
+                public void Clear()
+                {
+                    _isSynchronized = false;
+                    _syncFrameIndexLeft = 0;
+                    _syncFrameIndexRight = 0;
+
+                    IsDirty = false;
+                }
+
+                // Info class version
+                public float Version { get; set; } = 1.0f;
+
+                // Values
+                private bool _isSynchronized = false;
+                private int _syncFrameIndexLeft = 0;
+                private int _syncFrameIndexRight = 0;
+
+
+                // Setters and getters
+
+                public bool IsSynchronized
+                {
+                    get => _isSynchronized;
+                    set
+                    {
+                        if (_isSynchronized != value)
+                        {
+                            _isSynchronized = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public int SyncFrameIndexLeft
+                {
+                    get => _syncFrameIndexLeft;
+                    set
+                    {
+                        if (_syncFrameIndexLeft != value)
+                        {
+                            _syncFrameIndexLeft = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public int SyncFrameIndexRight
+                {
+                    get => _syncFrameIndexRight;
+                    set
+                    {
+                        if (_syncFrameIndexRight != value)
+                        {
+                            _syncFrameIndexRight = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                private bool _isDirty;
+                [JsonIgnore]
+                public bool IsDirty
+                {
+                    get => _isDirty;
+                    set
+                    {
+                        if (_isDirty != value)
+                        {
+                            _isDirty = value;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+
+                /// 
+                /// EVENTS
+                ///
+                private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+                {
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                }
+            }
+
             public partial class CalibrationResultClass : INotifyPropertyChanged
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
@@ -384,6 +482,9 @@ namespace Surveyor
 
                     IsDirty = false;
                 }
+
+                // CalibrationResults class version
+                public float Version { get; set; } = 1.0f;
 
                 // Values
                 private MonoCalibrationCameraData?[] _leftMonoCalibrationCameraDataArray = new MonoCalibrationCameraData?[Enum.GetValues<CalibrationParameters>().Length];
@@ -467,6 +568,8 @@ namespace Surveyor
             
             public CharucoBoardDefinition CharucoBoardDefinition { get; set; } = new();
 
+            public SyncClass Sync { get; set; } = new();
+
             public CalibrationResultClass CalibrationResults { get; set; } = new();
 
         }
@@ -481,6 +584,7 @@ namespace Surveyor
                 if (Data.Info.IsDirty || 
                     Data.Media.IsDirty || 
                     Data.CharucoBoardDefinition.IsDirty ||
+                    Data.Sync.IsDirty ||
                     Data.CalibrationResults.IsDirty)
                 {
                     return true;
