@@ -36,7 +36,7 @@ namespace Surveyor
             }            
         }
 
-        // Square length in mm
+        // Square length in m
         private float _squareLength;
         public float SquareLength 
         { 
@@ -50,7 +50,7 @@ namespace Surveyor
             }            
         }
 
-        // Marker length in mm
+        // Marker length in m
         private float _markerLength;
         public float MarkerLength 
         { 

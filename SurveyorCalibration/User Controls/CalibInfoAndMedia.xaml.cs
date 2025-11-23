@@ -737,15 +737,12 @@ namespace Surveyor.User_Controls
             bool mediaContigious = true;
 
 
-            //
-
             // Check all media from the same path
             bool mediaPathSame = CheckAllMediaPathAreTheSame();
             if (!mediaPathSame)
             {
                 SetValidationText(false/*invalid*/, ProjectMediaPathPanel, ProjectMediaPathGlyph, ProjectMediaPathValidationText, "All media files need to be in the same directory", "");
                 mediaValid = false;
-
             }
             else
             {

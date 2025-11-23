@@ -57,14 +57,16 @@ namespace Surveyor.User_Controls
 
             // Remember the project
             project = _project;
-
-
             sectionToScrollTo = section;
 
             // Restore the saved window state
             PersistenceId = "SettingsWindow";
 
-            this.InitializeComponent();
+            InitializeComponent();
+
+            // Track this window so WindowHelper.GetWindowForElement works.
+            Surveyor.Helper.WindowHelper.TrackWindow(this);
+
             this.Closed += SettingsWindow_Closed;
             
 

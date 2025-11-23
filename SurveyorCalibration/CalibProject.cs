@@ -18,7 +18,7 @@ namespace Surveyor
 
         public partial class DataClass
         {
-            // Restored Info class previously declared inside DataClass
+            
             public partial class InfoClass : INotifyPropertyChanged
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
@@ -78,16 +78,31 @@ namespace Surveyor
                 // Calibration mode mono+stereo, mono only, stereo only
                 public CalibInfoAndMedia.StereoMonoMediaSetMode StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet;
 
-                // Media file paths
-                private string _leftMonoMP4Path = string.Empty;
-                public string LeftMonoMP4Path 
-                { 
-                    get => _leftMonoMP4Path; 
+                // Media Path
+                private string _mediaPath = string.Empty;
+                public string MediaPath
+                {
+                    get => _mediaPath;
                     set
                     {
-                        if (_leftMonoMP4Path != value)
+                        if (_mediaPath != value)
                         {
-                            _leftMonoMP4Path = value;
+                            _mediaPath = value;
+                            IsDirty = true;
+                        }
+                    }
+                }
+
+                // Media file names
+                private string _leftMonoMP4FileName = string.Empty;
+                public string LeftMonoMP4FileName
+                { 
+                    get => _leftMonoMP4FileName; 
+                    set
+                    {
+                        if (_leftMonoMP4FileName != value)
+                        {
+                            _leftMonoMP4FileName = value;
                             IsDirty = true;
                         }
                     }
@@ -168,13 +183,20 @@ namespace Surveyor
                 // Frame Size
                 public Windows.Foundation.Size FrameSize { get; set; } = new(0, 0);
 
+                // Helper
+                public string LeftMonoMP4Path
+                {
+                    get => Path.Combine(MediaPath, LeftMonoMP4FileName);
+                }
+
 
                 /// <summary>
                 /// Clear down Media Class
                 /// </summary>
                 public void Clear()
                 {
-                    LeftMonoMP4Path = string.Empty;
+                    MediaPath = string.Empty;
+                    LeftMonoMP4FileName = string.Empty;
                     RightMonoMP4Path = string.Empty;
                     LeftStereoMP4Path = string.Empty;
                     RightStereoMP4Path = string.Empty;
@@ -224,15 +246,63 @@ namespace Surveyor
 
             }
 
+            public partial class CalibrationResultClass : INotifyPropertyChanged
+            {
+                public event PropertyChangedEventHandler? PropertyChanged;
+
+                private string _projectFileName = string.Empty;
+                public string ProjectFileName
+                {
+                    get => _projectFileName;
+                    set
+                    {
+                        if (_projectFileName != value)
+                        {
+                            _projectFileName = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                private bool _isDirty;
+                [JsonIgnore]
+                public bool IsDirty
+                {
+                    get => _isDirty;
+                    set
+                    {
+                        if (_isDirty != value)
+                        {
+                            _isDirty = value;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public void Clear()
+                {
+                    ProjectFileName = string.Empty;
+                    IsDirty = false;
+                }
+
+                private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+                {
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                }
+            }
+
+
             public string CalibFileSpec { get; set; } = string.Empty;
 
-            // Restored Info property
+            
             public InfoClass Info { get; set; } = new();
 
             public MediaClass Media { get; set; } = new();
             
             public CharucoBoardDefinition CharucoBoardDefinition { get; set; } = new();
 
+            public CalibrationResultClass CalibrationResult { get; set; } = new();
 
             // Left & right mono calibration result sets (different results for different calibration flags)
             public MonoCalibrationCameraData?[] LeftMonoCalibrationCameraDataArray { get; set; } = new MonoCalibrationCameraData?[Enum.GetValues<CalibrationParameters>().Length];
@@ -249,7 +319,10 @@ namespace Surveyor
         {
             get
             {
-                if (Data.Info.IsDirty || Data.Media.IsDirty || Data.CharucoBoardDefinition.IsDirty)
+                if (Data.Info.IsDirty || 
+                    Data.Media.IsDirty || 
+                    Data.CharucoBoardDefinition.IsDirty ||
+                    Data.CalibrationResult.IsDirty)
                 {
                     return true;
                 }

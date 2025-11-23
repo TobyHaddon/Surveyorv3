@@ -8,7 +8,6 @@ using iText.Layout;
 using iText.Layout.Element;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Diagnostics;
@@ -18,7 +17,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Windows.Storage.Streams;
 using static Emgu.CV.Aruco.Dictionary;
-using System.ComponentModel; 
+using Surveyor.Helper;
 
 namespace Surveyor.User_Controls
 {
@@ -228,6 +227,10 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void NumericTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
+            // This is to fix the SquareLength and MarkerLength not being updated in the CbdWorking
+            // I think it is because of the converter or the TextChanging event
+            Bindings.Update();
+
             SchedulePreviewUpdate();
         }
 
@@ -308,6 +311,14 @@ namespace Surveyor.User_Controls
             if (CbdWorking is null)
                 return;
 
+            // Use the hosting SettingsWindow handle, not App.MainWindow
+            var hostingWindow = WindowHelper.GetWindowForElement(this); // assuming helper exists
+
+            if (hostingWindow is null)
+                return;
+
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(hostingWindow);
+
             // Show file save picker
             var savePicker = new Windows.Storage.Pickers.FileSavePicker
             {
@@ -316,18 +327,24 @@ namespace Surveyor.User_Controls
             savePicker.FileTypeChoices.Add("PDF Document", [".pdf"]);
             savePicker.SuggestedFileName = $"ChArUco Target {CbdWorking.SquaresX}x{CbdWorking.SquaresY} {CbdWorking.PredefinedDictionaryName} Square={(CbdWorking.SquareLength * 1000):F2}mm Marker={(CbdWorking.MarkerLength * 1000):F2}mm.pdf";
 
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(App.MainWindow);
             WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hwnd);
             var fileTask = savePicker.PickSaveFileAsync().AsTask();
             fileTask.Wait();
             var file = fileTask.Result;
+
+            // Restore focus explicitly (defensive)
+            hostingWindow?.Activate();
+
             if (file is null)
                 return; // User cancelled
 
             string fileSpec = file.Path;
 
             // Board Caption
-            string caption = $"Camera Calibration  ChArUco Target  {CbdWorking.SquaresX} x {CbdWorking.SquaresY} squares  {CbdWorking.PredefinedDictionaryName}  Square:{(CbdWorking.SquareLength * 1000):F2}mm Marker:{(CbdWorking.MarkerLength * 1000):F2}mm";
+            string caption =
+                $"Camera Calibration  ChArUco Target  {CbdWorking.SquaresX} x {CbdWorking.SquaresY} squares  " +
+                $"{CbdWorking.PredefinedDictionaryName}  Square:{(CbdWorking.SquareLength * 1000):F2}mm " +
+                $"Marker:{(CbdWorking.MarkerLength * 1000):F2}mm";
 
             // Generate the PDF            
             await GeneratePDFBoard(fileSpec,
@@ -439,7 +456,7 @@ namespace Surveyor.User_Controls
 
                 // 7. Set it as the source of your <Image>
                 PreviewImage.Source = bitmapImage;
-                PreviewCaption1.Text = $"{squaresX} x {squaresY} squares  {CbdWorking.PredefinedDictionaryName}  Square:{(squareLength * 1000):F2}mm Marker:{(markerLength * 1000):F2}mm";
+                PreviewCaption1.Text = $"{squaresX} x {squaresY} squares  {CbdWorking.PredefinedDictionaryName}  Square: {(squareLength * 1000):F2}mm  Marker: {(markerLength * 1000):F2}mm";
                 PreviewCaption2.Text = $"This should look exactly the same as your physical board i.e. same number of squares and same markers in the same positions.";
             }
             catch (Exception ex)

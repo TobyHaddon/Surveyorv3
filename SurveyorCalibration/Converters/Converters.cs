@@ -1,6 +1,7 @@
 ﻿using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Data;
 using System;
+using System.Globalization;
 
 namespace Surveyor.Converters
 {
@@ -86,9 +87,35 @@ namespace Surveyor.Converters
 
         public object ConvertBack(object value, Type targetType, object parameter, string language)
         {
-            if (value is string s && double.TryParse(s, out double mm))
-                return mm / 1000.0; // store back in meters
-            return 0.0;
+            if (value is not string s)
+                return DependencyProperty.UnsetValue;
+
+            s = s.Trim();
+
+            // Intermediate / incomplete user input: keep existing source value
+            if (string.IsNullOrEmpty(s) ||
+                s.EndsWith(".", StringComparison.Ordinal) ||
+                s == "-" ||
+                s == "." ||
+                s == "0.")
+            {
+                return DependencyProperty.UnsetValue; // cancels update; source stays unchanged
+            }
+
+            if (double.TryParse(s, NumberStyles.Float, CultureInfo.CurrentCulture, out double mm))
+            {
+                double meters = mm / 1000.0;
+                if (targetType == typeof(float))
+                    return (float)meters;
+                if (targetType == typeof(double))
+                    return meters;
+                if (targetType == typeof(int))
+                    return (int)Math.Round(meters); // unlikely, but provided
+                return meters;
+            }
+
+            // Parse failed: do not overwrite source with 0
+            return DependencyProperty.UnsetValue;
         }
     }
 }
