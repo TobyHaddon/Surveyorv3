@@ -8,6 +8,25 @@ namespace Surveyor
 {
     public partial class CharucoBoardDefinition : INotifyPropertyChanged
     {
+        // Event handler for property changed
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        public CharucoBoardDefinition()
+        {
+            Clear();
+        }
+        public void Clear()
+        {
+            this._dictionary = null;
+            this._squaresX = 0;
+            this._squaresY = 0;
+            this._squareLength = 0f;
+            this._markerLength = 0f;
+            this._board = null;
+
+            _isDirty = false;
+        }
+
         // Number of squares in X direction
         private int _squaresX;
         public int SquaresX 
@@ -109,14 +128,6 @@ namespace Surveyor
         [JsonIgnore]
         public Dictionary? Dictionary { get => _dictionary; }
 
-        // Event handler for property changed
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-
-        public CharucoBoardDefinition()
-        {
-            Clear();
-        }
 
         public void Setup(Dictionary dictionary, int SquaresX, int SquaresY, float SquareLength, float MarkerLength)
         {
@@ -133,18 +144,6 @@ namespace Surveyor
             }
         }
 
-        public void Clear()
-        {
-            _isDirty = false;
-
-            this._dictionary = null;
-            this._squaresX = 0;
-            this._squaresY = 0;
-            this._squareLength = 0f;
-            this._markerLength = 0f;
-            this._board = null;
-        }
-
 
         ///
         /// EVENTS
@@ -154,6 +153,5 @@ namespace Surveyor
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
     }
-
 }
 

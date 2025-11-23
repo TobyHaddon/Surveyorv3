@@ -628,9 +628,9 @@ namespace Surveyor.Controls
 
                             // Remember the mono calibration data
                             if (trueLeftFalseRight)
-                                calibProject.Data.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters] = monoCalib2;
+                                calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters] = monoCalib2;
                             else
-                                calibProject.Data.RightMonoCalibrationCameraDataArray[(int)calibrationParameters] = monoCalib2;
+                                calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters] = monoCalib2;
                         }
                     }
                 }
@@ -647,11 +647,11 @@ namespace Surveyor.Controls
 
                 foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
                 {                    
-                    MonoCalibrationCameraData? monoCalibDisplay = calibProject.Data.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
+                    MonoCalibrationCameraData? monoCalibDisplay = calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
                     if (trueLeftFalseRight)
-                        monoCalibDisplay = calibProject.Data.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
+                        monoCalibDisplay = calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
                     else
-                        monoCalibDisplay = calibProject.Data.RightMonoCalibrationCameraDataArray[(int)calibrationParameters];
+                        monoCalibDisplay = calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters];
 
                     if (monoCalibDisplay is not null)
                     {
@@ -705,8 +705,8 @@ namespace Surveyor.Controls
                 // Proceed to do the stero  calibration using each the calibration paraemter set
                 foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
                 {
-                    MonoCalibrationCameraData? leftMonoCalibrationCameraData = calibProject.Data.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
-                    MonoCalibrationCameraData? rightMonoCalibrationCameraData = calibProject.Data.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
+                    MonoCalibrationCameraData? leftMonoCalibrationCameraData = calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
+                    MonoCalibrationCameraData? rightMonoCalibrationCameraData = calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters];
 
                     if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
                     {
@@ -741,7 +741,7 @@ namespace Surveyor.Controls
 
                         if (calibrationStereoCameraData is not null)
                         {
-                            calibProject.Data.CalibrationStereoCameraDataArray[(int)calibrationParameters] = calibrationStereoCameraData;
+                            calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)calibrationParameters] = calibrationStereoCameraData;
                         }
 
                         // Add the stereo calibration display text
@@ -772,8 +772,8 @@ namespace Surveyor.Controls
 
                     if (writeBestFramesToPng)
                     {
-                        MonoCalibrationCameraData? leftMonoCalibrationCameraData = calibProject.Data.LeftMonoCalibrationCameraDataArray[(int)calibrationParametersBest];
-                        MonoCalibrationCameraData? rightMonoCalibrationCameraData = calibProject.Data.LeftMonoCalibrationCameraDataArray[(int)calibrationParametersBest];
+                        MonoCalibrationCameraData? leftMonoCalibrationCameraData = calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParametersBest];
+                        MonoCalibrationCameraData? rightMonoCalibrationCameraData = calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParametersBest];
 
                         if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
                         {

@@ -628,10 +628,7 @@ namespace Surveyor.User_Controls
 
                 if (project is not null)
                 {
-                    if (project.Data.CalibFileSpec is not null)
-                    {
-                        sb.Append(Path.GetFileName(project.Data.Info.ProjectFileName));
-                    }
+                    sb.Append(Path.GetFileName(project.Data.Info.ProjectFileName));
                 }
 
                 return sb.ToString();

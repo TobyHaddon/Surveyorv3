@@ -352,10 +352,10 @@ namespace Surveyor
             // Let user pick a single file
             var file = await openPicker.PickSingleFileAsync();
 
-            if (file != null)
+            if (file != null && calibProject is not null)
             {
                 // Load the project               
-                if (calibProject.Load(file.Path))
+                if (await calibProject.ProjectLoad(file.Path) == 0)
                 {
 
                     // Call OpenMedia
@@ -391,7 +391,7 @@ namespace Surveyor
 
                 switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                 {
-                    case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                    case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
                         if (StereoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path) &&
                             LeftMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftMonoMP4Path, string.Empty) &&
                             RightMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.RightMonoMP4Path, string.Empty))
@@ -400,14 +400,14 @@ namespace Surveyor
                         }
                         break;
 
-                    case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                    case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                         if (StereoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path))
                         {
                             cachedResultsAvailable = true;
                         }
                         break;
 
-                    case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                    case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
                         if (LeftMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftMonoMP4Path, string.Empty) &&
                             RightMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.RightMonoMP4Path, string.Empty))
                         {
@@ -415,7 +415,7 @@ namespace Surveyor
                         }
                         break;
 
-                    case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                    case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
                         if (LeftMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftMonoMP4Path, string.Empty))
                         {
                             cachedResultsAvailable = true;
@@ -445,7 +445,7 @@ namespace Surveyor
                         // Load cached results
                         switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                         {
-                            case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                            case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
                                 try
                                 {
                                     stereoFramesLoaded = StereoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
@@ -469,7 +469,7 @@ namespace Surveyor
 
                                 break;
 
-                            case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                            case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                                 try
                                 {
                                     stereoFramesLoaded = StereoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
@@ -488,7 +488,7 @@ namespace Surveyor
                                 }
                                 break;
 
-                            case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                            case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
                                 try
                                 {
                                     leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
@@ -509,7 +509,7 @@ namespace Surveyor
                                 }
                                 break;
 
-                            case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                            case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
                                 try
                                 {
                                     leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
@@ -534,8 +534,8 @@ namespace Surveyor
                         {
                             switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                             {
-                                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                                case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                                     // Override the sync frame if this already exist
                                     // (they may have been set in LoadResults())
                                     if (AppLaunchArgs.SyncFrameIndexLeft is not null && AppLaunchArgs.SyncFrameIndexRight is not null)
@@ -558,7 +558,7 @@ namespace Surveyor
 
                             switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                             {
-                                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
                                     if (stereoFramesLoaded == 0 || leftMonoFramesLoaded == 0 || rightMonoFramesLoaded == 0)
                                     {
                                         contentText = $"The cached results not loaded of incomplete.\n\n" +
@@ -569,7 +569,7 @@ namespace Surveyor
                                     }
                                     break;
 
-                                case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                                     if (stereoFramesLoaded == 0)
                                     {
                                         contentText = $"The cached results not loaded of incomplete.\n\n" +
@@ -578,7 +578,7 @@ namespace Surveyor
                                     }
                                     break;
 
-                                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
                                     if (leftMonoFramesLoaded == 0 || rightMonoFramesLoaded == 0)
                                     {
                                         contentText = $"The cached results not loaded of incomplete.\n\n" +
@@ -588,7 +588,7 @@ namespace Surveyor
                                     }
                                     break;
 
-                                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
                                     if (leftMonoFramesLoaded == 0)
                                     {
                                         contentText = $"The cached results not loaded of incomplete.\n\n" +
@@ -649,22 +649,22 @@ namespace Surveyor
                 // Open Media Files
                 switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                 {
-                    case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                    case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
                         StereoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
                         LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
                         RightMonoCalibrationHead.OpenMedia(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
                         break;
 
-                    case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                    case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                         StereoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
                         break;
 
-                    case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                    case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
                         LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
                         RightMonoCalibrationHead.OpenMedia(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
                         break;
 
-                    case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                    case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
                         LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
                         break;
                 }
@@ -674,8 +674,8 @@ namespace Surveyor
                 {
                     switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                     {
-                        case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                        case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                        case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                        case StereoMonoMediaSetMode.StereoOnlyMediaSet:
 
                             // Inform that user they need to lock the stereo calibration videos
                             var dialog = new ContentDialog
@@ -726,9 +726,12 @@ namespace Surveyor
         {
             bool started = false;
 
+            if (calibProject is null)
+                return;
+
             switch (calibProject.Data.Media.StereoMonoMediaSetMode)
             {
-                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
                     if (StereoCalibrationHead.IsOpen() &&
                         (bool)StereoCalibrationHead.IsStereoLocked()! &&
                         LeftMonoCalibrationHead.IsOpen() &&
@@ -741,7 +744,7 @@ namespace Surveyor
                         started = true;
                     }
                     break;
-                case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                     if (StereoCalibrationHead.IsOpen() &&
                         (bool)StereoCalibrationHead.IsStereoLocked()!)
                     {
@@ -750,7 +753,7 @@ namespace Surveyor
                         started = true;
                     }
                     break;
-                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
                     if (LeftMonoCalibrationHead.IsOpen() &&
                         RightMonoCalibrationHead.IsOpen())
                     {
@@ -760,7 +763,7 @@ namespace Surveyor
                         started = true;
                     }
                     break;
-                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
                     if (LeftMonoCalibrationHead.IsOpen())
                     {
                         // Find the calibration frame in the mono video
@@ -824,7 +827,7 @@ namespace Surveyor
             switch (calibProject.Data.Media.StereoMonoMediaSetMode)
             {
 
-                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
                     if (StereoCalibrationHead.IsOpen() &&
                         (bool)StereoCalibrationHead.IsStereoLocked()! &&
                         LeftMonoCalibrationHead.IsOpen() &&
@@ -835,14 +838,14 @@ namespace Surveyor
                         doRightMono = true;
                     }
                     break;
-                case CalibInfoAndMedia.StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                     if (StereoCalibrationHead.IsOpen() &&
                         (bool)StereoCalibrationHead.IsStereoLocked()!)
                     {
                         doStereo = true;
                     }
                     break;
-                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
                     if (LeftMonoCalibrationHead.IsOpen() &&
                         RightMonoCalibrationHead.IsOpen())
                     {
@@ -850,7 +853,7 @@ namespace Surveyor
                         doRightMono = true;
                     }
                     break;
-                case CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
                     if (LeftMonoCalibrationHead.IsOpen())
                     {
                         doLeftMono = true;
@@ -862,8 +865,8 @@ namespace Surveyor
             if (doLeftMono && doRightMono)
             {
                 // Check for any cached mono calibration results
-                if (calibProject.Data.LeftMonoCalibrationCameraDataArray.Any(item => item != null) &&
-                    calibProject.Data.RightMonoCalibrationCameraDataArray.Any(item => item != null))
+                if (calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray.Any(item => item != null) &&
+                    calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray.Any(item => item != null))
                 {
                     // Get local folder path
                     StorageFolder localFolder = ApplicationData.Current.LocalFolder;
@@ -885,8 +888,8 @@ namespace Surveyor
                     else 
                     {
                         // Remove cached mono calibration results
-                        Array.Fill(calibProject.Data.LeftMonoCalibrationCameraDataArray, null);
-                        Array.Fill(calibProject.Data.RightMonoCalibrationCameraDataArray, null);
+                        Array.Fill(calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray, null);
+                        Array.Fill(calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray, null);
                     }
                 }
             }
@@ -952,8 +955,8 @@ namespace Surveyor
                 await DisplayStatusText("Best frames calc stereo...");
                 InProgress.IsActive = true;
 
-                if (calibProject.Data.LeftMonoCalibrationCameraDataArray.Any(item => item != null) &&
-                    calibProject.Data.RightMonoCalibrationCameraDataArray.Any(item => item != null))
+                if (calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray.Any(item => item != null) &&
+                    calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray.Any(item => item != null))
                 {
                     await StereoCalibrationHead.BestFramesCalcAndStereoCalibration(
                                                                 calibProject,
@@ -967,10 +970,10 @@ namespace Surveyor
                     if (calibrationParameters is not null)
                     {
                         // Get the stereo, left mono and right mono result set
-                        CalibrationStereoCameraData calibrationStereoCameraData = calibProject.Data.CalibrationStereoCameraDataArray[(int)calibrationParameters]!;
+                        CalibrationStereoCameraData calibrationStereoCameraData = calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)calibrationParameters]!;
 
-                        MonoCalibrationCameraData? leftMonoCalibrationCameraData = calibProject.Data.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
-                        MonoCalibrationCameraData? rightMonoCalibrationCameraData = calibProject.Data.RightMonoCalibrationCameraDataArray[(int)calibrationParameters];
+                        MonoCalibrationCameraData? leftMonoCalibrationCameraData = calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
+                        MonoCalibrationCameraData? rightMonoCalibrationCameraData = calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters];
 
                         if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
                         {
@@ -1049,7 +1052,7 @@ namespace Surveyor
             }
             if (doLeftMono || doRightMono)
             {
-                await calibProject.Save();                   
+                calibProject.ProjectSave();                   
             }
 
             await DisplayStatusText("");
@@ -1230,7 +1233,7 @@ namespace Surveyor
                     try
                     {
                         // Save the calib project data to the file
-                        await calibProject.Save(file.Path);
+                        await calibProject.ProjectSaveAs(file.Path);
                         Debug.WriteLine($"Calibration project saved to {file.Path}");
                     }
                     catch (Exception ex)
@@ -1493,7 +1496,7 @@ namespace Surveyor
         /// Set the UI controls to the current mode
         /// </summary>
         private void SetUIControls()
-        {
+        {            
             bool? isLocked = StereoCalibrationHead.IsStereoLocked();
 
             // Load Button
@@ -1507,11 +1510,11 @@ namespace Surveyor
             }
 
             // Find Button
-            if (findStatus is null)
+            if (findStatus is null && calibProject is not null)
             {
                 if ((isLocked is not null && isLocked == true) ||
-                    calibProject.Data.Media.StereoMonoMediaSetMode == CalibInfoAndMedia.StereoMonoMediaSetMode.MonoPairOnlyMediaSet ||
-                    calibProject.Data.Media.StereoMonoMediaSetMode == CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet)
+                    calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoPairOnlyMediaSet ||
+                    calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoSingleOnlyMediaSet)
                 {
                     // Stereo is locked
                     FindAppBarButton.IsEnabled = true; // Disable Find button for now

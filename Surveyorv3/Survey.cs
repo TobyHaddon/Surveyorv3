@@ -139,6 +139,7 @@ namespace Surveyor
                         {
                             _surveyType = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -152,6 +153,7 @@ namespace Surveyor
                         {
                             _surveyFileName = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -165,6 +167,7 @@ namespace Surveyor
                         {
                             _surveyPath = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -181,6 +184,7 @@ namespace Surveyor
                         {
                             _surveyCode = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -197,6 +201,7 @@ namespace Surveyor
                         {
                             _surveyAnalystName = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -213,6 +218,7 @@ namespace Surveyor
                         {
                             _surveyDepth = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -297,6 +303,7 @@ namespace Surveyor
                         {
                             _mediaPath = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -312,6 +319,7 @@ namespace Surveyor
                             _leftMediaFileNames = value;
 
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -327,6 +335,7 @@ namespace Surveyor
                             _rightMediaFileNames = value;
 
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -340,6 +349,7 @@ namespace Surveyor
                         {
                             _leftCameraID = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -352,6 +362,7 @@ namespace Surveyor
                         {
                             _rightCameraID = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -443,6 +454,7 @@ namespace Surveyor
                         {
                             _isSynchronized = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -456,6 +468,7 @@ namespace Surveyor
                         {
                             _timeSpanOffset = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -469,6 +482,7 @@ namespace Surveyor
                         {
                             _actualTimeSpanOffsetLeft = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -482,6 +496,7 @@ namespace Surveyor
                         {
                             _actualTimeSpanOffsetRight = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -549,6 +564,7 @@ namespace Surveyor
                         {
                             _eventList = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -647,6 +663,7 @@ namespace Surveyor
                         {
                             _allowMultipleCalibrationData = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -662,6 +679,7 @@ namespace Surveyor
                         {
                             _calibrationInherited = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -676,6 +694,7 @@ namespace Surveyor
                         {
                             _preferredCalibrationDataIndex = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -700,6 +719,7 @@ namespace Surveyor
                             _calibrationDataList.CollectionChanged += CollectionChangedHandler;
 
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -876,6 +896,7 @@ namespace Surveyor
                         {
                             _surveyRulesActive = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -891,6 +912,7 @@ namespace Surveyor
                         {
                             _surveyRulesInherited = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -906,6 +928,7 @@ namespace Surveyor
                         {
                             _surveyRulesData = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -1007,26 +1030,6 @@ namespace Surveyor
         public DataClass Data { get; set; } = new DataClass();      // Data instance is allowed to change
 
 
-        /// <summary>
-        /// Returns the survey title for the main window title bar
-        /// </summary>
-        /// <returns></returns>
-        public string GetSurveyTitle()
-        {
-            string title = "Untitled Survey";
-
-            if (this.Data.Info.SurveyFileName != null)
-            {
-                title = Path.GetFileNameWithoutExtension(this.Data.Info.SurveyFileName);
-
-                if (this.IsDirty)
-                    title += " *";
-            }                                
-
-            return title;
-        }
-
-
         public bool IsDirty 
         {   get
             {
@@ -1066,9 +1069,30 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Returns the survey title for the main window title bar
+        /// </summary>
+        /// <returns></returns>
+        public string GetSurveyTitle()
+        {
+            string title = "Untitled Survey";
+
+            if (this.Data.Info.SurveyFileName != null)
+            {
+                title = Path.GetFileNameWithoutExtension(this.Data.Info.SurveyFileName);
+
+                if (this.IsDirty)
+                    title += " *";
+            }
+
+            return title;
+        }
+
+
+        /// <summary>
         /// Load a survey from a json file
         /// </summary>
         /// <param name="SurveyFileSpec"></param>
+        /// <param name="autoSave"></param>
         /// <returns></returns>
         public async Task<int> SurveyLoad(string SurveyFileSpec, bool autoSave = true)
         {
@@ -1420,7 +1444,7 @@ namespace Surveyor
                         if (!Data.Media.RightMediaFileNames.Contains(mediaFileSpec))
                         {
                             Data.Media.RightMediaFileNames.Add(Path.GetFileName(mediaFileSpec));
-                            Report?.Out(Reporter.WarningLevel.Debug, "R", $"Adding media file:{Path.GetFileName(mediaFileSpec)} to the list of right media files");
+                            Report?.Debug("R", $"Adding media file:{Path.GetFileName(mediaFileSpec)} to the list of right media files");
 
                         }
                         else

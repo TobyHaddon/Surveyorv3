@@ -49,15 +49,6 @@ namespace Surveyor.User_Controls
         private ObservableCollection<MediaFileItem> RightStereoMediaFileItemList { get; set; }
 
 
-        public enum StereoMonoMediaSetMode
-        {
-            MonoAndStereoMediaSet,  // A stereo pair plus a mono pair
-            StereoOnlyMediaSet,     // A stereo pair only
-            MonoPairOnlyMediaSet,   // A mono pair only
-            MonoSingleOnlyMediaSet,  // A single mono file only
-            None
-        };
-
         private StereoMonoMediaSetMode stereoMonoMediaSetMode = StereoMonoMediaSetMode.MonoAndStereoMediaSet; 
 
         public CalibInfoAndMedia()
@@ -125,25 +116,27 @@ namespace Surveyor.User_Controls
         /// <param name="calibProject"></param>
         public void SaveForContentDialog(CalibProject calibProject)
         {
+            // Clear just the media information
             calibProject.Data.Media.Clear();
 
-            calibProject.Data.Media.StereoMonoMediaSetMode = stereoMonoMediaSetMode; 
+            // Remember the stereo/mono media set mode
+            calibProject.Data.Media.StereoMonoMediaSetMode = stereoMonoMediaSetMode;
+
+            // Remember the media path if necessary
+            bool saveMediaPath = false;
+            string mediaPath = string.Empty;
 
             // Save the media files
             if (LeftMonoMediaFileNames is not null && RightMonoMediaFileNames is not null &&
                 (LeftMonoMediaFileNames.Items.Count == 1 && RightMonoMediaFileNames.Items.Count == 1))
             {
-                //if (LeftMediaFileNames.Items.Count > 0)
-                //    calibProject.Data.Media.MediaPath = Path.GetDirectoryName(((MediaFileItem)LeftMediaFileNames.Items[0]).MediaFilePath);
-                //else if (RightMediaFileNames.Items.Count > 0)
-                //    calibProject.Data.Media.MediaPath = Path.GetDirectoryName(((MediaFileItem)RightMediaFileNames.Items[0]).MediaFilePath);
-
-
                 MediaFileItem leftMonoMediaFileItem = (MediaFileItem)LeftMonoMediaFileNames.Items[0];
                 if (leftMonoMediaFileItem is not null && leftMonoMediaFileItem.MediaFilePath is not null)
                 {
                     // Load mono left media
-                    calibProject.Data.Media.LeftMonoMP4Path = leftMonoMediaFileItem.MediaFilePath;
+                    calibProject.Data.Media.LeftMonoMP4FileName = Path.GetFileName(leftMonoMediaFileItem.MediaFilePath);
+                    mediaPath = Path.GetDirectoryName(leftMonoMediaFileItem.MediaFilePath) ?? string.Empty;
+                    saveMediaPath = true;
 
                     // Get and remember left GoPro serial number (try the left mono)
                     calibProject.Data.Media.LeftCameraID = leftMonoMediaFileItem.GoProSerialNumber;
@@ -154,7 +147,9 @@ namespace Surveyor.User_Controls
                 if (rightMonoMediaFileItem is not null && rightMonoMediaFileItem.MediaFilePath is not null)
                 {
                     // Load mono right media
-                    calibProject.Data.Media.RightMonoMP4Path = rightMonoMediaFileItem.MediaFilePath; ;
+                    calibProject.Data.Media.RightMonoMP4FileName = Path.GetFileName(rightMonoMediaFileItem.MediaFilePath);
+                    mediaPath = Path.GetDirectoryName(rightMonoMediaFileItem.MediaFilePath) ?? string.Empty;
+                    saveMediaPath = true;
 
                     // Get and remember right GoPro serial number  (try the right mono)                 
                     calibProject.Data.Media.RightCameraID = rightMonoMediaFileItem.GoProSerialNumber;
@@ -166,7 +161,9 @@ namespace Surveyor.User_Controls
                 if (leftMonoMediaFileItem is not null && leftMonoMediaFileItem.MediaFilePath is not null)
                 {
                     // Load mono left media
-                    calibProject.Data.Media.LeftMonoMP4Path = leftMonoMediaFileItem.MediaFilePath;
+                    calibProject.Data.Media.LeftMonoMP4FileName = Path.GetFileName(leftMonoMediaFileItem.MediaFilePath);
+                    mediaPath = Path.GetDirectoryName(leftMonoMediaFileItem.MediaFilePath) ?? string.Empty;
+                    saveMediaPath = true;
 
                     // Get and remember left GoPro serial number (try the left mono)
                     calibProject.Data.Media.LeftCameraID = leftMonoMediaFileItem.GoProSerialNumber;
@@ -180,7 +177,9 @@ namespace Surveyor.User_Controls
                 MediaFileItem leftStereoMediaFileItem = (MediaFileItem)LeftStereoMediaFileNames.Items[0];
                 if (leftStereoMediaFileItem is not null && leftStereoMediaFileItem.MediaFilePath is not null)
                 {
-                    calibProject.Data.Media.LeftStereoMP4Path = leftStereoMediaFileItem.MediaFilePath;
+                    calibProject.Data.Media.LeftStereoMP4FileName = Path.GetFileName(leftStereoMediaFileItem.MediaFilePath);
+                    mediaPath = Path.GetDirectoryName(leftStereoMediaFileItem.MediaFilePath) ?? string.Empty;
+                    saveMediaPath = true;
 
                     // Get and remember left GoPro serial number (try the left stereo)
                     calibProject.Data.Media.LeftCameraID = leftStereoMediaFileItem.GoProSerialNumber;
@@ -190,16 +189,24 @@ namespace Surveyor.User_Controls
                 MediaFileItem rightStereoMediaFileItem = (MediaFileItem)RightStereoMediaFileNames.Items[0];
                 if (rightStereoMediaFileItem is not null && rightStereoMediaFileItem.MediaFilePath is not null)
                 {
-                    calibProject.Data.Media.RightStereoMP4Path = rightStereoMediaFileItem.MediaFilePath;
+                    calibProject.Data.Media.RightStereoMP4FileName = Path.GetFileName(rightStereoMediaFileItem.MediaFilePath);
+                    mediaPath = Path.GetDirectoryName(rightStereoMediaFileItem.MediaFilePath) ?? string.Empty;
+                    saveMediaPath = true;
 
                     // Get and remember right GoPro serial number (try the right stereo)
                     calibProject.Data.Media.RightCameraID = rightStereoMediaFileItem.GoProSerialNumber;
                 }
             }
 
+            // Save the media path if necessary
+            if (saveMediaPath)
+            {
+                calibProject.Data.Media.MediaPath = mediaPath;
+            }
 
             // Just to set variables up correctly
             StereoMonoRadioButtons_SelectionChanged(null!, null!);
+
             // Report any issues with the data
             EntryFieldsValid(true/*report*/);
         }
@@ -208,8 +215,6 @@ namespace Surveyor.User_Controls
         /// 
         /// EVENTS
         /// 
-
-
 
         /// <summary>
         /// Radio buttons for stereo or mono media selection changed.

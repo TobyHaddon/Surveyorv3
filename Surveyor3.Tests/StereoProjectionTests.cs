@@ -145,8 +145,9 @@ namespace Surveyor.Tests
                     double tolerance = 0.01;
 
                     // Validate the measurement
-                    Assert.IsTrue(Math.Abs((double)measuredLength - expectedLength) < tolerance,
-                        $"Measured length {measuredLength} differs from expected {expectedLength}");
+                    Assert.IsLessThan(tolerance,
+                                      Math.Abs((double)measuredLength - expectedLength), 
+                                      $"Measured length {measuredLength} differs from expected {expectedLength}");
                 }
                 else
                 {
@@ -191,8 +192,9 @@ namespace Surveyor.Tests
                     double tolerance = 0.01;
 
                     // Validate the measurement
-                    Assert.IsTrue(Math.Abs((double)rangeLength - expectedLength) < tolerance,
-                        $"Range length {rangeLength} differs from expected {expectedLength}");
+                    Assert.IsLessThan(tolerance,
+                                      Math.Abs((double)rangeLength - expectedLength), 
+                                      $"Range length {rangeLength} differs from expected {expectedLength}");
                 }
                 else
                 {
@@ -237,8 +239,9 @@ namespace Surveyor.Tests
                     double tolerance = 0.01;
 
                     // Validate the measurement
-                    Assert.IsTrue(Math.Abs((double)xOffsetLength - expectedLength) < tolerance,
-                        $"Range length {xOffsetLength} differs from expected {expectedLength}");
+                    Assert.IsLessThan(tolerance,
+                                      Math.Abs((double)xOffsetLength - expectedLength), 
+                                      $"Range length {xOffsetLength} differs from expected {expectedLength}");
                 }
                 else
                 {
@@ -284,8 +287,9 @@ namespace Surveyor.Tests
                     double tolerance = 0.01;
 
                     // Validate the measurement
-                    Assert.IsTrue(Math.Abs((double)yOffsetLength - expectedLength) < tolerance,
-                        $"Range length {yOffsetLength} differs from expected {expectedLength}");
+                    Assert.IsLessThan(tolerance,
+                                      Math.Abs((double)yOffsetLength - expectedLength), 
+                                      $"Range length {yOffsetLength} differs from expected {expectedLength}");
                 }
                 else
                 {
@@ -380,10 +384,12 @@ namespace Surveyor.Tests
                         Debug.WriteLine($"TestUndistortAndDistort: Distort:({_LPointADist.Value.X:F4}, {_LPointADist.Value.Y:F4}) > Undistort:({_LPointAUnDist.X:F4}, {_LPointAUnDist.Y:F4}) > Distort:({_LPointAReDist.Value.X:F4}, {_LPointAReDist.Value.Y:F4})");
 
                         // Validate the measurement
-                        Assert.IsTrue(Math.Abs(_LPointADist.Value.X - _LPointAReDist.Value.X) < tolerance,
-                            $"X coordinate {_LPointADist.Value.X} differs from expected {_LPointAReDist.Value.X}");
-                        Assert.IsTrue(Math.Abs(_LPointADist.Value.Y - _LPointAReDist.Value.Y) < tolerance,
-                            $"Y coordinate {_LPointADist.Value.Y} differs from expected {_LPointAReDist.Value.Y}");
+                        Assert.IsLessThan(tolerance,
+                                          Math.Abs(_LPointADist.Value.X - _LPointAReDist.Value.X), 
+                                          $"X coordinate {_LPointADist.Value.X} differs from expected {_LPointAReDist.Value.X}");
+                        Assert.IsLessThan(tolerance,
+                                          Math.Abs(_LPointADist.Value.Y - _LPointAReDist.Value.Y), 
+                                          $"Y coordinate {_LPointADist.Value.Y} differs from expected {_LPointAReDist.Value.Y}");
                     }
                     else
                     {

@@ -1,29 +1,81 @@
 ﻿using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using Surveyor.Calibration;
-using Surveyor.User_Controls;
 using SurveyorCalibrationData;
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Surveyor
 {
+    public enum StereoMonoMediaSetMode
+    {
+        MonoAndStereoMediaSet,  // A stereo pair plus a mono pair
+        StereoOnlyMediaSet,     // A stereo pair only
+        MonoPairOnlyMediaSet,   // A mono pair only
+        MonoSingleOnlyMediaSet,  // A single mono file only
+        None
+    };
+
     public partial class CalibProject : INotifyPropertyChanged
     {
         // Event handler for property changed
         public event PropertyChangedEventHandler? PropertyChanged;
 
+        readonly Reporter? Report = new();
+
+        // Auto Save variables
+        private readonly TimeSpan autosaveInterval = TimeSpan.FromSeconds(20);
+        private CancellationTokenSource? _autosaveCts;
+        private Task? _autosaveTask;
+
+        // Lock object for thread safety
+        // Use to stop the auto save and save methods from being called at the same time
+        private readonly object _lockObject = new();
+
+
+
         public partial class DataClass
         {
-            
+            /// <summary>
+            /// Clear the DataClass
+            /// </summary>
+            public void Clear()
+            {
+                Info.Clear();
+                Media.Clear();
+                CharucoBoardDefinition.Clear();
+                CalibrationResults.Clear();
+            }
+
             public partial class InfoClass : INotifyPropertyChanged
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
 
+                public InfoClass() 
+                {
+                    Clear();
+                }
+
+                public void Clear()
+                {
+                    ProjectFileName = string.Empty;
+                    IsDirty = false;
+                }
+
+                // Info class version
+                public float Version { get; set; } = 1.0f;
+
+                // Values
                 private string _projectFileName = string.Empty;
+                private string _projectPath = string.Empty;
+
+                // Setters and getters
+
                 public string ProjectFileName
                 {
                     get => _projectFileName;
@@ -32,6 +84,20 @@ namespace Surveyor
                         if (_projectFileName != value)
                         {
                             _projectFileName = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public string ProjectPath
+                {
+                    get => _projectPath;
+                    set
+                    {
+                        if (_projectPath != value)
+                        {
+                            _projectPath = value;
                             IsDirty = true;
                             OnPropertyChanged();
                         }
@@ -53,12 +119,10 @@ namespace Surveyor
                     }
                 }
 
-                public void Clear()
-                {
-                    ProjectFileName = string.Empty;
-                    IsDirty = false;
-                }
 
+                /// 
+                /// EVENTS
+                ///
                 private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
                 {
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
@@ -75,11 +139,54 @@ namespace Surveyor
                     Clear();
                 }
 
-                // Calibration mode mono+stereo, mono only, stereo only
-                public CalibInfoAndMedia.StereoMonoMediaSetMode StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet;
+                /// <summary>
+                /// Clear down Media Class
+                /// </summary>
+                public void Clear()
+                {
+                    StereoMonoMediaSetMode = StereoMonoMediaSetMode.None;
+                    MediaPath = string.Empty;
+                    LeftMonoMP4FileName = string.Empty;
+                    RightMonoMP4FileName = string.Empty;
+                    LeftStereoMP4FileName = string.Empty;
+                    RightStereoMP4FileName = string.Empty;
+                    LeftCameraID = string.Empty;
+                    RightCameraID = string.Empty;
+                    FrameSize = new(0, 0);
 
-                // Media Path
+                    _isDirty = false;
+                }
+
+                // Info class version
+                public float Version { get; set; } = 1.0f;
+
+                // Values
+                public StereoMonoMediaSetMode _stereoMonoMediaSetMode = StereoMonoMediaSetMode.None;
                 private string _mediaPath = string.Empty;
+                private string _leftMonoMP4FileName = string.Empty;
+                private string _rightMonoMP4FileName = string.Empty;
+                private string _leftStereoMP4FileName = string.Empty;
+                private string _rightStereoMP4FileName = string.Empty;
+                private Windows.Foundation.Size _frameSize = new(0, 0);
+
+                // Setters and getters
+                // Calibration mode mono+stereo, mono only, stereo only
+                [JsonConverter(typeof(StringEnumConverter))]
+                public StereoMonoMediaSetMode StereoMonoMediaSetMode
+                {
+                    get => _stereoMonoMediaSetMode;
+                    set
+                    {
+                        if (_stereoMonoMediaSetMode != value)
+                        {
+                            _stereoMonoMediaSetMode = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                // Media Path (All media files are on the same)
                 public string MediaPath
                 {
                     get => _mediaPath;
@@ -89,12 +196,12 @@ namespace Surveyor
                         {
                             _mediaPath = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
 
-                // Media file names
-                private string _leftMonoMP4FileName = string.Empty;
+                // Left Mono media file name (Use for MonoAndStereoMediaSet, MonoPairOnlyMediaSet, MonoSingleOnlyMediaSet)
                 public string LeftMonoMP4FileName
                 { 
                     get => _leftMonoMP4FileName; 
@@ -104,48 +211,52 @@ namespace Surveyor
                         {
                             _leftMonoMP4FileName = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
 
-                private string _rightMonoMP4Path = string.Empty;
-                public string RightMonoMP4Path
+                // Right Mono media file name (Use for MonoAndStereoMediaSet, MonoPairOnlyMediaSet)
+                public string RightMonoMP4FileName
                 {
-                    get => _rightMonoMP4Path;
+                    get => _rightMonoMP4FileName;
                     set
                     {
-                        if (_rightMonoMP4Path != value)
+                        if (_rightMonoMP4FileName != value)
                         {
-                            _rightMonoMP4Path = value;
+                            _rightMonoMP4FileName = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
 
-                private string _leftStereoMP4Path = string.Empty;
-                public string LeftStereoMP4Path
+                // Left Stereo media file name (Use for MonoAndStereoMediaSet, StereoOnlyMediaSet)
+                public string LeftStereoMP4FileName
                 {
-                    get => _leftStereoMP4Path;
+                    get => _leftStereoMP4FileName;
                     set
                     {
-                        if (_leftStereoMP4Path != value)
+                        if (_leftStereoMP4FileName != value)
                         {
-                            _leftStereoMP4Path = value;
+                            _leftStereoMP4FileName = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
 
-                private string _rightStereoMP4Path = string.Empty;
-                public string RightStereoMP4Path
+                // Right Stereo media file name (Use for MonoAndStereoMediaSet, StereoOnlyMediaSet)
+                public string RightStereoMP4FileName
                 {
-                    get => _rightStereoMP4Path;
+                    get => _rightStereoMP4FileName;
                     set
                     {
-                        if (_rightStereoMP4Path != value)
+                        if (_rightStereoMP4FileName != value)
                         {
-                            _rightStereoMP4Path = value;
+                            _rightStereoMP4FileName = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -161,6 +272,7 @@ namespace Surveyor
                         {
                             _leftCameraID = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
@@ -176,36 +288,45 @@ namespace Surveyor
                         {
                             _rightCameraID = value;
                             IsDirty = true;
+                            OnPropertyChanged();
                         }
                     }
                 }
 
                 // Frame Size
-                public Windows.Foundation.Size FrameSize { get; set; } = new(0, 0);
+                public Windows.Foundation.Size FrameSize 
+                { 
+                    get => _frameSize;
+                    set
+                    {
+                         if (_frameSize != value)
+                        {
+                            _frameSize = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
 
                 // Helper
                 public string LeftMonoMP4Path
                 {
                     get => Path.Combine(MediaPath, LeftMonoMP4FileName);
                 }
-
-
-                /// <summary>
-                /// Clear down Media Class
-                /// </summary>
-                public void Clear()
+                public string RightMonoMP4Path
                 {
-                    MediaPath = string.Empty;
-                    LeftMonoMP4FileName = string.Empty;
-                    RightMonoMP4Path = string.Empty;
-                    LeftStereoMP4Path = string.Empty;
-                    RightStereoMP4Path = string.Empty;
-                    LeftCameraID = string.Empty;
-                    RightCameraID = string.Empty;
-                    FrameSize = new(0, 0);
-
-                    _isDirty = false;
+                    get => Path.Combine(MediaPath, RightMonoMP4FileName);
                 }
+                public string LeftStereoMP4Path
+                {
+                    get => Path.Combine(MediaPath, LeftStereoMP4FileName);
+                }
+                public string RightStereoMP4Path
+                {
+                    get => Path.Combine(MediaPath, RightStereoMP4FileName);
+                }
+
 
                 // Dirty flag
                 private bool _isDirty;
@@ -250,20 +371,70 @@ namespace Surveyor
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
 
-                private string _projectFileName = string.Empty;
-                public string ProjectFileName
+                public CalibrationResultClass()
                 {
-                    get => _projectFileName;
+                    Clear();
+                }
+
+                public void Clear()
+                {
+                    _leftMonoCalibrationCameraDataArray = new MonoCalibrationCameraData?[Enum.GetValues<CalibrationParameters>().Length];
+                    _rightMonoCalibrationCameraDataArray = new MonoCalibrationCameraData?[Enum.GetValues<CalibrationParameters>().Length];
+                    _calibrationStereoCameraDataArray = new CalibrationStereoCameraData?[Enum.GetValues<CalibrationParameters>().Length];
+
+                    IsDirty = false;
+                }
+
+                // Values
+                private MonoCalibrationCameraData?[] _leftMonoCalibrationCameraDataArray = new MonoCalibrationCameraData?[Enum.GetValues<CalibrationParameters>().Length];
+                private MonoCalibrationCameraData?[] _rightMonoCalibrationCameraDataArray = new MonoCalibrationCameraData?[Enum.GetValues<CalibrationParameters>().Length];
+                private CalibrationStereoCameraData?[] _calibrationStereoCameraDataArray = new CalibrationStereoCameraData?[Enum.GetValues<CalibrationParameters>().Length];
+
+                // Setters and getters
+                // Left & right mono calibration result sets (different results for different calibration flags)
+                public MonoCalibrationCameraData?[] LeftMonoCalibrationCameraDataArray 
+                { 
+                    get => _leftMonoCalibrationCameraDataArray;
                     set
                     {
-                        if (_projectFileName != value)
+                        if (_leftMonoCalibrationCameraDataArray != value)
                         {
-                            _projectFileName = value;
+                            _leftMonoCalibrationCameraDataArray = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    } 
+                }
+
+                public MonoCalibrationCameraData?[] RightMonoCalibrationCameraDataArray
+                {
+                    get => _rightMonoCalibrationCameraDataArray;
+                    set
+                    {
+                        if (_rightMonoCalibrationCameraDataArray != value)
+                        {
+                            _rightMonoCalibrationCameraDataArray = value;
                             IsDirty = true;
                             OnPropertyChanged();
                         }
                     }
                 }
+
+                // Stereo result sets  (different results for different calibration flags)
+                public CalibrationStereoCameraData?[] CalibrationStereoCameraDataArray
+                {
+                    get => _calibrationStereoCameraDataArray;
+                    set
+                    {
+                        if (_calibrationStereoCameraDataArray != value)
+                        {
+                            _calibrationStereoCameraDataArray = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
 
                 private bool _isDirty;
                 [JsonIgnore]
@@ -280,20 +451,14 @@ namespace Surveyor
                     }
                 }
 
-                public void Clear()
-                {
-                    ProjectFileName = string.Empty;
-                    IsDirty = false;
-                }
-
+                ///
+                /// EVENTS
+                /// 
                 private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
                 {
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
                 }
             }
-
-
-            public string CalibFileSpec { get; set; } = string.Empty;
 
             
             public InfoClass Info { get; set; } = new();
@@ -302,14 +467,8 @@ namespace Surveyor
             
             public CharucoBoardDefinition CharucoBoardDefinition { get; set; } = new();
 
-            public CalibrationResultClass CalibrationResult { get; set; } = new();
+            public CalibrationResultClass CalibrationResults { get; set; } = new();
 
-            // Left & right mono calibration result sets (different results for different calibration flags)
-            public MonoCalibrationCameraData?[] LeftMonoCalibrationCameraDataArray { get; set; } = new MonoCalibrationCameraData?[Enum.GetValues<CalibrationParameters>().Length];
-            public MonoCalibrationCameraData?[] RightMonoCalibrationCameraDataArray { get; set; } = new MonoCalibrationCameraData?[Enum.GetValues<CalibrationParameters>().Length];
-
-            // Stereo result sets  (different results for different calibration flags)
-            public CalibrationStereoCameraData?[] CalibrationStereoCameraDataArray { get; set; } = new CalibrationStereoCameraData?[Enum.GetValues<CalibrationParameters>().Length];
         }
 
         public DataClass Data = new();
@@ -322,7 +481,7 @@ namespace Surveyor
                 if (Data.Info.IsDirty || 
                     Data.Media.IsDirty || 
                     Data.CharucoBoardDefinition.IsDirty ||
-                    Data.CalibrationResult.IsDirty)
+                    Data.CalibrationResults.IsDirty)
                 {
                     return true;
                 }
@@ -335,73 +494,119 @@ namespace Surveyor
                 OnPropertyChanged();
             }
         }
-        public bool IsLoaded { get; private set; } = false;
 
 
         /// <summary>
-        /// Save the calibration project data to a file as json.
+        /// Clear down the class
         /// </summary>
-        /// <param name="fileSpec"></param>
-        /// <returns></returns>
-        public async Task<bool> Save(string fileSpec)
+        public void Clear()
         {
-            // Remember the calib project file spec
-            Data.CalibFileSpec = fileSpec;
-
-            return await Save();
+            Data.Clear();
         }
 
 
         /// <summary>
-        /// 
+        /// Returns the project title for the main window title bar
         /// </summary>
         /// <returns></returns>
-        public async Task<bool> Save()
+        public string GetProjectTitle()
         {
-            bool ret = false;
+            string title = "Untitled Project";
 
-            if (string.IsNullOrEmpty(Data.CalibFileSpec))
-                return ret;
-
-            // Delete a .bak file if it exists
-            string bakFileSpec = Path.ChangeExtension(Data.CalibFileSpec, ".bak");
-            if (File.Exists(bakFileSpec))
+            if (this.Data.Info.ProjectFileName != null)
             {
-                try
-                {
-                    File.Delete(bakFileSpec);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error deleting backup file {bakFileSpec}: {ex.Message}");
-                }
+                title = Path.GetFileNameWithoutExtension(this.Data.Info.ProjectFileName);
+
+                if (this.IsDirty)
+                    title += " *";
             }
 
-            // Rename fileSpec to a .bak file
-            if (File.Exists(Data.CalibFileSpec))
-            {
-                try
-                {
-                    File.Move(Data.CalibFileSpec, bakFileSpec);
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"Error renaming file {Data.CalibFileSpec} to backup {bakFileSpec}: {ex.Message}");
-                    return false; // Return false if renaming fails
-                }
-            }
+            return title;
+        }
 
-            // Save the project data as json to the file
+
+        /// <summary>
+        /// Is CalibProject loaded from file
+        /// </summary>
+        public bool IsLoaded { get; private set; } = false;
+
+
+        /// <summary>
+        /// Load the calibration project data from a file as json.
+        /// </summary>
+        /// <param name="projectFileSpec"></param>
+        /// <param name="autoSave"></param>
+        /// <returns></returns>
+        public async Task<int> ProjectLoad(string projectFileSpec, bool autoSave = true)
+        {
+            int ret = -1;
+            string? json = null;
+
             try
             {
-                var options = CreateJsonOptions();
-                string json = JsonConvert.SerializeObject(Data, options);
-                await File.WriteAllTextAsync(Data.CalibFileSpec, json);
-                ret = true;
+                json = File.ReadAllText(projectFileSpec);
             }
-            catch (Exception ex)
+            catch (FileNotFoundException e)
             {
-                Debug.WriteLine($"Error saving calibration project data to {Data.CalibFileSpec}: {ex.Message}");
+                ret = -2;
+                Report?.Warning("", $"Load project failed because the file couldn't be found, file:{projectFileSpec}. {e.Message}");
+            }
+            catch (UnauthorizedAccessException e)
+            {
+                ret = -3;
+                Report?.Warning("", $"Load project failed because you do not have permission to read this file, file:{projectFileSpec}. {e.Message}");
+            }
+            catch (DirectoryNotFoundException e)
+            {
+                ret = -4;
+                Report?.Warning("", $"Load project failed because the specified directory could not be found, file:{projectFileSpec}. {e.Message}");
+            }
+            catch (PathTooLongException e)
+            {
+                ret = -5;
+                Report?.Warning("", $"Load project failed because the file name is too long, file:{projectFileSpec}. The specified path, file name, or both exceed the system-defined maximum length. {e.Message}");
+            }
+            catch (IOException e)
+            {
+                ret = -6;
+                Report?.Warning("", $"Load project failed because an I/O error occurred, file:{projectFileSpec}. {e.Message}");
+            }
+            catch (Exception e)
+            {
+                ret = -7;
+                Report?.Warning("", $"Load project failed because an unexpected error occurred, file:{projectFileSpec}. {e.Message}");
+            }
+
+            if (json != null)
+            {
+                var settings = CreateJsonOptions();
+
+                DataClass? data = null;
+                try
+                {                    
+                    data = JsonConvert.DeserializeObject<DataClass>(json, settings);
+                }
+                catch (Exception e)
+                {
+                    Report?.Info("", $"Exception JsonConvert.DeserializeObject({e.Message})");
+                    ret = -1;
+                }
+
+                if (data != null)
+                {
+                    Data = data;
+
+                    ret = SetProjectNameAndPath(projectFileSpec);
+
+                    IsDirty = false;
+                    IsLoaded = true;
+
+                    // Start the autosave task in background                        
+                    if (autoSave)
+                    {
+                        await StartAutoSave();
+                    }
+                }
             }
 
             return ret;
@@ -409,29 +614,215 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Load the calibration project data from a file as json.
+        /// Save the calibration project data to a file as json.
+        /// Note this is a synchronous method to avoid reentry from the auto save task
         /// </summary>
-        /// <param name="fileSpec"></param>
         /// <returns></returns>
-        public bool Load(string fileSpec)
+        public int ProjectSave()
         {
-            if (!File.Exists(fileSpec))
+            int ret = -1;
+
+            // Stop any reentry
+            lock (_lockObject)
             {
-                Debug.WriteLine($"Calibration project file {fileSpec} does not exist.");
-                return false;
+                if (!string.IsNullOrEmpty(Data.Info.ProjectPath) && !string.IsNullOrEmpty(Data.Media.MediaPath))
+                {
+                    // Make calibration project full file spec
+                    string calprojFileSpec = Path.Combine(Data.Info.ProjectPath, Data.Info.ProjectFileName);
+
+                    // Delete a .bak file if it exists
+                    string bakFileSpec = Path.ChangeExtension(calprojFileSpec, ".bak");
+                    if (File.Exists(bakFileSpec))
+                    {
+                        try
+                        {
+                            File.Delete(bakFileSpec);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error deleting backup file {bakFileSpec}: {ex.Message}");
+                        }
+                    }
+
+                    // Rename fileSpec to a .bak file
+                    if (File.Exists(calprojFileSpec))
+                    {
+                        try
+                        {
+                            File.Move(calprojFileSpec, bakFileSpec);
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"Error renaming file {calprojFileSpec} to backup {bakFileSpec}: {ex.Message}");
+                        }
+                    }
+                }
+
+                // Adjust MediaPath if possible
+                if (!string.IsNullOrEmpty(Data.Info.ProjectPath) && !string.IsNullOrEmpty(Data.Media.MediaPath))
+                {
+                    var projectPathFull = Path.GetFullPath(Data.Info.ProjectPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    var mediaPathFull = Path.GetFullPath(Data.Media.MediaPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+                    if (mediaPathFull.StartsWith(projectPathFull, StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Make relative path
+                        var relativePath = Path.GetRelativePath(projectPathFull, mediaPathFull);
+                        if (string.IsNullOrEmpty(relativePath) || relativePath == ".")
+                        {
+                            // Same directory — blank MediaPath
+                            Data.Media.MediaPath = "";
+                        }
+                        else
+                        {
+                            Data.Media.MediaPath = relativePath;
+                        }
+                    }
+                }
+
+                // Save to .json
+                if (Data.Info.ProjectPath != null && Data.Info.ProjectFileName != null)
+                {
+                    string projectPath = Data.Info.ProjectPath;
+                    string filePath = Path.Combine(projectPath, Data.Info.ProjectFileName);
+
+
+                    var settings = CreateJsonOptions();
+
+                    // Remove the project Path so the project can be safely moved to a different folder
+                    Data.Info.ProjectPath = string.Empty;
+
+                    string json = JsonConvert.SerializeObject(Data, settings);
+
+                    // Restore project path
+                    Data.Info.ProjectPath = projectPath;
+
+                    // Write to disk
+                    try
+                    {
+                        File.WriteAllText(filePath, json);
+
+                        this.IsDirty = false;
+                        ret = 0;
+                    }
+                    catch (UnauthorizedAccessException e)
+                    {
+                        ret = -1;
+                        Report?.Warning("", $"Save project failed due to an unauthorized access request, file:{filePath}. You do not have permission to write to this file. {e.Message}");
+                    }
+                    catch (DirectoryNotFoundException e)
+                    {
+                        ret = -2;
+                        Report?.Warning("", $"Save project failed due to a bad directory, file:{filePath}. The specified directory could not be found. {e.Message}");
+                    }
+                    catch (PathTooLongException e)
+                    {
+                        ret = -3;
+                        Report?.Warning("", $"Save project failed due to the file name too long, file:{filePath}. The specified path, file name, or both exceed the system-defined maximum length. {e.Message}");
+                    }
+                    catch (IOException e)
+                    {
+                        ret = -4;
+                        Report?.Warning("", $"Save project failed due to an I/O error, file:{filePath}. {e.Message}");
+                    }
+                    catch (Exception e)
+                    {
+                        ret = -5;
+                        Report?.Warning("", $"Save project failed due to an unexpected error, file:{filePath}. {e.Message}");
+                    }
+                }
             }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Save the calibration project data to a file as json.
+        /// </summary>
+        /// <param name="projectFileSpec"></param>
+        /// <returns></returns>
+        public async Task<int> ProjectSaveAs(string projectFileSpec)
+        {
+            // Set the project name using the stem of the file name and extract the project path
+            int ret = SetProjectNameAndPath(projectFileSpec);
+
+            if (ret == 0)
+            {
+                // Save the project to a json file
+                ret = ProjectSave();
+
+                if (ret == 0)
+                {
+                    // Reset the dirty flag
+                    IsDirty = false;
+
+                    // A Save As could be the first save of a new project to set IsLoaded to true
+                    IsLoaded = true;
+                    await StartAutoSave();
+                }
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Close a project
+        /// </summary>
+        /// <returns></returns>
+        public async Task<int> ProjectClose()
+        {
+            await StopAutoSave();
+
+            Clear();
+
+            IsLoaded = false;
+
+            return 0;
+        }
+
+
+        /// <summary>
+        /// Extract the project name and path from the passed file spec
+        /// </summary>
+        private int SetProjectNameAndPath(string projectFileSpec)
+        {
+            int ret = 0;
+            string? directoryPath = null;
+            string? fileName = null;
+
+            // Extract the path
             try
             {
-                string json = File.ReadAllText(fileSpec);
-                var options = CreateJsonOptions();
-                Data = JsonConvert.DeserializeObject<DataClass>(json, options) ?? new DataClass();
-                return true;
+                directoryPath = Path.GetDirectoryName(projectFileSpec);
             }
-            catch (Exception ex)
+            catch (ArgumentNullException e)
             {
-                Debug.WriteLine($"Error loading calibration project data from {fileSpec}: {ex.Message}");
-                return false;
+                ret = -1;
+                Report?.Warning("", $"SetProjectNameAndPath() trying to set project path base on:{projectFileSpec}, however were a null argument. {e.Message}");
             }
+            catch (ArgumentException e)
+            {
+                ret = -2;
+                Report?.Warning("", $"SetProjectNameAndPath() trying to set project path base on:{projectFileSpec}, however were was an error. {e.Message}");
+            }
+
+            // Extract the file name
+            try
+            {
+                fileName = Path.GetFileName(projectFileSpec);
+            }
+            catch (ArgumentException e)
+            {
+                ret = -3;
+                Report?.Warning("", $"SetProjectNameAndPath() trying to set project name base on:{projectFileSpec}, however were was an error. {e.Message}");
+            }
+
+            Data.Info.ProjectFileName = fileName ?? "";
+            Data.Info.ProjectPath = directoryPath ?? "";
+
+            return ret;
         }
 
 
@@ -444,9 +835,9 @@ namespace Surveyor
             double bestScore = double.MaxValue;
             int bestIndex = -1;
 
-            for (int i = 0; i < Data.CalibrationStereoCameraDataArray.Length; i++)
+            for (int i = 0; i < Data.CalibrationResults.CalibrationStereoCameraDataArray.Length; i++)
             {
-                var stereoResult = Data.CalibrationStereoCameraDataArray[i];
+                var stereoResult = Data.CalibrationResults.CalibrationStereoCameraDataArray[i];
 
 
                 if (stereoResult is null)
@@ -482,6 +873,75 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// Start the auto save task
+        /// <summary>
+        private async Task StartAutoSave()
+        {
+            await StopAutoSave(); // Ensure any previous autosave task is stopped
+
+            _autosaveCts = new CancellationTokenSource();
+            _autosaveTask = Task.Run(async () =>
+            {
+                // Task naming for debugging
+                if (Thread.CurrentThread.Name == null)
+                {
+                    Thread.CurrentThread.Name = "CalibProject.AutosaveWork()";
+                }
+
+                var token = _autosaveCts.Token;
+
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        await Task.Delay(autosaveInterval, token);
+                        if (!token.IsCancellationRequested)
+                        {
+                            if (SettingsManagerLocal.AutoSaveEnabled && IsDirty)
+                            {
+                                ProjectSave();
+                                Report?.Debug("", $"Autosave completed");
+                            }
+                        }
+                    }
+                    catch (TaskCanceledException)
+                    {
+                        // Graceful cancellation
+                        break;
+                    }
+                }
+                Report?.Info("", $"Auto save threaded stopped on request");
+            });
+        }
+
+
+        /// <summary>
+        /// Request the autosave task to stop
+        /// </summary>
+        public async Task StopAutoSave()
+        {
+            if (_autosaveCts != null)
+            {
+                _autosaveCts.Cancel();
+
+                try
+                {
+                    if (_autosaveTask != null)
+                        await _autosaveTask;
+                }
+                catch (TaskCanceledException)
+                {
+                    // Expected on cancellation
+                }
+
+                _autosaveCts.Dispose();
+                _autosaveCts = null;
+                _autosaveTask = null;
+            }
+        }
+
+
         ///
         /// EVENTS
         /// 
@@ -491,4 +951,28 @@ namespace Surveyor
         }
     }
 
+    /// <summary>
+    /// Reporter class for logging warnings and errors
+    /// </summary>
+    public class Reporter
+    {
+        public void Error(string channel, string message)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error [{channel}]: {message}");
+        }
+
+        public void Warning(string channel, string message)
+        {
+            System.Diagnostics.Debug.WriteLine($"Warning [{channel}]: {message}");
+        }
+        public void Info(string channel, string message)
+        {
+            System.Diagnostics.Debug.WriteLine($"Info [{channel}]: {message}");
+        }
+        public void Debug(string channel, string message)
+        {
+            System.Diagnostics.Debug.WriteLine($"Debug [{channel}]: {message}");
+        }
+
+    }
 }

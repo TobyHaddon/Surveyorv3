@@ -780,7 +780,6 @@ namespace Surveyor.Calibration
                             }
 
                             // Recalc values flag
-                            bool recalcCalibrationStereoFrameSet = false;
                             bool recalcFramesDictionary = false;
 
                             // Migrations Section
@@ -1736,7 +1735,8 @@ namespace Surveyor.Calibration
                                             .Select((arr, i) => new { arr, i })
                                             .FirstOrDefault(x => x.arr != null && x.arr.Length > 0)?.i ?? -1;
 
-                        if (indexStereoSharedCharucoCorners != -1 && 
+                        if (indexStereoSharedCharucoCorners != -1 &&
+                            frameCalibrationTarget.StereoSharedCharucoCorners is not null &&
                             frameCalibrationTarget.StereoSharedCharucoCorners[indexStereoSharedCharucoCorners] is not null)
                         {
                             foreach (var pt in frameCalibrationTarget.StereoSharedCharucoCorners[indexStereoSharedCharucoCorners])
