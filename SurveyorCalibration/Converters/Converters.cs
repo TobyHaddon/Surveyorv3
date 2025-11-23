@@ -41,7 +41,22 @@ namespace Surveyor.Converters
         }
     }
 
-    // New: meters <-> millimeters converter for numeric TextBoxes
+
+    /// <summary>
+    /// Converts type of double, float or in meters to string in millimeters with specified format.
+    /// XAML usage:
+    /// 
+    ///     <UserControl.Resources>
+    ///         <converters:MetersToMillimetersConverter x:Key="MetersToMillimetersConverter2DP" Format="F2" />
+    ///         <converters:MetersToMillimetersConverter x:Key="MetersToMillimetersConverter0DP" Format="F0" />
+    ///     </UserControl.Resources>
+    ///     ...
+    ///     <TextBox x:Name="BoardSizeYNumeric" Width="60" 
+    ///                      Text="{x:Bind BoardSizeY, 
+    ///                      Mode=TwoWay, 
+    ///                      Converter={StaticResource MetersToMillimetersConverter0DP}}" 
+    ///
+    /// </summary>
     public sealed class MetersToMillimetersConverter : IValueConverter
     {
         public string? Format { get; set; } = "F2";

@@ -8,17 +8,14 @@
     xmlns:cal="using:SurveyorCalibrationData"
     xmlns:converters="using:Surveyor.Converters"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:surveyor="using:Surveyor" 
-    d:DataContext="{d:DesignInstance Type=local:DataContextLocal}"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:surveyor="using:Surveyor"     
     x:Name="Root"
     Loaded="UserControl_Loaded"
     mc:Ignorable="d">
 
     <UserControl.Resources>
-        <local:DoubleFormatConverter x:Key="Double2Converter" Format="F2" />
-        <local:DoubleFormatConverter x:Key="Double3Converter" Format="F3" />
-        <local:DoubleSubtractConverter x:Key="MinusCardPaddingConverter" />
-        <converters:MetersToMillimetersConverter x:Key="MetersToMillimetersConverter" Format="F2" />
+        <converters:MetersToMillimetersConverter x:Key="MetersToMillimetersConverter2DP" Format="F2" />
+        <converters:MetersToMillimetersConverter x:Key="MetersToMillimetersConverter0DP" Format="F0" />
     </UserControl.Resources>
     
     <!-- Board Parameter & Preview Grid -->
@@ -55,12 +52,12 @@
         <TextBlock Text="Square Count:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
         <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" Margin="5">
             <TextBox x:Name="SquareColsNumeric" Width="60" 
-                        Text="{Binding Cbd.SquaresX, Mode=TwoWay}" 
+                        Text="{x:Bind CbdWorking.SquaresX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
                         TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"
-                        TextChanged="NumericTextBox_TextChanged"/>
+                        TextChanged="NumericTextBox_TextChanged" />
             <TextBlock Text=" x " VerticalAlignment="Center" Margin="0,0,5,0"/>
             <TextBox x:Name="SquareRowsNumeric" Width="60" 
-                        Text="{Binding Cbd.SquaresY, Mode=TwoWay}"
+                        Text="{x:Bind CbdWorking.SquaresY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                         TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"
                         TextChanged="NumericTextBox_TextChanged"/>
         </StackPanel>
@@ -69,7 +66,7 @@
         <TextBlock Text="Square Size:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
         <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="1" Margin="5">
             <TextBox x:Name="SquareSizeNumeric" Width="60" 
-                        Text="{Binding Cbd.SquareLength, Mode=TwoWay, Converter={StaticResource MetersToMillimetersConverter}}" 
+                        Text="{x:Bind CbdWorking.SquareLength, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource MetersToMillimetersConverter2DP}}" 
                         TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
                         TextChanged="NumericTextBox_TextChanged"/>
             <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
@@ -79,7 +76,7 @@
         <TextBlock Text="Marker Size:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
         <StackPanel Orientation="Horizontal" Grid.Row="3" Grid.Column="1" Margin="5">
             <TextBox x:Name="MarkerSizeNumeric" Width="60" 
-                        Text="{Binding Cbd.MarkerLength, Mode=TwoWay, Converter={StaticResource MetersToMillimetersConverter}}" 
+                        Text="{x:Bind CbdWorking.MarkerLength, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource MetersToMillimetersConverter2DP}}" 
                         TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
                         TextChanged="NumericTextBox_TextChanged"/>
             <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
@@ -89,7 +86,7 @@
         <TextBlock Text="ArUco Dictionary:" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
         <ComboBox x:Name="ArucoDictionaryCombo" Grid.Row="4" Grid.Column="1" Margin="5"
                     SelectionChanged="ArucoDictionaryCombo_SelectionChanged"
-                    SelectedItem="{Binding Cbd.PredefinedDictionaryName, Mode=TwoWay}"/>
+                    SelectedItem="{x:Bind CbdWorking.PredefinedDictionaryName, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"/>
 
         <!-- Preview -->
         <StackPanel Grid.Row ="5" Grid.Column="1" Orientation="Vertical" HorizontalAlignment="Left" Margin="5">
@@ -123,12 +120,12 @@
         <!-- Board Phyiscal Size -->
         <StackPanel Orientation="Horizontal" Grid.Row="7" Grid.Column="1" Margin="5">
             <TextBox x:Name="BoardSizeXNumeric" Width="60" 
-                        Text="{Binding BoardSizeX, Mode=TwoWay, Converter={StaticResource MetersToMillimetersConverter}}" 
+                        Text="{x:Bind BoardSizeX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource MetersToMillimetersConverter0DP}}" 
                         TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
                         TextChanged="GenerationTextBox_TextChanged"/>
             <TextBlock Text=" mm  x " VerticalAlignment="Center" Margin="0,0,5,0"/>
             <TextBox x:Name="BoardSizeYNumeric" Width="60" 
-                        Text="{Binding BoardSizeY, Mode=TwoWay, Converter={StaticResource MetersToMillimetersConverter}}" 
+                        Text="{x:Bind BoardSizeY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource MetersToMillimetersConverter0DP}}" 
                         TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
                         TextChanged="GenerationTextBox_TextChanged"/>
             <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
@@ -140,8 +137,8 @@
         <TextBlock Text="Print Resolution:" Grid.Row="8" Grid.Column="0" VerticalAlignment="Center" Margin="6"/>
         <StackPanel Orientation="Horizontal" Grid.Row="8" Grid.Column="1" Margin="6">
             <TextBox x:Name="BoardDPI" Width="60" 
-                        Text="{Binding PrintDPI, Mode=TwoWay}" 
-                        TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
+                        Text="{x:Bind PrintDPI, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" 
+                        TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"
                         TextChanged="GenerationTextBox_TextChanged"/>
             <TextBlock Text=" Dots Per Inch (DPI)" VerticalAlignment="Center" Margin="0,0,5,0"/>
         </StackPanel>

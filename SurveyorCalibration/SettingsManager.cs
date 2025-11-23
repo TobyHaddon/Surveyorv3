@@ -314,7 +314,7 @@ namespace Surveyor
         /// <summary>
         /// Default Board Dots Per Square Inch (DPI)
         /// </summary>
-        public static int DefaultBoardDPI
+        public static int DefaultBoard_DPI
         {
             get => GetInt(DefaultBoardDPIKey, 1200/*default*/);
             set => SetInt(DefaultBoardDPIKey, value);
