@@ -169,13 +169,13 @@ namespace Surveyor
         /// This function must be called before using other methods
         /// </summary>
         /// <returns></returns>
-        public async Task<bool> Load(bool enableTimer)
+        public async Task<bool> LoadAsync(bool enableTimer)
         {
             bool ret = false;
 
             try
             {
-                await LoadSpeciesStates();
+                await LoadSpeciesStatesAsync();
 
                 if (enableTimer)
                     Enable(true);
@@ -197,7 +197,7 @@ namespace Surveyor
         /// Call to shutdown
         /// </summary>
         /// <returns></returns>
-        public async Task Unload()
+        public async Task UnloadAsync()
         {
             isReady = false;
 
@@ -222,7 +222,7 @@ namespace Surveyor
 
             if (timer != null)
             {
-                timer?.Dispose();
+                await timer.DisposeAsync();
                 timer = null;
             }
 
@@ -234,25 +234,20 @@ namespace Surveyor
         /// Starts or stops the background timer
         /// </summary>
         /// <param name="enable"></param>
+        private CancellationTokenSource? _timerCts;
+        private Task? _timerLoopTask;
         public void Enable(bool enable)
         {
-            if (enable)
+            if (enable && _timerCts == null)
             {
-                if (timer == null)
-                {
-#if DEBUG
-                    TimeSpan dueTime = TimeSpan.FromSeconds(5);        // Better to fire the initial timer quickly if debugging 
-#else
-                    TimeSpan dueTime = TimeSpan.FromMinutes(1);
-#endif
-                    timer = new Timer(async _ => await TimerCallback(), null, dueTime, timerInterval);
-                    timerRunning = true;
-                }
+                _timerCts = new CancellationTokenSource();
+                _timerLoopTask = RunPeriodicAsync(_timerCts.Token);
             }
-            else
+            else if (!enable && _timerCts != null)
             {
-                timer?.Change(Timeout.Infinite, Timeout.Infinite);
-                timerRunning = false;
+                _timerCts.Cancel();
+                _timerCts.Dispose();
+                _timerCts = null;
             }
         }
 
@@ -312,7 +307,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="item"></param>
         /// <returns></returns>
-        public async Task Remove(string code)
+        public async Task RemoveAsync(string code)
         {
             if (speciesStates.TryGetValue(code, out var item))            
             {
@@ -335,7 +330,7 @@ namespace Surveyor
                     }
                 }
 
-                await SaveSpeciesStates();
+                await SaveSpeciesStatesAsync();
             }
         }
 
@@ -345,16 +340,16 @@ namespace Surveyor
         /// Called as RemoveAll() removes everything
         /// </summary>
         /// <returns></returns>
-        public async Task RemoveAll()
+        public async Task RemoveAllAsync()
         {
             int itemCount = speciesStates.Count;
 
             foreach (var item in speciesStates.ToList())
             {
-                await Remove(item.Value.SpeciesItem.Code);
+                await RemoveAsync(item.Value.SpeciesItem.Code);
             }
 
-            await SaveSpeciesStates();
+            await SaveSpeciesStatesAsync();
 
             report?.Info("", $"{itemCount} items removed from the Download/Upload list");
         }
@@ -449,10 +444,31 @@ namespace Surveyor
 
 
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="ct"></param>
+        /// <returns></returns>
+        private async Task RunPeriodicAsync(CancellationToken ct)
+        {
+#if DEBUG
+            await Task.Delay(TimeSpan.FromSeconds(5), ct);
+#else
+    await Task.Delay(TimeSpan.FromMinutes(1), ct);
+#endif
+            using var periodic = new PeriodicTimer(timerInterval);
+            while (await periodic.WaitForNextTickAsync(ct))
+            {
+                try { await TimerCallbackAsync(); }
+                catch (Exception ex) { report?.Error("", $"SpeciesImageAndInfoCache periodic timer failed: {ex.Message}"); }
+            }
+        }
+
+
+        /// <summary>
         /// Background timer
         /// </summary>
         /// <returns></returns>
-        private async Task TimerCallback()
+        private async Task   TimerCallbackAsync()
         {
             if (!isReady) return;
             if (isProcessing) return;
@@ -495,7 +511,7 @@ namespace Surveyor
                         {
                             case State.None:
                                 baseURL = SettingsManagerLocal.FishBaseURL;
-                                await RequestFirstPage(state);
+                                await RequestFirstPageAsync(state);
                                 break;
 
                             case State.WaitingForFirstPhotoPage:
@@ -503,11 +519,11 @@ namespace Surveyor
                                 break;
 
                             case State.ParsingFirstPhotoPage:
-                                await ParseFirstPhotoPage(state);
+                                await ParseFirstPhotoPageAsync(state);
                                 break;
 
                             case State.RequestingAllPhotoPages:
-                                await RequestAllPhotoPages(state);
+                                await RequestAllPhotoPagesAsync(state);
                                 break;
 
                             case State.WaitingForAllPhotoPages:
@@ -515,15 +531,15 @@ namespace Surveyor
                                 break;
 
                             case State.ParsingAllPhotoPagesAndRequestImages:
-                                await ParseAllPhotoPagesAndRequestAllImages(state);
+                                await ParseAllPhotoPagesAndRequestAllImagesAsync(state);
                                 break;
 
                             case State.WaitingForAllImages:
-                                await WaitingForAllImages(state);
+                                await WaitingForAllImagesAsync(state);
                                 break;
 
                             case State.RequestingSpeciesInformationPage:
-                                RequestingSpeciesInformationPage(state);
+                                await RequestingSpeciesInformationPageAsync(state);
                                 break;
 
                             case State.WaitingForSpeciesInformationPage:
@@ -531,7 +547,7 @@ namespace Surveyor
                                 break;
 
                             case State.ParsingSpeciesInformationPage:
-                                ParsingSpeciesInformationPage(state);
+                                await ParsingSpeciesInformationPageAsync(state);
                                 break;
                         }
                     }
@@ -594,7 +610,7 @@ namespace Surveyor
             finally
             {
                 // Save the persistent list
-                await SaveSpeciesStates();
+                await SaveSpeciesStatesAsync();
             }
         }
 
@@ -632,13 +648,13 @@ namespace Surveyor
         /// </summary>
         /// <param name="state"></param>
         /// <returns></returns>
-        private async Task RequestFirstPage(SpeciesCacheState state)
+        private async Task RequestFirstPageAsync(SpeciesCacheState state)
         {
             // Make the URL we need to download
             string url = MakePhotoPageUrl(baseURL, state.SpeciesItem.ExtractID(), 1/*page*/);
 
             // Queue this page for download if not already in the queue or downloaded
-            await internetQueue.AddDownloadRequestIfNecessary(TransferType.Page, url, "temp");  // Intermediate file so put in localFolder/temp
+            await internetQueue.AddDownloadRequestIfNecessaryAsync(TransferType.Page, url, "temp");  // Intermediate file so put in localFolder/temp
             state.Status = State.WaitingForFirstPhotoPage;
         }
 
@@ -666,7 +682,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="state"></param>
         /// <returns></returns>
-        private async Task ParseFirstPhotoPage(SpeciesCacheState state)
+        private async Task ParseFirstPhotoPageAsync(SpeciesCacheState state)
         {
             // Record key
             string url = MakePhotoPageUrl(baseURL, state.SpeciesItem.ExtractID(), 1/*page*/);
@@ -697,7 +713,7 @@ namespace Surveyor
                 }
 
                 // Remove the page from the Download Manafer
-                await internetQueue.Remove(item);
+                await internetQueue.RemoveAsync(item);
             }
         }
 
@@ -706,12 +722,12 @@ namespace Surveyor
         /// each page
         /// </summary>
         /// <param name="state"></param>
-        private async Task RequestAllPhotoPages(SpeciesCacheState state)
+        private async Task RequestAllPhotoPagesAsync(SpeciesCacheState state)
         {
             for (int page = 1; page <= state.TotalImages; page++)
             {
                 string url = MakePhotoPageUrl(baseURL, state.SpeciesItem.ExtractID(), page);
-                await internetQueue.AddDownloadRequestIfNecessary(TransferType.Page, url, "temp");  // Intermediate file so put in localFolder/temp
+                await internetQueue.AddDownloadRequestIfNecessaryAsync(TransferType.Page, url, "temp");  // Intermediate file so put in localFolder/temp
             }
             state.Status = State.WaitingForAllPhotoPages;
         }
@@ -765,7 +781,7 @@ namespace Surveyor
         /// parse each one and extact the image url, genus and species and the auther
         /// </summary>
         /// <param name="state"></param>
-        private async Task ParseAllPhotoPagesAndRequestAllImages(SpeciesCacheState state)
+        private async Task ParseAllPhotoPagesAndRequestAllImagesAsync(SpeciesCacheState state)
         {
             // Clear the image list (should be empty but just in case)
             state.SpeciesImageItemList.Clear();
@@ -805,11 +821,11 @@ namespace Surveyor
                         state.SpeciesImageItemList.Add(speciesImageItem);
 
                         // Request the image file to be downloaded
-                        await internetQueue.AddDownloadRequestIfNecessary(TransferType.File, fullImageUrl, "ImageCache");  // Image file to place in the localFolder/ImageCache
+                        await internetQueue.AddDownloadRequestIfNecessaryAsync(TransferType.File, fullImageUrl, "ImageCache");  // Image file to place in the localFolder/ImageCache
                     }
 
                     // Remove the page from the Download Manafer
-                    await internetQueue.Remove(item);
+                    await internetQueue.RemoveAsync(item);
                 }
             }
             state.Status = State.WaitingForAllImages;
@@ -820,7 +836,7 @@ namespace Surveyor
         /// Check that all the image files for this species have been downloaded
         /// </summary>
         /// <param name="state"></param>
-        private async Task WaitingForAllImages(SpeciesCacheState state)
+        private async Task WaitingForAllImagesAsync(SpeciesCacheState state)
         {
             bool setErrorState = false;
 
@@ -897,12 +913,12 @@ namespace Surveyor
         /// Request the species summary page to get Environment, Distribution and SpeciesSize
         /// </summary>
         /// <param name="state"></param>
-        private async void RequestingSpeciesInformationPage(SpeciesCacheState state)
+        private async Task RequestingSpeciesInformationPageAsync(SpeciesCacheState state)
         {
             string url = MakeSummaryPageUrl(baseURL, state.SpeciesItem.ExtractID());
 
             // Add a download request
-            await internetQueue.AddDownloadRequestIfNecessary(TransferType.Page, url, "temp");   // Intermediate file so put in localFolder/temp
+            await internetQueue.AddDownloadRequestIfNecessaryAsync(TransferType.Page, url, "temp");   // Intermediate file so put in localFolder/temp
             state.Status = State.WaitingForSpeciesInformationPage;
         }
 
@@ -924,7 +940,7 @@ namespace Surveyor
 
         }
 
-        private async void ParsingSpeciesInformationPage(SpeciesCacheState state)
+        private async Task ParsingSpeciesInformationPageAsync(SpeciesCacheState state)
         {
             // Record key
             string url = MakeSummaryPageUrl(baseURL, state.SpeciesItem.ExtractID());
@@ -937,7 +953,7 @@ namespace Surveyor
                 StorageFile file = await ApplicationData.Current.LocalFolder.GetFileAsync(item.RelativeLocalFileSpec);
 
                 // Parse the species summary and extract species information for storage int the cache
-                var metadata = await HtmlFishBaseParser.ParseHtmlFishbaseSummaryAndExtractSpeciesMetadata(file.Path);
+                var metadata = await HtmlFishBaseParser.ParseHtmlFishbaseSummaryAndExtractSpeciesMetadataAsync(file.Path);
 
                 // Environment
                 state.Environment = metadata.Environment ?? "";
@@ -954,7 +970,7 @@ namespace Surveyor
                 state.Hash = await ComputeHashAsync(state);
 
                 // Remove the page from the Download Manafer
-                await internetQueue.Remove(item);
+                await internetQueue.RemoveAsync(item);
             }
 
 
@@ -1012,7 +1028,7 @@ namespace Surveyor
         /// Load speciesStates from disk
         /// </summary>
         /// <returns></returns>
-        private async Task SaveSpeciesStates()
+        private async Task SaveSpeciesStatesAsync()
         {
             try
             {
@@ -1039,7 +1055,7 @@ namespace Surveyor
         /// Save speciesStates to disk
         /// </summary>
         /// <returns></returns>
-        private async Task LoadSpeciesStates()
+        private async Task LoadSpeciesStatesAsync()
         {
             try
             {

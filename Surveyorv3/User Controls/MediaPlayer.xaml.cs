@@ -155,7 +155,7 @@ namespace Surveyor.User_Controls
         /// Clean up
         /// </summary>
         /// <returns></returns>
-        public async Task Unload()
+        public async Task UnloadAsync()
         {
             await MagnifyAndMarkerDisplay.DisposeAsync();
         }
@@ -205,7 +205,7 @@ namespace Surveyor.User_Controls
         /// Opens the indicated media file in the Media Player
         /// </summary>
         /// <param name="mediaFileSpec"></param>
-        internal async Task Open(Survey.SurveyType _surveyType, string mediaFileSpec, uint _depthUnderwater)
+        internal async Task OpenAsync(Survey.SurveyType _surveyType, string mediaFileSpec, uint _depthUnderwater)
         {
             WinUIGuards.CheckIsUIThread();
 
@@ -287,7 +287,7 @@ namespace Surveyor.User_Controls
                         // DON'T await this method. I don't understand why but it causes the
                         // dialog to be non-modal
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                        ShowOpenFileNotFoundDialog(mediaFileSpec);
+                        ShowOpenFileNotFoundDialogAsync(mediaFileSpec);
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
                         Debug.WriteLine($"{CameraSide}: Error SurveyorMediaPlayer.Open  Can't open media: {mediaFileSpec} file not found");
                     }
@@ -297,7 +297,7 @@ namespace Surveyor.User_Controls
                     // DON'T await this method. I don't understand why but it causes the
                     // dialog to be non-modal
 #pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                    ShowOpenFailedDialog(mediaFileSpec, ex);
+                    ShowOpenFailedDialogAsync(mediaFileSpec, ex);
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
                     Debug.WriteLine($"{CameraSide}: Error SurveyorMediaPlayer.Open  Can't open media: {mediaFileSpec}, {ex.Message}");
                 }
@@ -321,7 +321,7 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Unscribe from the media player events and close the media and set the media open flag to false
         /// </summary>
-        internal async Task Close()
+        internal async Task CloseAsync()
         {
             WinUIGuards.CheckIsUIThread();
 
@@ -356,7 +356,7 @@ namespace Surveyor.User_Controls
                     // Pause just in case the media is playing
                     if (MediaPlayerElement.MediaPlayer.CurrentState != MediaPlayerState.Paused)
                     {
-                        await Pause();
+                        Pause();
                     }
 
                     // Event PlaybackSession cancel subscriptions
@@ -665,7 +665,7 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Pause the media player
         /// </summary>
-        internal async Task Pause()
+        internal void Pause()
         {
             WinUIGuards.CheckIsUIThread();
 
@@ -692,7 +692,7 @@ namespace Surveyor.User_Controls
                     //GrabAndDisplayFrame();
 
                     // Settle - not sure if it is really required
-                    await Task.Delay(10);
+                    //???await Task.Delay(10);
 
                     // Hard to get this to work well - adding this back frame seems to help                    
                     MediaPlayerElement.MediaPlayer.StepBackwardOneFrame();
@@ -738,7 +738,7 @@ namespace Surveyor.User_Controls
         /// it will use cameraSide to determine which player to move
         /// </summary>        
         /// <param name="timeSpan"></param>
-        internal async Task FrameMove(TimeSpan deltaPosition)
+        internal void FrameMove(TimeSpan deltaPosition)
         {           
             if (IsOpen())
             {
@@ -746,7 +746,7 @@ namespace Surveyor.User_Controls
                 if (!IsMediaSynchronized())
                 {
                     if (mode == Mode.modePlayer)
-                        await Pause();
+                        Pause();
 
                     // Enable Frame Server
                     FrameServerEnable(true);
@@ -777,7 +777,7 @@ namespace Surveyor.User_Controls
         /// it will use cameraSide to determine which player to move
         /// </summary>
         /// <param name="frames">negative move back, positive move forward</param>
-        internal async Task FrameMove(int frames)
+        internal void FrameMove(int frames)
         {
             WinUIGuards.CheckIsUIThread();
 
@@ -786,7 +786,7 @@ namespace Surveyor.User_Controls
                 // Use the media player frame rate to calculate the timeSpan for the move
                 TimeSpan deltaPosition = (TimeSpan)TimePerFrame * frames;
 
-                await FrameMove(deltaPosition);
+                FrameMove(deltaPosition);
             }
         }
         
@@ -795,7 +795,7 @@ namespace Surveyor.User_Controls
         /// Move to the absolute position in the media
         /// </summary>
         /// <param name="timeSpan"></param>
-        internal async void FrameJump(TimeSpan position)
+        internal void FrameJump(TimeSpan position)
         {
             WinUIGuards.CheckIsUIThread();
 
@@ -805,7 +805,7 @@ namespace Surveyor.User_Controls
                 if (!IsMediaSynchronized())
                 {
                     if (mode == Mode.modePlayer)
-                        await Pause();
+                        Pause();
                     else if (mode == Mode.modeFrame)
                         // Enable Frame Server
                         FrameServerEnable(true);
@@ -861,9 +861,9 @@ namespace Surveyor.User_Controls
         /// event
         /// </summary>
         /// <returns></returns>
-        internal async Task<bool> WaitOneMoreFrame()
+        internal async Task<bool> WaitOneMoreFrameAsync()
         {
-            return await vidFrameMgr.WaitOneMoreFrame();
+            return await vidFrameMgr.WaitOneMoreFrameAsync();
         }
 
 
@@ -1013,7 +1013,7 @@ namespace Surveyor.User_Controls
         /// <param name="timeStamp">Time stamp used in the file name</param>
         /// <param name="syncdPair">Is this part of a stereo pair?</param>
         /// <returns></returns>
-        internal async Task SaveCurrentFrame(string framesPath, TimeSpan timeStamp, bool syncdPair)
+        internal async Task SaveCurrentFrameAsync(string framesPath, TimeSpan timeStamp, bool syncdPair)
         {
             // Check if the players if loaded and paused
             if (IsOpen() && MediaPlayerElement.MediaPlayer.PlaybackSession.PlaybackState == MediaPlaybackState.Paused)
@@ -1025,7 +1025,7 @@ namespace Surveyor.User_Controls
                 string fileSpec = Path.Combine(framesPath, fileName);
 
                 // Save the frame to .png:
-                if (await vidFrameMgr.SaveFrame(fileSpec, CanvasBitmapFileFormat.Png))
+                if (await vidFrameMgr.SaveFrameAsync(fileSpec, CanvasBitmapFileFormat.Png))
                 {
                     report?.Info(CameraSide.ToString(), $"Frame saved to: {fileSpec}");                        
                 }
@@ -1218,9 +1218,10 @@ namespace Surveyor.User_Controls
         /// <param name="ImageFrame"></param>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        public void MouseWheelEvent(Object sender, PointerRoutedEventArgs e)
+        public void MouseWheelEvent(Object sender, PointerRoutedEventArgs e) => _ = MouseWheelEventAsync(sender, e);
+        public async Task MouseWheelEventAsync(Object sender, PointerRoutedEventArgs e)
         {
-            e.Handled = MagnifyAndMarkerDisplay.MouseWheelEvent(sender, e);
+            e.Handled = await MagnifyAndMarkerDisplay.MouseWheelEventAsync(sender, e);
         }
 
 
@@ -1869,7 +1870,7 @@ namespace Surveyor.User_Controls
             /// </summary>
             /// <param name="cameraSide"></param>
             /// <returns></returns>
-            public async Task<bool> WaitOneMoreFrame()
+            public async Task<bool> WaitOneMoreFrameAsync()
             {
                 Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} WaitOneMoreFrame (Wait side) Waiting...");
 
@@ -2153,7 +2154,7 @@ namespace Surveyor.User_Controls
             /// <param name=""></param>
             /// <param name=""></param>
             /// <returns></returns>
-            public async Task<bool> SaveFrame(string fileSpec, CanvasBitmapFileFormat fileFormat)
+            public async Task<bool> SaveFrameAsync(string fileSpec, CanvasBitmapFileFormat fileFormat)
             {
                 WinUIGuards.CheckIsUIThread();
 
@@ -2634,7 +2635,7 @@ namespace Surveyor.User_Controls
         /// <param name="mediaFileSpec"></param>
         /// <param name="e"></param>
         /// <returns></returns>
-        private async Task ShowOpenFailedDialog(string mediaFileSpec, Exception e)
+        private async Task ShowOpenFailedDialogAsync(string mediaFileSpec, Exception e)
         {
             WinUIGuards.CheckIsUIThread();
 
@@ -2643,7 +2644,6 @@ namespace Surveyor.User_Controls
                 Title = "Failed to open media",
                 Content = $"Failed to open the media:\n\n{mediaFileSpec}\n\n{e.Message}",
                 CloseButtonText = "OK",
-
                 XamlRoot = this.XamlRoot // Associate the dialog with the current XamlRoot
             };
 
@@ -2657,7 +2657,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="mediaFileSpec"></param>
         /// <returns></returns>
-        private async Task ShowOpenFileNotFoundDialog(string mediaFileSpec)
+        private async Task ShowOpenFileNotFoundDialogAsync(string mediaFileSpec)
         {
             WinUIGuards.CheckIsUIThread();
 
@@ -2665,8 +2665,7 @@ namespace Surveyor.User_Controls
             {
                 Title = "Failed to open media",
                 Content = $"The media file was not found:\n\n{mediaFileSpec}",
-                CloseButtonText = "OK",
-                
+                CloseButtonText = "OK",                
                 XamlRoot = this.XamlRoot // Associate the dialog with the current XamlRoot
             };
             // Display the dialog

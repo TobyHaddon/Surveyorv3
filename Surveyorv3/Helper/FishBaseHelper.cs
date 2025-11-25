@@ -110,7 +110,7 @@ namespace Surveyor.Helper
         /// </summary>
         /// <param name="file"></param>
         /// <returns></returns>
-        public static async Task<int?> ParseHtmlFishbaseSummaryAndExtractSpeciesId(StorageFile file)
+        public static async Task<int?> ParseHtmlFishbaseSummaryAndExtractSpeciesIdAsync(StorageFile file)
         {
             string content = await FileIO.ReadTextAsync(file);
 
@@ -143,15 +143,15 @@ namespace Surveyor.Helper
         /// </summary>
         /// <param name="file"></param>
         /// <returns></returns>
-        public static async Task<HtmlFishBaseSpeciesMetadata> ParseHtmlFishbaseSummaryAndExtractSpeciesMetadata(string filePath)
+        public static async Task<HtmlFishBaseSpeciesMetadata> ParseHtmlFishbaseSummaryAndExtractSpeciesMetadataAsync(string filePath)
         {
             using (var stream = File.OpenRead(filePath))
             {
-                return await ParseHtmlFishbaseSummaryAndExtractSpeciesMetadata(stream);
+                return await ParseHtmlFishbaseSummaryAndExtractSpeciesMetadataAsync(stream);
             }
         }
 
-        public static async Task<HtmlFishBaseSpeciesMetadata> ParseHtmlFishbaseSummaryAndExtractSpeciesMetadata(Stream stream)
+        public static async Task<HtmlFishBaseSpeciesMetadata> ParseHtmlFishbaseSummaryAndExtractSpeciesMetadataAsync(Stream stream)
         {
             using var reader = new StreamReader(stream);
 

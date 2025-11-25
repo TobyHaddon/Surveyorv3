@@ -33,7 +33,7 @@ namespace Surveyor.User_Controls
         /// <param name="speciesInfo"></param>
         /// <param name="editExisting"></param>
         /// <returns>true is the speciesInfo parameter has been changed</returns>
-        public async Task<bool> InheritFromSurvey(MainWindow _mainWindow, Reporter _report, Survey _survey, string _surveyInheritingFromFileSpec)
+        public async Task<bool> InheritFromSurveyAsync(MainWindow _mainWindow, Reporter _report, Survey _survey, string _surveyInheritingFromFileSpec)
         {
             bool ret = false;
 
@@ -54,7 +54,7 @@ namespace Surveyor.User_Controls
             surveyInheritanceSource = new(report);
 
 
-            int surveyInheritanceSourceLoaded = await surveyInheritanceSource.SurveyLoad(surveyInheritingFromFileSpec);
+            int surveyInheritanceSourceLoaded = await surveyInheritanceSource.SurveyLoadAsync(surveyInheritingFromFileSpec);
 
             try
             {
@@ -151,7 +151,7 @@ namespace Surveyor.User_Controls
             }
             finally
             {
-                await surveyInheritanceSource.SurveyClose();
+                await surveyInheritanceSource.SurveyCloseAsync();
             }
 
 

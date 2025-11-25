@@ -1094,7 +1094,7 @@ namespace Surveyor
         /// <param name="SurveyFileSpec"></param>
         /// <param name="autoSave"></param>
         /// <returns></returns>
-        public async Task<int> SurveyLoad(string SurveyFileSpec, bool autoSave = true)
+        public async Task<int> SurveyLoadAsync(string SurveyFileSpec, bool autoSave = true)
         {
             int ret = -1;
             string? json = null;
@@ -1172,7 +1172,7 @@ namespace Surveyor
                         // Start the autosave task in background                        
                         if (autoSave)
                         {
-                            await StartAutoSave();
+                            await StartAutoSaveAsync();
                         }
                     }
                 }
@@ -1310,7 +1310,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="surveyFileSpec"></param>
         /// <returns></returns>
-        public async Task<int> SurveySaveAs(string surveyFileSpec)
+        public async Task<int> SurveySaveAsAsync(string surveyFileSpec)
         {
 
             // Set the survey name using the stem of the file name and extract the survey path
@@ -1328,7 +1328,7 @@ namespace Surveyor
 
                     // A Save As could be the first save of a new survey to set IsLoaded to true
                     IsLoaded = true;
-                    await StartAutoSave();
+                    await StartAutoSaveAsync();
                 }
             }
 
@@ -1340,9 +1340,9 @@ namespace Surveyor
         /// Close a survey 
         /// </summary>
         /// <returns></returns>
-        public async Task<int> SurveyClose()
+        public async Task<int> SurveyCloseAsync()
         {
-            await StopAutoSave();
+            await StopAutoSaveAsync();
 
             Clear();
 
@@ -1566,9 +1566,9 @@ namespace Surveyor
         /// <summary>
         /// Start the auto save task
         /// <summary>
-        private async Task StartAutoSave()
+        private async Task StartAutoSaveAsync()
         {
-            await StopAutoSave(); // Ensure any previous autosave task is stopped
+            await StopAutoSaveAsync(); // Ensure any previous autosave task is stopped
 
             _autosaveCts = new CancellationTokenSource();
             _autosaveTask = Task.Run(async () =>
@@ -1609,11 +1609,11 @@ namespace Surveyor
         /// <summary>
         /// Request the autosave task to stop
         /// </summary>
-        public async Task StopAutoSave()
+        public async Task StopAutoSaveAsync()
         {
             if (_autosaveCts != null)
             {
-                _autosaveCts.Cancel();
+                await _autosaveCts.CancelAsync();
 
                 try
                 {

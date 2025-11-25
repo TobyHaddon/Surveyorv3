@@ -163,7 +163,7 @@ namespace Surveyor.User_Controls
             ExtendsContentIntoTitleBar = true;
 
             // Force QR Standard Setup
-            _ = SetQRCodeSelection(null);  // null selects the first item in the list
+            _ = SetQRCodeSelectionAsync(null);  // null selects the first item in the list
 
             // Inform the Calibration Test user control of the reporter so it can log messages
             SettingsCalibrationTest.SetReporter(report!);
@@ -315,11 +315,12 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void ReCalculate_Click(object sender, RoutedEventArgs e)
+        private void ReCalculate_Click(object sender, RoutedEventArgs e) => _ = ReCalculateClickAsync();
+        private async Task ReCalculateClickAsync()
         {
             if (mainWindow is not null)
             {
-                await mainWindow.CheckIfEventMeasurementsAreUpToDate(true/*forceReCalc*/);
+                await mainWindow.CheckIfEventMeasurementsAreUpToDateAsync(true/*forceReCalc*/);
             }
         }
 
@@ -820,7 +821,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void ReporterFilesToClipboard_Click(object sender, RoutedEventArgs e)
+        private void ReporterFilesToClipboard_Click(object sender, RoutedEventArgs e) => _ = ReporterFilesToClipboardClickAsync();
+        private async Task ReporterFilesToClipboardClickAsync()
         {
             string localFolderPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
             List<string> reporterFilesToCopy = [];
@@ -1036,7 +1038,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void RemoveInternetQueue_Click(object sender, RoutedEventArgs e)
+        private void RemoveInternetQueue_Click(object sender, RoutedEventArgs e) => _ = RemoveInternetQueueClickAsync();
+        private async Task RemoveInternetQueueClickAsync()
         {
             bool somethingToDo = false;
             int downloadedCount = mainWindow?.internetQueue.InternetQueueView.Count(item => item.Status == Status.Downloaded) ?? 0;
@@ -1084,8 +1087,11 @@ namespace Surveyor.User_Controls
 
                 if (result == ContentDialogResult.Primary)
                 {
-                    mainWindow?.internetQueue?.RemoveAll(Status.Downloaded);
-                    mainWindow?.internetQueue?.RemoveAll(Status.Uploaded);
+                    if (mainWindow is not null && mainWindow.internetQueue is not null)
+                    {
+                        await mainWindow.internetQueue.RemoveAllAsync(Status.Downloaded);
+                        await mainWindow.internetQueue.RemoveAllAsync(Status.Uploaded);
+                    }
                 }
             }
         }
@@ -1096,7 +1102,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void RemoveAllInternetQueue_Click(object sender, RoutedEventArgs e)
+        private void RemoveAllInternetQueue_Click(object sender, RoutedEventArgs e) => _ = RemoveAllInternetQueueClickAsync();
+        private async Task RemoveAllInternetQueueClickAsync()
         {
             int count = mainWindow?.internetQueue?.InternetQueueView.Count ?? 0;
             string pural = count == 1 ? "" : "s";
@@ -1115,7 +1122,9 @@ namespace Surveyor.User_Controls
 
             if (result == ContentDialogResult.Primary)
             {
-                mainWindow?.internetQueue?.RemoveAll();
+                if (mainWindow is not null && mainWindow.internetQueue is not null)
+                    await mainWindow.internetQueue.RemoveAllAsync();
+
                 mainWindow?.internetQueue?.RefreshView();
             }
         }
@@ -1126,7 +1135,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void RemoveRecordInternetQueue_Click(object sender, RoutedEventArgs e)
+        private void RemoveRecordInternetQueue_Click(object sender, RoutedEventArgs e) => _ = RemoveRecordInternetQueueClickAsync();
+        private async Task RemoveRecordInternetQueueClickAsync()
         {
             var selectedItem = InternetQueueListView.SelectedItem as InternetQueueViewItem;
 
@@ -1136,10 +1146,10 @@ namespace Surveyor.User_Controls
                 {
                     InternetQueueItem? item = mainWindow?.internetQueue?.Find(selectedItem.URL);
 
-                    if (item is not null)
+                    if (item is not null && mainWindow is not null && mainWindow.internetQueue is not null)
                     {
-                        mainWindow?.internetQueue?.Remove(item);
-                        mainWindow?.internetQueue?.RefreshView();
+                        await mainWindow.internetQueue.RemoveAsync(item);
+                        mainWindow.internetQueue.RefreshView();
                     }
                 }
             }
@@ -1169,7 +1179,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void RemoveAllSpeciesCache_Click(object sender, RoutedEventArgs e)
+        private void RemoveAllSpeciesCache_Click(object sender, RoutedEventArgs e) => _ = RemoveAllSpeciesCacheClickAsync();
+        private async Task RemoveAllSpeciesCacheClickAsync()
         {
             int count = mainWindow?.mediaStereoController.speciesImageCache?.SpeciesStateView.Count ?? 0;
             string pural = count == 1 ? "" : "s";
@@ -1188,8 +1199,11 @@ namespace Surveyor.User_Controls
 
             if (result == ContentDialogResult.Primary)
             {
-                mainWindow?.mediaStereoController.speciesImageCache?.RemoveAll();
-                mainWindow?.mediaStereoController.speciesImageCache?.RefreshView();
+                if (mainWindow is not null)
+                {
+                    await mainWindow.mediaStereoController.speciesImageCache.RemoveAllAsync();
+                    mainWindow.mediaStereoController.speciesImageCache.RefreshView();
+                }
             }
         }
 
@@ -1199,7 +1213,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void RemoveRecordSpeciesCache_Click(object sender, RoutedEventArgs e)
+        private void RemoveRecordSpeciesCache_Click(object sender, RoutedEventArgs e) => _ = RemoveRecordSpeciesCacheClickAsync();
+        private async Task RemoveRecordSpeciesCacheClickAsync()
         {
             int index = SpeciesImageCacheListView.SelectedIndex;
 
@@ -1208,10 +1223,10 @@ namespace Surveyor.User_Controls
                 try
                 {
                     var item = mainWindow?.mediaStereoController.speciesImageCache?.SpeciesStateView[index];
-                    if (item is not null)
+                    if (item is not null && mainWindow is not null)
                     {
-                        mainWindow?.mediaStereoController.speciesImageCache?.Remove(item.Code);
-                        mainWindow?.mediaStereoController.speciesImageCache?.RefreshView();
+                        await mainWindow.mediaStereoController.speciesImageCache.RemoveAsync(item.Code);
+                        mainWindow.mediaStereoController.speciesImageCache.RefreshView();
                     }
                 }
                 catch { }
@@ -1310,7 +1325,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void SpeciesCodeListAdd_Click(object sender, RoutedEventArgs e)
+        private void SpeciesCodeListAdd_Click(object sender, RoutedEventArgs e) => _ = SpeciesCodeListAddClickAsync();
+        private async Task SpeciesCodeListAddClickAsync()
         {
             SpeciesItem speciesItemNew = new();
 
@@ -1320,7 +1336,7 @@ namespace Surveyor.User_Controls
 
                 SpeciesCodeList speciesCodeList = mainWindow.mediaStereoController.speciesSelector.speciesCodeList;
 
-                if (await dialog.SpeciesRecordNew(this, speciesItemNew, speciesCodeList) == true)
+                if (await dialog.SpeciesRecordNewAsync(this, speciesItemNew, speciesCodeList) == true)
                 {
                     // Add the new species code to the list
                     bool ret = mainWindow?.mediaStereoController.speciesSelector.speciesCodeList.AddItem(speciesItemNew, SettingsManagerLocal.ScientificNameOrderEnabled) ?? false;
@@ -1349,12 +1365,13 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void SpeciesCodeListEdit_Click(object sender, RoutedEventArgs e)
+        private void SpeciesCodeListEdit_Click(object sender, RoutedEventArgs e) => _ = SpeciesCodeListEditClickAsync();
+        private async Task SpeciesCodeListEditClickAsync()
         {
             if (SpeciesCodeListDataGrid.SelectedItem is not SpeciesItem speciesItem)
                 return;
 
-            await SpeciesCodeListEdit((SpeciesItem)speciesItem);
+            await SpeciesCodeListEditAsync((SpeciesItem)speciesItem);
         }
 
 
@@ -1363,7 +1380,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void SpeciesCodeListDelete_Click(object sender, RoutedEventArgs e)
+        private void SpeciesCodeListDelete_Click(object sender, RoutedEventArgs e) => _ = SpeciesCodeListDeleteClickAsync();
+        private async Task SpeciesCodeListDeleteClickAsync()
         {
             SpeciesItem? speciesItem = SpeciesCodeListDataGrid.SelectedItem as SpeciesItem;
 
@@ -1409,12 +1427,13 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void SpeciesCodeListDataGrid_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+        private void SpeciesCodeListDataGrid_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e) => _ = SpeciesCodeListDataGridDoubleTappedAsync();
+        private async Task SpeciesCodeListDataGridDoubleTappedAsync()
         {
             if (SpeciesCodeListDataGrid.SelectedItem is not SpeciesItem speciesItem)
                 return;
 
-            await SpeciesCodeListEdit((SpeciesItem)speciesItem);
+            await SpeciesCodeListEditAsync((SpeciesItem)speciesItem);
         }
 
 
@@ -1495,11 +1514,12 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void GoProQRSelectionMenuFlyoutItem_Click(object sender, RoutedEventArgs e)
+        private void GoProQRSelectionMenuFlyoutItem_Click(object sender, RoutedEventArgs e) => _ = GoProQRSelectionMenuFlyoutItemClickAsync(sender);
+        private async Task GoProQRSelectionMenuFlyoutItemClickAsync(object sender)
         {
             if (sender is MenuFlyoutItem menuItem)
             {
-                await SetQRCodeSelection(menuItem.Text);
+                await SetQRCodeSelectionAsync(menuItem.Text);
             }
         }
 
@@ -1594,7 +1614,7 @@ namespace Surveyor.User_Controls
         /// Set the toolkit:SettingsCard for the GoPro setup
         /// </summary>
         /// <param name="name"></param>
-        private async Task SetQRCodeSelection(string? name)
+        private async Task SetQRCodeSelectionAsync(string? name)
         {
             List<(string, string)> GoProScriptsList = SettingsManagerApp.Instance.GoProScripts;
 
@@ -1656,7 +1676,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="speciesItem"></param>
         /// <returns></returns>
-        private async Task SpeciesCodeListEdit(SpeciesItem speciesItem)
+        private async Task SpeciesCodeListEditAsync(SpeciesItem speciesItem)
         {
             if (speciesItem is not null && mainWindow is not null )
             {
@@ -1664,7 +1684,7 @@ namespace Surveyor.User_Controls
 
                 SpeciesCodeList speciesCodeList = mainWindow.mediaStereoController.speciesSelector.speciesCodeList;
 
-                if (await dialog.SpeciesRecordEdit(this, speciesItem, speciesCodeList) == true)
+                if (await dialog.SpeciesRecordEditAsync(this, speciesItem, speciesCodeList) == true)
                 {
                     // Update the species code to the list
                     mainWindow?.mediaStereoController.speciesSelector.speciesCodeList.UpdateItem(speciesItem, SettingsManagerLocal.ScientificNameOrderEnabled);
@@ -1796,7 +1816,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void QRCodeUpdateTimer_Tick(object? sender, object e)
+        private void QRCodeUpdateTimer_Tick(object? sender, object e) => _ = QRCodeUpdateTimerTickAsync();
+        private async Task QRCodeUpdateTimerTickAsync()
         {
             string script = GoProQRScript.Text;
 
@@ -1814,7 +1835,6 @@ namespace Surveyor.User_Controls
                 GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(updated);
             }
         }
-
 
         // ***END OF SettingsWindow***
     }

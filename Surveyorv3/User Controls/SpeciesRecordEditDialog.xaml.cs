@@ -53,9 +53,9 @@ namespace Surveyor
         /// <param name="mainWindow"></param>
         /// <param name="speciesInfo"></param>
         /// <returns></returns>
-        internal async Task<bool> SpeciesRecordNew(Window settingsWindow, SpeciesItem speciesItem, SpeciesCodeList speciesCodeList)
+        internal async Task<bool> SpeciesRecordNewAsync(Window settingsWindow, SpeciesItem speciesItem, SpeciesCodeList speciesCodeList)
         {
-            return await SpeciesRecordEditorNew(settingsWindow, speciesItem, false/*editExisting*/, speciesCodeList);
+            return await SpeciesRecordEditorNewAsync(settingsWindow, speciesItem, false/*editExisting*/, speciesCodeList);
         }
 
 
@@ -65,9 +65,9 @@ namespace Surveyor
         /// <param name="mainWindow"></param>
         /// <param name="speciesInfo"></param>
         /// <returns></returns>
-        internal async Task<bool> SpeciesRecordEdit(Window settingsWindow, SpeciesItem speciesItem, SpeciesCodeList speciesCodeList)
+        internal async Task<bool> SpeciesRecordEditAsync(Window settingsWindow, SpeciesItem speciesItem, SpeciesCodeList speciesCodeList)
         {
-            return await SpeciesRecordEditorNew(settingsWindow, speciesItem, true/*editExisting*/, speciesCodeList);
+            return await SpeciesRecordEditorNewAsync(settingsWindow, speciesItem, true/*editExisting*/, speciesCodeList);
         }
 
 
@@ -98,7 +98,8 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void NewSpeciesFishBaseURLOKButton_Click(object sender, RoutedEventArgs e)
+        private void NewSpeciesFishBaseURLOKButton_Click(object sender, RoutedEventArgs e) => _ = NewSpeciesFishBaseURLOKButtonClickAsync();
+        private async Task NewSpeciesFishBaseURLOKButtonClickAsync()
         {
             string url = NewSpeciesFishBaseURL.Text;
 
@@ -108,7 +109,7 @@ namespace Surveyor
                 NewSpeciesFishBaseURLOKButton.IsEnabled = false;
 
                 // Download the page and extract the metadata
-                fishBaseSpeciesMetadata = await DownloadFishBaseSummaryPage(url);
+                fishBaseSpeciesMetadata = await DownloadFishBaseSummaryPageAsync(url);
                 pageDownloadAttempted = true;
 
                 if (fishBaseSpeciesMetadata is not null)
@@ -136,7 +137,7 @@ namespace Surveyor
                         SpeciesCode.Text = string.Empty;
                     }
                 }
-                await ManageControlVisability();
+                await ManageControlVisabilityAsync();
             }
             finally
             {
@@ -146,36 +147,42 @@ namespace Surveyor
         }
 
 
-        private async void SpeciesLatin_TextChanged(object sender, TextChangedEventArgs e)
+        private void SpeciesLatin_TextChanged(object sender, TextChangedEventArgs e) => _ = SpeciesLatinTextChangedAsync(sender);
+        private async Task SpeciesLatinTextChangedAsync(object sender)
         {
             EnforceLowercaseTextBox((TextBox)sender);
 
-            await ManageControlVisability();
+            await ManageControlVisabilityAsync();
         }
 
-        private async void SpeciesCommon_TextChanged(object sender, TextChangedEventArgs e)
+        private void SpeciesCommon_TextChanged(object sender, TextChangedEventArgs e) => _ = SpeciesCommonTextChangedAsync();
+        private async Task SpeciesCommonTextChangedAsync()
         {
-            await ManageControlVisability();
+            await ManageControlVisabilityAsync();
         }
 
-        private async void GenusLatin_TextChanged(object sender, TextChangedEventArgs e)
+        private void GenusLatin_TextChanged(object sender, TextChangedEventArgs e) => _ = GenusLatinTextChangedAsync();
+        private async Task GenusLatinTextChangedAsync()
         {
-            await ManageControlVisability();
+            await ManageControlVisabilityAsync();
         }
 
-        private async void FamilyAutoSuggest_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+        private void FamilyAutoSuggest_TextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args) => _ = FamilyAutoSuggestTextChangedAsync();
+        private async Task FamilyAutoSuggestTextChangedAsync()
         {
-            await ManageControlVisability();
+            await ManageControlVisabilityAsync();
         }
 
-        private async void FamilyAutoSuggest_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+        private void FamilyAutoSuggest_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args) => _ = FamilyAutoSuggestSuggestionChosenAsync();
+        private async Task FamilyAutoSuggestSuggestionChosenAsync()
         {
-            await ManageControlVisability();
+            await ManageControlVisabilityAsync();
         }
 
-        private async void FamilyAutoSuggest_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+        private void FamilyAutoSuggest_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args) => _ = FamilyAutoSuggestQuerySubmittedAsync();
+        private async Task FamilyAutoSuggestQuerySubmittedAsync()
         {
-            await ManageControlVisability();
+            await ManageControlVisabilityAsync();
         }
 
         /// <summary>
@@ -184,7 +191,8 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void EditSpeciesFishbaseSearchButton_Click(object sender, RoutedEventArgs e)
+        private void EditSpeciesFishbaseSearchButton_Click(object sender, RoutedEventArgs e) => _ = EditSpeciesFishbaseSearchButtonClickAsync();
+        private async Task EditSpeciesFishbaseSearchButtonClickAsync()
         {
             bool ret;
             string genus = GenusLatin.Text.Trim();
@@ -202,7 +210,7 @@ namespace Surveyor
                 {
                     atStepNumber = 2;                
                 }
-                await ManageControlVisability();
+                await ManageControlVisabilityAsync();
             }
             finally
             {
@@ -236,7 +244,8 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void EditSpeciesFishbaseURLDownloadButton_Click(object sender, RoutedEventArgs e)
+        private void EditSpeciesFishbaseURLDownloadButton_Click(object sender, RoutedEventArgs e) => _ = EditSpeciesFishbaseURLDownloadButtonClickAsync();
+        private async Task EditSpeciesFishbaseURLDownloadButtonClickAsync()
         {            
             string url = EditSpeciesFishBaseURL.Text;
 
@@ -246,7 +255,7 @@ namespace Surveyor
                 EditSpeciesFishBaseURLOKButton.IsEnabled = false;
 
                 // Download the page and extract the metadata
-                fishBaseSpeciesMetadata = await DownloadFishBaseSummaryPage(url);
+                fishBaseSpeciesMetadata = await DownloadFishBaseSummaryPageAsync(url);
                 pageDownloadAttempted = true;
 
                 if (fishBaseSpeciesMetadata is not null)
@@ -257,7 +266,7 @@ namespace Surveyor
 
                     atStepNumber = 3;
                 }
-                await ManageControlVisability();
+                await ManageControlVisabilityAsync();
             }
             finally
             {
@@ -273,7 +282,8 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void EditSpeciesGenusSpeciesConfirmButton_Click(object sender, RoutedEventArgs e)
+        private void EditSpeciesGenusSpeciesConfirmButton_Click(object sender, RoutedEventArgs e) => _ = EditSpeciesGenusSpeciesConfirmButtonClickAsync();
+        private async Task EditSpeciesGenusSpeciesConfirmButtonClickAsync()
         {
             if (fishBaseSpeciesMetadata is not null && fishBaseSpeciesMetadata.FishID is not null)
             {
@@ -285,7 +295,7 @@ namespace Surveyor
 
                 atStepNumber = 4;                
             }
-            await ManageControlVisability();
+            await ManageControlVisabilityAsync();
         }
 
 
@@ -301,7 +311,7 @@ namespace Surveyor
         /// <param name="speciesInfo"></param>
         /// <param name="editExisting"></param>
         /// <returns>true is the speciesInfo parameter has been changed</returns>
-        private async Task<bool> SpeciesRecordEditorNew(Window settingsWindow, SpeciesItem _speciesItem, bool _editExisting, SpeciesCodeList speciesCodeList)
+        private async Task<bool> SpeciesRecordEditorNewAsync(Window settingsWindow, SpeciesItem _speciesItem, bool _editExisting, SpeciesCodeList speciesCodeList)
         {
             bool ret = false;
             string title = "";
@@ -393,7 +403,7 @@ namespace Surveyor
 
                 // Enable the buttons
                 await NetworkHelper.IsInternetAvailableHttpAsync(true/*force the underlying check*/);
-                await ManageControlVisability();
+                await ManageControlVisabilityAsync();
 
                 // Show the dialog and handle the response
                 var result = await dialog.ShowAsync();
@@ -447,7 +457,7 @@ namespace Surveyor
         /// <summary>
         /// Manage the states of the UIelements
         /// </summary>
-        private async Task ManageControlVisability()
+        private async Task ManageControlVisabilityAsync()
         {
             if (dialog is not null && editExisting is not null)
             {
@@ -788,7 +798,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="url"></param>
         /// <returns>FishBaseSpeciesMetadata or null is fails</returns>
-        private async Task<HtmlFishBaseSpeciesMetadata?> DownloadFishBaseSummaryPage(string url)
+        private async Task<HtmlFishBaseSpeciesMetadata?> DownloadFishBaseSummaryPageAsync(string url)
         {
             HtmlFishBaseSpeciesMetadata? fishBaseSpeciesMetadata = null;
 
@@ -816,7 +826,7 @@ namespace Surveyor
                 try
                 {
                     StorageFile file = await ApplicationData.Current.LocalFolder.GetFileAsync(localFileSpec);
-                    fishBaseSpeciesMetadata = await ParseHtmlFishbaseSummaryAndExtractSpeciesMetadata(file.Path);
+                    fishBaseSpeciesMetadata = await ParseHtmlFishbaseSummaryAndExtractSpeciesMetadataAsync(file.Path);
 
                     if (fishBaseSpeciesMetadata is not null)
                     {

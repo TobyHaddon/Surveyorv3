@@ -137,7 +137,7 @@ namespace Surveyor
         };
 
         // Update the Load method to use the cached JsonSerializerOptions instance
-        public async Task Load()
+        public async Task LoadAsync()
         {
             try
             {
@@ -193,7 +193,7 @@ namespace Surveyor
         /// Save the presistent download/upload list
         /// </summary>
         /// <returns></returns>
-        public async Task Save()
+        public async Task SaveAsync()
         {
             StorageFile? file = null;
 
@@ -231,7 +231,7 @@ namespace Surveyor
         /// Shutdown the Download upload process
         /// </summary>
         /// <returns></returns>
-        public async Task Unload()
+        public async Task UnloadAsync()
         {
             // Wait for DownloadUpload to finish
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -283,7 +283,7 @@ namespace Surveyor
         /// <param name="url"></param>
         /// <param name="priority"></param>
 
-        public async Task AddDownloadRequestIfNecessary(TransferType type, string url, string subFolder = "", Priority priority = Priority.Normal)
+        public async Task AddDownloadRequestIfNecessaryAsync(TransferType type, string url, string subFolder = "", Priority priority = Priority.Normal)
         {
             // Check we don't already have this downloaded
             var item = Find(url);
@@ -292,14 +292,14 @@ namespace Surveyor
             if (item is not null && item.Status == Status.Failed)
             {
                 // Remove the failed item
-                await Remove(item, false/*don't save at this stage*/);
+                await RemoveAsync(item, false/*don't save at this stage*/);
                 item = null;
             }
 
             if (item is null)
             {
                 // Add a download request
-                await AddDownloadRequest(type, url, subFolder, priority);
+                await AddDownloadRequestAsync(type, url, subFolder, priority);
             }
         }
 
@@ -310,7 +310,7 @@ namespace Surveyor
         /// <param name="type"></param>
         /// <param name="url"></param>
         /// <param name="priority"></param>
-        public async Task AddDownloadRequest(TransferType type, string url, string subFolder = "", Priority priority = Priority.Normal)
+        public async Task AddDownloadRequestAsync(TransferType type, string url, string subFolder = "", Priority priority = Priority.Normal)
         {
             string localFileSpec;
 
@@ -357,7 +357,7 @@ namespace Surveyor
                     transferItemsLock.Release();
                 }
 
-                await Save();
+                await SaveAsync();
             }
         }
 
@@ -370,14 +370,14 @@ namespace Surveyor
         /// <param name="payload"></param>
         /// <param name="priority"></param>
         /// <returns></returns>
-        public async Task AddUploadRequest(TransferType type, string url, string payload, Priority priority = Priority.Normal)
+        public async Task AddUploadRequestAsync(TransferType type, string url, string payload, Priority priority = Priority.Normal)
         {
             string localFile = @"uploads\" + GetLocalFileName(url);
 
             try
             {
                 // Create any required sub directories
-                await LocalFolderHelper.EnsureLocalSubfolderPathExists(localFile);
+                await LocalFolderHelper.EnsureLocalSubfolderPathExistsAsync(localFile);
                 // Create upload file in local folder
                 StorageFile file = await ApplicationData.Current.LocalFolder.CreateFileAsync(localFile, CreationCollisionOption.ReplaceExisting);
                 await FileIO.WriteTextAsync(file, payload);
@@ -409,7 +409,7 @@ namespace Surveyor
                 transferItemsLock.Release();
             }
 
-            await Save();
+            await SaveAsync();
         }
 
 
@@ -419,7 +419,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="item"></param>
         /// <returns></returns>
-        public async Task Remove(InternetQueueItem item, bool save = true)
+        public async Task RemoveAsync(InternetQueueItem item, bool save = true)
         {
             // Acquire the semaphore asynchronously
             await transferItemsLock.WaitAsync();
@@ -460,7 +460,7 @@ namespace Surveyor
 
             if (save)
             {
-                await Save();
+                await SaveAsync();
             }
         }
 
@@ -471,7 +471,7 @@ namespace Surveyor
         /// Called as RemoveAll(Status.Download) will remove only the items with a status of Download
         /// </summary>
         /// <returns></returns>
-        public async Task RemoveAll(Status? queryStatus = null)
+        public async Task RemoveAllAsync(Status? queryStatus = null)
         {
             int itemCount = transferItems.Count;
 
@@ -519,7 +519,7 @@ namespace Surveyor
             }
 
             transferItems.Clear();
-            await Save();
+            await SaveAsync();
 
             Report?.Info("", $"{itemCount} items removed from the Download/Upload list");
         }
@@ -604,7 +604,7 @@ namespace Surveyor
         /// Normally called on a timer
         /// </summary>
         /// <returns></returns>
-        public async Task DownloadUpload(bool isMeteredConnection = false)
+        public async Task DownloadUploadAsync(bool isMeteredConnection = false)
         {
             if (!isReady || isProcessing)
                 return;
@@ -649,7 +649,7 @@ namespace Surveyor
                                 response.EnsureSuccessStatusCode();
 
                                 // Create any required sub directories
-                                await LocalFolderHelper.EnsureLocalSubfolderPathExists(item.RelativeLocalFileSpec);
+                                await LocalFolderHelper.EnsureLocalSubfolderPathExistsAsync(item.RelativeLocalFileSpec);
 
                                 if (item.Type == TransferType.Page)
                                 {
@@ -719,7 +719,7 @@ namespace Surveyor
 
                 // Wait for all remaining tasks to finish
                 await Task.WhenAll(runningTasks);
-                await Save();
+                await SaveAsync();
             }
             finally
             {

@@ -9,12 +9,13 @@
 
 
 
+using Microsoft.UI.Xaml;
+using Surveyor.User_Controls;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using Microsoft.UI.Xaml;
-using Surveyor.User_Controls;
+using System.Threading.Tasks;
 #if DEBUG && OUTPUTMEDIATORTODEBUG
 using static Surveyor.User_Controls.MediaControlEventData;
 using static Surveyor.User_Controls.MediaPlayerEventData;
@@ -202,23 +203,92 @@ namespace Surveyor
             this._mediator.SendTo<T>(this, message);
         }
 
-        // Inside your TListener class or wherever the SafeUICall method is defined
+
+
+        /// <summary>
+        /// Used to safely call UI thread code from non-UI threads
+        /// For synchronous calls the don't return a value
+        /// </summary>
+        /// <param name="action"></param>
         public void SafeUICall(Action action)
         {
-            var dispatcher =  _mainWindow.DispatcherQueue;
+            var dispatcher = _mainWindow.DispatcherQueue;
             if (dispatcher.HasThreadAccess)
             {
-                // We are on the UI thread, execute the action directly
                 action();
+                return;
             }
-            else
+            dispatcher.TryEnqueue(() => action());
+            return;
+        }
+
+
+        /// <summary>
+        /// Used for safely calling UI thread code from non-UI threads
+        /// For async calls that do not return a value
+        /// </summary>
+        /// <param name="asyncAction"></param>
+        /// <returns></returns>
+        public Task SafeUICallAsync(Func<Task> asyncAction)
+        {
+            var dispatcher = _mainWindow.DispatcherQueue;
+            if (dispatcher.HasThreadAccess)
             {
-                // We are not on the UI thread, use TryEnqueue
-                dispatcher.TryEnqueue(() =>
-                {
-                    action();
-                });
+                return InvokeWithGuardAsync(asyncAction);
             }
+
+            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            dispatcher.TryEnqueue(() =>
+            {
+                Task task;
+                try
+                {
+                    task = InvokeWithGuardAsync(asyncAction);
+                }
+                catch (Exception ex)
+                {
+                    tcs.SetException(ex);
+                    return;
+                }
+
+                if (task.IsCompleted)
+                {
+                    if (task.IsFaulted)
+                        tcs.SetException(task.Exception!.InnerExceptions.Count == 1 ? task.Exception.InnerException! : task.Exception);
+                    else if (task.IsCanceled)
+                        tcs.SetCanceled();
+                    else
+                        tcs.SetResult();
+                    return;
+                }
+
+                // VSTHRD110 fix: observe the returned Task
+                _ = task.ContinueWith(t =>
+                {
+                    if (t.IsFaulted)
+                        tcs.SetException(t.Exception!.InnerExceptions.Count == 1 ? t.Exception.InnerException! : t.Exception);
+                    else if (t.IsCanceled)
+                        tcs.SetCanceled();
+                    else
+                        tcs.SetResult();
+                }, TaskScheduler.Default);
+            });
+
+            return tcs.Task;
+        }
+
+    
+
+        // Internal guard to ensure exceptions are surfaced.
+        private static async Task InvokeWithGuardAsync(Func<Task> asyncAction)
+        {
+            await asyncAction().ConfigureAwait(false);
+        }
+
+        private static async Task<T> InvokeWithGuardAsync<T>(Func<Task<T>> asyncFunc)
+        {
+            return await asyncFunc().ConfigureAwait(false);
         }
 
         // Make sure to unregister when the ViewModel is no longer needed

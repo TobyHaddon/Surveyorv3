@@ -125,14 +125,15 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void SimpleEmbeddedTest_Click(object sender, RoutedEventArgs e)
+        private void SimpleEmbeddedTest_Click(object sender, RoutedEventArgs e) => _ = SimpleEmbeddedTestClickAsync();
+        private async Task SimpleEmbeddedTestClickAsync()
         {
             var fileSpecSurvey = new Uri($"ms-appx:///Test Data/Yoga-0m-1-2025-01-24.survey");
 
             StorageFile file = await StorageFile.GetFileFromApplicationUriAsync(fileSpecSurvey);
             string realFilePath = file.Path;
 
-            await SimpleTest(realFilePath);
+            await SimpleTestAsync(realFilePath);
         }
 
 
@@ -141,7 +142,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void SimpleProvidedTest_Click(object sender, RoutedEventArgs e)
+        private void SimpleProvidedTest_Click(object sender, RoutedEventArgs e) => _ = SimpleProvidedTestClickAsync();
+        private async Task SimpleProvidedTestClickAsync()
         {
             if (mainWindow is not null)
             {
@@ -153,7 +155,7 @@ namespace Surveyor.User_Controls
                     if (File.Exists(fileSpecSurvey))
                     {
                         // Run the test
-                        await SimpleTest(fileSpecSurvey);
+                        await SimpleTestAsync(fileSpecSurvey);
                     }
                     else
                     {
@@ -177,7 +179,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void SyncEmbeddedTest_Click(object sender, RoutedEventArgs e)
+        private void SyncEmbeddedTest_Click(object sender, RoutedEventArgs e) => _ = SyncEmbeddedTestClickAsync();
+        private async Task SyncEmbeddedTestClickAsync()
         {
             var fileSpecSurvey = new Uri($"ms-appx:///Test Data/Yoga-0m-1-2025-01-24.survey");
 
@@ -186,7 +189,7 @@ namespace Surveyor.User_Controls
 
             if (int.TryParse(SyncEmbeddedTestRepeat.Text, out int repeat))
             {
-                await SyncTest(realFilePath, repeat);
+                await SyncTestAsync(realFilePath, repeat);
             }
 
         }
@@ -196,8 +199,9 @@ namespace Surveyor.User_Controls
         /// Run a long run test using the embedded survey and media
         /// </summary>
         /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private async void LongRun1EmbeddedTest_Click(object sender, RoutedEventArgs e)
+        /// <param name="e"></param>        
+        private void LongRun1EmbeddedTest_Click(object sender, RoutedEventArgs e) => _ = LongRun1EmbeddedTestClickAsync();
+        private async Task LongRun1EmbeddedTestClickAsync()
         {
             var fileSpecSurvey = new Uri($"ms-appx:///Test Data/Yoga-0m-1-2025-01-24.survey");
 
@@ -206,7 +210,7 @@ namespace Surveyor.User_Controls
 
             if (int.TryParse(LongRun1EmbeddedTestRepeat.Text, out int repeat))
             {
-                await LongRunTestEngine(realFilePath, longRun1Data, repeat);
+                await LongRunTestEngineAsync(realFilePath, longRun1Data, repeat);
             }
         }
 
@@ -216,7 +220,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void LongRun1ProvidedTest_Click(object sender, RoutedEventArgs e)
+        private void LongRun1ProvidedTest_Click(object sender, RoutedEventArgs e) => _ = LongRun1ProvidedTestClickAsync();
+        private async Task LongRun1ProvidedTestClickAsync()
         {
             if (mainWindow is not null)
             {
@@ -230,7 +235,7 @@ namespace Surveyor.User_Controls
                         if (int.TryParse(LongRun1ProvidedTestRepeat.Text, out int repeat))
                         {
                             // Run the test
-                            await LongRunTestEngine(fileSpecSurvey, longRun1Data, repeat);
+                            await LongRunTestEngineAsync(fileSpecSurvey, longRun1Data, repeat);
                         }
                     }
                     else
@@ -268,9 +273,10 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void DownloadManagerTest_Click(object sender, RoutedEventArgs e)
+        private void DownloadManagerTest_Click(object sender, RoutedEventArgs e) => _ = DownloadManagerTestClickAsync();
+        private async Task DownloadManagerTestClickAsync()
         {
-            await DownloadUploadManagerTest();
+            await DownloadUploadManagerTestAsync();
         }
 
         /// <summary>
@@ -279,9 +285,10 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void FishBaseExtractTest_Click(object sender, RoutedEventArgs e)
+        private void FishBaseExtractTest_Click(object sender, RoutedEventArgs e) => _ = FishBaseExtractTestClickAsync();
+        private async Task FishBaseExtractTestClickAsync()
         {
-            await FishBaseExtractTest();
+            await FishBaseExtractTestAsync();
         }
 
 
@@ -302,7 +309,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="fileSpecSurvey"></param>
         /// <returns></returns>
-        private async Task<bool> SimpleTest(string fileSpecSurvey)
+        private async Task<bool> SimpleTestAsync(string fileSpecSurvey)
         {
             bool ret = true;
 
@@ -314,13 +321,13 @@ namespace Surveyor.User_Controls
 
                 /// Open Step 0
                 SetProgressBarAndStatus(0, "Survey open");
-                int retOpen = await mainWindow.OpenSurvey(fileSpecSurvey);
+                int retOpen = await mainWindow.OpenSurveyAsync(fileSpecSurvey);
 
                 if (retOpen == 0)
                 {
                     // Open a local copy of the survey because survey member from mainWndow is private
                     Survey survey = new((Reporter)Report);
-                    retOpen = await survey.SurveyLoad(fileSpecSurvey);
+                    retOpen = await survey.SurveyLoadAsync(fileSpecSurvey);
 
                     if (retOpen != 0)
                     {
@@ -353,7 +360,7 @@ namespace Surveyor.User_Controls
 
                                 // Pause Step 2
                                 SetProgressBarAndStatus(2, "Pause");
-                                await mainWindow.mediaStereoController.Pause(SurveyorMediaPlayer.eCameraSide.None);
+                                await mainWindow.mediaStereoController.PauseAsync(SurveyorMediaPlayer.eCameraSide.None);
                             }
 
                             if (ret == true && AbortRequestCheck(fileSpecSurvey) == true)
@@ -368,7 +375,7 @@ namespace Surveyor.User_Controls
                                 {
                                     SetProgressBarAndStatus(3 + i, "Frame forward");
 
-                                    await mainWindow.mediaStereoController.FrameMove(SurveyorMediaPlayer.eCameraSide.None, 1);
+                                    await mainWindow.mediaStereoController.FrameMoveAsync(SurveyorMediaPlayer.eCameraSide.None, 1);
 
                                     await Task.Delay(100);
                                 }
@@ -390,7 +397,7 @@ namespace Surveyor.User_Controls
 
                                 // Pause Step 14
                                 SetProgressBarAndStatus(14, "Pause");
-                                await mainWindow.mediaStereoController.Pause(SurveyorMediaPlayer.eCameraSide.None);
+                                await mainWindow.mediaStereoController.PauseAsync(SurveyorMediaPlayer.eCameraSide.None);
                             }
 
                             if (ret == true && AbortRequestCheck(fileSpecSurvey) == true)
@@ -413,7 +420,7 @@ namespace Surveyor.User_Controls
 
                     // Close the survey Step 15
                     SetProgressBarAndStatus(15, "Survey close");
-                    ret = await mainWindow.CheckForOpenSurveyAndClose();
+                    ret = await mainWindow.CheckForOpenSurveyAndCloseAsync();
                 }
                 else
                 {
@@ -443,7 +450,7 @@ namespace Surveyor.User_Controls
         /// <param name="fileSpecSurvey"></param>
         /// <param name="repeat"></param>
         /// <returns></returns>
-        private async Task<bool> SyncTest(string fileSpecSurvey, int repeat)
+        private async Task<bool> SyncTestAsync(string fileSpecSurvey, int repeat)
         {
             bool ret = true;
             int retOpen;
@@ -454,7 +461,7 @@ namespace Surveyor.User_Controls
             {
                 // Open the survey so we can get the sync offset
                 Survey survey = new((Reporter)Report);
-                retOpen = await survey.SurveyLoad(fileSpecSurvey);
+                retOpen = await survey.SurveyLoadAsync(fileSpecSurvey);
 
                 if (retOpen != 0)
                 {
@@ -475,7 +482,7 @@ namespace Surveyor.User_Controls
 
                     /// Open Step i
                     SetProgressBarAndStatus(i, "Survey open");
-                    retOpen = await mainWindow.OpenSurvey(fileSpecSurvey);
+                    retOpen = await mainWindow.OpenSurveyAsync(fileSpecSurvey);
 
                     if (retOpen == 0)
                     {
@@ -501,7 +508,7 @@ namespace Surveyor.User_Controls
 
                         // Close the survey Step i
                         SetProgressBarAndStatus(i, "Survey close");
-                        await mainWindow.CheckForOpenSurveyAndClose();
+                        await mainWindow.CheckForOpenSurveyAndCloseAsync();
                     }
                 }
             }
@@ -521,7 +528,7 @@ namespace Surveyor.User_Controls
         /// Tests the DownloadUpload Manager
         /// </summary>
         /// <returns></returns>
-        private async Task<bool> DownloadUploadManagerTest()
+        private async Task<bool> DownloadUploadManagerTestAsync()
         {
             bool ret = true;            
 
@@ -540,20 +547,23 @@ namespace Surveyor.User_Controls
                 // Remove if already present in the queue
                 var item = mainWindow?.internetQueue.Find(url1);
                 if (item is not null)
-                    mainWindow?.internetQueue.Remove(item);
+                    mainWindow?.internetQueue.RemoveAsync(item);
 
                 item = mainWindow?.internetQueue.Find(url2);
                 if (item is not null)
-                    mainWindow?.internetQueue.Remove(item);
+                    mainWindow?.internetQueue.RemoveAsync(item);
 
                 item = mainWindow?.internetQueue.Find(url3);
                 if (item is not null)
-                    mainWindow?.internetQueue.Remove(item);
+                    mainWindow?.internetQueue.RemoveAsync(item);
 
-                mainWindow?.internetQueue.AddDownloadRequest(TransferType.Page, url1, "temp", Priority.Normal);
-                mainWindow?.internetQueue.AddDownloadRequest(TransferType.Page, url2, "temp", Priority.Normal);
-                mainWindow?.internetQueue.AddDownloadRequest(TransferType.Page, url3, "temp", Priority.Normal);
-                SetProgressBarAndStatus(steps++, "Request 3 downloads");
+                if (mainWindow is not null)
+                {
+                    await mainWindow.internetQueue.AddDownloadRequestAsync(TransferType.Page, url1, "temp", Priority.Normal);
+                    await mainWindow.internetQueue.AddDownloadRequestAsync(TransferType.Page, url2, "temp", Priority.Normal);
+                    await mainWindow.internetQueue.AddDownloadRequestAsync(TransferType.Page, url3, "temp", Priority.Normal);
+                    SetProgressBarAndStatus(steps++, "Request 3 downloads");
+                }
 
                 long timeout = 20000;
                 bool allDownloaded = false;
@@ -611,13 +621,15 @@ namespace Surveyor.User_Controls
                     TestCountIncrement(false/*isPass*/);
 
                 // Clean up
-                if (item1 is not null)
-                    mainWindow?.internetQueue.Remove(item1);
-                if (item2 is not null)
-                    mainWindow?.internetQueue.Remove(item2);
-                if (item3 is not null)
-                    mainWindow?.internetQueue.Remove(item3);
-
+                if (mainWindow is not null)
+                {
+                    if (item1 is not null)
+                        await mainWindow.internetQueue.RemoveAsync(item1);
+                    if (item2 is not null)
+                        await mainWindow.internetQueue.RemoveAsync(item2);
+                    if (item3 is not null)
+                        await mainWindow.internetQueue.RemoveAsync(item3);
+                }
             }
             else
             {
@@ -636,7 +648,7 @@ namespace Surveyor.User_Controls
         /// Download a species summary page from FishBase and extract information
         /// </summary>
         /// <returns></returns>
-        private async Task<bool> FishBaseExtractTest()
+        private async Task<bool> FishBaseExtractTestAsync()
         {
             bool ret = true;
             string speciesID = "3604";
@@ -650,7 +662,7 @@ namespace Surveyor.User_Controls
                 int steps = 0;
 
                 string url1 = $"https://www.fishbase.se/summary/{speciesID}";
-                mainWindow?.internetQueue.AddDownloadRequest(TransferType.Page, url1, "temp", Priority.Normal);
+                mainWindow?.internetQueue.AddDownloadRequestAsync(TransferType.Page, url1, "temp", Priority.Normal);
                 SetProgressBarAndStatus(steps++, "Request species summary page");
 
                 long timeout = 20000;
@@ -673,7 +685,7 @@ namespace Surveyor.User_Controls
 
                         // Parse the species summary and extract species information for storage int the cache
                         SetProgressBarAndStatus(steps++, "Extract summary information");
-                        var metadata = await HtmlFishBaseParser.ParseHtmlFishbaseSummaryAndExtractSpeciesMetadata(file.Path);
+                        var metadata = await HtmlFishBaseParser.ParseHtmlFishbaseSummaryAndExtractSpeciesMetadataAsync(file.Path);
 
                         // Check Fish ID
                         if (metadata.FishID is not null)
@@ -757,8 +769,8 @@ namespace Surveyor.User_Controls
                     TestCountIncrement(false/*isPass*/);
 
                 // Clean up
-                if (item1 is not null)
-                    mainWindow?.internetQueue.Remove(item1);
+                if (item1 is not null && mainWindow is not null)
+                    await mainWindow.internetQueue.RemoveAsync(item1);
 
             }
             else
@@ -835,7 +847,7 @@ namespace Surveyor.User_Controls
                             new(MAction.FrameMove, -1, null, null)
                             ];
 
-        private async Task<bool> LongRunTestEngine(string fileSpecSurvey, List<DItem> runData, int repeat)
+        private async Task<bool> LongRunTestEngineAsync(string fileSpecSurvey, List<DItem> runData, int repeat)
         {
             bool ret = true;
             int retOpen;
@@ -846,7 +858,7 @@ namespace Surveyor.User_Controls
             {
                 // Open the survey so we can get the sync offset
                 Survey survey = new((Reporter)Report);
-                retOpen = await survey.SurveyLoad(fileSpecSurvey);
+                retOpen = await survey.SurveyLoadAsync(fileSpecSurvey);
 
                 if (retOpen != 0)
                 {
@@ -864,7 +876,7 @@ namespace Surveyor.User_Controls
                     /// Open Step 0
                     int stepIndex = 0;
                     SetProgressBarAndStatus(stepIndex++, "Survey open");
-                    retOpen = await mainWindow.OpenSurvey(fileSpecSurvey);
+                    retOpen = await mainWindow.OpenSurveyAsync(fileSpecSurvey);
 
                     if (retOpen == 0)
                     {
@@ -897,19 +909,19 @@ namespace Surveyor.User_Controls
 
                                         case MAction.Pause:
                                             SetProgressBarAndStatus(stepIndex++, $"{repeats + 1}/{i + 1}:Pause");
-                                            await mainWindow.mediaStereoController.Pause(SurveyorMediaPlayer.eCameraSide.None);
+                                            await mainWindow.mediaStereoController.PauseAsync(SurveyorMediaPlayer.eCameraSide.None);
                                             break;
 
                                         case MAction.FrameMove:
                                             if (frameIndex != 0)
                                             {
                                                 SetProgressBarAndStatus(stepIndex++, $"{repeats + 1}/{i + 1}:Frame move {frameIndex} frames");
-                                                await mainWindow.mediaStereoController.FrameMove(SurveyorMediaPlayer.eCameraSide.None, frameIndex);
+                                                await mainWindow.mediaStereoController.FrameMoveAsync(SurveyorMediaPlayer.eCameraSide.None, frameIndex);
                                             }
                                             else
                                             {
                                                 SetProgressBarAndStatus(stepIndex++, $"{repeats + 1}/{i + 1}:Frame move relative {framePosition:hh\\:mm\\:ss\\.ff}");
-                                                await mainWindow.mediaStereoController.FrameMove(SurveyorMediaPlayer.eCameraSide.None, framePosition);
+                                                await mainWindow.mediaStereoController.FrameMoveAsync(SurveyorMediaPlayer.eCameraSide.None, framePosition);
                                             }
                                             break;
 
@@ -920,12 +932,12 @@ namespace Surveyor.User_Controls
 
                                         case MAction.StepForward:
                                             SetProgressBarAndStatus(stepIndex++, $"{repeats + 1}/{i + 1}:Step forward 30 frames"); // 30 frames
-                                            await mainWindow.mediaStereoController.FrameMove(SurveyorMediaPlayer.eCameraSide.None, 30);
+                                            await mainWindow.mediaStereoController.FrameMoveAsync(SurveyorMediaPlayer.eCameraSide.None, 30);
                                             break;
 
                                         case MAction.StepBackward:
                                             SetProgressBarAndStatus(stepIndex++, $"{repeats + 1}/{i + 1}:Step backward 10 frames");  // 10 frames
-                                            await mainWindow.mediaStereoController.FrameMove(SurveyorMediaPlayer.eCameraSide.None, -10);
+                                            await mainWindow.mediaStereoController.FrameMoveAsync(SurveyorMediaPlayer.eCameraSide.None, -10);
                                             break;
 
                                         case MAction.Wait:
@@ -949,7 +961,7 @@ namespace Surveyor.User_Controls
 
                         // Close the survey Step n + 1
                         SetProgressBarAndStatus(stepIndex++, "Survey close");
-                        await mainWindow.CheckForOpenSurveyAndClose();
+                        await mainWindow.CheckForOpenSurveyAndCloseAsync();
                     }
                 }
             }

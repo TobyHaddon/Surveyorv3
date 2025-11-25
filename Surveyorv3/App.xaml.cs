@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Threading.Tasks;
 using Windows.ApplicationModel;
 #if !DEBUG
 using Microsoft.ApplicationInsights;
@@ -78,24 +79,46 @@ namespace Surveyor
             mainWindow = new MainWindow();
             if (mainWindow is not null)     
             {
-                mainWindow.Closed += (sender, e) =>
-                {
-#if !DEBUG
-                    _telemetryClient?.Flush();
-                    System.Threading.Thread.Sleep(1000); // Give time to send
-#endif
-                };
-
+                mainWindow.Closed += MainWindow_Closed;
                 mainWindow.Activate();
             }                               
         }
 
-        private void OnSuspending(object sender, SuspendingEventArgs e)
+        /// <summary>
+        /// Flush telemetry on main window close in release mode
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void MainWindow_Closed(object sender, WindowEventArgs args) => _ = MainWindowClosedAsync();
+        private async Task MainWindowClosedAsync()
         {
 #if !DEBUG
-            _telemetryClient?.Flush();
-            // Allow time for flushing before shutdown
-            Task.Delay(1000).Wait();
+            try
+            {
+                _telemetryClient?.Flush();
+                // Allow background channel to transmit without blocking the UI thread.
+                await Task.Delay(750);
+            }
+            catch { /* swallow on shutdown */ }
+#else
+            await Task.Delay(1);        // Just to supress async warning
+#endif
+
+        }
+
+
+        private void OnSuspending(object sender, SuspendingEventArgs e) => _ = OnSuspendingAsync();
+        private async Task OnSuspendingAsync()
+        {
+#if !DEBUG
+            try
+            {
+                _telemetryClient?.Flush();
+                await Task.Delay(750);
+            }
+            catch { }
+#else
+            await Task.Delay(1); // Just to suspress async warning
 #endif
         }
 

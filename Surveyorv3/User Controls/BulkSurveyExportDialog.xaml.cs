@@ -123,8 +123,11 @@ namespace Surveyor.User_Controls
             RebuildTotalsRow(0);
         }
 
+
+        private void SelectFolder_Click(object sender, RoutedEventArgs e) => _ = SelectFolderClickAsync();
+
         private int selectFolderEntryCount = 0;
-        private async void SelectFolder_Click(object sender, RoutedEventArgs e)
+        private async Task SelectFolderClickAsync()
         {
             try
             {
@@ -140,10 +143,10 @@ namespace Surveyor.User_Controls
                     if (folder != null)
                     {
                         FolderPathTextBox.Text = folder.Path;
-                        await ProcessSurveyFiles(folder.Path, 
-                                              IncludeSubfoldersCheckBox.IsChecked == true, 
-                                              false/*recalce*/, 
-                                              false/*Save back to survey files*/);
+                        await ProcessSurveyFilesAsync(folder.Path, 
+                                                      IncludeSubfoldersCheckBox.IsChecked == true, 
+                                                      false/*recalce*/, 
+                                                      false/*Save back to survey files*/);
                         UpdateButtons();
                     }
                 }
@@ -160,7 +163,7 @@ namespace Surveyor.User_Controls
 
         }
 
-        private async Task ProcessSurveyFiles(string path, bool includeSubfolders, bool recalc, bool save, CalibrationData? calibrationData = null)
+        private async Task ProcessSurveyFilesAsync(string path, bool includeSubfolders, bool recalc, bool save, CalibrationData? calibrationData = null)
         {
             SurveyFiles.Clear();
             ItemCountTextBlock.Text = "";
@@ -190,7 +193,7 @@ namespace Surveyor.User_Controls
                     {
                         // Open the survey with no auto save
                         var survey = new Survey(report!);
-                        if (await survey.SurveyLoad(fileSpec, false/*autoSave*/) == 0)
+                        if (await survey.SurveyLoadAsync(fileSpec, false/*autoSave*/) == 0)
                         {
                             // Get the frame size
                             int frameWidth = 0;
@@ -774,7 +777,9 @@ namespace Surveyor.User_Controls
             this.Close();
         }
 
-        private async void Export_Click(object sender, RoutedEventArgs e)
+
+        private void Export_Click(object sender, RoutedEventArgs e) => _ = ExportClickAsync();
+        private async Task ExportClickAsync()
         {
             // If you use EPPlus in a noncommercial context
             // according to the Polyform Noncommercial license:
@@ -816,7 +821,7 @@ namespace Surveyor.User_Controls
                     {
                         // Write the fish by fish data
                         var worksheetData = package.Workbook.Worksheets.Add("Data");
-                        await ExportDatatSheet(package, worksheetData, file.Path);
+                        await ExportDatatSheetAsync(package, worksheetData, file.Path);
                     }
 
                     // Write the survey by survey metadata
@@ -825,7 +830,7 @@ namespace Surveyor.User_Controls
 
                     // write to the file
                     package.SaveAs(stream);
-                    stream.Flush();
+                    await stream.FlushAsync();
 
                     // Commit the updates
                     var status = await CachedFileManager.CompleteUpdatesAsync(file);
@@ -960,22 +965,26 @@ namespace Surveyor.User_Controls
             return 0;
         }
 
-        private async void RecalcNoSave_Click(object sender, RoutedEventArgs e)
+
+        private void RecalcNoSave_Click(object sender, RoutedEventArgs e) => _ = RecalcNoSaveAsync();
+        private async Task RecalcNoSaveAsync()
         {
             // No save option selected. Don't allow export to avoid confusion
             noSaveOptionSelected_ExportMetadataOnly = true;
             ExportButton.Content = "Export Metadata";
 
-            await Recalc(false/*trueSaveFalseNoSave*/);
+            await RecalcAsync(false/*trueSaveFalseNoSave*/);
         }
 
-        private async void RecalcSave_Click(object sender, RoutedEventArgs e)
+
+        private void RecalcSave_Click(object sender, RoutedEventArgs e) => _ = RecalcSaveAsync();
+        private async Task RecalcSaveAsync()
         {
             // Save option selected. Export allowed
             noSaveOptionSelected_ExportMetadataOnly = false;
             ExportButton.Content = "Export";
 
-            await Recalc(true/*trueSaveFalseNoSave*/);
+            await RecalcAsync(true/*trueSaveFalseNoSave*/);
         }
 
 
@@ -984,35 +993,39 @@ namespace Surveyor.User_Controls
         /// calibrition data to recalculate all the measurements and rules
         /// </summary>
         /// <param name="save"></param>
-        private async Task Recalc(bool trueSaveFalseNoSave)
+        private async Task RecalcAsync(bool trueSaveFalseNoSave)
         {        
             if (!string.IsNullOrEmpty(FolderPathTextBox.Text))
             {
                 string fileSpec = FolderPathTextBox.Text;
-                await ProcessSurveyFiles(fileSpec,
-                                         IncludeSubfoldersCheckBox.IsChecked == true,
-                                         true/*recalc*/,
-                                         trueSaveFalseNoSave/*Save back to survey files*/);
+                await ProcessSurveyFilesAsync(fileSpec,
+                                              IncludeSubfoldersCheckBox.IsChecked == true,
+                                              true/*recalc*/,
+                                              trueSaveFalseNoSave/*Save back to survey files*/);
                 UpdateButtons();
             }
         }
 
-        private async void NewCalibRecalcNoSave_Click(object sender, RoutedEventArgs e)
+
+        private void NewCalibRecalcNoSave_Click(object sender, RoutedEventArgs e) => _ = NewCalibRecalcNoSaveAsync();
+        private async Task NewCalibRecalcNoSaveAsync()
         {
             // No save option selected. Don't allow export to avoid confusion
             noSaveOptionSelected_ExportMetadataOnly = true;
             ExportButton.Content = "Export Metadata";
 
-            await NewCalibRecalc(false/*save*/);
+            await NewCalibRecalcAsync(false/*save*/);
         }
 
-        private async void NewCalibRecalcSave_Click(object sender, RoutedEventArgs e)
+
+        private void NewCalibRecalcSave_Click(object sender, RoutedEventArgs e) => _ = NewCalibRecalcSaveAsync();
+        private async Task NewCalibRecalcSaveAsync()
         {
             // Save option selected. Export allowed
             noSaveOptionSelected_ExportMetadataOnly = false;
             ExportButton.Content = "Export";
 
-            await NewCalibRecalc(true/*save*/);
+            await NewCalibRecalcAsync(true/*save*/);
         }
 
 
@@ -1021,19 +1034,19 @@ namespace Surveyor.User_Controls
         /// calibrition data to recalculate all the measurements and rules
         /// </summary>
         /// <param name="save"></param>
-        private async Task NewCalibRecalc(bool trueSaveFalseNoSave)
+        private async Task NewCalibRecalcAsync(bool trueSaveFalseNoSave)
         {
             // Get new calibration data
-            CalibrationData? calibrationData = await ImportCalibration();
+            CalibrationData? calibrationData = await ImportCalibrationAsync();
 
             if (calibrationData is not null && !string.IsNullOrEmpty(FolderPathTextBox.Text))
             {
                 string fileSpec = FolderPathTextBox.Text;
-                await ProcessSurveyFiles(fileSpec, 
-                                         IncludeSubfoldersCheckBox.IsChecked == true,
-                                         true/*recalc*/,
-                                         trueSaveFalseNoSave/*Save back to survey files*/, 
-                                         calibrationData);
+                await ProcessSurveyFilesAsync(fileSpec, 
+                                              IncludeSubfoldersCheckBox.IsChecked == true,
+                                              true/*recalc*/,
+                                              trueSaveFalseNoSave/*Save back to survey files*/,
+                                              calibrationData);
                 UpdateButtons();
             }
         }
@@ -1044,7 +1057,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async Task<CalibrationData?> ImportCalibration()
+        private async Task<CalibrationData?> ImportCalibrationAsync()
         {
             CalibrationData? calibrationData = null;
 
@@ -1093,7 +1106,7 @@ namespace Surveyor.User_Controls
         /// <param name="package"></param>
         /// <param name="worksheet"></param>
         /// <returns></returns>
-        private async Task ExportDatatSheet(ExcelPackage package, ExcelWorksheet worksheet, string exportFile)
+        private async Task ExportDatatSheetAsync(ExcelPackage package, ExcelWorksheet worksheet, string exportFile)
         {
             int rowIndex = 1;
             bool failed = false;
@@ -1183,7 +1196,7 @@ namespace Surveyor.User_Controls
 
                 // Open the survey with no auto save
                 var survey = new Survey(null!);
-                if (await survey.SurveyLoad(fileEntry.FilePath, false/*autoSave*/) == 0)
+                if (await survey.SurveyLoadAsync(fileEntry.FilePath, false/*autoSave*/) == 0)
                 {
                     //??? Debug Line
                     //if (survey.Data.Info.SurveyCode == "STU_5m_E2-E3_2025-07-14")

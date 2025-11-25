@@ -77,7 +77,7 @@ namespace Surveyor.User_Controls
         /// Add an event to the list
         /// </summary>
         /// <param name="evt"></param>
-        public async Task AddEvent(Event evt)
+        public async Task AddEventAsync(Event evt)
         {
 #pragma warning disable CA1868
             if (events.Contains(evt))
@@ -245,7 +245,7 @@ namespace Surveyor.User_Controls
         /// Display Event in a ContentDialog
         /// </summary>
         /// <param name="evt"></param>
-        public async void Display(Event evt)
+        public async Task DisplayAsync(Event evt)
         {
             // Set the content dialog title
             EventDialog.Title = "Event Properties";
@@ -453,7 +453,7 @@ namespace Surveyor.User_Controls
         /// Display status of the SurveyStart/SurveyEnd markers in a ContentDialog
         /// </summary>
 
-        public async void DisplaySurveyStartEndMarkers(Event? newestEventEndMarker)
+        public async Task DisplaySurveyStartEndMarkersAsync(Event? newestEventEndMarker)
         {
             // Set the content dialog title
             EventDialog.Title = "Survey Start & End Segment";
@@ -609,11 +609,12 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void ViewMenuItem_Click(object sender, RoutedEventArgs e)
+        private void ViewMenuItem_Click(object sender, RoutedEventArgs e) => _ = ViewMenuItemClickAsync();
+        private async Task ViewMenuItemClickAsync()
         {
             if (ListViewEvent.SelectedItem is Event selectedItem)
             {
-                Display(selectedItem);
+                await DisplayAsync(selectedItem);
             }
         }
 
@@ -642,7 +643,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void ListViewEvent_Delete(object? sender, RoutedEventArgs? e)
+        private void ListViewEvent_Delete(object? sender, RoutedEventArgs? e) => _ = ListViewEventDeleteAsync();
+        private async Task ListViewEventDeleteAsync()
         {
             if (ListViewEvent.SelectedItem is Event selectedItem)
             {

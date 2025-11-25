@@ -30,7 +30,7 @@ namespace Surveyor
         /// <param name="positionTimelineController"></param>
         /// <param name="positionLeft"></param>
         /// <param name="positionRight"></param>
-        public async void AddMarker(EventsControl eventsControl, TimeSpan positionTimelineController, TimeSpan positionLeft, TimeSpan positionRight)
+        public async Task AddMarkerAsync(EventsControl eventsControl, TimeSpan positionTimelineController, TimeSpan positionLeft, TimeSpan positionRight)
         {
             Event? newEvent = null;
             SurveyDataType markerType = SurveyDataType.SurveyStart;
@@ -48,7 +48,10 @@ namespace Surveyor
                 if (startEndEvents.Count == 0)
                 {
                     // There are no existing markers, so this new marker must be a start marker
-                    newEvent = await AddSurveyStartEnd(eventsControl, SurveyDataType.SurveyStart, positionTimelineController, positionLeft, positionRight);
+                    newEvent = await AddSurveyStartEndMarkerAsync(eventsControl, 
+                                                                  SurveyDataType.SurveyStart, 
+                                                                  positionTimelineController, 
+                                                                  positionLeft, positionRight);
                 }
                 else
                 {
@@ -63,25 +66,31 @@ namespace Surveyor
                             markerType = SurveyDataType.SurveyStart;
 
                         // The new marker is later than all the existing markers, so we can calculate if the next marker is either a start or end marker 
-                        newEvent = await AddSurveyStartEnd(eventsControl, markerType, positionTimelineController, positionLeft, positionRight);
+                        newEvent = await AddSurveyStartEndMarkerAsync(eventsControl, 
+                                                                      markerType, 
+                                                                      positionTimelineController, 
+                                                                      positionLeft, positionRight);
                     }
                     else
                     {
                         // The new marker is earlier and therefore in the middle of existing markers. I will insert a new start marker 
                         // for now and later on we will adjust all existing markers so they go start/end, start/end, etc.
-                        newEvent = await AddSurveyStartEnd(eventsControl, SurveyDataType.SurveyStart, positionTimelineController, positionLeft, positionRight);
+                        newEvent = await AddSurveyStartEndMarkerAsync(eventsControl, 
+                                                                      SurveyDataType.SurveyStart, 
+                                                                      positionTimelineController, 
+                                                                      positionLeft, positionRight);
                     }
                 }
             }
 
             // Now we need to adjust all the existing markers so they go start/end, start/end, etc. 
-            await ReCalcMarkerStartAndEnd(eventsControl);
+            await ReCalcMarkerStartAndEndAsync(eventsControl);
 
             // If the added marker is an end marker, then report an overview of the survey start/end markers
             if (newEvent is not null && newEvent.EventDataType == SurveyDataType.SurveyEnd)
             {
                 // Report the survey start/end markers
-                eventsControl.DisplaySurveyStartEndMarkers(newEvent);
+                await eventsControl.DisplaySurveyStartEndMarkersAsync(newEvent);
             }
         }
 
@@ -92,7 +101,7 @@ namespace Surveyor
         /// <param name="eventsControl"></param>
         /// <param name="positionTimelineController"></param>
         /// <returns>true is anything was deleted</returns>
-        public async Task<bool> DeleteMarker(EventsControl eventsControl, TimeSpan positionTimelineController)
+        public async Task<bool> DeleteMarkerAsync(EventsControl eventsControl, TimeSpan positionTimelineController)
         {
             bool ret = false;
 
@@ -110,7 +119,7 @@ namespace Surveyor
 
             // Recalc start/end
             if (ret)
-                await ReCalcMarkerStartAndEnd(eventsControl);
+                await ReCalcMarkerStartAndEndAsync(eventsControl);
 
             return ret;
         }
@@ -122,7 +131,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="events"></param>
         /// <returns></returns>
-        private async Task<bool> ReCalcMarkerStartAndEnd(EventsControl eventsControl)
+        private async Task<bool> ReCalcMarkerStartAndEndAsync(EventsControl eventsControl)
         {
             bool ret = false;
 
@@ -161,7 +170,7 @@ namespace Surveyor
             // Re-add them so the transect marker text is updated
             foreach (Event evt in startEndEvents)
             {
-                await eventsControl.AddEvent(evt);
+                await eventsControl.AddEventAsync(evt);
             }
 
             return ret;
@@ -176,7 +185,7 @@ namespace Surveyor
         /// <param name="positionTimelineController"></param>
         /// <param name="positionLeft"></param>
         /// <param name="positionRight"></param>
-        private async Task<Event> AddSurveyStartEnd(EventsControl eventsControl, SurveyDataType markerType, TimeSpan positionTimelineController, TimeSpan positionLeft, TimeSpan positionRight)
+        private async Task<Event> AddSurveyStartEndMarkerAsync(EventsControl eventsControl, SurveyDataType markerType, TimeSpan positionTimelineController, TimeSpan positionLeft, TimeSpan positionRight)
         {
             // The new marker is earlier and therefore in the middle of existing markers. I will insert a new start marker 
             // for now and later on we will adjust all existing markers so they go start/end, start/end, etc.
@@ -188,7 +197,7 @@ namespace Surveyor
                 TimeSpanRightFrame = positionRight
             };
             evt.SetData(markerType);
-            await eventsControl.AddEvent(evt);
+            await eventsControl.AddEventAsync(evt);
 
             return evt;
         }

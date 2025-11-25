@@ -96,7 +96,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void BrowseSurveyFileButton_Click(object sender, RoutedEventArgs e)
+        private void BrowseSurveyFileButton_Click(object sender, RoutedEventArgs e) => _ = BrowseSurveyFileButtonClickAsync();
+        private async Task BrowseSurveyFileButtonClickAsync()
         {
             try
             {
@@ -177,7 +178,8 @@ namespace Surveyor.User_Controls
         /// For each measurement event in the selected survey file, calculate using each of the calibration sets the measurement, range, RMS etc.
         /// Export results to Documents folder as an .xlsx named after the survey file stem.
         /// </summary>
-        private async void RunCalculations_Button(object sender, RoutedEventArgs e)
+        private void RunCalculations_Button(object sender, RoutedEventArgs e) => _ = RunCalculationsButtonAsync();
+        private async Task RunCalculationsButtonAsync()
         {
             ResultTextBox.Text = string.Empty;
             ResultTextBox.Visibility = Visibility.Collapsed;
@@ -192,7 +194,7 @@ namespace Surveyor.User_Controls
                 await Task.Run(async () =>
                 {
                     // Long-running work here (CPU/IO). Keep UI thread free.
-                    await RunCalculations();
+                    await RunCalculationsAsync();
                 });
 
                 ResultTextBox.Text = ResultText;
@@ -207,7 +209,7 @@ namespace Surveyor.User_Controls
             }
         }
 
-        private async Task RunCalculations()
+        private async Task RunCalculationsAsync()
         {
             // Reset result text
             ResultText = string.Empty;
@@ -228,7 +230,7 @@ namespace Surveyor.User_Controls
 
                 // Load the survey
                 survey = new Surveyor.Survey(report!);
-                int loadRet = await survey.SurveyLoad(SurveyFileSpec, false/*autoSave*/);
+                int loadRet = await survey.SurveyLoadAsync(SurveyFileSpec, false/*autoSave*/);
                 if (loadRet != 0)
                 {
                     report?.Warning("", $"Failed to load survey: {SurveyFileSpec}");
@@ -380,7 +382,7 @@ namespace Surveyor.User_Controls
 
                 // Save
                 package.SaveAs(fs);
-                fs.Flush();
+                await fs.FlushAsync();
 
                 report?.Info("", $"Export complete: {outPath}");
 
@@ -434,7 +436,7 @@ namespace Surveyor.User_Controls
             {
                 if (survey is not null && survey.IsLoaded)
                 {
-                    await survey.SurveyClose();
+                    await survey.SurveyCloseAsync();
                 }
             }
         }

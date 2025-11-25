@@ -703,8 +703,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="ImageFrame"></param>
         /// <param name="sender"></param>
-        /// <param name="e"></param>
-        public bool MouseWheelEvent(Object sender, PointerRoutedEventArgs e)
+        /// <param name="e"></param>        
+        public async Task<bool> MouseWheelEventAsync(Object sender, PointerRoutedEventArgs e)
         {
             bool ret = false;
 
@@ -723,7 +723,7 @@ namespace Surveyor.User_Controls
                 }
   
                 // Act immediately on the first event to feel responsive
-                ret = CombinedZoomMode(delta / _lowestMouseWheelDeltaSeen);
+                ret = await CombinedZoomModeAsync(delta / _lowestMouseWheelDeltaSeen);
             }
 
             return ret;
@@ -736,7 +736,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="delta"></param>
         /// <returns></returns>
-        public bool CombinedZoomMode(int delta)
+        public async Task<bool> CombinedZoomModeAsync(int delta)
         {
             if (isMagLocked)
             {
@@ -854,12 +854,12 @@ namespace Surveyor.User_Controls
                         MagHide();
 
                         // Show the Mag Window as it new size
-                        MagLockInCurrentPoisition(magLockedCentre, PointerDeviceType.Mouse);
+                        await MagLockInCurrentPoisitionAsync(magLockedCentre, PointerDeviceType.Mouse);
                     }
                     // Adjust the magnification
                     else if (changeMagnification)
                     {
-                        ChangeZoomFactor(newCanvasZoomFactor);
+                        await ChangeZoomFactorAsync(newCanvasZoomFactor);
                     }
                 }
                 finally
@@ -922,7 +922,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void CanvasFrame_PointerPressed(object sender, PointerRoutedEventArgs e)
+        private void CanvasFrame_PointerPressed(object sender, PointerRoutedEventArgs e) => _ = CanvasFramePointerPressedAsync(sender, e);
+        private async Task CanvasFramePointerPressedAsync(object sender, PointerRoutedEventArgs e)
         {
             if (mainWindowActivated && imageLoaded)
             {
@@ -951,7 +952,7 @@ namespace Surveyor.User_Controls
                     else
                     {
                         if (!isMagLocked)
-                            MagLockInCurrentPoisition(pointerPoint.Position, pointerPoint.PointerDeviceType);
+                            await MagLockInCurrentPoisitionAsync(pointerPoint.Position, pointerPoint.PointerDeviceType);
                     }
                 }
                 // Display the context menu if the right pointer button is pressed 
@@ -966,14 +967,13 @@ namespace Surveyor.User_Controls
         }
 
 
-
-
         /// <summary>
         /// Pointer (mouse) moved event on the CanvasMag control (sit on top of the ImageMag control)
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void CanvasMag_PointerMoved(object sender, PointerRoutedEventArgs e)
+        private void CanvasMag_PointerMoved(object sender, PointerRoutedEventArgs e) => _ = CanvasMagPointerMovedAsync(e);
+        private async Task CanvasMagPointerMovedAsync(PointerRoutedEventArgs e)
         {
             if (mainWindowActivated)
             {
@@ -1001,7 +1001,7 @@ namespace Surveyor.User_Controls
                 // and displays the magnified image
                 if (!isMagLocked)
                 {
-                    MagWindow(pointerRelativeToCanvasFrame.Position);
+                    await MagWindowAsync(pointerRelativeToCanvasFrame.Position);
                 }
                 // Detect if we are dragging one of the measurement markers                
                 else if (isDragging && isDraggingRectangle is not null /*???&& e.OriginalSource is Rectangle rectangle*/)
@@ -1114,7 +1114,8 @@ namespace Surveyor.User_Controls
         /// Pointer (mouse) button released event on the CanvasMag (sit on top of the ImageMag control)
         /// </summary>
         /// <param name="e"></param>
-        private void CanvasMag_PointerReleased(object sender, PointerRoutedEventArgs e)
+        private void CanvasMag_PointerReleased(object sender, PointerRoutedEventArgs e) => _ = CanvasMagPointerReleasedAsync(e);
+        private async Task CanvasMagPointerReleasedAsync(PointerRoutedEventArgs e)
         {
             // Temp
             Debug.WriteLine($"CanvasMag_PointerReleased button click release detected");
@@ -1163,7 +1164,7 @@ namespace Surveyor.User_Controls
                         // Get the pointer point relative to the sender (Image control)
                         PointerPoint pointerPoint = e.GetCurrentPoint(CanvasFrame);
 
-                        MagLockInCurrentPoisition(pointerPoint.Position, pointerPoint.PointerDeviceType);
+                        await MagLockInCurrentPoisitionAsync(pointerPoint.Position, pointerPoint.PointerDeviceType);
                     }
                     else
                     {
@@ -1362,35 +1363,21 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void ButtonMagEnlarge_Click(object sender, RoutedEventArgs e)
+        private void ButtonMagEnlarge_Click(object sender, RoutedEventArgs e) => _ = ButtonMagEnlargeClickAsync();
+        private async Task ButtonMagEnlargeClickAsync()
         {
-            //if (experimentalEnabled is not null && experimentalFeatureSetBEnabled is not null &&
-            //    (bool)experimentalEnabled && (bool)experimentalFeatureSetBEnabled)
-            //{
-                CombinedZoomMode(-1/*zoom out: enlarge size & reduce magnification*/);
+            await CombinedZoomModeAsync(-1/*zoom out: enlarge size & reduce magnification*/);
 
-                // Message MediaStereoController so the other instance can update the size of the mag window
-                magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
-                {
-                    magWindowSize = MagWindowGetSizeName()
-                });
-                // Message MediaStereoController so the other instance can update the zoom factor
-                magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, CameraSide)
-                {
-                    canvasZoomFactor = canvasZoomFactor
-                });
-            //}
-            //else
-            //{
-            //    MagWindowSizeEnlargeOrReduce(true/*TrueEnargeFalseReduce*/, true/*trueHideIfLocked*/);
-
-            //    // Message MediaStereoController so the other instance can update the size of the mag window
-            //    MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
-            //    {
-            //        magWindowSize = MagWindowGetSizeName()
-            //    };
-            //    magnifyAndMarkerControlHandler?.Send(data);
-            //}
+            // Message MediaStereoController so the other instance can update the size of the mag window
+            magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
+            {
+                magWindowSize = MagWindowGetSizeName()
+            });
+            // Message MediaStereoController so the other instance can update the zoom factor
+            magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, CameraSide)
+            {
+                canvasZoomFactor = canvasZoomFactor
+            });
         }
 
 
@@ -1399,35 +1386,21 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void ButtonMagReduce_Click(object sender, RoutedEventArgs e)
+        private void ButtonMagReduce_Click(object sender, RoutedEventArgs e) => _ = ButtonMagReduceClickAsync();
+        private async Task ButtonMagReduceClickAsync()
         {
-            //if (experimentalEnabled is not null && experimentalFeatureSetBEnabled is not null &&
-            //    (bool)experimentalEnabled && (bool)experimentalFeatureSetBEnabled)
-            //{
-                CombinedZoomMode(1/*zoom in: reduce size & magnify*/);
+            await CombinedZoomModeAsync(1/*zoom in: reduce size & magnify*/);
 
-                // Message MediaStereoController so the other instance can update the size of the mag window
-                magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
-                {
-                    magWindowSize = MagWindowGetSizeName()
-                });
-                // Message MediaStereoController so the other instance can update the zoom factor
-                magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, CameraSide)
-                {
-                    canvasZoomFactor = canvasZoomFactor
-                });
-            //}
-            //else
-            //{
-            //    MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/, true/*trueHideIfLocked*/);
-
-            //    // Message MediaStereoController so the other instance can update the size of the mag window
-            //    MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
-            //    {
-            //        magWindowSize = MagWindowGetSizeName()
-            //    };
-            //    magnifyAndMarkerControlHandler?.Send(data);
-            //}
+            // Message MediaStereoController so the other instance can update the size of the mag window
+            magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
+            {
+                magWindowSize = MagWindowGetSizeName()
+            });
+            // Message MediaStereoController so the other instance can update the zoom factor
+            magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, CameraSide)
+            {
+                canvasZoomFactor = canvasZoomFactor
+            });
         }
 
 
@@ -1436,9 +1409,10 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void ButtonMagZoomIn_Click(object sender, RoutedEventArgs e)
+        private void ButtonMagZoomIn_Click(object sender, RoutedEventArgs e) => _ = ButtonMagZoomInClickAsync();
+        private async Task ButtonMagZoomInClickAsync()
         {
-            MagWindowZoomFactorEnlargeOrReduce(true/*TrueZoomInFalseZoomOut*/);
+            await MagWindowZoomFactorEnlargeOrReduceAsync(true/*TrueZoomInFalseZoomOut*/);
 
             // Message MediaStereoController so the other instance can update the zoom factor
             MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, CameraSide)
@@ -1454,9 +1428,10 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void ButtonMagZoomOut_Click(object sender, RoutedEventArgs e)
+        private void ButtonMagZoomOut_Click(object sender, RoutedEventArgs e) => _ = ButtonMagZoomOutClickAsync();
+        private async Task ButtonMagZoomOutClickAsync()
         {
-            MagWindowZoomFactorEnlargeOrReduce(false/*TrueZoomInFalseZoomOut*/);
+            await MagWindowZoomFactorEnlargeOrReduceAsync(false/*TrueZoomInFalseZoomOut*/);
 
             // Message MediaStereoController so the other instance can update the zoom factor
             MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, CameraSide)
@@ -1495,7 +1470,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void CanvasFrameContextMenu_Click(object sender, RoutedEventArgs e)
+        private void CanvasFrameContextMenu_Click(object sender, RoutedEventArgs e) => _ = CanvasFrameContextMenuClickAsync(sender);
+        private async Task CanvasFrameContextMenuClickAsync(object sender)
         {
             MenuFlyoutItem? item = sender as MenuFlyoutItem;
             if (item is not null)
@@ -1509,13 +1485,13 @@ namespace Surveyor.User_Controls
                 // Add 3D Point
                 else if (item == CanvasFrameMenuAdd3DPoint)
                 {
-                    await Request3DPoint(string.Empty/*no preselected species*/);
+                    await Request3DPointAsync(string.Empty/*no preselected species*/);
                 }
 
                 // Add Single Point
                 else if (item == CanvasFrameMenuAddSinglePoint)
                 {
-                    await RequestSinglePoint(string.Empty/*no preselected species*/);
+                    await RequestSinglePointAsync(string.Empty/*no preselected species*/);
                 }
 
                 // Add bookmark
@@ -1676,8 +1652,8 @@ namespace Surveyor.User_Controls
                             SetTargets(thisCameraA, thisCameraB);
 
                             // Lock the mag windows at the centre point of the measurement or 3D point
-                            MagWindow(magWindowCentrePoint);
-                            MagLockInCurrentPoisition(magWindowCentrePoint, PointerDeviceType.Mouse);
+                            await MagWindowAsync(magWindowCentrePoint);
+                            await MagLockInCurrentPoisitionAsync(magWindowCentrePoint, PointerDeviceType.Mouse);
 
                             //// Set Target A on this instance
                             //TOBE DELETED
@@ -1775,7 +1751,7 @@ namespace Surveyor.User_Controls
         /// Request a 3D point is added
         /// </summary>
         /// <returns></returns>
-        private async Task Request3DPoint(string _species)
+        private async Task Request3DPointAsync(string _species)
         {
             bool? TruePointAFalsePointB = null;
 
@@ -1802,7 +1778,7 @@ namespace Surveyor.User_Controls
             }
             else if (TargetA is not null && pointTargetB is not null && otherInstanceTargetASet && otherInstanceTargetBSet)
             {
-                TruePointAFalsePointB = await RequestUsersSelectsTargetAorB("Add 3D Point", "Please select either the Red Target or the Green Target to add a 3D Point.");
+                TruePointAFalsePointB = await RequestUsersSelectsTargetAorBAsync("Add 3D Point", "Please select either the Red Target or the Green Target to add a 3D Point.");
             }
 
             if (TruePointAFalsePointB is not null)
@@ -1822,7 +1798,7 @@ namespace Surveyor.User_Controls
         /// Request a single point is added
         /// </summary>
         /// <returns></returns>
-        private async Task RequestSinglePoint(string _species)
+        private async Task RequestSinglePointAsync(string _species)
         {
             bool? TruePointAFalsePointB = null;
 
@@ -1849,7 +1825,7 @@ namespace Surveyor.User_Controls
             }
             else if (pointTargetA is not null & pointTargetB is not null)
             {
-                TruePointAFalsePointB = await RequestUsersSelectsTargetAorB("Add Single Point", "Please select either the Red Target or the Green Target to add a Single Point.");
+                TruePointAFalsePointB = await RequestUsersSelectsTargetAorBAsync("Add Single Point", "Please select either the Red Target or the Green Target to add a Single Point.");
             }
 
             if (TruePointAFalsePointB is not null)
@@ -2555,16 +2531,11 @@ namespace Surveyor.User_Controls
                 {
                     var item = new MenuFlyoutItem
                     {
-
                         Text = $"{speciesInfo.Species}",
                         Tag = entry.Species
                     };
 
-                    item.Click += (s, e) =>
-                    {
-                        SpeciesInfo? species = (s as MenuFlyoutItem)?.Tag as SpeciesInfo;
-                        OnRecentSpeciesSelected(species);
-                    };
+                    item.Click += FileRecentSpecies_Click;
 
                     RecentSpeciesSubItem.Items.Add(item);
                     anySubMenuItems = true;
@@ -2587,10 +2558,23 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Recent Species sub-menu item clicked
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileRecentSpecies_Click(object s, RoutedEventArgs e) => _ = FileRecentSpeciesClickAsync(s);
+        private async Task FileRecentSpeciesClickAsync(object s)
+        {
+            SpeciesInfo? species = (s as MenuFlyoutItem)?.Tag as SpeciesInfo;
+            await OnRecentSpeciesSelectedAsync(species);
+        }
+
+
+        /// <summary>
         /// Called when a recent species is selected from the Recent Species sub-menu
         /// </summary>
         /// <param name="species"></param>
-        private async void OnRecentSpeciesSelected(SpeciesInfo? speciesInfo)
+        private async Task OnRecentSpeciesSelectedAsync(SpeciesInfo? speciesInfo)
         {
             if (speciesInfo is not null && speciesInfo.Species is not null)
             {
@@ -2604,11 +2588,11 @@ namespace Surveyor.User_Controls
                 }
                 else if (Is3DPointRequestPossible())
                 {
-                    await Request3DPoint(speciesInfo.Species);
+                    await Request3DPointAsync(speciesInfo.Species);
                 }
                 else if (IsSinglePointRequestPossible())
                 {
-                    await RequestSinglePoint(speciesInfo.Species);
+                    await RequestSinglePointAsync(speciesInfo.Species);
                 }
             }
         }
@@ -2820,7 +2804,7 @@ namespace Surveyor.User_Controls
         /// The Mag Window is locked to the pointer location and the target markers can be set
         /// </summary>
         /// <param name="pointerPoint"></param>
-        public void MagLockInCurrentPoisition(Point pointerPosition, PointerDeviceType pointerDeviceType)
+        public async Task MagLockInCurrentPoisitionAsync(Point pointerPosition, PointerDeviceType pointerDeviceType)
         {
             if (diagnosticInformation)
             {
@@ -2848,7 +2832,7 @@ namespace Surveyor.User_Controls
                 }
 
                 // Update the MagWindow on screen
-                MagWindow(pointerPosition);
+                await MagWindowAsync(pointerPosition);
 
                 // Change the border colour to indicate it is locked
                 BorderMag.BorderBrush = magColourLocked;
@@ -2890,7 +2874,7 @@ namespace Surveyor.User_Controls
         /// The magnification factor is defined by canvasZoomFactor.
         /// </summary>
         /// <param name="pointerPosition">Pointer relative to CanvasFrame</param>
-        private async void MagWindow(Point pointerPosition)
+        private async Task MagWindowAsync(Point pointerPosition)
         {
             // Check the ImageFrame is setup 
             Debug.Assert(imageUIElement is not null, $"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
@@ -2950,7 +2934,7 @@ namespace Surveyor.User_Controls
                                     {
                                         report?.Info(CameraSide.ToString(), $"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, ImageFrame ({imageUIElement.ActualWidth:F1} x {imageUIElement.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), first attempt to reduce window size automatically.");
 
-                                        MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/, false/*trueHideIfLocked*/);
+                                        await MagWindowSizeEnlargeOrReduceAsync(false/*TrueEnargeFalseReduce*/, false/*trueHideIfLocked*/);
                                         magWidthScaled = magWidthUnscaled * canvasScaleFactor;
                                         magHeightScaled = magHeightUnscaled * canvasScaleFactor;
 
@@ -2959,7 +2943,7 @@ namespace Surveyor.User_Controls
                                         {
                                             report?.Info(CameraSide.ToString(), $"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1} x {CanvasFrame.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), second attempt to reduce window size automatically.");
 
-                                            MagWindowSizeEnlargeOrReduce(false/*TrueEnargeFalseReduce*/, false/*trueHideIfLocked*/);
+                                            await MagWindowSizeEnlargeOrReduceAsync(false/*TrueEnargeFalseReduce*/, false/*trueHideIfLocked*/);
                                             magWidthScaled = magWidthUnscaled * canvasScaleFactor;
                                             magHeightScaled = magHeightUnscaled * canvasScaleFactor;
 
@@ -3925,7 +3909,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="TrueEnargeFalseReduce"></param>
         /// <param name="trueHideIfLocked"></param>
-        private void MagWindowSizeEnlargeOrReduce(bool TrueEnargeFalseReduce, bool trueHideIfLocked)
+        private async Task MagWindowSizeEnlargeOrReduceAsync(bool TrueEnargeFalseReduce, bool trueHideIfLocked)
         {
             // Get the current Mag Window size
             string magWindowSize = MagWindowGetSizeName();
@@ -3947,7 +3931,7 @@ namespace Surveyor.User_Controls
                     MagHide();
 
                     // Show the Mag Window as it new size
-                    MagLockInCurrentPoisition(magLockedCentre, PointerDeviceType.Mouse);
+                    await MagLockInCurrentPoisitionAsync(magLockedCentre, PointerDeviceType.Mouse);
                 }
             }
         }
@@ -4038,7 +4022,7 @@ namespace Surveyor.User_Controls
         /// Used to increase of decrease the zoom factor from inside the MagWindow
         /// </summary>
         /// <param name="TrueZoomInFalseZoomOut"></param>
-        private void MagWindowZoomFactorEnlargeOrReduce(bool TrueZoomInFalseZoomOut)
+        private async Task MagWindowZoomFactorEnlargeOrReduceAsync(bool TrueZoomInFalseZoomOut)
         {
             // Zoom levels 5,3,2,1
             // The logic in this function needs to align with the MediaControl zoom factor menu options
@@ -4067,7 +4051,7 @@ namespace Surveyor.User_Controls
             if (isMagLocked)
             {
                 // Recalcs icon sizes, hides and re-displays the Mag Window
-                ChangeZoomFactor(canvasZoomFactor);
+                await ChangeZoomFactorAsync(canvasZoomFactor);
             }
         }
 
@@ -4078,7 +4062,7 @@ namespace Surveyor.User_Controls
         /// if necessary and re-displaying at the new zoom factor
         /// </summary>
         /// <param name="newCanvasZoomFactor"></param>
-        private void ChangeZoomFactor(double newCanvasZoomFactor)
+        private async Task ChangeZoomFactorAsync(double newCanvasZoomFactor)
         {
             canvasZoomFactor = newCanvasZoomFactor;
 
@@ -4089,7 +4073,7 @@ namespace Surveyor.User_Controls
             MagHide();
 
             // Re-display the Mag Window as it new size/zoom
-            MagLockInCurrentPoisition(magLockedCentre, PointerDeviceType.Mouse);
+            await MagLockInCurrentPoisitionAsync(magLockedCentre, PointerDeviceType.Mouse);
         }
 
 
@@ -4117,7 +4101,7 @@ namespace Surveyor.User_Controls
         /// <param name="title"></param>
         /// <param name="question"></param>
         /// <returns></returns>
-        private async Task<bool?> RequestUsersSelectsTargetAorB(string title, string question)
+        private async Task<bool?> RequestUsersSelectsTargetAorBAsync(string title, string question)
         {
             var dialog = new ContentDialog
             {

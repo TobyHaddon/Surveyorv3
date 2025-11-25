@@ -20,7 +20,7 @@ namespace Surveyor.Helper
 
         private static readonly Dictionary<string, StorageFolder> _folderCache = [];
 
-        public static async Task<StorageFolder> EnsureLocalSubfolderPathExists(string relativePath)
+        public static async Task<StorageFolder> EnsureLocalSubfolderPathExistsAsync(string relativePath)
         {
             string folderPath = Path.GetDirectoryName(relativePath) ?? "";
             folderPath = folderPath.Replace('/', '\\'); // Normalize
