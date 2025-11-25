@@ -576,7 +576,6 @@ namespace Surveyor
 
         public DataClass Data = new();
 
-
         public bool IsDirty
         {
             get
