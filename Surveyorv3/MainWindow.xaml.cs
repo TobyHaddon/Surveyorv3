@@ -310,11 +310,11 @@ namespace Surveyor
             // but the `Initialize` method of `HelpDocuments` expects an `ItemCollection`.
             // To fix this, we need to pass the correct type to the `Initialize` method.
 
-            _ = helpDocuments.Initialize(MenuHelp.Items, // Pass the MenuFlyoutSubItem directly instead of its Items property
-                                         HelpDocumentsPDFSection,
-                                         HelpDocumentsVideosSection,
-                                         HelpDocumentsDOCSection,
-                                         HelpDocumentsXLSSection);
+            _ = helpDocuments.InitializeAsync(MenuHelp.Items, // Pass the MenuFlyoutSubItem directly instead of its Items property
+                                              HelpDocumentsPDFSection,
+                                              HelpDocumentsVideosSection,
+                                              HelpDocumentsDOCSection,
+                                              HelpDocumentsXLSSection);
        
 
             // Report that the app has loaded
@@ -2281,7 +2281,7 @@ namespace Surveyor
 
                 if (ret)
                 {
-                    int ret2 = 0;
+                    int ret2;
 
                     // Force a Save
                     ret2 = await FileSurveySaveOrSaveAs();

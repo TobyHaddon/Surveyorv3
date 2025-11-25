@@ -5,6 +5,7 @@ using Emgu.CV.Structure;
 using Emgu.CV.Util;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using Surveyor.Calibration;
 using SurveyorCalibrationData;
 using System;
 using System.Collections.Generic;
@@ -17,7 +18,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Surveyor.Calibration
+namespace Surveyor
 {
 
     public enum CalibrationParameters
@@ -34,16 +35,9 @@ namespace Surveyor.Calibration
     public class CalibrationStereoFrameSet
     {
         // Version of the class (use for data migrations)
-        private const int version = 2;
+        private const int version = 3;
         // Data Version
         public int Version { get; set; } = -1;
-
-        // Lock point
-        [JsonProperty(nameof(LockFrameIndexLeft))]
-        public int LockFrameIndexLeft = -1;
-
-        [JsonProperty(nameof(LockFrameIndexRight))]
-        public int LockFrameIndexRight = -1;
 
         // A sorted dictionary of frames, sorted by frame index that holds the calibration
         // board corners and ids, the blur factor and the movement factor
@@ -87,7 +81,15 @@ namespace Surveyor.Calibration
 
         /// 
         /// DYNAMIC variables
-        ///         
+        ///  
+
+        // Lock point (passed in from Calibration Project
+        [JsonIgnore]
+        private int LockFrameIndexLeft = -1;
+
+        [JsonIgnore]
+        private int LockFrameIndexRight = -1;
+
         [JsonIgnore]
         private VideoCapture? leftCapture = null;
 
@@ -406,7 +408,7 @@ namespace Surveyor.Calibration
             // Update the sensor bin totals
             AddToTheSensorBinTotals(frameLeft, SensorBinTotalsLeft);
             if (frameRight is not null)
-                AddToTheSensorBinTotals((FrameCalibrationData)frameRight, SensorBinTotalsRight);
+                AddToTheSensorBinTotals(frameRight, SensorBinTotalsRight);
 
             // Helper
             static void AddToTheSensorBinTotals(FrameCalibrationData target, Dictionary<(int gx, int gy, int binx, int biny), int> BinTotals)
@@ -558,7 +560,7 @@ namespace Surveyor.Calibration
                             //                 .Take(2)
                             //                 .Select(kvp => kvp.Key)
                             //                 .ToList();
-                            frameIndexes = Frames.Select(kvp => (Key: kvp.Key, Left: kvp.Value.Item1)) // pull out only what we sort/filter on
+                            frameIndexes = Frames.Select(kvp => (kvp.Key, Left: kvp.Value.Item1)) // pull out only what we sort/filter on
                                                  .Where(x =>
                                                      x.Left.CharucoCorners != null &&
                                                      x.Left.CharucoCorners.Length > charucoCornersThreshold &&
@@ -605,7 +607,7 @@ namespace Surveyor.Calibration
                             //                .Select(kvp => kvp.Key)
                             //                .ToList();
                             frameIndexes = Frames.Select(kvp => new {
-                                                        Key = kvp.Key,
+                                                        kvp.Key,
                                                         Left = kvp.Value.Item1,
                                                         Right = kvp.Value.Item2,
                                                         Count = kvp.Value.Item3
@@ -786,7 +788,7 @@ namespace Surveyor.Calibration
                             if (calibrationStereoFrameSet.Version == -1/*From version*/)
                             {
                                 // No Migrations action just set the version number to latest
-                                calibrationStereoFrameSet.Version = (new CalibrationStereoFrameSet()).Version;
+                                calibrationStereoFrameSet.Version = new CalibrationStereoFrameSet().Version;
                             }
                             // Furture migrations
                             //else if (calibrationStereoFrameSet.Version == ??)
@@ -804,7 +806,7 @@ namespace Surveyor.Calibration
                             // Recalculate Frames Dictionary
                             if (recalcFramesDictionary)
                             {
-                                int frameCalibrationTargetLastestVersion = (new FrameCalibrationData()).Version;
+                                int frameCalibrationTargetLastestVersion = new FrameCalibrationData().Version;
                                 foreach (var frame in calibrationStereoFrameSet.Frames)
                                 {
                                     (FrameCalibrationData frameCalibrationTargetLeft, FrameCalibrationData? frameCalibrationTargetRight, int correspondingCount) = frame.Value;
@@ -840,7 +842,7 @@ namespace Surveyor.Calibration
         /// </summary>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        public async Task<(int startCalibration, int stopCalibration)> FindCalibrationTimeLineRange(FrameProcessingCallback? callbackDisplay, CancellationToken cancellationToken)
+        public async Task<(int startCalibration, int stopCalibration)> FindCalibrationTimeLineRangeAsync(FrameProcessingCallback? callbackDisplay, CancellationToken cancellationToken)
         {
             bool leftReady = false;
             bool rightReady = false;
@@ -852,7 +854,6 @@ namespace Surveyor.Calibration
                 rightReady = true;
 
             SortedDictionary<int, bool> calibrationTargetSearch = [];
-
 
             int rangeStart;
             int rangeEnd;
@@ -876,15 +877,15 @@ namespace Surveyor.Calibration
                 startStep = 625;
             }
 
-            await FindCalibration(trueStereoFalseSoloLeft,
-                                  rangeStart, rangeEnd,
-                                  startStep,
-                                  calibrationTargetSearch,
-                                  false/*trueRecursive*/,
-                                  null,/*Used if recursive is true*/
-                                  callbackDisplay,
-                                  cancellationToken,
-                                  null);
+            await FindCalibrationAsync(trueStereoFalseSoloLeft,
+                                       rangeStart, rangeEnd,
+                                       startStep,
+                                       calibrationTargetSearch,
+                                       false/*trueRecursive*/,
+                                       null,/*Used if recursive is true*/
+                                       callbackDisplay,
+                                       cancellationToken,
+                                       null);
 
 
 
@@ -910,17 +911,17 @@ namespace Surveyor.Calibration
                 if (firstTrueKey is not null && beforeFirstKey is not null)
                 {
                     int newStartFrame = (int)beforeFirstKey + 1;
-                    int newEndFrame = ((int)firstTrueKey - 1);
+                    int newEndFrame = (int)firstTrueKey - 1;
                     if (newStartFrame < newEndFrame)
                     {
-                        await FindCalibration(trueStereoFalseSoloLeft,
-                            (int)beforeFirstKey + 1, (int)firstTrueKey - 1, frameStep2,
-                            calibrationTargetSearch,
-                            true/*trueRecursive*/,
-                            true/*trueWorkOnStartFalseWorkOnEnd*/,
-                            callbackDisplay,
-                            cancellationToken,
-                            null);
+                        await FindCalibrationAsync(trueStereoFalseSoloLeft,
+                                                    (int)beforeFirstKey + 1, (int)firstTrueKey - 1, frameStep2,
+                                                    calibrationTargetSearch,
+                                                    true/*trueRecursive*/,
+                                                    true/*trueWorkOnStartFalseWorkOnEnd*/,
+                                                    callbackDisplay,
+                                                    cancellationToken,
+                                                    null);
                     }
                 }
 
@@ -939,14 +940,14 @@ namespace Surveyor.Calibration
                     int newEndFrame = (int)afterLastKey - 1;
                     if (newStartFrame < newEndFrame)
                     {
-                        await FindCalibration(trueStereoFalseSoloLeft,
-                            newStartFrame, newEndFrame, frameStep2,
-                            calibrationTargetSearch,
-                            true/*trueRecursive*/,
-                            false/*trueWorkOnStartFalseWorkOnEnd*/,
-                            callbackDisplay,
-                            cancellationToken,
-                            null);
+                        await FindCalibrationAsync(trueStereoFalseSoloLeft,
+                                                    newStartFrame, newEndFrame, frameStep2,
+                                                    calibrationTargetSearch,
+                                                    true/*trueRecursive*/,
+                                                    false/*trueWorkOnStartFalseWorkOnEnd*/,
+                                                    callbackDisplay,
+                                                    cancellationToken,
+                                                    null);
                     }
                 }
             }
@@ -982,14 +983,14 @@ namespace Surveyor.Calibration
         /// <param name="callback"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        private async Task FindCalibration(bool trueStereoFalseMonoLeft,
-                                           int startFrame, int endFrame, int frameStep,
-                                           SortedDictionary<int, bool> calibrationTargetSearch,
-                                           bool trueRecursive,
-                                           bool? trueWorkOnStartFalseWorkOnEnd,
-                                           FrameProcessingCallback? callback,
-                                           CancellationToken cancellationToken,
-                                           object? userData)
+        private async Task FindCalibrationAsync(bool trueStereoFalseMonoLeft,
+                                                int startFrame, int endFrame, int frameStep,
+                                                SortedDictionary<int, bool> calibrationTargetSearch,
+                                                bool trueRecursive,
+                                                bool? trueWorkOnStartFalseWorkOnEnd,
+                                                FrameProcessingCallback? callback,
+                                                CancellationToken cancellationToken,
+                                                object? userData)
         {
             Debug.WriteLine($"FindCalibration: Frame:{startFrame} to {endFrame} step:{frameStep}");
 
@@ -1104,7 +1105,7 @@ namespace Surveyor.Calibration
                     if (firstTrueKey is not null && beforeFirstKey is not null)
                     {
                         newStartFrame = (int)beforeFirstKey + 1;
-                        newEndFrame = ((int)firstTrueKey - 1);
+                        newEndFrame = (int)firstTrueKey - 1;
                     }
                 }
                 else
@@ -1119,7 +1120,7 @@ namespace Surveyor.Calibration
                     if (lastTrueKey is not null && afterLastKey is not null)
                     {
                         newStartFrame = (int)lastTrueKey + 1;
-                        newEndFrame = ((int)afterLastKey - 1);
+                        newEndFrame = (int)afterLastKey - 1;
                     }
                 }
 
@@ -1130,11 +1131,14 @@ namespace Surveyor.Calibration
 
                 if (newStartFrame < newEndFrame)
                 {
-                    await FindCalibration(trueStereoFalseMonoLeft, newStartFrame, newEndFrame, frameStep2,
-                        calibrationTargetSearch,
-                        true/*trueRecursive*/,
-                        trueWorkOnStartFalseWorkOnEnd,
-                        callback, cancellationToken, userData);
+                    await FindCalibrationAsync(trueStereoFalseMonoLeft, 
+                                                newStartFrame, 
+                                                newEndFrame, 
+                                                frameStep2,
+                                                calibrationTargetSearch,
+                                                true/*trueRecursive*/,
+                                                trueWorkOnStartFalseWorkOnEnd,
+                                                callback, cancellationToken, userData);
                 }
             }
 
@@ -1160,7 +1164,7 @@ namespace Surveyor.Calibration
                 if (calibrationTargetSearch[keys[i]])
                 {
                     firstTrueKey = keys[i];
-                    beforeFirstKey = (i > 0) ? keys[i - 1] : null;
+                    beforeFirstKey = i > 0 ? keys[i - 1] : null;
                     break;
                 }
             }
@@ -1188,7 +1192,7 @@ namespace Surveyor.Calibration
                 if (calibrationTargetSearch[keys[i]])
                 {
                     lastTrueKey = keys[i];
-                    afterLastKey = (i < keys.Count - 1) ? keys[i + 1] : null;
+                    afterLastKey = i < keys.Count - 1 ? keys[i + 1] : null;
                     break;
                 }
             }
@@ -1230,10 +1234,10 @@ namespace Surveyor.Calibration
         /// <param name="callback"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public async Task<int> FindCalibrationsFrames(int startCalibrationFrameIndex,
-                                                      int stopCalibrationFrameIndex,
-                                                      FrameProcessingCallback callback,
-                                                      CancellationToken cancellationToken)
+        public async Task<int> FindCalibrationsFramesAsync(int startCalibrationFrameIndex,
+                                                           int stopCalibrationFrameIndex,
+                                                           FrameProcessingCallback callback,
+                                                           CancellationToken cancellationToken)
         {
             Debug.WriteLine($"FindCalibrationsFrames: Frame:{startCalibrationFrameIndex} to {stopCalibrationFrameIndex}");
 
@@ -1591,7 +1595,7 @@ namespace Surveyor.Calibration
 
                     // Interpolate ChArUco corners
                     using var charucoCorners = new Mat();
-                    using var charucoIds = new Emgu.CV.Util.VectorOfInt();
+                    using var charucoIds = new VectorOfInt();
 
                     if (markerIds.Size > 0)
                     {
@@ -1602,8 +1606,8 @@ namespace Surveyor.Calibration
                             CvInvoke.CornerSubPix(
                                 gray,
                                 singleMarker,
-                                new System.Drawing.Size(3, 3),    // Search window size
-                                new System.Drawing.Size(-1, -1),  // No dead zone
+                                new Size(3, 3),    // Search window size
+                                new Size(-1, -1),  // No dead zone
                                 new MCvTermCriteria(30, 0.01)
                             );
                         }
@@ -1622,7 +1626,7 @@ namespace Surveyor.Calibration
 
 
                         // Convert detected Charuco corners to managed types
-                        var managedCorners = new System.Drawing.PointF[charucoCorners.Rows];
+                        var managedCorners = new PointF[charucoCorners.Rows];
                         charucoCorners.CopyTo(managedCorners);
                         var managedIds = charucoIds.ToArray();
 
@@ -1670,7 +1674,7 @@ namespace Surveyor.Calibration
                 charucoIds.Push(frameCalibrationTarget.CharucoIds);
 
 
-                Emgu.CV.Aruco.ArucoInvoke.DrawDetectedCornersCharuco(
+                ArucoInvoke.DrawDetectedCornersCharuco(
                     frame,
                     charucoCorners,
                     charucoIds,
@@ -1678,13 +1682,13 @@ namespace Surveyor.Calibration
                 );
 
                 // Draw the centre point
-                System.Drawing.PointF boardCentre = frameCalibrationTarget.Center;
+                PointF boardCentre = frameCalibrationTarget.Center;
                 int radius = 40;
                 MCvScalar color = new(0, 255, 0); // Green for Centre 
                 int thickness = 20;
 
                 // Draw the circle on the Mat
-                CvInvoke.Circle(frame, new System.Drawing.Point((int)boardCentre.X, (int)boardCentre.Y), radius, color, thickness);
+                CvInvoke.Circle(frame, new Point((int)boardCentre.X, (int)boardCentre.Y), radius, color, thickness);
 
                 if (trueMonoHeadfalseStereoHead)
                 { 
@@ -1699,7 +1703,7 @@ namespace Surveyor.Calibration
                         {
                             CvInvoke.Circle(
                                 frame,
-                                new System.Drawing.Point((int)Math.Round(pt.X), (int)Math.Round(pt.Y)),
+                                new Point((int)Math.Round(pt.X), (int)Math.Round(pt.Y)),
                                 10,
                                 new MCvScalar(0, 0, 255),  // Red for reprojected
                                 3  // Filled circle
@@ -1716,7 +1720,7 @@ namespace Surveyor.Calibration
                         {
                             CvInvoke.Circle(
                                 frame,
-                                new System.Drawing.Point((int)Math.Round(pt.X), (int)Math.Round(pt.Y)),
+                                new Point((int)Math.Round(pt.X), (int)Math.Round(pt.Y)),
                                 14,
                                 new MCvScalar(255, 0, 0), // Blue for CHarUco corners
                                 3  // Filled circle
@@ -1743,7 +1747,7 @@ namespace Surveyor.Calibration
                             {
                                 CvInvoke.Circle(
                                     frame,
-                                    new System.Drawing.Point((int)Math.Round(pt.X), (int)Math.Round(pt.Y)),
+                                    new Point((int)Math.Round(pt.X), (int)Math.Round(pt.Y)),
                                     14,
                                     new MCvScalar(255, 0, 0), // Blue for CHarUco corners
                                     3  // Filled circle
@@ -1947,7 +1951,7 @@ namespace Surveyor.Calibration
                     Debug.WriteLine($"{side} Mono calibration second pass (pass 1) removed {frameRemovedFromRMSOrMaxError} frames due to RMS or Max Error thresholds.");
                 }
 
-                System.Drawing.Size frameSizeCv = new((int)frameSize.Width, (int)frameSize.Height);
+                Size frameSizeCv = new((int)frameSize.Width, (int)frameSize.Height);
                 using var cameraMatrix = new Mat();
                 using var distCoeffs = new Mat();
                 using var rvecs = new VectorOfMat();
@@ -2063,8 +2067,8 @@ namespace Surveyor.Calibration
                                                     Dictionary<int, MCvPoint3D32f> charucoCorner3DMap,
                                                     CalibrationParameters calibrationParameters)
         {
-            var allObserved = new List<System.Drawing.PointF>();
-            var allProjected = new List<System.Drawing.PointF>();
+            var allObserved = new List<PointF>();
+            var allProjected = new List<PointF>();
 
             for (int i = 0; i < allCharucoIds.Size; i++)
             {
@@ -2075,7 +2079,7 @@ namespace Surveyor.Calibration
                     continue;
 
                 var objectPoints = new List<MCvPoint3D32f>();
-                var observedCorners = new List<System.Drawing.PointF>();
+                var observedCorners = new List<PointF>();
 
                 for (int j = 0; j < ids.Length; j++)
                 {
@@ -2420,7 +2424,7 @@ namespace Surveyor.Calibration
                 var E = new Mat();
                 var F = new Mat();
 
-                System.Drawing.Size imgSize = new((int)frameSize.Width, (int)frameSize.Height);
+                Size imgSize = new((int)frameSize.Width, (int)frameSize.Height);
 
                 double error = CvInvoke.StereoCalibrate(
                     [.. objectPoints],
@@ -2556,8 +2560,8 @@ namespace Surveyor.Calibration
             }
 
 
-            using var projectedLeft = new Emgu.CV.Util.VectorOfPointF();
-            using var projectedRight = new Emgu.CV.Util.VectorOfPointF();
+            using var projectedLeft = new VectorOfPointF();
+            using var projectedRight = new VectorOfPointF();
 
             Matrix<double> zeroRotation = new(3, 1); // all zeros by default
             Matrix<double> zeroTranslation = new(3, 1); // all zeros by default
@@ -2587,14 +2591,16 @@ namespace Surveyor.Calibration
         /// Calculate the yaw and pitch angles for each frame in the set,
         /// </summary>
         /// <returns></returns>
-        public async Task CalculateFramesYawPitchAndPopulatePoseBin(MonoCalibrationCameraData monoCalibLeft, MonoCalibrationCameraData? monoCalibRight, Windows.Foundation.Size frameSize)
+        public async Task CalculateFramesYawPitchAndPopulatePoseBinAsync(MonoCalibrationCameraData monoCalibLeft, 
+                                                                         MonoCalibrationCameraData? monoCalibRight, 
+                                                                         Windows.Foundation.Size frameSize)
         {
             if (charucoBoardDefinition is not null)
             {
                 await Task.Run(() =>
                 {
                     // Emgu uses System.Drawing
-                    System.Drawing.Size frameSizeCorrectedType = new((int)frameSize.Width, (int)frameSize.Height);
+                    Size frameSizeCorrectedType = new((int)frameSize.Width, (int)frameSize.Height);
 
                     // Parse the Frames
                     foreach (var (frameIndex, (left, right, _)) in Frames)
@@ -2609,7 +2615,7 @@ namespace Surveyor.Calibration
                         {
                             CalcYawAndPitcAndWhichPoseBin(right, monoCalibRight);
 
-                            AddToThePoseBinTotals((FrameCalibrationData)right, PoseBinTotalsRight);
+                            AddToThePoseBinTotals(right, PoseBinTotalsRight);
                         }
                     }
                 });

@@ -60,20 +60,24 @@ namespace Surveyor.Calibration
 
         [JsonIgnore]
         public static IReadOnlyList<double> PoseBinThresholdYaw => [-10, 10, 90.1];
+        
         [JsonIgnore]
         public static IReadOnlyList<double> PoseBinThresholdPitch => [-10, 10, 90.1 ];
 
+        // Calibration Parameter Count
+        private static readonly int calibParamCount = Enum.GetValues<CalibrationParameters>().Length;
+
         // Mono Frame quantily tests        
-        public PointF[][] monoProjectedPoints = new PointF[Enum.GetValues<CalibrationParameters>().Length][];
-        public double[] monoFrameRms = new double[Enum.GetValues<CalibrationParameters>().Length];
-        public double[] monoFrameMaxError = new double[Enum.GetValues<CalibrationParameters>().Length];
+        public PointF[][] monoProjectedPoints = new PointF[calibParamCount][];
+        public double[] monoFrameRms = new double[calibParamCount];
+        public double[] monoFrameMaxError = new double[calibParamCount];
 
         // Stereo calibration specific
-        public PointF[][] StereoSharedCharucoCorners = new PointF[Enum.GetValues<CalibrationParameters>().Length][];
-        public int[][] StereoSharedCharucoIDs = new int[Enum.GetValues<CalibrationParameters>().Length][];
-        public PointF[][] stereoProjectedPoints = new PointF[Enum.GetValues<CalibrationParameters>().Length][];
-        public double[] stereoFrameRms = new double[Enum.GetValues<CalibrationParameters>().Length];
-        public double[] stereoFrameMaxError = new double[Enum.GetValues<CalibrationParameters>().Length];
+        public PointF[][] StereoSharedCharucoCorners = new PointF[calibParamCount][];
+        public int[][] StereoSharedCharucoIDs = new int[calibParamCount][];
+        public PointF[][] stereoProjectedPoints = new PointF[calibParamCount][];
+        public double[] stereoFrameRms = new double[calibParamCount];
+        public double[] stereoFrameMaxError = new double[calibParamCount];
 
 
         // Parameterless constructor for deserialization

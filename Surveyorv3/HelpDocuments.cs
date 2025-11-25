@@ -28,17 +28,17 @@ public sealed class HelpDocuments
     private readonly List<HelpDocumentItem> docList = [];
     private readonly List<HelpDocumentItem> xlsList = [];
 
-    public async Task Initialize(IList<MenuFlyoutItemBase> helpMenuItems,
+    public async Task InitializeAsync(IList<MenuFlyoutItemBase> helpMenuItems,
                            MenuFlyoutSeparator pdfSection,
                            MenuFlyoutSeparator videoSection,
                            MenuFlyoutSeparator docSection,
                            MenuFlyoutSeparator xlsSection)
     {
         Load();
-        await Populate(helpMenuItems, pdfList, pdfSection, "\uE897"); // PDF icon
-        await Populate(helpMenuItems, videoList, videoSection, "\uE7BE"); // MP4 icon
-        await Populate(helpMenuItems, docList, docSection, "\uE8A5"); // DOC icon
-        await Populate(helpMenuItems, xlsList, xlsSection, "\uE80A"); // XLS icon (grid)
+        await PopulateAsync(helpMenuItems, pdfList, pdfSection, "\uE897"); // PDF icon
+        await PopulateAsync(helpMenuItems, videoList, videoSection, "\uE7BE"); // MP4 icon
+        await PopulateAsync(helpMenuItems, docList, docSection, "\uE8A5"); // DOC icon
+        await PopulateAsync(helpMenuItems, xlsList, xlsSection, "\uE80A"); // XLS icon (grid)
     }
 
     private void Load()
@@ -82,7 +82,7 @@ public sealed class HelpDocuments
         SortList(xlsList);
     }
 
-    private async Task Populate(IList<MenuFlyoutItemBase> menuItems,
+    private async Task PopulateAsync(IList<MenuFlyoutItemBase> menuItems,
                           List<HelpDocumentItem> list,
                           MenuFlyoutSeparator section,
                           string iconUnicode)

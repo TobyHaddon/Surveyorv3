@@ -1,6 +1,5 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
-using Surveyor.Calibration;
 using SurveyorCalibrationData;
 using System;
 using System.ComponentModel;
@@ -9,6 +8,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Surveyor
 {
@@ -594,7 +594,10 @@ namespace Surveyor
             private set
             {
                 Data.Info.IsDirty = value;
+                Data.Media.IsDirty = value;
                 Data.CharucoBoardDefinition.IsDirty = value;
+                Data.Sync.IsDirty = value;
+                Data.CalibrationResults.IsDirty = value;
                 OnPropertyChanged();
             }
         }
@@ -641,7 +644,7 @@ namespace Surveyor
         /// <param name="projectFileSpec"></param>
         /// <param name="autoSave"></param>
         /// <returns></returns>
-        public async Task<int> ProjectLoad(string projectFileSpec, bool autoSave = true)
+        public async Task<int> ProjectLoadAsync(string projectFileSpec, bool autoSave = true)
         {
             int ret = -1;
             string? json = null;
@@ -708,7 +711,7 @@ namespace Surveyor
                     // Start the autosave task in background                        
                     if (autoSave)
                     {
-                        await StartAutoSave();
+                        await StartAutoSaveAsync();
                     }
                 }
             }
@@ -846,7 +849,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="projectFileSpec"></param>
         /// <returns></returns>
-        public async Task<int> ProjectSaveAs(string projectFileSpec)
+        public async Task<int> ProjectSaveAsAsync(string projectFileSpec)
         {
             // Set the project name using the stem of the file name and extract the project path
             int ret = SetProjectNameAndPath(projectFileSpec);
@@ -863,7 +866,7 @@ namespace Surveyor
 
                     // A Save As could be the first save of a new project to set IsLoaded to true
                     IsLoaded = true;
-                    await StartAutoSave();
+                    await StartAutoSaveAsync();
                 }
             }
 
@@ -875,9 +878,9 @@ namespace Surveyor
         /// Close a project
         /// </summary>
         /// <returns></returns>
-        public async Task<int> ProjectClose()
+        public async Task<int> ProjectCloseAsync()
         {
-            await StopAutoSave();
+            await StopAutoSaveAsync();
 
             Clear();
 
@@ -980,9 +983,9 @@ namespace Surveyor
         /// <summary>
         /// Start the auto save task
         /// <summary>
-        private async Task StartAutoSave()
+        private async Task StartAutoSaveAsync()
         {
-            await StopAutoSave(); // Ensure any previous autosave task is stopped
+            await StopAutoSaveAsync(); // Ensure any previous autosave task is stopped
 
             _autosaveCts = new CancellationTokenSource();
             _autosaveTask = Task.Run(async () =>
@@ -1023,11 +1026,11 @@ namespace Surveyor
         /// <summary>
         /// Request the autosave task to stop
         /// </summary>
-        public async Task StopAutoSave()
+        public async Task StopAutoSaveAsync()
         {
             if (_autosaveCts != null)
             {
-                _autosaveCts.Cancel();
+                await _autosaveCts.CancelAsync();
 
                 try
                 {

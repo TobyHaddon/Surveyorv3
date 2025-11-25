@@ -19,17 +19,16 @@
             <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto" />
             <ColumnDefinition Width="*" />
             <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
 
-        <!-- Graph and Bins -->
-        <controls:CalibrationFrameSetViewer x:Name="CalibrationFrameSetViewerLeft" Grid.Column="1"  HorizontalAlignment="Center"/>
-        <controls:CalibrationFrameSetViewer x:Name="CalibrationFrameSetViewerRight" Grid.Column="2"  HorizontalAlignment="Center"/>
+        <!-- Movement and Blur Graphs, Sensor Bins and Pose Bins -->
+        <controls:CalibrationFrameSetViewer x:Name="CalibrationFrameSetViewerLeft" Grid.Column="0"  HorizontalAlignment="Center"/>
+        <controls:CalibrationFrameSetViewer x:Name="CalibrationFrameSetViewerRight" Grid.Column="1"  HorizontalAlignment="Center"/>
 
-        <!-- Images for left and right camera -->
-        <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
+        <!-- Left Side Video Image Control and Calibration Result TextBlock -->
+        <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
             <Image x:Name="LeftImage" Stretch="Uniform" Margin="3"/>
             <Border x:Name="LeftCalibDataBorder" BorderBrush="Gray" BorderThickness="1" Padding="4" CornerRadius="2"  Visibility="Collapsed" Margin="3">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
@@ -42,7 +41,9 @@
                 </ScrollViewer>
             </Border>
         </StackPanel>
-        <StackPanel Grid.Column="2" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
+
+        <!-- Right Side Video Image Control and Calibration Result TextBlock -->
+        <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
             <Image x:Name="RightImage" Stretch="Uniform" Margin="5"/>
             <Border x:Name="RightCalibDataBorder" BorderBrush="Gray" 
                     BorderThickness="1" Padding="4" CornerRadius="2" 
@@ -57,21 +58,13 @@
                 </ScrollViewer>
             </Border>
         </StackPanel>
+        
         <!-- Calibration Board Time Line User Controls -->
-        <controls:CalibrationBoardTimeLineUserControl x:Name="CalibrationBoardTimeLineLeft" Grid.Column="1" Grid.Row="2" Visibility="Collapsed" Margin="0,10,2,0"/>
-        <controls:CalibrationBoardTimeLineUserControl x:Name="CalibrationBoardTimeLineRight" Grid.Column="2" Grid.Row="2" Visibility="Collapsed" Margin="2,10,2,0"/>
+        <controls:CalibrationBoardTimeLineUserControl x:Name="CalibrationBoardTimeLineLeft" Grid.Column="0" Grid.Row="2" Visibility="Collapsed" Margin="0,10,2,0"/>
+        <controls:CalibrationBoardTimeLineUserControl x:Name="CalibrationBoardTimeLineRight" Grid.Column="1" Grid.Row="2" Visibility="Collapsed" Margin="2,10,2,0"/>
 
-        <StackPanel Grid.Column="0" Grid.Row="0" Grid.RowSpan="3" Orientation="Vertical" HorizontalAlignment="Left" Margin="0,0,0,0">
-            <!-- Lock -->
-            <Button x:Name="LockUnlockButton" Click="LockUnlockClick" Padding="4" Width="32" Height="32"
-                    Margin="0,5,0,0">
-                <FontIcon x:Name="LockUnlockIcon" Glyph="&#xE785;" FontSize="16"/>
-            </Button>
-
-
-        </StackPanel>
-
-        <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20" Margin="0,5,0,0">
+        <!-- Left Side Media Controls -->
+        <StackPanel Grid.Column="0" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20" Margin="0,5,0,0">
             <!-- Frame Back Media Control Button, E973 -->
             <Button x:Name="LeftFrameBackButton" Click="LeftFrameBackClick">
                 <FontIcon Glyph="&#xE973;"/>
@@ -88,7 +81,8 @@
             <TextBlock x:Name="LeftFrameInfoLabel" FontSize="14"/>
         </StackPanel>
 
-        <StackPanel Grid.Column="2" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20" Margin="0,0,0,0">
+        <!-- Right Side Media Controls -->
+        <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20" Margin="0,0,0,0">
             <!-- Frame Back Media Control Button, E973 -->
             <Button x:Name="RightFrameBackButton" Click="RightFrameBackClick">
                 <FontIcon Glyph="&#xE973;"/>
@@ -106,7 +100,7 @@
         </StackPanel>
 
         <!-- Move factor, Blur Factors, feature count and score -->
-        <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Vertical" HorizontalAlignment="Left">
+        <StackPanel Grid.Column="0" Grid.Row="3" Orientation="Vertical" HorizontalAlignment="Left">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,3,0,0">
                 <TextBlock x:Name="LeftMovementFactor"
                         FontSize="12"/>
@@ -129,7 +123,7 @@
             </StackPanel>
         </StackPanel>
 
-        <StackPanel Grid.Column="2" Grid.Row="3"  Orientation="Vertical" HorizontalAlignment="Left">
+        <StackPanel Grid.Column="1" Grid.Row="3"  Orientation="Vertical" HorizontalAlignment="Left">
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,3,0,0">
                 <TextBlock x:Name="RightMovementFactor"
                         FontSize="12"/>
@@ -152,8 +146,9 @@
             </StackPanel>
         </StackPanel>
 
-        <controls:ImageStripViewer x:Name="LeftImageViewer" Grid.Column="1" Grid.Row="4" Margin="0,5,0,0" Visibility="Collapsed"/>
-        <controls:ImageStripViewer x:Name="RightImageViewer" Grid.Column="2" Grid.Row="4"  Margin="0,5,0,0"  Visibility="Collapsed"/>
+        <!--???TODELELTE NOT USED-->
+        <!--<controls:ImageStripViewer x:Name="LeftImageViewer" Grid.Column="0" Grid.Row="4" Margin="0,5,0,0" Visibility="Collapsed"/>-->
+        <!--<controls:ImageStripViewer x:Name="RightImageViewer" Grid.Column="1" Grid.Row="4"  Margin="0,5,0,0"  Visibility="Collapsed"/>-->
 
     </Grid>
 

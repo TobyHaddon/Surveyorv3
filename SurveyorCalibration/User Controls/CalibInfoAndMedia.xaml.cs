@@ -265,7 +265,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void SelectCalibrationMedia_Click(object sender, RoutedEventArgs e)
+        private  void SelectCalibrationMedia_Click(object sender, RoutedEventArgs e) => _ = SelectCalibrationMediaAsync();
+        private async Task SelectCalibrationMediaAsync()
         {
             var picker = new FileOpenPicker();
 
@@ -282,15 +283,11 @@ namespace Surveyor.User_Controls
             if (files != null)
             {
                 // Use the selected file(s)
-                CalibrationMediaSelected(files);
+                await CalibrationMediaSelectedAsync(files);
 
                 Debug.WriteLine($"Selected media calibration file(s): {files.Count}");
             }            
         }
-
-
-
-
 
 
         /// <summary>
@@ -543,72 +540,133 @@ namespace Surveyor.User_Controls
                 return false;
         }
 
-
-        private void CalibrationMediaSelected(IReadOnlyList<StorageFile> _mediaFilesSelected)
+        private async Task CalibrationMediaSelectedAsync(IReadOnlyList<StorageFile> mediaFilesSelected)
         {
+            CheckIsUIThread(); // optional: enforce UI thread
 
-            // Remember the selected files
-            this.mediaFilesSelected = _mediaFilesSelected;
+            // Get suitable default thumbnail based on the current theme
+            BitmapImage thumbnailDefault = GetDefaultThumbnail();
 
-            // Run on the UI thread
-            _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, async () =>
+            if (mediaFilesSelected is not null && mediaFilesSelected.Count > 0)
             {
-                // Get suitable default thubmnail based on the current theme
-                BitmapImage thumbnailDefault = GetDefaultThumbnail();
+                List<MediaFileItem> mediaFileItemList = [];
 
-
-                // Loading from Dialog context. This means the users has provided a list of media files via
-                // mediaFilesSelected
-                if (mediaFilesSelected is not null && mediaFilesSelected.Count > 0)
+                foreach (StorageFile file in mediaFilesSelected)
                 {
-                    // Convert storage files list to a MediaFileItem list and connect other attributes: thumbnail, creation date, GoPro serial number, Frame size, etc.
-                    List<MediaFileItem> mediaFileItemList = [];
-                    foreach (StorageFile file in mediaFilesSelected)
-                    {
-                        MediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
-
-                        mediaFileItemList.Add(item);
-                    }
-
-                    switch (stereoMonoMediaSetMode)
-                    {
-                        case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                            // Try to figure out which is the left and which is the right media file                        
-                            (LeftStereoMediaFileItemList, RightStereoMediaFileItemList, LeftMonoMediaFileItemList, RightMonoMediaFileItemList, _) = SplitIntoStereoAndMonoChannels(mediaFileItemList);
-
-                            // Bind the collection to the ListView
-                            LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
-                            RightMonoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
-                            LeftStereoMediaFileNames.ItemsSource = LeftStereoMediaFileItemList;
-                            RightStereoMediaFileNames.ItemsSource = RightStereoMediaFileItemList;
-                            break;
-                        case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                            (LeftStereoMediaFileItemList, RightStereoMediaFileItemList, _) = DetectLeftAndRightMediaFile(mediaFileItemList);
-
-                            // Bind the collection to the ListView
-                            LeftStereoMediaFileNames.ItemsSource = LeftStereoMediaFileItemList;
-                            RightStereoMediaFileNames.ItemsSource = RightStereoMediaFileItemList;
-                            break;
-                        case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-                            (LeftMonoMediaFileItemList, RightMonoMediaFileItemList, _) = DetectLeftAndRightMediaFile(mediaFileItemList);
-
-                            // Bind the collection to the ListView
-                            LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
-                            RightMonoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
-                            break;
-                        case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-                            LeftMonoMediaFileItemList.Add(mediaFileItemList[0]);
-                            LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
-                            break;
-                    }
+                    MediaFileItem item = await GetMediaFileInfoAsync(file, thumbnailDefault);
+                    mediaFileItemList.Add(item);
                 }
 
-                EntryFieldsValid(false/*no reporting*/);
+                switch (stereoMonoMediaSetMode)
+                {
+                    case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                        (LeftStereoMediaFileItemList,
+                         RightStereoMediaFileItemList,
+                         LeftMonoMediaFileItemList,
+                         RightMonoMediaFileItemList,
+                         _) = SplitIntoStereoAndMonoChannels(mediaFileItemList);
 
-            });
+                        LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
+                        RightMonoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
+                        LeftStereoMediaFileNames.ItemsSource = LeftStereoMediaFileItemList;
+                        RightStereoMediaFileNames.ItemsSource = RightStereoMediaFileItemList;
+                        break;
 
-            Debug.WriteLine($"SetMediaFiles() Complete");
+                    case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                        (LeftStereoMediaFileItemList,
+                         RightStereoMediaFileItemList,
+                         _) = DetectLeftAndRightMediaFile(mediaFileItemList);
+
+                        LeftStereoMediaFileNames.ItemsSource = LeftStereoMediaFileItemList;
+                        RightStereoMediaFileNames.ItemsSource = RightStereoMediaFileItemList;
+                        break;
+
+                    case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                        (LeftMonoMediaFileItemList,
+                         RightMonoMediaFileItemList,
+                         _) = DetectLeftAndRightMediaFile(mediaFileItemList);
+
+                        LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
+                        RightMonoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
+                        break;
+
+                    case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                        LeftMonoMediaFileItemList.Add(mediaFileItemList[0]);
+                        LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
+                        break;
+                }
+            }
+
+            EntryFieldsValid(false /* no reporting */);
+
+            Debug.WriteLine("SetMediaFiles() Complete");
         }
+
+        //private void CalibrationMediaSelected(IReadOnlyList<StorageFile> _mediaFilesSelected)
+        //{
+
+        //    // Remember the selected files
+        //    this.mediaFilesSelected = _mediaFilesSelected;
+
+        //    // Run on the UI thread
+        //    _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, async () =>
+        //    {
+        //        // Get suitable default thubmnail based on the current theme
+        //        BitmapImage thumbnailDefault = GetDefaultThumbnail();
+
+
+        //        // Loading from Dialog context. This means the users has provided a list of media files via
+        //        // mediaFilesSelected
+        //        if (mediaFilesSelected is not null && mediaFilesSelected.Count > 0)
+        //        {
+        //            // Convert storage files list to a MediaFileItem list and connect other attributes: thumbnail, creation date, GoPro serial number, Frame size, etc.
+        //            List<MediaFileItem> mediaFileItemList = [];
+        //            foreach (StorageFile file in mediaFilesSelected)
+        //            {
+        //                MediaFileItem item = await GetMediaFileInfoAsync(file, thumbnailDefault);
+
+        //                mediaFileItemList.Add(item);
+        //            }
+
+        //            switch (stereoMonoMediaSetMode)
+        //            {
+        //                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+        //                    // Try to figure out which is the left and which is the right media file                        
+        //                    (LeftStereoMediaFileItemList, RightStereoMediaFileItemList, LeftMonoMediaFileItemList, RightMonoMediaFileItemList, _) = SplitIntoStereoAndMonoChannels(mediaFileItemList);
+
+        //                    // Bind the collection to the ListView
+        //                    LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
+        //                    RightMonoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
+        //                    LeftStereoMediaFileNames.ItemsSource = LeftStereoMediaFileItemList;
+        //                    RightStereoMediaFileNames.ItemsSource = RightStereoMediaFileItemList;
+        //                    break;
+        //                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+        //                    (LeftStereoMediaFileItemList, RightStereoMediaFileItemList, _) = DetectLeftAndRightMediaFile(mediaFileItemList);
+
+        //                    // Bind the collection to the ListView
+        //                    LeftStereoMediaFileNames.ItemsSource = LeftStereoMediaFileItemList;
+        //                    RightStereoMediaFileNames.ItemsSource = RightStereoMediaFileItemList;
+        //                    break;
+        //                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+        //                    (LeftMonoMediaFileItemList, RightMonoMediaFileItemList, _) = DetectLeftAndRightMediaFile(mediaFileItemList);
+
+        //                    // Bind the collection to the ListView
+        //                    LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
+        //                    RightMonoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
+        //                    break;
+        //                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+        //                    LeftMonoMediaFileItemList.Add(mediaFileItemList[0]);
+        //                    LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
+        //                    break;
+        //            }
+        //        }
+
+        //        EntryFieldsValid(false/*no reporting*/);
+
+        //    });
+
+        //    Debug.WriteLine($"SetMediaFiles() Complete");
+        //}
 
 
         /// <summary>
@@ -1471,7 +1529,7 @@ namespace Surveyor.User_Controls
         /// <param name="file"></param>
         /// <param name="thumbnailDefault"></param>
         /// <returns></returns>
-        private static async Task<MediaFileItem> GetMediaFileInfo(StorageFile file, BitmapImage thumbnailDefault)
+        private static async Task<MediaFileItem> GetMediaFileInfoAsync(StorageFile file, BitmapImage thumbnailDefault)
         {
             MediaFileItem item = new() { MediaFilePath = file.Path, MediaFileThumbnail = thumbnailDefault };
 

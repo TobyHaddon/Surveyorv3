@@ -21,7 +21,8 @@ using Windows.ApplicationModel;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
 using WinUIEx;
-using Surveyor; // CacheManager
+using Surveyor;
+using System.Threading.Tasks; // CacheManager
 
 
 
@@ -686,7 +687,11 @@ namespace Surveyor.User_Controls
             });
         }
 
-        // Cache Usage handlers
+        /// <summary>
+        /// Copy the cache folder path to the clipboard
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void CacheFolderInfo_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -705,7 +710,14 @@ namespace Surveyor.User_Controls
             }
         }
 
-        private async void ClearCache_Click(object sender, RoutedEventArgs e)
+
+        /// <summary>
+        /// Deletes old cache files
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ClearCache_Click(object sender, RoutedEventArgs e) => _ = ClearCacheAsync();
+        private async Task ClearCacheAsync()
         {
             bool result = cacheManager.ClearCacheOlderItems();
             var dialog = new ContentDialog

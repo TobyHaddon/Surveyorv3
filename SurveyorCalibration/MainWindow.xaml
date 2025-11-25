@@ -97,7 +97,7 @@
                         </MenuFlyoutSubItem.Icon>
                     </MenuFlyoutSubItem>
                     <MenuFlyoutSeparator/>
-                    <MenuFlyoutItem Name="MenuLockUnlockMediaPlayers" Text="Lock Media Players" IsEnabled="False" Click="LockUnlockMediaPlayers_Click">
+                    <MenuFlyoutItem Name="MenuLockUnlockMediaPlayers" Text="Lock Media Players" IsEnabled="False" Click="FileLockUnlockMediaPlayers_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon x:Name="MenuLockUnlockMediaPlayersIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE1F6;" />
                         </MenuFlyoutItem.Icon>
@@ -217,7 +217,7 @@
 
         <!-- Info Bar Zone -->
         <StackPanel Grid.Row="1" Orientation="Vertical">
-            <!--Media No Sync'd-->
+            <!--Media Not Synced-->
             <InfoBar x:Name="InfoBarLockMedia" IsOpen="False"
                         Severity="Warning" HorizontalAlignment="Stretch"
                         Title="Lock Media"
@@ -225,7 +225,7 @@
                         ToolTipService.ToolTip="Find the sync point in both stereo media files, this is normally a torch flash. Make sure you move both the left and right stereo media to the same first frame of the same torch false. Then press the 'Sync Stereo Media' button"
                         IsClosable="false">
                 <InfoBar.ActionButton>
-                    <Button Content="Sync Stereo Media" Click="LockMediaButton_Click" />
+                    <Button Content="Sync Stereo Media" Click="InfoBarLockMediaButton_Click" />
                 </InfoBar.ActionButton>
             </InfoBar>
             <!--Processing in Progress-->
@@ -234,8 +234,13 @@
                         Title="Processing"
                         Message="Please wait..."
                         IsClosable="false">
+                <InfoBar.Content>
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <ProgressRing x:Name="InfoBarProcessingRing" IsActive="True" Width="20" Height="20" />
+                    </StackPanel>
+                </InfoBar.Content>
                 <InfoBar.ActionButton>
-                    <Button Content="Cancel" Click="CancelProcessingButton_Click" />
+                    <Button Content="Cancel" Click="InfoBarCancelProcessingButton_Click" />
                 </InfoBar.ActionButton>
             </InfoBar>
         </StackPanel>

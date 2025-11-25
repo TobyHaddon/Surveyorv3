@@ -87,18 +87,17 @@ namespace Surveyor.Helper
 
         static private List<Window> _activeWindows = [];
 
-        static public StorageFolder GetAppLocalFolder()
+        public static async Task<StorageFolder> GetAppLocalFolderAsync()
         {
-            StorageFolder localFolder;
             if (!NativeHelper.IsAppPackaged)
             {
-                localFolder = Task.Run(async () => await StorageFolder.GetFolderFromPathAsync(System.AppContext.BaseDirectory)).Result;
+                // WinRT async API – just await it
+                return await StorageFolder.GetFolderFromPathAsync(
+                    System.AppContext.BaseDirectory);
             }
-            else
-            {
-                localFolder = ApplicationData.Current.LocalFolder;
-            }
-            return localFolder;
+
+            // Packaged case is already sync
+            return ApplicationData.Current.LocalFolder;
         }
 
 

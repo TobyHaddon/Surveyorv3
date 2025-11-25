@@ -169,7 +169,7 @@ namespace Surveyor.User_Controls
             }
 
             UpdateButtons();
-            _ = BoardInputChanged();
+            _ = BoardInputChangedAsync();
         }
 
 
@@ -297,7 +297,7 @@ namespace Surveyor.User_Controls
             _loaded = true;
             ArucoDictionaryCombo.ItemsSource = Enum.GetValues(typeof(PredefinedDictionaryName));
             ArucoDictionaryCombo.SelectedItem = CbdWorking?.PredefinedDictionaryName;
-            _ = BoardInputChanged();
+            _ = BoardInputChangedAsync();
         }
 
 
@@ -306,7 +306,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void SaveToPDF_Click(object sender, RoutedEventArgs e) 
+        private void SaveToPDF_Click(object sender, RoutedEventArgs e) => _ = SaveToPDFAsync();
+        private async Task SaveToPDFAsync() 
         {
             if (CbdWorking is null)
                 return;
@@ -329,8 +330,8 @@ namespace Surveyor.User_Controls
 
             WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hwnd);
             var fileTask = savePicker.PickSaveFileAsync().AsTask();
-            fileTask.Wait();
-            var file = fileTask.Result;
+            await fileTask;
+            var file = await fileTask;
 
             // Restore focus explicitly (defensive)
             hostingWindow?.Activate();
@@ -347,11 +348,11 @@ namespace Surveyor.User_Controls
                 $"Marker:{(CbdWorking.MarkerLength * 1000):F2}mm";
 
             // Generate the PDF            
-            await GeneratePDFBoard(fileSpec,
-                                    CbdWorking,
-                                    BoardSizeX, BoardSizeY,
-                                    PrintDPI,
-                                    caption);
+            await GeneratePDFBoardAsync(fileSpec,
+                                        CbdWorking,
+                                        BoardSizeX, BoardSizeY,
+                                        PrintDPI,
+                                        caption);
         }
 
 
@@ -360,14 +361,14 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void PreviewTimer_Tick(object? sender, object e)
+        private void PreviewTimer_Tick(object? sender, object e) => _ = PreviewTimerAsync();
+        private async Task PreviewTimerAsync()
         {
             _previewTimer.Stop();
             if (_previewPending)
             {
-                Debug.WriteLine("Update Preview Image");
                 _previewPending = false;
-                await BoardInputChanged();
+                await BoardInputChangedAsync();
                 Debug.WriteLine("Preview Image Updated");
             }
         }
@@ -407,7 +408,7 @@ namespace Surveyor.User_Controls
         /// the default board for new projects.  In which we set the defaults to local storage.
         /// </summary>
         /// <returns></returns>
-        private async Task BoardInputChanged()
+        private async Task BoardInputChangedAsync()
         {
             if (!_loaded || CbdWorking is null) return;
 
@@ -516,12 +517,12 @@ namespace Surveyor.User_Controls
         /// <param name="boardHeightMeters">Full board height in meters (e.g., 0.4 for 400 mm).</param>
         /// <param name="dpi">Target print DPI (e.g., 1200).</param>
         /// <param name="caption"></param>
-        private async Task GeneratePDFBoard(string fileSpec,
-                                           CharucoBoardDefinition charucoBoardDefinition,
-                                           double boardWidthMeters,
-                                           double boardHeightMeters,
-                                           int dpi,
-                                           string caption)
+        private async Task GeneratePDFBoardAsync(string fileSpec,
+                                                 CharucoBoardDefinition charucoBoardDefinition,
+                                                 double boardWidthMeters,
+                                                 double boardHeightMeters,
+                                                 int dpi,
+                                                 string caption)
         {
             if (dpi <= 0) throw new ArgumentOutOfRangeException(nameof(dpi));
             if (boardWidthMeters <= 0 || boardHeightMeters <= 0)

@@ -1,4 +1,4 @@
-using Microsoft.UI;                          
+using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
@@ -6,12 +6,13 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
-using Surveyor.Calibration;
+using Org.BouncyCastle.Bcpg;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
 using Surveyor.User_Controls;
 using SurveyorCalibrationData;
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -45,6 +46,11 @@ namespace Surveyor
    
     public sealed partial class MainWindow : WindowEx
     {
+        // Title bar title elements
+        private string titlebarTitle = "";
+        private string titlebarCameraSide = "";
+        private string titlebarSaveStatus = "";
+
         private CalibProject? calibProject = null;
 
         // Add these fields to MainWindow class
@@ -93,24 +99,6 @@ namespace Surveyor
             ExtendsContentIntoTitleBar = true;
 
 
-            // Create Charuco Board Definition
-            //calibProject.Data.CharucoBoardDefinition.Setup(new Dictionary(PredefinedDictionaryName.Dict5X5_100),
-            //                                            14/*SquareX*/, 9/*SquareY*/,
-            //                                            39.92f / 1000.0f/*SquareLength*/,
-            //                                            30.0f / 1000.0f/*MarkerLength*/);
-
-            //// Pass the calibration board settings to the  calibration heads
-            //StereoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.CharucoBoardDefinition);
-
-            //LeftMonoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.CharucoBoardDefinition);
-
-            //RightMonoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.CharucoBoardDefinition);
-
-            // Get the Save Best Frame checkbox if /SaveBestFrames command line argument is set
-            //if (AppLaunchArgs.SaveBestFrames is not null)
-            //{
-            //    SaveBestFrames.IsChecked = (bool)AppLaunchArgs.SaveBestFrames;
-            //}                       
 
             // Set the sliders
             //SetMovementAndBlurSliderMax();
@@ -169,19 +157,14 @@ namespace Surveyor
             //    _ = OpenMedia(calibProject, true/*forceUsdCacheIfAvalable*/, AppLaunchArgs.RunWithoutPrompts/*noPrompts*/);
 
 
-            // Add the help documents to the Help menu
-            // Fix for CS1503: Argument 1: cannot convert from 'System.Collections.Generic.IList<Microsoft.UI.Xaml.Controls.MenuFlyoutItemBase>' to 'Microsoft.UI.Xaml.Controls.ItemCollection'
-
-            // The issue arises because `MenuHelp.Items` is of type `IList<MenuFlyoutItemBase>`,
-            // but the `Initialize` method of `HelpDocuments` expects an `ItemCollection`.
-            // To fix this, we need to pass the correct type to the `Initialize` method.
-
             // Setup any documents on the help menu
-            _ = helpDocuments.Initialize(MenuHelp.Items, // Pass the MenuFlyoutSubItem directly instead of its Items property
-                                         HelpDocumentsPDFSection,
-                                         HelpDocumentsVideosSection,
-                                         HelpDocumentsDOCSection,
-                                         HelpDocumentsXLSSection);
+            _ = helpDocuments.InitializeAsync(MenuHelp.Items, // Pass the MenuFlyoutSubItem directly instead of its Items property
+                                              HelpDocumentsPDFSection,
+                                              HelpDocumentsVideosSection,
+                                              HelpDocumentsDOCSection,
+                                              HelpDocumentsXLSSection);
+
+            SetUIControls();
         }
 
 
@@ -334,7 +317,8 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void OpenAppBarButton_Click(object sender, RoutedEventArgs e)
+        private void OpenAppBarButton_Click(object sender, RoutedEventArgs e) => _ = OpenAppBarButtonAsync();
+        private async Task OpenAppBarButtonAsync()
         {
             // Ensure your class has access to the current Window
             var window = this; // If this method is inside your MainWindow or a class inheriting from Window
@@ -355,11 +339,11 @@ namespace Surveyor
             if (file != null && calibProject is not null)
             {
                 // Load the project               
-                if (await calibProject.ProjectLoad(file.Path) == 0)
+                if (await calibProject.ProjectLoadAsync(file.Path) == 0)
                 {
 
                     // Call OpenMedia
-                    await OpenMedia(calibProject, false, false);
+                    await OpenMediaAsync(calibProject, false, false);
                 }
                 else
                 {
@@ -376,7 +360,7 @@ namespace Surveyor
         }
 
 
-        private async Task OpenMedia(CalibProject calibProject, bool forceUsdCacheIfAvalable, bool noPrompts)
+        private async Task OpenMediaAsync(CalibProject calibProject, bool forceUsdCacheIfAvalable, bool noPrompts)
         { 
 
             try
@@ -670,32 +654,33 @@ namespace Surveyor
                 }
 
                 // Ask user to sync the stereo videos
-                if (StereoCalibrationHead.IsStereoLocked() == false)
-                {
-                    switch (calibProject.Data.Media.StereoMonoMediaSetMode)
-                    {
-                        case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                        case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                //???TODELETE The InfoBar and SetUIControl() now handles this
+                //if (StereoCalibrationHead.IsStereoLocked() == false)
+                //{
+                //    switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                //    {
+                //        case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                //        case StereoMonoMediaSetMode.StereoOnlyMediaSet:
 
-                            // Inform that user they need to lock the stereo calibration videos
-                            var dialog = new ContentDialog
-                            {
-                                Title = "Stereo Calibration Videos",
-                                Content = "Please sync the stereo calibration media and lock the videos before proceeding.",
-                                CloseButtonText = "OK"
-                            };
-                            dialog.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
-                            await dialog.ShowAsync();
+                //            // Inform that user they need to lock the stereo calibration videos
+                //            var dialog = new ContentDialog
+                //            {
+                //                Title = "Stereo Calibration Videos",
+                //                Content = "Please sync the stereo calibration media and lock the videos before proceeding.",
+                //                CloseButtonText = "OK"
+                //            };
+                //            dialog.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
+                //            await dialog.ShowAsync();
 
-                            // Start a timer to check if the stereo calibration is locked
-                            StartStereoLockCheckTimer();
-                            break;
+                //            // Start a timer to check if the stereo calibration is locked
+                //            StartStereoLockCheckTimer();
+                //            break;
 
-                        default:
-                            SetUIControls();
-                            break;
-                    }
-                }
+                //        default:
+                //            SetUIControls();
+                //            break;
+                //    }
+                //}
 
                 // Auto run
                 if (AppLaunchArgs.RunWithoutPrompts)
@@ -722,12 +707,13 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FindAppBarButton_Click(object sender, RoutedEventArgs e)
+        private void FindAppBarButton_Click(object sender, RoutedEventArgs e) => _ = FindAppBarButtonAsync();
+        private async Task FindAppBarButtonAsync()
         {
-            bool started = false;
-
             if (calibProject is null)
                 return;
+
+            var tasks = new List<Task>();
 
             switch (calibProject.Data.Media.StereoMonoMediaSetMode)
             {
@@ -737,51 +723,117 @@ namespace Surveyor
                         LeftMonoCalibrationHead.IsOpen() &&
                         RightMonoCalibrationHead.IsOpen())
                     {
-                        // Find the calibration frame in the stereo and mono calibration videos
-                        StereoCalibrationHead.FindCalibrationFrame();
-                        LeftMonoCalibrationHead.FindCalibrationFrame();
-                        RightMonoCalibrationHead.FindCalibrationFrame();
-                        started = true;
+                        tasks.Add(StereoCalibrationHead.FindCalibrationFrameAsync());
+                        tasks.Add(LeftMonoCalibrationHead.FindCalibrationFrameAsync());
+                        tasks.Add(RightMonoCalibrationHead.FindCalibrationFrameAsync());
                     }
                     break;
+
                 case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                     if (StereoCalibrationHead.IsOpen() &&
                         (bool)StereoCalibrationHead.IsStereoLocked()!)
                     {
-                        // Find the calibration frame in the stereo videos
-                        StereoCalibrationHead.FindCalibrationFrame();
-                        started = true;
+                        tasks.Add(StereoCalibrationHead.FindCalibrationFrameAsync());
                     }
                     break;
+
                 case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
                     if (LeftMonoCalibrationHead.IsOpen() &&
                         RightMonoCalibrationHead.IsOpen())
                     {
-                        // Find the calibration frame in the mono videos
-                        LeftMonoCalibrationHead.FindCalibrationFrame();
-                        RightMonoCalibrationHead.FindCalibrationFrame();
-                        started = true;
+                        tasks.Add(LeftMonoCalibrationHead.FindCalibrationFrameAsync());
+                        tasks.Add(RightMonoCalibrationHead.FindCalibrationFrameAsync());
                     }
                     break;
+
                 case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
                     if (LeftMonoCalibrationHead.IsOpen())
                     {
-                        // Find the calibration frame in the mono video
-                        LeftMonoCalibrationHead.FindCalibrationFrame();
-                        started = true;
+                        tasks.Add(LeftMonoCalibrationHead.FindCalibrationFrameAsync());
                     }
                     break;
-
             }
 
-            if (started)
+            if (tasks.Count == 0)
+                return;
+
+            // Your existing flags + timer
+            StartFindCheckTimer();
+            findStatus = false;
+            saveStatus = null;
+
+            try
             {
-                StartFindCheckTimer();
-                findStatus = false;
-                saveStatus = null;
+                // Run all finds in parallel, but still observe completion and exceptions
+                await Task.WhenAll(tasks);
             }
-
+            catch (Exception ex)
+            {
+                // Handle/log properly
+                Debug.WriteLine($"Error in FindAppBarButton_Click: {ex}");
+            }
         }
+
+        //private void FindAppBarButton_Click(object sender, RoutedEventArgs e)
+        //{
+        //    bool started = false;
+
+        //    if (calibProject is null)
+        //        return;
+
+        //    switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+        //    {
+        //        case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+        //            if (StereoCalibrationHead.IsOpen() &&
+        //                (bool)StereoCalibrationHead.IsStereoLocked()! &&
+        //                LeftMonoCalibrationHead.IsOpen() &&
+        //                RightMonoCalibrationHead.IsOpen())
+        //            {
+        //                // Find the calibration frame in the stereo and mono calibration videos
+        //                StereoCalibrationHead.FindCalibrationFrameAsync();
+        //                LeftMonoCalibrationHead.FindCalibrationFrameAsync();
+        //                RightMonoCalibrationHead.FindCalibrationFrameAsync();
+        //                started = true;
+        //            }
+        //            break;
+        //        case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+        //            if (StereoCalibrationHead.IsOpen() &&
+        //                (bool)StereoCalibrationHead.IsStereoLocked()!)
+        //            {
+        //                // Find the calibration frame in the stereo videos
+        //                StereoCalibrationHead.FindCalibrationFrameAsync();
+        //                started = true;
+        //            }
+        //            break;
+        //        case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+        //            if (LeftMonoCalibrationHead.IsOpen() &&
+        //                RightMonoCalibrationHead.IsOpen())
+        //            {
+        //                // Find the calibration frame in the mono videos
+        //                LeftMonoCalibrationHead.FindCalibrationFrameAsync();
+        //                RightMonoCalibrationHead.FindCalibrationFrameAsync();
+        //                started = true;
+        //            }
+        //            break;
+        //        case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+        //            if (LeftMonoCalibrationHead.IsOpen())
+        //            {
+        //                // Find the calibration frame in the mono video
+        //                LeftMonoCalibrationHead.FindCalibrationFrameAsync();
+        //                started = true;
+        //            }
+        //            break;
+
+        //    }
+
+        //    if (started)
+        //    {
+        //        StartFindCheckTimer();
+        //        findStatus = false;
+        //        saveStatus = null;
+        //    }
+
+        //}
 
 
         /// <summary>
@@ -807,15 +859,14 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void SaveAppBarButton_Click(object sender, RoutedEventArgs e)
-        {
-            if (calibProject is not null)
-                await Save(calibProject);
-        }
+        private void SaveAppBarButton_Click(object sender, RoutedEventArgs e) =>  _ = SaveAsync();
 
-        private async Task Save(CalibProject calibProject)
+        private async Task SaveAsync()
         {
-            saveStatus = false;  // Save/Calc in progress (disable the save button
+            if (calibProject is null)
+                return;
+
+            saveStatus = false;  // Save/Calc in progress (disable the save button)
             InProgress.IsActive = true;
             SetUIControls();
 
@@ -897,21 +948,21 @@ namespace Surveyor
             // Save the frames
             if (doStereo)
             {
-                await DisplayStatusText("Pre-save stereo best frames...");
+                await DisplayStatusTextAsync("Pre-save stereo best frames...");
                 InProgress.IsActive = true;
                 StereoCalibrationHead.SaveCachedResults();
                 InProgress.IsActive = false;
             }
             if (doLeftMono && !useMonoCacheValues)
             {
-                await DisplayStatusText("Pre-save left mono best frames...");
+                await DisplayStatusTextAsync("Pre-save left mono best frames...");
                 InProgress.IsActive = true;
                 LeftMonoCalibrationHead.SaveCachedResults();
                 InProgress.IsActive = false;
             }
             if (doRightMono && !useMonoCacheValues)
             {
-                await DisplayStatusText("Pre-save right mono best frames...");
+                await DisplayStatusTextAsync("Pre-save right mono best frames...");
                 InProgress.IsActive = true;
                 RightMonoCalibrationHead.SaveCachedResults();
                 InProgress.IsActive = false;
@@ -924,9 +975,9 @@ namespace Surveyor
                        
             if (doLeftMono)
             {
-                await DisplayStatusText("Best frames calc left mono...");
+                await DisplayStatusTextAsync("Best frames calc left mono...");
                 InProgress.IsActive = true;
-                await LeftMonoCalibrationHead.BestFramesCalcAndMonoCalibration(
+                await LeftMonoCalibrationHead.BestFramesCalcAndMonoCalibrationAsync(
                                                              calibProject,
                                                              true/*trueLeftFalseRight*/,
                                                              MovementMaxThreshold, 
@@ -938,9 +989,9 @@ namespace Surveyor
             }
             if (doRightMono)
             {
-                await DisplayStatusText("Best frames calc right mono...");
+                await DisplayStatusTextAsync("Best frames calc right mono...");
                 InProgress.IsActive = true;
-                await RightMonoCalibrationHead.BestFramesCalcAndMonoCalibration(
+                await RightMonoCalibrationHead.BestFramesCalcAndMonoCalibrationAsync(
                                                               calibProject,
                                                               false/*trueLeftFalseRight*/,
                                                               MovementMaxThreshold, 
@@ -952,13 +1003,13 @@ namespace Surveyor
             }
             if (doStereo)
             {
-                await DisplayStatusText("Best frames calc stereo...");
+                await DisplayStatusTextAsync("Best frames calc stereo...");
                 InProgress.IsActive = true;
 
                 if (calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray.Any(item => item != null) &&
                     calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray.Any(item => item != null))
                 {
-                    await StereoCalibrationHead.BestFramesCalcAndStereoCalibration(
+                    await StereoCalibrationHead.BestFramesCalcAndStereoCalibrationAsync(
                                                                 calibProject,
                                                                 MovementMaxThreshold,
                                                                 BlurMaxThreshold,
@@ -1031,21 +1082,21 @@ namespace Surveyor
             // Save the frames
             if (doStereo)
             {
-                await DisplayStatusText("Save stereo best frames...");
+                await DisplayStatusTextAsync("Save stereo best frames...");
                 InProgress.IsActive = true;
                 StereoCalibrationHead.SaveCachedResults();
                 InProgress.IsActive = false;
             }
             if (doLeftMono)
             {
-                await DisplayStatusText("Save left mono best frames...");
+                await DisplayStatusTextAsync("Save left mono best frames...");
                 InProgress.IsActive = true;
                 LeftMonoCalibrationHead.SaveCachedResults();
                 InProgress.IsActive = false;
             }
             if (doRightMono)
             {
-                await DisplayStatusText("Save right mono best frames...");
+                await DisplayStatusTextAsync("Save right mono best frames...");
                 InProgress.IsActive = true;
                 RightMonoCalibrationHead.SaveCachedResults();
                 InProgress.IsActive = false;
@@ -1055,7 +1106,7 @@ namespace Surveyor
                 calibProject.ProjectSave();                   
             }
 
-            await DisplayStatusText("");
+            await DisplayStatusTextAsync("");
             InProgress.IsActive = false;
             saveStatus = true;  // Allowed to press the save button again
             SetUIControls();
@@ -1120,7 +1171,7 @@ namespace Surveyor
         //    for (int i = 0; i < calibProject.Data.CalibrationStereoCameraDataArray.Length; i++)
         //    {
         //        var stereoResult = calibProject.Data.CalibrationStereoCameraDataArray[i];
-                
+
 
         //        if (stereoResult is null)
         //            continue;
@@ -1147,7 +1198,8 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void ShowCacheFolderButton_Click(object sender, RoutedEventArgs e)
+        private void ShowCacheFolderButton_Click(object sender, RoutedEventArgs e) => _ = ShowCacheFolderButtonAsync();
+        private async Task ShowCacheFolderButtonAsync()
         {
             // Get local folder path
             StorageFolder localFolder = ApplicationData.Current.LocalFolder;
@@ -1156,15 +1208,15 @@ namespace Surveyor
             {
                 Title = "Cached Results Folder",
                 Content = $"The cached results are stored in:\n\n{localFolder.Path}\n\nThe path has been copied to the clipboard.",
-                CloseButtonText = "Cancel"
+                CloseButtonText = "Cancel",
+                XamlRoot = this.Content.XamlRoot // Set the XamlRoot for proper display
             };
-            dialog.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
+            
             await dialog.ShowAsync();
 
             var dataPackage = new DataPackage();
             dataPackage.SetText(localFolder.Path);
             Clipboard.SetContent(dataPackage);
-
         }
 
 
@@ -1205,8 +1257,12 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void FileProjectNew_Click(object sender, RoutedEventArgs e)
+        private void FileProjectNew_Click(object sender, RoutedEventArgs e) => _ = FileProjectNewAsync();
+        private async Task FileProjectNewAsync()
         {
+            // Reset Title
+            SetTitle("");
+
             // Load the Info and Media user control to setup the project
             CalibrationMediaUserControl.SetupForContentDialog(CalibrationMediaContentDialog);
 
@@ -1233,8 +1289,12 @@ namespace Surveyor
                     try
                     {
                         // Save the calib project data to the file
-                        await calibProject.ProjectSaveAs(file.Path);
-                        Debug.WriteLine($"Calibration project saved to {file.Path}");
+                        int ret = await calibProject.ProjectSaveAsAsync(file.Path);
+                        if (ret == 0)
+                        {
+                            Debug.WriteLine($"Calibration project saved to {file.Path}");
+                            SetTitle(System.IO.Path.GetFileNameWithoutExtension(calibProject.Data.Info.ProjectFileName));
+                        }
                     }
                     catch (Exception ex)
                     {
@@ -1248,7 +1308,7 @@ namespace Surveyor
                 }
 
                 // Open the mdeia
-                await OpenMedia(calibProject, false/*forceUsdCacheIfAvalable*/, false/*noPrompts*/);
+                await OpenMediaAsync(calibProject, false/*forceUsdCacheIfAvalable*/, false/*noPrompts*/);
             }
         }
 
@@ -1296,10 +1356,30 @@ namespace Surveyor
 
         }
 
-        private void FileSelectMedia_Click(object sender, RoutedEventArgs e)
-        {
 
+        /// <summary>
+        /// User requested to either lock or unlock the media players
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileLockUnlockMediaPlayers_Click(object sender, RoutedEventArgs e) => _ = FileLockUnlockMediaPlayersAsync();
+        private async Task FileLockUnlockMediaPlayersAsync()
+        {
+            if (calibProject is not null)
+            {
+                if (calibProject.Data.Sync.IsSynchronized)
+                {
+                    await LockUnlockMediaPlayersAsync(false/*lockTrueUnLockFalse*/);
+                }
+                else
+                {
+                    await LockUnlockMediaPlayersAsync(true/*lockTrueUnLockFalse*/);
+                }
+            }
+
+            SetUIControls();
         }
+
 
         /// <summary>
         /// Handles the click event for the "Run Calibration" menu item.
@@ -1307,9 +1387,10 @@ namespace Surveyor
         /// <param name="sender">The source of the event, typically the menu item that was clicked.</param>
         /// <param name="e">The event data associated with the click event.</param>
         /// <returns></returns>
-        private async void FileRunCalibration_Click(object sender, RoutedEventArgs e)
+        private void FileRunCalibration_Click(object sender, RoutedEventArgs e) => _ = FileRunCalibrationAsync();
+        private async Task FileRunCalibrationAsync()
         {
-            await ShowSetupRunCalibration();
+            await ShowSetupRunCalibrationAsync();
         }
 
 
@@ -1318,9 +1399,10 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void FileSettings_Click(object sender, RoutedEventArgs e)
+        private void FileSettings_Click(object sender, RoutedEventArgs e) => _ = FileSettingsAsync();
+        private async Task FileSettingsAsync()
         {
-            await ShowSettingsWindow();
+            await ShowSettingsWindowAsync();
         }
 
 
@@ -1331,15 +1413,24 @@ namespace Surveyor
         /// <param name="e"></param>
         private void FileExit_Click(object sender, RoutedEventArgs e)
         {
+            //TODO await CheckForOpenSurveyAndClose();
+            
 
+            SetTitle("");
+            SetLockUnlockIndicator(null, null);
+
+            Application.Current.Exit();
         }
+
+
 
         /// <summary>
         /// Fire up email client
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void HelpContactSupport_Click(object sender, RoutedEventArgs e)
+        private void HelpContactSupport_Click(object sender, RoutedEventArgs e) => _ = HelpContactSupportAsync();
+        private async Task HelpContactSupportAsync()
         {
             // Get app title from resources (fallback to window title)
             string appTitle = Application.Current.Resources.TryGetValue("AppTitleName", out var titleObj)
@@ -1377,10 +1468,11 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
-        private async void HelpAbout_Click(object sender, RoutedEventArgs e)
+        private void HelpAbout_Click(object sender, RoutedEventArgs e) => _ = HelpAboutAsync();
+        private async Task HelpAboutAsync()
         {
             // Open the settings windows 'About' section
-            await ShowSettingsWindow("About");
+            await ShowSettingsWindowAsync("About");
         }
 
 
@@ -1397,13 +1489,16 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Handles the click event for the "Lock Media" button.
+        /// Handles the click event for the InfoBar "Lock Media" button.
         /// </summary>
         /// <param name="sender">The source of the event, typically the button that was clicked.</param>
         /// <param name="e">The event data associated with the click event.</param>
-        private void LockMediaButton_Click(object sender, RoutedEventArgs e)
+        private void InfoBarLockMediaButton_Click(object sender, RoutedEventArgs e) => _ = InfoBarLockMediaButtonAsync();
+        private async Task InfoBarLockMediaButtonAsync()
         {
+            await LockUnlockMediaPlayersAsync(true/*lockTrueUnLockFalse*/);
 
+            SetUIControls();
         }
 
 
@@ -1412,10 +1507,20 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void CancelProcessingButton_Click(object sender, RoutedEventArgs e)
+        private void InfoBarCancelProcessingButton_Click(object sender, RoutedEventArgs e)
         {
+            if (StereoCalibrationHead.IsFindRunning())
+                StereoCalibrationHead.FindCalibrationFrameCancel();
 
+            if (LeftMonoCalibrationHead.IsFindRunning())
+                LeftMonoCalibrationHead.FindCalibrationFrameCancel();
+
+            if (RightMonoCalibrationHead.IsFindRunning())
+                RightMonoCalibrationHead.FindCalibrationFrameCancel();
+
+            SetUIControls();
         }
+
 
         ///
         /// PRIVATE
@@ -1498,13 +1603,13 @@ namespace Surveyor
         /// </summary>
         /// <param name="text"></param>
         /// <returns></returns>
-        private async Task DisplayStatusText(TimeSpan elapsedTime)
+        private async Task DisplayStatusTextAsync(TimeSpan elapsedTime)
         {
             string formatted = elapsedTime.ToString(@"hh\:mm\:ss");
-            await DisplayStatusText($"Elapsed Time: {formatted}");
+            await DisplayStatusTextAsync($"Elapsed Time: {formatted}");
         }
 
-        private async Task DisplayStatusText(string text)
+        private async Task DisplayStatusTextAsync(string text)
         {
             StatusText.Text = text;
 
@@ -1517,35 +1622,102 @@ namespace Surveyor
         /// Set the UI controls to the current mode
         /// </summary>
         private void SetUIControls()
-        {            
-            bool? isLocked = StereoCalibrationHead.IsStereoLocked();
+        {
+            //bool? isLocked = StereoCalibrationHead.IsStereoLocked();
+            bool isCalibProjectOpen = calibProject is not null;
+            bool isMediaLocked = false;
+            bool isProcessingHappening = IsFindRunning();
+            bool isStereo = false;
+
+            // Calc isMediaLocked
+            if (isCalibProjectOpen)
+            {
+                if (calibProject?.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.StereoOnlyMediaSet ||
+                    calibProject?.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoAndStereoMediaSet)
+                {
+
+                    if (calibProject?.Data.Sync.IsSynchronized ?? false)
+                        isMediaLocked = true;
+                    else
+                        isMediaLocked = false;
+
+                    isStereo = true;
+                }
+                else
+                {
+                    isStereo = false;
+                }
+            }
 
             // File>New Project menu item
-            //MenuProjectNew
+            MenuProjectNew.IsEnabled = !isCalibProjectOpen;
 
             // File>Open Project menu item
-            //MenuProjectOpen
+            MenuProjectOpen.IsEnabled = !isCalibProjectOpen;
 
             // File>Save/SaveAs Project menu item
-            //MenuProjectSave
-            //MenuProjectSaveAs
+            MenuProjectSave.IsEnabled = isCalibProjectOpen && !isProcessingHappening && (calibProject?.IsDirty ?? false);
+            MenuProjectSaveAs.IsEnabled = isCalibProjectOpen && !isProcessingHappening;
 
             // File>Close Project menu item
-            // MenuProjectClose
+            MenuProjectClose.IsEnabled = isCalibProjectOpen && !isProcessingHappening;
 
-            // File>Lock/Unlock Media menu item
-            //MenuLockUnlockMediaPlayers
+            // File>Lock/Unlock Media menu item & Lock/Unlock Titlebar Icon
+            MenuLockUnlockMediaPlayers.IsEnabled = isStereo;
+
+            if (isCalibProjectOpen)
+            {
+                if (isMediaLocked)
+                {
+                    // Media is currently locked and we are going to unlock it
+
+                    // Set the menu text so the users can unlock it again in the future
+                    MenuLockUnlockMediaPlayers.Text = "Unlock Media Players";
+                    MenuLockUnlockMediaPlayersIcon.Glyph = "\uE1F7"; // Unlock icon
+
+                    // Indicate the media is unlocked on the title bar
+                    SetLockUnlockIndicator(true/*locked*/, null);
+                }
+                else
+                {
+                    // Media is currently unlocked and we are going to lock it
+
+                    // Set the menu text so the users can lock it again in the future
+                    MenuLockUnlockMediaPlayers.Text = "Lock Media Players";
+                    MenuLockUnlockMediaPlayersIcon.Glyph = "\uE1F6"; // Lock icon
+
+                    // Indicate the media is locked on the title bar
+                    SetLockUnlockIndicator(false/*unlocked*/, null);
+                }
+            }
+            else
+            {
+                SetLockUnlockIndicator(null, null);
+            }
 
             // File>Run Calibration menu item
-            //MenuRunCalibration
-
-            // Lock/Unlock Titlebar Icon
+            if (isCalibProjectOpen)
+            {
+                if (isStereo)
+                    MenuRunCalibration.IsEnabled = !isProcessingHappening && isMediaLocked;
+                else
+                    MenuRunCalibration.IsEnabled = !isProcessingHappening;
+            }
+            else
+                MenuRunCalibration.IsEnabled = false;
 
             // Show/Hide Lock Media InfoBar
-            //InfoBarLockMedia
+            if (isStereo && !isMediaLocked)
+                InfoBarLockMedia.IsOpen = true;
+            else
+                InfoBarLockMedia.IsOpen = false;
 
             // Show/Hide Processing InfoBar
-            //InfoBarProcessing
+            if (isProcessingHappening)
+                InfoBarProcessing.IsOpen = true;
+            else
+                InfoBarProcessing.IsOpen = false;
+
 
             // Load Button
             if (mediaFromCommandLine)
@@ -1560,7 +1732,7 @@ namespace Surveyor
             // Find Button
             if (findStatus is null && calibProject is not null)
             {
-                if ((isLocked is not null && isLocked == true) ||
+                if ((isMediaLocked == true) ||
                     calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoPairOnlyMediaSet ||
                     calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoSingleOnlyMediaSet)
                 {
@@ -1765,7 +1937,9 @@ namespace Surveyor
                 _findCheckTimer = null;
             }
         }
-        private async void StereoFindCheckTimer_Tick(object? sender, object e)
+
+        private void StereoFindCheckTimer_Tick(object? sender, object e) => _ = StereoFindCheckTimerAsync();
+        private async Task StereoFindCheckTimerAsync()
         {
             if (_findStartTime is not null)
             {
@@ -1774,7 +1948,7 @@ namespace Surveyor
                 if (IsFindRunning())
                 {
                     TimeSpan elapsed = DateTime.Now - (DateTime)_findStartTime;
-                    _ = DisplayStatusText(elapsed);
+                    await DisplayStatusTextAsync(elapsed);
                 }
                 else
                 {
@@ -1783,14 +1957,14 @@ namespace Surveyor
 
                     StopFindCheckTimer();
                     _findStartTime = null; // Reset the start time
-                    _ = DisplayStatusText("");
+                    await DisplayStatusTextAsync("");
 
                     // Check for auto run
                     if (AppLaunchArgs.RunWithoutPrompts)
                     {
                         Debug.WriteLine("Auto run: Save results after find is done.");
                         if (calibProject is not null)
-                            await Save(calibProject); // Automatically save results if find is done
+                            await SaveAsync(); // Automatically save results if find is done
 
                         Debug.WriteLine("Auto run: Exit Aplication.");
                         //??? TODO
@@ -1823,7 +1997,7 @@ namespace Surveyor
         /// Display the settings window
         /// </summary>
         private int settingsWindowEntryCount = 0;
-        private async Task ShowSettingsWindow(string section = "")
+        private async Task ShowSettingsWindowAsync(string section = "")
         {
             try
             {
@@ -1884,7 +2058,7 @@ namespace Surveyor
         /// Display the SetupRunCalibration window
         /// </summary>
         private int setupRunCalibrationCount = 0;
-        private async Task ShowSetupRunCalibration()
+        private async Task ShowSetupRunCalibrationAsync()
         {
             try
             {
@@ -1940,6 +2114,297 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// Set the lock or unlock indicator in the title bar
+        /// </summary>
+        /// <param name="locked">true = locked, false = unlock, null is blank</param>
+        private void SetLockUnlockIndicator(bool? locked, TimeSpan? offset)
+        {
+            if (locked is null)
+            {
+                // Show nothing (normally if no media is open)
+                // Four spaces to make it invisible and approximately the same width
+                // as the lock/unlock icons (do not change, not fully understood but
+                // needed to keep the tooltip working as the glyph changes)
+                LockUnLockIndicator.Text = "    ";
+                ToolTipService.SetToolTip(LockUnLockIndicator, "");
+            }
+            else if (locked == true)
+            {
+                // Show the lock icon
+                LockUnLockIndicator.Text = "\uE1F6";
+                if (offset is null)
+                    ToolTipService.SetToolTip(LockUnLockIndicator, "The media is synchronized");
+                else
+                {
+                    if (offset == TimeSpan.Zero)
+                        ToolTipService.SetToolTip(LockUnLockIndicator, "The media is synchronized with both media set to start from their respective beginnings");
+                    else if (offset > TimeSpan.Zero)
+                        ToolTipService.SetToolTip(LockUnLockIndicator, "The media is synchronized and the right media is " + offset.Value.ToString(@"hh\:mm\:ss\.ff") + " ahead");
+                    else
+                        ToolTipService.SetToolTip(LockUnLockIndicator, "The media is synchronized and the left media is " + offset.Value.ToString(@"hh\:mm\:ss\.ff") + " ahead");
+                }
+            }
+            else
+            {
+                // Show the unlock icon
+                LockUnLockIndicator.Text = "\uE1F7";
+                ToolTipService.SetToolTip(LockUnLockIndicator, "The media is not synchronized and either player can be played independently");
+
+            }
+        }
+
+
+        /// <summary>
+        /// Set the title text elements of the titlebar title text
+        /// </summary>
+        /// <param name="titleText"></param>
+        public void SetTitle(string titleText)
+        {
+            titlebarTitle = titleText;
+
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+            {
+                TitleBarTextBlock.Text = BuildTitleFromElements();
+            });
+        }
+
+
+        /// <summary>
+        /// Set the save status text elements of the titlebar title text
+        /// </summary>
+        /// <param name="saveStatus"></param>
+        public void SetTitleSaveStatus(string saveStatus)
+        {
+            titlebarSaveStatus = saveStatus;
+
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+            {
+                TitleBarTextBlock.Text = BuildTitleFromElements();
+            });
+        }
+
+
+        /// <summary>
+        /// Set the camera side status text elements of the titlebar title text
+        /// </summary>
+        /// <param name="cameraSide"></param>
+        public void SetTitleCameraSide(string cameraSide)
+        {
+            titlebarCameraSide = cameraSide;
+
+            DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+            {
+                TitleBarTextBlock.Text = BuildTitleFromElements();
+            });
+        }
+
+
+        /// <summary>
+        /// Build the title from the elements
+        /// </summary>
+        /// <returns></returns>
+        private string BuildTitleFromElements()
+        {
+            string title;
+
+            if (!string.IsNullOrEmpty(titlebarTitle))
+            {
+                title = $"Surveyor: ";
+
+                title += titlebarTitle;
+
+                if (!string.IsNullOrEmpty(titlebarSaveStatus))
+                {
+                    title += " (" + titlebarSaveStatus + ")";
+                }
+
+                if (!string.IsNullOrEmpty(titlebarCameraSide))
+                {
+                    title += " - " + titlebarCameraSide;
+                }
+            }
+            else
+                title = $"Surveyor";
+
+            return title;
+        }
+
+
+        /// <summary>
+        /// If Locking:
+        /// Get the current media positions and record in the Data.Sync class
+        /// Inform the Stereo Head to lock
+        /// 
+        /// If Unlocking:
+        /// Mark as unsynced in the Data.Sync class
+        /// Inform the Stereo Head to unlock
+        /// 
+        /// </summary>
+        /// <param name="lockTrueUnLockFalse"></param>
+        private async Task LockUnlockMediaPlayersAsync(bool lockTrueUnLockFalse)
+        {
+            if (calibProject is null)
+                return;
+
+            // Check if request to lock of unlock
+            if (lockTrueUnLockFalse)
+            {
+                // LOCK THE STEREO MEDIA PLAYERS
+
+                // Action flags
+                bool reEnable = false;
+                bool newPosition = false;
+
+                // Check if sync offset is already present and just needs enabling
+                if (calibProject.Data.Sync.IsSynchronized == false &&                    
+                    calibProject.Data.Sync.SyncFrameIndexLeft != 0 &&
+                    calibProject.Data.Sync.SyncFrameIndexRight != 0)
+                {
+                    // Create a SymbolIcon with an exclamation mark
+                    var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
+
+                    var dialog = new ContentDialog
+                    {
+                        Title = "Lock Media Players",
+                        Content = new Grid
+                        {
+                            Width = 400, // Set the width of the dialog content
+                            Children =
+                            {
+                                new StackPanel
+                                {
+                                    Orientation = Orientation.Horizontal,
+                                    Spacing = 10,
+                                    Children =
+                                    {
+                                        warningIcon, // Add the exclamation icon to the dialog content
+                                        new TextBlock
+                                        {
+                                            Text = "There is synchronization information already in this survey that is currently disabled. Do you want to re-enable it or do you want to lock the players at their current position?",
+                                            TextWrapping = TextWrapping.Wrap,
+                                            MaxWidth = 320 // Limit width to allow wrapping
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                        PrimaryButtonText = "Enable",
+                        SecondaryButtonText = "Current Position",
+                        CloseButtonText = "Cancel",
+                        DefaultButton = ContentDialogButton.Primary, // Set "OK" as the default button
+
+                        // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
+                        XamlRoot = this.Content.XamlRoot
+                    };
+
+                    var result = await dialog.ShowAsync();
+
+                    switch (result)
+                    {
+                        case ContentDialogResult.Primary:
+                            // Handle Enable action
+                            reEnable = true;
+                            break;
+
+                        case ContentDialogResult.Secondary:
+                            // Handle Current Position action
+                            newPosition = true;
+                            break;
+                    }
+                }
+                else
+                {
+                    // No sync information present so use the current position
+                    newPosition = true;
+                }
+
+                // Lock the left and right media controlers
+                if (calibProject is not null)
+                {
+                    if (reEnable)
+                    {
+                        calibProject.Data.Sync.IsSynchronized = true;
+                    }
+                    else if (newPosition)
+                    {
+                        // Get the current frame indexes and lock at that point
+                        (int frameIndexLeft, int frameIndexRight) = StereoCalibrationHead.GetCurrentFrameIndexes();
+                        if (frameIndexLeft != -1 && frameIndexRight != -1)
+                        {
+                            calibProject.Data.Sync.IsSynchronized = true;
+                            calibProject.Data.Sync.SyncFrameIndexLeft = frameIndexLeft;
+                            calibProject.Data.Sync.SyncFrameIndexRight = (int)frameIndexRight;
+                        }
+                    }
+                }
+
+                // Engage to the MediaTimelineController
+                if (calibProject is not null && (reEnable || newPosition))
+                {
+                    StereoCalibrationHead.LockStereo(calibProject.Data.Sync.SyncFrameIndexLeft,
+                                                     calibProject.Data.Sync.SyncFrameIndexRight);
+                }
+            }
+            else
+            {
+                // UNLOCK THE STEREO MEDIA PLAYERS
+
+                // Check user is sure they want to unlock the media players
+                var dialog = new ContentDialog
+                {
+                    Title = "Unlock Media Players",
+                    PrimaryButtonText = "Unlock",
+                    CloseButtonText = "Cancel",
+                    DefaultButton = ContentDialogButton.Close,
+                    XamlRoot = this.Content.XamlRoot
+                };
+
+                // Add a warning icon + text
+                var panel = new StackPanel
+                {
+                    Orientation = Orientation.Horizontal,
+                    Spacing = 12,
+                    Children =
+                    {
+                        new FontIcon
+                        {
+                            Glyph = "\uE7BA", // Warning icon from Segoe MDL2 Assets
+                            FontFamily = new FontFamily("Segoe MDL2 Assets"),
+                            Foreground = new SolidColorBrush(Microsoft.UI.Colors.Orange),
+                            Width = 32,
+                            Height = 32,
+                            VerticalAlignment = VerticalAlignment.Top
+                        },
+                        new TextBlock
+                        {
+                            Text = "Are you sure you want to unlock the media players?",
+                            TextWrapping = TextWrapping.Wrap,
+                            VerticalAlignment = VerticalAlignment.Center
+                        }
+                    }
+                };
+
+                dialog.Content = panel;
+
+                var result = await dialog.ShowAsync();
+
+                if (result == ContentDialogResult.Primary)
+                {
+                    // Unlock the left and right media 
+                    if (calibProject is not null)
+                    {
+                        calibProject.Data.Sync.IsSynchronized = false;
+
+                        // Don't remove the SyncFrameIndexLeft, SyncFrameIndexRight
+                        // in case the user wants to sync again
+                    }
+
+                    StereoCalibrationHead.UnlockStereo();
+                }
+            }
+        }
+
 
         /// <summary>
         /// Disables or enables a window in WinUI 3 using native Win32 API.
@@ -1970,10 +2435,6 @@ namespace Surveyor
         [DllImport("user32.dll")]
         private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
-        private void LockUnlockMediaPlayers_Click(object sender, RoutedEventArgs e)
-        {
-
-        }
     }
 }
 

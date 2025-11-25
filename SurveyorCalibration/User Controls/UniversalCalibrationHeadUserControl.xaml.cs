@@ -97,18 +97,13 @@ namespace Surveyor.Controls
             switch (mode.ToLowerInvariant())
             {
                 case "mono":
-                    // Hide column 2
-                    RootGrid.ColumnDefinitions[2].Width = new GridLength(0);
-                    LockUnlockButton.IsEnabled = false;
-                    LockUnlockButton.Visibility = Visibility.Collapsed;
+                    // Hide column 1
+                    RootGrid.ColumnDefinitions[1].Width = new GridLength(0);
                     break;
 
                 case "stereo":
-                    // Show Column 2
-                    RootGrid.ColumnDefinitions[2].Width = new GridLength(1, GridUnitType.Star);
-                    LockUnlockButton.IsEnabled = true;
-                    LockUnlockButton.Visibility = Visibility.Visible;
-
+                    // Show Column 1
+                    RootGrid.ColumnDefinitions[1].Width = new GridLength(1, GridUnitType.Star);
                     break;
 
                 default:
@@ -346,6 +341,7 @@ namespace Surveyor.Controls
 
             return ret;
         }
+        
 
         /// <summary>
         /// Check media is open and ready
@@ -368,7 +364,24 @@ namespace Surveyor.Controls
         }
 
 
+        /// <summary>
+        /// Get the current player frame indexes. frameIndexRight will return null 
+        /// if the head is Mono
+        /// </summary>
+        /// <returns></returns>
+        public (int frameIndexLeft, int frameIndexRight) GetCurrentFrameIndexes()
+        {
+           // TODO
+            return (_currentFrameLeft, _currentFrameRight);
+        }
 
+
+        /// <summary>
+        /// Lock the stereo media lock state at the given frame indexes.
+        /// </summary>
+        /// <param name="syncFrameIndexLeft"></param>
+        /// <param name="syncFrameIndexRight"></param>
+        /// <returns></returns>
         public bool LockStereo(int syncFrameIndexLeft, int syncFrameIndexRight)
         {
             bool ret = true;
@@ -376,17 +389,28 @@ namespace Surveyor.Controls
             if (!isLocked)
             {
                 calibrationStereoFrameSet.SetupLockFrameIndexes(syncFrameIndexLeft, syncFrameIndexRight);
-                LockUnlockIcon.Glyph = "\uE72E";
                 isLocked = true;
             }
             else
             {
-                calibrationStereoFrameSet.SetupLockFrameIndexes(-1, -1);
-                LockUnlockIcon.Glyph = "\uE785";
-                isLocked = false;
+                // throw exception - already locked
+                Debug.Assert(true, "LockStero should not be called to unlock the media");
             }
 
             return ret;
+        }
+
+
+        /// <summary>
+        /// Unlock the stereo media lock state.
+        /// </summary>
+        public void UnlockStereo()
+        {
+            if (isLocked)
+            {
+                calibrationStereoFrameSet.SetupLockFrameIndexes(-1, -1);
+                isLocked = false;
+            }
         }
 
 
@@ -490,7 +514,7 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        public async void FindCalibrationFrame()
+        public async Task FindCalibrationFrameAsync()
         {
             try
             {
@@ -504,7 +528,7 @@ namespace Surveyor.Controls
 
                 // Move both methods to background threads
                 var (startCalibration, stopCalibration) = await Task.Run(() =>
-                    calibrationStereoFrameSet.FindCalibrationTimeLineRange(FrameProcessingCallbackFindCalibrationTimeLineRange, cancellationToken));
+                    calibrationStereoFrameSet.FindCalibrationTimeLineRangeAsync(FrameProcessingCallbackFindCalibrationTimeLineRange, cancellationToken));
 
                 if (startCalibration != -1 && stopCalibration != -1)
                 {
@@ -518,7 +542,7 @@ namespace Surveyor.Controls
 
                         try
                         {
-                            return await calibrationStereoFrameSet.FindCalibrationsFrames(
+                            return await calibrationStereoFrameSet.FindCalibrationsFramesAsync(
                                 startCalibration,
                                 stopCalibration,
                                 FrameProcessingCallbackFindCalibrationsFrames,
@@ -573,7 +597,7 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        public async Task BestFramesCalcAndMonoCalibration(
+        public async Task BestFramesCalcAndMonoCalibrationAsync(
                                          CalibProject calibProject,
                                          bool trueLeftFalseRight,
                                          double movementMinThreshold, 
@@ -612,7 +636,7 @@ namespace Surveyor.Controls
                     if (monoCalib is not null)
                     {
                         // Parse the Frames and calculate the yaw and pitch for each frame using the pass1 calibration
-                        await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBin(monoCalib!, null/*monoCalibRight*/, frameSize);
+                        await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBinAsync(monoCalib!, null/*monoCalibRight*/, frameSize);
 
                         // Proceed to do the mono calibration using each the calibration paraemter set
                         foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
@@ -667,7 +691,7 @@ namespace Surveyor.Controls
                 // Write frames to .png if requested
                 if (writeBestFramesToPng)
                 {
-                    await SaveBestFiles();
+                    await SaveBestFilesAsync();
                 }
             }
 
@@ -687,7 +711,7 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        public async Task<bool> BestFramesCalcAndStereoCalibration(
+        public async Task<bool> BestFramesCalcAndStereoCalibrationAsync(
                                          CalibProject calibProject,
                                          double movementMinThreshold,
                                          double blurMinThreshold,
@@ -713,7 +737,7 @@ namespace Surveyor.Controls
                         calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold, blurMinThreshold, stereoCornersMinThreshold);
 
                         // Parse the Frames and calculate the yaw and pitch for each frame using the pass1 calibration
-                        await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBin(leftMonoCalibrationCameraData, rightMonoCalibrationCameraData, frameSize);
+                        await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBinAsync(leftMonoCalibrationCameraData, rightMonoCalibrationCameraData, frameSize);
 
                         // Next top-up with pose diverse frames
                         calibrationStereoFrameSet.AddBestStereoFramesUsingPoseBins(movementMinThreshold, blurMinThreshold);
@@ -780,13 +804,13 @@ namespace Surveyor.Controls
                             calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold, blurMinThreshold, stereoCornersMinThreshold);
 
                             // Parse the Frames and calculate the yaw and pitch for each frame using the pass1 calibration
-                            await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBin(leftMonoCalibrationCameraData, rightMonoCalibrationCameraData, frameSize);
+                            await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBinAsync(leftMonoCalibrationCameraData, rightMonoCalibrationCameraData, frameSize);
 
                             // Next top-up with pose diverse frames
                             calibrationStereoFrameSet.AddBestStereoFramesUsingPoseBins(movementMinThreshold, blurMinThreshold);
 
 
-                            await SaveBestFiles();
+                            await SaveBestFilesAsync();
                         }
                     }
                 }
@@ -868,13 +892,14 @@ namespace Surveyor.Controls
                     calibrationStereoFrameSet = json;
 
                     // Apply lock if necessary
-                    if (calibrationStereoFrameSet.LockFrameIndexLeft != -1 &&
-                        calibrationStereoFrameSet.LockFrameIndexRight != -1)
-                    {
-                        isLocked = false;
-                        LockStereo(calibrationStereoFrameSet.LockFrameIndexLeft,
-                            calibrationStereoFrameSet.LockFrameIndexRight);
-                    }
+                    //??? Locking is no longer in the cache it comes from the CalibProject
+                    //if (calibrationStereoFrameSet.LockFrameIndexLeft != -1 &&
+                    //    calibrationStereoFrameSet.LockFrameIndexRight != -1)
+                    //{
+                    //    isLocked = false;
+                    //    LockStereo(calibrationStereoFrameSet.LockFrameIndexLeft,
+                    //        calibrationStereoFrameSet.LockFrameIndexRight);
+                    //}
 
                     CalibrationFrameSetViewerData dataLeft = new(true/*trueLeftFalseRight*/, calibrationStereoFrameSet);
                     CalibrationFrameSetViewerLeft.Data = dataLeft;
@@ -1002,7 +1027,7 @@ namespace Surveyor.Controls
             if (IsStereoLocked() == true)
             {
                 // Unlock
-                LockStereo(-1, -1);
+                UnlockStereo();
             }
             else
             {
@@ -2081,7 +2106,7 @@ namespace Surveyor.Controls
         /// <param name="wb"></param>
         /// <param name="fileSpecMP4"></param>
         /// <returns></returns>
-        private async Task<bool> SaveBestFiles()
+        private async Task<bool> SaveBestFilesAsync()
         {
             bool ret = false;
 
@@ -2157,7 +2182,7 @@ namespace Surveyor.Controls
                         // Save the left image file
                         StorageFolder folder = await StorageFolder.GetFolderFromPathAsync(imageOutputSubFolder);
                         StorageFile file = await folder.CreateFileAsync(frameFileName, CreationCollisionOption.ReplaceExisting);
-                        await SaveWriteableBitmapToFile(wbLeft, file);
+                        await SaveWriteableBitmapToFileAsync(wbLeft, file);
                         Debug.WriteLine($"SaveBestFiles: Left Frame saved: [{file.Path}]");
 
                         if (rightTarget is not null && wbRight is not null)
@@ -2169,7 +2194,7 @@ namespace Surveyor.Controls
                             // Save the left image file
                             folder = await StorageFolder.GetFolderFromPathAsync(imageOutputSubFolder);
                             file = await folder.CreateFileAsync(frameFileName, CreationCollisionOption.ReplaceExisting);
-                            await SaveWriteableBitmapToFile(wbRight, file);
+                            await SaveWriteableBitmapToFileAsync(wbRight, file);
                             Debug.WriteLine($"SaveBestFiles: Right Frame saved: [{file.Path}]");
                         }
 
@@ -2196,34 +2221,32 @@ namespace Surveyor.Controls
         /// <param name="bitmap"></param>
         /// <param name="file"></param>
         /// <returns></returns>
-        public static async Task SaveWriteableBitmapToFile(WriteableBitmap bitmap, StorageFile file)
+        public static async Task SaveWriteableBitmapToFileAsync(WriteableBitmap bitmap, StorageFile file)
         {
             // Get the pixel buffer from the WriteableBitmap
-            using (var stream = new InMemoryRandomAccessStream())
+            using var stream = new InMemoryRandomAccessStream();
+            // Encode the WriteableBitmap to a stream
+            var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, stream);
+            var pixelStream = bitmap.PixelBuffer.AsStream();
+            var pixels = new byte[pixelStream.Length];
+            await pixelStream.ReadAsync(pixels, 0, pixels.Length);
+
+            // Set the pixel data to the encoder
+            encoder.SetPixelData(
+                BitmapPixelFormat.Bgra8,
+                BitmapAlphaMode.Premultiplied,
+                (uint)bitmap.PixelWidth,
+                (uint)bitmap.PixelHeight,
+                96.0,  // Default DPI for WinUI
+                96.0,
+                pixels);
+
+            await encoder.FlushAsync();
+
+            // Save the stream to a file
+            using (var fileStream = await file.OpenAsync(FileAccessMode.ReadWrite))
             {
-                // Encode the WriteableBitmap to a stream
-                var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, stream);
-                var pixelStream = bitmap.PixelBuffer.AsStream();
-                var pixels = new byte[pixelStream.Length];
-                await pixelStream.ReadAsync(pixels, 0, pixels.Length);
-
-                // Set the pixel data to the encoder
-                encoder.SetPixelData(
-                    BitmapPixelFormat.Bgra8,
-                    BitmapAlphaMode.Premultiplied,
-                    (uint)bitmap.PixelWidth,
-                    (uint)bitmap.PixelHeight,
-                    96.0,  // Default DPI for WinUI
-                    96.0,
-                    pixels);
-
-                await encoder.FlushAsync();
-
-                // Save the stream to a file
-                using (var fileStream = await file.OpenAsync(FileAccessMode.ReadWrite))
-                {
-                    await RandomAccessStream.CopyAndCloseAsync(stream.GetInputStreamAt(0), fileStream.GetOutputStreamAt(0));
-                }
+                await RandomAccessStream.CopyAndCloseAsync(stream.GetInputStreamAt(0), fileStream.GetOutputStreamAt(0));
             }
         }
 
@@ -2235,19 +2258,20 @@ namespace Surveyor.Controls
         /// </summary>
         private void SetUIControls()
         {
-            if (appMode == AppMode.Open || appMode == AppMode.BestFramesView)
-            {
-                int totalRecordCount = calibrationStereoFrameSet.Frames.Count;
-
-                // Lock/Unlock Button            
-                LockUnlockButton.IsEnabled = (capLeft?.IsOpened == true) && (capRight?.IsOpened == true);
-
-                LockUnlockButton.IsEnabled = true;
-            }
-            else if (appMode == AppMode.FindCalibrationsFrames || appMode == AppMode.BestFramesCalc)
-            {
-                LockUnlockButton.IsEnabled = false;
-            }
+            //???TO DELELTE NO LOCK BUTTON REQUIRED
+            //if (appMode == AppMode.Open || appMode == AppMode.BestFramesView)
+            //{
+            //    int totalRecordCount = calibrationStereoFrameSet.Frames.Count;
+            //
+            //    // Lock/Unlock Button            
+            //    LockUnlockButton.IsEnabled = (capLeft?.IsOpened == true) && (capRight?.IsOpened == true);
+            //
+            //    LockUnlockButton.IsEnabled = true;
+            //}
+            //else if (appMode == AppMode.FindCalibrationsFrames || appMode == AppMode.BestFramesCalc)
+            //{
+            //    LockUnlockButton.IsEnabled = false;
+            //}
 
             SetUISubControls(true/*trueLeftfalseRight*/);
             SetUISubControls(false/*trueLeftfalseRight*/);

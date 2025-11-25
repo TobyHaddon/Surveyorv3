@@ -224,7 +224,7 @@
                             <FontIcon x:Name="CalibrationCacheFolderInfo" Glyph="&#xE946;" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                         </Button>
                         <Button Content="Clear Cache" Click="ClearCache_Click" Margin="0,0,10,0" />
-                        <TextBlock x:Name="CalibrationCacheUsage" Text="{x:Bind CalibrationCacheUsageText, Mode=OneWay}" VerticalAlignment="Center" />
+                        <TextBlock x:Name="CalibrationCacheUsage" Text="{x:Bind CalibrationCacheUsageText, Mode=OneTime}" VerticalAlignment="Center" />
                     </StackPanel>
                 </toolkit:SettingsCard>
                                       
