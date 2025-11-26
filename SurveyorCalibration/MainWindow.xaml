@@ -229,25 +229,13 @@
                 </InfoBar.ActionButton>
             </InfoBar>
             <!--Processing in Progress-->
-            <InfoBar x:Name="InfoBarProcessing" IsOpen="False"
-                        Severity="Informational" HorizontalAlignment="Stretch"
-                        Title="Processing"
-                        Message="Please wait..."
-                        IsClosable="false">
-                <InfoBar.Content>
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <ProgressRing x:Name="InfoBarProcessingRing" IsActive="True" Width="20" Height="20" />
-                    </StackPanel>
-                </InfoBar.Content>
-                <InfoBar.ActionButton>
-                    <Button Content="Cancel" Click="InfoBarCancelProcessingButton_Click" />
-                </InfoBar.ActionButton>
-            </InfoBar>
+            <surveyorControls:ProcessingInfoBar x:Name="InfoBarProcessing"
+                        HorizontalAlignment="Stretch"
+                        Title="Processing">
+            </surveyorControls:ProcessingInfoBar>
         </StackPanel>
 
         <StackPanel Grid.Row ="1" Orientation="Horizontal">
-            <ProgressRing x:Name="InProgress" IsActive="False" Width="20" Height="20" VerticalAlignment="Center" Margin="12,0"/>
-            
             <TextBlock x:Name="StatusText" 
                            VerticalAlignment="Center" 
                            Margin="12,0"

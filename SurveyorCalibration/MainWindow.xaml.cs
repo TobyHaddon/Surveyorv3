@@ -867,7 +867,7 @@ namespace Surveyor
                 return;
 
             saveStatus = false;  // Save/Calc in progress (disable the save button)
-            InProgress.IsActive = true;
+            InfoBarProcessing.ShowProcessing("Saving...");
             SetUIControls();
 
             bool doStereo = false;
@@ -945,27 +945,22 @@ namespace Surveyor
                 }
             }
 
-            // Save the frames
+            // Save the frames dataset
+            InfoBarProcessing.UpdateMessage("Pre-saving stereo best frames...");
+
             if (doStereo)
             {
-                await DisplayStatusTextAsync("Pre-save stereo best frames...");
-                InProgress.IsActive = true;
                 StereoCalibrationHead.SaveCachedResults();
-                InProgress.IsActive = false;
+
             }
             if (doLeftMono && !useMonoCacheValues)
             {
-                await DisplayStatusTextAsync("Pre-save left mono best frames...");
-                InProgress.IsActive = true;
                 LeftMonoCalibrationHead.SaveCachedResults();
-                InProgress.IsActive = false;
             }
             if (doRightMono && !useMonoCacheValues)
             {
-                await DisplayStatusTextAsync("Pre-save right mono best frames...");
-                InProgress.IsActive = true;
                 RightMonoCalibrationHead.SaveCachedResults();
-                InProgress.IsActive = false;
+
             }
 
 
@@ -1713,10 +1708,12 @@ namespace Surveyor
                 InfoBarLockMedia.IsOpen = false;
 
             // Show/Hide Processing InfoBar
-            if (isProcessingHappening)
-                InfoBarProcessing.IsOpen = true;
-            else
-                InfoBarProcessing.IsOpen = false;
+            //???Handle the InfoBarProcessing as start of processing and
+            // end via periodic timer checks
+            //if (isProcessingHappening)
+            //    InfoBarProcessing.IsOpen = true;
+            //else
+            //    InfoBarProcessing.IsOpen = false;
 
 
             // Load Button

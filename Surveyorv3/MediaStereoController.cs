@@ -2194,7 +2194,7 @@ namespace Surveyor
 
 
                     // Add the event to the list and clear down
-                    SetMediaPositionAddEventClearTargets(evt);
+                    await SetMediaPositionAddEventClearTargetsAsync(evt);
 
                     // Clear stereo projection calculation class
                     stereoProjection.PointsClear();
@@ -2214,7 +2214,7 @@ namespace Surveyor
         /// Clear the targets in memory and on the screen
         /// </summary>
         /// <param name="evt"></param>
-        private void SetMediaPositionAddEventClearTargets(Event evt)
+        private async Task SetMediaPositionAddEventClearTargetsAsync(Event evt)
         {
             // Log the event (even if no measurement done)
             if (surveyType == Survey.SurveyType.StereoFish && mediaTimelineController is not null)
@@ -2261,7 +2261,7 @@ namespace Surveyor
 
                     // Add the species info to the Events list
                     if (eventsControl is not null)
-                        eventsControl.AddEventAsync(evt);
+                        await eventsControl.AddEventAsync(evt);
 
                     // Remove targets from memory
                     ClearCachedTargets();

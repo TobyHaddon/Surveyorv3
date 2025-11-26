@@ -1,0 +1,32 @@
+<UserControl
+    x:Class="Surveyor.User_Controls.ProcessingInfoBar"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls">
+    <Grid>
+        <controls:InfoBar x:Name="InfoBar"
+                          IsOpen="False"
+                          Severity="Informational"
+                          IsClosable="False"
+                          Title="{x:Bind Title, Mode=OneWay}"
+                          Message="{x:Bind Message, Mode=OneWay}">
+            <controls:InfoBar.Content>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBlock x:Name="ElapsedText"
+                               Visibility="{Binding ElaspedTime, RelativeSource={RelativeSource Mode=TemplatedParent}, Converter={StaticResource BooleanToVisibilityConverter}}"
+                               VerticalAlignment="Center"/>
+                    <ProgressRing x:Name="ProgressRing"
+                                  Width="20" Height="20"
+                                  IsActive="False"
+                                  VerticalAlignment="Center"/>
+                </StackPanel>
+            </controls:InfoBar.Content>
+            <controls:InfoBar.ActionButton>
+                <Button x:Name="CancelBtn"
+                        Content="{x:Bind CancelButtonText, Mode=OneWay}"
+                        Visibility="{Binding CancelButton, RelativeSource={RelativeSource Mode=TemplatedParent}, Converter={StaticResource BooleanToVisibilityConverter}}"
+                        Click="CancelButton_OnClick"/>
+            </controls:InfoBar.ActionButton>
+        </controls:InfoBar>
+    </Grid>
+</UserControl>

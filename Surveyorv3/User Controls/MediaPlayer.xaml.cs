@@ -1474,7 +1474,7 @@ namespace Surveyor.User_Controls
                     vidFrameMgr.SetImage(CameraSide, ImageFrame);
 
                     // Set the resource to be used by the VideoFrameAvailable event
-                    bool setupOk = await vidFrameMgr.SetupIfNecessary(MediaPlayerElement.MediaPlayer);
+                    bool setupOk = await vidFrameMgr.SetupIfNecessaryAsync(MediaPlayerElement.MediaPlayer);
                     if (!setupOk)
                     { 
                         Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MediaPlayer_MediaOpened vidFrameMgr.SetupIfNecessary failed to setup resources");
@@ -1642,7 +1642,7 @@ namespace Surveyor.User_Controls
             /// </summary>
             /// <param name="mp"></param>
             /// <returns></returns>
-            public async Task<bool> SetupIfNecessary(MediaPlayer mp)
+            public async Task<bool> SetupIfNecessaryAsync(MediaPlayer mp)
             {
                 WinUIGuards.CheckIsUIThread();
 
@@ -2405,7 +2405,7 @@ namespace Surveyor.User_Controls
                     vidFrameMgr.Release();
 
                     await Task.Delay(100);                  
-                    await vidFrameMgr.SetupIfNecessary(mp);
+                    await vidFrameMgr.SetupIfNecessaryAsync(mp);
 
                     await Task.Delay(100);
                     mp.IsVideoFrameServerEnabled = true;
