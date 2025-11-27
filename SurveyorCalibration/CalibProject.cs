@@ -8,6 +8,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Windows.Devices.Printers;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Surveyor
@@ -70,7 +71,7 @@ namespace Surveyor
                 }
 
                 // Info class version
-                public float Version { get; set; } = 1.0f;
+                public float Version { get; set; } = 1.1f;
 
                 // Values
                 private string _projectFileName = string.Empty;
@@ -154,7 +155,8 @@ namespace Surveyor
                     _rightStereoMP4FileName = string.Empty;
                     _leftCameraID = string.Empty;
                     _rightCameraID = string.Empty;
-                    _frameSize = new(0, 0);
+                    _frameWidth = 0;
+                    _frameHeight = 0;
 
                     _isDirty = false;
                 }
@@ -163,13 +165,14 @@ namespace Surveyor
                 public float Version { get; set; } = 1.0f;
 
                 // Values
-                public StereoMonoMediaSetMode _stereoMonoMediaSetMode = StereoMonoMediaSetMode.None;
+                private StereoMonoMediaSetMode _stereoMonoMediaSetMode = StereoMonoMediaSetMode.None;
                 private string _mediaPath = string.Empty;
                 private string _leftMonoMP4FileName = string.Empty;
                 private string _rightMonoMP4FileName = string.Empty;
                 private string _leftStereoMP4FileName = string.Empty;
                 private string _rightStereoMP4FileName = string.Empty;
-                private Windows.Foundation.Size _frameSize = new(0, 0);
+                private int _frameWidth = 0;
+                private int _frameHeight = 0;
 
                 // Setters and getters
                 // Calibration mode mono+stereo, mono only, stereo only
@@ -296,14 +299,27 @@ namespace Surveyor
                 }
 
                 // Frame Size
-                public Windows.Foundation.Size FrameSize 
+                public int FrameWidth
                 { 
-                    get => _frameSize;
+                    get => _frameWidth;
                     set
                     {
-                         if (_frameSize != value)
+                         if (_frameWidth != value)
                         {
-                            _frameSize = value;
+                            _frameWidth = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+                public int FrameHeight
+                {
+                    get => _frameHeight;
+                    set
+                    {
+                        if (_frameHeight != value)
+                        {
+                            _frameHeight = value;
                             IsDirty = true;
                             OnPropertyChanged();
                         }
@@ -311,19 +327,23 @@ namespace Surveyor
                 }
 
 
-                // Helper
+                // Helpers
+                [JsonIgnore]
                 public string LeftMonoMP4Path
                 {
                     get => Path.Combine(MediaPath, LeftMonoMP4FileName);
                 }
+                [JsonIgnore]
                 public string RightMonoMP4Path
                 {
                     get => Path.Combine(MediaPath, RightMonoMP4FileName);
                 }
+                [JsonIgnore]
                 public string LeftStereoMP4Path
                 {
                     get => Path.Combine(MediaPath, LeftStereoMP4FileName);
                 }
+                [JsonIgnore]
                 public string RightStereoMP4Path
                 {
                     get => Path.Combine(MediaPath, RightStereoMP4FileName);

@@ -1,13 +1,15 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Surveyor.Helper;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Surveyor
 {
     public sealed partial class SetupRunCalibrationSummary : Page
     {
-        private CalibProject? _calibProject;
+        private NavParams? navParams;
         public SetupRunCalibrationSummary()
         {
             InitializeComponent();
@@ -16,30 +18,47 @@ namespace Surveyor
         protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
-            _calibProject = e.Parameter as CalibProject;
+            navParams = e.Parameter as NavParams;
             UpdateSummary();
         }
 
         private void UpdateSummary()
         {
-            if (_calibProject == null)
+            if (navParams is not null)
             {
-                Summary.Text = "No calibration project loaded.";
-                return;
+                if (navParams.calibProject is null)
+                {
+                    Summary.Text = "No calibration project loaded.";
+                    return;
+                }
+                Summary.Text = $"Project: {navParams.calibProject.Data.Info.ProjectFileName}\n"+
+                    $"Mode: {navParams.calibProject.Data.Media.StereoMonoMediaSetMode}\n"+
+                    $"Left Camera: {navParams.calibProject.Data.Media.LeftCameraID}\n"+
+                    $"Right Camera: {navParams.calibProject.Data.Media.RightCameraID}";
             }
-            Summary.Text = $"Project: {_calibProject.Data.Info.ProjectFileName}\nMode: {_calibProject.Data.Media.StereoMonoMediaSetMode}\nLeft Camera: {_calibProject.Data.Media.LeftCameraID}\nRight Camera: {_calibProject.Data.Media.RightCameraID}";
         }
 
-        private void RunCalibrationButton_Click(object sender, RoutedEventArgs e)
+        private void RunCalibrationButton_Click(object sender, RoutedEventArgs e) => _ = RunCalibrationButtonClickAsync();
+        private async Task RunCalibrationButtonClickAsync()
         {
-            // Placeholder for launching calibration workflow
-            Summary.Text += "\nCalibration run started...";
+            if (navParams is not null)
+            {
+                // Invoke MainWindow's calibration entry point
+                if (App.MainWindow is MainWindow mw)
+                {
+                    // Fire and forget
+                    _ = mw.RunCalibrationAsync();
+                }
+
+                // Close host window
+                (WindowHelper.GetWindowForElement(this) as SetupRunCalibration)?.Close();
+            }
         }
 
         private void SetupRunCalibrationSummaryBack_Click(object sender, RoutedEventArgs e)
         {
             // Navigate to settings page, passing the current CalibProject (can be null)
-            Frame?.Navigate(typeof(SetupRunCalibrationSettings), _calibProject);
+            Frame?.Navigate(typeof(SetupRunCalibrationSettings), navParams);
 
             // Update NavView selection to "Calibration Settings"
             var navView = FindParentNavigationView();

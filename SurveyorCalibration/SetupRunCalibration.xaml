@@ -19,11 +19,20 @@
     </winex:WindowEx.SystemBackdrop>
 
     <Grid>
+        <!-- Main content area -->
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- NavigationView fills row 0 -->
         <NavigationView x:Name="NavView"
+                        x:FieldModifier="public"
+                        Grid.Row="0"
                         PaneTitle="Calibration"
                         IsBackButtonVisible="Collapsed"
                         IsSettingsVisible="False"
-                        OpenPaneLength="240"   
+                        OpenPaneLength="240"
                         SelectionChanged="NavView_SelectionChanged">
             <NavigationView.MenuItems>
                 <!-- SET THE CALIBRATION TARGET USED IN THE CALIBRATION VIDEOS -->
@@ -53,8 +62,21 @@
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
+
             <Frame x:Name="ContentFrame"/>
         </NavigationView>
+
+        <!-- Fixed footer in row 1 -->
+        <StackPanel Grid.Row="1"
+                    Orientation="Horizontal"
+                    HorizontalAlignment="Right"
+                    VerticalAlignment="Bottom"
+                    Margin="0,0,16,16"
+                    Spacing="8">
+            <Button x:Name="BackBtn" Content="Back" Click="BackBtn_Click"/>
+            <Button x:Name="NextBtn" Content="Next" Click="NextBtn_Click"/>
+        </StackPanel>
+
         <TeachingTip x:Name="CalibrationSummaryTeachingTip"
                      Target="{Binding ElementName=NavCalibrationSummary}"
                      Title="Run Calibration"

@@ -80,6 +80,7 @@ namespace Surveyor
 
         private readonly TransectMarkerManager transectMarkerManager = new();
 
+        // Recent surveys management
         private const string RECENT_SURVEYS_KEY = "RecentSurveys";
         private readonly int maxRecentSurveysDisplayed = 6;      
         private const int MAX_RECENT_SURVEYS_SAVED = 20;
@@ -2823,13 +2824,8 @@ namespace Surveyor
         {
             int ret = 0;
 
-            if (this.surveyClass != null)
+            if (surveyClass is not null)
             {
-                // WinUI3 only allows 'savePicker.SuggestedStartLocation' to be one of the standard folders
-                //???string? surveyFolder = SettingsManager.ProjectFolder;
-                //if (string.IsNullOrEmpty(surveyFolder) == true)
-                //    surveyFolder = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-
                 FileSavePicker savePicker = new();
                 IntPtr hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this); // 'this' should be your window or page
                 WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hwnd); // Link the picker with the window handle
@@ -2869,7 +2865,7 @@ namespace Surveyor
                     else
                     {
                         ret = -1;
-                        Debug.WriteLine("Failed to save file {file.Path}.");
+                        Debug.WriteLine($"Failed to save file {file.Path}.");
                     }
                 }
             }

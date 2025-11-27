@@ -35,10 +35,43 @@ namespace Surveyor.User_Controls
         private string? _savedMessage;
         private bool? _savedElapsedFlag;
 
+        private TextBlock? elapsedTextBlock = null;
+        private ProgressRing? progressRing = null;
+
         public ProcessingInfoBar()
         {
             this.InitializeComponent(); // FIX: must be in a sealed partial class matching x:Class
         }
+
+
+        /// <summary>
+        /// You can setup give the ProcessingInfoBar references to the elapsed 
+        /// time TextBlock and ProgressRing controls somewhere else in your UI.
+        /// The ProcessingInfoBar will update these controls when showing/hiding 
+        /// processing state and displaying elapsed time.
+        /// You can only supply a TextBlock, only a ProgressRing, or both.
+        /// </summary>
+        /// <param name="_elapsedTextBlock"></param>
+        /// <param name="_progressRing"></param>
+        public void WireUpElapsedTimeUIControl(TextBlock? _elapsedTextBlock, ProgressRing? _progressRing)
+        {
+            elapsedTextBlock = _elapsedTextBlock;
+            progressRing = _progressRing;
+
+            // Bring into sync with current state
+            if (progressRing is not null)
+            {
+                progressRing.IsActive = InfoBar.IsOpen;
+            }
+            if (elapsedTextBlock is not null)
+            {
+                if (!InfoBar.IsOpen)
+                {
+                    elapsedTextBlock.Text = string.Empty;
+                }
+            }
+        }
+
 
         // Show default (use existing Message)
         public void ShowProcessing() =>
@@ -75,8 +108,14 @@ namespace Surveyor.User_Controls
         public void HideProcessing()
         {
             StopTimer();
-            ProgressRing.IsActive = false;
-            ElapsedText.Text = string.Empty;
+
+            // Remove progressing ring if necessary
+            if (progressRing is not null)
+                progressRing.IsActive = false;
+
+            // Remove the elapsed time if necessary
+            if (elapsedTextBlock is not null)
+                elapsedTextBlock.Text = string.Empty;
 
             if (_savedMessage is not null)
             {
@@ -92,6 +131,16 @@ namespace Surveyor.User_Controls
             InfoBar.IsOpen = false;
         }
 
+
+        /// <summary>
+        /// Pass through so users of this control can check if it's open
+        /// </summary>
+        public bool IsOpen { get => InfoBar.IsOpen; }
+
+        /// 
+        /// PRIVATE
+        /// 
+
         private void StartProcessing(bool keepMessage, bool? elapsedOverride, string? messageOverride)
         {
             if (!keepMessage && messageOverride is not null)
@@ -106,30 +155,36 @@ namespace Surveyor.User_Controls
             }
 
             InfoBar.IsOpen = true;
-            ProgressRing.IsActive = true;
+            if (progressRing is not null)
+                progressRing.IsActive = true;
 
-            if (ElaspedTime)
+            if (elapsedTextBlock is not null)
             {
-                _start = DateTimeOffset.Now;
-                EnsureTimer();
-                _timer!.Start();
-            }
-            else
-            {
-                StopTimer();
-                ElapsedText.Text = string.Empty;
+                if (ElaspedTime)
+                {
+                    _start = DateTimeOffset.Now;
+                    EnsureTimer();
+                    _timer!.Start();
+                }
+                else
+                {
+                    StopTimer();
+                    elapsedTextBlock.Text = string.Empty;
+                }
             }
         }
 
         private void EnsureTimer()
         {
+            if (elapsedTextBlock is null) return;
+
             if (_timer != null) return;
             _timer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
             _timer.Tick += (_, __) =>
             {
                 var elapsed = DateTimeOffset.Now - _start;
                 // HH:MM:SS
-                ElapsedText.Text = $"{(int)elapsed.TotalHours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}";
+                elapsedTextBlock.Text = $"{(int)elapsed.TotalHours:00}:{elapsed.Minutes:00}:{elapsed.Seconds:00}";
             };
         }
 

@@ -66,7 +66,7 @@ namespace Surveyor
 
 
         // Retrieve or set the survey folder path.  This is where the Survey files and the media files are stored.
-        public static string? SurveyFolder
+        public static string? ProjectFolder
         {
             get => GetString(SurveyFolderKey, string.Empty);
             set => SetString(SurveyFolderKey, value);
@@ -79,7 +79,7 @@ namespace Surveyor
             {
                 ApplicationDataContainer localSettings = ApplicationData.Current.LocalSettings;
                 if (localSettings.Values[MediaFrameFolderKey] is not string mediaFrameFolder)
-                    mediaFrameFolder = SurveyFolder + "\\MediaFrames";
+                    mediaFrameFolder = ProjectFolder + "\\MediaFrames";
 
                 return mediaFrameFolder;
             }

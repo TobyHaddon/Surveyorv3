@@ -383,8 +383,6 @@ namespace Surveyor.User_Controls
             _previewPending = true;
             _previewTimer.Stop();
             _previewTimer.Start();
-
-            Debug.WriteLine($"Preview Image refresh scheduled: {CbdWorking?.SquaresX} x {CbdWorking?.SquaresY} squares  {CbdWorking?.PredefinedDictionaryName}  Square:{(CbdWorking?.SquareLength * 1000):F2}mm Marker:{(CbdWorking?.MarkerLength * 1000):F2}mm");
         }
 
 

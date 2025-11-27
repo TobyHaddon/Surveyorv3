@@ -13,6 +13,8 @@ using Surveyor.User_Controls;
 using SurveyorCalibrationData;
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -23,8 +25,11 @@ using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
 using Windows.Storage;
 using Windows.Storage.Pickers;
+using Windows.Storage.Provider;
 using WinRT.Interop;
 using WinUIEx;
+using static iText.Svg.SvgConstants;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 namespace Surveyor
@@ -53,6 +58,11 @@ namespace Surveyor
 
         private CalibProject? calibProject = null;
 
+        // Recent projects management
+        private const string RECENT_PROJECTS_KEY = "RecentProjects";
+        private readonly int maxRecentProjectsDisplayed = 6;
+        private const int MAX_RECENT_PROJECTS_SAVED = 20;
+
         // Add these fields to MainWindow class
         private DispatcherQueueTimer? _stereoLockCheckTimer;
         private DispatcherQueueTimer? _findCheckTimer;
@@ -79,7 +89,11 @@ namespace Surveyor
             MinWidth = 800;
 
             InitializeComponent();
-            
+
+            // Event first before the app window is commited to closing (i.e. can be cancelled)
+            if (this.AppWindow is not null)
+                this.AppWindow.Closing += AppWindow_Closing;
+
             // This is used to get/adjust the theme is necessary
             ThemeHelper.Initialize();
 
@@ -98,6 +112,11 @@ namespace Surveyor
             AppTitleBar.SizeChanged += AppTitleBar_SizeChanged;
             ExtendsContentIntoTitleBar = true;
 
+            // Wire up to the ProcessingInfoBar the external TextBlock and ProgressRing controls in the title bar
+            InfoBarProcessing.WireUpElapsedTimeUIControl(ElapsedProcessingTime, TitleProgressRing);
+
+            // Update the Recent open surveys sub menu
+            UpdateRecentProjectsMenu();
 
 
             // Set the sliders
@@ -220,6 +239,94 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// Check if cached results file exists for the current media set
+        /// </summary>
+        /// <returns></returns>
+        public bool CachedResultsFileExists()
+        {
+            bool cachedResultsAvailable = false;
+
+            if (calibProject is not null)
+            {
+                // Check if cached results files are available
+                CalibProject.DataClass.MediaClass media = calibProject.Data.Media;
+
+                switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                {
+                    case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                        if (StereoCalibrationHead.CachedResultsFileExists(media.LeftStereoMP4Path, media.RightStereoMP4Path) &&
+                            LeftMonoCalibrationHead.CachedResultsFileExists(media.LeftMonoMP4Path, string.Empty) &&
+                            RightMonoCalibrationHead.CachedResultsFileExists(media.RightMonoMP4Path, string.Empty))
+                        {
+                            cachedResultsAvailable = true;
+                        }
+                        break;
+
+                    case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                        if (StereoCalibrationHead.CachedResultsFileExists(media.LeftStereoMP4Path, media.RightStereoMP4Path))
+                        {
+                            cachedResultsAvailable = true;
+                        }
+                        break;
+
+                    case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                        if (LeftMonoCalibrationHead.CachedResultsFileExists(media.LeftMonoMP4Path, string.Empty) &&
+                            RightMonoCalibrationHead.CachedResultsFileExists(media.RightMonoMP4Path, string.Empty))
+                        {
+                            cachedResultsAvailable = true;
+                        }
+                        break;
+
+                    case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                        if (LeftMonoCalibrationHead.CachedResultsFileExists(media.LeftMonoMP4Path, string.Empty))
+                        {
+                            cachedResultsAvailable = true;
+                        }
+                        break;
+                }
+            }
+
+            return cachedResultsAvailable;
+        }
+
+
+        /// <summary>
+        /// Run the calibration as defined in the SetupRunCalibration pages
+        /// This method is called once the user presses the Run Calibration button
+        /// in the SetupRunCalibrationSummary page. Hence why it is public
+        /// </summary>
+        /// <returns></returns>
+        public async Task RunCalibrationAsync()
+        {
+            if (calibProject is not null)
+            {
+                // Prime the board for EMGU Api use
+                if (calibProject.Data.CharucoBoardDefinition.Setup())
+                {
+                    // Load the calibration board type
+                    StereoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.CharucoBoardDefinition);
+                    LeftMonoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.CharucoBoardDefinition);
+                    RightMonoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.CharucoBoardDefinition);
+                }
+                else
+                {
+                    var dialog = new ContentDialog
+                    {
+                        Title = "Board Setup Failed",
+                        Content = "Failed to setup the calibration board definition.",
+                        CloseButtonText = "OK",
+                        XamlRoot = this.Content.XamlRoot
+                    };
+                    await dialog.ShowAsync();
+                }
+            }
+
+            await FindAppBarButtonAsync();
+        }
+
+
+
 
         /// 
         /// EVENTS
@@ -238,6 +345,33 @@ namespace Surveyor
             {
                 MenuFileTeachingTip.IsOpen = true;
             }
+        }
+
+
+        /// <summary>
+        /// Window close has been requested by user, check for open Surveys
+        /// </summary>
+        /// <returns></returns>
+        private void AppWindow_Closing(object sender, AppWindowClosingEventArgs e) => _ = AppWindowClosingAsync(e);
+        private async Task AppWindowClosingAsync(AppWindowClosingEventArgs e)
+        {
+            Debug.WriteLine("AppWindow_Closing Entered");
+
+            // First: check unsaved survey (may show dialog)
+            bool canClose = await CheckForOpenProjectAndCloseAsync(true/*existing*/);
+            if (!canClose)
+            {
+                e.Cancel = true;
+                Debug.WriteLine("AppWindow_Closing canceled by user");
+                return;
+            }
+
+            // Perform unified shutdown
+            //???Left over from Surveyor
+            //await ShutdownAsync();
+
+            e.Cancel = false;
+            Debug.WriteLine("AppWindow_Closing Exit");
         }
 
 
@@ -292,32 +426,14 @@ namespace Surveyor
         }
 
 
-        private async Task<StorageFile?> PickCalibFileToSaveAsync(Window window)
-        {
-            var savePicker = new FileSavePicker();
-
-            // Initialize with the window handle
-            var hWnd = WindowNative.GetWindowHandle(window);
-            InitializeWithWindow.Initialize(savePicker, hWnd);
-
-            // Set file type choices and default extension
-            savePicker.FileTypeChoices.Add("Calibration Project", [".calib"]);
-            savePicker.DefaultFileExtension = ".calib";
-
-            // Optional: set suggested file name
-            savePicker.SuggestedFileName = "my_calibration_project";
-
-            StorageFile file = await savePicker.PickSaveFileAsync();
-            return file;
-        }
-
-
         /// <summary>
         /// Find and open a project file and open the associated media
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
+        [Obsolete]
         private void OpenAppBarButton_Click(object sender, RoutedEventArgs e) => _ = OpenAppBarButtonAsync();
+        [Obsolete]
         private async Task OpenAppBarButtonAsync()
         {
             // Ensure your class has access to the current Window
@@ -343,7 +459,7 @@ namespace Surveyor
                 {
 
                     // Call OpenMedia
-                    await OpenMediaAsync(calibProject, false, false);
+                    await OpenMediaSetsAsync(calibProject, false, false);
                 }
                 else
                 {
@@ -359,349 +475,6 @@ namespace Surveyor
             }
         }
 
-
-        private async Task OpenMediaAsync(CalibProject calibProject, bool forceUsdCacheIfAvalable, bool noPrompts)
-        { 
-
-            try
-            {
-                // Reset
-                findStatus = null;  // No frames loaded
-                saveStatus = null;  // Can't press save
-
-
-                // Check if cached results files are available
-                bool cachedResultsAvailable = false;
-
-                switch (calibProject.Data.Media.StereoMonoMediaSetMode)
-                {
-                    case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                        if (StereoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path) &&
-                            LeftMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftMonoMP4Path, string.Empty) &&
-                            RightMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.RightMonoMP4Path, string.Empty))
-                        {
-                            cachedResultsAvailable = true;
-                        }
-                        break;
-
-                    case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                        if (StereoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path))
-                        {
-                            cachedResultsAvailable = true;
-                        }
-                        break;
-
-                    case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-                        if (LeftMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftMonoMP4Path, string.Empty) &&
-                            RightMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.RightMonoMP4Path, string.Empty))
-                        {
-                            cachedResultsAvailable = true;
-                        }
-                        break;
-
-                    case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-                        if (LeftMonoCalibrationHead.CachedResultsFileExists(calibProject.Data.Media.LeftMonoMP4Path, string.Empty))
-                        {
-                            cachedResultsAvailable = true;
-                        }
-                        break;
-                }
-
-                // Ask the user if they want to use cached results (a full set of results is required)
-                if (cachedResultsAvailable == true)
-                {
-                    var dialogUseCahceResults = new ContentDialog
-                    {
-                        Title = "Cached Results Available",
-                        Content = "This is a set of cache results available.  Would you like to use them?",
-                        PrimaryButtonText = "Yes",
-                        CloseButtonText = "No"
-                    };
-                    dialogUseCahceResults.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
-                    
-                    if (forceUsdCacheIfAvalable || await dialogUseCahceResults.ShowAsync() == ContentDialogResult.Primary)
-                    {
-                        bool loaded = false;
-                        int? stereoFramesLoaded = null;
-                        int? leftMonoFramesLoaded = null;
-                        int? rightMonoFramesLoaded = null;
-
-                        // Load cached results
-                        switch (calibProject.Data.Media.StereoMonoMediaSetMode)
-                        {
-                            case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                                try
-                                {
-                                    stereoFramesLoaded = StereoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
-                                    leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                                    rightMonoFramesLoaded = RightMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
-
-                                    if (stereoFramesLoaded is not null && leftMonoFramesLoaded is not null && rightMonoFramesLoaded is not null &&
-                                        stereoFramesLoaded > 0 && leftMonoFramesLoaded > 0 && rightMonoFramesLoaded > 0)
-                                    {
-                                        findStatus = true;  // Frames loaded from cache
-                                        saveStatus = true;  // Can press save
-                                        loaded = true;
-
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    Debug.WriteLine($"Error loading cached results: {ex.Message}");
-                                    // Handle the error, e.g., show a message to the user
-                                }
-
-                                break;
-
-                            case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                                try
-                                {
-                                    stereoFramesLoaded = StereoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
-
-                                    if (stereoFramesLoaded is not null && stereoFramesLoaded > 0)
-                                    {
-                                        findStatus = true;  // Frames loaded from cache
-                                        saveStatus = true;  // Can press save
-                                        loaded = true;
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    Debug.WriteLine($"Error loading cached results: {ex.Message}");
-                                    // Handle the error, e.g., show a message to the user
-                                }
-                                break;
-
-                            case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-                                try
-                                {
-                                    leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                                    rightMonoFramesLoaded = RightMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
-
-                                    if (leftMonoFramesLoaded is not null && rightMonoFramesLoaded is not null &&
-                                        leftMonoFramesLoaded > 0 && rightMonoFramesLoaded > 0)
-                                    {
-                                        findStatus = true;  // Frames loaded from cache
-                                        saveStatus = true;  // Can press save
-                                        loaded = true;
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    Debug.WriteLine($"Error loading cached results: {ex.Message}");
-                                    // Handle the error, e.g., show a message to the user
-                                }
-                                break;
-
-                            case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-                                try
-                                {
-                                    leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-
-                                    if (leftMonoFramesLoaded is not null && leftMonoFramesLoaded > 0)
-                                    {
-                                        findStatus = true;  // Frames loaded from cache
-                                        saveStatus = true;  // Can press save
-                                        loaded = true;
-                                    }
-                                }
-                                catch (Exception ex)
-                                {
-                                    Debug.WriteLine($"Error loading cached results: {ex.Message}");
-                                    // Handle the error, e.g., show a message to the user
-                                }
-                                break;
-                        }
-
-                        // Check if stereo lock needed
-                        if (loaded)
-                        {
-                            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
-                            {
-                                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                                    // Override the sync frame if this already exist
-                                    // (they may have been set in LoadResults())
-                                    if (AppLaunchArgs.SyncFrameIndexLeft is not null && AppLaunchArgs.SyncFrameIndexRight is not null)
-                                    {
-                                        // Lock Media
-                                        StereoCalibrationHead.LockStereo((int)AppLaunchArgs.SyncFrameIndexLeft, 
-                                                                         (int)AppLaunchArgs.SyncFrameIndexRight);
-                                    }
-                                    break;
-                            }
-
-                        }
-
-
-                        // Check there are > 0 frames
-                        if (loaded)
-                        {
-                            bool warn = false;
-                            string contentText = string.Empty;
-
-                            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
-                            {
-                                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                                    if (stereoFramesLoaded == 0 || leftMonoFramesLoaded == 0 || rightMonoFramesLoaded == 0)
-                                    {
-                                        contentText = $"The cached results not loaded of incomplete.\n\n" +
-                                            $"   Stereo Frames Loaded: {stereoFramesLoaded}\n" +
-                                            $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n" +
-                                            $"   Right Mono Frames Loaded: {rightMonoFramesLoaded}\n";
-                                        warn = true;
-                                    }
-                                    break;
-
-                                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                                    if (stereoFramesLoaded == 0)
-                                    {
-                                        contentText = $"The cached results not loaded of incomplete.\n\n" +
-                                            $"   Stereo Frames Loaded: {stereoFramesLoaded}\n";
-                                        warn = true;
-                                    }
-                                    break;
-
-                                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-                                    if (leftMonoFramesLoaded == 0 || rightMonoFramesLoaded == 0)
-                                    {
-                                        contentText = $"The cached results not loaded of incomplete.\n\n" +
-                                            $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n" +
-                                            $"   Right Mono Frames Loaded: {rightMonoFramesLoaded}\n";
-                                        warn = true;
-                                    }
-                                    break;
-
-                                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-                                    if (leftMonoFramesLoaded == 0)
-                                    {
-                                        contentText = $"The cached results not loaded of incomplete.\n\n" +
-                                            $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n";
-                                        warn = true;
-                                    }
-                                    break;
-                            }
-
-                            if (warn)
-                            {
-                                if (noPrompts)
-                                {
-                                    Debug.WriteLine(contentText);
-                                }
-                                else
-                                {
-                                    // Inform the user that the cached results could not be loaded
-                                    var errorDialog = new ContentDialog
-                                    {
-                                        Title = "Error Loading Cached Results",
-                                        Content = contentText,
-                                        CloseButtonText = "OK"
-                                    };
-                                    errorDialog.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
-                                    await errorDialog.ShowAsync();
-                                }
-                            }
-                        }
-
-                        // Error loading
-                        if (!loaded)
-                        {
-                            if (noPrompts)
-                            {
-                                Debug.WriteLine("The cached results could not be loaded.");
-                            }
-                            else
-                            {
-                                // Inform the user that the cached results could not be loaded
-                                var errorDialog = new ContentDialog
-                                {
-                                    Title = "Error Loading Cached Results",
-                                    Content = "The cached results could not be loaded.",
-                                    CloseButtonText = "OK"
-                                };
-                                errorDialog.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
-                                await errorDialog.ShowAsync();
-                            }
-                        }
-
-                        SetUIControls();
-
-                    }
-                }
-
-
-                // Open Media Files
-                switch (calibProject.Data.Media.StereoMonoMediaSetMode)
-                {
-                    case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                        StereoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
-                        LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                        RightMonoCalibrationHead.OpenMedia(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
-                        break;
-
-                    case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                        StereoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
-                        break;
-
-                    case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-                        LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                        RightMonoCalibrationHead.OpenMedia(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
-                        break;
-
-                    case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-                        LeftMonoCalibrationHead.OpenMedia(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
-                        break;
-                }
-
-                // Ask user to sync the stereo videos
-                //???TODELETE The InfoBar and SetUIControl() now handles this
-                //if (StereoCalibrationHead.IsStereoLocked() == false)
-                //{
-                //    switch (calibProject.Data.Media.StereoMonoMediaSetMode)
-                //    {
-                //        case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                //        case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-
-                //            // Inform that user they need to lock the stereo calibration videos
-                //            var dialog = new ContentDialog
-                //            {
-                //                Title = "Stereo Calibration Videos",
-                //                Content = "Please sync the stereo calibration media and lock the videos before proceeding.",
-                //                CloseButtonText = "OK"
-                //            };
-                //            dialog.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
-                //            await dialog.ShowAsync();
-
-                //            // Start a timer to check if the stereo calibration is locked
-                //            StartStereoLockCheckTimer();
-                //            break;
-
-                //        default:
-                //            SetUIControls();
-                //            break;
-                //    }
-                //}
-
-                // Auto run
-                if (AppLaunchArgs.RunWithoutPrompts)
-                {
-                    if (findStatus == null && mediaFromCommandLine)
-                    {
-                        FindAppBarButton_Click(null!, null!);
-                    }
-                }
-
-                SetUIControls();
-
-            }
-            catch (Exception ex)
-            {
-                // Log or handle the exception as needed
-                Debug.WriteLine($"Error showing CalibInfoAndMediaContentDialog: {ex.Message}");
-            }
-
-        }
-
         /// <summary>
         /// If ready find the calibration frame
         /// </summary>
@@ -714,6 +487,8 @@ namespace Surveyor
                 return;
 
             var tasks = new List<Task>();
+
+            InfoBarProcessing.ShowProcessing("Finding calibration frames...");
 
             switch (calibProject.Data.Media.StereoMonoMediaSetMode)
             {
@@ -772,68 +547,10 @@ namespace Surveyor
                 // Handle/log properly
                 Debug.WriteLine($"Error in FindAppBarButton_Click: {ex}");
             }
+
+            InfoBarProcessing.HideProcessing();
+
         }
-
-        //private void FindAppBarButton_Click(object sender, RoutedEventArgs e)
-        //{
-        //    bool started = false;
-
-        //    if (calibProject is null)
-        //        return;
-
-        //    switch (calibProject.Data.Media.StereoMonoMediaSetMode)
-        //    {
-        //        case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-        //            if (StereoCalibrationHead.IsOpen() &&
-        //                (bool)StereoCalibrationHead.IsStereoLocked()! &&
-        //                LeftMonoCalibrationHead.IsOpen() &&
-        //                RightMonoCalibrationHead.IsOpen())
-        //            {
-        //                // Find the calibration frame in the stereo and mono calibration videos
-        //                StereoCalibrationHead.FindCalibrationFrameAsync();
-        //                LeftMonoCalibrationHead.FindCalibrationFrameAsync();
-        //                RightMonoCalibrationHead.FindCalibrationFrameAsync();
-        //                started = true;
-        //            }
-        //            break;
-        //        case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-        //            if (StereoCalibrationHead.IsOpen() &&
-        //                (bool)StereoCalibrationHead.IsStereoLocked()!)
-        //            {
-        //                // Find the calibration frame in the stereo videos
-        //                StereoCalibrationHead.FindCalibrationFrameAsync();
-        //                started = true;
-        //            }
-        //            break;
-        //        case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-        //            if (LeftMonoCalibrationHead.IsOpen() &&
-        //                RightMonoCalibrationHead.IsOpen())
-        //            {
-        //                // Find the calibration frame in the mono videos
-        //                LeftMonoCalibrationHead.FindCalibrationFrameAsync();
-        //                RightMonoCalibrationHead.FindCalibrationFrameAsync();
-        //                started = true;
-        //            }
-        //            break;
-        //        case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-        //            if (LeftMonoCalibrationHead.IsOpen())
-        //            {
-        //                // Find the calibration frame in the mono video
-        //                LeftMonoCalibrationHead.FindCalibrationFrameAsync();
-        //                started = true;
-        //            }
-        //            break;
-
-        //    }
-
-        //    if (started)
-        //    {
-        //        StartFindCheckTimer();
-        //        findStatus = false;
-        //        saveStatus = null;
-        //    }
-
-        //}
 
 
         /// <summary>
@@ -948,58 +665,58 @@ namespace Surveyor
             // Save the frames dataset
             InfoBarProcessing.UpdateMessage("Pre-saving stereo best frames...");
 
+            // Run SaveCachedResults in parallel where applicable
+            var preSaveTasks = new List<Task>();
             if (doStereo)
-            {
-                StereoCalibrationHead.SaveCachedResults();
-
-            }
+                preSaveTasks.Add(Task.Run(() => StereoCalibrationHead.SaveCachedResults()));
             if (doLeftMono && !useMonoCacheValues)
-            {
-                LeftMonoCalibrationHead.SaveCachedResults();
-            }
+                preSaveTasks.Add(Task.Run(() => LeftMonoCalibrationHead.SaveCachedResults()));
             if (doRightMono && !useMonoCacheValues)
-            {
-                RightMonoCalibrationHead.SaveCachedResults();
+                preSaveTasks.Add(Task.Run(() => RightMonoCalibrationHead.SaveCachedResults()));
 
+            if (preSaveTasks.Count > 0)
+            {
+                try { await Task.WhenAll(preSaveTasks); }
+                catch (Exception ex) { Debug.WriteLine($"Error pre-saving cached results: {ex}"); }
             }
 
-
-
-            // Find the calibration frame in the stereo videos
+            // Find the best frames from the mono calibration frames 
+            InfoBarProcessing.UpdateMessage("Best frames calc mono...");
             bool writePngFiles = SaveBestFrames.IsChecked == true;
-                       
+            preSaveTasks.Clear();
             if (doLeftMono)
             {
-                await DisplayStatusTextAsync("Best frames calc left mono...");
-                InProgress.IsActive = true;
-                await LeftMonoCalibrationHead.BestFramesCalcAndMonoCalibrationAsync(
+                preSaveTasks.Add(Task.Run(() => LeftMonoCalibrationHead.BestFramesCalcAndMonoCalibrationAsync(
                                                              calibProject,
                                                              true/*trueLeftFalseRight*/,
                                                              MovementMaxThreshold, 
                                                              BlurMaxThreshold,
                                                              MonoCornersMinThreshold,
                                                              useMonoCacheValues,
-                                                             writePngFiles);
-                InProgress.IsActive = false;
+                                                             writePngFiles)));
             }
             if (doRightMono)
             {
-                await DisplayStatusTextAsync("Best frames calc right mono...");
-                InProgress.IsActive = true;
-                await RightMonoCalibrationHead.BestFramesCalcAndMonoCalibrationAsync(
+                preSaveTasks.Add(Task.Run(() => RightMonoCalibrationHead.BestFramesCalcAndMonoCalibrationAsync(
                                                               calibProject,
                                                               false/*trueLeftFalseRight*/,
                                                               MovementMaxThreshold, 
                                                               BlurMaxThreshold,
                                                               MonoCornersMinThreshold,
                                                               useMonoCacheValues,
-                                                              writePngFiles);
-                InProgress.IsActive = false;
+                                                              writePngFiles)));
             }
+
+            if (preSaveTasks.Count > 0)
+            {
+                try { await Task.WhenAll(preSaveTasks); }
+                catch (Exception ex) { Debug.WriteLine($"Error find best mono frames: {ex}"); }
+            }
+
+            // Find the best frames from the stereo calibration frames
             if (doStereo)
             {
-                await DisplayStatusTextAsync("Best frames calc stereo...");
-                InProgress.IsActive = true;
+                InfoBarProcessing.UpdateMessage("Best frames calc stereo...");
 
                 if (calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray.Any(item => item != null) &&
                     calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray.Any(item => item != null))
@@ -1029,8 +746,8 @@ namespace Surveyor
                                 StereoCameraCalibration = calibrationStereoCameraData,
                             };
                             calibrationData.LeftCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
-                            calibrationData.LeftCameraCalibration.ImageSize[0, 0] = (int)calibProject.Data.Media.FrameSize.Width;
-                            calibrationData.LeftCameraCalibration.ImageSize[0, 1] = (int)calibProject.Data.Media.FrameSize.Height;
+                            calibrationData.LeftCameraCalibration.ImageSize[0, 0] = (int)calibProject.Data.Media.FrameWidth;
+                            calibrationData.LeftCameraCalibration.ImageSize[0, 1] = (int)calibProject.Data.Media.FrameHeight;
 
                             calibrationData.LeftCameraCalibration.ImageTotal = leftMonoCalibrationCameraData.ImageTotal;
                             calibrationData.LeftCameraCalibration.ImageUseable = leftMonoCalibrationCameraData.ImageUseable;
@@ -1039,8 +756,8 @@ namespace Surveyor
                             calibrationData.LeftCameraCalibration.RMS = leftMonoCalibrationCameraData.ReprojectionRMS;
 
                             calibrationData.RightCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
-                            calibrationData.RightCameraCalibration.ImageSize[0, 0] = (int)calibProject.Data.Media.FrameSize.Width;
-                            calibrationData.RightCameraCalibration.ImageSize[0, 1] = (int)calibProject.Data.Media.FrameSize.Height;
+                            calibrationData.RightCameraCalibration.ImageSize[0, 0] = (int)calibProject.Data.Media.FrameWidth;
+                            calibrationData.RightCameraCalibration.ImageSize[0, 1] = (int)calibProject.Data.Media.FrameHeight;
                             calibrationData.RightCameraCalibration.ImageTotal = rightMonoCalibrationCameraData.ImageTotal;
                             calibrationData.RightCameraCalibration.ImageUseable = rightMonoCalibrationCameraData.ImageUseable;
                             calibrationData.RightCameraCalibration.Intrinsic = rightMonoCalibrationCameraData.IntrinsicMatrix;
@@ -1070,39 +787,34 @@ namespace Surveyor
                         }
                     }
                 }
-
-                InProgress.IsActive = false;
             }
 
-            // Save the frames
+            // Save the frames dataset
+            InfoBarProcessing.UpdateMessage("Pre-saving stereo best frames...");
+
+            // Run SaveCachedResults in parallel where applicable
+            var postSaveTasks = new List<Task>();
             if (doStereo)
+                postSaveTasks.Add(Task.Run(() => StereoCalibrationHead.SaveCachedResults()));
+            if (doLeftMono && !useMonoCacheValues)
+                postSaveTasks.Add(Task.Run(() => LeftMonoCalibrationHead.SaveCachedResults()));
+            if (doRightMono && !useMonoCacheValues)
+                postSaveTasks.Add(Task.Run(() => RightMonoCalibrationHead.SaveCachedResults()));
+
+            if (postSaveTasks.Count > 0)
             {
-                await DisplayStatusTextAsync("Save stereo best frames...");
-                InProgress.IsActive = true;
-                StereoCalibrationHead.SaveCachedResults();
-                InProgress.IsActive = false;
+                try { await Task.WhenAll(postSaveTasks); }
+                catch (Exception ex) { Debug.WriteLine($"Error post saving cached results: {ex}"); }
             }
-            if (doLeftMono)
-            {
-                await DisplayStatusTextAsync("Save left mono best frames...");
-                InProgress.IsActive = true;
-                LeftMonoCalibrationHead.SaveCachedResults();
-                InProgress.IsActive = false;
-            }
-            if (doRightMono)
-            {
-                await DisplayStatusTextAsync("Save right mono best frames...");
-                InProgress.IsActive = true;
-                RightMonoCalibrationHead.SaveCachedResults();
-                InProgress.IsActive = false;
-            }
-            if (doLeftMono || doRightMono)
+
+            // Save the calibration project file
+            if (doLeftMono || doRightMono || doStereo)
             {
                 calibProject.ProjectSave();                   
             }
 
-            await DisplayStatusTextAsync("");
-            InProgress.IsActive = false;
+
+            InfoBarProcessing.HideProcessing();
             saveStatus = true;  // Allowed to press the save button again
             SetUIControls();
         }
@@ -1117,6 +829,7 @@ namespace Surveyor
         /// <param name="leftMonoCalibrationCameraData"></param>
         /// <param name="rightMonoCalibrationCameraData"></param>
         /// <returns></returns>
+        [Obsolete]
         private static CalibrationParameters? ReturnBestMonoCalibrationCameraData(
                                     MonoCalibrationCameraData?[] leftMonoCalibrationCameraData,
                                     MonoCalibrationCameraData?[] rightMonoCalibrationCameraData)
@@ -1153,66 +866,6 @@ namespace Surveyor
         }
 
 
-        ///// <summary>
-        ///// Returns the stereo calibration result set with the best RMS
-        ///// </summary>
-        ///// <param name="calibProject"></param>
-        ///// <returns></returns>
-        //private static CalibrationParameters? ReturnBestStereoCalibrationCameraData(CalibProject calibProject)
-        //{
-        //    double bestScore = double.MaxValue;
-        //    int bestIndex = -1;
-
-        //    for (int i = 0; i < calibProject.Data.CalibrationStereoCameraDataArray.Length; i++)
-        //    {
-        //        var stereoResult = calibProject.Data.CalibrationStereoCameraDataArray[i];
-
-
-        //        if (stereoResult is null)
-        //            continue;
-
-        //        // Define weighted score (you can tune weights as needed)
-        //        double score = stereoResult.RMS + /*???0.2 * stereoResult.MaxError*/;
-
-        //        if (score < bestScore)
-        //        {
-        //            bestScore = score;
-        //            bestIndex = i;
-        //        }
-        //    }
-
-        //    if (bestIndex == -1)
-        //        return null;
-
-        //    return (CalibrationParameters?)bestIndex;
-        //}
-
-
-        /// <summary>
-        /// Display and copy the cache folder to the clipbaord
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void ShowCacheFolderButton_Click(object sender, RoutedEventArgs e) => _ = ShowCacheFolderButtonAsync();
-        private async Task ShowCacheFolderButtonAsync()
-        {
-            // Get local folder path
-            StorageFolder localFolder = ApplicationData.Current.LocalFolder;
-
-            var dialog = new ContentDialog
-            {
-                Title = "Cached Results Folder",
-                Content = $"The cached results are stored in:\n\n{localFolder.Path}\n\nThe path has been copied to the clipboard.",
-                CloseButtonText = "Cancel",
-                XamlRoot = this.Content.XamlRoot // Set the XamlRoot for proper display
-            };
-            
-            await dialog.ShowAsync();
-
-            var dataPackage = new DataPackage();
-            dataPackage.SetText(localFolder.Path);
-            Clipboard.SetContent(dataPackage);
-        }
 
 
         /// <summary>
@@ -1220,6 +873,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
+        [Obsolete]
         private void MovementSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
         {
             MovementMaxThresholdText.Text = $"{MovementMaxThreshold:F1}"; // Update the text to show the current value
@@ -1231,16 +885,19 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
+        [Obsolete]
         private void BlurSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
         {
             BlurMaxThresholdText.Text = $"{BlurMaxThreshold:F1}"; // Update the text to show the current value
         }
 
+        [Obsolete]
         private void MonoCornersSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
         {
             MonoCornersMinThresholdText.Text = $"{MonoCornersMinThreshold}";
         }
 
+        [Obsolete]
         private void StereoCornersSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
         {
             StereoCornersMinThresholdText.Text = $"{StereoCornersMinThreshold}";
@@ -1278,32 +935,11 @@ namespace Surveyor
                 CalibrationMediaUserControl.SaveForContentDialog(calibProject);
 
                 // Save the calib project file
-                var file = await PickCalibFileToSaveAsync(this); // 'this' refers to your Window instance
-                if (file != null)
+                if (await SaveAsProjectAsync() == 0)
                 {
-                    try
-                    {
-                        // Save the calib project data to the file
-                        int ret = await calibProject.ProjectSaveAsAsync(file.Path);
-                        if (ret == 0)
-                        {
-                            Debug.WriteLine($"Calibration project saved to {file.Path}");
-                            SetTitle(System.IO.Path.GetFileNameWithoutExtension(calibProject.Data.Info.ProjectFileName));
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"Error saving calibration project: {ex.Message}");
-                        // Handle the error, e.g., show a message to the user
-                    }
+                    // Open the mdeia
+                    await OpenMediaSetsAsync(calibProject, false/*forceUsdCacheIfAvalable*/, false/*noPrompts*/);
                 }
-                else
-                {
-                    Debug.WriteLine("No file selected for saving calibration project.");
-                }
-
-                // Open the mdeia
-                await OpenMediaAsync(calibProject, false/*forceUsdCacheIfAvalable*/, false/*noPrompts*/);
             }
         }
 
@@ -1313,10 +949,51 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FileProjectOpen_Click(object sender, RoutedEventArgs e)
+        private void FileProjectOpen_Click(object sender, RoutedEventArgs e) => _ = FileProjectOpenClickAsync();
+        private async Task FileProjectOpenClickAsync()
         {
+            // First check if an existing survey is already open
+            if (await CheckForOpenProjectAndCloseAsync() == true)
+            {
+                // Create the file picker object
+                FileOpenPicker openPicker = new()
+                {
+                    ViewMode = PickerViewMode.Thumbnail, // Can be List or Thumbnail
+                    SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+                };
 
+                // Add file type filters
+                openPicker.FileTypeFilter.Add(".calproj");
+
+                // Associate the file picker with the current window
+                IntPtr hWnd = WindowNative.GetWindowHandle(this);
+                InitializeWithWindow.Initialize(openPicker, hWnd);
+
+                // Show the picker to the user
+                StorageFile file = await openPicker.PickSingleFileAsync();
+
+                // If a file was picked, handle it
+                if (file is not null)
+                {
+                    int ret = await OpenProjectAsync(file.Path);
+
+                    if (ret == 0)
+                    {
+                        // Add to Recent Projects list
+                        AddToRecentProjects(file.Path);
+                        UpdateRecentProjectsMenu();
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"FileProjectOpenClickAsync: OpenProjectAsync() failed, survey path:{file.Path}, ret = {ret}");
+                    }
+                }
+
+                // Enable/Disable menu items based on the current survey state
+                SetUIControls();
+            }
         }
+
 
 
         /// <summary>
@@ -1324,9 +1001,10 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FileProjectSave_Click(object sender, RoutedEventArgs e)
+        private void FileProjectSave_Click(object sender, RoutedEventArgs e) => _ = FileProjectSaveClickAsync();
+        private async Task FileProjectSaveClickAsync()
         {
-
+            await FileProjectSaveOrSaveAsAsync();
         }
 
 
@@ -1335,9 +1013,10 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FileProjectSaveAs_Click(object sender, RoutedEventArgs e)
+        private void FileProjectSaveAs_Click(object sender, RoutedEventArgs e) => _ = FileProjectSaveAsClickAsync();
+        private async Task FileProjectSaveAsClickAsync()
         {
-
+            await FileProjectSaveOrSaveAsAsync();
         }
 
 
@@ -1346,9 +1025,88 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FileProjectClose_Click(object sender, RoutedEventArgs e)
+        private void FileProjectClose_Click(object sender, RoutedEventArgs e) => _ = FileProjectCloseClickAsync();
+        private async Task FileProjectCloseClickAsync()
         {
+            await CheckForOpenProjectAndCloseAsync();
+        }
 
+
+        /// <summary>
+        /// Used to open a selected recent project file from the 'Recent Projects' sub menu
+        /// Note this method is dynamically connected to the menu items created in
+        /// the UpdateRecentProjectsMenu method.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileRecentProject_Click(object sender, RoutedEventArgs e) => _ = FileRecentProjectClickAsync(sender);
+        private async Task FileRecentProjectClickAsync(object sender)
+        {
+            var menuItem = sender as MenuFlyoutItem;
+            if (menuItem is not null)
+            {
+                if (menuItem.Tag is string filePath)
+                {
+                    // First check if an existing project is already open
+                    if (await CheckForOpenProjectAndCloseAsync() == true)
+                    {
+                        // Open project in the regular way
+                        int ret = await OpenProjectAsync(filePath);
+
+                        if (ret == 0)
+                        {
+                            // Force to the top of the recent projects list
+                            // Note this project is definately in the recent project list
+                            // but may be the top item. As the new last opened project it
+                            // should be top
+                            AddToRecentProjects(filePath);
+                            UpdateRecentProjectsMenu();
+                        }
+                        else if (ret != -999/*User aborted*/)
+                        {
+                            // Report the missing survey file
+                            // Survey needs to be saved before a frame can be saved
+                            var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
+
+                            // Create the ContentDialog instance
+                            var dialog = new ContentDialog
+                            {
+                                Title = $"Project file missing",
+                                Content = new StackPanel
+                                {
+                                    Orientation = Orientation.Horizontal,
+                                    Spacing = 10,
+                                    Children =
+                                    {
+                                        warningIcon, // Add the exclamation icon to the dialog content
+                                        new TextBlock
+                                        {
+                                            Text = $"{filePath}",
+                                            TextWrapping = TextWrapping.Wrap,
+                                            MaxWidth = 400 // Adjust based on your app's layout
+                                        }
+                                    }
+                                },
+
+                                CloseButtonText = "Cancel",
+                                DefaultButton = ContentDialogButton.Close, // Set "Cancel" as the default button
+
+                                // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
+                                XamlRoot = this.Content.XamlRoot
+                            };
+
+                            // Show the dialog and await the result
+                            await dialog.ShowAsync();
+
+                            // Recent survey file is missing, remove from the recent file list
+                            RemoveToRecentSurveys(filePath);
+                        }
+                    }
+                }
+
+                // Enable/Disable menu items based on the current survey state
+                SetUIControls();
+            }
         }
 
 
@@ -1517,9 +1275,960 @@ namespace Surveyor
         }
 
 
+
+
+        /// <summary>
+        /// Used to set the unsaved data indicated in the title bar
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void Project_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(CalibProject.IsDirty))
+            {
+                if (calibProject is not null)
+                {
+                    if (calibProject.IsDirty)
+                        SetTitleSaveStatus("Unsaved");
+                    else
+                        SetTitleSaveStatus("");
+                }
+            }
+        }
+
         ///
         /// PRIVATE
         /// 
+
+
+        /// <summary>
+        /// Open the calibration projec files
+        /// </summary>
+        /// <param name="surveyFileName"></param>
+        /// <returns>-999 If user aborts</returns>
+        private async Task<int> OpenProjectAsync(string projectFileSpec)
+        {
+            int ret = 0;
+
+            if (calibProject is null)
+            {
+                calibProject ??= new CalibProject();
+                calibProject.PropertyChanged += Project_PropertyChanged;
+            }
+
+            ret = await calibProject.ProjectLoadAsync(projectFileSpec);
+
+            if (ret == 0 &&
+                calibProject.Data is not null && calibProject.Data.Media is not null && calibProject.Data.Media.MediaPath is not null)
+            {
+                // Check if the left media file(s) exist
+                ret = await CheckIfMediaFileExistsAsync();
+
+                if (ret == 0)
+                {
+                    // Open Media Files and bind the MediaPlayers if IsSynchronized is true
+                    if (await OpenMediaSetsAsync(calibProject, false/*force cache use*/, false/*no prompts*/) == true)
+                    {
+                        // Remember the survey folder
+                        SettingsManagerLocal.ProjectFolder = System.IO.Path.GetDirectoryName(projectFileSpec);
+
+                        Debug.WriteLine($"Project Loaded");
+                    }
+                    else
+                        // Failed to open media files
+                        calibProject = null;
+                }
+                else
+                    // Failed to open media files
+                    calibProject = null;
+            }
+            else
+            {
+                Debug.WriteLine($"Failed to open survey file:{projectFileSpec}, error = {ret}");
+                calibProject = null;
+            }
+
+            SetUIControls();
+
+            return ret;
+        }
+
+        /// <summary>
+        /// Check that media files list exist incase they have been renamed, moved or deleted.
+        /// Allow the user to try to find the missing media file(s) or cancel loading the survey
+        /// </summary>
+        /// <param name="channel"></param>
+        /// <param name="mediaPath"></param>
+        /// <param name="mediaFileNames"></param>
+        /// <returns></returns>
+        private async Task<int> CheckIfMediaFileExistsAsync()
+        {
+            int ret = 0;
+
+            if (calibProject is null)
+                return -1;
+
+            CalibProject.DataClass.MediaClass media = calibProject.Data.Media;
+            
+            string fileName;
+            for (int index = 0; index < 4; index++)
+            {
+                bool promptForMediaFile = false;
+
+                fileName = index switch
+                {
+                    0 => media.LeftMonoMP4FileName,
+                    1 => media.RightMonoMP4FileName,
+                    2 => media.LeftStereoMP4FileName,
+                    3 => media.RightStereoMP4FileName,
+                    _ => "",
+                };
+
+                if (!string.IsNullOrEmpty(fileName))
+                {
+                    string fileSpec = "";
+
+                    if (media.MediaPath is not null)
+                    {
+                        fileSpec = System.IO.Path.Combine(media.MediaPath, fileName);
+
+                        // If fileSpec a relative path then use the path from the survey file spec
+                        if (!System.IO.Path.IsPathRooted(fileSpec))
+                        {
+                            // Get the directory portion of the fully qualified projectFileSpec
+                            string baseDirectory = calibProject.Data.Info.ProjectPath;
+
+                            // Combine the base directory with the relative fileSpec
+                            fileSpec = System.IO.Path.GetFullPath(System.IO.Path.Combine(baseDirectory, fileSpec));
+                        }
+
+                        if (System.IO.File.Exists(fileSpec) == false)
+                            promptForMediaFile = true;
+                    }
+                    else
+                        promptForMediaFile = true;
+
+                    if (promptForMediaFile)
+                    {
+                        // Media file is missing. Report to the user and ask if they would like to try to find the file
+                        string mediaType = fileName = index switch
+                        {
+                            0 => "left mono",
+                            1 => "right mono",
+                            2 => "left stereo",
+                            3 => "right stereo",
+                            _ => "",
+                        };
+
+                        string message;
+
+                        if (media.MediaPath is not null)
+                            message = $"The {mediaType} media file '{fileSpec}' does not exist." +
+                                " Press 'Ok' to try to find the file. Press 'Cancel' to stop loading the project";
+                        else
+                            message = $"The {mediaType} media file '{fileName}' does not exist." +
+                                " Press 'Ok' to try to find the file. Press 'Cancel' to stop loading the project";
+
+                        // Create a SymbolIcon with an exclamation mark
+                        var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
+
+                        // Create the ContentDialog instance
+                        var dialog = new ContentDialog
+                        {
+                            Title = $"{mediaType} media file missing",
+                            Content = new StackPanel
+                            {
+                                Orientation = Orientation.Horizontal,
+                                Spacing = 10,
+                                MaxWidth = 500,
+                                Children =
+                                {
+                                    warningIcon,
+                                    new TextBlock
+                                    {
+                                        Text = message,
+                                        TextWrapping = TextWrapping.Wrap,
+                                        MaxWidth = 400
+                                    }
+                                }
+                            },
+                            PrimaryButtonText = "OK",
+                            SecondaryButtonText = "Cancel",
+                            DefaultButton = ContentDialogButton.Primary, // Set "OK" as the default button
+
+                            // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
+                            XamlRoot = this.Content.XamlRoot
+                        };
+
+                        // Show the dialog and await the result
+                        var result = await dialog.ShowAsync();
+
+                        // Handle the dialog result
+                        if (result == ContentDialogResult.Primary)
+                        {
+                            FileOpenPicker openPicker = new();
+                            IntPtr hwnd = WindowNative.GetWindowHandle(this); // Assuming 'this' is your current window.
+                            InitializeWithWindow.Initialize(openPicker, hwnd);
+
+                            openPicker.ViewMode = PickerViewMode.Thumbnail; // Makes it easier for users to find their files visually.
+                            openPicker.SuggestedStartLocation = PickerLocationId.PicturesLibrary; // Suggest starting in the Pictures library.
+                            openPicker.FileTypeFilter.Add(".mp4");
+
+
+                            var file = await openPicker.PickSingleFileAsync();
+                            if (file is not null)
+                            {
+                                // Adjust media file name
+                                string fileNameOnly = System.IO.Path.GetFileName(file.Name);
+                                switch (index)
+                                {
+                                    case 0:
+                                        media.LeftMonoMP4FileName = fileNameOnly;
+                                        break;
+                                    case 1:
+                                        media.RightMonoMP4FileName = fileNameOnly;
+                                        break;
+                                    case 2:
+                                        media.LeftStereoMP4FileName = fileNameOnly;
+                                        break;
+                                    case 3:
+                                        media.RightStereoMP4FileName = fileNameOnly;
+                                        break;
+                                    default:
+                                        break;
+                                };
+
+                                string extractedMediaPath = System.IO.Path.GetDirectoryName(file.Path) ?? "";
+
+                                // Check if the media path needs to change
+                                if (media.MediaPath is not null)
+                                {
+                                    if (media.MediaPath != extractedMediaPath)
+                                        media.MediaPath = extractedMediaPath;
+                                }
+                                else
+                                {
+                                    // Media is missing so just apply new path
+                                    media.MediaPath = extractedMediaPath;
+                                }
+                            }
+                            else
+                            {
+                                ret = -1;
+                            }
+                        }
+                        else if (result == ContentDialogResult.Secondary)
+                        {
+                            // "Cancel" button clicked
+                            ret = -999;
+                        }
+                    }
+                }
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Centralized project save
+        /// </summary>
+        /// <returns></returns>
+        private async Task<int> FileProjectSaveOrSaveAsAsync()
+        {
+            int ret = -1;
+
+            if (calibProject is not null)
+            {
+                if (calibProject.Data.Info.ProjectPath == null || calibProject.Data.Info.ProjectFileName == null)
+                {
+                    // Not saved yet so use 'Save As'
+                    ret = await SaveAsProjectAsync();
+                }
+                else
+                {
+                    // Save
+                    ret = calibProject.ProjectSave();
+                }
+            }
+
+            SetUIControls();
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Save the current calibration project to a new file
+        /// </summary>
+        /// <returns></returns>
+        private async Task<int> SaveAsProjectAsync()
+        {
+            int ret = 0;
+
+            if (calibProject is not null)
+            {
+                var file = await PickCalProjFileToSaveAsync(this); // 'this' refers to your Window instance
+                if (file != null)
+                {
+                    SetTitle(file.Name);
+                    SetTitleSaveStatus("Saving...");
+
+                    // Prevent updates to the remote version of the file until we finish making changes and call CompleteUpdatesAsync.
+                    CachedFileManager.DeferUpdates(file);
+
+                    try
+                    {
+                        // Save the calib project data to the file
+                        ret = await calibProject.ProjectSaveAsAsync(file.Path);
+
+                        // Let Windows know that we're finished changing the file so the other app can update the remote version of the file.
+                        FileUpdateStatus status = await CachedFileManager.CompleteUpdatesAsync(file);
+                        if (status == FileUpdateStatus.Complete)
+                        {
+                            Debug.WriteLine($"File {file.Path} saved successfully.");
+
+                            // Add to Recent Surveys
+                            AddToRecentProjects(file.Path);
+                            UpdateRecentProjectsMenu();
+
+                            Debug.WriteLine($"Calibration project saved to {file.Path}");
+                            SetTitle(System.IO.Path.GetFileNameWithoutExtension(calibProject.Data.Info.ProjectFileName));
+
+                            // Remember the survey folder                        
+                            SettingsManagerLocal.ProjectFolder = System.IO.Path.GetDirectoryName(file.Path);
+                        }
+                        else
+                        {
+                            ret = -1;
+                            Debug.WriteLine($"Failed to save file {file.Path}.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"Error saving calibration project: {ex.Message}");
+                        // Handle the error, e.g., show a message to the user
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine("No file selected for saving calibration project.");
+                }
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Used to pick a .calib file to save the calibration project
+        /// </summary>
+        /// <param name="window"></param>
+        /// <returns></returns>
+        private static async Task<StorageFile?> PickCalProjFileToSaveAsync(Window window)
+        {
+            var savePicker = new FileSavePicker();
+
+            // Initialize with the window handle
+            var hWnd = WindowNative.GetWindowHandle(window);
+            InitializeWithWindow.Initialize(savePicker, hWnd);
+
+            // Set file type choices and default extension
+            savePicker.FileTypeChoices.Add("Calibration Project", [".calproj"]);
+            savePicker.DefaultFileExtension = ".calproj";
+
+            // Optional: set suggested file name
+            savePicker.SuggestedFileName = "my_calibration_project";
+
+            StorageFile file = await savePicker.PickSaveFileAsync();
+            return file;
+        }
+
+
+        /// <summary>
+        /// Open all the media files for the calibration project
+        /// </summary>
+        /// <param name="calibProject"></param>
+        /// <param name="forceUsdCacheIfAvalable"></param>
+        /// <param name="noPrompts"></param>
+        /// <returns></returns>
+        private async Task<bool> OpenMediaSetsAsync(CalibProject calibProject, bool forceUsdCacheIfAvalable, bool noPrompts)
+        {
+            bool ret = false;
+
+            try
+            {
+                // Reset
+                findStatus = null;  // No frames loaded
+                saveStatus = null;  // Can't press save
+
+
+                // Check if cached results files are available
+                bool cachedResultsAvailable = CachedResultsFileExists();
+
+                // Ask the user if they want to use cached results (a full set of results is required)
+                if (cachedResultsAvailable == true)
+                {
+                    var dialogUseCahceResults = new ContentDialog
+                    {
+                        Title = "Cached Results Available",
+                        Content = "This is a set of cache results available.  Would you like to use them?",
+                        PrimaryButtonText = "Yes",
+                        CloseButtonText = "No"
+                    };
+                    dialogUseCahceResults.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
+
+                    if (forceUsdCacheIfAvalable || await dialogUseCahceResults.ShowAsync() == ContentDialogResult.Primary)
+                    {
+                        bool loaded = false;
+                        int? stereoFramesLoaded = null;
+                        int? leftMonoFramesLoaded = null;
+                        int? rightMonoFramesLoaded = null;
+
+                        // Load cached results
+                        switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                        {
+                            case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                                try
+                                {
+                                    stereoFramesLoaded = StereoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
+                                    leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
+                                    rightMonoFramesLoaded = RightMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
+
+                                    if (stereoFramesLoaded is not null && leftMonoFramesLoaded is not null && rightMonoFramesLoaded is not null &&
+                                        stereoFramesLoaded > 0 && leftMonoFramesLoaded > 0 && rightMonoFramesLoaded > 0)
+                                    {
+                                        findStatus = true;  // Frames loaded from cache
+                                        saveStatus = true;  // Can press save
+                                        loaded = true;
+
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"Error loading cached results: {ex.Message}");
+                                    // Handle the error, e.g., show a message to the user
+                                }
+
+                                break;
+
+                            case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                                try
+                                {
+                                    stereoFramesLoaded = StereoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path);
+
+                                    if (stereoFramesLoaded is not null && stereoFramesLoaded > 0)
+                                    {
+                                        findStatus = true;  // Frames loaded from cache
+                                        saveStatus = true;  // Can press save
+                                        loaded = true;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"Error loading cached results: {ex.Message}");
+                                    // Handle the error, e.g., show a message to the user
+                                }
+                                break;
+
+                            case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                                try
+                                {
+                                    leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
+                                    rightMonoFramesLoaded = RightMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.RightMonoMP4Path, string.Empty);
+
+                                    if (leftMonoFramesLoaded is not null && rightMonoFramesLoaded is not null &&
+                                        leftMonoFramesLoaded > 0 && rightMonoFramesLoaded > 0)
+                                    {
+                                        findStatus = true;  // Frames loaded from cache
+                                        saveStatus = true;  // Can press save
+                                        loaded = true;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"Error loading cached results: {ex.Message}");
+                                    // Handle the error, e.g., show a message to the user
+                                }
+                                break;
+
+                            case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                                try
+                                {
+                                    leftMonoFramesLoaded = LeftMonoCalibrationHead.LoadCachedResults(calibProject.Data.Media.LeftMonoMP4Path, string.Empty);
+
+                                    if (leftMonoFramesLoaded is not null && leftMonoFramesLoaded > 0)
+                                    {
+                                        findStatus = true;  // Frames loaded from cache
+                                        saveStatus = true;  // Can press save
+                                        loaded = true;
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    Debug.WriteLine($"Error loading cached results: {ex.Message}");
+                                    // Handle the error, e.g., show a message to the user
+                                }
+                                break;
+                        }
+
+                        // Check if stereo lock needed
+                        if (loaded)
+                        {
+                            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                            {
+                                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                                    // Override the sync frame if this already exist
+                                    // (they may have been set in LoadResults())
+                                    if (AppLaunchArgs.SyncFrameIndexLeft is not null && AppLaunchArgs.SyncFrameIndexRight is not null)
+                                    {
+                                        // Lock Media
+                                        StereoCalibrationHead.LockStereo((int)AppLaunchArgs.SyncFrameIndexLeft,
+                                                                         (int)AppLaunchArgs.SyncFrameIndexRight);
+                                    }
+                                    break;
+                            }
+
+                        }
+
+
+                        // Check there are > 0 frames
+                        if (loaded)
+                        {
+                            bool warn = false;
+                            string contentText = string.Empty;
+
+                            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                            {
+                                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                                    if (stereoFramesLoaded == 0 || leftMonoFramesLoaded == 0 || rightMonoFramesLoaded == 0)
+                                    {
+                                        contentText = $"The cached results not loaded of incomplete.\n\n" +
+                                            $"   Stereo Frames Loaded: {stereoFramesLoaded}\n" +
+                                            $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n" +
+                                            $"   Right Mono Frames Loaded: {rightMonoFramesLoaded}\n";
+                                        warn = true;
+                                    }
+                                    break;
+
+                                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                                    if (stereoFramesLoaded == 0)
+                                    {
+                                        contentText = $"The cached results not loaded of incomplete.\n\n" +
+                                            $"   Stereo Frames Loaded: {stereoFramesLoaded}\n";
+                                        warn = true;
+                                    }
+                                    break;
+
+                                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                                    if (leftMonoFramesLoaded == 0 || rightMonoFramesLoaded == 0)
+                                    {
+                                        contentText = $"The cached results not loaded of incomplete.\n\n" +
+                                            $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n" +
+                                            $"   Right Mono Frames Loaded: {rightMonoFramesLoaded}\n";
+                                        warn = true;
+                                    }
+                                    break;
+
+                                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                                    if (leftMonoFramesLoaded == 0)
+                                    {
+                                        contentText = $"The cached results not loaded of incomplete.\n\n" +
+                                            $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n";
+                                        warn = true;
+                                    }
+                                    break;
+                            }
+
+                            if (warn)
+                            {
+                                if (noPrompts)
+                                {
+                                    Debug.WriteLine(contentText);
+                                }
+                                else
+                                {
+                                    // Inform the user that the cached results could not be loaded
+                                    var errorDialog = new ContentDialog
+                                    {
+                                        Title = "Error Loading Cached Results",
+                                        Content = contentText,
+                                        CloseButtonText = "OK"
+                                    };
+                                    errorDialog.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
+                                    await errorDialog.ShowAsync();
+                                }
+                            }
+                        }
+
+                        // Error loading
+                        if (!loaded)
+                        {
+                            if (noPrompts)
+                            {
+                                Debug.WriteLine("The cached results could not be loaded.");
+                            }
+                            else
+                            {
+                                // Inform the user that the cached results could not be loaded
+                                var errorDialog = new ContentDialog
+                                {
+                                    Title = "Error Loading Cached Results",
+                                    Content = "The cached results could not be loaded.",
+                                    CloseButtonText = "OK"
+                                };
+                                errorDialog.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
+                                await errorDialog.ShowAsync();
+                            }
+                        }
+
+                        SetUIControls();
+                    }
+                }
+
+
+                // Open Media Files
+                var tasks = new List<Task>();
+
+                InfoBarProcessing.ShowProcessing("Open Media...");
+
+                bool openStereo = false;
+                bool openLeftMono = false;
+                bool openRightMono = false;
+
+                switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                {
+                    case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                        openStereo = true;
+                        openLeftMono = true;
+                        openRightMono = true;
+                        break;
+
+                    case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                        openStereo = true;
+                        break;
+
+                    case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                        openLeftMono = true;
+                        openRightMono = true;
+                        break;
+
+                    case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                        openLeftMono = true;
+                        break;
+                }
+
+                int taskIndex = 0;
+                int taskStereoOpenIndex = -1;
+                int taskLeftMonoOpenIndex = -1;
+                int taskRightMonoOpenIndex = -1;
+
+                if (openStereo)
+                {
+                    tasks.Add(StereoCalibrationHead.OpenMediaAsync(calibProject.Data.Media.LeftStereoMP4Path, calibProject.Data.Media.RightStereoMP4Path));
+                    taskStereoOpenIndex = taskIndex++;
+                }
+                if (openLeftMono)
+                {
+                    tasks.Add(LeftMonoCalibrationHead.OpenMediaAsync(calibProject.Data.Media.LeftMonoMP4Path, string.Empty));
+                    taskLeftMonoOpenIndex = taskIndex++;
+                }
+                if (openRightMono)
+                {
+                    tasks.Add(RightMonoCalibrationHead.OpenMediaAsync(calibProject.Data.Media.RightMonoMP4Path, string.Empty));
+                    taskRightMonoOpenIndex = taskIndex++;
+                }
+
+                try
+                {
+                    // Run all finds in parallel, but still observe completion and exceptions
+                    await Task.WhenAll(tasks);
+
+                    // Get result of each task
+                    bool openStereoResult = true;
+                    bool openLeftMonoResult = true;
+                    bool openRightMonoResult = true;
+
+                    if (openStereo)
+                        openStereoResult = await ((Task<bool>)tasks[taskStereoOpenIndex]);
+                    if (openLeftMono)
+                        openLeftMonoResult = await ((Task<bool>)tasks[taskLeftMonoOpenIndex]);
+                    if (openRightMono)
+                        openRightMonoResult = await ((Task<bool>)tasks[taskRightMonoOpenIndex]);
+
+                    // Check if any failed
+                    if ((openStereo && !openStereoResult) ||
+                        (openLeftMono && !openLeftMonoResult) ||
+                        (openRightMono && !openRightMonoResult))
+                    {
+                        Debug.WriteLine($"Error opening media files: Stereo Result={openStereoResult}, Left Mono Result={openLeftMonoResult}, Right Mono Result={openRightMonoResult}");
+                    }
+                    else
+                    {
+                        // Get the frame size
+                        (int stereoFrameWidth, int stereoFrameHeight) = StereoCalibrationHead.GetFrameSize();
+                        (int leftMonoFrameWidth, int leftMonoFrameHeight) = LeftMonoCalibrationHead.GetFrameSize();
+                        (int rightMonoFrameWidth, int rightMonoFrameHeight) = RightMonoCalibrationHead.GetFrameSize();
+
+                        bool frameSizeOk = false;
+                        int frameWidth = -1;
+                        int frameHeight = -1;
+                        switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                        {
+                            case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                                if (stereoFrameWidth != 0 && stereoFrameHeight != 0 &&
+                                    stereoFrameWidth == leftMonoFrameWidth &&
+                                    leftMonoFrameWidth == rightMonoFrameWidth &&
+                                    stereoFrameHeight == leftMonoFrameHeight &&
+                                    leftMonoFrameHeight == rightMonoFrameHeight)
+                                {
+                                    frameWidth = stereoFrameWidth;
+                                    frameHeight = stereoFrameHeight;
+                                    frameSizeOk = true;
+                                }
+                                break;
+
+                            case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                                if (stereoFrameWidth != 0 && stereoFrameHeight != 0)
+                                {
+                                    frameWidth = stereoFrameWidth;
+                                    frameHeight = stereoFrameHeight;
+                                    frameSizeOk = true;
+                                }
+                                break;
+
+                            case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                                if (leftMonoFrameWidth != 0 && leftMonoFrameHeight != 0 &&
+                                    leftMonoFrameWidth == rightMonoFrameWidth &&
+                                    leftMonoFrameHeight == rightMonoFrameHeight)
+                                {
+                                    frameWidth = stereoFrameWidth;
+                                    frameHeight = stereoFrameHeight;
+                                    frameSizeOk = true;
+                                }
+                                break;
+
+                            case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                                if (leftMonoFrameWidth != 0 && leftMonoFrameHeight != 0)
+                                {
+                                    frameWidth = stereoFrameWidth;
+                                    frameHeight = stereoFrameHeight;
+                                    frameSizeOk = true;
+                                }
+                                break;
+                        }
+
+                        if (frameSizeOk)
+                        {
+                            calibProject.Data.Media.FrameWidth = frameWidth;
+                            calibProject.Data.Media.FrameHeight = frameHeight;
+
+                            // Success
+                            ret = true;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    // Handle/log properly
+                    Debug.WriteLine($"Error in OpenMediaSetsAsync: {ex}");
+                }
+
+                InfoBarProcessing.HideProcessing();
+
+                SetUIControls();
+
+            }
+            catch (Exception ex)
+            {
+                // Log or handle the exception as needed
+                Debug.WriteLine($"Error showing CalibInfoAndMediaContentDialog: {ex.Message}");
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Close Media Files
+        /// </summary>
+        private async Task CloseMediaSetsAsync(bool isExisting = false)
+        {
+            if (calibProject is not null)
+            {
+                // Settle
+                await Task.Delay(50);
+
+                // Close Media Files
+                bool closeStereo = false;
+                bool closeLeftMono = false;
+                bool closeRightMono = false;
+
+                switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                {
+                    case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                        closeStereo = true;
+                        closeLeftMono = true;
+                        closeRightMono = true;
+                        break;
+
+                    case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                        closeStereo = true;
+                        break;
+
+                    case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                        closeLeftMono = true;
+                        closeRightMono = true;
+                        break;
+
+                    case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                        closeLeftMono = true;
+                        break;
+                }
+
+                try
+                {
+                    if (closeStereo)
+                        StereoCalibrationHead.CloseMedia();
+                    if (closeLeftMono)
+                        LeftMonoCalibrationHead.CloseMedia();    
+                    if (closeRightMono)
+                        RightMonoCalibrationHead.CloseMedia();
+                }
+                catch (Exception ex)
+                {
+                    // Handle/log properly
+                    Debug.WriteLine($"Error in CloseMediaSetsAsync: {ex}");
+                }
+
+                // No UI work if existing
+                if (!isExisting)
+                {
+                    SetTitle("");
+                    SetTitleSaveStatus("");
+                    SetTitleCameraSide("");
+
+                    SetUIControls();
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Check if there is an existing project open and if so check if it has unsaved changes
+        /// USES 'Internal' to allow Unit Testing
+        /// </summary>
+        /// <returns>true is ok to proceed (i.e. no project now open)</returns>
+        internal async Task<bool> CheckForOpenProjectAndCloseAsync(bool isExiting = false)
+        {
+            bool ret = false;
+
+            if (calibProject is not null)
+            {
+                bool closeSurvey = false;
+
+                if (calibProject.IsDirty == true)
+                {
+                    try
+                    {
+                        // Create a FontIcon using the Segoe Fluent Icons font
+                        var warningIcon = new FontIcon
+                        {
+                            Glyph = "\uE814", // Unicode character for a warning icon in Segoe Fluent Icons
+                            FontFamily = new FontFamily("Segoe Fluent Icons"),
+                            Width = 24,
+                            Height = 24
+                        };
+
+                        ContentDialog confirmationDialog = new()
+                        {
+                            Title = "Close Survey",
+                            Content = new StackPanel
+                            {
+                                Orientation = Orientation.Horizontal,
+                                Spacing = 10,
+                                Children =
+                            {
+                                warningIcon, // Add the warning icon to the dialog content
+                                new TextBlock
+                                {
+                                    Text = "Before you close this survey do you want to save the changes you have made?\n\nPress 'Yes' to save the existing survey, 'No' to close without saving",
+                                    TextWrapping = TextWrapping.Wrap, // Enables text wrapping
+                                    MaxWidth = 300 // Prevents text from stretching too wide
+                                }
+                            }
+                            },
+                            CloseButtonText = "Cancel",
+                            PrimaryButtonText = "Yes",
+                            SecondaryButtonText = "No",
+                            DefaultButton = ContentDialogButton.Primary, // Set the default focused button to "Yes"
+
+                            // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
+                            XamlRoot = this.Content.XamlRoot
+                        };
+
+                        // Display the dialog
+                        var result = await confirmationDialog.ShowAsync();
+
+                        // Handle the dialog result
+                        if (result == ContentDialogResult.Primary)
+                        {
+                            // "Yes" button clicked
+                            await FileProjectSaveOrSaveAsAsync();
+                            closeSurvey = true;
+
+                        }
+                        else if (result == ContentDialogResult.Secondary)
+                        {
+                            // "No" button clicked
+                            closeSurvey = true;
+                        }
+                        // If the select Cancel the Close Survey request is cancelled
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"CheckForOpenSurveyAndClose (confirm phase): {ex.Message}");
+                    }
+                }
+                else
+                    closeSurvey = true;
+
+
+                if (closeSurvey == true)
+                {
+                    try
+                    {
+                        // Wait for things to settle
+                        await Task.Delay(100);
+
+                        // Closes the StereoMediaController, clears the title and the sync indicator
+                        await CloseMediaSetsAsync(isExiting);
+
+                        // Close and clear the Survey class (holds the survey data)
+                        if (calibProject is not null)
+                        {
+
+                            await calibProject.ProjectCloseAsync();
+                            calibProject = null;
+                        }
+
+                        ret = true;
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"CheckForOpenSurveyAndClose (close phase): {ex.Message}");
+                    }
+                }
+            }
+            else
+                ret = true;
+
+            if (!isExiting)
+                SetUIControls();
+
+            return ret;
+        }
 
 
         /// <summary>
@@ -1906,7 +2615,6 @@ namespace Surveyor
         /// Start a timer to display the elapsed time
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-
         private void StartFindCheckTimer()
         {
             if (_findCheckTimer != null)
@@ -1942,12 +2650,7 @@ namespace Surveyor
             {
                 SetUIControls();
 
-                if (IsFindRunning())
-                {
-                    TimeSpan elapsed = DateTime.Now - (DateTime)_findStartTime;
-                    await DisplayStatusTextAsync(elapsed);
-                }
-                else
+                if (!IsFindRunning())
                 {
                     findStatus = true; // Frames finished loading
                     saveStatus = true; // Can't press save
@@ -1989,6 +2692,7 @@ namespace Surveyor
                 return false; // No find operations are running
             }
         }
+
 
         /// <summary>
         /// Display the settings window
@@ -2065,7 +2769,7 @@ namespace Surveyor
                 if (entryCount == 1)
                 {
                     // Initialize if necessary
-                    SetupRunCalibration setupRunCalibration = new(calibProject);
+                    SetupRunCalibration setupRunCalibration = new(this, calibProject);
 
                     // Get the HWND (window handle) for both windows
                     IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
@@ -2398,6 +3102,102 @@ namespace Surveyor
                     }
 
                     StereoCalibrationHead.UnlockStereo();
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Add the selected survey to the recent surveys list
+        /// </summary>
+        /// <param name="filePath"></param>
+        private void AddToRecentProjects(string filePath)
+        {
+            var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
+            var recentSurveys = (localSettings.Values[RECENT_PROJECTS_KEY] as string[]) ?? [];
+
+            // Remove if already exists
+            var list = new List<string>(recentSurveys);
+            list.Remove(filePath);
+
+            // Add to beginning
+            list.Insert(0, filePath);
+
+            // Keep only MAX_RECENT_PROJECTS items
+            if (list.Count > MAX_RECENT_PROJECTS_SAVED)
+                list.RemoveRange(MAX_RECENT_PROJECTS_SAVED, list.Count - MAX_RECENT_PROJECTS_SAVED);
+
+            // Save back to settings
+            localSettings.Values[RECENT_PROJECTS_KEY] = list.ToArray();
+
+            UpdateRecentProjectsMenu();
+        }
+
+
+        /// <summary>
+        /// Remove the selected survey to the recent surveys list
+        /// </summary>
+        /// <param name="filePath"></param>
+        private void RemoveToRecentSurveys(string filePath)
+        {
+            var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
+            var recentSurveys = (localSettings.Values[RECENT_PROJECTS_KEY] as string[]) ?? [];
+
+            // Remove if already exists
+            var list = new List<string>(recentSurveys);
+            list.Remove(filePath);
+
+            // Save back to settings
+            localSettings.Values[RECENT_PROJECTS_KEY] = list.ToArray();
+
+            UpdateRecentProjectsMenu();
+        }
+
+
+        /// <summary>
+        /// Update the recent surveys menu from localSettings
+        /// </summary>
+        private void UpdateRecentProjectsMenu()
+        {
+            var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
+            string[]? recentSurveys = localSettings.Values[RECENT_PROJECTS_KEY] as string[];
+
+            // Clear existing items in the MenuFlyoutSubItem
+            MenuRecentProjects.Items.Clear();
+
+            if (recentSurveys == null || recentSurveys.Length == 0)
+            {
+                // Add a single "Empty" menu item if no recent surveys exist
+                var emptyItem = new MenuFlyoutItem
+                {
+                    Text = "(Empty)",
+                    IsEnabled = false
+                };
+                MenuRecentProjects.Items.Add(emptyItem);
+                return;
+            }
+
+            // Add new items from the recentSurveys array
+            foreach (var surveyPath in recentSurveys)
+            {
+                if (MenuRecentProjects.Items.Count >= maxRecentProjectsDisplayed)
+                    break;
+
+                if (!string.IsNullOrEmpty(surveyPath))
+                {
+                    var menuItem = new MenuFlyoutItem
+                    {
+                        Text = System.IO.Path.GetFileName(surveyPath), // Use the file name as the menu item text
+                        Tag = surveyPath // Store the full path in the Tag property
+                    };
+
+                    // Add tooltip to show the full file specification
+                    ToolTipService.SetToolTip(menuItem, surveyPath);
+
+                    // Optionally add a click event handler for the menu item
+                    menuItem.Click += FileRecentProject_Click;
+
+                    MenuRecentProjects.Items.Add(menuItem);
                 }
             }
         }

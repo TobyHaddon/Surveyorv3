@@ -77,7 +77,7 @@
             <Button x:Name="LeftFrameForwardButton" Click="LeftFrameForwardClick">
                 <FontIcon Glyph="&#xE974;"/>
             </Button>
-            <TextBox x:Name="LeftFrameInfoTextBox" VerticalAlignment="Center" KeyDown="LeftFrameInfoTextBox_KeyDown"/>
+            <TextBox x:Name="LeftFrameInfoTextBox" VerticalAlignment="Center" KeyDown="LeftFrameInfoTextBox_KeyDown" LostFocus="LeftFrameInfoTextBox_LostFocus"/>
             <TextBlock x:Name="LeftFrameInfoLabel" FontSize="14"/>
         </StackPanel>
 
@@ -95,7 +95,7 @@
             <Button x:Name="RightFrameForwardButton" Click="RightFrameForwardClick">
                 <FontIcon Glyph="&#xE974;"/>
             </Button>
-            <TextBox x:Name="RightFrameInfoTextBox" VerticalAlignment="Center" KeyDown="RightFrameInfoTextBox_KeyDown"/>
+            <TextBox x:Name="RightFrameInfoTextBox" VerticalAlignment="Center" KeyDown="RightFrameInfoTextBox_KeyDown" LostFocus="RightFrameInfoTextBox_LostFocus"/>
             <TextBlock x:Name="RightFrameInfoLabel" FontSize="14"/>
         </StackPanel>
 
@@ -146,7 +146,7 @@
             </StackPanel>
         </StackPanel>
 
-        <!--???TODELELTE NOT USED-->
+        <!--???TODELELTE NOT USED BUT CHECK MAYBE A GOOD FEATURE-->
         <!--<controls:ImageStripViewer x:Name="LeftImageViewer" Grid.Column="0" Grid.Row="4" Margin="0,5,0,0" Visibility="Collapsed"/>-->
         <!--<controls:ImageStripViewer x:Name="RightImageViewer" Grid.Column="1" Grid.Row="4"  Margin="0,5,0,0"  Visibility="Collapsed"/>-->
 

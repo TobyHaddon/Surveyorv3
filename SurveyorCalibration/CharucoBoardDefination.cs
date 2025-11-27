@@ -1,5 +1,6 @@
 ﻿using Emgu.CV.Aruco;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using static Emgu.CV.Aruco.Dictionary;
@@ -88,6 +89,7 @@ namespace Surveyor
         // Dictionary Name
         private PredefinedDictionaryName _predefinedDictionaryName;
 
+        [JsonConverter(typeof(StringEnumConverter))]
         public PredefinedDictionaryName PredefinedDictionaryName
         {
             get => _predefinedDictionaryName;
@@ -129,19 +131,24 @@ namespace Surveyor
         public Dictionary? Dictionary { get => _dictionary; }
 
 
-        public void Setup(Dictionary dictionary, int SquaresX, int SquaresY, float SquareLength, float MarkerLength)
+        /// <summary>
+        /// Use the board parameters to setup the dictionary and board 
+        /// Ready for EMGU api calls
+        /// </summary>
+        /// <returns></returns>
+        public bool Setup()
         {
-            this._dictionary = dictionary;
-            this._squaresX = SquaresX;
-            this._squaresY = SquaresY;
-            this._squareLength = SquareLength;
-            this._markerLength = MarkerLength;
+            _dictionary = new Dictionary(PredefinedDictionaryName);
 
-            // Create the CharucoBoard if it is not already created
-            if (_board is null && Dictionary is not null)
+            if (_board is null && _dictionary is not null)
             {
                 _board = new CharucoBoard(SquaresX, SquaresY, SquareLength, MarkerLength, Dictionary);
+
+                if (_board is not null)
+                    return true;
             }
+
+            return false;
         }
 
 

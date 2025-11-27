@@ -189,11 +189,11 @@ namespace Surveyor.Controls
         /// <param name="leftFileSpec"></param>
         /// <param name="rightFileSpec">Set to string.Empty is Mono</param>
         /// <returns></returns>
-        public bool OpenMedia(string _leftMediaFileSpec, string _rightMediaFileSpec)
+        public async Task<bool> OpenMediaAsync(string _leftMediaFileSpec, string _rightMediaFileSpec)
         {
             bool ret = false;
             bool leftOpened = false;
-            //???bool rightOpened = false;
+            bool? rightOpened = null;
 
             // Reset
             leftMediaFileSpec = string.Empty;
@@ -252,6 +252,8 @@ namespace Surveyor.Controls
             // If Stereo open right side
             if (Head.Equals("stereo", StringComparison.InvariantCultureIgnoreCase))
             {
+                rightOpened = false;
+
                 if (File.Exists(_rightMediaFileSpec))
                 {
                     rightMediaFileSpec = _rightMediaFileSpec;
@@ -286,7 +288,7 @@ namespace Surveyor.Controls
                             // Display first frame
                             FrameJump(false/*leftTrueRightFalse*/, 0);
 
-                            //???rightOpened = true;
+                            rightOpened = true;
                         }
                     }
                 }
@@ -298,13 +300,19 @@ namespace Surveyor.Controls
 
 
             // Give CalibrationStereoFrameSet access to the video capture handles
-            if (leftOpened && capLeft is not null && charucoBoardDefinition is not null)
+            if (leftOpened && capLeft is not null)
             {
                 calibrationStereoFrameSet.SetupMedia(capLeft, capRight);
-                calibrationStereoFrameSet.SetupCalibrationBoardType(charucoBoardDefinition);
             }
 
+            await Task.Delay(100); // Allow UI to update
+
             SetUIControls();
+
+            if (leftOpened && (rightOpened is null || rightOpened == true))
+            {
+                ret = true;
+            }
 
             return ret;
         }
@@ -363,6 +371,15 @@ namespace Surveyor.Controls
             }
         }
 
+
+        /// <summary>
+        /// Return the current frame width and height
+        /// </summary>
+        /// <returns></returns>
+        public (int frameWidth, int frameHeight) GetFrameSize()
+        {
+            return ((int)frameSize.Width, (int)frameSize.Height);
+        }
 
         /// <summary>
         /// Get the current player frame indexes. frameIndexRight will return null 
@@ -526,6 +543,7 @@ namespace Surveyor.Controls
                 cts = new CancellationTokenSource();
                 cancellationToken = cts.Token;
 
+               
                 // Move both methods to background threads
                 var (startCalibration, stopCalibration) = await Task.Run(() =>
                     calibrationStereoFrameSet.FindCalibrationTimeLineRangeAsync(FrameProcessingCallbackFindCalibrationTimeLineRange, cancellationToken));
@@ -791,7 +809,6 @@ namespace Surveyor.Controls
                 if (calibrationParametersBest is not null)
                 {
                     ret = true;
-                    calibProject.Data.Media.FrameSize = frameSize;
 
                     if (writeBestFramesToPng)
                     {
@@ -1072,7 +1089,35 @@ namespace Surveyor.Controls
         }
 
 
-        
+        /// <summary>
+        /// Focus lost - check if the values has changed
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void LeftFrameInfoTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (appMode != AppMode.Open) return; // Only allow manual jump in Open mode
+            if (int.TryParse(LeftFrameInfoTextBox.Text, out int targetIndex) && targetIndex != _currentFrameLeft)
+            {
+                FrameJump(true/*left*/, targetIndex);
+            }
+        }
+
+
+        /// <summary>
+        /// Focus lost - check if the values has changed
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void RightFrameInfoTextBox_LostFocus(object sender, RoutedEventArgs e)
+        {
+            if (appMode != AppMode.Open) return; // Only allow manual jump in Open mode
+            if (int.TryParse(RightFrameInfoTextBox.Text, out int targetIndex) && targetIndex != _currentFrameRight)
+            {
+                FrameJump(false/*right*/, targetIndex);
+            }
+        }
+
 
         /// <summary>
         /// Used to cancel long running operations

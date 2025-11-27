@@ -9,7 +9,7 @@ namespace Surveyor
 {
     public sealed partial class SetupRunCalibrationSettings : Page
     {
-        private CalibProject? _calibProject;
+        private NavParams? navParams;
 
         public SetupRunCalibrationSettings()
         {
@@ -19,15 +19,19 @@ namespace Surveyor
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
-            _calibProject = e.Parameter as CalibProject;
+            navParams = e.Parameter as NavParams;
+            
             UpdateModeText();
+
+
+            SetFrameSetsCacheAvailability();
         }
 
         private void UpdateModeText()
         {
-            if (_calibProject?.Data != null)
+            if (navParams?.calibProject?.Data is not null)
             {
-                var mode = _calibProject.Data.Media.StereoMonoMediaSetMode;
+                var mode = navParams.calibProject.Data.Media.StereoMonoMediaSetMode;
 
                 // Mode
                 string text = mode switch
@@ -57,6 +61,19 @@ namespace Surveyor
             }
         }
 
+        /// <summary>
+        /// Set the checkbox in the SetupRunCalibrationSettings page
+        /// </summary>
+        private void SetFrameSetsCacheAvailability()
+        {
+            if (navParams?.mainWindow is null) return;
+
+            // Check if cached results file exists and setup UI controls accordingly
+            bool cacheAvailable = navParams.mainWindow.CachedResultsFileExists();
+            BorderCache.Visibility = cacheAvailable ? Visibility.Visible : Visibility.Collapsed;
+            ReuseCacheCheckBox.IsChecked = cacheAvailable;
+        }
+
         private void OnSliderValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
         {
             if (sender is Slider slider)
@@ -71,7 +88,7 @@ namespace Surveyor
         private void SetupRunCalibrationSettingsBack_Click(object sender, RoutedEventArgs e)
         {
             // Navigate to settings page, passing the current CalibProject (can be null)
-            Frame?.Navigate(typeof(SetupRunCalibrationBoard), _calibProject);
+            Frame?.Navigate(typeof(SetupRunCalibrationBoard), navParams);
 
             // Update NavView selection to "Calibration Settings"
             var navView = FindParentNavigationView();
@@ -90,7 +107,7 @@ namespace Surveyor
         private void SetupRunCalibrationSettingsNext_Click(object sender, RoutedEventArgs e)
         {
             // Navigate to settings page, passing the current CalibProject (can be null)
-            Frame?.Navigate(typeof(SetupRunCalibrationSummary), _calibProject);
+            Frame?.Navigate(typeof(SetupRunCalibrationSummary), navParams);
 
             // Update NavView selection to "Calibration Settings"
             var navView = FindParentNavigationView();
