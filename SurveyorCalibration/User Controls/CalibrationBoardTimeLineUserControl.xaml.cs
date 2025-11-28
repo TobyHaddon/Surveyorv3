@@ -27,6 +27,11 @@ namespace Surveyor.Controls
             this.InitializeComponent();
         }
 
+        public void Clear()
+        {
+            CalibrationBoardTimeLine.Children.Clear();
+        }
+
         public void SetRange(int _startMediaFrameIndex, int _endMediaFrameIndex)
         {
             startMediaFrameIndex = _startMediaFrameIndex;
@@ -39,7 +44,7 @@ namespace Surveyor.Controls
                 width = 0;
             }
             CalibrationBoardTimeLine.Width = width;
-            CalibrationBoardTimeLine.Children.Clear();
+            Clear();
         }
 
 

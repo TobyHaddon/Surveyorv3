@@ -71,7 +71,7 @@
                     Orientation="Horizontal"
                     HorizontalAlignment="Right"
                     VerticalAlignment="Bottom"
-                    Margin="0,0,16,16"
+                    Margin="0,8,16,8"
                     Spacing="8">
             <Button x:Name="BackBtn" Content="Back" Click="BackBtn_Click"/>
             <Button x:Name="NextBtn" Content="Next" Click="NextBtn_Click"/>

@@ -224,21 +224,6 @@ namespace Surveyor.Calibration
             return (yawDeg, pitchDeg);
         }
 
-
-        //public double Score
-        //{
-        //    get
-        //    {
-        //        if (CharucoCorners == null || CharucoCorners.Length == 0 || BlurFactor <= 0)
-        //            return 0;
-
-        //        double blurScore = Math.Clamp(10.0 / BlurFactor, 0.0, 1.0);
-        //        double movementScore = MovementFactor == 0 ? 1.0 : Math.Clamp(20.0 / MovementFactor, 0.0, 1.0);
-        //        double cornerScore = Math.Clamp(CharucoCorners.Length / 104.0, 0.0, 1.0);
-
-        //        return 0.4 * blurScore + 0.4 * movementScore + 0.2 * cornerScore;
-        //    }
-        //}
         public double Score
         {
             get

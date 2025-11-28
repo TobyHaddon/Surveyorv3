@@ -318,7 +318,7 @@
                                         <Run Text=".  Download the correct version for your GoPro." />
                                     </TextBlock.Inlines>
                                 </TextBlock>
-                                <TextBlock Text="After Labs is installed on each GoPro switch each camera on and point at the QR Code below. After the GoPro has read the QR Code switch the camera off." TextWrapping="WrapWholeWords"/>
+                                <TextBlock Text="After Labs is installed on each GoPro switch each camera on and point at the QR Code below. It maybe need a bit of moving back and forward and a bright screen for the GoPro to pickup the QR code. After the GoPro has read the QR Code switch the camera off." TextWrapping="WrapWholeWords"/>
                                 <TextBlock Text="The QR Code sets up the following:" TextWrapping="WrapWholeWords"  Margin="0,10,0,0"/>
                                 <TextBlock TextWrapping="WrapWholeWords" Margin="10,0,0,0">
                                     <Run Text="• Sets the maximum MP4 file size of 64Gb" /><LineBreak/>

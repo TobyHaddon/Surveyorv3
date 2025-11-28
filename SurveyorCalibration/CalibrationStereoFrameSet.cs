@@ -113,6 +113,17 @@ namespace Surveyor
             Version = version;
 
         }
+        public void ClearResults()
+        {
+            // Reset collections
+            Frames = [];
+            BestFrameIndexes = [];
+            SensorBinTotalsLeft = [];
+            SensorBinTotalsRight = [];
+            PoseBinTotalsLeft = [];
+            PoseBinTotalsRight = [];
+        }
+
 
         /// <summary>
         /// Pass the open video capture instances for the left and right media files.
@@ -1263,6 +1274,8 @@ namespace Surveyor
                 trueStereoFalseSoloLeft = false;
             }
 
+            // Clears results ready for the next run
+            ClearResults();
 
             // Loop through the frames in the target range
             for (int frameIndex = startCalibrationFrameIndex; frameIndex <= stopCalibrationFrameIndex; frameIndex++)

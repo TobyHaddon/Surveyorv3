@@ -6,25 +6,17 @@ using Microsoft.UI.Xaml.Shapes;
 using Surveyor.Calibration;
 using System;
 using System.Collections.Generic;
-using System.Data.Common;
 using System.Linq;
-using System.Reflection.Emit;
 using Windows.Foundation;
 
 namespace Surveyor.Controls
 {
 
-    public class CalibrationFrameSetViewerData
+    public class CalibrationFrameSetViewerData(bool _trueLeftFalseRight, CalibrationStereoFrameSet _calibrationStereoFrameSet)
     {
-        public CalibrationFrameSetViewerData(bool _trueLeftFalseRight, CalibrationStereoFrameSet _calibrationStereoFrameSet)
-        {
-            trueLeftFalseRight = _trueLeftFalseRight;
-            calibrationStereoFrameSet = _calibrationStereoFrameSet;
-        }
-
         // Stereo calibration frame set
-        public bool trueLeftFalseRight = true;
-        public CalibrationStereoFrameSet? calibrationStereoFrameSet = null;        
+        public bool trueLeftFalseRight = _trueLeftFalseRight;
+        public CalibrationStereoFrameSet? calibrationStereoFrameSet = _calibrationStereoFrameSet;        
     }
 
     public sealed partial class CalibrationFrameSetViewer : UserControl
@@ -188,7 +180,7 @@ namespace Surveyor.Controls
                 var grid = new Grid
                 {
                     Width = 180,
-                    Height = 110,
+                    Height = double.NaN,
                     Margin = new Thickness(8),
                     Background = new SolidColorBrush(Microsoft.UI.Colors.Gray)
                 };
@@ -246,26 +238,32 @@ namespace Surveyor.Controls
         {
             if (Data is null) return;
 
-            PoseBinGridItemsControl.Items.Clear();
+            // Reset the rows and columns
+            PoseBinGridItemsControl.Children.Clear();
 
+            // Get the number of columns and rows for the pose bin grid
             (int gx, int gy) = FrameCalibrationData.PoseBinGrid;
 
 
-            var grid = new Grid
-            {
-                Width = 180,
-                Height = 110,
-                Margin = new Thickness(8),
-                Background = new SolidColorBrush(Microsoft.UI.Colors.Gray)
-            };
+            //var grid = new Grid
+            //{
+            //    Width = 180,
+            //    Height = double.NaN,
+            //    Margin = new Thickness(8),
+            //    Background = new SolidColorBrush(Microsoft.UI.Colors.Gray)
+            //};
 
             // Create columns and rows
             for (int c = 0; c < gx; c++)
-                grid.ColumnDefinitions.Add(new ColumnDefinition());
+                //grid.ColumnDefinitions.Add(new ColumnDefinition());
+                PoseBinGridItemsControl.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             for (int r = 0; r < gy; r++)
-                grid.RowDefinitions.Add(new RowDefinition());
+                //grid.RowDefinitions.Add(new RowDefinition());
+                PoseBinGridItemsControl.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
+
+          
             // Add cell borders and content
             for (int r = 0; r < gy; r++)
             {
@@ -297,11 +295,11 @@ namespace Surveyor.Controls
                     Grid.SetRow(cell, r);
                     Grid.SetColumn(cell, c);
                     cell.Child = label;
-                    grid.Children.Add(cell);
+                    PoseBinGridItemsControl.Children.Add(cell);
                 }
             }
 
-            PoseBinGridItemsControl.Items.Add(grid);
+            //???PoseBinGridItemsControl.Items.Add(grid);
 
         }
 
@@ -355,35 +353,24 @@ namespace Surveyor.Controls
             if (Data is null)
                 return;
 
-            int gridIndex = 0;
-
-
             if (Data.calibrationStereoFrameSet is not null)
             {
                 (int gx, int gy) = FrameCalibrationData.PoseBinGrid;
 
-                // Safety check
-                if (gridIndex < PoseBinGridItemsControl.Items.Count)
+                var counts = Data.calibrationStereoFrameSet.GetPoseBinCounts(Data.trueLeftFalseRight);
+
+                foreach (var child in PoseBinGridItemsControl.Children)
                 {
-
-                    if (PoseBinGridItemsControl.Items[gridIndex] is Grid grid)
+                    if (child is Border border && border.Child is TextBlock textBlock)
                     {
-                        var counts = Data.calibrationStereoFrameSet.GetPoseBinCounts(Data.trueLeftFalseRight);
+                        int column = Grid.GetColumn(border);
+                        int row = Grid.GetRow(border);
 
-                        foreach (var child in grid.Children)
-                        {
-                            if (child is Border border && border.Child is TextBlock textBlock)
-                            {
-                                int column = Grid.GetColumn(border);
-                                int row = Grid.GetRow(border);
-
-                                // Updated to use just column/row since gx/gy are implicit in the grid structure
-                                textBlock.Text = counts.TryGetValue((column, row), out int v) ? v.ToString() : "0";
-                            }
-                        }
+                        // Updated to use just column/row since gx/gy are implicit in the grid structure
+                        textBlock.Text = counts.TryGetValue((column, row), out int v) ? v.ToString() : "0";
                     }
-                    gridIndex++;
                 }
+
             }
         }
 
@@ -464,55 +451,42 @@ namespace Surveyor.Controls
             if (Data is null)
                 return;
 
-            int gridIndex = 0;
-
-
+            
             if (Data.calibrationStereoFrameSet is not null)
             {
-                if (PoseBinGridItemsControl.Items[gridIndex] is Grid grid)
+                if (frameCalibrationData is null)
                 {
-                    if (frameCalibrationData is null)
+                    // Clear colour of the the bins
+                    foreach (var child in PoseBinGridItemsControl.Children)
                     {
-                        // Clear colour of the the bins
-                        foreach (var child in grid.Children)
+                        if (child is Border border &&
+                            border.Child is TextBlock textBlock)
                         {
-                            if (child is Border border &&
-                                border.Child is TextBlock textBlock)
-                            {
-                                border.Background = null;   //??? new SolidColorBrush(color);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        foreach (var child in grid.Children)
-                        {
-                            if (child is Border border &&
-                                border.Child is TextBlock textBlock)
-                            {
-                                int row = Grid.GetRow(border);
-                                int column = Grid.GetColumn(border);
-
-
-                                bool colourCell = frameCalibrationData.PoseBinsOccupied
-                                                            .Any(entry => entry.binx == column && entry.biny == row);
-
-                                if (colourCell)
-                                {
-
-                                    border.Background = new SolidColorBrush(Colors.LightBlue);
-                                }
-                                else
-                                {
-                                    border.Background = null;
-                                }
-                            }
+                            border.Background = null;   //??? new SolidColorBrush(color);
                         }
                     }
                 }
-                gridIndex++;
-            }
+                else
+                {
+                    foreach (var child in PoseBinGridItemsControl.Children)
+                    {
+                        if (child is Border border &&
+                            border.Child is TextBlock textBlock)
+                        {
+                            int row = Grid.GetRow(border);
+                            int column = Grid.GetColumn(border);
 
+                            bool colourCell = frameCalibrationData.PoseBinsOccupied
+                                                        .Any(entry => entry.binx == column && entry.biny == row);
+
+                            if (colourCell)
+                                border.Background = new SolidColorBrush(Colors.LightBlue);
+                            else
+                                border.Background = null;
+                        }
+                    }
+                }
+            }
         }
     }
 }

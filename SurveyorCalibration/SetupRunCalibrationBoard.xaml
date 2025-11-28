@@ -15,9 +15,5 @@
         <TextBlock Text="Configure the ChArUco board to match the physical one you are using. Ensure the ArUco markers exactly match the ones and positions on the actual board." FontSize="12" TextWrapping="Wrap"/>
 
         <surveyorControls:SettingsCalibrationBoard x:Name="CalibrationBoardSettingsControl"/>
-
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"  Margin="0,15,0,0">
-            <Button Content="Next" HorizontalAlignment="Right" Click="SetupRunCalibrationBoardNext_Click"/>
-        </StackPanel>
     </StackPanel>
 </Page>

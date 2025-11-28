@@ -140,7 +140,7 @@ namespace Surveyor
         {
             _dictionary = new Dictionary(PredefinedDictionaryName);
 
-            if (_board is null && _dictionary is not null)
+            if (_dictionary is not null)
             {
                 _board = new CharucoBoard(SquaresX, SquaresY, SquareLength, MarkerLength, Dictionary);
 

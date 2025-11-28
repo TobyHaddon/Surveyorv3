@@ -1,15 +1,22 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Surveyor.Helper;
+using System.Linq;
 using System.Threading.Tasks;
 using WinUIEx;
+using System;
 
 namespace Surveyor
 {
-    public class NavParams(MainWindow? _mainWindow, CalibProject? _calibProject)
+    public class NavParams(MainWindow _mainWindow, CalibProject _calibProject, SetupRunCalibration _setupRunCalibration, RunCalibrationParams _runCalibrationParams)
     {
-        public MainWindow? mainWindow = _mainWindow;
-        public CalibProject? calibProject = _calibProject;
+        // Used by Run Calibration wizard pages to access shared data
+        public MainWindow mainWindow = _mainWindow;
+        public CalibProject calibProject = _calibProject;
+        public SetupRunCalibration setupRunCalibration = _setupRunCalibration;
+
+        // Parameters for running calibration
+        public RunCalibrationParams runCalibrationParams = _runCalibrationParams;
     }
 
     public sealed partial class SetupRunCalibration : WindowEx
@@ -17,28 +24,30 @@ namespace Surveyor
         // Copy of the calibration project instance being edited
         private readonly NavParams? navParams;
 
-        public SetupRunCalibration(MainWindow _mainWindow, CalibProject? _calibProject = null)
+        public SetupRunCalibration(MainWindow _mainWindow, CalibProject _calibProject, RunCalibrationParams _runCalibrationParams)
         {
-            navParams = new(_mainWindow, _calibProject);
+            // Prepare navigation parameters
+            navParams = new(_mainWindow, _calibProject, this, _runCalibrationParams);
+            
+            // Set cache availability - i.e. was this run before on this PC
+            SetFrameSetsCacheAvailability();
+
 
             InitializeComponent();
-            this.ExtendsContentIntoTitleBar = true;
+            ExtendsContentIntoTitleBar = true;
 
             WindowHelper.TrackWindow(this);
 
-            // Hook navigated to keep footer buttons in sync
+            // Refresh after navigation completes
             ContentFrame.Navigated += (_, __) => UpdateFooterButtons();
 
-
-            // Navigate to default page
+            // Navigate first, then select the nav item
             ContentFrame.Navigate(typeof(SetupRunCalibrationBoard), navParams);
             NavView.SelectedItem = NavCalibrationTarget;
 
-            // Show teaching tip once NavigationView (and its items) are loaded
             NavView.Loaded += (_, __) =>
             {
-                // If teaching tips are enabled and this tip hasn't been shown yet
-                if (SettingsManagerLocal.TeachingTipsEnabled && 
+                if (SettingsManagerLocal.TeachingTipsEnabled &&
                     !SettingsManagerLocal.HasTeachingTipBeenShown("CalibrationSummaryTeachingTip"))
                 {
                     CalibrationSummaryTeachingTip.Target = NavCalibrationSummary;
@@ -95,9 +104,7 @@ namespace Surveyor
 
         private void NavView_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
         {
-            UpdateFooterButtons();
-
-            // Close the tip when the user interacts with the nav items
+            // Do not refresh here before navigation; page state isn’t ready yet
             if (CalibrationSummaryTeachingTip.IsOpen)
                 CalibrationSummaryTeachingTip.IsOpen = false;
 
@@ -116,6 +123,40 @@ namespace Surveyor
                         break;
                 }
             }
+
+            // If you still want a refresh here, do it AFTER navigation
+            UpdateFooterButtons();
+        }
+
+        public void GoToPage(Type pageType, string pageTag)
+        {
+            // Navigate the content frame with existing nav params
+            ContentFrame.Navigate(pageType, navParams);
+
+            // Update NavView selection using the provided tag
+            var targetItem = NavView.MenuItems
+                .OfType<NavigationViewItem>()
+                .FirstOrDefault(i => (i.Tag as string) == pageTag);
+
+            if (targetItem != null)
+            {
+                NavView.SelectedItem = targetItem;
+            }
+
+            // Refresh footer buttons (Next/Back) after navigation
+            RequestFooterButtonsRefresh();
+        }
+
+
+        /// <summary>
+        /// Set the checkbox in the SetupRunCalibrationSettings page
+        /// </summary>
+        private void SetFrameSetsCacheAvailability()
+        {
+            if (navParams?.mainWindow is null) return;
+
+            // Check if cached results file exists and setup UI controls accordingly
+            navParams.runCalibrationParams.UseFrameSetCache = navParams.mainWindow.CachedResultsFileExists();
         }
     }
 }

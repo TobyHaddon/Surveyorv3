@@ -9,7 +9,6 @@ using Surveyor.Calibration;
 using System;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading;
@@ -19,6 +18,7 @@ using Windows.Graphics.Imaging;
 using Windows.Storage;
 using Windows.Storage.Streams;
 using SurveyorCalibrationData;
+using Windows.ApplicationModel;
 
 
 namespace Surveyor.Controls
@@ -543,7 +543,10 @@ namespace Surveyor.Controls
                 cts = new CancellationTokenSource();
                 cancellationToken = cts.Token;
 
-               
+                // Reset any previous calibration board timeline ranges
+                CalibrationBoardTimeLineLeft.Clear();
+                CalibrationBoardTimeLineRight.Clear();
+
                 // Move both methods to background threads
                 var (startCalibration, stopCalibration) = await Task.Run(() =>
                     calibrationStereoFrameSet.FindCalibrationTimeLineRangeAsync(FrameProcessingCallbackFindCalibrationTimeLineRange, cancellationToken));
@@ -2161,7 +2164,9 @@ namespace Surveyor.Controls
             // Set the app mode to 
             appMode = AppMode.BestFramesSave;
 
-            string documentsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "SurveyorCalibration");
+            // Get the app title name and make a folder in Documents
+            string appTitle = AppInfo.Current.DisplayInfo.DisplayName;
+            string documentsFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), appTitle);
 
             string baseName = string.Empty;
             if (leftMediaFileSpec != string.Empty && rightMediaFileSpec != string.Empty)

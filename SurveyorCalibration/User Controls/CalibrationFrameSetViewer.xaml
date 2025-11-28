@@ -12,21 +12,32 @@
 
     <UserControl.Content>
         <Grid>
-             
+
             <ScrollViewer HorizontalScrollBarVisibility="Visible">
-                <Grid x:Name="MainPanel" Padding="0">
+                <Grid x:Name="MainPanel" Padding="0" Height="150">
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>    <!-- Movement and Blur -->
+                        <ColumnDefinition Width="Auto"/>    <!-- Sensor Coverage -->
+                        <ColumnDefinition Width="Auto"/>    <!-- Pose -->
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>
-                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>  <!-- Titles -->
+                        <RowDefinition Height="*"/>  <!-- Graphs or Bins -->
                     </Grid.RowDefinitions>
-                    
-                    <!-- Box 1: Line graphs -->
-                    <Border Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" BorderBrush="Gray" BorderThickness="1">
+
+                    <!-- Column 0: Movement and Blur -->
+                    <!-- Used for the title of the Head e.g. Stero Left -->
+                    <TextBlock x:Name="HeadTitle" Grid.Row="0" Grid.Column="0"
+                                                    Text=""                                   
+                                                    VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                                                    FontFamily="Segoe UI Variable"
+                                                    FontSize="12"
+                                                    Padding="0" Margin="6,0,0,0"/>
+                    <!-- Frame Movement and Blur Graphs -->
+                    <Border x:Name="GraphsBorder" Grid.Row="1" Grid.Column="0"
+                                                    BorderBrush="Gray"
+                                                    BorderThickness="1"
+                                                    VerticalAlignment="Stretch">
                         <Grid Width="300">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*"/>
@@ -36,29 +47,21 @@
                             <Canvas x:Name="BlurCanvas" Grid.Row="1"/>
                         </Grid>
                     </Border>
-                    
-                    <!-- Sensor Coverage Bins -->
-                    <TextBlock Text="Camera Sensor Coverage" Grid.Column="1" Grid.Row="0" Padding="0" VerticalAlignment="Bottom" FontFamily="Segoe UI Variable" FontSize="10" HorizontalAlignment="Left" Margin="6,0,0,0"/>
-                    <GridView x:Name="SensorBinGridItemsControl" Grid.Column="1" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Left" IsItemClickEnabled="False" SelectionMode="None" Padding="0" Margin="0">
-                        <GridView.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <ItemsWrapGrid Orientation="Vertical" MaximumRowsOrColumns="1"/>
-                            </ItemsPanelTemplate>
-                        </GridView.ItemsPanel>
-                        
-                        <GridView.ItemContainerStyle>
-                            <Style TargetType="GridViewItem">
-                                <Setter Property="Padding" Value="0"/>
-                                <Setter Property="Padding" Value="0"/>
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                            <Setter Property="VerticalContentAlignment" Value="Stretch"/>
-                            </Style>
-                        </GridView.ItemContainerStyle>
-                    </GridView>
 
-                    <!-- Pose Bins -->
-                    <TextBlock Text="Frame Pose Diversity" Grid.Column="2" Grid.Row="0" VerticalAlignment="Bottom" FontFamily="Segoe UI Variable" FontSize="10" HorizontalAlignment="Left" Margin="6,0,0,0"/>
-                    <GridView x:Name="PoseBinGridItemsControl" Grid.Column="2" Grid.Row="1" VerticalAlignment="Top" HorizontalAlignment="Left" IsItemClickEnabled="False" SelectionMode="None">
+
+                    <!-- Column 1: Sensor coverage -->
+                    <TextBlock x:Name="SensorBinTitle" Grid.Row="0" Grid.Column="1"
+                                                    Text="Camera Sensor Coverage"                                       
+                                                    VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                                                    FontFamily="Segoe UI Variable"
+                                                    FontSize="10"                        
+                                                    Padding="0" Margin="6,0,0,0"/>
+
+                    <GridView x:Name="SensorBinGridItemsControl" Grid.Row="1" Grid.Column="1"
+                                                    VerticalAlignment="Stretch" HorizontalAlignment="Left"                                            
+                                                    IsItemClickEnabled="False"
+                                                    SelectionMode="None"
+                                                    Padding="0" Margin="0">
                         <GridView.ItemsPanel>
                             <ItemsPanelTemplate>
                                 <ItemsWrapGrid Orientation="Vertical" MaximumRowsOrColumns="1"/>
@@ -67,7 +70,6 @@
 
                         <GridView.ItemContainerStyle>
                             <Style TargetType="GridViewItem">
-                                <Setter Property="Padding" Value="0"/>
                                 <Setter Property="Padding" Value="0"/>
                                 <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
                                 <Setter Property="VerticalContentAlignment" Value="Stretch"/>
@@ -75,8 +77,24 @@
                         </GridView.ItemContainerStyle>
                     </GridView>
 
+
+                    <!-- Column 2: Pose diversity -->
+                    <TextBlock x:Name="PoseBinTitle" Grid.Row="0" Grid.Column="2"
+                                                    Text="Frame Pose Diversity"                                   
+                                                    VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                                                    FontFamily="Segoe UI Variable"
+                                                    FontSize="10"                                   
+                                                    Padding="0" Margin="6,0,0,0"/>
+
+                    <Grid x:Name="PoseBinGridItemsControl" Grid.Row="1" Grid.Column="2"
+                                                    Width="180"
+                                                    VerticalAlignment="Stretch" HorizontalAlignment="Left"
+                                                    Background="Gray">
+                    </Grid>
+
                 </Grid>
             </ScrollViewer>
+
         </Grid>
     </UserControl.Content>
 </UserControl>

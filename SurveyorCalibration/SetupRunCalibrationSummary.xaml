@@ -15,9 +15,5 @@
 				   FontSize="16"/>
         <Button x:Name="RunCalibrationButton" Content="Run Calibration" Click="RunCalibrationButton_Click" Width="180"/>
 
-		<StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
-			<Button Content="Back" Click="SetupRunCalibrationSummaryBack_Click"/>			
-		</StackPanel>
-
 	</StackPanel>
 </Page>

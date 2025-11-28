@@ -2,12 +2,14 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
+using Surveyor.Helper;
 using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Surveyor
 {
-    public sealed partial class SetupRunCalibrationSettings : Page
+    public sealed partial class SetupRunCalibrationSettings : Page, SetupRunCalibration.IWizardPage
     {
         private NavParams? navParams;
 
@@ -20,11 +22,50 @@ namespace Surveyor
         {
             base.OnNavigatedTo(e);
             navParams = e.Parameter as NavParams;
-            
-            UpdateModeText();
 
+            if (navParams is not null)
+            {
+                // Set footer buttons            
+                navParams.setupRunCalibration.RequestFooterButtonsRefresh();
 
-            SetFrameSetsCacheAvailability();
+                // Set if the calibration is mono or stereo
+                UpdateModeText();
+
+                // Hide the border (and hence the checkbox) if no cache is available
+                // Note the checkbox value is handled by the binding
+                ReuseCacheCheckBox.Visibility = navParams.runCalibrationParams.UseFrameSetCache ? Visibility.Visible : Visibility.Collapsed;
+                BorderCache.Visibility = navParams.runCalibrationParams.UseFrameSetCache ? Visibility.Visible : Visibility.Collapsed;
+
+                // Set slider values from project data
+                if (navParams.calibProject.Data is not null)
+                {
+                    var settings = navParams.runCalibrationParams;
+                    MovementFilterSlider.Value = settings.MovementFilterValue;
+                    BlurFilterSlider.Value = settings.BlurFilterValue;
+                    MonoCornerFilterSlider.Value = settings.MonoCornersFilterValue;
+                    StereoCornerFilterSlider.Value = settings.StereoCornersFilterValue;
+                }
+            }
+        }
+
+        // Wizard interface
+        public bool CanGoBack => navParams?.calibProject != null;
+        public bool CanGoNext => navParams?.calibProject != null;
+
+        // Go to Calibration Board Settings page
+        public Task GoBackAsync()
+        {
+            navParams?.setupRunCalibration.GoToPage(typeof(SetupRunCalibrationBoard)/*class*/, "CalibrationTarget"/*tag*/);
+
+            return Task.CompletedTask;
+        }
+
+        // Go to Calibration Summary page
+        public Task GoNextAsync()
+        {
+            navParams?.setupRunCalibration.GoToPage(typeof(SetupRunCalibrationSummary)/*class*/, "CalibrationSummary"/*tag*/);
+
+            return Task.CompletedTask;
         }
 
         private void UpdateModeText()
@@ -61,18 +102,6 @@ namespace Surveyor
             }
         }
 
-        /// <summary>
-        /// Set the checkbox in the SetupRunCalibrationSettings page
-        /// </summary>
-        private void SetFrameSetsCacheAvailability()
-        {
-            if (navParams?.mainWindow is null) return;
-
-            // Check if cached results file exists and setup UI controls accordingly
-            bool cacheAvailable = navParams.mainWindow.CachedResultsFileExists();
-            BorderCache.Visibility = cacheAvailable ? Visibility.Visible : Visibility.Collapsed;
-            ReuseCacheCheckBox.IsChecked = cacheAvailable;
-        }
 
         private void OnSliderValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
         {
@@ -83,54 +112,6 @@ namespace Surveyor
                 else if (slider == MonoCornerFilterSlider) MonoCornerFilterValue.Text = e.NewValue.ToString("F0");
                 else if (slider == StereoCornerFilterSlider) StereoCornerFilterValue.Text = e.NewValue.ToString("F0");
             }
-        }
-
-        private void SetupRunCalibrationSettingsBack_Click(object sender, RoutedEventArgs e)
-        {
-            // Navigate to settings page, passing the current CalibProject (can be null)
-            Frame?.Navigate(typeof(SetupRunCalibrationBoard), navParams);
-
-            // Update NavView selection to "Calibration Settings"
-            var navView = FindParentNavigationView();
-            if (navView != null)
-            {
-                var targetItem = navView.MenuItems
-                                        .OfType<NavigationViewItem>()
-                                        .FirstOrDefault(i => (i.Tag as string) == "CalibrationTarget");
-                if (targetItem != null && (NavigationViewItem)navView.SelectedItem != targetItem)
-                {
-                    navView.SelectedItem = targetItem;
-                }
-            }
-        }
-
-        private void SetupRunCalibrationSettingsNext_Click(object sender, RoutedEventArgs e)
-        {
-            // Navigate to settings page, passing the current CalibProject (can be null)
-            Frame?.Navigate(typeof(SetupRunCalibrationSummary), navParams);
-
-            // Update NavView selection to "Calibration Settings"
-            var navView = FindParentNavigationView();
-            if (navView != null)
-            {
-                var targetItem = navView.MenuItems
-                                        .OfType<NavigationViewItem>()
-                                        .FirstOrDefault(i => (i.Tag as string) == "CalibrationSummary");
-                if (targetItem != null && (NavigationViewItem)navView.SelectedItem != targetItem)
-                {
-                    navView.SelectedItem = targetItem;
-                }
-            }
-        }
-        private NavigationView? FindParentNavigationView()
-        {
-            DependencyObject? parent = this;
-            while (parent != null)
-            {
-                if (parent is NavigationView nv) return nv;
-                parent = VisualTreeHelper.GetParent(parent);
-            }
-            return null;
         }
     }
 }

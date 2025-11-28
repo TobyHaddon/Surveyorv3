@@ -5,6 +5,7 @@ using System;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1068,6 +1069,112 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// Suggest and file name for the calibration project
+        /// </summary>
+        /// <returns></returns>
+        public string SuggestProjectFileName()
+        {
+            // Prefer stereo names, fall back to mono
+            string? left = Data?.Media?.LeftStereoMP4FileName;
+            string? right = Data?.Media?.RightStereoMP4FileName;
+
+            if (string.IsNullOrWhiteSpace(left) && string.IsNullOrWhiteSpace(right))
+            {
+                left = Data?.Media?.LeftMonoMP4FileName;
+                right = Data?.Media?.RightMonoMP4FileName;
+            }
+
+            // Nothing to go on
+            if (string.IsNullOrWhiteSpace(left) && string.IsNullOrWhiteSpace(right))
+                return "CalibrationProject.calproj";
+
+            // Build base stem from available names
+            string stemLeft = Stem(left);
+            string stemRight = Stem(right);
+            string baseStem = string.Empty;
+
+            if (!string.IsNullOrEmpty(stemLeft) && !string.IsNullOrEmpty(stemRight))
+                baseStem = CommonPrefix(Clean(stemLeft), Clean(stemRight));
+            else
+                baseStem = Clean(!string.IsNullOrEmpty(stemLeft) ? stemLeft : stemRight);
+
+            if (string.IsNullOrWhiteSpace(baseStem))
+                baseStem = "Calibration";
+
+            // Compose and sanitize
+            string suggested = $"{baseStem}.calproj";
+            suggested = SanitizeFileName(suggested);
+
+            // Final fallback safety
+            return string.IsNullOrWhiteSpace(suggested) ? "CalibrationProject.calproj" : suggested;
+
+            // Helpers (local to keep surface small)
+
+            static string Stem(string? fileName)
+            {
+                if (string.IsNullOrWhiteSpace(fileName))
+                    return string.Empty;
+                try
+                {
+                    var stem = System.IO.Path.GetFileNameWithoutExtension(fileName);
+                    return stem ?? string.Empty;
+                }
+                catch
+                {
+                    return fileName!;
+                }
+            }
+
+            static string Clean(string s)
+            {
+                // Remove known tokens (left/right) and isolated L/R; normalize separators
+                string result = s;
+                result = System.Text.RegularExpressions.Regex.Replace(result, "(?i)\\bleft\\b|\\bright\\b", "");
+                result = System.Text.RegularExpressions.Regex.Replace(result, "(?<![a-zA-Z])L(?![a-zA-Z])", "");
+                result = System.Text.RegularExpressions.Regex.Replace(result, "(?<![a-zA-Z])R(?![a-zA-Z])", "");
+                result = System.Text.RegularExpressions.Regex.Replace(result, "[\\s_\\-\\.]+", " ").Trim();
+                return result;
+            }
+
+            static string CommonPrefix(string a, string b)
+            {
+                if (string.IsNullOrEmpty(a) || string.IsNullOrEmpty(b))
+                    return string.Empty;
+
+                int len = Math.Min(a.Length, b.Length);
+                int i = 0;
+                for (; i < len; i++)
+                {
+                    if (char.ToLowerInvariant(a[i]) != char.ToLowerInvariant(b[i]))
+                        break;
+                }
+
+                string prefix = a.Substring(0, i).Trim();
+                // Trim trailing separators from prefix
+                prefix = System.Text.RegularExpressions.Regex.Replace(prefix, "[\\s_\\-\\.]+$", "").Trim();
+                if (prefix.Length < 3)
+                {
+                    // If too small, prefer the longer cleaned stem as base
+                    return a.Length >= b.Length ? a : b;
+                }
+                return prefix;
+            }
+
+            static string SanitizeFileName(string name)
+            {
+                var invalid = System.IO.Path.GetInvalidFileNameChars();
+                var cleaned = new string(name.Select(c => invalid.Contains(c) ? ' ' : c).ToArray());
+                // Collapse consecutive underscores/spaces
+                cleaned = System.Text.RegularExpressions.Regex.Replace(cleaned, "[ _]+", " ");
+                // Ensure extension
+                if (!cleaned.EndsWith(".calproj", StringComparison.OrdinalIgnoreCase))
+                    cleaned += ".calproj";
+                return cleaned.Trim(' ');
+            }
+        }
+
+
         ///
         /// EVENTS
         /// 
@@ -1075,6 +1182,7 @@ namespace Surveyor
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
     }
 
     /// <summary>

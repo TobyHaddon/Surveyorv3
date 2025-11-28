@@ -238,48 +238,6 @@
         </StackPanel>
 
         <StackPanel Grid.Row ="1" Orientation="Horizontal">
-            <TextBlock x:Name="StatusText" 
-                           VerticalAlignment="Center" 
-                           Margin="12,0"
-                           Width="220"
-                           MinWidth="150"
-                           FontWeight="SemiBold"/>
-
-            <CommandBar Grid.Row="0" 
-                        Background="Transparent" 
-                        HorizontalAlignment="Stretch"
-                        IsOpen="False" 
-                        DefaultLabelPosition="Bottom" 
-                        IsSticky="True">
-                <CommandBar.PrimaryCommands>
-                    
-                    <AppBarButton x:Name="OpenAppBarButton" 
-                                  Icon="OpenFile" 
-                                  Label="Open..." 
-                                  Click="OpenAppBarButton_Click"
-                                  ToolTipService.ToolTip="Open an existing calibration project"/>
-
-                    <AppBarButton x:Name="FindAppBarButton" 
-                                  Icon="Find" 
-                                  Label="Find" 
-                                  Click="FindAppBarButton_Click"
-                                  ToolTipService.ToolTip="Scan the media for calibration targets and collect the information"/>
-                    
-                    <AppBarButton x:Name="FindAppBarCancel" 
-                                  Icon="Cancel"  
-                                  Click="FindAppBarCancel_Click"
-                                  ToolTipService.ToolTip="Cancel the scan"/>
-
-                    <AppBarButton x:Name="SaveAppBarButton" 
-                                  Icon="Save" 
-                                  Label="Save" 
-                                  Click="SaveAppBarButton_Click"
-                                  ToolTipService.ToolTip="Find the best frames and perform calibration"/>
-                </CommandBar.PrimaryCommands>
-
-            </CommandBar>
-
-            <CheckBox x:Name="SaveBestFrames" IsEnabled="False" IsChecked="False" VerticalAlignment="Center" Content="Save Best Frames"/>
 
             <Grid x:Name="Sliders">
                 <Grid.RowDefinitions>
@@ -440,6 +398,7 @@
 
             <!-- Left Mono Head -->
             <controls:UniversalCalibrationHeadUserControl x:Name="LeftMonoCalibrationHead" 
+                                                          HeadTitle="Left Mono Calibration Video"
                                                           Head="Mono" 
                                                           Grid.Row="0" 
                                                           Grid.Column="0" 

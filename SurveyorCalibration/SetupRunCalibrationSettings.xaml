@@ -16,10 +16,18 @@
 
             <Border x:Name="BorderCache" Padding="8" BorderBrush="Gray" BorderThickness="1" CornerRadius="4">
                 <CheckBox x:Name="ReuseCacheCheckBox"
+                          IsChecked="{x:Bind navParams.runCalibrationParams.UseFrameSetCache, Mode=TwoWay}"
                           Content="Frame information has already been extracted from the media. Do you want to reuse it?"
                           ToolTipService.ToolTip="If you reuse the cached frame infomation it is must quicker, however if you need to adjust any of the settings below then the cache can't be used"/>
             </Border>
 
+            <Border x:Name="BorderBestFrame" Padding="8" BorderBrush="Gray" BorderThickness="1" CornerRadius="4">
+                <CheckBox x:Name="SaveBestFramesCheckBox"
+                          IsChecked="{x:Bind navParams.runCalibrationParams.SaveBestFrames, Mode=TwoWay}"
+                          Content="Save the best frames for later inspection or use"
+                          ToolTipService.ToolTip="Useful if you need to inspect the frames actually being inputting into the calibration calculation process. Or if you need to feed the best frames into a separate calibration process"/>
+            </Border>
+            
             <Grid x:Name="FilterGrid" Margin="0,8,0,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -69,11 +77,6 @@
 
             <CheckBox x:Name="SaveBestFrames" Content="Save Best Frame to Files"
                       ToolTipService.ToolTip="Check this if you want the best identified frames saved to separate .png image files. This can be useful if you want to examine the images being used for calibration or you want to use these images in a separate calibration application"/>
-
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"  Margin="0,15,0,0">
-                <Button Content="Back" Click="SetupRunCalibrationSettingsBack_Click" Margin="0,0,10,0"/>
-                <Button Content="Next" Click="SetupRunCalibrationSettingsNext_Click"/>
-            </StackPanel>
         </StackPanel>
     </ScrollViewer>
 </Page>

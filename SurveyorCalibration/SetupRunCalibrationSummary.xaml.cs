@@ -2,12 +2,13 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Surveyor.Helper;
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 
 namespace Surveyor
 {
-    public sealed partial class SetupRunCalibrationSummary : Page
+    public sealed partial class SetupRunCalibrationSummary : Page, SetupRunCalibration.IWizardPage
     {
         private NavParams? navParams;
         public SetupRunCalibrationSummary()
@@ -19,9 +20,34 @@ namespace Surveyor
         {
             base.OnNavigatedTo(e);
             navParams = e.Parameter as NavParams;
+
+            // Set footer buttons
+            if (navParams is not null && navParams.setupRunCalibration is not null)
+                navParams.setupRunCalibration.RequestFooterButtonsRefresh();
+
+            // Summarize current calibration project
             UpdateSummary();
         }
 
+
+        // Wizard interface
+        public bool CanGoBack => navParams?.calibProject != null;
+        public bool CanGoNext => false;
+
+        // Go to Calibration Settings page
+        public Task GoBackAsync()
+        {
+            navParams?.setupRunCalibration.GoToPage(typeof(SetupRunCalibrationSummary)/*class*/, "CalibrationSummary"/*tag*/);
+
+            return Task.CompletedTask;
+        }
+
+        public Task GoNextAsync() => Task.CompletedTask;
+
+
+        /// <summary>
+        /// Build a summary of the current calibration project
+        /// </summary>
         private void UpdateSummary()
         {
             if (navParams is not null)
@@ -43,47 +69,19 @@ namespace Surveyor
         {
             if (navParams is not null)
             {
+                await Task.Delay(10); // Allow UI to update
+
                 // Invoke MainWindow's calibration entry point
                 if (App.MainWindow is MainWindow mw)
                 {
+                    
                     // Fire and forget
-                    _ = mw.RunCalibrationAsync();
+                    _ = mw.RunCalibrationAsync(navParams.runCalibrationParams);
                 }
 
-                // Close host window
+                // Close host NaView window
                 (WindowHelper.GetWindowForElement(this) as SetupRunCalibration)?.Close();
             }
-        }
-
-        private void SetupRunCalibrationSummaryBack_Click(object sender, RoutedEventArgs e)
-        {
-            // Navigate to settings page, passing the current CalibProject (can be null)
-            Frame?.Navigate(typeof(SetupRunCalibrationSettings), navParams);
-
-            // Update NavView selection to "Calibration Settings"
-            var navView = FindParentNavigationView();
-            if (navView != null)
-            {
-                var targetItem = navView.MenuItems
-                                        .OfType<NavigationViewItem>()
-                                        .FirstOrDefault(i => (i.Tag as string) == "CalibrationSettings");
-                if (targetItem != null && (NavigationViewItem)navView.SelectedItem != targetItem)
-                {
-                    navView.SelectedItem = targetItem;
-                }
-            }
-        }
-
-        private NavigationView? FindParentNavigationView()
-        {
-            DependencyObject? parent = this;
-            while (parent != null)
-            {
-                if (parent is NavigationView nv) return nv;
-                parent = VisualTreeHelper.GetParent(parent);
-            }
-            return null;
-        }
-
+        }       
     }
 }
