@@ -395,7 +395,13 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void RightSideMoveItemUp_Click(object sender, RoutedEventArgs e)
         {
-
+            if (RightStereoMediaFileNames.SelectedItem is MediaFileItem selectedItem &&
+                RightMonoMediaFileItemList.Count < 5)
+            {
+                RightStereoMediaFileItemList.Remove(selectedItem);
+                RightMonoMediaFileItemList.Add(selectedItem);
+            }
+            EntryFieldsValid(false/*no reporting*/);
         }
 
 
@@ -406,7 +412,13 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void RightSideMoveItemDown_Click(object sender, RoutedEventArgs e)
         {
-
+            if (RightMonoMediaFileNames.SelectedItem is MediaFileItem selectedItem &&
+                RightStereoMediaFileItemList.Count < 5)
+            {
+                RightMonoMediaFileItemList.Remove(selectedItem);
+                RightStereoMediaFileItemList.Add(selectedItem);
+            }
+            EntryFieldsValid(false/*no reporting*/);
         }
 
 
@@ -417,14 +429,23 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void DeleteItem_Click(object sender, RoutedEventArgs e)
         {
-            if (LeftMonoMediaFileNames.SelectedItem is MediaFileItem selectedItem)
+            if (LeftMonoMediaFileNames.SelectedItem is MediaFileItem leftMonoSelectedItem)
             {
-                LeftMonoMediaFileItemList.Remove(selectedItem);
+                LeftMonoMediaFileItemList.Remove(leftMonoSelectedItem);
             }
-            else if (RightMonoMediaFileNames.SelectedItem is MediaFileItem rightSelectedItem)
+            else if (RightMonoMediaFileNames.SelectedItem is MediaFileItem rightMonoSelectedItem)
             {
-                RightMonoMediaFileItemList.Remove(rightSelectedItem);
+                RightMonoMediaFileItemList.Remove(rightMonoSelectedItem);
             }
+            else if (LeftStereoMediaFileNames.SelectedItem is MediaFileItem leftStereoSelectedItem)
+            {
+                LeftStereoMediaFileItemList.Remove(leftStereoSelectedItem);
+            }
+            else if (RightStereoMediaFileNames.SelectedItem is MediaFileItem rightStereoSelectedItem)
+            {
+                RightStereoMediaFileItemList.Remove(rightStereoSelectedItem);
+            }
+
             EntryFieldsValid(false/*no reporting*/);
         }
 

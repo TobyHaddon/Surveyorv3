@@ -96,9 +96,9 @@
 
             <Grid x:Name="SurveyMediaGrid" Margin="0,8,0,0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="500" />
+                    <ColumnDefinition Width="400" />
                     <ColumnDefinition Width="50" />
-                    <ColumnDefinition Width="500" />
+                    <ColumnDefinition Width="400" />
                 </Grid.ColumnDefinitions>
 
                 <Grid.RowDefinitions>

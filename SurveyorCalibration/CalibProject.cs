@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Emgu.CV;
+using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using SurveyorCalibrationData;
 using System;
@@ -9,8 +10,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using Windows.Devices.Printers;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using Windows.Storage;
 
 namespace Surveyor
 {
@@ -51,8 +51,9 @@ namespace Surveyor
                 Info.Clear();
                 Media.Clear();
                 CharucoBoardDefinition.Clear();
-                CalibrationResults.Clear();
                 Sync.Clear();
+                CalibrationResults.Clear();
+                Cache.Clear();
             }
 
             public partial class InfoClass : INotifyPropertyChanged
@@ -582,7 +583,160 @@ namespace Surveyor
                 }
             }
 
-            
+            public partial class CacheClass : INotifyPropertyChanged
+            {
+                public event PropertyChangedEventHandler? PropertyChanged;
+
+                public CacheClass()
+                {
+                    Clear();
+
+                    // Load Guid in case new project (may get over written by a deserialization)
+                    _leftMonoFrameSetCacheGuid = Guid.NewGuid().ToString();
+                    _rightMonoFrameSetCacheGuid = Guid.NewGuid().ToString();
+                    _stereoFrameSetCacheGuid = Guid.NewGuid().ToString();
+                }
+
+                public void Clear()
+                {
+                    _projectFileNameSavedUnder = string.Empty;
+                    _leftMonoFrameSetCacheGuid = string.Empty;
+                    _rightMonoFrameSetCacheGuid = string.Empty;
+                    _stereoFrameSetCacheGuid = string.Empty;
+                    IsDirty = false;
+                }
+
+                // Info class version
+                public float Version { get; set; } = 1.0f;
+
+                // Values
+                private string _projectFileNameSavedUnder = string.Empty;
+                private string _leftMonoFrameSetCacheGuid = string.Empty;
+                private string _rightMonoFrameSetCacheGuid = string.Empty;
+                private string _stereoFrameSetCacheGuid = string.Empty;
+
+
+                // Setters and getters
+
+                // The project file name the cache files were saved under
+                // This is separate from the Info.ProjectFileName in
+                // case the project gets renamed and the cache files
+                // need to be renamed to match
+                public string ProjectFileNameSavedUnder
+                {
+                    get => _projectFileNameSavedUnder;
+                    set
+                    {
+                        if (_projectFileNameSavedUnder != value)
+                        {
+                            _projectFileNameSavedUnder = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public string LeftMonoFrameSetCacheGuid
+                {
+                    get => _leftMonoFrameSetCacheGuid;
+                    set
+                    {
+                        if (_leftMonoFrameSetCacheGuid != value)
+                        {
+                            _leftMonoFrameSetCacheGuid = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public string RightMonoFrameSetCacheGuid
+                {
+                    get => _rightMonoFrameSetCacheGuid;
+                    set
+                    {
+                        if (_rightMonoFrameSetCacheGuid != value)
+                        {
+                            _rightMonoFrameSetCacheGuid = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public string StereoFrameSetCacheGuid
+                {
+                    get => _stereoFrameSetCacheGuid;
+                    set
+                    {
+                        if (_stereoFrameSetCacheGuid != value)
+                        {
+                            _stereoFrameSetCacheGuid = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                // Helpers
+                [JsonIgnore]
+                public string LeftMonoFrameSetCacheFileName
+                {
+                    get => $"{ProjectFileNameSavedUnder}_{LeftMonoFrameSetCacheGuid}_FrameSet.json";
+                }
+                [JsonIgnore]
+                public string RightMonoFrameSetCacheFileName
+                {
+                    get => $"{ProjectFileNameSavedUnder}_{RightMonoFrameSetCacheGuid}_FrameSet.json";
+                }
+                [JsonIgnore]
+                public string StereoFrameSetCacheFileName
+                {
+                    get => $"{ProjectFileNameSavedUnder}_{StereoFrameSetCacheGuid}_FrameSet.json";
+                }
+
+                [JsonIgnore]
+                public string LeftMonoFrameSetCacheFileSpec
+                {
+                    get => Path.Combine(ApplicationData.Current.LocalFolder.Path, LeftMonoFrameSetCacheFileName);
+                }
+                [JsonIgnore]
+                public string RightMonoFrameSetCacheFileSpec
+                {
+                    get => Path.Combine(ApplicationData.Current.LocalFolder.Path, RightMonoFrameSetCacheFileName);
+                }
+                [JsonIgnore]
+                public string StereoFrameSetCacheFileSpec
+                {
+                    get => Path.Combine(ApplicationData.Current.LocalFolder.Path, StereoFrameSetCacheFileName);
+                }
+
+                private bool _isDirty;
+                [JsonIgnore]
+                public bool IsDirty
+                {
+                    get => _isDirty;
+                    set
+                    {
+                        if (_isDirty != value)
+                        {
+                            _isDirty = value;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+
+                /// 
+                /// EVENTS
+                ///
+                private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+                {
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                }
+            }
+
+
             public InfoClass Info { get; set; } = new();
 
             public MediaClass Media { get; set; } = new();
@@ -593,6 +747,7 @@ namespace Surveyor
 
             public CalibrationResultClass CalibrationResults { get; set; } = new();
 
+            public CacheClass Cache { get; set; } = new();
         }
 
         public DataClass Data = new();
@@ -605,7 +760,8 @@ namespace Surveyor
                     Data.Media.IsDirty || 
                     Data.CharucoBoardDefinition.IsDirty ||
                     Data.Sync.IsDirty ||
-                    Data.CalibrationResults.IsDirty)
+                    Data.CalibrationResults.IsDirty ||
+                    Data.Cache.IsDirty)
                 {
                     return true;
                 }
@@ -618,6 +774,7 @@ namespace Surveyor
                 Data.CharucoBoardDefinition.IsDirty = value;
                 Data.Sync.IsDirty = value;
                 Data.CalibrationResults.IsDirty = value;
+                Data.Cache.IsDirty = value;
                 OnPropertyChanged();
             }
         }
@@ -785,7 +942,7 @@ namespace Surveyor
                     }
                 }
 
-                // Adjust MediaPath if possible
+                // Adjust MediaPath if possible to be relative to project path
                 if (!string.IsNullOrEmpty(Data.Info.ProjectPath) && !string.IsNullOrEmpty(Data.Media.MediaPath))
                 {
                     var projectPathFull = Path.GetFullPath(Data.Info.ProjectPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -803,6 +960,85 @@ namespace Surveyor
                         else
                         {
                             Data.Media.MediaPath = relativePath;
+                        }
+                    }
+                }
+
+                // If the ProjectFileName changed vs. the cache file naming
+                // then rename the cache files
+                if (Data.Info.ProjectPath is not null)
+                {
+                    string expectedCacheProjectFileName = Data.Cache.ProjectFileNameSavedUnder;
+
+                    if (string.IsNullOrEmpty(expectedCacheProjectFileName))
+                    {
+                        // First Save so nothing will need renaming
+                        // Just setup the projext file name in the cache class
+                        // So cache file name/ file spec can be created
+                        Data.Cache.ProjectFileNameSavedUnder = Data.Info.ProjectFileName ?? "";
+                    }
+                    else if (Data.Info.ProjectFileName != expectedCacheProjectFileName)
+                    {
+                        string oldLeftMonoCacheFileSpec = string.Empty;
+                        string oldRightMonoCacheFileSpec = string.Empty;
+                        string oldStereoCacheFileSpec = string.Empty;
+
+                        // Get the current cache file names
+                        if (!string.IsNullOrEmpty(Data.Cache.LeftMonoFrameSetCacheFileName))
+                            oldLeftMonoCacheFileSpec = Data.Cache.LeftMonoFrameSetCacheFileSpec;
+
+                        if (!string.IsNullOrEmpty(Data.Cache.RightMonoFrameSetCacheFileName))
+                            oldRightMonoCacheFileSpec = Data.Cache.RightMonoFrameSetCacheFileSpec;
+
+                        if (!string.IsNullOrEmpty(Data.Cache.StereoFrameSetCacheFileName))
+                            oldStereoCacheFileSpec = Data.Cache.StereoFrameSetCacheFileSpec;
+
+                        // Apply the new project file name to the cache class
+                        // This is to enable the generation of new cache file names
+                        Data.Cache.ProjectFileNameSavedUnder = Data.Info.ProjectFileName ?? "";
+
+                        string newLeftMonoCacheFileSpec = Data.Cache.LeftMonoFrameSetCacheFileSpec;
+                        string newRightMonoCacheFileSpec = Data.Cache.RightMonoFrameSetCacheFileSpec;
+                        string newStereoCacheFileSpec = Data.Cache.StereoFrameSetCacheFileSpec;
+
+                        // Rename left mono cache file (if any)
+                        if (!string.IsNullOrEmpty(Data.Cache.LeftMonoFrameSetCacheFileName) &&
+                            File.Exists(oldLeftMonoCacheFileSpec))
+                        {
+                            try
+                            {
+                                File.Move(oldLeftMonoCacheFileSpec, newLeftMonoCacheFileSpec, true/*overwrite*/);
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"Error renaming left mono cache file {oldLeftMonoCacheFileSpec} to {newLeftMonoCacheFileSpec}: {ex.Message}");
+                            }
+                        }
+                        // Rename right mono cache file (if any)
+                        if (!string.IsNullOrEmpty(Data.Cache.RightMonoFrameSetCacheFileName) &&
+                            File.Exists(oldRightMonoCacheFileSpec))
+                        {
+                            try
+                            {
+                                File.Move(oldRightMonoCacheFileSpec, newRightMonoCacheFileSpec, true/*overwrite*/);
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"Error renaming right mono cache file {oldRightMonoCacheFileSpec} to {newRightMonoCacheFileSpec}: {ex.Message}");
+                            }
+                        }
+                        // Rename stereo cache file (if any)
+                        if (!string.IsNullOrEmpty(Data.Cache.StereoFrameSetCacheFileName) &&
+                            File.Exists(oldStereoCacheFileSpec))
+                        {
+                            try
+                            {
+                                File.Move(oldStereoCacheFileSpec, newStereoCacheFileSpec, true/*overwrite*/);
+                            }
+                            catch (Exception ex)
+                            {
+                                Debug.WriteLine($"Error renaming stereo cache file {oldStereoCacheFileSpec} to {newStereoCacheFileSpec}: {ex.Message}");
+                            }
                         }
                     }
                 }
@@ -946,6 +1182,7 @@ namespace Surveyor
                 Report?.Warning("", $"SetProjectNameAndPath() trying to set project name base on:{projectFileSpec}, however were was an error. {e.Message}");
             }
 
+            // Force the ProjectFileName to match the actual file name
             Data.Info.ProjectFileName = fileName ?? "";
             Data.Info.ProjectPath = directoryPath ?? "";
 

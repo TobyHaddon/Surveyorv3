@@ -12,6 +12,7 @@ namespace Surveyor
     public sealed partial class SetupRunCalibrationSettings : Page, SetupRunCalibration.IWizardPage
     {
         private NavParams? navParams;
+        private bool movementDragging; // flag for movement slider drag state
 
         public SetupRunCalibrationSettings()
         {
@@ -39,11 +40,59 @@ namespace Surveyor
                 // Set slider values from project data
                 if (navParams.calibProject.Data is not null)
                 {
-                    var settings = navParams.runCalibrationParams;
-                    MovementFilterSlider.Value = settings.MovementFilterValue;
-                    BlurFilterSlider.Value = settings.BlurFilterValue;
-                    MonoCornerFilterSlider.Value = settings.MonoCornersFilterValue;
-                    StereoCornerFilterSlider.Value = settings.StereoCornersFilterValue;
+                    var runParams = navParams.runCalibrationParams;
+
+                    // Movement Slider Value
+                    MovementFilterSlider.Value = runParams.MovementFilterValue;
+
+                    // Movement Slider Min
+                    if (runParams.MovementFilterMin is null)
+                        MovementFilterSlider.Minimum = 0;
+                    else
+                        MovementFilterSlider.Minimum = runParams.MovementFilterMin.Value;
+                    MovementFilterMin.Text = MovementFilterSlider.Minimum.ToString("F1");
+
+                    // Movement Slider Max
+                    if (runParams.MovementFilterMax is null)
+                        MovementFilterSlider.Maximum = RunCalibrationParams.MovementFilterMaxDefault;
+                    else
+                        MovementFilterSlider.Maximum = runParams.MovementFilterMax.Value;
+                    MovementFilterMax.Text = MovementFilterSlider.Maximum.ToString("F1");
+
+                    // Blur Slider value
+                    BlurFilterSlider.Value = runParams.BlurFilterValue;
+
+                    // Blur Slider Min
+                    if (runParams.BlurFilterMin is null)
+                        BlurFilterSlider.Minimum = 0;
+                    else
+                        BlurFilterSlider.Minimum = runParams.BlurFilterMin.Value;
+                    BlurFilterMin.Text = BlurFilterSlider.Minimum.ToString("F1");
+
+                    // Blur Slider Max
+                    if (runParams.BlurFilterMax is null)
+                        BlurFilterSlider.Maximum = RunCalibrationParams.BlurMaxFilterMaxDefault;
+                    else
+                        BlurFilterSlider.Maximum = runParams.BlurFilterMax.Value;
+                    BlurFilterMax.Text = BlurFilterSlider.Maximum.ToString("F1");
+
+                    // Corner Filters values
+                    MonoCornerFilterSlider.Value = runParams.MonoCornersFilterValue;
+                    StereoCornerFilterSlider.Value = runParams.StereoCornersFilterValue;
+
+                    // Corners min values
+                    MonoCornerFilterMin.Text = "0";
+                    StereoCornerFilterMin.Text = "0";
+
+                    // Corners max values
+                    CharucoBoardDefinition charucoBoardDefinition = navParams.calibProject.Data.CharucoBoardDefinition;
+                    int maxCorners = (charucoBoardDefinition.SquaresX - 1) * (charucoBoardDefinition.SquaresY - 1);
+                    MonoCornerFilterSlider.Maximum = maxCorners;
+                    StereoCornerFilterSlider.Maximum = maxCorners;
+                    MonoCornerFilterMax.Text = MonoCornerFilterSlider.Maximum.ToString();
+                    StereoCornerFilterMax.Text = StereoCornerFilterSlider.Maximum.ToString();
+
+
                 }
             }
         }
@@ -107,11 +156,32 @@ namespace Surveyor
         {
             if (sender is Slider slider)
             {
-                if (slider == MovementFilterSlider) MovementFilterValue.Text = e.NewValue.ToString("F0");
+                if (slider == MovementFilterSlider)
+                {
+                    if (!movementDragging)
+                        MovementFilterValue.Visibility = Visibility.Visible;
+                    MovementFilterValue.Text = e.NewValue.ToString("F0");
+                }
                 else if (slider == BlurFilterSlider) BlurFilterValue.Text = e.NewValue.ToString("F0");
                 else if (slider == MonoCornerFilterSlider) MonoCornerFilterValue.Text = e.NewValue.ToString("F0");
                 else if (slider == StereoCornerFilterSlider) StereoCornerFilterValue.Text = e.NewValue.ToString("F0");
             }
+        }
+
+        private void MovementFilterSlider_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            movementDragging = true;
+            MovementFilterValue.Visibility = Visibility.Collapsed;
+        }
+        private void MovementFilterSlider_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            movementDragging = false;
+            MovementFilterValue.Visibility = Visibility.Visible;
+        }
+        private void MovementFilterSlider_PointerCaptureLost(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        {
+            movementDragging = false;
+            MovementFilterValue.Visibility = Visibility.Visible;
         }
     }
 }

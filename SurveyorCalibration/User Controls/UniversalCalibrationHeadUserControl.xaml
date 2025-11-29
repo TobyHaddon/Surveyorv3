@@ -24,12 +24,14 @@
         </Grid.ColumnDefinitions>
 
         <!-- Movement and Blur Graphs, Sensor Bins and Pose Bins -->
-        <controls:CalibrationFrameSetViewer x:Name="CalibrationFrameSetViewerLeft" Grid.Column="0"  HorizontalAlignment="Center"/>
-        <controls:CalibrationFrameSetViewer x:Name="CalibrationFrameSetViewerRight" Grid.Column="1"  HorizontalAlignment="Center"/>
+        <controls:CalibrationFrameSetViewer x:Name="CalibrationFrameSetViewerLeft" Grid.Column="0"  
+                                            HorizontalAlignment="Center"/>
+        <controls:CalibrationFrameSetViewer x:Name="CalibrationFrameSetViewerRight" Grid.Column="1"  
+                                            HorizontalAlignment="Center"/>
 
         <!-- Left Side Video Image Control and Calibration Result TextBlock -->
         <StackPanel Grid.Column="0" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
-            <Image x:Name="LeftImage" Stretch="Uniform" Margin="3"/>
+            <Image x:Name="LeftImage" Stretch="Uniform" Margin="0,3,0,0"/>
             <Border x:Name="LeftCalibDataBorder" BorderBrush="Gray" BorderThickness="1" Padding="4" CornerRadius="2"  Visibility="Collapsed" Margin="3">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <TextBlock x:Name="LeftCalibDataText"
@@ -44,7 +46,7 @@
 
         <!-- Right Side Video Image Control and Calibration Result TextBlock -->
         <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center">
-            <Image x:Name="RightImage" Stretch="Uniform" Margin="5"/>
+            <Image x:Name="RightImage" Stretch="Uniform" Margin="0,3,0,0"/>
             <Border x:Name="RightCalibDataBorder" BorderBrush="Gray" 
                     BorderThickness="1" Padding="4" CornerRadius="2" 
                     Visibility="Collapsed" Margin="3">
@@ -60,11 +62,14 @@
         </StackPanel>
         
         <!-- Calibration Board Time Line User Controls -->
-        <controls:CalibrationBoardTimeLineUserControl x:Name="CalibrationBoardTimeLineLeft" Grid.Column="0" Grid.Row="2" Visibility="Collapsed" Margin="0,10,2,0"/>
-        <controls:CalibrationBoardTimeLineUserControl x:Name="CalibrationBoardTimeLineRight" Grid.Column="1" Grid.Row="2" Visibility="Collapsed" Margin="2,10,2,0"/>
+        <controls:CalibrationBoardTimeLineUserControl x:Name="CalibrationBoardTimeLineLeft" Grid.Column="0" Grid.Row="2" 
+                                                      Visibility="Collapsed" Margin="0,5,2,0"/>
+        <controls:CalibrationBoardTimeLineUserControl x:Name="CalibrationBoardTimeLineRight" Grid.Column="1" Grid.Row="2" 
+                                                      Visibility="Collapsed" Margin="2,5,2,0"/>
 
         <!-- Left Side Media Controls -->
-        <StackPanel Grid.Column="0" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20" Margin="0,5,0,0">
+        <StackPanel Grid.Column="0" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" 
+                    Spacing="20" Margin="0,5,0,0">
             <!-- Frame Back Media Control Button, E973 -->
             <Button x:Name="LeftFrameBackButton" Click="LeftFrameBackClick">
                 <FontIcon Glyph="&#xE973;"/>
@@ -78,11 +83,12 @@
                 <FontIcon Glyph="&#xE974;"/>
             </Button>
             <TextBox x:Name="LeftFrameInfoTextBox" VerticalAlignment="Center" KeyDown="LeftFrameInfoTextBox_KeyDown" LostFocus="LeftFrameInfoTextBox_LostFocus"/>
-            <TextBlock x:Name="LeftFrameInfoLabel" FontSize="14"/>
+            <TextBlock x:Name="LeftFrameInfoLabel" Width ="120" FontSize="12"/>
         </StackPanel>
 
         <!-- Right Side Media Controls -->
-        <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="20" Margin="0,0,0,0">
+        <StackPanel Grid.Column="1" Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" 
+                    Spacing="20" Margin="0,5,0,0">
             <!-- Frame Back Media Control Button, E973 -->
             <Button x:Name="RightFrameBackButton" Click="RightFrameBackClick">
                 <FontIcon Glyph="&#xE973;"/>
@@ -96,12 +102,12 @@
                 <FontIcon Glyph="&#xE974;"/>
             </Button>
             <TextBox x:Name="RightFrameInfoTextBox" VerticalAlignment="Center" KeyDown="RightFrameInfoTextBox_KeyDown" LostFocus="RightFrameInfoTextBox_LostFocus"/>
-            <TextBlock x:Name="RightFrameInfoLabel" FontSize="14"/>
+            <TextBlock x:Name="RightFrameInfoLabel" Width ="120" FontSize="12"/>
         </StackPanel>
 
         <!-- Move factor, Blur Factors, feature count and score -->
         <StackPanel Grid.Column="0" Grid.Row="3" Orientation="Vertical" HorizontalAlignment="Left">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,3,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,5,0,0">
                 <TextBlock x:Name="LeftMovementFactor"
                         FontSize="12"/>
                 <TextBlock x:Name="LeftBlurFactor"
@@ -114,7 +120,7 @@
                         FontSize="12"
                         Margin="5,0" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,2,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,3,0,0">
                 <TextBlock x:Name="LeftYaw"
                             FontSize="12"/>
                 <TextBlock x:Name="LeftPitch"
@@ -124,7 +130,7 @@
         </StackPanel>
 
         <StackPanel Grid.Column="1" Grid.Row="3"  Orientation="Vertical" HorizontalAlignment="Left">
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,3,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,5,0,0">
                 <TextBlock x:Name="RightMovementFactor"
                         FontSize="12"/>
                 <TextBlock x:Name="RightBlurFactor"
@@ -137,7 +143,7 @@
                         FontSize="12"
                         Margin="5,0" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,2,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Margin="0,3,0,0">
                 <TextBlock x:Name="RightYaw"
                             FontSize="12" />
                 <TextBlock x:Name="RightPitch"

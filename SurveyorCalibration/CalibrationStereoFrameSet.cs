@@ -1851,7 +1851,6 @@ namespace Surveyor
         // the calculated ProjectionRMS and MaxError.This gives the calling code access to
         // both the camera parameters and the error metrics for further analysis or display.
 
-
         public MonoCalibrationCameraData? MonoCalibrateUsingBestFrames(
                                                     bool trueStereoFalseMono,
                                                     bool trueLeftFalseRight,

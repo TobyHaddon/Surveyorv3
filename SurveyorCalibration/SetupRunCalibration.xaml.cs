@@ -29,10 +29,6 @@ namespace Surveyor
             // Prepare navigation parameters
             navParams = new(_mainWindow, _calibProject, this, _runCalibrationParams);
             
-            // Set cache availability - i.e. was this run before on this PC
-            SetFrameSetsCacheAvailability();
-
-
             InitializeComponent();
             ExtendsContentIntoTitleBar = true;
 
@@ -147,16 +143,5 @@ namespace Surveyor
             RequestFooterButtonsRefresh();
         }
 
-
-        /// <summary>
-        /// Set the checkbox in the SetupRunCalibrationSettings page
-        /// </summary>
-        private void SetFrameSetsCacheAvailability()
-        {
-            if (navParams?.mainWindow is null) return;
-
-            // Check if cached results file exists and setup UI controls accordingly
-            navParams.runCalibrationParams.UseFrameSetCache = navParams.mainWindow.CachedResultsFileExists();
-        }
     }
 }

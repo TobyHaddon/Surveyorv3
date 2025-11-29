@@ -109,6 +109,11 @@
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEB3C;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
+                    <MenuFlyoutItem x:Name="MenuExport" Text="Export Results..." IsEnabled="True" Click="FileExport_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEDE1;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
                     <MenuFlyoutSeparator/>
                     <MenuFlyoutItem x:Name="MenuSettings" Text="Settings..." IsEnabled="True" Click="FileSettings_Click">
                         <MenuFlyoutItem.Icon>
@@ -222,7 +227,7 @@
                         Severity="Warning" HorizontalAlignment="Stretch"
                         Title="Lock Media"
                         Message="Stereo media needs to be synced before calibration can proceed"
-                        ToolTipService.ToolTip="Find the sync point in both stereo media files, this is normally a torch flash. Make sure you move both the left and right stereo media to the same first frame of the same torch false. Then press the 'Sync Stereo Media' button"
+                        ToolTipService.ToolTip="Find the sync point in both stereo media files, this is normally a torch flash. Make sure you move both the left and right stereo videos are on the same first frame of the same torch flash. Then press the 'Sync Stereo Media' button to syncronise them"
                         IsClosable="false">
                 <InfoBar.ActionButton>
                     <Button Content="Sync Stereo Media" Click="InfoBarLockMediaButton_Click" />
@@ -416,6 +421,7 @@
 
             <!-- Right Mono Head -->
             <controls:UniversalCalibrationHeadUserControl x:Name="RightMonoCalibrationHead" 
+                                                          HeadTitle="Right Mono Calibration Video"
                                                           Head="Mono" 
                                                           Grid.Row="0" 
                                                           Grid.Column="2"
@@ -426,7 +432,6 @@
         </Grid>
 
         <!-- Horizontal sizer -->        
-
         <toolkit:GridSplitter Grid.Row="3"
                           Height="8"
                           HorizontalAlignment="Stretch"
@@ -436,7 +441,9 @@
                           ResizeBehavior="PreviousAndNext"/>
 
 
+        <!-- For the HeadTitle Left and Right are automatically applied if the Head is Stereo -->
         <controls:UniversalCalibrationHeadUserControl x:Name="StereoCalibrationHead" 
+                                                      HeadTitle="Stereo Calibration Video" 
                                                       Head="Stereo" 
                                                       Grid.Row="5"                                                      
                                                       Margin="5,5,5,5"/>

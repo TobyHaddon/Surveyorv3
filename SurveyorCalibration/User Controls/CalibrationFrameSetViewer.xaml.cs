@@ -43,6 +43,16 @@ namespace Surveyor.Controls
 
 
         /// <summary>
+        /// Set the title of this viewer - this is used as the title for Head in reality
+        /// </summary>
+        /// <param name="title"></param>
+        public void SetTitle(string title)
+        {
+            TitleText.Text = title;
+        }
+
+
+        /// <summary>
         /// Draw the movement and blur graphs based on the current data.
         /// </summary>
         public void DrawGraphs()
@@ -127,9 +137,9 @@ namespace Surveyor.Controls
                 FontFamily = new FontFamily("Segoe UI Variable"),
                 Foreground = new SolidColorBrush(Microsoft.UI.Colors.SkyBlue),
                 FontSize = 10,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                UseLayoutRounding = true
             };
-            movementLabel.UseLayoutRounding = true;
             Canvas.SetLeft(movementLabel, 2);
             Canvas.SetTop(movementLabel, 2);
             MovementCanvas.Children.Add(movementLabel);
@@ -173,61 +183,52 @@ namespace Surveyor.Controls
         {
             if (Data is null) return;
 
-            SensorBinGridItemsControl.Items.Clear();
+            // Reset the rows and columns
+            SensorBinGridItemsControl.Children.Clear();
 
-            foreach (var (gx, gy) in sensorBinLayers)
+            // Only support the first sensor bin layer 
+            var (gx, gy) = sensorBinLayers.FirstOrDefault();
+
+            // Create columns and rows
+            for (int c = 0; c < gx; c++)
+                SensorBinGridItemsControl.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            for (int r = 0; r < gy; r++)
+                SensorBinGridItemsControl.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            // Add cell borders and content
+            for (int r = 0; r < gy; r++)
             {
-                var grid = new Grid
-                {
-                    Width = 180,
-                    Height = double.NaN,
-                    Margin = new Thickness(8),
-                    Background = new SolidColorBrush(Microsoft.UI.Colors.Gray)
-                };
-
-                // Create columns and rows
                 for (int c = 0; c < gx; c++)
-                    grid.ColumnDefinitions.Add(new ColumnDefinition());
-
-                for (int r = 0; r < gy; r++)
-                    grid.RowDefinitions.Add(new RowDefinition());
-
-                // Add cell borders and content
-                for (int r = 0; r < gy; r++)
                 {
-                    for (int c = 0; c < gx; c++)
+                    var cell = new Border
                     {
-                        var cell = new Border
-                        {
-                            BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.LightGray),
-                            BorderThickness = new Thickness(0.5),
-                            HorizontalAlignment = HorizontalAlignment.Stretch,
-                            VerticalAlignment = VerticalAlignment.Stretch
-                        };
+                        BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.LightGray),
+                        BorderThickness = new Thickness(0.5),
+                        HorizontalAlignment = HorizontalAlignment.Stretch,
+                        VerticalAlignment = VerticalAlignment.Stretch
+                    };
 
-                        var label = new TextBlock
-                        {
-                            Text = "0", // Default value
-                            FontFamily = new FontFamily("Segoe UI Variable"),
-                            HorizontalAlignment = HorizontalAlignment.Center,
-                            VerticalAlignment = VerticalAlignment.Center,
-                            //Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources["CaptionTextBlockStyle"]
-                            //Width = 50,
-                            FontSize = 10,
-                            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-                            Margin = new Thickness(0),
-                            Padding = new Thickness(0),
-                            UseLayoutRounding = true
-                        };
+                    var label = new TextBlock
+                    {
+                        Text = "0", // Default value
+                        FontFamily = new FontFamily("Segoe UI Variable"),
+                        HorizontalAlignment = HorizontalAlignment.Center,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        //Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources["CaptionTextBlockStyle"]
+                        //Width = 50,
+                        FontSize = 10,
+                        FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                        Margin = new Thickness(0),
+                        Padding = new Thickness(0),
+                        UseLayoutRounding = true
+                    };
 
-                        Grid.SetRow(cell, r);
-                        Grid.SetColumn(cell, c);
-                        cell.Child = label;
-                        grid.Children.Add(cell);
-                    }
+                    Grid.SetRow(cell, r);
+                    Grid.SetColumn(cell, c);
+                    cell.Child = label;
+                    SensorBinGridItemsControl.Children.Add(cell);
                 }
-
-                SensorBinGridItemsControl.Items.Add(grid);
             }
         }
 
@@ -244,25 +245,12 @@ namespace Surveyor.Controls
             // Get the number of columns and rows for the pose bin grid
             (int gx, int gy) = FrameCalibrationData.PoseBinGrid;
 
-
-            //var grid = new Grid
-            //{
-            //    Width = 180,
-            //    Height = double.NaN,
-            //    Margin = new Thickness(8),
-            //    Background = new SolidColorBrush(Microsoft.UI.Colors.Gray)
-            //};
-
             // Create columns and rows
             for (int c = 0; c < gx; c++)
-                //grid.ColumnDefinitions.Add(new ColumnDefinition());
                 PoseBinGridItemsControl.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
             for (int r = 0; r < gy; r++)
-                //grid.RowDefinitions.Add(new RowDefinition());
                 PoseBinGridItemsControl.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-
-
           
             // Add cell borders and content
             for (int r = 0; r < gy; r++)
@@ -298,9 +286,6 @@ namespace Surveyor.Controls
                     PoseBinGridItemsControl.Children.Add(cell);
                 }
             }
-
-            //???PoseBinGridItemsControl.Items.Add(grid);
-
         }
 
 
@@ -312,34 +297,23 @@ namespace Surveyor.Controls
             if (Data is null)
                 return;
 
-            int gridIndex = 0;
-
-
             if (Data.calibrationStereoFrameSet is not null)
             {
-                foreach (var (gx, gy) in sensorBinLayers)
+                // Only support the first sensor bin layer 
+                var (gx, gy) = sensorBinLayers.FirstOrDefault();
+
+                var counts = Data.calibrationStereoFrameSet.GetSensorBinCounts(Data.trueLeftFalseRight, gx, gy);
+
+                foreach (var child in SensorBinGridItemsControl.Children)
                 {
-                    // Safety check
-                    if (gridIndex >= SensorBinGridItemsControl.Items.Count)
-                        break;
-
-                    if (SensorBinGridItemsControl.Items[gridIndex] is Grid grid)
+                    if (child is Border border && border.Child is TextBlock textBlock)
                     {
-                        var counts = Data.calibrationStereoFrameSet.GetSensorBinCounts(Data.trueLeftFalseRight, gx, gy);
+                        int column = Grid.GetColumn(border);
+                        int row = Grid.GetRow(border);
 
-                        foreach (var child in grid.Children)
-                        {
-                            if (child is Border border && border.Child is TextBlock textBlock)
-                            {
-                                int column = Grid.GetColumn(border);
-                                int row = Grid.GetRow(border);
-
-                                // Updated to use just column/row since gx/gy are implicit in the grid structure
-                                textBlock.Text = counts.TryGetValue((gx, gy, column, row), out int v) ? v.ToString() : "0";
-                            }
-                        }
+                        // Updated to use just column/row since gx/gy are implicit in the grid structure
+                        textBlock.Text = counts.TryGetValue((gx, gy, column, row), out int v) ? v.ToString() : "0";
                     }
-                    gridIndex++;
                 }
             }
         }
@@ -384,59 +358,45 @@ namespace Surveyor.Controls
             if (Data is null)
                 return;
 
-            int gridIndex = 0;
-
-
             if (Data.calibrationStereoFrameSet is not null)
             {
-                foreach (var (gx, gy) in sensorBinLayers)
+                // Only support the first sensor bin layer 
+                var (gx, gy) = sensorBinLayers.FirstOrDefault();
+
                 {
-                    // Safety check
-                    if (gridIndex >= SensorBinGridItemsControl.Items.Count)
-                        break;
-
-                    if (SensorBinGridItemsControl.Items[gridIndex] is Grid grid)
+                    if (frameCalibrationData is null)
                     {
-                        if (frameCalibrationData is null)
+                        // Clear colour of the the bins
+                        foreach (var child in SensorBinGridItemsControl.Children)
                         {
-                            // Clear colour of the the bins
-                            foreach (var child in grid.Children)
+                            if (child is Border border &&
+                                border.Child is TextBlock textBlock)
                             {
-                                if (child is Border border &&
-                                    border.Child is TextBlock textBlock)
-                                {
-                                    border.Background = null;   //??? new SolidColorBrush(color);
-                                }
-                            }
-                        }
-                        else
-                        {
-                            foreach (var child in grid.Children)
-                            {
-                                if (child is Border border &&
-                                    border.Child is TextBlock textBlock)
-                                {
-                                    int row = Grid.GetRow(border);
-                                    int column = Grid.GetColumn(border);
-
-
-                                    bool colourCell = frameCalibrationData.SensorBinsOccupied
-                                                                .Any(entry => entry.gx == gx && entry.gy == gy && entry.binx == column && entry.biny == row);
-
-                                    if (colourCell)
-                                    {
-
-                                        border.Background = new SolidColorBrush(Colors.LightBlue);
-                                    }
-                                    else
-                                    {
-                                        border.Background = null;
-                                    }
-                                }
+                                border.Background = null;   //??? new SolidColorBrush(color);
                             }
                         }
                     }
-                    gridIndex++;
+                    else
+                    {
+                        foreach (var child in SensorBinGridItemsControl.Children)
+                        {
+                            if (child is Border border &&
+                                border.Child is TextBlock textBlock)
+                            {
+                                int row = Grid.GetRow(border);
+                                int column = Grid.GetColumn(border);
+
+
+                                bool colourCell = frameCalibrationData.SensorBinsOccupied
+                                                            .Any(entry => entry.gx == gx && entry.gy == gy && entry.binx == column && entry.biny == row);
+
+                                if (colourCell)
+                                    border.Background = new SolidColorBrush(Colors.LightBlue);
+                                else
+                                    border.Background = null;
+                            }
+                        }
+                    }
                 }
             }
         }

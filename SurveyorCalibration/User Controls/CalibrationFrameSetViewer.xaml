@@ -14,7 +14,7 @@
         <Grid>
 
             <ScrollViewer HorizontalScrollBarVisibility="Visible">
-                <Grid x:Name="MainPanel" Padding="0" Height="150">
+                <Grid x:Name="MainPanel" Padding="0" Height="120">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>    <!-- Movement and Blur -->
                         <ColumnDefinition Width="Auto"/>    <!-- Sensor Coverage -->
@@ -26,17 +26,18 @@
                     </Grid.RowDefinitions>
 
                     <!-- Column 0: Movement and Blur -->
-                    <!-- Used for the title of the Head e.g. Stero Left -->
-                    <TextBlock x:Name="HeadTitle" Grid.Row="0" Grid.Column="0"
+                    <!-- Used for the title of the Head e.g. Stereo Left -->
+                    <TextBlock x:Name="TitleText" Grid.Row="0" Grid.Column="0"
                                                     Text=""                                   
                                                     VerticalAlignment="Bottom" HorizontalAlignment="Left"
                                                     FontFamily="Segoe UI Variable"
-                                                    FontSize="12"
-                                                    Padding="0" Margin="6,0,0,0"/>
+                                                    FontSize="10"
+                                                    FontWeight="Bold"
+                                                    Margin="0,0,0,0"/>
                     <!-- Frame Movement and Blur Graphs -->
                     <Border x:Name="GraphsBorder" Grid.Row="1" Grid.Column="0"
                                                     BorderBrush="Gray"
-                                                    BorderThickness="1"
+                                                    BorderThickness="2"
                                                     VerticalAlignment="Stretch">
                         <Grid Width="300">
                             <Grid.RowDefinitions>
@@ -55,27 +56,16 @@
                                                     VerticalAlignment="Bottom" HorizontalAlignment="Left"
                                                     FontFamily="Segoe UI Variable"
                                                     FontSize="10"                        
-                                                    Padding="0" Margin="6,0,0,0"/>
+                                                    Margin="5,0,0,0"/>
 
-                    <GridView x:Name="SensorBinGridItemsControl" Grid.Row="1" Grid.Column="1"
+                    <Border x:Name="SensorBinBorder" Grid.Row="1" Grid.Column="1"
+                                                    BorderBrush="Gray"
+                                                    BorderThickness="1" Margin="5,0,0,0">
+                        <Grid x:Name="SensorBinGridItemsControl"
+                                                    Width="200"                          
                                                     VerticalAlignment="Stretch" HorizontalAlignment="Left"                                            
-                                                    IsItemClickEnabled="False"
-                                                    SelectionMode="None"
-                                                    Padding="0" Margin="0">
-                        <GridView.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <ItemsWrapGrid Orientation="Vertical" MaximumRowsOrColumns="1"/>
-                            </ItemsPanelTemplate>
-                        </GridView.ItemsPanel>
-
-                        <GridView.ItemContainerStyle>
-                            <Style TargetType="GridViewItem">
-                                <Setter Property="Padding" Value="0"/>
-                                <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
-                                <Setter Property="VerticalContentAlignment" Value="Stretch"/>
-                            </Style>
-                        </GridView.ItemContainerStyle>
-                    </GridView>
+                                                    Padding="0"/>
+                    </Border>
 
 
                     <!-- Column 2: Pose diversity -->
@@ -84,14 +74,16 @@
                                                     VerticalAlignment="Bottom" HorizontalAlignment="Left"
                                                     FontFamily="Segoe UI Variable"
                                                     FontSize="10"                                   
-                                                    Padding="0" Margin="6,0,0,0"/>
+                                                    Margin="5,0,0,0"/>
 
-                    <Grid x:Name="PoseBinGridItemsControl" Grid.Row="1" Grid.Column="2"
-                                                    Width="180"
+                    <Border x:Name="PoseBinBorder" Grid.Row="1" Grid.Column="2"
+                                                    BorderBrush="Gray"
+                                                    BorderThickness="1" Margin="5,0,0,0">
+                        <Grid x:Name="PoseBinGridItemsControl"
+                                                    Width="120"
                                                     VerticalAlignment="Stretch" HorizontalAlignment="Left"
-                                                    Background="Gray">
-                    </Grid>
-
+                                                    Padding="0"/>
+                    </Border>
                 </Grid>
             </ScrollViewer>
 
