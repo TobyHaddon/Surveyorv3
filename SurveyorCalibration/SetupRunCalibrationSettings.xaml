@@ -31,13 +31,13 @@
             <Grid x:Name="FilterGrid" Margin="0,8,0,0">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="14"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="14"/>
                     <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="14"/>
                     <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="14"/>
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>

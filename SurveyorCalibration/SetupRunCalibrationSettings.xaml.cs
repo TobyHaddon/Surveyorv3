@@ -12,7 +12,7 @@ namespace Surveyor
     public sealed partial class SetupRunCalibrationSettings : Page, SetupRunCalibration.IWizardPage
     {
         private NavParams? navParams;
-        private bool movementDragging; // flag for movement slider drag state
+        private bool? movementDragging; // flag for movement slider drag state
 
         public SetupRunCalibrationSettings()
         {
@@ -43,6 +43,7 @@ namespace Surveyor
                     var runParams = navParams.runCalibrationParams;
 
                     // Movement Slider Value
+                    movementDragging = null; // This is so the first OnSliderValueChanged is treated differently to the others
                     MovementFilterSlider.Value = runParams.MovementFilterValue;
 
                     // Movement Slider Min
@@ -158,26 +159,36 @@ namespace Surveyor
             {
                 if (slider == MovementFilterSlider)
                 {
-                    if (!movementDragging)
-                        MovementFilterValue.Visibility = Visibility.Visible;
-                    MovementFilterValue.Text = e.NewValue.ToString("F0");
+                    if (movementDragging is null)
+                        movementDragging = false;
+                    else if (!(bool)movementDragging)
+                        movementDragging = true;
+                    else
+                        MovementFilterValue.Visibility = Visibility.Collapsed;
+
+                    MovementFilterValue.Text = e.NewValue.ToString("F1");
                 }
-                else if (slider == BlurFilterSlider) BlurFilterValue.Text = e.NewValue.ToString("F0");
+                else if (slider == BlurFilterSlider) BlurFilterValue.Text = e.NewValue.ToString("F1");
                 else if (slider == MonoCornerFilterSlider) MonoCornerFilterValue.Text = e.NewValue.ToString("F0");
                 else if (slider == StereoCornerFilterSlider) StereoCornerFilterValue.Text = e.NewValue.ToString("F0");
             }
         }
 
+        // Not seen this fire
         private void MovementFilterSlider_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
             movementDragging = true;
             MovementFilterValue.Visibility = Visibility.Collapsed;
         }
+
+        // Not seen this fire
         private void MovementFilterSlider_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
             movementDragging = false;
             MovementFilterValue.Visibility = Visibility.Visible;
         }
+
+        // Seen this fire
         private void MovementFilterSlider_PointerCaptureLost(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
             movementDragging = false;

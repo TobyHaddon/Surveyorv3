@@ -31,10 +31,7 @@ using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
 using Windows.Storage;
 using WinUIEx;
-//???using static Surveyor.InternetQueue;
-//???using static Surveyor.SpeciesImageAndInfoCache;
 using static Surveyor.User_Controls.SettingsWindowEventData;
-
 
 
 namespace Surveyor.User_Controls

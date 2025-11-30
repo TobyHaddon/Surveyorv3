@@ -81,6 +81,9 @@ namespace Surveyor.User_Controls
             // Set the current saved theme
             SetSettingsTheme(SettingsManagerLocal.ApplicationTheme);
 
+            // Inform the ProectStereoInfoAndMedia user control that it is being used in the SettingsWindow for a project
+            ProjectStereoInfoAndMedia.SetupForSettingWindow(SettingsCardProjectStereoInfoAndMedia, project);
+            SettingsCardProjectStereoInfoAndMedia.Visibility = Visibility.Visible;
 
             // Inform the SettingsProjectCalibrationBoard user control that it is being used in the SettingsWindow for a project            
             SettingsProjectCalibrationBoard.SetupForProjectSettingWindow(project);
@@ -632,7 +635,7 @@ namespace Surveyor.User_Controls
 
                 if (project is not null)
                 {
-                    sb.Append(Path.GetFileName(project.Data.Info.ProjectFileName));
+                    sb.Append(Path.GetFileNameWithoutExtension(project.Data.Info.ProjectFileName));
                 }
 
                 return sb.ToString();

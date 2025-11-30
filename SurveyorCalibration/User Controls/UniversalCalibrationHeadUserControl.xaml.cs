@@ -568,8 +568,10 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        public async Task FindCalibrationFrameAsync()
+        public async Task<int> FindCalibrationFrameAsync()
         {
+            int ret = 0;
+
             try
             {
                 isFindCalibrationFrameRunning = true;
@@ -593,27 +595,31 @@ namespace Surveyor.Controls
                     CalibrationBoardTimeLineRight.CalibrationBoardRange(startCalibration, stopCalibration);
 
                     // Next find the calibration frames with in that range
-                    int framesCount = await Task.Run(async () =>
+                    ret = await Task.Run(async () =>
                     {
 
                         try
                         {
                             return await calibrationStereoFrameSet.FindCalibrationsFramesAsync(
-                                startCalibration,
-                                stopCalibration,
-                                FrameProcessingCallbackFindCalibrationsFrames,
-                                cancellationToken);
+                                            startCalibration,
+                                            stopCalibration,
+                                            FrameProcessingCallbackFindCalibrationsFrames,
+                                            cancellationToken);
                         }
                         finally
                         {
                             isFindCalibrationFrameRunning = false;
                         }
                     });
+
+                    if (ret == -1)
+                        Debug.WriteLine("FindCalibrationFrameAsync: User cancelled.");
                 }
             }
             catch (OperationCanceledException)
             {
                 Debug.WriteLine("Calibration search cancelled.");
+                ret = -1;
             }
             catch (Exception ex)
             {
@@ -623,6 +629,8 @@ namespace Surveyor.Controls
             {
                 SetUIControls();
             }
+
+            return ret;
         }
 
 

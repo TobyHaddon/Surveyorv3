@@ -28,7 +28,10 @@ namespace Surveyor
         {
             // Prepare navigation parameters
             navParams = new(_mainWindow, _calibProject, this, _runCalibrationParams);
-            
+
+            // Restore the saved window state
+            PersistenceId = "SetupRunCalibrationWindow";
+
             InitializeComponent();
             ExtendsContentIntoTitleBar = true;
 

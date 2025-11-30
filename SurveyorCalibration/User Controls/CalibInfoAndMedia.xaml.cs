@@ -42,6 +42,8 @@ namespace Surveyor.User_Controls
         public IReadOnlyList<StorageFile>? mediaFilesSelected = null;
 
         private ContentDialog? ParentDialog { get; set; } = null;
+        private SettingsCard? ParentSettings { get; set; } = null;
+
         private ObservableCollection<MediaFileItem> LeftMonoMediaFileItemList { get; set; }
         private ObservableCollection<MediaFileItem> RightMonoMediaFileItemList { get; set; }
 
@@ -76,7 +78,14 @@ namespace Surveyor.User_Controls
             // Reset Fields
             ResetDialogFields();
 
+            // Disable the radio buttons
+            MonoAndStereoMediaSetRadioButton.IsEnabled = true;
+            StereoOnlyMediaSetRadioButton.IsEnabled = true;
+            MonoPairOnlyMediaSetRadioButton.IsEnabled = true;
+            MonoSingleOnlyMediaSetRadioButton.IsEnabled = true;
 
+            // Show the select media button
+            SelectMedia.Visibility = Visibility.Visible;
 
             // Create a exception if not running from the ContentDialog context
             if (!dialog.IsEnabled)
@@ -88,6 +97,33 @@ namespace Surveyor.User_Controls
                 EnableDisableControlButtons();
                 EntryFieldsValid(false/*no reporting*/);
             });
+        }
+
+
+        /// <summary>
+        /// Set the parent of this control as a SettingsCard
+        /// This is used when this control is used view survey settings
+        /// </summary>
+        /// <param name="settings"></param>
+        public void SetupForSettingWindow(SettingsCard settings, CalibProject project)
+        {
+            // Remember the parent 
+            ParentSettings = settings;
+            ParentDialog = null;
+
+            // Reset Fields
+            ResetDialogFields();
+
+            // Disable the radio buttons
+            MonoAndStereoMediaSetRadioButton.IsEnabled = false;
+            StereoOnlyMediaSetRadioButton.IsEnabled = false;
+            MonoPairOnlyMediaSetRadioButton.IsEnabled = false;
+            MonoSingleOnlyMediaSetRadioButton.IsEnabled = false;
+
+            // Hide the select media button
+            SelectMedia.Visibility = Visibility.Collapsed;
+
+            EntryFieldsValid(false/*no reporting*/);
         }
 
 
@@ -541,9 +577,6 @@ namespace Surveyor.User_Controls
 
 
 
-
-
-
         ///
         /// PRIVATE
         /// 
@@ -560,6 +593,19 @@ namespace Surveyor.User_Controls
             else
                 return false;
         }
+
+        /// <summary>
+        /// Called to check if this user control is running in the context of a SettingsCard
+        /// </summary>
+        /// <returns></returns>
+        private bool IsParentSettingsCard()
+        {
+            if (ParentSettings is not null)
+                return true;
+            else
+                return false;
+        }
+
 
         private async Task CalibrationMediaSelectedAsync(IReadOnlyList<StorageFile> mediaFilesSelected)
         {

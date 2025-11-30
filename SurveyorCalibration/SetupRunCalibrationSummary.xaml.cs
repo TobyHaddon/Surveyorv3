@@ -55,12 +55,16 @@ namespace Surveyor
                 if (navParams.calibProject is null)
                 {
                     Summary.Text = "No calibration project loaded.";
-                    return;
                 }
-                Summary.Text = $"Project: {navParams.calibProject.Data.Info.ProjectFileName}\n"+
-                    $"Mode: {navParams.calibProject.Data.Media.StereoMonoMediaSetMode}\n"+
-                    $"Left Camera: {navParams.calibProject.Data.Media.LeftCameraID}\n"+
-                    $"Right Camera: {navParams.calibProject.Data.Media.RightCameraID}";
+                else
+                {
+                    string useCache = navParams.runCalibrationParams.UseFrameSetCache ? "Use the existing cache frames results\n" : "";
+                    Summary.Text = $"Project: {navParams.calibProject.Data.Info.ProjectFileName}\n" +
+                        $"Mode: {navParams.calibProject.Data.Media.StereoMonoMediaSetMode}\n" +
+                        $"Left Camera: {navParams.calibProject.Data.Media.LeftCameraID}\n" +
+                        $"Right Camera: {navParams.calibProject.Data.Media.RightCameraID}\n" +
+                        useCache;
+                }
             }
         }
 

@@ -91,15 +91,6 @@ namespace Surveyor
         
         private bool mediaFromCommandLine = false; // no sure to support this or not
 
-        [Obsolete]
-        public double MovementMaxThreshold { get; set; } = RunCalibrationParams.MovementFilterDefaultValue;
-        [Obsolete]
-        public double BlurMaxThreshold { get; set; } = RunCalibrationParams.BlurMaxFilterDefaultValue;
-        [Obsolete]
-        public int MonoCornersMinThreshold { get; set; } = CalibrationStereoFrameSet.MONO_CORNER_COUNT_THESHOLD;
-        [Obsolete]
-        public int StereoCornersMinThreshold { get; set; } = CalibrationStereoFrameSet.STEREO_CORNER_COUNT_THESHOLD;
-
         // Help menu documents
         private readonly HelpDocuments helpDocuments = new();
 
@@ -322,6 +313,8 @@ namespace Surveyor
         /// <returns></returns>
         public async Task RunCalibrationAsync(RunCalibrationParams runCalibrationParams)
         {
+            int ret = 0;
+
             if (calibProject is not null)
             {
                 // Prime the board for EMGU Api use
@@ -350,13 +343,24 @@ namespace Surveyor
             {
                 if (await LoadFrameDataCachesAsync(false/*noPrompts*/) == true)
                     Debug.WriteLine("Frame Set Caches Loaded");
+                else
+                    // Failed - switch cache off
+                    runCalibrationParams.UseFrameSetCache = false;
+            }
+            
+            if (runCalibrationParams.UseFrameSetCache == false)
+            {
+                // Build the frame sets by finding calibration targets in all frames
+                ret = await BuildFrameSetsAsync();
             }
 
-            // Build the frame sets by finding calibration targets in all frames
-            await BuildFrameSetsAsync();
+            if (ret == 0)
+            {
+                // Find the best frames and do the calibration calculation
+                await IdentifyBestFrameaAndDoCalibrationCalcAsync(runCalibrationParams);
+            }
 
-            // Find the best frames and do the calibration calculation
-            await IdentifyBestFrameaAndDoCalibrationCalcAsync(runCalibrationParams);
+            SetUIControls();
         }
 
 
@@ -457,45 +461,6 @@ namespace Surveyor
             // Optionally, apply additional changes
             SetTheme(newTheme);
             SettingsManagerLocal.ApplicationTheme = ElementTheme.Default;
-        }
-
-
-
-
-
-        /// <summary>
-        /// Update the movement threshold text when the slider value changes
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        [Obsolete]
-        private void MovementSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
-        {
-            MovementMaxThresholdText.Text = $"{MovementMaxThreshold:F1}"; // Update the text to show the current value
-        }
-
-
-        /// <summary>
-        /// Update the blur threshold text when the slider value changes
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        [Obsolete]
-        private void BlurSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
-        {
-            BlurMaxThresholdText.Text = $"{BlurMaxThreshold:F1}"; // Update the text to show the current value
-        }
-
-        [Obsolete]
-        private void MonoCornersSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
-        {
-            MonoCornersMinThresholdText.Text = $"{MonoCornersMinThreshold}";
-        }
-
-        [Obsolete]
-        private void StereoCornersSlider_ValueChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
-        {
-            StereoCornersMinThresholdText.Text = $"{StereoCornersMinThreshold}";
         }
 
 
@@ -1805,7 +1770,12 @@ namespace Surveyor
                     }
 
                     // Error loading
-                    if (!loaded)
+                    if (loaded)
+                    {
+                        // Sucess
+                        ret = true;
+                    }
+                    else
                     {
                         if (noPrompts)
                         {
@@ -1938,16 +1908,23 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async Task BuildFrameSetsAsync()
+        private async Task<int> BuildFrameSetsAsync()
         {
+            int ret = 0;
+
             if (calibProject is null)
-                return;
+                return -2;
 
             try
             {
                 var tasks = new List<Task>();
                 InfoBarProcessing.ShowProcessing("Finding calibration frames...");
                 SetDisplayModeOnAllHeads(AppMode.FindCalibrationsFrames);
+
+                bool doLeftMono = false;
+                bool doRightMono = false;
+                bool doStereo = false;
+                bool okToProceed = false;
 
                 switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                 {
@@ -1957,9 +1934,10 @@ namespace Surveyor
                             LeftMonoCalibrationHead.IsOpen() &&
                             RightMonoCalibrationHead.IsOpen())
                         {
-                            tasks.Add(StereoCalibrationHead.FindCalibrationFrameAsync());
-                            tasks.Add(LeftMonoCalibrationHead.FindCalibrationFrameAsync());
-                            tasks.Add(RightMonoCalibrationHead.FindCalibrationFrameAsync());
+                            doLeftMono = true;
+                            doRightMono = true;
+                            doStereo = true;
+                            okToProceed = true;
                         }
                         break;
 
@@ -1967,7 +1945,8 @@ namespace Surveyor
                         if (StereoCalibrationHead.IsOpen() &&
                             (bool)StereoCalibrationHead.IsStereoLocked()!)
                         {
-                            tasks.Add(StereoCalibrationHead.FindCalibrationFrameAsync());
+                            doStereo = true;
+                            okToProceed = true;
                         }
                         break;
 
@@ -1975,38 +1954,92 @@ namespace Surveyor
                         if (LeftMonoCalibrationHead.IsOpen() &&
                             RightMonoCalibrationHead.IsOpen())
                         {
-                            tasks.Add(LeftMonoCalibrationHead.FindCalibrationFrameAsync());
-                            tasks.Add(RightMonoCalibrationHead.FindCalibrationFrameAsync());
+                            doLeftMono = true;
+                            doRightMono = true;
+                            okToProceed = true;
                         }
                         break;
 
                     case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
                         if (LeftMonoCalibrationHead.IsOpen())
                         {
-                            tasks.Add(LeftMonoCalibrationHead.FindCalibrationFrameAsync());
+                            doLeftMono = true;
+                            okToProceed = true;
                         }
                         break;
                 }
 
-                if (tasks.Count == 0)
-                    return;
-
-                // Your existing flags + timer
-                StartFindCheckTimer();
-
-                try
+                if (okToProceed)
                 {
-                    // Run all finds in parallel, but still observe completion and exceptions
-                    await Task.WhenAll(tasks);
-                }
-                catch (Exception ex)
-                {
-                    // Handle/log properly
-                    Debug.WriteLine($"Error in FindAppBarButtonAsync: {ex}");
-                }
+                    int taskIndex = 0;
+                    int taskLeftMonoIndex = -1;
+                    int taskRightMonoIndex = -1;
+                    int taskStereoIndex = -1;
 
+                    if (doLeftMono)
+                    {
+                        tasks.Add(LeftMonoCalibrationHead.FindCalibrationFrameAsync());
+                        taskLeftMonoIndex = taskIndex++;
+                    }
+                    if (doRightMono)
+                    {
+                        tasks.Add(RightMonoCalibrationHead.FindCalibrationFrameAsync());
+                        taskRightMonoIndex = taskIndex++;
+                    }
+                    if (doStereo)
+                    {
+                        tasks.Add(StereoCalibrationHead.FindCalibrationFrameAsync());
+                        taskStereoIndex = taskIndex++;
+                    }
 
-                // Save the frames dataset
+                    if (tasks.Count == 0)
+                        return 0;
+
+                    // Your existing flags + timer
+                    StartFindCheckTimer();
+
+                    try
+                    {
+                        // Run all finds in parallel, but still observe completion and exceptions
+                        await Task.WhenAll(tasks);
+
+                        // Get result of each task
+                        int stereoResult = 0;
+                        int leftMonoResult = 0;
+                        int rightMonoResult = 0;
+
+                        if (doLeftMono)
+                            leftMonoResult = await ((Task<int>)tasks[taskLeftMonoIndex]);
+                        if (doRightMono)
+                            rightMonoResult = await ((Task<int>)tasks[taskRightMonoIndex]);
+                        if (doStereo)
+                            stereoResult = await ((Task<int>)tasks[taskStereoIndex]);
+
+                        // Check if any failed
+                        if ((doLeftMono && leftMonoResult != 0) ||
+                            (doRightMono && rightMonoResult != 0) ||
+                            (doStereo && stereoResult != 0))
+                        {
+                            Debug.WriteLine($"Error FindCalibrationFrameAsync: Left Mono Result={leftMonoResult}, Right Mono Result={rightMonoResult},Stereo Result={stereoResult}");
+
+                            if (doLeftMono && leftMonoResult != 0)
+                                ret = leftMonoResult;
+                            else if (doRightMono && rightMonoResult != 0)
+                                ret = rightMonoResult;
+                            else if (doStereo && stereoResult != 0)
+                                ret = stereoResult;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Handle/log properly
+                        Debug.WriteLine($"Error in FindAppBarButtonAsync: {ex}");
+                    }
+                }
+                else
+                    ret = -3;
+
+                    // Save the frames dataset
                 InfoBarProcessing.UpdateMessage("Saving stereo best frames...");
                 await SaveFrameDataCachesAsync(false/*no prompts*/);
             }
@@ -2018,6 +2051,8 @@ namespace Surveyor
             {
                 InfoBarProcessing.HideProcessing();
             }
+
+            return ret;
         }
 
 
@@ -2034,7 +2069,7 @@ namespace Surveyor
             if (calibProject is null)
                 return;
 
-            InfoBarProcessing.ShowProcessing("Saving...");
+            //???InfoBarProcessing.ShowProcessing("Saving...");
             SetDisplayModeOnAllHeads(AppMode.BestFramesCalc);
 
             SetUIControls();
@@ -2660,6 +2695,8 @@ namespace Surveyor
         {
             if (_findStartTime is not null)
             {
+                await Task.Delay(1); // Allow UI to update
+
                 SetUIControls();
 
                 if (!IsFindRunning())

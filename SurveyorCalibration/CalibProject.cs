@@ -682,17 +682,17 @@ namespace Surveyor
                 [JsonIgnore]
                 public string LeftMonoFrameSetCacheFileName
                 {
-                    get => $"{ProjectFileNameSavedUnder}_{LeftMonoFrameSetCacheGuid}_FrameSet.json";
+                    get => $"{Path.GetFileNameWithoutExtension(ProjectFileNameSavedUnder)}_LMono_{LeftMonoFrameSetCacheGuid}_FrameSet.json";
                 }
                 [JsonIgnore]
                 public string RightMonoFrameSetCacheFileName
                 {
-                    get => $"{ProjectFileNameSavedUnder}_{RightMonoFrameSetCacheGuid}_FrameSet.json";
+                    get => $"{Path.GetFileNameWithoutExtension(ProjectFileNameSavedUnder)}_RMono_{RightMonoFrameSetCacheGuid}_FrameSet.json";
                 }
                 [JsonIgnore]
                 public string StereoFrameSetCacheFileName
                 {
-                    get => $"{ProjectFileNameSavedUnder}_{StereoFrameSetCacheGuid}_FrameSet.json";
+                    get => $"{Path.GetFileNameWithoutExtension(ProjectFileNameSavedUnder)}_Stereo_{StereoFrameSetCacheGuid}_FrameSet.json";
                 }
 
                 [JsonIgnore]

@@ -211,7 +211,7 @@ namespace Surveyor.Controls
 
                     var label = new TextBlock
                     {
-                        Text = "0", // Default value
+                        Text = "", // Default value
                         FontFamily = new FontFamily("Segoe UI Variable"),
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
@@ -267,7 +267,7 @@ namespace Surveyor.Controls
 
                     var label = new TextBlock
                     {
-                        Text = "0", // Default value
+                        Text = "", // Default value
                         FontFamily = new FontFamily("Segoe UI Variable"),
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
@@ -312,7 +312,7 @@ namespace Surveyor.Controls
                         int row = Grid.GetRow(border);
 
                         // Updated to use just column/row since gx/gy are implicit in the grid structure
-                        textBlock.Text = counts.TryGetValue((gx, gy, column, row), out int v) ? v.ToString() : "0";
+                        textBlock.Text = counts.TryGetValue((gx, gy, column, row), out int v) ? v != 0 ? v.ToString() : "" : "";
                     }
                 }
             }
@@ -341,7 +341,7 @@ namespace Surveyor.Controls
                         int row = Grid.GetRow(border);
 
                         // Updated to use just column/row since gx/gy are implicit in the grid structure
-                        textBlock.Text = counts.TryGetValue((column, row), out int v) ? v.ToString() : "0";
+                        textBlock.Text = counts.TryGetValue((column, row), out int v) ? v != 0 ? v.ToString() : "" : "";
                     }
                 }
 

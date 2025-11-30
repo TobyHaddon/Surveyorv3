@@ -1244,7 +1244,7 @@ namespace Surveyor
         /// <param name="stopCalibrationFrameIndex"></param>
         /// <param name="callback"></param>
         /// <param name="cancellationToken"></param>
-        /// <returns></returns>
+        /// <returns>0 = Ok, -1 = Canceled</returns>
         public async Task<int> FindCalibrationsFramesAsync(int startCalibrationFrameIndex,
                                                            int stopCalibrationFrameIndex,
                                                            FrameProcessingCallback callback,
@@ -1381,9 +1381,7 @@ namespace Surveyor
                 await Task.Delay(10, cancellationToken);
             }
 
-
-
-            return 0; // or number of frames processed
+            return 0;
         }
 
 
