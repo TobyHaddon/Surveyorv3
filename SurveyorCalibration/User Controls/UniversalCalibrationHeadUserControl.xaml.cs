@@ -1,11 +1,11 @@
 using Emgu.CV;
-using Emgu.CV.Aruco;
 using Emgu.CV.CvEnum;
-using Emgu.CV.Structure;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Surveyor.Calibration;
+using Surveyor.Helper;
+using SurveyorCalibrationData;
 using System;
 using System.Diagnostics;
 using System.IO;
@@ -13,26 +13,27 @@ using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Threading;
 using System.Threading.Tasks;
+using Windows.ApplicationModel;
 using Windows.Foundation;
 using Windows.Graphics.Imaging;
 using Windows.Storage;
 using Windows.Storage.Streams;
-using SurveyorCalibrationData;
-using Windows.ApplicationModel;
 
 
 namespace Surveyor.Controls
 {
     public sealed partial class UniversalCalibrationHeadUserControl : UserControl
     {
+        // Remembered Head property
+        // Needed because background thread can't access UI elements
+        // Including the Head property
+        bool? headTrueIsStereoFalseIsMode = null;
+
         // Media file files and handles
         private string leftMediaFileSpec = string.Empty;
         private string rightMediaFileSpec = string.Empty;
         private VideoCapture? capLeft = null;
         private VideoCapture? capRight = null;
-
-        // Target calibration board setup
-        private CharucoBoardDefinition? charucoBoardDefinition;
 
         // Writeable bitmaps for the left and right camera frames
         private Size frameSize = new(0.0, 0.0); // Size of the frames, used to create WriteableBitmaps
@@ -61,7 +62,7 @@ namespace Surveyor.Controls
 
         private bool isLocked = false;
 
-        private CalibrationStereoFrameSet calibrationStereoFrameSet = new();
+        private CalibrationStereoFrameSet calibrationStereoFrameSet;
 
         private CancellationToken cancellationToken;
         private CancellationTokenSource? cts = null;
@@ -69,6 +70,8 @@ namespace Surveyor.Controls
         private bool isFindCalibrationFrameRunning = false;
 
         private readonly Microsoft.UI.Dispatching.DispatcherQueue dispatcherQueue;
+
+        private readonly SafeUICall safeUICall;
 
         public enum AppMode { Close, Open, FindCalibrationsFrames, BestFramesCalc, BestFramesView, BestFramesSave };
         private AppMode appMode = AppMode.Open;
@@ -99,11 +102,13 @@ namespace Surveyor.Controls
                 case "mono":
                     // Hide column 1
                     RootGrid.ColumnDefinitions[1].Width = new GridLength(0);
+                    headTrueIsStereoFalseIsMode = false;
                     break;
 
                 case "stereo":
                     // Show Column 1
                     RootGrid.ColumnDefinitions[1].Width = new GridLength(1, GridUnitType.Star);
+                    headTrueIsStereoFalseIsMode = true;
                     break;
 
                 default:
@@ -134,7 +139,7 @@ namespace Surveyor.Controls
         {
             string suffix = HeadTitle ?? string.Empty;
             // Prefix with Left/Right as requested
-            if (Head.ToLowerInvariant() == "stereo")
+            if (Head.Equals("stereo", StringComparison.InvariantCultureIgnoreCase))
             {
                 CalibrationFrameSetViewerLeft?.SetTitle("Left " + suffix);
                 CalibrationFrameSetViewerRight?.SetTitle("Right " + suffix);
@@ -150,8 +155,12 @@ namespace Surveyor.Controls
             // Get the DispatcherQueue for the current thread
             dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
 
+            safeUICall = new(dispatcherQueue);
 
             this.InitializeComponent();
+
+            // Set the CalibrationStereoFrameSet
+            calibrationStereoFrameSet = new();
 
             _playLeftTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000.0 / 30) };
             _playLeftTimer.Tick += (s, e) => PlayLeft();
@@ -161,6 +170,7 @@ namespace Surveyor.Controls
 
             _playBothTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1000.0 / 30) };
             _playBothTimer.Tick += (s, e) => PlayBoth();
+
 
             CalibrationFrameSetViewerData dataLeft = new(true/*trueLeftFalseRight*/, calibrationStereoFrameSet);
             CalibrationFrameSetViewerData dataRight = new(false/*trueLeftFalseRight*/, calibrationStereoFrameSet);
@@ -213,11 +223,9 @@ namespace Surveyor.Controls
         /// <param name="arucoDictionary"></param>
         /// <param name="boardName"></param>
         /// <returns></returns>
-        public bool SetupCalibrationBoardType(CharucoBoardDefinition _charucoBoardDefinition)
+        public bool SetupCalibrationBoardType(CharucoBoardDefinition _charucoBoardDefinition) 
         {
-            charucoBoardDefinition = _charucoBoardDefinition;
-
-            return calibrationStereoFrameSet.SetupCalibrationBoardType(charucoBoardDefinition);
+            return calibrationStereoFrameSet.SetupCalibrationBoardType(_charucoBoardDefinition);
         }
 
         /// <summary>
@@ -280,14 +288,14 @@ namespace Surveyor.Controls
             }
             else
             {
-                if (Head.Equals("stereo", StringComparison.InvariantCultureIgnoreCase))
+                if (headTrueIsStereoFalseIsMode == true)
                     Debug.WriteLine($"OpenMedia: Left stereo media {_leftMediaFileSpec} does not exist.");
                 else
                     Debug.WriteLine($"OpenMedia: Media {_leftMediaFileSpec} does not exist.");
             }
 
             // If Stereo open right side
-            if (Head.Equals("stereo", StringComparison.InvariantCultureIgnoreCase))
+            if (headTrueIsStereoFalseIsMode == true)
             {
                 rightOpened = false;
 
@@ -397,7 +405,7 @@ namespace Surveyor.Controls
             // Check if the media files are open
             bool leftOpen = capLeft is not null && capLeft.IsOpened;
 
-            if (Head.Equals("stereo", StringComparison.InvariantCultureIgnoreCase))
+            if (headTrueIsStereoFalseIsMode == true)
             {
                 bool rightOpen = capRight is not null && capRight.IsOpened;
                 return leftOpen && rightOpen;
@@ -417,6 +425,7 @@ namespace Surveyor.Controls
         {
             return ((int)frameSize.Width, (int)frameSize.Height);
         }
+
 
         /// <summary>
         /// Get the current player frame indexes. frameIndexRight will return null 
@@ -474,7 +483,7 @@ namespace Surveyor.Controls
         /// <returns>Null is Mono, True is Stereo and Locked</returns>
         public bool? IsStereoLocked()
         {
-            if (Head.Equals("stereo", StringComparison.InvariantCultureIgnoreCase))
+            if (headTrueIsStereoFalseIsMode == true)
             {
                 return isLocked;
             }
@@ -504,6 +513,13 @@ namespace Surveyor.Controls
             }
             return -1;
         }
+
+
+        /// <summary>
+        /// Return the smallest movement in the calibration frames or the best frames.
+        /// </summary>
+        /// <param name="trueNormalFalseBestFrame"></param>
+        /// <returns></returns>
         public double GetMinMovement(bool trueNormalFalseBestFrame)
         {
             if (calibrationStereoFrameSet is not null)
@@ -519,6 +535,7 @@ namespace Surveyor.Controls
             }
             return -1;
         }
+
 
         /// <summary>
         /// Return the largest blur in the calibration frames or the best frames.
@@ -540,6 +557,8 @@ namespace Surveyor.Controls
             }
             return -1;
         }
+
+
         /// <summary>
         /// Return the largest blur in the calibration frames or the best frames.
         /// </summary>
@@ -654,31 +673,36 @@ namespace Surveyor.Controls
 
 
         /// <summary>
+        /// ** Safe to call from a background thread **
+        /// ** All UI via SafeUICall **
         /// Extract the best frames and do a mono calibration.
         /// If it is called from a Stereo head both left and right are mono calibrated and the result 
         /// reported on screen.  However only the left MonoCalibrationCameraData array is returned
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        public async Task FindBestFramesAsync(CalibProject calibProject,
+        public async Task FindBestFramesNoUIAsync(CalibProject calibProject,
                                               bool trueLeftFalseRight,
                                               double movementMinThreshold, 
                                               double blurMinThreshold, 
                                               int monoCornersMinThreshold, 
                                               bool writeBestFramesToPng = true)
         {
-            SetUIControls();
-
             // Check we have a CalibrationStereoFrameSet and this is definately a Mono head
-            if (calibrationStereoFrameSet is not null && Head.Equals("mono", StringComparison.InvariantCultureIgnoreCase))
+            if (calibrationStereoFrameSet is not null && headTrueIsStereoFalseIsMode == false)
             {
                 try
                 {
                     // Create a list of the best calibation frames best on the sensor bin only
                     if (trueLeftFalseRight)
-                        Debug.WriteLine($"Mono Left SelectBestStereoFramesUsingSensorBinOnly, Min move={movementMinThreshold}, Min blur={blurMinThreshold}, Corners threshold={monoCornersMinThreshold}:");
+                        Debug.WriteLine($"Mono Left SelectBestStereoFramesUsingSensorBinOnly,"+
+                                        $" Min move={movementMinThreshold}, Min blur={blurMinThreshold},"+
+                                        $" Corners threshold={monoCornersMinThreshold}:");
                     else
-                        Debug.WriteLine($"Mono Right SelectBestStereoFramesUsingSensorBinOnly, Min move={movementMinThreshold}, Min blur={blurMinThreshold}, Corners threshold={monoCornersMinThreshold}:");
+                        Debug.WriteLine($"Mono Right SelectBestStereoFramesUsingSensorBinOnly, "+
+                                        $"Min move={movementMinThreshold}, Min blur={blurMinThreshold}, "+
+                                        $"Corners threshold={monoCornersMinThreshold}:");
+
                     calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold, blurMinThreshold, monoCornersMinThreshold);
 
                     // Next top-up with pose diverse frames
@@ -714,32 +738,30 @@ namespace Surveyor.Controls
                 }
             }
 
-            BestFrameJump(0);
-            LeftUpdateFrameLabel();
-            //???RightUpdateFrameLabel();
-            SetUIControls();
+            safeUICall.Call(() => BestFrameJump(0));
+            safeUICall.Call(() => RightUpdateFrameLabel());
 
             return;
         }
 
 
         /// <summary>
+        /// ** Safe to call from a background thread **
+        /// ** All UI via SafeUICall **
         /// Mono calibration using the best frames already selected.
         /// If it is called from a Stereo head both left and right are mono calibrated and the result 
         /// reported on screen.  However only the left MonoCalibrationCameraData array is returned
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        public async Task<bool> DoMonoCalibrationCalculationAsync(CalibProject calibProject, 
-                                                                    bool trueLeftFalseRight,
-                                                                    int monoCornersMinThreshold)
+        public bool DoMonoCalibrationCalculationNoUI(CalibProject calibProject, 
+                                                     bool trueLeftFalseRight,
+                                                     int monoCornersMinThreshold)
         {
             bool ret = false;
 
-            SetUIControls();
-
             // Check we have a CalibrationStereoFrameSet and this is definately a Mono head
-            if (calibrationStereoFrameSet is not null && Head.Equals("mono", StringComparison.InvariantCultureIgnoreCase))
+            if (calibrationStereoFrameSet is not null && headTrueIsStereoFalseIsMode == false)
             {
                 try
                 {
@@ -796,11 +818,10 @@ namespace Surveyor.Controls
                 }
             }
 
-            BestFrameJump(0);
-            LeftUpdateFrameLabel();
+            safeUICall.Call(() => BestFrameJump(0));
+            safeUICall.Call(() => LeftUpdateFrameLabel());
             //???RightUpdateFrameLabel();
-            SetUIControls();
-
+            
             return ret;
         }
 
@@ -824,7 +845,7 @@ namespace Surveyor.Controls
             appMode = AppMode.BestFramesCalc;
             SetUIControls();
 
-            if (calibrationStereoFrameSet is not null && Head.Equals("stereo", StringComparison.InvariantCultureIgnoreCase))
+            if (calibrationStereoFrameSet is not null && headTrueIsStereoFalseIsMode == true)
             {
                 // Proceed to do the stero  calibration using each the calibration paraemter set
                 foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
@@ -1961,10 +1982,6 @@ namespace Surveyor.Controls
 
         private void ProcessFrame(bool leftTrueRightFalse, int frameIndex, Mat frame, WriteableBitmap wb, FrameCalibrationData? frameCalibrationData)
         {
-            bool trueMonoHeadfalseStereoHead = true;
-            if (Head.Equals("stereo", StringComparison.InvariantCultureIgnoreCase))
-                trueMonoHeadfalseStereoHead = false;
-
             switch (appMode)
             {
                 case AppMode.Open:
@@ -1972,8 +1989,8 @@ namespace Surveyor.Controls
                 case AppMode.BestFramesCalc:
                     try
                     {
-                        if (frameCalibrationData is not null)
-                            CalibrationStereoFrameSet.DrawMarkersToMat(frameCalibrationData, frame, trueMonoHeadfalseStereoHead);
+                        if (frameCalibrationData is not null && headTrueIsStereoFalseIsMode is not null)
+                            CalibrationStereoFrameSet.DrawMarkersToMat(frameCalibrationData, frame, (bool)headTrueIsStereoFalseIsMode);
 
                         DrawFrameToScreen(frame, wb);
                     }

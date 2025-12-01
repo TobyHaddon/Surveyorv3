@@ -902,6 +902,9 @@ namespace Surveyor
                         // Remember the survey folder
                         SettingsManagerLocal.ProjectFolder = System.IO.Path.GetDirectoryName(projectFileSpec);
 
+                        // Set the title
+                        SetTitle(System.IO.Path.GetFileNameWithoutExtension(projectFileSpec));
+
                         Debug.WriteLine($"Project Loaded");
                     }
                     else
@@ -1143,7 +1146,7 @@ namespace Surveyor
                 var file = await PickCalProjFileToSaveAsync(this, suggestedFileName); // 'this' refers to your Window instance
                 if (file != null)
                 {
-                    SetTitle(file.Name);
+                    SetTitle(System.IO.Path.GetFileNameWithoutExtension(file.Name));
                     SetTitleSaveStatus("Saving...");
 
                     // Prevent updates to the remote version of the file until we finish making changes and call CompleteUpdatesAsync.
@@ -2158,7 +2161,7 @@ namespace Surveyor
             {
                 if (doLeftMono)
                 {
-                    monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.FindBestFramesAsync(
+                    monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.FindBestFramesNoUIAsync(
                                                                  calibProject,
                                                                  true/*trueLeftFalseRight*/,
                                                                  runParams.MovementFilterValue,
@@ -2168,7 +2171,7 @@ namespace Surveyor
                 }
                 if (doRightMono)
                 {
-                    monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.FindBestFramesAsync(
+                    monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.FindBestFramesNoUIAsync(
                                                                  calibProject,
                                                                  false/*trueLeftFalseRight*/,
                                                                  runParams.MovementFilterValue,
@@ -2190,14 +2193,14 @@ namespace Surveyor
 
             if (doLeftMono)
             {
-                monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.DoMonoCalibrationCalculationAsync(
+                monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.DoMonoCalibrationCalculationNoUI(
                                                              calibProject,
                                                              true/*trueLeftFalseRight*/,
                                                              runParams.MonoCornersFilterValue)));
             }
             if (doRightMono)
             {
-                monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.DoMonoCalibrationCalculationAsync(
+                monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.DoMonoCalibrationCalculationNoUI(
                                                              calibProject,
                                                              false/*trueLeftFalseRight*/,
                                                              runParams.MonoCornersFilterValue)));
@@ -2299,7 +2302,8 @@ namespace Surveyor
             // Save the calibration project file
             if (doLeftMono || doRightMono || doStereo)
             {
-                calibProject.ProjectSave();
+                if (calibProject.IsLoaded)
+                    calibProject.ProjectSave();
             }
 
             InfoBarProcessing.HideProcessing();

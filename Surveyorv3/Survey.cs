@@ -1169,7 +1169,12 @@ namespace Surveyor
                         IsDirty = false;
                         IsLoaded = true;
 
-                        // Start the autosave task in background                        
+                        // Start the autosave task in background
+                        // The AutoSaveEnable flag is checked at the point the save is about to be made
+                        // The adventage with always having the timer running an checking if auto save is
+                        // enabled last is that the Auto Save settings can be changed and the application
+                        //doesn't need to be restarted.
+
                         if (autoSave)
                         {
                             await StartAutoSaveAsync();

@@ -1,4 +1,5 @@
 ﻿using Emgu.CV;
+using Microsoft.UI.Composition;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using SurveyorCalibrationData;
@@ -880,16 +881,22 @@ namespace Surveyor
                 {
                     Data = data;
 
+                    // New load so not dirty
+                    IsDirty = false;
+
+                    // Ensure the project name in the project json matches the actually file name
                     ret = SetProjectNameAndPath(projectFileSpec);
 
-                    IsDirty = false;
+                    
                     IsLoaded = true;
 
                     // Start the autosave task in background                        
-                    if (autoSave)
-                    {
-                        await StartAutoSaveAsync();
-                    }
+                    // The AutoSaveEnable flag is checked at the point the save is about to be made
+                    // The adventage with always having the timer running an checking if auto save is
+                    // enabled last is that the Auto Save settings can be changed and the application
+                    //doesn't need to be restarted.
+                    await StartAutoSaveAsync();
+
                 }
             }
 
@@ -1122,6 +1129,8 @@ namespace Surveyor
 
                     // A Save As could be the first save of a new project to set IsLoaded to true
                     IsLoaded = true;
+
+                    // Auto save 
                     await StartAutoSaveAsync();
                 }
             }
@@ -1182,9 +1191,13 @@ namespace Surveyor
                 Report?.Warning("", $"SetProjectNameAndPath() trying to set project name base on:{projectFileSpec}, however were was an error. {e.Message}");
             }
 
-            // Force the ProjectFileName to match the actual file name
+            // Force the ProjectFileName to match the actual file name (incase the file was renamed for example)
             Data.Info.ProjectFileName = fileName ?? "";
+
+            // Project path is only set while the project is open so don't let this set the IsDirty flag
+            bool isDirtyRemembered = Data.Info.IsDirty;            
             Data.Info.ProjectPath = directoryPath ?? "";
+            Data.Info.IsDirty = isDirtyRemembered;
 
             return ret;
         }
@@ -1253,6 +1266,8 @@ namespace Surveyor
                     Thread.CurrentThread.Name = "CalibProject.AutosaveWork()";
                 }
 
+                Report?.Info("", $"Auto save thread started on request");
+
                 var token = _autosaveCts.Token;
 
                 while (!token.IsCancellationRequested)
@@ -1265,7 +1280,7 @@ namespace Surveyor
                             if (SettingsManagerLocal.AutoSaveEnabled && IsDirty)
                             {
                                 ProjectSave();
-                                Report?.Debug("", $"Autosave completed");
+                                Report?.Debug("", $"Autosave Saved completed");
                             }
                         }
                     }
@@ -1275,7 +1290,7 @@ namespace Surveyor
                         break;
                     }
                 }
-                Report?.Info("", $"Auto save threaded stopped on request");
+                Report?.Info("", $"Auto save thread stopped on request");
             });
         }
 

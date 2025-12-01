@@ -1670,7 +1670,7 @@ namespace Surveyor
         /// <param name="frameIndex"></param>
         /// <param name="frame"></param>
         /// <returns></returns>
-        public static int DrawMarkersToMat(FrameCalibrationData frameCalibrationTarget, Mat frame, bool trueMonoHeadfalseStereoHead)
+        public static int DrawMarkersToMat(FrameCalibrationData frameCalibrationTarget, Mat frame, bool headTrueIsStereoFalseIsMode)
         {
             int ret = 0;
 
@@ -1701,7 +1701,8 @@ namespace Surveyor
                 // Draw the circle on the Mat
                 CvInvoke.Circle(frame, new Point((int)boardCentre.X, (int)boardCentre.Y), radius, color, thickness);
 
-                if (trueMonoHeadfalseStereoHead)
+                // If Mono
+                if (headTrueIsStereoFalseIsMode == false)
                 { 
                     // If there are reprojected points then draw them
                     int index = frameCalibrationTarget.monoProjectedPoints?

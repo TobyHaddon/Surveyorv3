@@ -129,6 +129,11 @@
                             <FontIcon Glyph="&#xE970;" FontSize="12" FontFamily="Segoe Fluent Icons" />
                         </Button.Content>
                     </Button>
+                    <Button x:Name="DeleteItem1" Click="DeleteItem_Click" Margin="0,0,0,10">
+                        <Button.Content>
+                            <FontIcon Glyph="&#xE74D;" FontSize="12" FontFamily="Segoe Fluent Icons" />
+                        </Button.Content>
+                    </Button>
                 </StackPanel>
 
                 <!--Right Mono Camera Media Files-->
@@ -184,7 +189,7 @@
                             <FontIcon Glyph="&#xE970;" FontSize="12" FontFamily="Segoe Fluent Icons" />
                         </Button.Content>
                     </Button>
-                    <Button x:Name="DeleteItem" Click="DeleteItem_Click" Margin="0,0,0,10">
+                    <Button x:Name="DeleteItem2" Click="DeleteItem_Click" Margin="0,0,0,10">
                         <Button.Content>
                             <FontIcon Glyph="&#xE74D;" FontSize="12" FontFamily="Segoe Fluent Icons" />
                         </Button.Content>

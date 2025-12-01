@@ -292,6 +292,7 @@ namespace Surveyor.User_Controls
             {
                 stereoMonoMediaSetMode = newStereoMonoMediaSetMode;
                 EnableDisableControlButtons();
+                EntryFieldsValid(false/*no reporting*/);
             }
         }
 
@@ -1712,7 +1713,8 @@ namespace Surveyor.User_Controls
             bool moveItemAcrossBottomLeftIsEnabled = false;
             bool rightSideMoveItemUpIsEnabled = false;
             bool rightSideMoveItemDownIsEnabled = false;
-            bool deleteItemIsEnabled = false;
+            bool deleteItem1IsEnabled = false;
+            bool deleteItem2IsEnabled = false;
 
 
             // Remember the current heights on initial load
@@ -1822,7 +1824,7 @@ namespace Surveyor.User_Controls
                 leftSideMoveItemDownIsEnabled = true;
 
                 // Delete enabled
-                deleteItemIsEnabled = true;
+                deleteItem2IsEnabled = true;
             }
             else if (RightMonoMediaFileNames.SelectedItem is MediaFileItem)
             {
@@ -1833,7 +1835,7 @@ namespace Surveyor.User_Controls
                 rightSideMoveItemDownIsEnabled = true;
 
                 // Delete enabled
-                deleteItemIsEnabled = true;
+                deleteItem2IsEnabled = true;
             }
             else if (LeftStereoMediaFileNames.SelectedItem is MediaFileItem)
             {
@@ -1844,7 +1846,7 @@ namespace Surveyor.User_Controls
                 leftSideMoveItemUpIsEnabled = true;
 
                 // Delete enabled
-                deleteItemIsEnabled = true;
+                deleteItem2IsEnabled = true;
             }
             else if (RightStereoMediaFileNames.SelectedItem is MediaFileItem)
             {
@@ -1855,10 +1857,19 @@ namespace Surveyor.User_Controls
                 rightSideMoveItemUpIsEnabled = true;
 
                 // Delete enabled
-                deleteItemIsEnabled = true;
+                deleteItem2IsEnabled = true;
             }
-          
 
+            // If we are doing mono only work make sure the delete button 1 is enabled
+            // as delete button 2 will not be visable
+            if (stereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoSingleOnlyMediaSet ||
+                stereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoPairOnlyMediaSet)
+            {
+                deleteItem1IsEnabled = deleteItem2IsEnabled;
+                deleteItem2IsEnabled = false;
+            }
+
+            // Set the button enabled states
             MoveItemAcrossTopRight.IsEnabled = moveItemAcrossTopRightIsEnabled;
             MoveItemAcrossTopLeft.IsEnabled = moveItemAcrossTopLeftIsEnabled;
             LeftSideMoveItemDown.IsEnabled = leftSideMoveItemDownIsEnabled;
@@ -1867,7 +1878,8 @@ namespace Surveyor.User_Controls
             MoveItemAcrossBottomLeft.IsEnabled = moveItemAcrossBottomLeftIsEnabled;
             RightSideMoveItemUp.IsEnabled = rightSideMoveItemUpIsEnabled;
             RightSideMoveItemDown.IsEnabled = rightSideMoveItemDownIsEnabled;
-            DeleteItem.IsEnabled = deleteItemIsEnabled;
+            DeleteItem1.IsEnabled = deleteItem1IsEnabled;
+            DeleteItem2.IsEnabled = deleteItem2IsEnabled;
 
         }
 
