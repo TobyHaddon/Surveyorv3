@@ -83,7 +83,7 @@
                 <FontIcon Glyph="&#xE974;"/>
             </Button>
             <TextBox x:Name="LeftFrameInfoTextBox" VerticalAlignment="Center" KeyDown="LeftFrameInfoTextBox_KeyDown" LostFocus="LeftFrameInfoTextBox_LostFocus"/>
-            <TextBlock x:Name="LeftFrameInfoLabel" Width ="120" FontSize="12"/>
+            <TextBlock x:Name="LeftFrameInfoLabel" Width ="180" FontSize="12"/>
         </StackPanel>
 
         <!-- Right Side Media Controls -->
@@ -102,7 +102,7 @@
                 <FontIcon Glyph="&#xE974;"/>
             </Button>
             <TextBox x:Name="RightFrameInfoTextBox" VerticalAlignment="Center" KeyDown="RightFrameInfoTextBox_KeyDown" LostFocus="RightFrameInfoTextBox_LostFocus"/>
-            <TextBlock x:Name="RightFrameInfoLabel" Width ="120" FontSize="12"/>
+            <TextBlock x:Name="RightFrameInfoLabel" Width ="180" FontSize="12"/>
         </StackPanel>
 
         <!-- Move factor, Blur Factors, feature count and score -->

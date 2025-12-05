@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Surveyor.User_Controls.CalibrationTargetTest"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Surveyor.User_Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <Grid>
+        <StackPanel Orientation="Vertical" Padding="24" Spacing="16">
+            <TextBlock Text="Present your calibration board to the camera on this device and check it is detected" FontWeight="Bold"/>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                <TextBlock Grid.Row="0" Grid.Column="0" Text="Board Description:"/>
+                <TextBlock x:Name="BoardDescription" Grid.Row="0" Grid.Column="1"/>
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Square Detection:"/>
+                <TextBlock x:Name="SquareDetection" Grid.Row="1" Grid.Column="1"/>
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Marker Detection:"/>
+                <TextBlock x:Name="MarkerDetection" Grid.Row="2" Grid.Column="1"/>
+            </Grid>
+            <Border x:Name="CameraBorder" BorderThickness="3" BorderBrush="Red" 
+                    Width="500" CornerRadius="4" HorizontalAlignment="Left" Margin="0,2,0,0">
+                <Grid>
+                    <Image x:Name="CameraImage" Stretch="Uniform"/>
+
+                    <TextBlock x:Name="TickOverlayText"
+                               Text="✓"
+                               FontSize="40"
+                               Foreground="LimeGreen"
+                               FontWeight="Bold"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+        </StackPanel>
+    </Grid>
+</UserControl>

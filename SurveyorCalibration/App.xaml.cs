@@ -34,15 +34,15 @@ namespace Surveyor
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             // Load the command line Args
-            GetArgs.GetArg("/StereoLeft", out string stereoLeft, true/*remove quotes*/);
-            GetArgs.GetArg("/StereoRight", out string stereoRight, true/*remove quotes*/);
-            GetArgs.GetArg("/MonoLeft", out string monoLeft, true/*remove quotes*/);
-            GetArgs.GetArg("/MonoRight", out string monoRight, true/*remove quotes*/);
-            GetArgs.GetArg("/Run", out bool? run);
-            GetArgs.GetArg("/UseCache", out bool? cache);
-            GetArgs.GetArg("/LeftSync", out int? leftSync);
-            GetArgs.GetArg("/RightSync", out int? rightSync);
-            GetArgs.GetArg("/SaveBestFrames", out bool? saveBestFrames);
+            bool stereoLeftArgFound = GetArgs.GetArg("/StereoLeft", out string stereoLeft, true/*remove quotes*/);
+            bool stereoRightArgFound = GetArgs.GetArg("/StereoRight", out string stereoRight, true/*remove quotes*/);
+            bool monoLeftArgFound = GetArgs.GetArg("/MonoLeft", out string monoLeft, true/*remove quotes*/);
+            bool monoRightArgFound = GetArgs.GetArg("/MonoRight", out string monoRight, true/*remove quotes*/);
+            bool runArgFound = GetArgs.GetArg("/Run", out bool? run);
+            bool useCacheArgFound = GetArgs.GetArg("/UseCache", out bool? cache);
+            bool leftSyncArgFound = GetArgs.GetArg("/LeftSync", out int? leftSync);
+            bool rightSyncArgFound = GetArgs.GetArg("/RightSync", out int? rightSync);
+            bool saveBestFramesArgFound = GetArgs.GetArg("/SaveBestFrames", out bool? saveBestFrames);
             
 
             AppLaunchArgs.StereoLeft = stereoLeft;
@@ -55,15 +55,29 @@ namespace Surveyor
             AppLaunchArgs.SyncFrameIndexRight = rightSync;
             AppLaunchArgs.SaveBestFrames = saveBestFrames;
 
-            Debug.WriteLine($"Run: {AppLaunchArgs.RunWithoutPrompts}");
-            Debug.WriteLine($"StereoLeft: {AppLaunchArgs.StereoLeft}");
-            Debug.WriteLine($"StereoLRight: {AppLaunchArgs.StereoRight}");
-            Debug.WriteLine($"MonoLeft: {AppLaunchArgs.MonoLeft}");
-            Debug.WriteLine($"MonoRight: {AppLaunchArgs.MonoRight}");
-            Debug.WriteLine($"Use Cached Results: {AppLaunchArgs.UseCache}");
-            Debug.WriteLine($"Left Sync: {AppLaunchArgs.SyncFrameIndexLeft}");
-            Debug.WriteLine($"Right Sync: {AppLaunchArgs.SyncFrameIndexRight}");
-            Debug.WriteLine($"Save Best Frames: {AppLaunchArgs.SaveBestFrames}");
+            if (runArgFound)
+                Debug.WriteLine($"Run: {AppLaunchArgs.RunWithoutPrompts}");
+
+            if (stereoLeftArgFound)
+                Debug.WriteLine($"StereoLeft: {AppLaunchArgs.StereoLeft}");
+            if (stereoRightArgFound)
+                Debug.WriteLine($"StereoLRight: {AppLaunchArgs.StereoRight}");
+
+            if (monoLeftArgFound)
+                Debug.WriteLine($"MonoLeft: {AppLaunchArgs.MonoLeft}");
+            if (monoRightArgFound)
+                Debug.WriteLine($"MonoRight: {AppLaunchArgs.MonoRight}");
+
+            if (useCacheArgFound)
+                Debug.WriteLine($"Use Cached Results: {AppLaunchArgs.UseCache}");
+
+            if (leftSyncArgFound)
+                Debug.WriteLine($"Left Sync: {AppLaunchArgs.SyncFrameIndexLeft}");
+            if (rightSyncArgFound)
+                Debug.WriteLine($"Right Sync: {AppLaunchArgs.SyncFrameIndexRight}");
+
+            if (saveBestFramesArgFound)
+                Debug.WriteLine($"Save Best Frames: {AppLaunchArgs.SaveBestFrames}");
 
             m_window = MainWindow = new MainWindow();
             m_window.Activate();

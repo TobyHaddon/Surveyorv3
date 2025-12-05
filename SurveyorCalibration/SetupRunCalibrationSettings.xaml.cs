@@ -86,7 +86,7 @@ namespace Surveyor
                     StereoCornerFilterMin.Text = "0";
 
                     // Corners max values
-                    CharucoBoardDefinition charucoBoardDefinition = navParams.calibProject.Data.CharucoBoardDefinition;
+                    CalibrationBoardDefinition charucoBoardDefinition = navParams.calibProject.Data.CharucoBoardDefinition;
                     int maxCorners = (charucoBoardDefinition.SquaresX - 1) * (charucoBoardDefinition.SquaresY - 1);
                     MonoCornerFilterSlider.Maximum = maxCorners;
                     StereoCornerFilterSlider.Maximum = maxCorners;

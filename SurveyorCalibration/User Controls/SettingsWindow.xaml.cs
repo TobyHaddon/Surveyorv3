@@ -11,18 +11,19 @@ using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Documents;
+using Surveyor;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading.Tasks; // CacheManager
 using Windows.ApplicationModel;
 using Windows.ApplicationModel.DataTransfer;
 using Windows.Foundation;
 using WinUIEx;
-using Surveyor;
-using System.Threading.Tasks; // CacheManager
 
 
 
@@ -82,11 +83,11 @@ namespace Surveyor.User_Controls
             SetSettingsTheme(SettingsManagerLocal.ApplicationTheme);
 
             // Inform the ProectStereoInfoAndMedia user control that it is being used in the SettingsWindow for a project
-            ProjectStereoInfoAndMedia.SetupForSettingWindow(SettingsCardProjectStereoInfoAndMedia, project);
+            ProjectStereoInfoAndMedia.SetupForSettingWindow(SettingsCardProjectStereoInfoAndMedia, project!);
             SettingsCardProjectStereoInfoAndMedia.Visibility = Visibility.Visible;
 
             // Inform the SettingsProjectCalibrationBoard user control that it is being used in the SettingsWindow for a project            
-            SettingsProjectCalibrationBoard.SetupForProjectSettingWindow(project);
+            SettingsProjectCalibrationBoard.SetupForProjectSettingWindow(project!);
 
             // Inform the SettingsDefaultCalibrationBoard user control that it is being used in the SettingsWindow
             // And the null meants we are only working on the adjusting the default calibration board settings
@@ -612,7 +613,6 @@ namespace Surveyor.User_Controls
 
 
 
-
         ///
         /// MEDIATOR METHODS (Called by the TListener, always marked as internal)
         ///
@@ -761,6 +761,36 @@ namespace Surveyor.User_Controls
             // Force UI refresh for x:Bind OneWay
             CalibrationCacheUsage.Text = _calibrationCacheUsageText;
         }
+
+
+        /// <summary>
+        /// Called when the Default Calibration Board Text expander is expanded
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void SettingsExpanderTestCalibrationBoard_Expanded(object sender, EventArgs e)
+        {
+            SettingsTestCalibrationBoard.Reset();
+            SettingsTestCalibrationBoard.Start();
+        }
+
+        private void SettingsExpanderTestCalibrationBoard_Collapsed(object sender, EventArgs e)
+        {
+            SettingsTestCalibrationBoard.Stop();
+        }
+
+        /// <summary>
+        /// Email support for additional target board request
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void MailLink_Click(object sender, HyperlinkClickEventArgs args) => _ = MailLinkAsync();
+        private static async Task MailLinkAsync()
+        {
+            var uri = new Uri("mailto:toby.solo@outlook.com?subject=Additional%20Target%20Board%20Request&body=Please%20write%20your%20request%20here.");
+            await Windows.System.Launcher.LaunchUriAsync(uri);
+        }
+
         // ***END OF SettingsWindow***
     }
 }

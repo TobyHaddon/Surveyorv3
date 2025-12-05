@@ -269,31 +269,31 @@ namespace Surveyor
                 switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                 {
                     case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                        if (StereoCalibrationHead.CachedResultsFileExists(cache.StereoFrameSetCacheFileSpec) &&
-                            LeftMonoCalibrationHead.CachedResultsFileExists(cache.LeftMonoFrameSetCacheFileSpec) &&
-                            RightMonoCalibrationHead.CachedResultsFileExists(cache.RightMonoFrameSetCacheFileSpec))
+                        if (Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.StereoFrameSetCacheFileSpec) &&
+                            Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.LeftMonoFrameSetCacheFileSpec) &&
+                            Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.RightMonoFrameSetCacheFileSpec))
                         {
                             cachedResultsAvailable = true;
                         }
                         break;
 
                     case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                        if (StereoCalibrationHead.CachedResultsFileExists(cache.StereoFrameSetCacheFileSpec))
+                        if (Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.StereoFrameSetCacheFileSpec))
                         {
                             cachedResultsAvailable = true;
                         }
                         break;
 
                     case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-                        if (LeftMonoCalibrationHead.CachedResultsFileExists(cache.LeftMonoFrameSetCacheFileSpec) &&
-                            RightMonoCalibrationHead.CachedResultsFileExists(cache.RightMonoFrameSetCacheFileSpec))
+                        if (Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.LeftMonoFrameSetCacheFileSpec) &&
+                            Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.RightMonoFrameSetCacheFileSpec))
                         {
                             cachedResultsAvailable = true;
                         }
                         break;
 
                     case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-                        if (LeftMonoCalibrationHead.CachedResultsFileExists(cache.LeftMonoFrameSetCacheFileSpec))
+                        if (Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.LeftMonoFrameSetCacheFileSpec))
                         {
                             cachedResultsAvailable = true;
                         }
@@ -712,9 +712,24 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FileExport_Click(object sender, RoutedEventArgs e)
+        private void FileExport_Click(object sender, RoutedEventArgs e) => _ = FileExportAsync();
+        private async Task FileExportAsync()
         {
-            //???TODO
+            // Instantiate the export content user control
+            var exportContent = new ExportUserControl();
+
+            // Create and show a ContentDialog hosting the user control
+            var dlg = new ContentDialog
+            {
+                Title = "Export",
+                Content = exportContent,
+                PrimaryButtonText = "Save",
+                SecondaryButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = this.Content.XamlRoot
+            };
+
+            await dlg.ShowAsync();        
         }
 
 
@@ -1764,9 +1779,9 @@ namespace Surveyor
                                 {
                                     Title = "Error Loading Cached Results",
                                     Content = contentText,
-                                    CloseButtonText = "OK"
+                                    CloseButtonText = "OK",
+                                    XamlRoot = this.Content.XamlRoot // Set the XamlRoot for proper display
                                 };
-                                errorDialog.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
                                 await errorDialog.ShowAsync();
                             }
                         }
@@ -1791,9 +1806,9 @@ namespace Surveyor
                             {
                                 Title = "Error Loading Cached Results",
                                 Content = "The cached results could not be loaded.",
-                                CloseButtonText = "OK"
+                                CloseButtonText = "OK",
+                                XamlRoot = this.Content.XamlRoot // Set the XamlRoot for proper display
                             };
-                            errorDialog.XamlRoot = this.Content.XamlRoot; // Set the XamlRoot for proper display
                             await errorDialog.ShowAsync();
                         }
                     }
@@ -2072,7 +2087,6 @@ namespace Surveyor
             if (calibProject is null)
                 return;
 
-            //???InfoBarProcessing.ShowProcessing("Saving...");
             SetDisplayModeOnAllHeads(AppMode.BestFramesCalc);
 
             SetUIControls();

@@ -15,5 +15,9 @@
         <TextBlock Text="Configure the ChArUco board to match the physical one you are using. Ensure the ArUco markers exactly match the ones and positions on the actual board." FontSize="12" TextWrapping="Wrap"/>
 
         <surveyorControls:SettingsCalibrationBoard x:Name="CalibrationBoardSettingsControl"/>
+
+        <TextBlock TextWrapping="Wrap">
+            <Hyperlink Click="MailLink_Click">Do you need other calibration targets supported?</Hyperlink>
+        </TextBlock>
     </StackPanel>
 </Page>

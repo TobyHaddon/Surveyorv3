@@ -19,14 +19,15 @@ using Windows.Storage.Streams;
 using static Emgu.CV.Aruco.Dictionary;
 using Surveyor.Helper;
 
+
 namespace Surveyor.User_Controls
 {
 
     public sealed partial class SettingsCalibrationBoard : UserControl
     {
         // Class-level variables
-        private CharucoBoardDefinition? charucoBoardDefinition = null;  // Passed in 
-        public CharucoBoardDefinition? CbdWorking { get; set; }                     // Working on
+        private CalibrationBoardDefinition? charucoBoardDefinition = null;  // Passed in 
+        public CalibrationBoardDefinition? CbdWorking { get; set; }                     // Working on
         public double BoardSizeX { get; set; }
         public double BoardSizeY { get; set; }
         public int PrintDPI { get; set; }
@@ -82,6 +83,7 @@ namespace Surveyor.User_Controls
         public SettingsCalibrationBoard()
         {
             InitializeComponent();
+
             // Configure debounce timer
             _previewTimer.Interval = TimeSpan.FromMilliseconds(400);
             _previewTimer.Tick += PreviewTimer_Tick;
@@ -113,7 +115,7 @@ namespace Surveyor.User_Controls
                     predefinedDictionaryName = PredefinedDictionaryName.Dict5X5_100; // double default shouldn't be necessary
                 }
 
-                CbdWorking = new CharucoBoardDefinition
+                CbdWorking = new CalibrationBoardDefinition
                 {
                     SquaresX = SettingsManagerLocal.DefaultCharucoBoard_SquaresX,
                     SquaresY = SettingsManagerLocal.DefaultCharucoBoard_SquaresY,
@@ -295,8 +297,35 @@ namespace Surveyor.User_Controls
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
             _loaded = true;
-            ArucoDictionaryCombo.ItemsSource = Enum.GetValues(typeof(PredefinedDictionaryName));
-            ArucoDictionaryCombo.SelectedItem = CbdWorking?.PredefinedDictionaryName;
+
+            try
+            {
+                // Setup the board types but we only support ChAruco here
+                TargetTypeCombo.ItemsSource = Enum.GetValues(typeof(CalibrationBoardDefinition.TargetType));
+                TargetTypeCombo.SelectedItem = CalibrationBoardDefinition.TargetType.ChArUco;
+                TargetTypeCombo.IsEnabled = false; // fixed to ChAruco for now
+
+                // Setup Aruco Combo values
+                ArucoDictionaryCombo.ItemsSource = Enum.GetValues(typeof(PredefinedDictionaryName));
+
+                // Set the current selected item
+                ArucoDictionaryCombo.SelectedItem = CbdWorking?.PredefinedDictionaryName;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(ex.ToString());
+            }
+
+            try
+            {
+                // Remove the AprilTags (used for AprilGrid, not ChAruco)
+                ArucoDictionaryCombo.Items.Remove(PredefinedDictionaryName.DictAprilTag16h5.ToString());
+                ArucoDictionaryCombo.Items.Remove(PredefinedDictionaryName.DictAprilTag25h9.ToString());
+                ArucoDictionaryCombo.Items.Remove(PredefinedDictionaryName.DictAprilTag36h10.ToString());
+                ArucoDictionaryCombo.Items.Remove(PredefinedDictionaryName.DictAprilTag36h11.ToString());
+            }
+            catch { /*Just eat any errors */ }
+
             _ = BoardInputChangedAsync();
         }
 
@@ -343,9 +372,7 @@ namespace Surveyor.User_Controls
 
             // Board Caption
             string caption =
-                $"Camera Calibration  ChArUco Target  {CbdWorking.SquaresX} x {CbdWorking.SquaresY} squares  " +
-                $"{CbdWorking.PredefinedDictionaryName}  Square:{(CbdWorking.SquareLength * 1000):F2}mm " +
-                $"Marker:{(CbdWorking.MarkerLength * 1000):F2}mm";
+                $"Camera Calibration  {CbdWorking.Description}";
 
             // Generate the PDF            
             await GeneratePDFBoardAsync(fileSpec,
@@ -455,7 +482,7 @@ namespace Surveyor.User_Controls
 
                 // 7. Set it as the source of your <Image>
                 PreviewImage.Source = bitmapImage;
-                PreviewCaption1.Text = $"{squaresX} x {squaresY} squares  {CbdWorking.PredefinedDictionaryName}  Square: {(squareLength * 1000):F2}mm  Marker: {(markerLength * 1000):F2}mm";
+                PreviewCaption1.Text = $"{CbdWorking.Description}";
                 PreviewCaption2.Text = $"This should look exactly the same as your physical board i.e. same number of squares and same markers in the same positions.";
             }
             catch (Exception ex)
@@ -516,7 +543,7 @@ namespace Surveyor.User_Controls
         /// <param name="dpi">Target print DPI (e.g., 1200).</param>
         /// <param name="caption"></param>
         private async Task GeneratePDFBoardAsync(string fileSpec,
-                                                 CharucoBoardDefinition charucoBoardDefinition,
+                                                 CalibrationBoardDefinition charucoBoardDefinition,
                                                  double boardWidthMeters,
                                                  double boardHeightMeters,
                                                  int dpi,

@@ -109,7 +109,7 @@
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEB3C;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem x:Name="MenuExport" Text="Export Results..." IsEnabled="False" Click="FileExport_Click">
+                    <MenuFlyoutItem x:Name="MenuExport" Text="Export Results..." IsEnabled="True" Click="FileExport_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEDE1;" />
                         </MenuFlyoutItem.Icon>

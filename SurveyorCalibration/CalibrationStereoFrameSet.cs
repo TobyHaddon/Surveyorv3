@@ -38,7 +38,7 @@ namespace Surveyor
         private const int version = 3;
         // Data Version
         public int Version { get; set; } = -1;
-
+        
         // A sorted dictionary of frames, sorted by frame index that holds the calibration
         // board corners and ids, the blur factor and the movement factor
         [JsonProperty(nameof(Frames))]
@@ -83,6 +83,10 @@ namespace Surveyor
         /// DYNAMIC variables
         ///  
 
+        // Indicate if used in stereo or mono mode
+        [JsonIgnore]
+        private bool? headTrueIsStereoFalseIsMode = null;
+
         // Lock point (passed in from Calibration Project
         [JsonIgnore]
         private int LockFrameIndexLeft = -1;
@@ -98,7 +102,7 @@ namespace Surveyor
 
         // Target calibration board setup
         [JsonIgnore]
-        private CharucoBoardDefinition? charucoBoardDefinition;
+        private CalibrationBoardDefinition? charucoBoardDefinition;
 
 
         // Total frame count
@@ -126,21 +130,76 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Pass the open video capture instances for the mono (left) media file.
+        /// </summary>
+        /// <param name="leftCapture"></param>
+        /// <param name="rightCapture"></param>
+        /// <returns></returns>
+        public virtual bool SetupMediaMono(VideoCapture _leftCapture)
+        {
+            bool ret = false;
+            bool leftOpenAndReady = false;
+
+            headTrueIsStereoFalseIsMode = false;
+            leftCapture = _leftCapture;
+            rightCapture = null;
+            totalFramesLeft = 0;
+            totalFramesRight = 0;
+
+            // Get left total frame count
+            if (leftCapture is not null && leftCapture.IsOpened)
+            {
+                leftOpenAndReady = true;
+
+                totalFramesLeft = (int)leftCapture.Get(CapProp.FrameCount);
+                if (totalFramesLeft > 0)
+                {
+                    ret = true;
+                }
+            }
+
+            // Report
+            if (ret)
+            {
+                if (leftOpenAndReady)
+                    Debug.WriteLine($"Mono media opened total frames: Left={totalFramesLeft}");
+                else
+                    Debug.WriteLine($"No media opened");
+            }
+            else
+            {
+                if (leftOpenAndReady)
+                    Debug.WriteLine($"Failed to open mono media total frames: Left={totalFramesLeft}");
+                else
+                    Debug.WriteLine($"No media opened");
+            }
+
+            return ret;
+        }
+
+        /// <summary>
         /// Pass the open video capture instances for the left and right media files.
         /// </summary>
         /// <param name="leftCapture"></param>
         /// <param name="rightCapture"></param>
         /// <returns></returns>
-        public virtual bool SetupMedia(VideoCapture _leftCapture, VideoCapture? _rightCapture)
+        public virtual bool SetupMediaStereo(VideoCapture _leftCapture, VideoCapture? _rightCapture)
         {
             bool ret = false;
+            bool leftOpenAndReady = false;
+            bool rightOpenAndReady = false;
 
+            headTrueIsStereoFalseIsMode = true;
             leftCapture = _leftCapture;
             rightCapture = _rightCapture;
+            totalFramesLeft = 0;
+            totalFramesRight = 0;
 
             // Get left total frame count
             if (leftCapture is not null && leftCapture.IsOpened)
             {
+                leftOpenAndReady = true;
+
                 totalFramesLeft = (int)leftCapture.Get(CapProp.FrameCount);
                 if (totalFramesLeft > 0)
                 {
@@ -151,11 +210,28 @@ namespace Surveyor
             // Get right total frame count
             if (rightCapture is not null && rightCapture.IsOpened)
             {
+                rightOpenAndReady = true;
                 totalFramesRight = (int)rightCapture.Get(CapProp.FrameCount);
                 if (totalFramesRight > 0)
-                {
                     ret = true;
-                }
+                else
+                    ret = false;
+            }
+
+            // Report
+            if (ret)
+            {
+                if (leftOpenAndReady && rightOpenAndReady)
+                    Debug.WriteLine($"Stereo media opened total frames: Left={totalFramesLeft}, Right={totalFramesRight}");
+                else
+                    Debug.WriteLine($"No media opened");
+            }
+            else
+            {
+                if (leftOpenAndReady && rightOpenAndReady)
+                    Debug.WriteLine($"Failed to open stereo media total frames: Left={totalFramesLeft}, Right={totalFramesRight}");
+                else
+                    Debug.WriteLine($"No media opened");
             }
 
             return ret;
@@ -195,7 +271,7 @@ namespace Surveyor
         /// <param name="arucoDictionary"></param>
         /// <param name="boardName"></param>
         /// <returns></returns>
-        public bool SetupCalibrationBoardType(CharucoBoardDefinition _charucoBoardDefinition)
+        public bool SetupCalibrationBoardType(CalibrationBoardDefinition _charucoBoardDefinition)
         {
             charucoBoardDefinition = _charucoBoardDefinition;
 
@@ -383,6 +459,7 @@ namespace Surveyor
                     .Select(f => f!.MovementFactor)
                     .DefaultIfEmpty(0)
                     .Min();
+        
 
         /// <summary>
         /// Add a stereo pair of FrameCalibrationTarget to the set.
@@ -390,6 +467,7 @@ namespace Surveyor
         /// <param name="stereoFrameIndex"></param>
         /// <param name="frameLeft"></param>
         /// <param name="frameRight"></param>
+        /// <returns>The count of the markers that match between the left and right frames</returns>
         public virtual int AddFrame(int stereoFrameIndex, FrameCalibrationData frameLeft, FrameCalibrationData? frameRight)
         {
             if (frameLeft.CharucoCorners == null || frameLeft.CharucoCorners.Length == 0)
@@ -438,7 +516,7 @@ namespace Surveyor
         /// Remove a frame from the set by its stereo frame index.
         /// </summary>
         /// <param name="stereoFrameIndex"></param>
-        /// <returns></returns>
+        /// <returns>True is frame removed</returns>
         public bool RemoveFrame(int stereoFrameIndex)
         {
             bool ret = false;
@@ -530,131 +608,78 @@ namespace Surveyor
         {
             HashSet<int> frameIndexSet = [];
 
-            bool mono = false;
             List<int> frameIndexes;
 
-            // Check if mono or stereo by checking for null right values
-            mono = !Frames.TryGetValue(Frames.Keys.FirstOrDefault(), out var tuple) || tuple.Item2 is null;
+            // Only support the first sensor bin
+            var (gx, gy) = FrameCalibrationData.SensorBinGridLayers[0];
 
-            
-            foreach (var (gx, gy) in FrameCalibrationData.SensorBinGridLayers)
+            for (int biny = 0; biny < gy; biny++)
             {
-                for (int biny = 0; biny < gy; biny++)
+                StringBuilder sb = new();
+                for (int binx = 0; binx < gx; binx++)
                 {
-                    StringBuilder sb = new();
-                    for (int binx = 0; binx < gx; binx++)
+                    var targetBin = (gx, gy, binx, biny);
+
+                    if (headTrueIsStereoFalseIsMode == false)
                     {
-                        var targetBin = (gx, gy, binx, biny);
 
-                        if (mono)
-                        {
-                            //frameIndexes = Frames
-                            //                 .Where(kvp =>
-                            //                 {
-                            //                     var (left, _, _) = kvp.Value;
-                            //                     return left.CharucoCorners.Length > charucoCornersThreshold &&
-                            //                            left.SensorBinsOccupied.Contains(targetBin) &&
-                            //                            left.MovementFactor <= maxMovementFactor &&
-                            //                            left.BlurFactor <= maxBlurFactor;
-                            //                 })
-                            //                 .OrderByDescending(kvp => kvp.Value.Item1.CharucoCorners.Length) // correspondingCount descending
-                            //                 .ThenBy(kvp =>
-                            //                 {
-                            //                     var (left, _, _) = kvp.Value;
-                            //                     return left.MovementFactor;
-                            //                 })
-                            //                 .ThenBy(kvp =>
-                            //                 {
-                            //                     var (left, _, _) = kvp.Value;
-                            //                     return left.BlurFactor;
-                            //                 })
-                            //                 .Take(2)
-                            //                 .Select(kvp => kvp.Key)
-                            //                 .ToList();
-                            frameIndexes = Frames.Select(kvp => (kvp.Key, Left: kvp.Value.Item1)) // pull out only what we sort/filter on
-                                                 .Where(x =>
-                                                     x.Left.CharucoCorners != null &&
-                                                     x.Left.CharucoCorners.Length > charucoCornersThreshold &&
-                                                     x.Left.SensorBinsOccupied != null &&
-                                                     x.Left.SensorBinsOccupied.Contains(targetBin) &&
-                                                     x.Left.MovementFactor <= maxMovementFactor &&
-                                                     x.Left.BlurFactor <= maxBlurFactor)
-                                                 .OrderByDescending(x => x.Left.CharucoCorners.Length) // more corners first
-                                                 .ThenBy(x => x.Left.MovementFactor)                   // less movement next
-                                                 .ThenBy(x => x.Left.BlurFactor)                       // less blur next
-                                                 .ThenBy(x => x.Key)                                   // stable tiebreaker (optional)
-                                                 .Take(2)
-                                                 .Select(x => x.Key)
-                                                 .ToList();
-                        }
-                        else
-                        {
-                            //frameIndexes = Frames
-                            //                .Where(kvp =>
-                            //                {
-                            //                    var (left, right, correspondingCount) = kvp.Value;
-                            //                    return correspondingCount > charucoCornersThreshold &&
-                            //                           left.SensorBinsOccupied.Contains(targetBin) &&
-                            //                           left.MovementFactor <= maxMovementFactor &&
-                            //                           left.BlurFactor <= maxBlurFactor &&
-                            //                           right != null &&
-                            //                           right.MovementFactor <= maxMovementFactor &&
-                            //                           right.BlurFactor <= maxBlurFactor;
-                            //                })
-                            //                .OrderByDescending(kvp => kvp.Value.Item3) // correspondingCount descending
-                            //                .ThenBy(kvp =>
-                            //                {
-                            //                    var (left, right, _) = kvp.Value;
-                            //                    return right is null ? left.MovementFactor
-                            //                                         : Math.MaxMagnitude(left.MovementFactor, right.MovementFactor);
-                            //                })
-                            //                .ThenBy(kvp =>
-                            //                {
-                            //                    var (left, right, _) = kvp.Value;
-                            //                    return right is null ? left.BlurFactor
-                            //                                         : Math.MaxMagnitude(left.BlurFactor, right.BlurFactor);
-                            //                })
-                            //                .Take(2)
-                            //                .Select(kvp => kvp.Key)
-                            //                .ToList();
-                            frameIndexes = Frames.Select(kvp => new {
-                                                        kvp.Key,
-                                                        Left = kvp.Value.Item1,
-                                                        Right = kvp.Value.Item2,
-                                                        Count = kvp.Value.Item3
-                                                    })
-                                                    .Where(x =>
-                                                        x.Count > charucoCornersThreshold &&
-                                                        x.Left?.SensorBinsOccupied != null &&
-                                                        x.Left.SensorBinsOccupied.Contains(targetBin) &&
-                                                        x.Left.MovementFactor <= maxMovementFactor &&
-                                                        x.Left.BlurFactor <= maxBlurFactor &&
-                                                        x.Right != null &&
-                                                        x.Right.MovementFactor <= maxMovementFactor &&
-                                                        x.Right.BlurFactor <= maxBlurFactor)
-                                                    .OrderByDescending(x => x.Count) // correspondingCount desc
-                                                    .ThenBy(x => Math.MaxMagnitude(x.Left.MovementFactor, x.Right!.MovementFactor))
-                                                    .ThenBy(x => Math.MaxMagnitude(x.Left.BlurFactor, x.Right!.BlurFactor))
-                                                    .ThenBy(x => x.Key) // optional: deterministic tiebreaker
-                                                    .Take(2)
-                                                    .Select(x => x.Key)
-                                                    .ToList();
-                        }
-
-                        if (binx > 0)
-                            sb.Append(' ');
-                        sb.Append($"{frameIndexes.Count}");
-
-                        foreach (var index in frameIndexes)
-                        {
-                            bool wasAdded = frameIndexSet.Add(index);
-                        }
-                        
+                        frameIndexes = Frames.Select(kvp => (kvp.Key, Left: kvp.Value.Item1)) // pull out only what we sort/filter on
+                                                .Where(x =>
+                                                    x.Left.CharucoCorners != null &&
+                                                    x.Left.CharucoCorners.Length > charucoCornersThreshold &&
+                                                    x.Left.SensorBinsOccupied != null &&
+                                                    x.Left.SensorBinsOccupied.Contains(targetBin) &&
+                                                    x.Left.MovementFactor <= maxMovementFactor &&
+                                                    x.Left.BlurFactor <= maxBlurFactor)
+                                                .OrderByDescending(x => x.Left.CharucoCorners.Length) // more corners first
+                                                .ThenBy(x => x.Left.MovementFactor)                   // less movement next
+                                                .ThenBy(x => x.Left.BlurFactor)                       // less blur next
+                                                .ThenBy(x => x.Key)                                   // stable tiebreaker (optional)
+                                                .Take(2)
+                                                .Select(x => x.Key)
+                                                .ToList();
                     }
-                    Debug.WriteLine(sb.ToString());
-                }
-            }
+                    else
+                    {
+                        frameIndexes = Frames.Select(kvp => new {
+                                                    kvp.Key,
+                                                    Left = kvp.Value.Item1,
+                                                    Right = kvp.Value.Item2,
+                                                    Count = kvp.Value.Item3
+                                                })
+                                                .Where(x =>
+                                                    x.Count > charucoCornersThreshold &&
+                                                    x.Left?.SensorBinsOccupied != null &&
+                                                    x.Left.SensorBinsOccupied.Contains(targetBin) &&
+                                                    x.Left.MovementFactor <= maxMovementFactor &&
+                                                    x.Left.BlurFactor <= maxBlurFactor &&
+                                                    x.Right != null &&
+                                                    x.Right.MovementFactor <= maxMovementFactor &&
+                                                    x.Right.BlurFactor <= maxBlurFactor)
+                                                .OrderByDescending(x => x.Count) // correspondingCount desc
+                                                .ThenBy(x => Math.MaxMagnitude(x.Left.MovementFactor, x.Right!.MovementFactor))
+                                                .ThenBy(x => Math.MaxMagnitude(x.Left.BlurFactor, x.Right!.BlurFactor))
+                                                .ThenBy(x => x.Key) // optional: deterministic tiebreaker
+                                                .Take(2)
+                                                .Select(x => x.Key)
+                                                .ToList();
+                    }
 
+                    if (binx == 0)
+                        sb.Append("SelectBestStereoFramesUsingSensorBinOnly:");
+                    else if (binx > 0)
+                        sb.Append(' ');
+                    sb.Append($"{frameIndexes.Count}");
+
+                    foreach (var index in frameIndexes)
+                    {
+                        bool wasAdded = frameIndexSet.Add(index);
+                    }
+                        
+                }
+                Debug.WriteLine(sb.ToString());
+            }
+        
             BestFrameIndexes = [.. frameIndexSet];
             return true;
         }
@@ -888,94 +913,108 @@ namespace Surveyor
                 startStep = 625;
             }
 
-            await FindCalibrationAsync(trueStereoFalseSoloLeft,
-                                       rangeStart, rangeEnd,
-                                       startStep,
-                                       calibrationTargetSearch,
-                                       false/*trueRecursive*/,
-                                       null,/*Used if recursive is true*/
-                                       callbackDisplay,
-                                       cancellationToken,
-                                       null);
-
-
-
-            int startCalibration = -1;
-            int stopCalibration = -1;
-
-            if (leftReady)  // At least one ready
+            // We need to find at least one frame with the calibration target present
+            // to start with.  We will loop reducing the step size until we find one.
+            while (GetFirstTrueKeyBounds(calibrationTargetSearch) == (null, null) && startStep > 0)
             {
-                // Adjust the frame step 625 > 125 > 25 > 5
-                int frameStep2 = startStep / 5;
-                if (frameStep2 < 5)
-                    frameStep2 = 1;
-
-                // First the current beginning of where the calibration board was seen and refine it
-                (int? firstTrueKey, int? beforeFirstKey) = GetFirstTrueKeyBounds(calibrationTargetSearch);
-
-                if (firstTrueKey is not null && beforeFirstKey is null)
+                await FindCalibrationAsync(trueStereoFalseSoloLeft,
+                                           rangeStart, rangeEnd,
+                                           startStep,
+                                           calibrationTargetSearch,
+                                           false/*trueRecursive*/,
+                                           null,/*Used if recursive is true*/
+                                           callbackDisplay,
+                                           null,
+                                           cancellationToken);
+                if (GetFirstTrueKeyBounds(calibrationTargetSearch) == (null, null))
                 {
-                    beforeFirstKey = 0;
-                }
-
-                // Work on the front of the range (recursively)
-                if (firstTrueKey is not null && beforeFirstKey is not null)
-                {
-                    int newStartFrame = (int)beforeFirstKey + 1;
-                    int newEndFrame = (int)firstTrueKey - 1;
-                    if (newStartFrame < newEndFrame)
-                    {
-                        await FindCalibrationAsync(trueStereoFalseSoloLeft,
-                                                    (int)beforeFirstKey + 1, (int)firstTrueKey - 1, frameStep2,
-                                                    calibrationTargetSearch,
-                                                    true/*trueRecursive*/,
-                                                    true/*trueWorkOnStartFalseWorkOnEnd*/,
-                                                    callbackDisplay,
-                                                    cancellationToken,
-                                                    null);
-                    }
-                }
-
-
-                // First the current end of where the calibration board was last and refine it
-                (int? lastTrueKey, int? afterLastKey) = GetLastTrueKeyBounds(calibrationTargetSearch);
-                if (lastTrueKey is not null && afterLastKey is null)
-                {
-                    afterLastKey = rangeEnd;
-                }
-
-                // Work on the back of the range (recursively)
-                if (lastTrueKey is not null && afterLastKey is not null)
-                {
-                    int newStartFrame = (int)lastTrueKey + 1;
-                    int newEndFrame = (int)afterLastKey - 1;
-                    if (newStartFrame < newEndFrame)
-                    {
-                        await FindCalibrationAsync(trueStereoFalseSoloLeft,
-                                                    newStartFrame, newEndFrame, frameStep2,
-                                                    calibrationTargetSearch,
-                                                    true/*trueRecursive*/,
-                                                    false/*trueWorkOnStartFalseWorkOnEnd*/,
-                                                    callbackDisplay,
-                                                    cancellationToken,
-                                                    null);
-                    }
+                    startStep = startStep / 2;                    
                 }
             }
 
-            // Get start and end of the range
-            (int? firstTrueKeyExit, int? beforeFirstKeyExit) = GetFirstTrueKeyBounds(calibrationTargetSearch);
-            (int? lastTrueKeyExit, int? afterLastKeyExit) = GetLastTrueKeyBounds(calibrationTargetSearch);
-            if (firstTrueKeyExit is not null)
-                startCalibration = (int)firstTrueKeyExit;
-            if (lastTrueKeyExit is not null)
-                stopCalibration = (int)lastTrueKeyExit;
+            // Present if we have at least one 'true' entry
+            int startCalibration = -1;
+            int stopCalibration = -1;
 
-            // Make sure both are valid
-            if (firstTrueKeyExit is null || lastTrueKeyExit is null || startCalibration > stopCalibration)
+            if (GetFirstTrueKeyBounds(calibrationTargetSearch) != (null, null))
             {
-                startCalibration = -1;
-                stopCalibration = -1;
+
+                if (leftReady)  // At least one ready
+                {
+                    // Adjust the frame step 625 > 125 > 25 > 5
+                    int frameStep2 = startStep / 5;
+                    if (frameStep2 < 5)
+                        frameStep2 = 1;
+
+                    // First get the current beginning of where the calibration board was seen
+                    (int? firstTrueKey, int? beforeFirstKey) = GetFirstTrueKeyBounds(calibrationTargetSearch);
+
+                    // Force a search from the beginning is no suitable starting point was previously located
+                    if (beforeFirstKey is null)
+                        beforeFirstKey = 0;
+                    // Force a search to the end is no suitable ending point was previously located
+                    if (firstTrueKey is null)
+                        firstTrueKey = rangeEnd + 1;
+
+                    // Work on the front of the range (recursively)
+                    if (firstTrueKey is not null && beforeFirstKey is not null)
+                    {
+                        int newStartFrame = (int)beforeFirstKey + 1;
+                        int newEndFrame = (int)firstTrueKey - 1;
+                        if (newStartFrame < newEndFrame)
+                        {
+                            await FindCalibrationAsync(trueStereoFalseSoloLeft,
+                                                        (int)beforeFirstKey + 1, (int)firstTrueKey - 1, frameStep2,
+                                                        calibrationTargetSearch,
+                                                        true/*trueRecursive*/,
+                                                        true/*trueWorkOnStartFalseWorkOnEnd*/,
+                                                        callbackDisplay,
+                                                        null,
+                                                        cancellationToken);
+                        }
+                    }
+
+
+                    // First get the current end of where the calibration board was last seen
+                    (int? lastTrueKey, int? afterLastKey) = GetLastTrueKeyBounds(calibrationTargetSearch);
+                    if (lastTrueKey is not null && afterLastKey is null)
+                    {
+                        afterLastKey = rangeEnd;
+                    }
+
+                    // Work on the back of the range (recursively)
+                    if (lastTrueKey is not null && afterLastKey is not null)
+                    {
+                        int newStartFrame = (int)lastTrueKey + 1;
+                        int newEndFrame = (int)afterLastKey - 1;
+                        if (newStartFrame < newEndFrame)
+                        {
+                            await FindCalibrationAsync(trueStereoFalseSoloLeft,
+                                                        newStartFrame, newEndFrame, frameStep2,
+                                                        calibrationTargetSearch,
+                                                        true/*trueRecursive*/,
+                                                        false/*trueWorkOnStartFalseWorkOnEnd*/,
+                                                        callbackDisplay,
+                                                        null,
+                                                        cancellationToken);
+                        }
+                    }
+                }
+
+                // Get start and end of the range
+                (int? firstTrueKeyExit, int? beforeFirstKeyExit) = GetFirstTrueKeyBounds(calibrationTargetSearch);
+                (int? lastTrueKeyExit, int? afterLastKeyExit) = GetLastTrueKeyBounds(calibrationTargetSearch);
+                if (firstTrueKeyExit is not null)
+                    startCalibration = (int)firstTrueKeyExit;
+                if (lastTrueKeyExit is not null)
+                    stopCalibration = (int)lastTrueKeyExit;
+
+                // Make sure both are valid
+                if (firstTrueKeyExit is null || lastTrueKeyExit is null || startCalibration > stopCalibration)
+                {
+                    startCalibration = -1;
+                    stopCalibration = -1;
+                }
             }
 
             return (startCalibration, stopCalibration);
@@ -1000,8 +1039,8 @@ namespace Surveyor
                                                 bool trueRecursive,
                                                 bool? trueWorkOnStartFalseWorkOnEnd,
                                                 FrameProcessingCallback? callback,
-                                                CancellationToken cancellationToken,
-                                                object? userData)
+                                                object? userData,
+                                                CancellationToken cancellationToken)
         {
             Debug.WriteLine($"FindCalibration: Frame:{startFrame} to {endFrame} step:{frameStep}");
 
@@ -1149,7 +1188,8 @@ namespace Surveyor
                                                 calibrationTargetSearch,
                                                 true/*trueRecursive*/,
                                                 trueWorkOnStartFalseWorkOnEnd,
-                                                callback, cancellationToken, userData);
+                                                callback, userData, 
+                                                cancellationToken);
                 }
             }
 
@@ -1338,7 +1378,7 @@ namespace Surveyor
                 }
 
                 // Process result
-                int correspondingCount = 0;
+                int correspondingCount = -1;
                 try
                 {
                     if (trueStereoFalseSoloLeft)
@@ -1352,7 +1392,7 @@ namespace Surveyor
                     {
                         if (targetLeft is not null)
                         {
-                            correspondingCount = AddFrame(frameIndex, targetLeft, null);
+                            AddFrame(frameIndex, targetLeft, null);
                         }
                     }
                 }
@@ -2183,7 +2223,7 @@ namespace Surveyor
                     sb.AppendLine("Intrinsic Matrix:");
                     for (int i = 0; i < 3; i++)
                     {
-                        sb.AppendLine($"{monoCalib.IntrinsicMatrix[i, 0],9:F3}  {monoCalib.IntrinsicMatrix[i, 1],9:F3}  {monoCalib.IntrinsicMatrix[i, 2],9:F3}");
+                        sb.AppendLine($"{monoCalib.IntrinsicMatrix[i, 0],7:F3}  {monoCalib.IntrinsicMatrix[i, 1],7:F3}  {monoCalib.IntrinsicMatrix[i, 2],7:F3}");
                     }
 
                     sb.AppendLine($"Distortion Coefficients [{monoCalib.CalibrationParameters.ToString()}]:");
@@ -2194,7 +2234,7 @@ namespace Surveyor
                         if (i > 0)
                             sb.Append("  ");
 
-                        sb.Append($"{monoCalib.DistortionCoeffs[0, i],9:F3}");
+                        sb.Append($"{monoCalib.DistortionCoeffs[0, i],7:F3}");
                     }
                     sb.AppendLine();
 
@@ -2202,20 +2242,22 @@ namespace Surveyor
                     // RPE RMS
                     string rpeQuanlity = string.Empty;
                     if (monoCalib.ReprojectionRMS <= 0.2)
-                        rpeQuanlity = "(Excellent)";
+                        rpeQuanlity = "(excellent)";
                     else if (monoCalib.ReprojectionRMS <= 0.5)
-                        rpeQuanlity = "(Very good)";
+                        rpeQuanlity = "(very good)";
                     else if (monoCalib.ReprojectionRMS <= 1.0)
-                        rpeQuanlity = "(Acceptable)";
+                        rpeQuanlity = "(acceptable)";
                     else if (monoCalib.ReprojectionRMS <= 1.5)
-                        rpeQuanlity = "(Poor)";
+                        rpeQuanlity = "(poor)";
                     else if (monoCalib.ReprojectionRMS <= 2.0)
-                        rpeQuanlity = "(Very poor)";
-                    // < 0.2    Excellent(usually only in studio/lab with perfect lighting and corner visibility)
-                    // 0.2–0.5  Very good; suitable for accurate 3D reconstructions and pose estimates
-                    // 0.5–1.0  Acceptable for many real-world use cases, especially underwater, drone, etc.
-                    // > 1.0    Often indicates blur, motion, poor corner detection, or bad coverage
-                    sb.AppendLine($"RPE: {monoCalib.ReprojectionRMS:F2}px {rpeQuanlity}");
+                        rpeQuanlity = "(very poor)";
+                    else
+                        rpeQuanlity = "(terrible)";
+                        // < 0.2    Excellent(usually only in studio/lab with perfect lighting and corner visibility)
+                        // 0.2–0.5  Very good; suitable for accurate 3D reconstructions and pose estimates
+                        // 0.5–1.0  Acceptable for many real-world use cases, especially underwater, drone, etc.
+                        // > 1.0    Often indicates blur, motion, poor corner detection, or bad coverage
+                        sb.AppendLine($"RPE: {monoCalib.ReprojectionRMS:F2}px {rpeQuanlity}");
                     //Debug.WriteLine($"Projection RMS (point):    {monoCalib.ProjectionRMS:F4} px");
                     //Debug.WriteLine($"Max Reprojection Error:    {monoCalib.MaxError:F4} px");
 
@@ -2249,7 +2291,7 @@ namespace Surveyor
                     sb.AppendLine("Rotation:");
                     for (int i = 0; i < 3; i++)
                     {
-                        sb.AppendLine($"{stereoCalib.Rotation[i, 0],9:F3}  {stereoCalib.Rotation[i, 1],9:F3}  {stereoCalib.Rotation[i, 2],9:F3}");
+                        sb.AppendLine($"{stereoCalib.Rotation[i, 0],6:F3}  {stereoCalib.Rotation[i, 1],6:F3}  {stereoCalib.Rotation[i, 2],6:F3}");
                     }
 
                     sb.AppendLine($"Translation:");
@@ -2259,7 +2301,7 @@ namespace Surveyor
                         if (i > 0)
                             sb.Append("  ");
 
-                        sb.Append($"{stereoCalib.Translation[i, 0],9:F3}");
+                        sb.Append($"{stereoCalib.Translation[i, 0],6:F3}");
                     }
                     sb.AppendLine();
 
@@ -2267,15 +2309,17 @@ namespace Surveyor
                     // RPE RMS
                     string rpeQuanlity = string.Empty;
                     if (stereoCalib.RMS <= 0.2)
-                        rpeQuanlity = "(Excellent)";
+                        rpeQuanlity = "(excellent)";
                     else if (stereoCalib.RMS <= 0.5)
-                        rpeQuanlity = "(Very good)";
+                        rpeQuanlity = "(very good)";
                     else if (stereoCalib.RMS <= 1.0)
-                        rpeQuanlity = "(Acceptable)";
+                        rpeQuanlity = "(acceptable)";
                     else if (stereoCalib.RMS <= 1.5)
-                        rpeQuanlity = "(Poor)";
+                        rpeQuanlity = "(poor)";
                     else if (stereoCalib.RMS <= 2.0)
-                        rpeQuanlity = "(Very poor)";
+                        rpeQuanlity = "(very poor)";
+                    else
+                        rpeQuanlity = "(terrible)";
                     // < 0.2    Excellent(usually only in studio/lab with perfect lighting and corner visibility)
                     // 0.2–0.5  Very good; suitable for accurate 3D reconstructions and pose estimates
                     // 0.5–1.0  Acceptable for many real-world use cases, especially underwater, drone, etc.
@@ -2309,7 +2353,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="board"></param>
         /// <returns></returns>
-        private static Dictionary<int, MCvPoint3D32f> GetCharucoCorner3DPoints(CharucoBoardDefinition board)
+        private static Dictionary<int, MCvPoint3D32f> GetCharucoCorner3DPoints(CalibrationBoardDefinition board)
         {
             var cornerMap = new Dictionary<int, MCvPoint3D32f>();
             
@@ -2710,7 +2754,6 @@ namespace Surveyor
         // Helper for binning an angle
         private static int BinFromAngle(double angle, IReadOnlyList<double> thresholds)
         {
-            //???double absAngle = Math.Abs(angle);
             for (int i = 0; i < thresholds.Count; i++)
             {
                 if (angle < thresholds[i])
@@ -2733,13 +2776,8 @@ namespace Surveyor
 
             // Layer dimensions
             var (px, py) = FrameCalibrationData.PoseBinGrid;
-
-            bool mono = false;
+            
             List<int>? frameIndexes = null;
-
-            // Check if mono or stereo by checking for null right values
-            mono = !Frames.TryGetValue(Frames.Keys.FirstOrDefault(), out var tuple) || tuple.Item2 is null;
-
 
             for (int biny = 0; biny < py; biny++)
             {
@@ -2747,7 +2785,7 @@ namespace Surveyor
                 {
                     var targetBin = (binx, biny);
 
-                    if (mono)
+                    if (headTrueIsStereoFalseIsMode == false)
                     {
                         frameIndexes = Frames
                                          .Where(kvp =>

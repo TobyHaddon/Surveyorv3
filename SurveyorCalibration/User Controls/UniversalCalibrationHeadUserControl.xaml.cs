@@ -223,7 +223,7 @@ namespace Surveyor.Controls
         /// <param name="arucoDictionary"></param>
         /// <param name="boardName"></param>
         /// <returns></returns>
-        public bool SetupCalibrationBoardType(CharucoBoardDefinition _charucoBoardDefinition) 
+        public bool SetupCalibrationBoardType(CalibrationBoardDefinition _charucoBoardDefinition) 
         {
             return calibrationStereoFrameSet.SetupCalibrationBoardType(_charucoBoardDefinition);
         }
@@ -347,7 +347,10 @@ namespace Surveyor.Controls
             // Give CalibrationStereoFrameSet access to the video capture handles
             if (leftOpened && capLeft is not null)
             {
-                calibrationStereoFrameSet.SetupMedia(capLeft, capRight);
+                if (headTrueIsStereoFalseIsMode == true)
+                    calibrationStereoFrameSet.SetupMediaStereo(capLeft, capRight);
+                else
+                    calibrationStereoFrameSet.SetupMediaMono(capLeft);
             }
 
             await Task.Delay(100); // Allow UI to update
@@ -389,6 +392,33 @@ namespace Surveyor.Controls
                 capRight.Dispose();
                 capRight = null;
             }
+
+            // Clear frameset values
+            this.calibrationStereoFrameSet.ClearResults();
+            CalibrationFrameSetViewerLeft.RefreshSensorBinLayers();
+            CalibrationFrameSetViewerLeft.DrawGraphs();
+            CalibrationFrameSetViewerRight.RefreshSensorBinLayers();
+            CalibrationFrameSetViewerRight.DrawGraphs();
+
+            // Clear images
+            LeftImage.Source = null;
+            _currentFrameLeft = 0;
+            RightImage.Source = null;
+            _currentFrameRight = 0;
+
+            // Clear frame label
+            LeftUpdateFrameLabel();
+            RightUpdateFrameLabel();
+
+            // Clear Metadata
+            ClearFrameMetaData(true/*trueLeftfalseRight*/);
+            ClearFrameMetaData(false/*trueLeftfalseRight*/);
+
+            // Reset calibration output display display 
+            LeftCalibDataText.Text = string.Empty;
+            LeftCalibDataBorder.Visibility = Visibility.Collapsed;
+            RightCalibDataText.Text = string.Empty;
+            RightCalibDataBorder.Visibility = Visibility.Collapsed;
 
             SetUIControls();
 
@@ -782,14 +812,14 @@ namespace Surveyor.Controls
                         else
                             calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters] = monoCalib2;
                     }
-           
+
 
                     // Display the mono calibration results
                     // Reset calibration output display display 
                     // Note. We used the left side display control only for a mono head
                     // even if 'trueLeftFalseRight == false'
-                    LeftCalibDataText.Text = string.Empty;
-                    LeftCalibDataBorder.Visibility = Visibility.Collapsed;
+                    safeUICall.Call(() => LeftCalibDataText.Text = string.Empty);
+                    safeUICall.Call(() => LeftCalibDataBorder.Visibility = Visibility.Collapsed);
 
                     string calibationText = $"Image Size {frameSize.Width} x {frameSize.Height}\n";
 
@@ -809,8 +839,8 @@ namespace Surveyor.Controls
                     }
 
                     // Set calibration output display display 
-                    LeftCalibDataText.Text = calibationText;
-                    LeftCalibDataBorder.Visibility = Visibility.Visible;
+                    safeUICall.Call(() => LeftCalibDataText.Text = calibationText);
+                    safeUICall.Call(() => LeftCalibDataBorder.Visibility = Visibility.Visible);
                 }
                 catch (Exception ex)
                 {
@@ -966,7 +996,7 @@ namespace Surveyor.Controls
         /// Used to check is a cached result file already exists
         /// </summary>
         /// <returns></returns>
-        public bool CachedResultsFileExists(string cacheFileSpec)
+        public static bool CachedResultsFileExists(string cacheFileSpec)
         {
             bool ret = false;
             // Check if the file exists (remove any zero byte file)
@@ -1033,9 +1063,11 @@ namespace Surveyor.Controls
         }
 
 
+
         ///
         /// EVENTS
         /// 
+
 
         /// <summary>
         /// Left side Frame Back button pressed
@@ -1050,6 +1082,7 @@ namespace Surveyor.Controls
                 BestFrameMoveBack();
         }
 
+
         /// <summary>
         /// Left side Play button pressed
         /// </summary>
@@ -1061,12 +1094,12 @@ namespace Surveyor.Controls
                 PlayPauseClick(true);
         }
 
+
         /// <summary>
         /// Left side Frame Forward button pressed
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-
         private void LeftFrameForwardClick(object sender, RoutedEventArgs e)
         {
             if (appMode == AppMode.Open)
@@ -1136,7 +1169,6 @@ namespace Surveyor.Controls
         }
 
         
-
         /// <summary>
         /// User request to go to a particular left frame index
         /// </summary>
@@ -1240,7 +1272,7 @@ namespace Surveyor.Controls
                 int correspondingCount,
                 object? userData)
         {
-            dispatcherQueue.TryEnqueue(() => {
+            safeUICall.Call(() => {
 
                 bool trueFoundFalseNotFound;
 
@@ -1458,7 +1490,10 @@ namespace Surveyor.Controls
             BlurFactor.Text = $"Blur: {blurFactor:F1}";
 
             // Feature Count (number of Charuco corners)
-            FeatureCount.Text = $"Corners: {featureCount}({correspondingCount})";
+            if (correspondingCount != -1)
+                FeatureCount.Text = $"Corners: {featureCount}({correspondingCount})";
+            else
+                FeatureCount.Text = $"Corners: {featureCount}";
 
             // Score
             Score.Text = $"Score: {score:F2}";
@@ -1766,7 +1801,7 @@ namespace Surveyor.Controls
                     targetIndex = 0;
 
                 if (targetIndex >= calibrationStereoFrameSet.BestFrameIndexes.Count)
-                    targetIndex = calibrationStereoFrameSet.BestFrameIndexes.Count;
+                    targetIndex = calibrationStereoFrameSet.BestFrameIndexes.Count - 1;
 
                 try
                 {

@@ -215,8 +215,6 @@ namespace Surveyor.Controls
                         FontFamily = new FontFamily("Segoe UI Variable"),
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
-                        //Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources["CaptionTextBlockStyle"]
-                        //Width = 50,
                         FontSize = 10,
                         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                         Margin = new Thickness(0),
@@ -271,8 +269,6 @@ namespace Surveyor.Controls
                         FontFamily = new FontFamily("Segoe UI Variable"),
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center,
-                        //Style = (Style)Microsoft.UI.Xaml.Application.Current.Resources["CaptionTextBlockStyle"]
-                        //Width = 50,
                         FontSize = 10,
                         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
                         Margin = new Thickness(0),
@@ -311,8 +307,18 @@ namespace Surveyor.Controls
                         int column = Grid.GetColumn(border);
                         int row = Grid.GetRow(border);
 
-                        // Updated to use just column/row since gx/gy are implicit in the grid structure
-                        textBlock.Text = counts.TryGetValue((gx, gy, column, row), out int v) ? v != 0 ? v.ToString() : "" : "";
+                        if (counts.TryGetValue((gx, gy, column, row), out int count))
+                        {
+                            textBlock.Text = count != 0 ? count.ToString() : "";
+
+                            byte b = (byte)Math.Min(count, 255);
+                            border.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 0, b));
+                        }
+                        else
+                        {
+                            textBlock.Text = "";
+                            border.Background = null;
+                        }
                     }
                 }
             }

@@ -80,7 +80,12 @@
                     </toolkit:SettingsExpander.HeaderIcon>
 
                     <toolkit:SettingsExpander.Items>
-                        <surveyorControls:SettingsCalibrationBoard x:Name="SettingsProjectCalibrationBoard" InstanceType="BoardSetup"/>
+                        <StackPanel Orientation="Vertical" Padding="24" Spacing="16">
+                            <surveyorControls:SettingsCalibrationBoard x:Name="SettingsProjectCalibrationBoard" InstanceType="BoardSetup"/>
+                            <TextBlock TextWrapping="Wrap">
+                                <Hyperlink Click="MailLink_Click">Do you need other calibration targets supported?</Hyperlink>
+                            </TextBlock>
+                        </StackPanel>
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>
                 
@@ -157,10 +162,27 @@
                     </toolkit:SettingsExpander.HeaderIcon>
 
                     <toolkit:SettingsExpander.Items>
-                        <StackPanel Orientation="Vertical">
+                        <StackPanel Orientation="Vertical" Padding="24" Spacing="16">
                             <surveyorControls:SettingsCalibrationBoard x:Name="SettingsDefaultCalibrationBoard" InstanceType="DefaultsManager"/>
-                            
-                            
+                            <TextBlock TextWrapping="Wrap">
+                                <Hyperlink Click="MailLink_Click">Do you need other calibration targets supported?</Hyperlink>
+                            </TextBlock>
+                        </StackPanel>
+                    </toolkit:SettingsExpander.Items>
+                </toolkit:SettingsExpander>
+
+                <!-- TEST CALIBRATION BOARD -->
+                <toolkit:SettingsExpander x:Name="SettingsExpanderTestCalibrationBoard" Header="Test Calibration Target"
+                          Description="Confirm your calibration board can be detected"
+                          ToolTipService.ToolTip="Show your calibration board to the camera on this device and confirm the configuration is correct and the board can be detected"
+                          Expanded="SettingsExpanderTestCalibrationBoard_Expanded"
+                          Collapsed="SettingsExpanderTestCalibrationBoard_Collapsed">
+                    <toolkit:SettingsExpander.HeaderIcon>
+                        <FontIcon Glyph="&#xEB3C;" />
+                    </toolkit:SettingsExpander.HeaderIcon>
+                    <toolkit:SettingsExpander.Items>
+                        <StackPanel Orientation="Vertical">
+                            <surveyorControls:CalibrationTargetTest x:Name="SettingsTestCalibrationBoard"/>
                         </StackPanel>
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>

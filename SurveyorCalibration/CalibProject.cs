@@ -742,7 +742,7 @@ namespace Surveyor
 
             public MediaClass Media { get; set; } = new();
             
-            public CharucoBoardDefinition CharucoBoardDefinition { get; set; } = new();
+            public CalibrationBoardDefinition CharucoBoardDefinition { get; set; } = new();
 
             public SyncClass Sync { get; set; } = new();
 

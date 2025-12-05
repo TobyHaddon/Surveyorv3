@@ -38,14 +38,11 @@
 
         <!-- Board Type -->
         <TextBlock Text="Target Type:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
-        <!-- Locked to single supported option -->
+        <!-- Locked to single supported option in code behind-->
         <ComboBox x:Name="TargetTypeCombo"
                     Grid.Row="0"
                     Grid.Column="1"
-                    Margin="5"
-                    IsEnabled="False"
-                    SelectedIndex="0">
-            <ComboBoxItem Content="ChArUco" Tag="ChArUco"/>
+                    Margin="5">
         </ComboBox>
         
         <!-- Square Count -->
@@ -90,7 +87,8 @@
 
         <!-- Preview -->
         <StackPanel Grid.Row ="5" Grid.Column="1" Orientation="Vertical" HorizontalAlignment="Left" Margin="5">
-            <Border Grid.Row="5" Grid.ColumnSpan="2" HorizontalAlignment="Left" Margin="0,15,0,0" BorderBrush="Gray" BorderThickness="1" Width="500">
+            <Border Grid.Row="5" Grid.ColumnSpan="2" HorizontalAlignment="Left" 
+                    BorderBrush="Gray" BorderThickness="1" Width="500" Margin="0,15,0,0">
                 <Image x:Name="PreviewImage" Stretch="Uniform" />
             </Border>
             <TextBlock x:Name="PreviewCaption1" FontSize="10" Foreground="Gray" Margin="0,5,5,0"/>

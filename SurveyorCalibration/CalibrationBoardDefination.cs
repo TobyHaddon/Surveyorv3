@@ -7,25 +7,52 @@ using static Emgu.CV.Aruco.Dictionary;
 
 namespace Surveyor
 {
-    public partial class CharucoBoardDefinition : INotifyPropertyChanged
+    public partial class CalibrationBoardDefinition : INotifyPropertyChanged
     {
         // Event handler for property changed
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        public CharucoBoardDefinition()
+        // Board Types
+        public enum TargetType
+        {
+            None = 0,
+            ChArUco = 1,
+            Chressboard = 2,
+            SymmetricCircles = 3,
+            AsymmetricCircles = 4
+        }
+
+        public CalibrationBoardDefinition()
         {
             Clear();
         }
         public void Clear()
         {
-            this._dictionary = null;
+            this._target = TargetType.None;
+
             this._squaresX = 0;
             this._squaresY = 0;
             this._squareLength = 0f;
             this._markerLength = 0f;
+            this._predefinedDictionaryName = PredefinedDictionaryName.Dict4X4_50;
+            this._dictionary = null;
             this._board = null;
 
             _isDirty = false;
+        }
+
+        // Target Board Type
+        private TargetType _target;
+        public TargetType Target
+        { 
+            get => _target; 
+            set
+            {   if (_target != value)
+                {
+                    _target = value;
+                    IsDirty = true;
+                }
+            }
         }
 
         // Number of squares in X direction
@@ -149,6 +176,22 @@ namespace Surveyor
             }
 
             return false;
+        }
+
+
+        /// <summary>
+        /// Return a target board description string
+        /// </summary>
+        /// <returns></returns>
+        public string Description()
+        {
+            // Board Caption
+            string caption =
+                $"ChArUco Target  {SquaresX} x {SquaresY} squares  " +
+                $"{PredefinedDictionaryName}  Square:{(SquareLength * 1000):F2}mm " +
+                $"Marker:{(MarkerLength * 1000):F2}mm";
+
+            return caption;
         }
 
 
