@@ -711,13 +711,15 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        public async Task FindBestFramesNoUIAsync(CalibProject calibProject,
-                                              bool trueLeftFalseRight,
-                                              double movementMinThreshold, 
-                                              double blurMinThreshold, 
-                                              int monoCornersMinThreshold, 
-                                              bool writeBestFramesToPng = true)
+        public async Task<int> FindBestFramesNoUIAsync(CalibProject calibProject,
+                                                       bool trueLeftFalseRight,
+                                                       double movementMinThreshold, 
+                                                       double blurMinThreshold, 
+                                                       int monoCornersMinThreshold, 
+                                                       bool writeBestFramesToPng = true)
         {
+            int ret = 0;
+
             // Check we have a CalibrationStereoFrameSet and this is definately a Mono head
             if (calibrationStereoFrameSet is not null && headTrueIsStereoFalseIsMode == false)
             {
@@ -754,6 +756,8 @@ namespace Surveyor.Controls
                         // Parse the Frames and calculate the yaw and pitch for each frame using the pass1 calibration
                         await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBinAsync(monoCalib!, null/*monoCalibRight*/, frameSize);
                     }
+                    else
+                        ret = -1;
 
 
                     // Write frames to .png if requested
@@ -771,7 +775,7 @@ namespace Surveyor.Controls
             safeUICall.Call(() => BestFrameJump(0));
             safeUICall.Call(() => RightUpdateFrameLabel());
 
-            return;
+            return ret;
         }
 
 
@@ -784,11 +788,12 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        public bool DoMonoCalibrationCalculationNoUI(CalibProject calibProject, 
-                                                     bool trueLeftFalseRight,
-                                                     int monoCornersMinThreshold)
+        /// <returns>Zero is ok</returns>
+        public int DoMonoCalibrationCalculationNoUI(CalibProject calibProject, 
+                                                    bool trueLeftFalseRight,
+                                                    int monoCornersMinThreshold)
         {
-            bool ret = false;
+            int ret = 0;
 
             // Check we have a CalibrationStereoFrameSet and this is definately a Mono head
             if (calibrationStereoFrameSet is not null && headTrueIsStereoFalseIsMode == false)
@@ -806,11 +811,16 @@ namespace Surveyor.Controls
                                                                                 monoCornersMinThreshold,
                                                                                 calibrationParameters);
 
-                        // Remember the mono calibration data
-                        if (trueLeftFalseRight)
-                            calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters] = monoCalib2;
+                        if (monoCalib2 is not null)
+                        {
+                            // Remember the mono calibration data
+                            if (trueLeftFalseRight)
+                                calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters] = monoCalib2;
+                            else
+                                calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters] = monoCalib2;
+                        }
                         else
-                            calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters] = monoCalib2;
+                            ret = -1;
                     }
 
 
@@ -863,14 +873,14 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        public async Task<bool> BestFramesCalcAndStereoCalibrationAsync(
+        public async Task<int> BestFramesCalcAndStereoCalibrationAsync(
                                          CalibProject calibProject,
                                          double movementMinThreshold,
                                          double blurMinThreshold,
                                          int stereoCornersMinThreshold,
                                          bool writeBestFramesToPng = true)
         {
-            bool ret = false;
+            int ret = -1;
 
             appMode = AppMode.BestFramesCalc;
             SetUIControls();
@@ -942,7 +952,7 @@ namespace Surveyor.Controls
                 CalibrationParameters? calibrationParametersBest = calibProject.ReturnBestStereoCalibrationCameraData();
                 if (calibrationParametersBest is not null)
                 {
-                    ret = true;
+                    ret = 0;
 
                     if (writeBestFramesToPng)
                     {
@@ -1322,7 +1332,9 @@ namespace Surveyor.Controls
                 int correspondingCount,
                 object? userData)
         {
-            dispatcherQueue.TryEnqueue(() => {
+            // Update the UI
+            safeUICall.Call(() =>
+            {
 
                 bool trueFoundFalseNotFound;
 

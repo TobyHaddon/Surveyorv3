@@ -3,67 +3,97 @@
     x:Class="Surveyor.User_Controls.ExportUserControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:Surveyor.User_Controls"
+    xmlns:controls="using:CommunityToolkit.WinUI.UI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
     <!--Export Dialog-->
-    <Grid x:Name="ExportContentDialogHost">
-        <ContentDialog x:Name="ExportContentDialog"
-        Title="Export"
-        PrimaryButtonText="Save"
-        SecondaryButtonText="Cancel"
-        DefaultButton="Primary"
-        IsPrimaryButtonEnabled="True"
-        PrimaryButtonClick="ExportDialog_Save_Click"
-        SecondaryButtonClick="ExportDialog_Cancel_Click">
-            <Grid Padding="12">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2*"/>
-                    <ColumnDefinition Width="3*"/>
-                </Grid.ColumnDefinitions>
+    <Grid MinWidth="490" MinHeight="600">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="2*"/>
+            <RowDefinition Height="1*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
 
-                <!-- Top-left: Export format -->
-                <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Vertical" Spacing="8">
-                    <TextBlock Text="Format"/>
-                    <StackPanel Orientation="Horizontal" Spacing="12">
-                        <RadioButton x:Name="FormatNative" Content="Native" GroupName="ExportFormat" IsChecked="True"/>
-                        <RadioButton x:Name="FormatOpenCV" Content="OpenCV" GroupName="ExportFormat"/>
-                        <RadioButton x:Name="FormatPdf" Content="PDF" GroupName="ExportFormat"/>
-                    </StackPanel>
+        <!-- Top-left: Export format -->
+        <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Vertical" Spacing="8">
+            <TextBlock Text="Format"/>
+            <StackPanel Orientation="Vertical" Spacing="8">
+                <RadioButton x:Name="FormatNative" Content="Native" GroupName="ExportFormat" IsChecked="True" Checked="FormatChanged"/>
+                <RadioButton x:Name="FormatOpenCV" Content="OpenCV" GroupName="ExportFormat" Checked="FormatChanged"/>
+                <RadioButton x:Name="FormatText" Content="Text" GroupName="ExportFormat" Checked="FormatChanged"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Top-right: Preview -->
+        <Grid Grid.Row="0" Grid.Column="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition/>
+            </Grid.ColumnDefinitions>
+            
+            <TextBlock Grid.Row="0" Text="Preview" FontWeight="SemiBold"/>
+            <Border Grid.Row="1" 
+                    BorderThickness="1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
+                    Padding="8"
+                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                <Grid>
+                    <ScrollViewer x:Name="PreviewScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                        <TextBlock x:Name="PreviewText" Text="Select a language to load a sample..." FontFamily="Consolas" FontSize="10" TextWrapping="Wrap"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!-- Bottom: NavigationView for code samples -->
+
+        <NavigationView x:Name="ExportSamplesNav"
+                Grid.Row="1" Grid.ColumnSpan="2"
+                PaneDisplayMode="Top"
+                IsBackButtonVisible="Collapsed"
+                IsSettingsVisible="False"
+                SelectionChanged="ExportSamplesNav_SelectionChanged">
+            <NavigationView.MenuItems>
+                <NavigationViewItem Content="C#" Tag="cs"/>
+                <NavigationViewItem Content="C++" Tag="cpp"/>
+                <NavigationViewItem Content="Python" Tag="py"/>
+            </NavigationView.MenuItems>
+            <!-- Markdown code viewer -->
+            <ScrollViewer x:Name="CodeMarkdownScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+                <controls:MarkdownTextBlock x:Name="CodeMarkdown"
+                                            Text=""
+                                            CodeFontFamily="Consolas"
+                                            TextWrapping="Wrap"/>
+            </ScrollViewer>
+
+            <!-- TextBlock in the PaneFooter -->
+            <NavigationView.PaneFooter>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock VerticalAlignment="Center" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap">
+                        <Hyperlink Click="MailLink_Click">Need other formats?</Hyperlink>
+                    </TextBlock>
+                    <Button x:Name="CopySampleButton" Click="CopySampleButton_Click"
+                            ToolTipService.ToolTip="Copy the code sample"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Center"
+                            Background="Transparent"
+                            BorderBrush="{x:Null}"
+                            Padding="3"
+                            Margin="10,0,0,0">
+                        <FontIcon Glyph="&#xE8C8;" />
+                    </Button>
                 </StackPanel>
 
-                <!-- Top-right: Preview -->
-                <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Vertical" Spacing="8">
-                    <TextBlock Text="Preview" FontWeight="SemiBold"/>
-                    <Border BorderThickness="1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" Padding="8" Height="160">
-                        <!-- Swap between text preview or image preview in code-behind -->
-                        <Grid>
-                            <TextBlock x:Name="PreviewText" Text="Preview will appear here..." TextWrapping="Wrap"/>
-                            <Image x:Name="PreviewImage" Visibility="Collapsed" Stretch="Uniform"/>
-                        </Grid>
-                    </Border>
-                </StackPanel>
+            </NavigationView.PaneFooter>
 
-                <!-- Bottom: NavigationView for code samples -->
-                <NavigationView x:Name="ExportSamplesNav"
-            Grid.Row="1" Grid.ColumnSpan="2"
-            PaneDisplayMode="Top"
-            SelectionChanged="ExportSamplesNav_SelectionChanged">
-                    <NavigationView.MenuItems>
-                        <NavigationViewItem Content="C#" Tag="cs"/>
-                        <NavigationViewItem Content="C++" Tag="cpp"/>
-                        <NavigationViewItem Content="Python" Tag="py"/>
-                    </NavigationView.MenuItems>
-                    <Frame x:Name="ExportSamplesFrame"/>
-                </NavigationView>
-            </Grid>
-        </ContentDialog>
+        </NavigationView>
     </Grid>
-
+ 
 </UserControl>

@@ -54,6 +54,7 @@ namespace Surveyor.User_Controls
 
         private readonly CacheManager cacheManager = new();
 
+        private readonly SafeUICall safeUICall;
 
         public SettingsWindow(MainWindow _mainWindow, CalibProject? _project, string section = "")
         {
@@ -66,6 +67,11 @@ namespace Surveyor.User_Controls
 
             // Restore the saved window state
             PersistenceId = "SettingsWindow";
+
+            // Get the DispatcherQueue for the current thread
+            Microsoft.UI.Dispatching.DispatcherQueue dispatcherQueue = Microsoft.UI.Dispatching.DispatcherQueue.GetForCurrentThread();
+
+            safeUICall = new(dispatcherQueue);
 
             InitializeComponent();
 
@@ -197,13 +203,14 @@ namespace Surveyor.User_Controls
         private void UiSettings_ColorValuesChanged(Windows.UI.ViewManagement.UISettings sender, object args)
         {
             // Dispatch back to UI thread
-            _ = DispatcherQueue.EnqueueAsync(() =>
+            _ = safeUICall.CallAsync(() =>
             {
                 if (ThemeHelper.RootTheme == ElementTheme.Default)
                 {
                     Debug.WriteLine("System theme changed — refreshing icons...");
                     SetSettingsTheme(ElementTheme.Default);
                 }
+                return Task.CompletedTask;
             });
         }
 
@@ -787,7 +794,9 @@ namespace Surveyor.User_Controls
         private void MailLink_Click(object sender, HyperlinkClickEventArgs args) => _ = MailLinkAsync();
         private static async Task MailLinkAsync()
         {
-            var uri = new Uri("mailto:toby.solo@outlook.com?subject=Additional%20Target%20Board%20Request&body=Please%20write%20your%20request%20here.");
+            string subject = Uri.EscapeDataString("Additional Target Board Request");
+            string body = Uri.EscapeDataString("Please write your request here.");
+            var uri = new Uri($"mailto:toby.solo@outlook.com?subject={subject}&body={body}");
             await Windows.System.Launcher.LaunchUriAsync(uri);
         }
 

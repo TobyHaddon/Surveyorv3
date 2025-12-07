@@ -325,6 +325,16 @@
              IsLightDismissEnabled="True"
              ActionButtonContent="Got It"
              ActionButtonClick="MenuFileTeachingTip_ActionButtonClick" />
+        
+        <TeachingTip x:Name="MenuExportTeachingTip"
+             Title="Export results"
+             Subtitle="The calibration is complete. Now the results can be exported"
+             Target="{x:Bind MenuExport}"
+             PreferredPlacement="Bottom"
+             IsOpen="False"
+             IsLightDismissEnabled="True"
+             ActionButtonContent="Got It"
+             ActionButtonClick="MenuExportTeachingTip_ActionButtonClick" />
     </Grid>
     
 </winex:WindowEx>

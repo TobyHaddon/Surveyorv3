@@ -58,8 +58,11 @@ namespace Surveyor
         private void MailLink_Click(object sender, HyperlinkClickEventArgs args) => _ = MailLinkAsync();
         private static async Task MailLinkAsync()
         {
-            var uri = new Uri("mailto:toby.solo@outlook.com?subject=Additional%20Target%20Board%20Request&body=Please%20write%20your%20request%20here.");
+            string subject = Uri.EscapeDataString("Additional Target Board Request");
+            string body = Uri.EscapeDataString("Please write your request here.");
+            var uri = new Uri($"mailto:toby.solo@outlook.com?subject={subject}&body={body}");
             await Windows.System.Launcher.LaunchUriAsync(uri);
         }
+
     }
 }

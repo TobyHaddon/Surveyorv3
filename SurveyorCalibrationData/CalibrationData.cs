@@ -898,7 +898,7 @@ namespace SurveyorCalibrationData
         /// </summary>
         /// <param name="json"></param>
         /// <returns></returns>
-        public int SaveToJson(out string json)
+        public int SaveToJson(out string json, bool indented = false)
         {
             int ret = 0;
 
@@ -910,11 +910,24 @@ namespace SurveyorCalibrationData
 
             try
             {
-                var settings = new JsonSerializerSettings
+                JsonSerializerSettings settings;
+
+                if (indented)
                 {
-                    Formatting = Formatting.None,      //.Indented, // For pretty-printing the JSON
-                    Converters = new List<JsonConverter> { new MatrixJsonConverter(), new VectorJsonConverter() }
-                };
+                    settings = new()
+                    {
+                        Formatting = Formatting.Indented, // For pretty-printing the JSON
+                        Converters = new List<JsonConverter> { new MatrixJsonConverter(), new VectorJsonConverter() }
+                    };
+                }
+                else
+                {
+                    settings = new()
+                    {
+                        Formatting = Formatting.None,
+                        Converters = new List<JsonConverter> { new MatrixJsonConverter(), new VectorJsonConverter() }
+                    };
+                }
 
                 json = JsonConvert.SerializeObject(this, settings);
             }

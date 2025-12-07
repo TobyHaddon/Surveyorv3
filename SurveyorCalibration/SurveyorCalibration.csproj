@@ -14,6 +14,10 @@
 	<Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="CodeExamples\LoadNative.cs" />
+    <Compile Remove="CodeExamples\LoadOpenCV.cs" />
+  </ItemGroup>
+  <ItemGroup>
     <None Remove="CalibrationFrameSetViewer.xaml" />
     <None Remove="ImageViewer.xaml" />
     <None Remove="User Controls\CalibrationTargetTest.xaml" />
@@ -46,6 +50,7 @@
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.250402" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.Sizers" Version="8.2.250402" />
     <PackageReference Include="CommunityToolkit.WinUI.Extensions" Version="8.2.250402" />
+    <PackageReference Include="CommunityToolkit.WinUI.UI.Controls.Markdown" Version="7.1.2" />
     <PackageReference Include="Emgu.CV" Version="4.12.0.5764" />
     <PackageReference Include="Emgu.CV.runtime.windows" Version="4.12.0.5764" />
     <PackageReference Include="itext" Version="9.4.0" />
@@ -86,8 +91,29 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Help Documents\" />
+    <Folder Include="NewFolder\" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="CodeExamples\LoadNative.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="CodeExamples\LoadOpenCV.cs">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Update="CodeExamples\LoadNative.cpp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="CodeExamples\LoadNative.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="CodeExamples\LoadOpenCV.cpp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="CodeExamples\LoadOpenCV.py">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Help Documents\ChArUco Target 14x9 Dict5X5_100 Square=40.00mm Marker=30.00mm.pdf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

@@ -1236,6 +1236,54 @@ namespace Surveyor
             return (CalibrationParameters?)bestIndex;
         }
 
+        
+        /// <summary>
+        /// Given the StereoMonoMediaSetMode check if the calibration is complete
+        /// </summary>
+        /// <returns></returns>
+        public bool IsCalibrationReady
+        {            
+            get 
+            {
+                bool ret = false;
+
+                switch (Data.Media.StereoMonoMediaSetMode)
+                {
+                    case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                    case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                        {
+                            var bestStereo = ReturnBestStereoCalibrationCameraData();
+                            ret = bestStereo != null;
+                        }
+                        break;
+
+                    case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                        {
+                            if (Data.CalibrationResults.LeftMonoCalibrationCameraDataArray.Any(item => item != null) &&
+                                Data.CalibrationResults.RightMonoCalibrationCameraDataArray.Any(item => item != null))
+                            {
+                                ret = true;
+                            }
+                        }
+                        break;
+
+                    case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                        {
+                            if (Data.CalibrationResults.LeftMonoCalibrationCameraDataArray.Any(item => item != null))
+                            {
+                                ret = true;
+                            }
+                        }
+                        break;
+
+                    default:
+                        return false;
+                }
+
+                return ret;
+            }
+        }
+
 
         private static JsonSerializerSettings CreateJsonOptions()
         {
@@ -1243,9 +1291,9 @@ namespace Surveyor
             {
                 Formatting = Formatting.Indented
             };
-            //???opts.Converters.Add(new Double2DArrayConverter());
+
             opts.Converters.Add(new MatrixJsonConverter());
-            // opts.Converters.Add(new Float2DArrayConverter()); // if needed
+
             return opts;
         }
 
