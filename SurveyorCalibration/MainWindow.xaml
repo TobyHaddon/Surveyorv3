@@ -15,7 +15,26 @@
     Height="1000"
     MinWidth="1024"
     MinHeight="800">
+
+    
     <Grid>
+        <Grid.Resources>
+            <Storyboard x:Name="TitleBarViewModeChangeStoryboard">
+                <DoubleAnimation Storyboard.TargetName="TitleBarViewModeScale"
+                         Storyboard.TargetProperty="ScaleX"
+                         From="1"
+                         To="1.15"
+                         Duration="0:0:0.12"
+                         AutoReverse="True" />
+                <DoubleAnimation Storyboard.TargetName="TitleBarViewModeScale"
+                         Storyboard.TargetProperty="ScaleY"
+                         From="1"
+                         To="1.15"
+                         Duration="0:0:0.12"
+                         AutoReverse="True" />
+            </Storyboard>
+        </Grid.Resources>
+
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>          <!-- Title Bar -->
             <RowDefinition Height="Auto" />         <!-- 0: CommandBar -->
@@ -49,10 +68,12 @@
                 <!-- 9 Column -->
                 <ColumnDefinition x:Name="CalibratedColumn" Width="Auto"/>
                 <!-- 10 Column -->
-                <ColumnDefinition x:Name="LockUnLockColumn" Width="Auto"/>
+                <ColumnDefinition x:Name="ViewModeColumn" Width="Auto"/>
                 <!-- 11 Column -->
-                <ColumnDefinition x:Name="AccountColumn" Width="Auto"/>
+                <ColumnDefinition x:Name="LockUnLockColumn" Width="Auto"/>
                 <!-- 12 Column -->
+                <ColumnDefinition x:Name="AccountColumn" Width="Auto"/>
+                <!-- 13 Column -->
                 <ColumnDefinition x:Name="RightPaddingColumn" Width="20"/>
             </Grid.ColumnDefinitions>
 
@@ -128,6 +149,34 @@
                     </MenuFlyoutItem>
                 </MenuBarItem>
 
+                <!-- VIEW MENU-->
+                <MenuBarItem x:Name="MenuView" Title="View">
+                    <RadioMenuFlyoutItem x:Name="MenuViewAllFrames"
+                         Text="All Frames"
+                         GroupName="ViewMode"
+                         IsChecked="True"
+                         Click="FileViewAllFrames_Click"
+                         ToolTipService.ToolTip="View all frames in the calibration project." />
+
+                    <RadioMenuFlyoutItem x:Name="MenuViewBestFrames"
+                         Text="Best Frames"
+                         GroupName="ViewMode"
+                         Click="FileViewBestFrames_Click"
+                         ToolTipService.ToolTip="View best frames in the calibration project." />
+
+                    <RadioMenuFlyoutItem x:Name="MenuViewFilterFrames"
+                         Text="Filter Frames"
+                         GroupName="ViewMode"
+                         Click="FileViewFilterFrames_Click"
+                         ToolTipService.ToolTip="View manually filtered frames in the calibration project." />
+
+                    <RadioMenuFlyoutItem x:Name="MenuViewSensorCoverage"
+                         Text="Sensor Coverage"
+                         GroupName="ViewMode"
+                         Click="FileViewSensorCoverage_Click"
+                         ToolTipService.ToolTip="Display the coverage of the sensor (camera frame) by the calibration target." />
+                </MenuBarItem>
+
                 <!-- HELP MENU-->
                 <MenuBarItem x:Name="MenuHelp" Title="Help">
                     <MenuFlyoutSeparator x:Name="HelpDocumentsPDFSection" Visibility="Collapsed"/>
@@ -184,27 +233,40 @@
                        Grid.Row="0" Grid.Column="8"
                        FontSize="14" 
                        Text="00:00"
-                       Style="{StaticResource CaptionTextBlockStyle}"                       
+                       Style="{StaticResource CaptionTextBlockStyle}" 
                        VerticalAlignment="Top" Margin="0,8,16,0">
             </TextBlock>
 
             <!-- Progress Ring set in code behind -->
-            <!--<TextBlock x:Name="CalibratedIndicator"
-                       Grid.Row="0" Grid.Column="9"
-                       FontFamily="Segoe Fluent Icons"
-                       FontSize="14" 
-                       Text="&#xEB3C;"
-                       Style="{StaticResource CaptionTextBlockStyle}"                       
-                       VerticalAlignment="Top" Margin="0,8,16,0">
-            </TextBlock>-->
             <ProgressRing x:Name="TitleProgressRing" Grid.Row="0" Grid.Column="9" Width="16" Height="16" IsActive="True" Margin="0,0,16,0"/>
+
+            <!-- View Mode  -->
+            <Border Grid.Row="0"
+                    Grid.Column="10"
+                    Background="{ThemeResource TitleBarBackgroundBrush}"
+                    Padding="8,0,8,0"
+                    VerticalAlignment="Center"
+                    Margin="0,0,16,0">
+                <TextBlock x:Name="TitleBarViewMode"
+                           Text="All Frames"
+                           Style="{StaticResource CaptionTextBlockStyle}"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Center"
+                           RenderTransformOrigin="0.5,0.5">
+                    <TextBlock.RenderTransform>
+                        <ScaleTransform x:Name="TitleBarViewModeScale"
+                            ScaleX="1"
+                            ScaleY="1" />
+                    </TextBlock.RenderTransform>
+                </TextBlock>
+            </Border>
 
             <!-- Lock/Unlock Glyph Lock E1F6, Unlock E1F7 set in code behind
                  We need sometime in the Text attribute so this element has suitable width
                  on the title bar at startup. This is so this area isn't draggable and can 
                  therefore display a tooltip -->
             <TextBlock x:Name="LockUnLockIndicator"
-                       Grid.Row="0" Grid.Column="10"
+                       Grid.Row="0" Grid.Column="11"
                        FontFamily="Segoe Fluent Icons"
                        FontSize="14" 
                        Text="&#xE1F7;"
@@ -216,7 +278,7 @@
 
             <!-- Enable line below if you need a login indicator on the title bar -->
             <!--<PersonPicture x:Name="PersonPic" 
-                           Grid.Row="0" Grid.Column="11" 
+                           Grid.Row="0" Grid.Column="12" 
                            Height="32" Margin="0,0,16,0"/>-->
         </Grid>
 
@@ -325,11 +387,31 @@
              IsLightDismissEnabled="True"
              ActionButtonContent="Got It"
              ActionButtonClick="MenuFileTeachingTip_ActionButtonClick" />
-        
+
+        <TeachingTip x:Name="SyncStereoVideosTeachingTip"
+             Title="Sync Stereo Media"
+             Subtitle="Find the sync point in both stereo media files, this is normally a torch flash. Make sure you move both the left and right stereo videos are on the same first frame of the same torch flash. Then press the 'Sync Stereo Media' button to syncronise them"
+             Target="{x:Bind StereoCalibrationHead.LeftPlayPauseButtonElement}"
+             PreferredPlacement="Bottom"
+             IsOpen="False"
+             IsLightDismissEnabled="True"
+             ActionButtonContent="Got It"
+             ActionButtonClick="SyncStereoVideosTeachingTip_ActionButtonClick" />
+
+        <TeachingTip x:Name="MenuRunCalibrationTeachingTip"
+             Title="Run Calibration"
+             Subtitle="To run the calibration process open File and select Run Calibtation..."
+             Target="{x:Bind MenuFile}"
+             PreferredPlacement="Bottom"
+             IsOpen="False"
+             IsLightDismissEnabled="True"
+             ActionButtonContent="Got It"
+             ActionButtonClick="MenuRunCalibrationTeachingTip_ActionButtonClick" />
+
         <TeachingTip x:Name="MenuExportTeachingTip"
              Title="Export results"
-             Subtitle="The calibration is complete. Now the results can be exported"
-             Target="{x:Bind MenuExport}"
+             Subtitle="The calibration is complete. Now the results can be exported. To export, open File and then choose Export…"
+             Target="{x:Bind MenuFile}"
              PreferredPlacement="Bottom"
              IsOpen="False"
              IsLightDismissEnabled="True"

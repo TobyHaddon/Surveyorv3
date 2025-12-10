@@ -19,33 +19,25 @@ namespace Surveyor.Helper
         {
             try
             {
-                // Get the StorageFile from the file path
-                var file = await StorageFile.GetFileFromPathAsync(filePath);
+                StorageFile file = await StorageFile.GetFileFromPathAsync(filePath);
 
-                // Request a thumbnail of the video
-                var thumbnail = await file.GetThumbnailAsync(ThumbnailMode.SingleItem);
+                // Try multiple modes, fall back if one returns null
+                StorageItemThumbnail? thumb =
+                    await file.GetThumbnailAsync(ThumbnailMode.VideosView, size, ThumbnailOptions.UseCurrentScale)
+                    ?? await file.GetThumbnailAsync(ThumbnailMode.SingleItem, size, ThumbnailOptions.UseCurrentScale)
+                    ?? await file.GetThumbnailAsync(ThumbnailMode.PicturesView, size, ThumbnailOptions.UseCurrentScale);
 
-                if (thumbnail != null)
-                {
-                    // Create a BitmapImage from the thumbnail stream
-                    BitmapImage bitmapImage = new();
-                    using (var stream = thumbnail.AsStream())
-                    {
-                        await bitmapImage.SetSourceAsync(stream.AsRandomAccessStream());
-                    }
+                if (thumb is null) return null;
 
-                    return bitmapImage;
-                }
+                var bmp = new BitmapImage();
+                await bmp.SetSourceAsync(thumb);
+                return bmp;
             }
             catch (Exception ex)
             {
-                // Handle exceptions (e.g., file not found, no thumbnail available)
-                Console.WriteLine($"Error getting thumbnail: {ex.Message}");
+                System.Diagnostics.Debug.WriteLine($"GetFileThumbnailAsync: Error getting thumbnail: {ex.Message}");
+                return null;
             }
-
-            return null;
-        }
-
-
+        }    
     }
 }

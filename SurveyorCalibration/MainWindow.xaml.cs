@@ -54,7 +54,7 @@ namespace Surveyor
 
 
         // Limits 
-        // If there is cache framesets these values get set to the max in those framesets 
+        // If there is cache frameset these values get set to the max in those framesets 
         public double? MovementFilterMin { get; set; } = null;      
         public double? MovementFilterMax { get; set; } = null;
         public double? BlurFilterMin { get; set; } = null;    
@@ -64,8 +64,10 @@ namespace Surveyor
         public bool UseFrameSetCache { get; set; } = true;
         public double MovementFilterValue { get; set; } = MovementFilterDefaultValue;
         public double BlurFilterValue { get; set; } = BlurMaxFilterDefaultValue;
-        public int MonoCornersFilterValue { get; set; } = CalibrationStereoFrameSet.MONO_CORNER_COUNT_THESHOLD;
-        public int StereoCornersFilterValue { get; set; } = CalibrationStereoFrameSet.STEREO_CORNER_COUNT_THESHOLD;
+        public int MonoCornersFilterValue { get; set; } = CalibrationStereoFrameSet.MONO_CORNER_COUNT_THRESHOLD;
+        public int StereoCornersFilterValue { get; set; } = CalibrationStereoFrameSet.STEREO_CORNER_COUNT_THRESHOLD;
+        public int maxFramesFromEachSensorBin { get; set; } = 2;  // Take top 2 frames from each sensor bin
+        public int maxFramesFromEachPoseBin { get; set; } = 4;    // Take top 4 frames from each pose bin
         public bool SaveBestFrames { get; set; } = false;
     }
 
@@ -348,9 +350,10 @@ namespace Surveyor
                         runCalibrationParams.UseFrameSetCache = false;
                 }
 
+                // Build the frame sets by finding calibration targets in all frames
                 if (runCalibrationParams.UseFrameSetCache == false)
                 {
-                    // Build the frame sets by finding calibration targets in all frames
+                    
                     ret = await BuildFrameSetsAsync();
                 }
 
@@ -510,7 +513,31 @@ namespace Surveyor
                 if (await SaveAsProjectAsync() == 0)
                 {
                     // Open the mdeia
-                    await OpenMediaSetsAsync(calibProject, false/*forceUsdCacheIfAvalable*/, false/*noPrompts*/);
+                    bool ret = await OpenMediaSetsAsync(calibProject, false/*forceUsdCacheIfAvalable*/, false/*noPrompts*/);
+
+                    if (ret)
+                    {
+                        // If it is a mono calibration show 'Run Calibration' teaching tip next set if required
+                        if (calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoPairOnlyMediaSet ||
+                            calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoSingleOnlyMediaSet)
+                        {
+                            if (SettingsManagerLocal.TeachingTipsEnabled &&
+                                !SettingsManagerLocal.HasTeachingTipBeenShown("MenuRunCalibration"))
+                            {
+                                MenuRunCalibrationTeachingTip.IsOpen = true;
+                            }
+                        }
+                        // If it is a stereo calibration show 'Sync stereo vidoes' teaching tip next set if required
+                        else if (calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoAndStereoMediaSet ||
+                                 calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.StereoOnlyMediaSet)
+                        {
+                            if (SettingsManagerLocal.TeachingTipsEnabled &&
+                                !SettingsManagerLocal.HasTeachingTipBeenShown("SyncStereoVideos"))
+                            {
+                                SyncStereoVideosTeachingTip.IsOpen = true;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -826,6 +853,29 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Handles the action button click event for the SyncStereoVideosTeachingTip.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void SyncStereoVideosTeachingTip_ActionButtonClick(TeachingTip sender, object args)
+        {
+            SyncStereoVideosTeachingTip.IsOpen = false;
+            SettingsManagerLocal.SetTeachingTipShown("SyncStereoVideos");
+        }
+
+
+        /// <summary>
+        /// Handles the action button click event for the MenuRunCalibrationTeachingTip.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void MenuRunCalibrationTeachingTip_ActionButtonClick(TeachingTip sender, object args)
+        {
+            MenuRunCalibrationTeachingTip.IsOpen = false;
+            SettingsManagerLocal.SetTeachingTipShown("MenuRunCalibration");
+        }
+
+        /// <summary>
         /// Handles the action button click event for the MenuExportTeachingTip.
         /// </summary>
         /// <param name="sender"></param>
@@ -890,6 +940,58 @@ namespace Surveyor
                 }
             }
         }
+
+
+        /// <summary>
+        /// Set view mode to seeing all the frames in the video(s)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileViewAllFrames_Click(object sender, RoutedEventArgs e)
+        {
+            SetViewModeOnAllHeads(ViewMode.AllFrames);
+            SetUIControls();
+        }
+
+
+        /// <summary>
+        /// Set view mode to seeing the best frames in the video(s)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileViewBestFrames_Click(object sender, RoutedEventArgs e)
+        {
+            SetViewModeOnAllHeads(ViewMode.BestFrames);
+            SetUIControls();
+        }
+
+
+        /// <summary>
+        /// Set view mode to seeing the filtered frames in the video(s)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileViewFilterFrames_Click(object sender, RoutedEventArgs e)
+        {
+            SetViewModeOnAllHeads(ViewMode.FilterFrames);
+            SetUIControls();
+        }
+
+
+        /// <summary>
+        /// Set view mode to see the sensor coverage in each video(s)
+        /// This is a single image showing an outline of all the calibration
+        /// markers detected in each frame overlaid on each other to give an indication
+        /// of the sensor coverage.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileViewSensorCoverage_Click(object sender, RoutedEventArgs e)
+        {
+            SetViewModeOnAllHeads(ViewMode.SensorCoverage);
+            SetUIControls();
+        }
+
 
         ///
         /// PRIVATE
@@ -1266,7 +1368,7 @@ namespace Surveyor
                 var tasks = new List<Task>();
 
                 InfoBarProcessing.ShowProcessing("Open Media...");
-                SetDisplayModeOnAllHeads(AppMode.Open);
+                SetAppModeOnAllHeads(AppMode.Open);
 
                 bool openStereo = false;
                 bool openLeftMono = false;
@@ -1484,7 +1586,7 @@ namespace Surveyor
                     if (closeRightMono)
                         RightMonoCalibrationHead.CloseMedia();
 
-                    SetDisplayModeOnAllHeads(AppMode.Close);
+                    SetAppModeOnAllHeads(AppMode.Close);
                 }
                 catch (Exception ex)
                 {
@@ -1947,7 +2049,7 @@ namespace Surveyor
             {
                 var tasks = new List<Task>();
                 InfoBarProcessing.ShowProcessing("Finding calibration frames...");
-                SetDisplayModeOnAllHeads(AppMode.FindCalibrationsFrames);
+                SetAppModeOnAllHeads(AppMode.FindCalibrationsFrames);
 
                 bool doLeftMono = false;
                 bool doRightMono = false;
@@ -2098,7 +2200,7 @@ namespace Surveyor
             if (calibProject is null)
                 return -1;
 
-            SetDisplayModeOnAllHeads(AppMode.BestFramesCalc);
+            SetAppModeOnAllHeads(AppMode.BestFramesCalc);
 
             SetUIControls();
 
@@ -2195,6 +2297,8 @@ namespace Surveyor
                                                                  runParams.MovementFilterValue,
                                                                  runParams.BlurFilterValue,
                                                                  runParams.MonoCornersFilterValue,
+                                                                 runParams.maxFramesFromEachSensorBin,
+                                                                 runParams.maxFramesFromEachPoseBin,
                                                                  runParams.SaveBestFrames)));
                     taskLeftMonoIndex = taskIndex++;
                 }
@@ -2206,6 +2310,8 @@ namespace Surveyor
                                                                  runParams.MovementFilterValue,
                                                                  runParams.BlurFilterValue,
                                                                  runParams.MonoCornersFilterValue,
+                                                                 runParams.maxFramesFromEachSensorBin,
+                                                                 runParams.maxFramesFromEachPoseBin,
                                                                  runParams.SaveBestFrames)));
                     taskRightMonoIndex = taskIndex++;
                 }
@@ -2318,6 +2424,8 @@ namespace Surveyor
                                                                     runParams.MovementFilterValue,
                                                                     runParams.BlurFilterValue,
                                                                     runParams.MonoCornersFilterValue,
+                                                                    runParams.maxFramesFromEachSensorBin,
+                                                                    runParams.maxFramesFromEachPoseBin,
                                                                     runParams.SaveBestFrames);
 
                     }
@@ -2338,7 +2446,7 @@ namespace Surveyor
                 InfoBarProcessing.HideProcessing();
 
                 // Allow the user to browse the best frames
-                SetDisplayModeOnAllHeads(AppMode.BestFramesView);
+                SetAppModeOnAllHeads(AppMode.BestFramesView);
             }
 
             SetUIControls();
@@ -2472,7 +2580,6 @@ namespace Surveyor
         /// </summary>
         private void SetUIControls()
         {
-            //bool? isLocked = StereoCalibrationHead.IsStereoLocked();
             bool isCalibProjectOpen = calibProject is not null;
             bool isMediaLocked = false;
             bool isProcessingHappening = IsFindRunning();
@@ -2554,6 +2661,68 @@ namespace Surveyor
             }
             else
                 MenuRunCalibration.IsEnabled = false;
+
+            // File>Export menu item
+            if (isCalibProjectOpen && !isProcessingHappening && 
+                (calibProject is not null && calibProject.IsCalibrationReady))
+                MenuExport.IsEnabled = true;
+            else
+                MenuExport.IsEnabled = false;
+
+
+            // View>All Frames menu items
+            MenuViewAllFrames.IsEnabled = IsViewModeAvailableOnAllHeads(ViewMode.AllFrames);
+
+            // View>Best Frames menu items
+            MenuViewBestFrames.IsEnabled = IsViewModeAvailableOnAllHeads(ViewMode.BestFrames);
+
+            // View>Filter Frames menu item
+            MenuViewFilterFrames.IsEnabled = false; /*??? Disable until implimented IsViewModeAvailableOnAllHeads(ViewMode.FilterFrames);*/
+
+            // View>Sensor Coverage menu item
+            MenuViewSensorCoverage.IsEnabled = false; /*??? Disable until implimented IsViewModeAvailableOnAllHeads(ViewMode.SensorCoverage);*/
+
+            // Set the current view mode menu checks
+            
+            if (isCalibProjectOpen)
+            {
+                ViewMode currentViewMode = GetCurrentViewModeOnAllHeads();
+                MenuViewAllFrames.IsChecked = (currentViewMode == ViewMode.AllFrames);
+                MenuViewBestFrames.IsChecked = (currentViewMode == ViewMode.BestFrames);
+                MenuViewFilterFrames.IsChecked = (currentViewMode == ViewMode.FilterFrames);
+                MenuViewSensorCoverage.IsChecked = (currentViewMode == ViewMode.SensorCoverage);
+
+                // Set the view mode on the title bar
+                string viewMode = currentViewMode switch
+                {
+                    ViewMode.AllFrames      => "All Frames",
+                    ViewMode.BestFrames     => "Best Frames",
+                    ViewMode.FilterFrames   => "Filter Frames",
+                    ViewMode.SensorCoverage => "Sensor Coverage",
+                    _                       => "All Frames"
+                };
+                // Set the view mode text with animation to draw users attention
+                if (TitleBarViewMode.Text != viewMode)
+                {
+                    TitleBarViewMode.Text = viewMode;
+                    TitleBarViewMode.Visibility = Visibility.Visible;
+
+                    // Restart the animation each time
+                    TitleBarViewModeChangeStoryboard.Stop();
+                    TitleBarViewModeChangeStoryboard.Begin();
+                }
+            }
+            else
+            {
+                MenuViewAllFrames.IsChecked = false;
+                MenuViewBestFrames.IsChecked = false;
+                MenuViewFilterFrames.IsChecked = false;
+                MenuViewSensorCoverage.IsChecked = false;
+
+                TitleBarViewMode.Text = string.Empty;
+                TitleBarViewMode.Visibility = Visibility.Collapsed;
+            }
+
 
             // Show/Hide Lock Media InfoBar
             if (isStereo && !isMediaLocked)
@@ -3329,6 +3498,13 @@ namespace Surveyor
                     StereoCalibrationHead.LockStereo(calibProject.Data.Sync.SyncFrameIndexLeft,
                                                      calibProject.Data.Sync.SyncFrameIndexRight);
                 }
+
+                // Show the next Run Calibration teaching tip if enabled and not shown before
+                if (SettingsManagerLocal.TeachingTipsEnabled &&
+                    !SettingsManagerLocal.HasTeachingTipBeenShown("MenuRunCalibration"))
+                {
+                    MenuRunCalibrationTeachingTip.IsOpen = true;
+                }
             }
             else
             {
@@ -3492,12 +3668,110 @@ namespace Surveyor
         /// enabling/disabling the frame back/forward buttons etc.
         /// </summary>
         /// <param name="appMode"></param>
-        private void SetDisplayModeOnAllHeads(AppMode appMode)
+        private void SetAppModeOnAllHeads(AppMode appMode)
         {
-            StereoCalibrationHead.SetDisplayMode(appMode);
-            LeftMonoCalibrationHead.SetDisplayMode(appMode);
-            RightMonoCalibrationHead.SetDisplayMode(appMode);
+            StereoCalibrationHead.SetAppMode(appMode);
+            LeftMonoCalibrationHead.SetAppMode(appMode);
+            RightMonoCalibrationHead.SetAppMode(appMode);
         }
+
+
+        /// <summary>
+        /// Tell all heads to set their display mode        
+        /// This controls the view mode of the video display like
+        /// showing all frames, best frames, filtered frames, or sensor coverage.
+        /// </summary>
+        /// <param name="appView"></param>
+        private void SetViewModeOnAllHeads(ViewMode appView)
+        {
+            StereoCalibrationHead.SetViewMode(appView);
+            LeftMonoCalibrationHead.SetViewMode(appView);
+            RightMonoCalibrationHead.SetViewMode(appView);
+
+            // Called so the ViewMode on the title bar changes
+            SetUIControls();
+        }
+
+
+        /// <summary>
+        /// Check if a particular view is available on all heads
+        /// </summary>
+        /// <param name="viewMode"></param>
+        /// <returns></returns>
+        private bool IsViewModeAvailableOnAllHeads(ViewMode viewMode)
+        {
+            bool ret = false;
+
+            bool stereo = StereoCalibrationHead.IsViewModeAvailable(viewMode);
+            bool left = LeftMonoCalibrationHead.IsViewModeAvailable(viewMode);
+            bool right = RightMonoCalibrationHead.IsViewModeAvailable(viewMode);
+
+            if (calibProject is not null)
+            {
+                switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                {
+                    case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                        ret = left;
+                        break;
+                    case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                        ret = left && right;
+                        break;
+                    case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                        ret = stereo;
+                        break;
+                    case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                        ret = stereo && left && right;
+                        break;
+                    default:
+                        ret = false;
+                        break;
+                }
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Get the current view mode on all heads
+        /// </summary>
+        /// <returns></returns>
+        private ViewMode GetCurrentViewModeOnAllHeads()
+        {
+            ViewMode ret = ViewMode.AllFrames;
+
+            ViewMode stereo = StereoCalibrationHead.ViewModeCurrent;
+            ViewMode left = LeftMonoCalibrationHead.ViewModeCurrent;
+            ViewMode right = RightMonoCalibrationHead.ViewModeCurrent;
+
+            if (calibProject is not null)
+            {
+                // Return the more 'restrictive view' i.e. if one head is on BestFrames and
+                // another on AllFrames the return should be AllFrames because Bestframes
+                // is not available on all heads but AllFrames is.
+                switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                {
+                    case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                        ret = left;
+                        break;
+                    case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                        ret = (ViewMode)Math.Min((int)left, (int)right);
+                        break;
+                    case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                        ret = stereo;
+                        break;
+                    case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                        ret = (ViewMode)Math.Min((int)stereo, Math.Min((int)left, (int)right));
+                        break;
+                    default:
+                        ret = ViewMode.AllFrames;
+                        break;
+                }
+            }
+
+            return ret;
+        }
+
 
         /// <summary>
         /// Disables or enables a window in WinUI 3 using native Win32 API.

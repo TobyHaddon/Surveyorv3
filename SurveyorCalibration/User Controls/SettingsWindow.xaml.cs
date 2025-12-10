@@ -722,17 +722,38 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Deletes all cache files
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ClearAllCache_Click(object sender, RoutedEventArgs e) => _ = ClearAllCacheAsync();
+        private async Task ClearAllCacheAsync()
+        {
+            bool result = cacheManager.ClearCache();
+            var dialog = new ContentDialog
+            {
+                Title = "Clear Cache",
+                Content = result ? "All cache items cleared." : "Failed to clear cache items.",
+                CloseButtonText = "OK",
+                XamlRoot = this.Content.XamlRoot
+            };
+            await dialog.ShowAsync();
+            UpdateCalibrationCacheUsage();
+        }
+
+
+        /// <summary>
         /// Deletes old cache files
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void ClearCache_Click(object sender, RoutedEventArgs e) => _ = ClearCacheAsync();
-        private async Task ClearCacheAsync()
+        private void ClearOldCache_Click(object sender, RoutedEventArgs e) => _ = ClearOldCacheAsync();
+        private async Task ClearOldCacheAsync()
         {
             bool result = cacheManager.ClearCacheOlderItems();
             var dialog = new ContentDialog
             {
-                Title = "Clear Cache",
+                Title = "Clear Older Cache Items",
                 Content = result ? "Older cache items cleared." : "Failed to clear cache items.",
                 CloseButtonText = "OK",
                 XamlRoot = this.Content.XamlRoot
@@ -799,6 +820,7 @@ namespace Surveyor.User_Controls
             var uri = new Uri($"mailto:toby.solo@outlook.com?subject={subject}&body={body}");
             await Windows.System.Launcher.LaunchUriAsync(uri);
         }
+
 
         // ***END OF SettingsWindow***
     }

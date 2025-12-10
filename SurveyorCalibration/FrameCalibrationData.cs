@@ -20,43 +20,65 @@ namespace Surveyor.Calibration
     public class FrameCalibrationData
     {
         // Version of the class (use for data migrations)
-        private const int version = 4;
+        private const int version = 5;
 
         // Data Version
+        [JsonProperty("Ver")]
         public int Version { get; set; } = -1;      // This is so serialized records with a Version get a -1, the version is set in the main constructor
 
         // The frame index of the calibration target
+        [JsonProperty("Index")]
         public int FrameIndex { get; init; }
 
         // Corners and IDs
+        [JsonProperty("Corners")]
         public PointF[] CharucoCorners { get; init; } = [];
+
+        [JsonProperty("Ids")]
         public int[] CharucoIds { get; init; } = [];
 
 
         // Movement factors
+        [JsonProperty("MovePrev")]
         public double MovementFromPrevious { get; set; }
+        [JsonProperty("MoveNext")]
         public double MovementToNext { get; set; }
+        [JsonProperty("MoveFactor")]
         public double MovementFactor => (MovementFromPrevious < 0 || MovementToNext < 0)
                 ? -1 : (MovementFromPrevious + MovementToNext) / 2.0;
 
         // Blur factor
+        [JsonProperty(nameof(BlurFactor))]
         public double BlurFactor { get; init; } // Higher = sharper
 
-
         // Calculated centre point
+        [JsonProperty(nameof(Center))]
         public PointF Center;
 
         // Estimated yaw and pitch
+        [JsonProperty("Yaw")]
         public double YawDeg;
+        [JsonProperty("Pitch")]
         public double PitchDeg;
 
-        // The grid layers for each sensor bin (currently only one layer is used)
-        public static (int x, int y)[] SensorBinGridLayers { get; } = [(10, 7)];
-        public List<(int gx, int gy, int binx, int biny)> SensorBinsOccupied { get; set; } = [];
+        // The grid size for the sensor bin 
+        public static (int x, int y) SensorBinGrid { get; } = (10, 7);
+
+        // Note a single frame may occupy multiple sensor bins
+        [JsonProperty("SensorBin")]
+        public List<(int binx, int biny)> SensorBinsOccupied { get; set; } = [];
 
         // The grid layers pose bin 
         public static (int x, int y) PoseBinGrid { get; } = (3, 3);
-        public List<(int binx, int biny)> PoseBinsOccupied { get; set; } = [];
+
+        // A frame can only occupy a single pose bin
+        //[JsonProperty("PoseBin")]
+        //public List<(int binx, int biny)> PoseBinsOccupied { get; set; } = [];
+        [JsonProperty(nameof(PoseBinX))]
+        public int PoseBinX { get; set; } = -1;
+
+        [JsonProperty(nameof(PoseBinY))]
+        public int PoseBinY { get; set; } = -1;
 
         [JsonIgnore]
         public static IReadOnlyList<double> PoseBinThresholdYaw => [-10, 10, 90.1];
@@ -65,18 +87,27 @@ namespace Surveyor.Calibration
         public static IReadOnlyList<double> PoseBinThresholdPitch => [-10, 10, 90.1 ];
 
         // Calibration Parameter Count
+        [JsonIgnore]
         private static readonly int calibParamCount = Enum.GetValues<CalibrationParameters>().Length;
 
         // Mono Frame quantily tests        
+        [JsonProperty(nameof(monoProjectedPoints))]
         public PointF[][] monoProjectedPoints = new PointF[calibParamCount][];
+        [JsonProperty(nameof(monoFrameRms))]
         public double[] monoFrameRms = new double[calibParamCount];
+        [JsonProperty(nameof(monoFrameMaxError))]
         public double[] monoFrameMaxError = new double[calibParamCount];
 
         // Stereo calibration specific
+        [JsonProperty("StereoSharedCorners")]
         public PointF[][] StereoSharedCharucoCorners = new PointF[calibParamCount][];
+        [JsonProperty("StereoSharedIds")]
         public int[][] StereoSharedCharucoIDs = new int[calibParamCount][];
+        [JsonProperty(nameof(stereoProjectedPoints))]
         public PointF[][] stereoProjectedPoints = new PointF[calibParamCount][];
+        [JsonProperty(nameof(stereoFrameRms))]
         public double[] stereoFrameRms = new double[calibParamCount];
+        [JsonProperty(nameof(stereoFrameMaxError))]
         public double[] stereoFrameMaxError = new double[calibParamCount];
 
 
@@ -253,23 +284,23 @@ namespace Surveyor.Calibration
         /// <param name="resolutionX"></param>
         /// <param name="resolutionY"></param>
         /// <returns></returns>
-        private static List<(int gx, int gy, int binX, int binY)> GetBinsForCharucoCorners(PointF[] corners, int resolutionX, int resolutionY)
+        private static List<(int binX, int binY)> GetBinsForCharucoCorners(PointF[] corners, int resolutionX, int resolutionY)
         {
-            List<(int gx, int gy, int binX, int binY)> bins = [];
+            List<(int binX, int binY)> bins = [];
             foreach (var corner in corners)
             {
-                foreach (var (gx, gy) in SensorBinGridLayers)
-                {
-                    int binX = Math.Clamp((int)(corner.X / (resolutionX / (double)gx)), 0, gx - 1);
-                    int binY = Math.Clamp((int)(corner.Y / (resolutionY / (double)gy)), 0, gy - 1);
+                var (gx, gy) = SensorBinGrid;
 
-                    // Check if already there
-                    if (bins.Contains((gx, gy, binX, binY)))
-                        continue;
+                int binX = Math.Clamp((int)(corner.X / (resolutionX / (double)gx)), 0, gx - 1);
+                int binY = Math.Clamp((int)(corner.Y / (resolutionY / (double)gy)), 0, gy - 1);
 
-                    // If not add
-                    bins.Add((gx, gy, binX, binY));
-                }
+                // Check if already there
+                if (bins.Contains((binX, binY)))
+                    continue;
+
+                // If not add
+                bins.Add((binX, binY));
+
             }
             return bins;
         }
