@@ -26,7 +26,7 @@ namespace Surveyor.Controls
 
         public CalibrationFrameSetViewer()
         {
-            sensorBinGrid = FrameCalibrationData.SensorBinGrid;
+            sensorBinGrid = FrameData.SensorBinGrid;
 
             this.InitializeComponent();
             this.Loaded += OnLoaded;
@@ -85,11 +85,11 @@ namespace Surveyor.Controls
 
                 double x;
                 int i = 0;
-                foreach ((FrameCalibrationData leftTarget, FrameCalibrationData? rightTarget, _) in frames.Values)
+                foreach ((FrameData leftTarget, FrameData? rightTarget, _) in frames.Values)
                 {
                     x = i * xStep;
 
-                    FrameCalibrationData? frame = Data.trueLeftFalseRight ? leftTarget : rightTarget;
+                    FrameData? frame = Data.trueLeftFalseRight ? leftTarget : rightTarget;
 
                     try
                     {                        
@@ -244,7 +244,7 @@ namespace Surveyor.Controls
             PoseBinGridItemsControl.ColumnDefinitions.Clear();
 
             // 3×3, but uses whatever FrameCalibrationData says
-            (int gx, int gy) = FrameCalibrationData.PoseBinGrid;
+            (int gx, int gy) = FrameData.PoseBinGrid;
 
             for (int c = 0; c < gx; c++)
                 PoseBinGridItemsControl.ColumnDefinitions.Add(
@@ -524,9 +524,10 @@ namespace Surveyor.Controls
 
         /// <summary>
         /// Highlight on the screen the used sensor bins for this frame
+        /// Set clear the highlight frameCalibrationData = null
         /// </summary>
         /// <param name="frameCalibrationData"></param>
-        public void HighLightActiveSensorBin(FrameCalibrationData? frameCalibrationData)
+        public void HighLightActiveSensorBin(FrameData? frameCalibrationData)
         {
             if (Data is null)
                 return;
@@ -577,9 +578,10 @@ namespace Surveyor.Controls
 
         /// <summary>
         /// Highlight on the screen the used pose bins for this frame
+        /// Set clear the highlight frameCalibrationData = null
         /// </summary>
         /// <param name="frameCalibrationData"></param>
-        public void HighLightActivePoseBin(FrameCalibrationData? frameCalibrationData)
+        public void HighLightActivePoseBin(FrameData? frameCalibrationData)
         {
             if (Data is null)
                 return;
@@ -643,9 +645,9 @@ namespace Surveyor.Controls
                 // X axis = yaw (columns)
                 yawText = yawIndex switch
                 {
-                    0 => $"Yaw < {FrameCalibrationData.PoseBinThresholdYaw[0]:F1}°",
-                    1 => $"{FrameCalibrationData.PoseBinThresholdYaw[0]:F1}° ≤ Yaw < {FrameCalibrationData.PoseBinThresholdYaw[1]:F1}°",
-                    2 => $"{FrameCalibrationData.PoseBinThresholdYaw[1]:F1}° ≤ Yaw < {FrameCalibrationData.PoseBinThresholdYaw[2]:F1}°",
+                    0 => $"Yaw < {FrameData.PoseBinThresholdYaw[0]:F1}°",
+                    1 => $"{FrameData.PoseBinThresholdYaw[0]:F1}° ≤ Yaw < {FrameData.PoseBinThresholdYaw[1]:F1}°",
+                    2 => $"{FrameData.PoseBinThresholdYaw[1]:F1}° ≤ Yaw < {FrameData.PoseBinThresholdYaw[2]:F1}°",
                     _ => $"Yaw bin {yawIndex}"
                 };
             }
@@ -660,9 +662,9 @@ namespace Surveyor.Controls
                 // Y axis = pitch (rows)
                 pitchText = pitchIndex switch
                 {
-                    0 => $"Pitch < {FrameCalibrationData.PoseBinThresholdPitch[0]:F1}°",
-                    1 => $"{FrameCalibrationData.PoseBinThresholdPitch[0]:F1}° ≤ Pitch < {FrameCalibrationData.PoseBinThresholdPitch[1]:F1}°",
-                    2 => $"{FrameCalibrationData.PoseBinThresholdPitch[1]:F1}° ≤ Pitch < {FrameCalibrationData.PoseBinThresholdPitch[2]:F1}°",
+                    0 => $"Pitch < {FrameData.PoseBinThresholdPitch[0]:F1}°",
+                    1 => $"{FrameData.PoseBinThresholdPitch[0]:F1}° ≤ Pitch < {FrameData.PoseBinThresholdPitch[1]:F1}°",
+                    2 => $"{FrameData.PoseBinThresholdPitch[1]:F1}° ≤ Pitch < {FrameData.PoseBinThresholdPitch[2]:F1}°",
                     _ => $"Pitch bin {pitchIndex}"
                 };
             }

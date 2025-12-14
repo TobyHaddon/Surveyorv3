@@ -53,7 +53,7 @@ namespace Surveyor
             // A sorted dictionary of frames, sorted by frame index that holds the calibration
             // board corners and ids, the blur factor and the movement factor
             [JsonProperty(nameof(Frames))]
-            public SortedDictionary<int, (FrameCalibrationData frameCalibrationTargetLeft, FrameCalibrationData? frameCalibrationTargetRight, int correspondingCount)> Frames { get; set; } = [];
+            public SortedDictionary<int, (FrameData frameCalibrationTargetLeft, FrameData? frameCalibrationTargetRight, int correspondingCount)> Frames { get; set; } = [];
 
             [JsonProperty(nameof(BestFrameIndexes))]
             public List<int> BestFrameIndexes = [];
@@ -304,7 +304,7 @@ namespace Surveyor
         /// Get the calculated start points
         /// </summary>
         /// <returns></returns>
-        public virtual (int startFrameLeft, int startFrameRight) GetStartIndexes()
+        public (int startFrameLeft, int startFrameRight) GetStartIndexes()
         {
             if (LockFrameIndexLeft == -1 && LockFrameIndexRight == -1)
             {
@@ -330,11 +330,11 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Get the left and right frame indexes for a given target index.
+        /// Get the left and right frame indexes for a given frame set index.
         /// </summary>
-        /// <param name="targetIndex"></param>
+        /// <param name="framesetIndex"></param>
         /// <returns></returns>
-        public virtual (int frameLeft, int frameRight) GetIndexes(int targetIndex)
+        public (int frameLeft, int frameRight) GetIndexes(int framesetIndex)
         {
             int frameLeft;
             int frameRight;
@@ -343,16 +343,107 @@ namespace Surveyor
 
             if (startFrameLeft == 0)
             {
-                frameLeft = targetIndex;
-                frameRight = targetIndex + startFrameRight;
+                frameLeft = framesetIndex;
+                frameRight = framesetIndex + startFrameRight;
             }
             else
             {
-                frameLeft = targetIndex + startFrameLeft;
-                frameRight = targetIndex;
+                frameLeft = framesetIndex + startFrameLeft;
+                frameRight = framesetIndex;
             }
 
             return (frameLeft, frameRight);
+        }
+
+
+        /// <summary>
+        /// Get the frameset index from the left and right frame indexes.
+        /// </summary>
+        /// <param name="leftIndex"></param>
+        /// <param name="rightIndex"></param>
+        /// <returns></returns>
+        public int GetFrameSetIndexFromLeftRightIndexes(int leftIndex, int rightIndex)
+        {
+            int framesetIndex;
+
+            // Require media to be set up and lock indexes defined
+            if (leftIndex < 0 || rightIndex < 0)
+                return -1;
+
+            var (startLeft, startRight) = GetStartIndexes();
+
+            // Inverse of GetIndexes(framesetIndex)
+            // Case 1: left starts at 0, right is offset
+            //   left = i
+            //   right = i + startRight  => i = right - startRight
+            if (startLeft == 0)
+            {
+                int i = leftIndex;
+                int expectedRight = i + startRight;
+                framesetIndex = expectedRight == rightIndex ? i : -1;
+            }
+
+            // Case 2: right starts at 0, left is offset
+            //   left = i + startLeft
+            //   right = i               => i = right
+            {
+                int i = rightIndex;
+                int expectedLeft = i + startLeft;
+                framesetIndex = expectedLeft == leftIndex ? i : -1;
+            }
+
+            //???
+            // Double check - ChatGPT wrote the GetFrameSetIndexFromLeftRightIndexes
+            // GetFrameSetIndexFromLeftIndexes and GetFrameSetIndexFromRightIndexes
+            // methods, so let's verify the result here
+            int fsIFromLeft = GetFrameSetIndexFromLeftIndexes(leftIndex);
+            int fsIFromRight = GetFrameSetIndexFromRightIndexes(rightIndex);
+
+            if ((framesetIndex != fsIFromLeft) && (framesetIndex != fsIFromRight))
+            {
+                throw new InvalidOperationException(
+                    $"Stereo index mismatch: computed={framesetIndex}, fromLeft={fsIFromLeft}, fromRight={fsIFromRight}.");
+            }
+
+            return framesetIndex;
+        }
+
+
+        /// <summary>
+        /// Calculate the frame set index from the leftindex
+        /// </summary>
+        /// <param name="leftIndex"></param>
+        /// <returns></returns>
+        public int GetFrameSetIndexFromLeftIndexes(int leftIndex)
+        {
+            if (leftIndex < 0) return -1;
+
+            var (startLeft, _) = GetStartIndexes();
+
+            // If left starts at 0, frameset index == leftIndex
+            // Otherwise left = framesetIndex + startLeft  => framesetIndex = leftIndex - startLeft
+            int i = (startLeft == 0) ? leftIndex : (leftIndex - startLeft);
+
+            return i >= 0 ? i : -1;
+        }
+
+
+        /// <summary>
+        /// Calculate the frame set index from the right index
+        /// </summary>
+        /// <param name="rightIndex"></param>
+        /// <returns></returns>
+        public int GetFrameSetIndexFromRightIndexes(int rightIndex)
+        {
+            if (rightIndex < 0) return -1;
+
+            var (_, startRight) = GetStartIndexes();
+
+            // If right starts at 0, frameset index == rightIndex
+            // Otherwise right = framesetIndex + startRight  => framesetIndex = rightIndex - startRight
+            int i = (startRight == 0) ? rightIndex : (rightIndex - startRight);
+
+            return i >= 0 ? i : -1;
         }
 
 
@@ -448,7 +539,7 @@ namespace Surveyor
                             .SelectMany(index =>
                             {
                                 if (!Data.Frames.TryGetValue(index, out var pair))
-                                    return Enumerable.Empty<FrameCalibrationData>();
+                                    return Enumerable.Empty<FrameData>();
 
                                 return new[] { pair.frameCalibrationTargetLeft!, pair.frameCalibrationTargetRight! };
                             })
@@ -460,7 +551,7 @@ namespace Surveyor
                     .SelectMany(index =>
                     {
                         if (!Data.Frames.TryGetValue(index, out var pair))
-                            return Enumerable.Empty<FrameCalibrationData>();
+                            return Enumerable.Empty<FrameData>();
 
                         return new[] { pair.frameCalibrationTargetLeft!, pair.frameCalibrationTargetRight! };
                     })
@@ -477,7 +568,7 @@ namespace Surveyor
         /// <param name="frameLeft"></param>
         /// <param name="frameRight"></param>
         /// <returns>The count of the markers that match between the left and right frames</returns>
-        public virtual int AddFrame(int stereoFrameIndex, FrameCalibrationData frameLeft, FrameCalibrationData? frameRight)
+        public virtual int AddFrame(int stereoFrameIndex, FrameData frameLeft, FrameData? frameRight)
         {
             if (frameLeft.CharucoCorners == null || frameLeft.CharucoCorners.Length == 0)
                 return -1;
@@ -486,7 +577,7 @@ namespace Surveyor
                 return -1;
 
             // If stereo calc the corresponding count (number of markers that are the same on both the left and right side)
-            int correspondingCount = 0;
+            int correspondingCount = -1;    // Set to -1 to indicate no correspondance applicable (in case it is a mono head)
 
             if (frameRight is not null)
             {
@@ -509,7 +600,7 @@ namespace Surveyor
                 AddToTheSensorBinTotals(frameRight, Data.SensorBinTotalsRight);
 
             // Helper
-            static void AddToTheSensorBinTotals(FrameCalibrationData target, Dictionary<(int binx, int biny), int> BinTotals)
+            static void AddToTheSensorBinTotals(FrameData target, Dictionary<(int binx, int biny), int> BinTotals)
             {
                 foreach (var bin in target.SensorBinsOccupied)
                 {
@@ -532,7 +623,7 @@ namespace Surveyor
 
             if (Data.Frames.ContainsKey(stereoFrameIndex))
             {
-                (FrameCalibrationData leftTarget, FrameCalibrationData? rightTarget, _) = Data.Frames[stereoFrameIndex];
+                (FrameData leftTarget, FrameData? rightTarget, _) = Data.Frames[stereoFrameIndex];
 
                 // Remove the bins from the bin totals
                 RemoveFromTheBinTotals(leftTarget, Data.SensorBinTotalsLeft);
@@ -540,7 +631,7 @@ namespace Surveyor
                     RemoveFromTheBinTotals(rightTarget, Data.SensorBinTotalsRight);
 
                 // Helper
-                static void RemoveFromTheBinTotals(FrameCalibrationData target, Dictionary<(int binx, int biny), int> BinTotals)
+                static void RemoveFromTheBinTotals(FrameData target, Dictionary<(int binx, int biny), int> BinTotals)
                 {
                     foreach (var bin in target.SensorBinsOccupied)
                     {
@@ -560,7 +651,7 @@ namespace Surveyor
                     // Is there a previous contiguious frame?
                     if (Data.Frames.ContainsKey(stereoFrameIndex - 1))
                     {
-                        (FrameCalibrationData leftTargetPrevious, FrameCalibrationData? rightTargetPrevious, _) = Data.Frames[stereoFrameIndex - 1];
+                        (FrameData leftTargetPrevious, FrameData? rightTargetPrevious, _) = Data.Frames[stereoFrameIndex - 1];
 
                         // Movement from this frame to the previous frame need to be recalculated
                         leftTargetPrevious.MovementToNext = -1;
@@ -572,7 +663,7 @@ namespace Surveyor
                     // Is there a next contiguious frame?
                     if (Data.Frames.ContainsKey(stereoFrameIndex + 1))
                     {
-                        (FrameCalibrationData leftTargetNext, FrameCalibrationData? rightTargetNext, _) = Data.Frames[stereoFrameIndex + 1];
+                        (FrameData leftTargetNext, FrameData? rightTargetNext, _) = Data.Frames[stereoFrameIndex + 1];
 
                         // Movement from this frame to the next frame need to be recalculated
                         leftTargetNext.MovementFromPrevious = -1;
@@ -620,11 +711,11 @@ namespace Surveyor
             List<int> frameIndexes;
 
             // Get the sensor grid size
-            var (gx, gy) = FrameCalibrationData.SensorBinGrid;
+            var (gx, gy) = FrameData.SensorBinGrid;
 
             for (int biny = 0; biny < gy; biny++)
             {
-                StringBuilder sb = new();
+                //???StringBuilder sb = new();
                 for (int binx = 0; binx < gx; binx++)
                 {
                     var targetBin = (binx, biny);
@@ -672,19 +763,19 @@ namespace Surveyor
                                                 .Select(x => x.Key)];
                     }
 
-                    if (binx == 0)
-                        sb.Append("SelectBestStereoFramesUsingSensorBinOnly:");
-                    else if (binx > 0)
-                        sb.Append(' ');
-                    sb.Append($"{frameIndexes.Count}");
+                    //???if (binx == 0)
+                    //    sb.Append("SelectBestStereoFramesUsingSensorBinOnly:");
+                    //else if (binx > 0)
+                    //    sb.Append(' ');
+                    //sb.Append($"{frameIndexes.Count}");
 
+                    // Append found frame for this bin to the best frames list
                     foreach (var index in frameIndexes)
                     {
                         bool wasAdded = frameIndexSet.Add(index);
                     }
-                        
                 }
-                Debug.WriteLine(sb.ToString());
+                //???Debug.WriteLine(sb.ToString());
             }
 
             Data.BestFrameIndexes = [.. frameIndexSet];
@@ -703,9 +794,9 @@ namespace Surveyor
             var counts = new Dictionary<(int binx, int biny), int>();
 
 
-            foreach ((FrameCalibrationData leftTarget, FrameCalibrationData? rightTarget, _) in Data.Frames.Values)
+            foreach ((FrameData leftTarget, FrameData? rightTarget, _) in Data.Frames.Values)
             {
-                FrameCalibrationData? target;
+                FrameData? target;
 
                 if (trueLeftFalseRight)
                     target = leftTarget;
@@ -753,9 +844,9 @@ namespace Surveyor
         {
             var counts = new Dictionary<(int binx, int biny), int>();
 
-            foreach ((FrameCalibrationData leftTarget, FrameCalibrationData? rightTarget, _) in Data.Frames.Values)
+            foreach ((FrameData leftTarget, FrameData? rightTarget, _) in Data.Frames.Values)
             {
-                FrameCalibrationData? target;
+                FrameData? target;
 
                 if (trueLeftFalseRight)
                     target = leftTarget;
@@ -806,7 +897,7 @@ namespace Surveyor
                             this.Data = frameSetDataLoaded;
 
                             // Check the FrameCalibrationTarget Version used in the Frames dictionary
-                            FrameCalibrationData? firstFrameCalibrationTarget = null;
+                            FrameData? firstFrameCalibrationTarget = null;
 
                             if (frameSetDataLoaded.Frames.Count > 0)
                             {
@@ -839,10 +930,10 @@ namespace Surveyor
                             // Recalculate Frames Dictionary
                             if (recalcFramesDictionary)
                             {
-                                int frameCalibrationTargetLastestVersion = new FrameCalibrationData().Version;
+                                int frameCalibrationTargetLastestVersion = new FrameData().Version;
                                 foreach (var frame in frameSetDataLoaded.Frames)
                                 {
-                                    (FrameCalibrationData frameCalibrationTargetLeft, FrameCalibrationData? frameCalibrationTargetRight, int correspondingCount) = frame.Value;
+                                    (FrameData frameCalibrationTargetLeft, FrameData? frameCalibrationTargetRight, int correspondingCount) = frame.Value;
 
                                     frameCalibrationTargetLeft.Version = frameCalibrationTargetLastestVersion;
                                     if (frameCalibrationTargetRight is not null)
@@ -850,6 +941,8 @@ namespace Surveyor
                                 }
                             }
                         }
+
+                        ret = true;
                     }
                     catch (JsonSerializationException jsex)
                     {
@@ -1080,8 +1173,8 @@ namespace Surveyor
                 }
 
                 // Detect the board
-                FrameCalibrationData? targetLeft = null;
-                FrameCalibrationData? targetRight = null;
+                FrameData? targetLeft = null;
+                FrameData? targetRight = null;
 
                 if (matLeft is not null && !matLeft.IsEmpty)
                 {
@@ -1266,10 +1359,10 @@ namespace Surveyor
                             int stereoFrameTotal,
                             int leftFrameIndex,
                             Mat leftMat,
-                            FrameCalibrationData? leftFrameCalibrationTarget,
+                            FrameData? leftFrameCalibrationTarget,
                             int rightFrameIndex,
                             Mat? rightMat,
-                            FrameCalibrationData? rightFrameCalibrationTarget,
+                            FrameData? rightFrameCalibrationTarget,
                             int correspondingCount,
                             object? userData);
 
@@ -1354,8 +1447,8 @@ namespace Surveyor
                 }
 
                 // Detect the board
-                FrameCalibrationData? targetLeft = null;
-                FrameCalibrationData? targetRight = null;
+                FrameData? targetLeft = null;
+                FrameData? targetRight = null;
 
                 if (matLeft is not null && !matLeft.IsEmpty)
                 {
@@ -1462,16 +1555,16 @@ namespace Surveyor
             bool ret = false;
 
             // Get pair for stereoFrameIndex
-            (FrameCalibrationData leftTarget, FrameCalibrationData? rightTarget, _) = Data.Frames[stereoFrameIndex];
+            (FrameData leftTarget, FrameData? rightTarget, _) = Data.Frames[stereoFrameIndex];
 
             // Is there a previous contiguious frame?
             if (Data.Frames.ContainsKey(stereoFrameIndex - 1))
             {
                 // Get pair for stereoFrameIndex - 1
-                (FrameCalibrationData leftTargetPrev, FrameCalibrationData? rightTargetPrev, _) = Data.Frames[stereoFrameIndex - 1];
+                (FrameData leftTargetPrev, FrameData? rightTargetPrev, _) = Data.Frames[stereoFrameIndex - 1];
 
                 // Movement from this left frame to the previous left frame
-                double leftMovement = FrameCalibrationData.CalculateCornerMovement(leftTarget, leftTargetPrev);
+                double leftMovement = FrameData.CalculateCornerMovement(leftTarget, leftTargetPrev);
 
                 leftTarget.MovementFromPrevious = leftMovement;
                 leftTargetPrev.MovementToNext = leftMovement;
@@ -1480,7 +1573,7 @@ namespace Surveyor
                 if (rightTarget is not null && rightTargetPrev is not null)
                 {
                     // Movement from this right frame to the previous right frame
-                    double rightMovement = FrameCalibrationData.CalculateCornerMovement(rightTarget, rightTargetPrev);
+                    double rightMovement = FrameData.CalculateCornerMovement(rightTarget, rightTargetPrev);
                     rightTarget.MovementFromPrevious = rightMovement;
                     rightTargetPrev.MovementToNext = rightMovement;
                 }
@@ -1503,10 +1596,10 @@ namespace Surveyor
             if (Data.Frames.ContainsKey(stereoFrameIndex + 1))
             {
                 // Get pair for stereoFrameIndex + 1
-                (FrameCalibrationData leftTargetNext, FrameCalibrationData? rightTargetNext, _) = Data.Frames[stereoFrameIndex + 1];
+                (FrameData leftTargetNext, FrameData? rightTargetNext, _) = Data.Frames[stereoFrameIndex + 1];
 
                 // Movement from this left frame to the next left frame
-                double leftMovement = FrameCalibrationData.CalculateCornerMovement(leftTarget, leftTargetNext);
+                double leftMovement = FrameData.CalculateCornerMovement(leftTarget, leftTargetNext);
                 leftTarget.MovementToNext = leftMovement;
                 leftTargetNext.MovementFromPrevious = leftMovement;
 
@@ -1514,7 +1607,7 @@ namespace Surveyor
                 if (rightTarget is not null && rightTargetNext is not null)
                 {
                     // Movement from this right frame to the next right frame
-                    double rightMovement = FrameCalibrationData.CalculateCornerMovement(rightTarget, rightTargetNext);
+                    double rightMovement = FrameData.CalculateCornerMovement(rightTarget, rightTargetNext);
                     rightTarget.MovementToNext = rightMovement;
                     rightTargetNext.MovementFromPrevious = rightMovement;
                 }
@@ -1619,9 +1712,9 @@ namespace Surveyor
         /// <param name="frameIndex"></param>
         /// <param name="frame"></param>
         /// <returns></returns>
-        private FrameCalibrationData? DetectAndCreateFrameCalibrationTarget(bool trueLeftfalseRight, int frameIndex, Mat frame)
+        private FrameData? DetectAndCreateFrameCalibrationTarget(bool trueLeftfalseRight, int frameIndex, Mat frame)
         {
-            FrameCalibrationData? ret = null;
+            FrameData? ret = null;
 
             if (charucoBoardDefinition is not null)
             {
@@ -1706,7 +1799,7 @@ namespace Surveyor
         /// <param name="frameIndex"></param>
         /// <param name="frame"></param>
         /// <returns></returns>
-        public static int DrawMarkersToMat(FrameCalibrationData frameCalibrationTarget, Mat frame, bool headTrueIsStereoFalseIsMode)
+        public static int DrawMarkersToMat(FrameData frameCalibrationTarget, Mat frame, bool headTrueIsStereoFalseIsMode)
         {
             int ret = 0;
 
@@ -1927,7 +2020,7 @@ namespace Surveyor
             {
                 var allCharucoCorners = new VectorOfVectorOfPointF();
                 var allCharucoIds = new VectorOfVectorOfInt();
-                List<FrameCalibrationData> allFrameData = [];
+                List<FrameData> allFrameData = [];
                 imageUsable = 0;
 
                 // Collect Charuco corner detections from the best frames
@@ -2107,7 +2200,7 @@ namespace Surveyor
         private static (double ProjectionRms, double MaxError) MonoComputeProjectionErrors(
                                                     VectorOfVectorOfPointF allCharucoCorners,
                                                     VectorOfVectorOfInt allCharucoIds,
-                                                    List<FrameCalibrationData> allFrameData,
+                                                    List<FrameData> allFrameData,
                                                     VectorOfMat rvecs,
                                                     VectorOfMat tvecs,
                                                     Matrix<double> intrinsicMatrix,
@@ -2222,7 +2315,7 @@ namespace Surveyor
                     sb.AppendLine("Intrinsic:");
                     for (int i = 0; i < 3; i++)
                     {
-                        sb.AppendLine($"{monoCalib.IntrinsicMatrix[i, 0],8:F2} {monoCalib.IntrinsicMatrix[i, 1],8:F2} {monoCalib.IntrinsicMatrix[i, 2],8:F2}");
+                        sb.AppendLine($"{monoCalib.IntrinsicMatrix[i, 0],7:F1} {monoCalib.IntrinsicMatrix[i, 1],7:F1} {monoCalib.IntrinsicMatrix[i, 2],7:F1}");
                     }
 
                     sb.AppendLine($"Distortion:");
@@ -2339,7 +2432,10 @@ namespace Surveyor
                     // 0.2–0.5  Very good; suitable for accurate 3D reconstructions and pose estimates
                     // 0.5–1.0  Acceptable for many real-world use cases, especially underwater, drone, etc.
                     // > 1.0    Often indicates blur, motion, poor corner detection, or bad coverage
-                    sb.AppendLine($"RPE: {stereoCalib.RMS:F2}px {rpeQuanlity}");
+                    string rmsText = stereoCalib.RMS > 999
+                                        ? stereoCalib.RMS.ToString("0.###E+0")    // exponent format for very large values
+                                        : stereoCalib.RMS.ToString("F2");         // normal fixed-point for typical values
+                    sb.AppendLine($"RPE: {rmsText}px {rpeQuanlity}");
                     //Debug.WriteLine($"Projection RMS (point):    {monoCalib.ProjectionRMS:F4} px");
                     //Debug.WriteLine($"Max Reprojection Error:    {monoCalib.MaxError:F4} px");
 
@@ -2691,7 +2787,7 @@ namespace Surveyor
                 });
             }
 
-            void CalcYawAndPitcAndWhichPoseBin(FrameCalibrationData frameCalibrationData, MonoCalibrationCameraData monoCalib)
+            void CalcYawAndPitcAndWhichPoseBin(FrameData frameCalibrationData, MonoCalibrationCameraData monoCalib)
             {
                 if (charucoBoardDefinition is not null)
                 {
@@ -2740,8 +2836,8 @@ namespace Surveyor
                             frameCalibrationData.PitchDeg = pitchDeg;
 
                             // Place correct pose bin
-                            int yawBin = BinFromAngle(frameCalibrationData.YawDeg, FrameCalibrationData.PoseBinThresholdYaw);
-                            int pitchBin = BinFromAngle(frameCalibrationData.PitchDeg, FrameCalibrationData.PoseBinThresholdPitch);
+                            int yawBin = BinFromAngle(frameCalibrationData.YawDeg, FrameData.PoseBinThresholdYaw);
+                            int pitchBin = BinFromAngle(frameCalibrationData.PitchDeg, FrameData.PoseBinThresholdPitch);
                             //???frameCalibrationData.PoseBinsOccupied = [(yawBin, pitchBin)];
                             frameCalibrationData.PoseBinX = yawBin;
                             frameCalibrationData.PoseBinY = pitchBin;
@@ -2762,7 +2858,7 @@ namespace Surveyor
 
 
             // Helper
-            static void AddToThePoseBinTotals(FrameCalibrationData target, Dictionary<(int binx, int biny), int> BinTotals)
+            static void AddToThePoseBinTotals(FrameData target, Dictionary<(int binx, int biny), int> BinTotals)
             {
                 //???foreach (var bin in target.PoseBinsOccupied)
                 //{
@@ -2797,7 +2893,7 @@ namespace Surveyor
             HashSet<int> frameIndexSet = [.. Data.BestFrameIndexes];
 
             // Layer dimensions
-            var (px, py) = FrameCalibrationData.PoseBinGrid;
+            var (px, py) = FrameData.PoseBinGrid;
             
             List<int>? frameIndexes = null;
 

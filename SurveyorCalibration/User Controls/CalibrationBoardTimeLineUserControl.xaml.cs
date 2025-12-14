@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices.WindowsRuntime;
@@ -146,6 +147,11 @@ namespace Surveyor.Controls
         private void Viewbox_SizeChanged(object sender, SizeChangedEventArgs e)
         {
 
+        }
+
+        private void CalibrationBoardTimeLine_PointerPressed(object sender, PointerRoutedEventArgs e)
+        {
+            Debug.WriteLine("CalibrationBoardTimeLine_PointerPressed");
         }
     }
 }

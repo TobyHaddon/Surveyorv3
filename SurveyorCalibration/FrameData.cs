@@ -17,7 +17,7 @@ namespace Surveyor.Calibration
     /// The instance has a calculate of how 'still' this frame was from the previous to the 
     /// next frame (MovementFactor) and separately a BlurFactor is calculated.
     /// </summary>
-    public class FrameCalibrationData
+    public class FrameData
     {
         // Version of the class (use for data migrations)
         private const int version = 5;
@@ -113,12 +113,12 @@ namespace Surveyor.Calibration
 
         // Parameterless constructor for deserialization
         [JsonConstructor]
-        public FrameCalibrationData()
+        public FrameData()
         {
             // Version will remain -1 if not in the JSON
         }
 
-        public FrameCalibrationData(int frameIndex, Mat grayFrame, PointF[] charucoCorners, int[] charucoIds, int frameWidth, int frameHeight)
+        public FrameData(int frameIndex, Mat grayFrame, PointF[] charucoCorners, int[] charucoIds, int frameWidth, int frameHeight)
         {
             // Set the Version
             Version = version;
@@ -155,7 +155,7 @@ namespace Surveyor.Calibration
         /// Calculates the average movement (Euclidean distance) between matching Charuco corners
         /// from frame `a` to frame `b`. The result is symmetric: movement from `a` to `b` equals
         /// movement from `b` to `a`.
-        public static double CalculateCornerMovement(FrameCalibrationData a, FrameCalibrationData b)
+        public static double CalculateCornerMovement(FrameData a, FrameData b)
         {
             var dictA = a.CharucoIds.Select((id, i) => (id, a.CharucoCorners[i])).ToDictionary(t => t.id, t => t.Item2);
             var dictB = b.CharucoIds.Select((id, i) => (id, b.CharucoCorners[i])).ToDictionary(t => t.id, t => t.Item2);

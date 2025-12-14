@@ -1,7 +1,9 @@
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Dispatching;
 using System;
+using System.Diagnostics;
+using WinUIEx.Messaging;
 
 namespace Surveyor.User_Controls
 {
@@ -92,6 +94,11 @@ namespace Surveyor.User_Controls
         // Update the Message while the InfoBar is already open (thread-safe). Does not affect saved original message.
         public void UpdateMessage(string message)
         {
+#if DEBUG
+            if (!IsOpen)
+                throw new InvalidOperationException("ProcessingInfoBar.UpdateMessage called while InfoBar is closed (IsOpen == false).");
+#endif
+            Debug.WriteLine($"---->ProcessingInfoBar: UpdateMessage to '{message}'");
             void Apply() => Message = message ?? string.Empty;
 
             if (DispatcherQueue?.HasThreadAccess == true)
@@ -129,6 +136,7 @@ namespace Surveyor.User_Controls
             }
 
             InfoBar.IsOpen = false;
+            Debug.WriteLine($"---->ProcessingInfoBar: HideProcessing");
         }
 
 
@@ -143,6 +151,7 @@ namespace Surveyor.User_Controls
 
         private void StartProcessing(bool keepMessage, bool? elapsedOverride, string? messageOverride)
         {
+            Debug.WriteLine($"---->ProcessingInfoBar: StartProcessing: keepMessage={keepMessage}, elapsedOverride={elapsedOverride}, messageOverride='{messageOverride}'");
             if (!keepMessage && messageOverride is not null)
             {
                 _savedMessage ??= Message;

@@ -1,3 +1,4 @@
+using iText.Layout;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
@@ -113,11 +114,14 @@ namespace Surveyor
             // This is used to get/adjust the theme is necessary
             ThemeHelper.Initialize();
 
-            // Set theme
-            SetTheme(SettingsManagerLocal.ApplicationTheme);
-
-            // Add listener for theme changes
+            // Set theme (ThemeChanged calls SetTheme but does some prepare work first)
             var rootElement = (FrameworkElement)Content;
+            if (SettingsManagerLocal.ApplicationTheme != ElementTheme.Default)
+                rootElement.RequestedTheme = SettingsManagerLocal.ApplicationTheme;
+            ApplyTheme(SettingsManagerLocal.ApplicationTheme);
+            
+
+            // Add listener for theme changes            
             rootElement.Loaded += MainWindow_Loaded;
             rootElement.ActualThemeChanged += OnActualThemeChanged;
 
@@ -209,46 +213,62 @@ namespace Surveyor
         /// <param name="theme">Dark or Light</param>
         public void SetTheme(ElementTheme theme)
         {
+            ElementTheme themeToApply = ElementTheme.Default;
 
             var rootElement = (FrameworkElement)(Content);
 
+            // If the app settings are controlling the theme 
+            // then set the theme directly
             if (theme == ElementTheme.Dark)
             {
                 // Set the RequestedTheme of the root element to Dark
                 rootElement.RequestedTheme = ElementTheme.Dark;
 
+                themeToApply = ElementTheme.Dark;
+            }
+            else if (theme == ElementTheme.Light)
+            {
+                // Set the RequestedTheme of the root element to Light
+                rootElement.RequestedTheme = ElementTheme.Light;
+
+                themeToApply = ElementTheme.Light;
+            }
+
+            // If we are using the system theme, determine what that is
+            // so we can set our app icon and caption button colors appropriately
+            if (theme == ElementTheme.Default)
+            {
+                // Get the background colour used by that theme
+                var color = TitleBarHelper.ApplySystemThemeToCaptionButtons(this) == Colors.White ? "Dark" : "Light";
+
+                // Based on the background colour select a suitable application icon 
+                if (color == "Dark")
+                    themeToApply = ElementTheme.Dark;
+                else
+                    themeToApply = ElementTheme.Light;
+            }
+
+            if (themeToApply == ElementTheme.Dark)
+            {
                 // Use a dark theme icon
                 var bitmapImage = new BitmapImage(new Uri($"ms-appx:///Assets/SurveyorCalibration-Dark.png"));
                 TitleBarIcon.Source = bitmapImage;
 
                 TitleBarHelper.SetCaptionButtonColors(this, Colors.White);
             }
-            else if (theme == ElementTheme.Light)
+            else if (themeToApply == ElementTheme.Light)
             {
-                // Set the RequestedTheme of the root element to Light
-                rootElement.RequestedTheme = ElementTheme.Light;
-                rootElement.RequestedTheme = ElementTheme.Light;
-
                 // Use a light theme icon
                 var bitmapImage = new BitmapImage(new Uri($"ms-appx:///Assets/SurveyorCalibration-Light.png"));
                 TitleBarIcon.Source = bitmapImage;
 
                 TitleBarHelper.SetCaptionButtonColors(this, Colors.Black);
             }
-            else
-            {
-                // Use the default system theme
-                rootElement.RequestedTheme = ElementTheme.Default;
 
-                // Get the background colour used by that theme
-                var color = TitleBarHelper.ApplySystemThemeToCaptionButtons(this) == Colors.White ? "Dark" : "Light";
-
-                // Based on the background colour select a suitable application icon 
-                if (color == "Dark")
-                    TitleBarIcon.Source = new BitmapImage(new Uri($"ms-appx:///Assets/SurveyorCalibration-Dark.png"));
-                else
-                    TitleBarIcon.Source = new BitmapImage(new Uri($"ms-appx:///Assets/SurveyorCalibration-Light.png"));
-            }
+            // Inform child controls
+            LeftMonoCalibrationHead.SetTheme(themeToApply);
+            RightMonoCalibrationHead.SetTheme(themeToApply);
+            StereoCalibrationHead.SetTheme(themeToApply);
 
             // If the theme has changed, announce the change to the user
             UIHelper.AnnounceActionForAccessibility(rootElement, "Theme changed", "ThemeChangedNotificationActivityId");
@@ -469,12 +489,17 @@ namespace Surveyor
         /// <param name="args"></param>
         private void OnActualThemeChanged(FrameworkElement sender, object args)
         {
-            // Handle the theme change
-            var newTheme = sender.ActualTheme;
+            ApplyTheme(sender.ActualTheme);
+        }
+        
+        private void ApplyTheme(ElementTheme newTheme)
+        {
             Debug.WriteLine($"Theme changed to {newTheme}");
 
-            // Optionally, apply additional changes
+            // Apply additional changes
             SetTheme(newTheme);
+
+            // ??Not sure if this is right or if we should set the newTheme??
             SettingsManagerLocal.ApplicationTheme = ElementTheme.Default;
         }
 
@@ -574,7 +599,11 @@ namespace Surveyor
                 // If a file was picked, handle it
                 if (file is not null)
                 {
+                    InfoBarProcessing.ShowProcessing("Opening calibration project...", true/*show elapsed time*/);
+
                     int ret = await OpenProjectAsync(file.Path);
+
+                    InfoBarProcessing.HideProcessing();
 
                     if (ret == 0)
                     {
@@ -650,7 +679,11 @@ namespace Surveyor
                     if (await CheckForOpenProjectAndCloseAsync() == true)
                     {
                         // Open project in the regular way
+                        InfoBarProcessing.ShowProcessing("Opening calibration project...", true/*show elapsed time*/);
+
                         int ret = await OpenProjectAsync(filePath);
+
+                        InfoBarProcessing.HideProcessing();
 
                         if (ret == 0)
                         {
@@ -722,6 +755,9 @@ namespace Surveyor
                 if (calibProject.Data.Sync.IsSynchronized)
                 {
                     await LockUnlockMediaPlayersAsync(false/*lockTrueUnLockFalse*/);
+
+                    // Save the locked state
+                    calibProject.ProjectSave();
                 }
                 else
                 {
@@ -896,6 +932,9 @@ namespace Surveyor
         {
             await LockUnlockMediaPlayersAsync(true/*lockTrueUnLockFalse*/);
 
+            // Save the locked state
+            calibProject?.ProjectSave();
+
             SetUIControls();
         }
 
@@ -1032,7 +1071,13 @@ namespace Surveyor
                         // Set the title
                         SetTitle(System.IO.Path.GetFileNameWithoutExtension(projectFileSpec));
 
-                        Debug.WriteLine($"Project Loaded");
+                        // Load caches if available
+                        if (await LoadFrameDataCachesAsync(false/*noPrompts*/) == true)
+                        {
+                            Debug.WriteLine("Frame Set Caches Loaded");
+                        }
+
+                        Debug.WriteLine($"Project {projectFileSpec} Loaded");
                     }
                     else
                         // Failed to open media files
@@ -1743,8 +1788,6 @@ namespace Surveyor
                 // Ask the user if they want to use cached results (a full set of results is required)
                 if (cachedResultsAvailable == true)
                 {
-                    InfoBarProcessing.ShowProcessing("Load Cached Results...", true/*show elapsed time*/);
-
                     bool loaded = false;
                     int? stereoFramesLoaded = null;
                     int? leftMonoFramesLoaded = null;
@@ -1899,9 +1942,11 @@ namespace Surveyor
                         }
                     }
 
-                    // Error loading
+                    // Check if error loading
                     if (loaded)
                     {
+                        SetAppModeOnAllHeads(AppMode.BestFramesView);
+
                         // Sucess
                         ret = true;
                     }
@@ -1935,7 +1980,6 @@ namespace Surveyor
             }
             finally
             {
-                InfoBarProcessing.HideProcessing();
                 SetUIControls();
             }
 
@@ -1956,7 +2000,6 @@ namespace Surveyor
 
             try
             {
-                InfoBarProcessing.ShowProcessing("Save Cached Results...", true/*show elapsed time*/);
                 SetUIControls();
 
                 bool doStereo = false;
@@ -2022,7 +2065,6 @@ namespace Surveyor
             }
             finally
             {
-                InfoBarProcessing.HideProcessing();
                 SetUIControls();
             }
 
@@ -2200,6 +2242,7 @@ namespace Surveyor
             if (calibProject is null)
                 return -1;
 
+            InfoBarProcessing.ShowProcessing("Finding best frames and calibrating...");
             SetAppModeOnAllHeads(AppMode.BestFramesCalc);
 
             SetUIControls();
@@ -2246,7 +2289,7 @@ namespace Surveyor
                     break;
 
             }
-            // Check if mono calibration is need but there are old result that could be used
+            // Check if mono calibration is needed but there are old result that could be used
             if (doLeftMono && doRightMono)
             {
                 // Check for any cached mono calibration results
@@ -2279,9 +2322,6 @@ namespace Surveyor
                 }
             }
 
-            // Find the best frames from the mono calibration frames 
-            InfoBarProcessing.UpdateMessage("Best frames calc mono...");
-
             var monoPhaseTasks = new List<Task<int>>();
             int taskIndex = 0;
             int taskLeftMonoIndex = -1;
@@ -2289,6 +2329,10 @@ namespace Surveyor
 
             if (!useExistingMonoBestFrames)
             {
+                // Find the best frames from the mono calibration frames 
+                InfoBarProcessing.UpdateMessage("Best frames calc mono...");
+
+
                 if (doLeftMono)
                 {
                     monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.FindBestFramesNoUIAsync(
@@ -2350,6 +2394,9 @@ namespace Surveyor
 
             if (ret == 0)
             {
+                // Find the best frames from the mono calibration frames 
+                InfoBarProcessing.UpdateMessage("Mono calibration calculations...");
+
                 // Do the mono calibration calculations
                 monoPhaseTasks.Clear();
                 taskIndex = 0;

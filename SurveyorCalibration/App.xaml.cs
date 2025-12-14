@@ -25,6 +25,7 @@ namespace Surveyor
         public App()
         {
             this.InitializeComponent();
+            this.UnhandledException += App_UnhandledException;
         }
 
         /// <summary>
@@ -128,6 +129,14 @@ namespace Surveyor
                 throw new InvalidOperationException("Generic parameter 'TEnum' must be an enum.");
             }
             return (TEnum)Enum.Parse(typeof(TEnum), text);
+        }
+
+        private void App_UnhandledException(object? sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
+        {
+            var ex = e.Exception;
+            Debug.WriteLine($"UnhandledException: {ex?.GetType().Name}: {ex?.Message}\n{ex?.StackTrace}");
+            // Optional while diagnosing:
+            e.Handled = true;
         }
     }
 }

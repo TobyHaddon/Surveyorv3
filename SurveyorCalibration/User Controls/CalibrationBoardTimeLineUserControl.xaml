@@ -11,7 +11,9 @@
     <Grid>
         <Viewbox Stretch="Fill" StretchDirection="DownOnly" Height="5" SizeChanged="Viewbox_SizeChanged">
             <Border BorderThickness="2" BorderBrush="Gray">
-                <Canvas x:Name="CalibrationBoardTimeLine" Width="100" Height="5" Background="IndianRed"/>
+                <Canvas x:Name="CalibrationBoardTimeLine" Width="100" Height="5" Background="IndianRed"
+                        ToolTipService.ToolTip="Red indicates outside of the segment where a calibration board has been detected. Green means a board has been detected. Black means we are inside the board detected segment but no board detected at this point"
+                        PointerPressed="CalibrationBoardTimeLine_PointerPressed"/>
             </Border>
         </Viewbox>
     </Grid>
