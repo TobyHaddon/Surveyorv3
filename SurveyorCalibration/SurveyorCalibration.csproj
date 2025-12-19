@@ -14,6 +14,12 @@
 	<Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="NewFolder\**" />
+    <EmbeddedResource Remove="NewFolder\**" />
+    <None Remove="NewFolder\**" />
+    <Page Remove="NewFolder\**" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Remove="CodeExamples\LoadNative.cs" />
     <Compile Remove="CodeExamples\LoadOpenCV.cs" />
   </ItemGroup>
@@ -91,7 +97,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Help Documents\" />
-    <Folder Include="NewFolder\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="CodeExamples\LoadNative.cs">
@@ -159,4 +164,7 @@
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
     <PackageCertificateKeyFile>SurveyorCalibration_TemporaryKey.pfx</PackageCertificateKeyFile>
   </PropertyGroup>
+  <ItemGroup>
+    <PRIResource Remove="NewFolder\**" />
+  </ItemGroup>
 </Project>

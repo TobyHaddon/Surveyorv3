@@ -15,10 +15,20 @@
 			<TextBlock x:Name="ModeSelectedDescription" FontSize="12" TextWrapping="Wrap"/>
 
             <Border x:Name="BorderCache" Padding="8" BorderBrush="Gray" BorderThickness="1" CornerRadius="4">
-                <CheckBox x:Name="ReuseCacheCheckBox"
-                          IsChecked="{x:Bind navParams.runCalibrationParams.UseFrameSetCache, Mode=TwoWay}"
-                          Content="Frame information has already been extracted from the media. Do you want to reuse it?"
-                          ToolTipService.ToolTip="If you reuse the cached frame infomation it is must quicker, however if you need to adjust any of the settings below then the cache can't be used"/>
+                <StackPanel>
+                    <CheckBox x:Name="FindCalibrationBoardZoneCheckBox"
+                              IsChecked="{x:Bind navParams.runCalibrationParams.FindCalibrationBoardZone, Mode=TwoWay}"
+                              Content="Find Calibration board zone"
+                              ToolTipService.ToolTip=""/>
+                    <CheckBox x:Name="BuildFrameSetsCheckBox"
+                              IsChecked="{x:Bind navParams.runCalibrationParams.BuildTheFrameSets, Mode=TwoWay}"
+                              Content="Parse media and find calibration board data"
+                              ToolTipService.ToolTip=""/>
+                    <CheckBox x:Name="FindBestMonoFramesCheckBox"
+                              IsChecked="{x:Bind navParams.runCalibrationParams.FindBestMonoFrames, Mode=TwoWay}"
+                              Content="Find the best quality mono frames"
+                              ToolTipService.ToolTip=""/>
+                </StackPanel>
             </Border>
 
             <Border x:Name="BorderBestFrame" Padding="8" BorderBrush="Gray" BorderThickness="1" CornerRadius="4">

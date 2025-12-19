@@ -13,47 +13,34 @@ using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
+using static Surveyor.CalibProject.DataClass;
 
 
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
 
 namespace Surveyor.User_Controls
 {
-    public sealed partial class ExportUserControl : UserControl
+    public sealed partial class Export : UserControl
     {
         private bool _isReady;
 
-        public ExportUserControl()
+        private ContentDialog? ParentDialog { get; set; } = null;
+
+        public Export()
         {
             InitializeComponent();
 
             Loaded += ExportUserControl_Loaded;
         }
 
-        // Restored: Static helper to setup and display the export dialog with this control
-        public static async Task ShowExportDialogAsync(CalibProject calibProject, XamlRoot xamlRoot)
+
+        public void SetupForContentDialog(ContentDialog dialog, CalibProject calibProject)
         {
-            var content = new ExportUserControl
-            {
-                DataContext = calibProject
-            };
+            ParentDialog = dialog;
+            DataContext = calibProject;
 
-            var dlg = new ContentDialog
-            {
-                Title = "Export",
-                Content = content,
-                PrimaryButtonText = "Save",
-                SecondaryButtonText = "Cancel",
-                DefaultButton = ContentDialogButton.Primary,
-                XamlRoot = xamlRoot
-            };
-
-            // Wire Save to a FileSavePicker and delegate to the control's ExportAsync
-            dlg.PrimaryButtonClick += content.ExportDialog_Save_Click;
-
-            await dlg.ShowAsync();
+            dialog.PrimaryButtonClick += ExportDialog_Save_Click;
         }
+
 
         private void ExportUserControl_Loaded(object sender, RoutedEventArgs e)
         {
@@ -63,64 +50,183 @@ namespace Surveyor.User_Controls
             if (ExportSamplesNav.SelectedItem is null && ExportSamplesNav.MenuItems.Count > 0)
                 ExportSamplesNav.SelectedItem = ExportSamplesNav.MenuItems[0];
 
+            // Find the best calibration and set that as the default model
+            if (DataContext is CalibProject calibProject)
+            {
+                // Native is only for a stereo calibration result
+                if (calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoAndStereoMediaSet)
+                    FormatNative.IsEnabled = true;
+                else
+                    FormatNative.IsEnabled = false;
+
+                // See what results we have available
+                bool IsK1K2P1P2Available = false;
+                bool IsK1K2K3P1P2Available = false;
+                bool IsK1K2K3K4P1P2Available = false;
+                bool IsK1K2K3K4P1P2K5K6Available = false;
+
+                // Check availability and get RMS values etc
+                switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                {
+                    case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                        foreach (CalibrationParameters p in Enum.GetValues(typeof(CalibrationParameters)))
+                        {
+                            if (calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)p] is not null &&
+                                calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)p] is not null &&
+                                calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)p] is not null)
+                            {
+                                string resultText = $"Reprojection RMS: {calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)p]!.RMS:F4}px";
+                                switch (p)
+                                {
+                                    case CalibrationParameters.K1K2P1P2:
+                                        IsK1K2P1P2Available = true;
+                                        Model_K1K2P1P2_Result.Text = resultText;
+                                        break;
+                                    case CalibrationParameters.K1K2K3P1P2:
+                                        IsK1K2K3P1P2Available = true;
+                                        Model_K1K2K3P1P2_Result.Text = resultText;
+                                        break;
+                                    case CalibrationParameters.K1K2K3K4P1P2:
+                                        IsK1K2K3K4P1P2Available = true;
+                                        Model_K1K2K3K4P1P2_Result.Text = resultText;
+                                        break;
+                                    case CalibrationParameters.K1K2K3K4P1P2K5K6:
+                                        IsK1K2K3K4P1P2K5K6Available = true;
+                                        Model_K1K2K3K4P1P2K5K6_Result.Text = resultText;
+                                        break;
+                                }
+                            }
+                        }
+                        break;
+                    case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                        foreach (CalibrationParameters p in Enum.GetValues(typeof(CalibrationParameters)))
+                        {
+                            if (calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)p] is not null)
+                            {
+                                string resultText = $"Reprojection RMS: {calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)p]!.RMS:F4}px";
+                                switch (p)
+                                {
+                                    case CalibrationParameters.K1K2P1P2:
+                                        IsK1K2P1P2Available = true;
+                                        Model_K1K2P1P2_Result.Text = resultText;
+                                        break;
+                                    case CalibrationParameters.K1K2K3P1P2:
+                                        IsK1K2K3P1P2Available = true;
+                                        Model_K1K2K3P1P2_Result.Text = resultText;
+                                        break;
+                                    case CalibrationParameters.K1K2K3K4P1P2:
+                                        IsK1K2K3K4P1P2Available = true;
+                                        Model_K1K2K3K4P1P2_Result.Text = resultText;
+                                        break;
+                                    case CalibrationParameters.K1K2K3K4P1P2K5K6:
+                                        IsK1K2K3K4P1P2K5K6Available = true;
+                                        Model_K1K2K3K4P1P2K5K6_Result.Text = resultText;
+                                        break;
+                                }
+                            }
+                        }
+                        break;
+                    case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                        foreach (CalibrationParameters p in Enum.GetValues(typeof(CalibrationParameters)))
+                        {
+                            if (calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)p] is not null &&
+                                calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)p] is not null)
+                            {
+                                string resultText = $"Repro RMS: Left={calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)p]!.ReprojectionRMS:F4}px,"+
+                                                    $" Right={calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)p]!.ReprojectionRMS:F4}px";
+                                switch (p)
+                                {
+                                    case CalibrationParameters.K1K2P1P2:
+                                        IsK1K2P1P2Available = true;
+                                        Model_K1K2P1P2_Result.Text = resultText;
+                                        break;
+                                    case CalibrationParameters.K1K2K3P1P2:
+                                        IsK1K2K3P1P2Available = true;
+                                        Model_K1K2K3P1P2_Result.Text = resultText;
+                                        break;
+                                    case CalibrationParameters.K1K2K3K4P1P2:
+                                        IsK1K2K3K4P1P2Available = true;
+                                        Model_K1K2K3K4P1P2_Result.Text = resultText;
+                                        break;
+                                    case CalibrationParameters.K1K2K3K4P1P2K5K6:
+                                        IsK1K2K3K4P1P2K5K6Available = true;
+                                        Model_K1K2K3K4P1P2K5K6_Result.Text = resultText;
+                                        break;
+                                }
+                            }
+                        }
+                        break;
+                    case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                        foreach (CalibrationParameters p in Enum.GetValues(typeof(CalibrationParameters)))
+                        {
+                            if (calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)p] is not null)
+                            {
+                                string resultText = $"Repro RMS: {calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)p]!.ReprojectionRMS:F4}px";
+                                switch (p)
+                                {
+                                    case CalibrationParameters.K1K2P1P2:
+                                        IsK1K2P1P2Available = true;
+                                        Model_K1K2P1P2_Result.Text = resultText;
+                                        break;
+                                    case CalibrationParameters.K1K2K3P1P2:
+                                        IsK1K2K3P1P2Available = true;
+                                        Model_K1K2K3P1P2_Result.Text = resultText;
+                                        break;
+                                    case CalibrationParameters.K1K2K3K4P1P2:
+                                        IsK1K2K3K4P1P2Available = true;
+                                        Model_K1K2K3K4P1P2_Result.Text = resultText;
+                                        break;
+                                    case CalibrationParameters.K1K2K3K4P1P2K5K6:
+                                        IsK1K2K3K4P1P2K5K6Available = true;
+                                        Model_K1K2K3K4P1P2K5K6_Result.Text = resultText;
+                                        break;
+                                }
+                            }
+                        }
+                        break;
+                }
+
+
+                // Set availability
+                Model_K1K2P1P2.IsEnabled = IsK1K2P1P2Available;
+                Model_K1K2K3P1P2.IsEnabled = IsK1K2K3P1P2Available;
+                Model_K1K2K3K4P1P2.IsEnabled = IsK1K2K3K4P1P2Available;
+                Model_K1K2K3K4P1P2K5K6.IsEnabled = IsK1K2K3K4P1P2K5K6Available;
+
+
+                // Default to the best result
+                CalibrationParameters? calibParams = calibProject.ReturnBestStereoCalibrationCameraData();
+
+                switch (calibParams)
+                {
+                    case CalibrationParameters.K1K2P1P2:
+                        Model_K1K2P1P2.IsChecked = true;
+                        break;
+                    case CalibrationParameters.K1K2K3P1P2:
+                        Model_K1K2K3P1P2.IsChecked = true;
+                        break;
+                    case CalibrationParameters.K1K2K3K4P1P2:
+                        Model_K1K2K3K4P1P2.IsChecked = true;
+                        break;
+                    case CalibrationParameters.K1K2K3K4P1P2K5K6:
+                        Model_K1K2K3K4P1P2K5K6.IsChecked = true;
+                        break;
+                    default:
+                        Model_K1K2P1P2.IsChecked = true;
+                        break;
+                }
+            }
+
             // Apply current format state now that visuals exist
             FormatChanged(this, new RoutedEventArgs());
             _ = LoadSampleForSelectionAsync();
         }
 
+
+
         ///
         /// Events
         /// 
-
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        //???private void SaveButton_Click(ContentDialog sender, ContentDialogButtonClickEventArgs e) => _ = SaveExportAsync(sender, e);
-
-        //???private async Task SaveExportAsync(ContentDialog sender, ContentDialogButtonClickEventArgs e)
-        //{
-        //    var picker = new FileSavePicker();
-
-        //    // Associate the file picker with the current window
-        //    IntPtr hWnd = WindowNative.GetWindowHandle(this);
-        //    InitializeWithWindow.Initialize(picker, hWnd);
-
-        //    // Choose file types based on format selection inside the control
-        //    if (FormatPdf.IsChecked == true)
-        //    {
-        //        picker.FileTypeChoices.Add("PDF", new[] { ".pdf" });
-        //        picker.SuggestedFileName = "export.pdf";
-        //    }
-        //    else if (FormatOpenCV.IsChecked == true)
-        //    {
-        //        picker.FileTypeChoices.Add("OpenCV Data", new[] { ".yaml", ".yml", ".json" });
-        //        picker.SuggestedFileName = "export.yml";
-        //    }
-        //    else
-        //    {
-        //        picker.FileTypeChoices.Add("Native", new[] { ".json" });
-        //        picker.SuggestedFileName = "export.json";
-        //    }
-
-        //    StorageFile file = await picker.PickSaveFileAsync();
-        //    if (file is null)
-        //    {
-        //        e.Cancel = true; // keep dialog open if user cancels
-        //        return;
-        //    }
-
-        //    try
-        //    {
-        //        //TODO
-        //    }
-        //    catch
-        //    {
-        //        e.Cancel = true; // keep dialog open on failure
-        //    }
-        //}
 
 
         /// <summary>
@@ -141,10 +247,10 @@ namespace Surveyor.User_Controls
         private async Task ExportDialogSaveAsync(ContentDialogButtonClickEventArgs args)
         {
             if (DataContext is CalibProject calibProject)
-            {
-
+            {                
                 var picker = new FileSavePicker();
-                var hWnd = WindowNative.GetWindowHandle(this);
+                nint hWnd;
+                hWnd = WindowNative.GetWindowHandle(App.MainWindow);
                 InitializeWithWindow.Initialize(picker, hWnd);
 
                 // Get suggest file stem from project or default
@@ -163,8 +269,8 @@ namespace Surveyor.User_Controls
                 }
                 else
                 {
-                    picker.FileTypeChoices.Add("Native", [".json"]);
-                    picker.SuggestedFileName = suggestedFileStem + ".json";
+                    picker.FileTypeChoices.Add("Native", [".calib"]);
+                    picker.SuggestedFileName = suggestedFileStem + ".calib";
                 }
 
                 var file = await picker.PickSaveFileAsync();
@@ -202,15 +308,30 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Email support for additional target board request
+        /// Email support for additional expory formats
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
-        private void MailLink_Click(Hyperlink sender, HyperlinkClickEventArgs args) => _ = MailLinkAsync();
-        private static async Task MailLinkAsync()
+        private void MailLinkFormat_Click(Hyperlink sender, HyperlinkClickEventArgs args) => _ = MailLinkFormatAsync();
+        private static async Task MailLinkFormatAsync()
         {
             string subject = Uri.EscapeDataString("Additional Export Format Request");
             string body = Uri.EscapeDataString("Please write your request here. Include an example of the format as an attachment.");
+            var uri = new Uri($"mailto:toby.solo@outlook.com?subject={subject}&body={body}");
+            await Windows.System.Launcher.LaunchUriAsync(uri);
+        }
+
+
+        /// <summary>
+        /// Email support for additional distortion model coeffient combinations
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void MailLinkModel_Click(Hyperlink sender, HyperlinkClickEventArgs args) => _ = MailLinkModelAsync();
+        private static async Task MailLinkModelAsync()
+        {
+            string subject = Uri.EscapeDataString("Additional Distortion Models Request");
+            string body = Uri.EscapeDataString("Please write your request here.");
             var uri = new Uri($"mailto:toby.solo@outlook.com?subject={subject}&body={body}");
             await Windows.System.Launcher.LaunchUriAsync(uri);
         }
@@ -281,25 +402,45 @@ namespace Surveyor.User_Controls
         };
 
 
-        // Optional: update preview when format changes
+        /// <summary>
+        /// User selected a different Export format
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void FormatChanged(object sender, RoutedEventArgs e)
         {
             if (!_isReady || PreviewText is null || ExportSamplesNav is null)
                 return;
 
-            if (FormatText.IsChecked == true)
-            {
-                ExportSamplesNav.IsEnabled = false;
-                CodeMarkdown.Text = string.Empty;
-            }
+            //???
+            //if (FormatText.IsChecked == true)
+            //{
+            //    ExportSamplesNav.IsEnabled = false;
+            //    CodeMarkdown.Text = string.Empty;
+            //}
+            //
+            //// Restore normal preview layout
+            //PreviewText.Visibility = Visibility.Visible;
+            //PreviewText.HorizontalAlignment = HorizontalAlignment.Stretch;
+            //PreviewText.VerticalAlignment = VerticalAlignment.Stretch;
+            //PreviewText.TextAlignment = TextAlignment.Left;
+            //
+            //ExportSamplesNav.IsEnabled = true;
 
-            // Restore normal preview layout
-            PreviewText.Visibility = Visibility.Visible;
-            PreviewText.HorizontalAlignment = HorizontalAlignment.Stretch;
-            PreviewText.VerticalAlignment = VerticalAlignment.Stretch;
-            PreviewText.TextAlignment = TextAlignment.Left;
+            LoadExportPreview();
+        }
 
-            ExportSamplesNav.IsEnabled = true;
+
+
+        /// <summary>
+        /// User changed the distortion model to export
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ModelChanged(object sender, RoutedEventArgs e)
+        {
+            if (!_isReady || PreviewText is null || ExportSamplesNav is null)
+                return;
 
             LoadExportPreview();
         }
@@ -381,6 +522,8 @@ namespace Surveyor.User_Controls
                 calibrationData.LeftCameraCalibration.Intrinsic = leftMonoCalibrationCameraData.IntrinsicMatrix;
                 calibrationData.LeftCameraCalibration.Distortion = leftMonoCalibrationCameraData.DistortionCoeffs;
                 calibrationData.LeftCameraCalibration.RMS = leftMonoCalibrationCameraData.ReprojectionRMS;
+                calibrationData.LeftCameraCalibration.ProjectionRMS = leftMonoCalibrationCameraData.ProjectionRMS;
+                calibrationData.LeftCameraCalibration.MaxError = leftMonoCalibrationCameraData.MaxError;
 
                 calibrationData.RightCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
                 calibrationData.RightCameraCalibration.ImageSize[0, 0] = (int)calibProject.Data.Media.FrameWidth;
@@ -389,7 +532,9 @@ namespace Surveyor.User_Controls
                 calibrationData.RightCameraCalibration.ImageUseable = rightMonoCalibrationCameraData.ImageUseable;
                 calibrationData.RightCameraCalibration.Intrinsic = rightMonoCalibrationCameraData.IntrinsicMatrix;
                 calibrationData.RightCameraCalibration.Distortion = rightMonoCalibrationCameraData.DistortionCoeffs;
-                calibrationData.RightCameraCalibration.RMS = leftMonoCalibrationCameraData.ReprojectionRMS;
+                calibrationData.RightCameraCalibration.RMS = rightMonoCalibrationCameraData.ReprojectionRMS;
+                calibrationData.RightCameraCalibration.ProjectionRMS = rightMonoCalibrationCameraData.ProjectionRMS;
+                calibrationData.RightCameraCalibration.MaxError = rightMonoCalibrationCameraData.MaxError;
 
 
                 // Add the camera serial numbers
@@ -613,7 +758,9 @@ namespace Surveyor.User_Controls
                 {
                     sb.AppendLine($"=== Mono {side} Calibration ===");
                     sb.AppendLine($"{side} Images Used: {mono.ImageUseable} / {mono.ImageTotal}");
-                    sb.AppendLine($"{side} Reprojection RMS: {mono.ReprojectionRMS:F4}");
+                    sb.AppendLine($"{side} Reprojection RMS: {mono.ReprojectionRMS:F4}px");
+                    sb.AppendLine($"{side} Projection RMS: {mono.ProjectionRMS:F4}px");
+                    sb.AppendLine($"{side} Max Error: {mono.ProjectionRMS:F4}px");
 
                     sb.AppendLine($"{side} Intrinsic Matrix:");
                     var m = mono.IntrinsicMatrix;
@@ -699,7 +846,7 @@ namespace Surveyor.User_Controls
             {
                 StringBuilder sb = new();
                 sb.AppendLine("=== Stereo Calibration ===");
-                sb.AppendLine($"RMS: {stereo.RMS:F4}");
+                sb.AppendLine($"Reprojection RMS: {stereo.RMS:F4}px");
 
                 sb.AppendLine("Rotation Matrix (R):");
                 var r = stereo.Rotation;

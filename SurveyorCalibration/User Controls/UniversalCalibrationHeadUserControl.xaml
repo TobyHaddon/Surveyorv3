@@ -175,18 +175,22 @@
             <!-- Left: Media Controls -->
             <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" 
                 Spacing="10" Margin="0,3,0,0">
-                <!-- Go to start of the Calibration Board segment or start of the video, E622 -->
-                <Button x:Name="LeftFrameBackButton" Height="30" Padding="8,4" Click="LeftGotoStartClick"
-                        ToolTipService.ToolTip="Go to the start of the where the calibration board as been detected. Double click to go to start of the media. If no calibration board has been detected go to the start of the media">
+                <!-- Go to start of the calibration board zone or start of the video, E622 -->
+                <!--ToolTipService.ToolTip="Go to the start of the where the calibration board as been detected. Double click to go to start of the media. If no calibration board has been detected go to the start of the media"-->
+                <Button x:Name="LeftGotoStartButton" Height="30" Padding="16,4" Click="LeftGotoStartClick"
+                        ToolTipService.ToolTip="Go to the start of the media">
                     <FontIcon Glyph="&#xE622;"/>
                 </Button>
                 <!-- Play or Pause Media Control Button, F5B0 or F8AE -->
                 <Button x:Name="LeftPlayPauseButton" Height="30" Padding="16,4" Click="LeftPlayPauseClick">
                     <FontIcon x:Name ="LeftPlayPauseIcon" Glyph="&#xF5B0;"/>
                 </Button>
-                <TextBox x:Name="LeftGoToFrameTextBox" Height="30" VerticalAlignment="Center" KeyDown="LeftGotoFrameTextBox_KeyDown" LostFocus="LeftGotoFrameTextBox_LostFocus"/>
+                <TextBox x:Name="LeftGoToFrameTextBox" Height="30" VerticalAlignment="Center"
+                         PlaceholderText="Go to..."
+                         KeyDown="LeftGotoFrameTextBox_KeyDown" 
+                         LostFocus="LeftGotoFrameTextBox_LostFocus"/>
                 <!-- Frame Back Media Control Button, E973 -->
-                <Button x:Name="LeftGotoStartButton" Height="30" Padding="16,4" Click="LeftFrameBackClick"
+                <Button x:Name="LeftFrameBackButton" Height="30" Padding="16,4" Click="LeftFrameBackClick"
                         ToolTipService.ToolTip="Frame back">
                     <FontIcon Glyph="&#xE973;"/>
                 </Button>
@@ -195,9 +199,10 @@
                         ToolTipService.ToolTip="Frame forward">
                     <FontIcon Glyph="&#xE974;"/>
                 </Button>
-                <!-- Go to end of the Calibration Board segment or end of the video, E623 -->
-                <Button x:Name="LeftGotoEndButton" Height="30" Padding="8,4" Click="LeftGotoEndClick"
-                        ToolTipService.ToolTip="Go to the end of the where the calibration board as been detected. Double click to go to end of the media. If no calibration board has been detected go to the end of the media">
+                <!-- Go to end of the calibration board zone or end of the video, E623 -->
+                <!--ToolTipService.ToolTip="Go to the end of the where the calibration board as been detected. Double click to go to end of the media. If no calibration board has been detected go to the end of the media">-->
+                <Button x:Name="LeftGotoEndButton" Height="30" Padding="16,4" Click="LeftGotoEndClick"                        
+                        ToolTipService.ToolTip="Go to the end of the media">
                     <FontIcon Glyph="&#xE623;"/>
                 </Button>
             </StackPanel>
@@ -351,18 +356,22 @@
             <!-- Right Side Media Controls -->
             <StackPanel Grid.Column="1" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" 
                 Spacing="10" Margin="0,3,0,0">
-                <!-- Go to start of the Calibration Board segment or start of the video, E622 -->
-                <Button x:Name="RightFrameBackButton" Height="30" Padding="8,4" Click="RightGotoStartClick"
-                        ToolTipService.ToolTip="Go to the start of the where the calibration board as been detected. Double click to go to start of the media. If no calibration board has been detected go to the start of the media">
+                <!-- Go to start of the calibration board zone or start of the video, E622 -->
+                <!--ToolTipService.ToolTip="Go to the start of the where the calibration board as been detected. Double click to go to start of the media. If no calibration board has been detected go to the start of the media"-->
+                <Button x:Name="RightGotoStartButton" Height="30" Padding="16,4" Click="RightGotoStartClick"
+                        ToolTipService.ToolTip="Go to the start of the media">
                     <FontIcon Glyph="&#xE622;"/>
                 </Button>
                 <!-- Play or Pause Media Control Button, F5B0 or F8AE -->
                 <Button x:Name="RightPlayPauseButton" Height="30" Padding="16,4" Click="RightPlayPauseClick">
                     <FontIcon x:Name ="RightPlayPauseIcon" Glyph="&#xF5B0;"/>
                 </Button>
-                <TextBox x:Name="RightGoToFrameTextBox" Height="30" VerticalAlignment="Center" KeyDown="RightGotoFrameTextBox_KeyDown" LostFocus="RightGotoFrameTextBox_LostFocus"/>
+                <TextBox x:Name="RightGoToFrameTextBox" Height="30" VerticalAlignment="Center" 
+                         PlaceholderText="Go to..."
+                         KeyDown="RightGotoFrameTextBox_KeyDown" 
+                         LostFocus="RightGotoFrameTextBox_LostFocus"/>
                 <!-- Frame Back Media Control Button, E973 -->
-                <Button x:Name="RightGotoStartButton" Height="30" Padding="16,4" Click="RightFrameBackClick"
+                <Button x:Name="RightFrameBackButton" Height="30" Padding="16,4" Click="RightFrameBackClick"
                         ToolTipService.ToolTip="Frame back">
                     <FontIcon Glyph="&#xE973;"/>
                 </Button>
@@ -371,9 +380,10 @@
                         ToolTipService.ToolTip="Frame forward">
                     <FontIcon Glyph="&#xE974;"/>
                 </Button>
-                <!-- Go to end of the Calibration Board segment or end of the video, E623 -->
-                <Button x:Name="RightGotoEndButton" Height="30" Padding="8,4" Click="RightGotoEndClick"
-                        ToolTipService.ToolTip="Go to the end of the where the calibration board as been detected. Double click to go to end of the media. If no calibration board has been detected go to the end of the media">
+                <!-- Go to end of the calibration board zone or end of the video, E623 -->
+                <!--ToolTipService.ToolTip="Go to the end of the where the calibration board as been detected. Double click to go to end of the media. If no calibration board has been detected go to the end of the media">-->
+                <Button x:Name="RightGotoEndButton" Height="30" Padding="16,4" Click="RightGotoEndClick"
+                        ToolTipService.ToolTip="Go to the end of the media">
                     <FontIcon Glyph="&#xE623;"/>
                 </Button>
             </StackPanel>

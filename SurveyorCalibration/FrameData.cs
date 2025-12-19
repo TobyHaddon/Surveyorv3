@@ -69,11 +69,9 @@ namespace Surveyor.Calibration
         public List<(int binx, int biny)> SensorBinsOccupied { get; set; } = [];
 
         // The grid layers pose bin 
-        public static (int x, int y) PoseBinGrid { get; } = (3, 3);
+        public static (int x, int y) PoseBinGrid { get; } = (5, 3);
 
         // A frame can only occupy a single pose bin
-        //[JsonProperty("PoseBin")]
-        //public List<(int binx, int biny)> PoseBinsOccupied { get; set; } = [];
         [JsonProperty(nameof(PoseBinX))]
         public int PoseBinX { get; set; } = -1;
 
@@ -81,10 +79,10 @@ namespace Surveyor.Calibration
         public int PoseBinY { get; set; } = -1;
 
         [JsonIgnore]
-        public static IReadOnlyList<double> PoseBinThresholdYaw => [-10, 10, 90.1];
+        public static IReadOnlyList<double> PoseBinThresholdYaw => [-12, -6, 6, 12];
         
         [JsonIgnore]
-        public static IReadOnlyList<double> PoseBinThresholdPitch => [-10, 10, 90.1 ];
+        public static IReadOnlyList<double> PoseBinThresholdPitch => [-10, 10];
 
         // Calibration Parameter Count
         [JsonIgnore]

@@ -58,12 +58,26 @@ namespace Surveyor
                 }
                 else
                 {
-                    string useCache = navParams.runCalibrationParams.UseFrameSetCache ? "Use the existing cache frames results\n" : "";
+                    string findCalibrationBoardZone = navParams.runCalibrationParams.FindCalibrationBoardZone ? "Find calibration board zones\n" : "Use existing calibration board zones\n";
+                    string buildTheFrameSets = navParams.runCalibrationParams.BuildTheFrameSets ? "Build frame sets\n" : "Use existing cached frame sets\n";
+                    string findBestMonoFrames = navParams.runCalibrationParams.FindBestMonoFrames ? "Find best mono frames\n" : "Use existing best mono frames\n";
+                    string doCalibrationMonoCalculations = navParams.runCalibrationParams.DoCalibrationMonoCalculations ? "Perform mono calibration calculations\n" : "Use existing mono calibration calculations\n";
+                    string findBestStereoFrames = navParams.runCalibrationParams.FindBestStereoFrames ? "Find best stereo frames\n" : "Use existing best stereo frames\n";
+                    string doCalibrationStereoCalculations = navParams.runCalibrationParams.DoCalibrationStereoCalculations ? "Perform stereo calibration calculations\n" : "Use existing stereo calibration calculations\n";
+                    string saveBestFrames = navParams.runCalibrationParams.SaveBestFrames ? "Save best frames into .png files\n" : "";
+
                     Summary.Text = $"Project: {navParams.calibProject.Data.Info.ProjectFileName}\n" +
-                        $"Mode: {navParams.calibProject.Data.Media.StereoMonoMediaSetMode}\n" +
+                        $"Mode: {navParams.calibProject.Data.Media.StereoMonoMediaSetMode}\n\n" +
                         $"Left Camera: {navParams.calibProject.Data.Media.LeftCameraID}\n" +
                         $"Right Camera: {navParams.calibProject.Data.Media.RightCameraID}\n" +
-                        useCache;
+                        "\n" +
+                        findCalibrationBoardZone + "\n" +
+                        buildTheFrameSets + "\n" +
+                        findBestMonoFrames + "\n" +
+                        doCalibrationMonoCalculations + "\n" +
+                        findBestStereoFrames + "\n" +
+                        doCalibrationStereoCalculations + "\n" +
+                        saveBestFrames;
                 }
             }
         }

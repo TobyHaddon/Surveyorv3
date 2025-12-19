@@ -36,12 +36,12 @@
         </Grid.Resources>
 
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>          <!-- Title Bar -->
-            <RowDefinition Height="Auto" />         <!-- 0: CommandBar -->
-            <RowDefinition Height="*" />            <!-- 1: Mono Heads -->
-            <RowDefinition Height="8" />            <!-- 2: GridSplitter -->
-            <RowDefinition Height="0" />            <!-- 3: Optional Hidden Dialog -->
-            <RowDefinition Height="*" />            <!-- 4: Stereo Head -->            
+            <RowDefinition Height="Auto"/>          <!-- 0: Title Bar -->
+            <RowDefinition Height="Auto" />         <!-- 1: CommandBar -->
+            <RowDefinition Height="*" />            <!-- 2: Mono Heads -->
+            <RowDefinition Height="8" />            <!-- 3: GridSplitter -->            
+            <RowDefinition Height="*" />            <!-- 4: Stereo Head -->
+            <RowDefinition Height="0" />            <!-- 5: Hidden Dialog -->
         </Grid.RowDefinitions>
 
         <!-- Custom Title Bar Area -->
@@ -358,11 +358,11 @@
         <controls:UniversalCalibrationHeadUserControl x:Name="StereoCalibrationHead" 
                                                       HeadTitle="Stereo Calibration Video" 
                                                       Head="Stereo" 
-                                                      Grid.Row="5"                                                      
+                                                      Grid.Row="4"                                                      
                                                       Margin="5,5,5,5"/>
 
         <!--New Calibration Project Dialog-->
-        <Grid x:Name="CalibInfoAndMediaContentDialogGrid" Grid.Row="4">
+        <Grid x:Name="CalibInfoAndMediaContentDialogGrid" Grid.Row="5">
                     <ContentDialog x:Name="CalibrationMediaContentDialog"
                         Title="Calibration Media Setup"
                         PrimaryButtonText="OK"
@@ -378,6 +378,24 @@
             </ContentDialog>
         </Grid>
 
+        <!-- Export Dialog -->
+        <Grid x:Name="ExportUserControlDialogGrid" Grid.Row="5">
+            <ContentDialog x:Name="ExportUserControlDialog"
+                        Title="Export"
+                        PrimaryButtonText="Save"
+                        SecondaryButtonText="Cancel"
+                        DefaultButton="Primary"
+                        MinWidth="600"
+                        MaxWidth="600"
+                        MinHeight="200"
+                        MaxHeight="400"
+                        IsPrimaryButtonEnabled="True"
+                        RequestedTheme="Default">
+                <surveyorControls:Export x:Name="ExportUserControl" />
+            </ContentDialog>
+        </Grid>
+
+        <!-- Teaching Tip Section -->
         <TeachingTip x:Name="MenuFileTeachingTip"
              Title="Start Here!"
              Subtitle="Start by either creating a new calibration project or opening an exist project"

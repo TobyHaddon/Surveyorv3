@@ -12,7 +12,7 @@
         <Viewbox Stretch="Fill" StretchDirection="DownOnly" Height="5" SizeChanged="Viewbox_SizeChanged">
             <Border BorderThickness="2" BorderBrush="Gray">
                 <Canvas x:Name="CalibrationBoardTimeLine" Width="100" Height="5" Background="IndianRed"
-                        ToolTipService.ToolTip="Red indicates outside of the segment where a calibration board has been detected. Green means a board has been detected. Black means we are inside the board detected segment but no board detected at this point"
+                        ToolTipService.ToolTip="Red indicates outside of the zone where a calibration board has been detected. Green means a board has been detected. Black means we are inside the board detection zone but no board detected at this particular point (i.e. camera pointing elsewhere)"
                         PointerPressed="CalibrationBoardTimeLine_PointerPressed"/>
             </Border>
         </Viewbox>

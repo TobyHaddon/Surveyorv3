@@ -282,5 +282,16 @@
                      HorizontalAlignment="Left" Margin="0,8,0,0"                       
                      Visibility="Collapsed"/>
         </StackPanel>
+
+        <!-- Teaching Tip Section -->
+        <TeachingTip x:Name="SelectMediaTeachingTip"
+                     Title="Load calibration videos"
+                     Subtitle="Load all calibration videos by pressing this button and multi-selecting the files you need. All the files need to be selected in one go and they need to be in the same folder"
+                     Target="{x:Bind SelectMedia}"
+                     PreferredPlacement="Bottom"
+                     IsOpen="False"
+                     IsLightDismissEnabled="True"
+                     ActionButtonContent="Got It"
+                     ActionButtonClick="SelectMediaTeachingTip_ActionButtonClick" />
     </Grid>
 </UserControl>

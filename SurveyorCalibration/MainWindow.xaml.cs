@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Surveyor;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
 using Surveyor.User_Controls;
@@ -61,14 +62,20 @@ namespace Surveyor
         public double? BlurFilterMin { get; set; } = null;    
         public double? BlurFilterMax { get; set; } = null;    
 
-        // Used by the RunCalibration process
-        public bool UseFrameSetCache { get; set; } = true;
+        // Used by the RunCalibration process        
         public double MovementFilterValue { get; set; } = MovementFilterDefaultValue;
         public double BlurFilterValue { get; set; } = BlurMaxFilterDefaultValue;
         public int MonoCornersFilterValue { get; set; } = CalibrationStereoFrameSet.MONO_CORNER_COUNT_THRESHOLD;
         public int StereoCornersFilterValue { get; set; } = CalibrationStereoFrameSet.STEREO_CORNER_COUNT_THRESHOLD;
-        public int maxFramesFromEachSensorBin { get; set; } = 2;  // Take top 2 frames from each sensor bin
-        public int maxFramesFromEachPoseBin { get; set; } = 4;    // Take top 4 frames from each pose bin
+        public int MaxFramesFromEachSensorBin { get; set; } = 2;  // Take top 2 frames from each sensor bin
+        public int MaxFramesFromEachPoseBin { get; set; } = 4;    // Take top 4 frames from each pose bin
+        // Action FLags
+        public bool FindCalibrationBoardZone { get; set; } = true;
+        public bool BuildTheFrameSets { get; set; } = true;
+        public bool FindBestMonoFrames { get; set; } = true;
+        public bool DoCalibrationMonoCalculations { get; set; } = true;
+        public bool FindBestStereoFrames { get; set; } = true;
+        public bool DoCalibrationStereoCalculations { get; set; } = true;
         public bool SaveBestFrames { get; set; } = false;
     }
 
@@ -91,7 +98,7 @@ namespace Surveyor
         private DispatcherQueueTimer? _findCheckTimer;
         private DateTime? _findStartTime;
 
-        
+
         private bool mediaFromCommandLine = false; // no sure to support this or not
 
         // Help menu documents
@@ -119,7 +126,7 @@ namespace Surveyor
             if (SettingsManagerLocal.ApplicationTheme != ElementTheme.Default)
                 rootElement.RequestedTheme = SettingsManagerLocal.ApplicationTheme;
             ApplyTheme(SettingsManagerLocal.ApplicationTheme);
-            
+
 
             // Add listener for theme changes            
             rootElement.Loaded += MainWindow_Loaded;
@@ -326,6 +333,121 @@ namespace Surveyor
             return cachedResultsAvailable;
         }
 
+        enum CachedResultCheckType
+        {
+            CalibrationBoardZone,
+            FrameSets,
+            BestMonoFrames,
+            MonoCalibrationCalcs,
+            BestStereoFrames,
+            StereoCalibrationCalcs
+        }
+        /// <summary>
+        /// Check is the loaded cached results are available for 
+        /// the requested type
+        /// </summary>
+        /// <param name="cachedResultCheckType"></param>
+        /// <returns></returns>
+        private bool CheckIfCacheResultAvailable(CachedResultCheckType cachedResultCheckType)
+        {
+            bool ret = false;
+
+            if (calibProject is not null)
+            {
+                bool doLeftMono = false;
+                bool doRightMono = false;
+                bool doStereo = false;
+
+                switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                {
+                    case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                        if (StereoCalibrationHead.IsOpen() &&
+                            (bool)StereoCalibrationHead.IsStereoLocked()! &&
+                            LeftMonoCalibrationHead.IsOpen() &&
+                            RightMonoCalibrationHead.IsOpen())
+                        {
+                            doLeftMono = true;
+                            doRightMono = true;
+                            doStereo = true;
+                        }
+                        break;
+
+                    case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                        if (StereoCalibrationHead.IsOpen() &&
+                            (bool)StereoCalibrationHead.IsStereoLocked()!)
+                        {
+                            doStereo = true;
+                        }
+                        break;
+
+                    case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                        if (LeftMonoCalibrationHead.IsOpen() &&
+                            RightMonoCalibrationHead.IsOpen())
+                        {
+                            doLeftMono = true;
+                            doRightMono = true;
+                        }
+                        break;
+
+                    case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                        if (LeftMonoCalibrationHead.IsOpen())
+                        {
+                            doLeftMono = true;
+                        }
+                        break;
+                }
+
+                CalibProject.DataClass.CacheClass cache = calibProject.Data.Cache;
+                switch (cachedResultCheckType)
+                {
+                    case CachedResultCheckType.CalibrationBoardZone:
+                        ret = true;
+                        if (doLeftMono && !LeftMonoCalibrationHead.IsCalibrationBoardZoneSetup())
+                            ret = false;
+                        if (doRightMono && !RightMonoCalibrationHead.IsCalibrationBoardZoneSetup())
+                            ret = false;
+                        if (doStereo && !StereoCalibrationHead.IsCalibrationBoardZoneSetup())
+                            ret = false;
+                        break;
+                    case CachedResultCheckType.FrameSets:
+                        ret = true;
+                        if (doLeftMono && !LeftMonoCalibrationHead.IsFrameSetsSetup())
+                            ret = false;
+                        if (doRightMono && !RightMonoCalibrationHead.IsFrameSetsSetup())
+                            ret = false;
+                        if (doStereo && !StereoCalibrationHead.IsFrameSetsSetup())
+                            ret = false;
+                        break;
+                    case CachedResultCheckType.BestMonoFrames:
+                        ret = true;
+                        if (doLeftMono && !LeftMonoCalibrationHead.IsBestFramesSetup())
+                            ret = false;
+                        if (doRightMono && !RightMonoCalibrationHead.IsBestFramesSetup())
+                            ret = false;
+                        break;
+                    case CachedResultCheckType.MonoCalibrationCalcs:
+                        ret = true;
+                        if (doLeftMono && !IsMonoCalibrationCalcsSetup(calibProject, true/*left*/))
+                            ret = false;
+                        if (doRightMono && !IsMonoCalibrationCalcsSetup(calibProject, false/*right*/))
+                            ret = false;
+                        break;
+                    case CachedResultCheckType.BestStereoFrames:
+                        ret = true;
+                        if (doStereo && !StereoCalibrationHead.IsBestFramesSetup())
+                            ret = false;
+                        break;
+                    case CachedResultCheckType.StereoCalibrationCalcs:
+                        ret = true;
+                        if (doStereo && !IsStereoCalibrationCalcsSetup(calibProject))
+                            ret = false;
+                        break;
+                }
+            }
+
+            return ret;
+        }
+
 
         /// <summary>
         /// Run the calibration as defined in the SetupRunCalibration pages
@@ -360,27 +482,48 @@ namespace Surveyor
                 }
 
 
-                // Load caches if requested (quicker)
-                if (runCalibrationParams.UseFrameSetCache)
+                // Find where in the .MP4 the calibration boards starts and stops
+                if (runCalibrationParams.FindCalibrationBoardZone)
                 {
-                    if (await LoadFrameDataCachesAsync(false/*noPrompts*/) == true)
-                        Debug.WriteLine("Frame Set Caches Loaded");
-                    else
-                        // Failed - switch cache off
-                        runCalibrationParams.UseFrameSetCache = false;
+                    ret = await FindCalibrationBoardZoneAllHeadsAsync();
                 }
 
                 // Build the frame sets by finding calibration targets in all frames
-                if (runCalibrationParams.UseFrameSetCache == false)
+                if (ret == 0 && runCalibrationParams.BuildTheFrameSets)
                 {
-                    
-                    ret = await BuildFrameSetsAsync();
+                    ret = await BuildFrameSetsAllHeadsAsync();
                 }
 
-                if (ret == 0)
+                // Identify the best mono frames from the frame sets 
+                if (ret == 0 && runCalibrationParams.FindBestMonoFrames)
+                {
+                    ret = await FindBestMonoFramesAllHeadsAsync(runCalibrationParams);
+                }
+
+                // Do the calibration mono calculations
+                if (ret == 0 && runCalibrationParams.DoCalibrationMonoCalculations)
+                {
+                    ret = await DoCalibrationMonoCalcsAllHeadsAsync(runCalibrationParams);
+                }
+
+                // Identify the best stereo frames from the frame sets 
+                if (ret == 0 && runCalibrationParams.FindBestStereoFrames)
+                {
+                    ret = await FindBestStereoFramesAsync(runCalibrationParams);
+                }
+
+                // Do the calibration calculations
+                if (ret == 0 && runCalibrationParams.DoCalibrationStereoCalculations)
+                {
+                    ret = await DoCalibrationStereoCalcsAsync(runCalibrationParams);
+                }
+
+                // Save the best frames images to disk if requested
+                if (ret == 0 && runCalibrationParams.SaveBestFrames)
                 {
                     // Find the best frames and do the calibration calculation
-                    ret = await IdentifyBestFramesAndDoCalibrationCalcAsync(runCalibrationParams);
+                    ret = await SaveBestFramesAllHeadsAsync();
+                    //ret = await IdentifyBestFramesAndDoCalibrationCalcAsync(runCalibrationParams);
                 }
 
                 if (ret == 0)
@@ -491,7 +634,7 @@ namespace Surveyor
         {
             ApplyTheme(sender.ActualTheme);
         }
-        
+
         private void ApplyTheme(ElementTheme newTheme)
         {
             Debug.WriteLine($"Theme changed to {newTheme}");
@@ -791,7 +934,23 @@ namespace Surveyor
         private async Task FileExportAsync()
         {
             if (calibProject is not null)
-                await ExportUserControl.ShowExportDialogAsync(calibProject, this.Content.XamlRoot);        
+            {
+                // Load the Info and Media user control to setup the project
+                ExportUserControl.SetupForContentDialog(ExportUserControlDialog, calibProject);
+
+                // ** Important notes **
+                // The UserControl ExportUserControlDialog is displayed within a ContentDialog for 
+                // the purpose of setting up a new project (also using from a SettingsCard)
+                // I stuggled to get the ContentDialog to show width necessary to fully display
+                // the UserControl.  The solution was to:
+                // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
+                // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
+                // This took a lot of trail and error. It seems to effect the title bar is left in
+                // default row zero.
+                ContentDialogResult result = await ExportUserControlDialog.ShowAsync();
+
+                //???await ExportUserControl.ShowExportDialogAsync(calibProject, this.Content.XamlRoot);
+            }
         }
 
 
@@ -1114,7 +1273,7 @@ namespace Surveyor
                 return -1;
 
             CalibProject.DataClass.MediaClass media = calibProject.Data.Media;
-            
+
             string fileName;
             for (int index = 0; index < 4; index++)
             {
@@ -1574,7 +1733,7 @@ namespace Surveyor
 
                 InfoBarProcessing.HideProcessing();
 
-                SetUIControls();                
+                SetUIControls();
             }
             catch (Exception ex)
             {
@@ -1781,7 +1940,7 @@ namespace Surveyor
                 return ret;
 
             try
-            {        
+            {
                 // Check if cached results files are available
                 bool cachedResultsAvailable = CachedResultsFileExists();
 
@@ -1945,7 +2104,14 @@ namespace Surveyor
                     // Check if error loading
                     if (loaded)
                     {
+                        // We have best frame available
                         SetAppModeOnAllHeads(AppMode.BestFramesView);
+
+                        // Switch view mode to best frames if possible
+                        if (IsViewModeAvailableOnAllHeads(ViewMode.BestFrames))
+                        {
+                            SetViewModeOnAllHeads(ViewMode.BestFrames);
+                        }
 
                         // Sucess
                         ret = true;
@@ -1970,7 +2136,7 @@ namespace Surveyor
                         }
                     }
 
-                    
+
                 }
             }
             catch (Exception ex)
@@ -2073,14 +2239,168 @@ namespace Surveyor
 
 
         /// <summary>
-        /// This is core function.  It orchestrates the finding of calibration 
+        /// First and last occurrance of the Calibration board in the .MP4
+        /// This is so detailed (slow) analysis of the frames only occurs
+        /// in the frames that really have a calibration board displayed
+        /// </summary>
+        /// <returns></returns>
+        private async Task<int> FindCalibrationBoardZoneAllHeadsAsync()
+        {
+            int ret = 0;
+
+            if (calibProject is null)
+                return -2;
+
+            try
+            {
+                var tasks = new List<Task>();
+                InfoBarProcessing.ShowProcessing("Finding calibration board zone...");
+                SetAppModeOnAllHeads(AppMode.FindCalibrationsFrames);
+
+                bool doLeftMono = false;
+                bool doRightMono = false;
+                bool doStereo = false;
+                bool okToProceed = false;
+
+                switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                {
+                    case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                        if (StereoCalibrationHead.IsOpen() &&
+                            (bool)StereoCalibrationHead.IsStereoLocked()! &&
+                            LeftMonoCalibrationHead.IsOpen() &&
+                            RightMonoCalibrationHead.IsOpen())
+                        {
+                            doLeftMono = true;
+                            doRightMono = true;
+                            doStereo = true;
+                            okToProceed = true;
+                        }
+                        break;
+
+                    case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                        if (StereoCalibrationHead.IsOpen() &&
+                            (bool)StereoCalibrationHead.IsStereoLocked()!)
+                        {
+                            doStereo = true;
+                            okToProceed = true;
+                        }
+                        break;
+
+                    case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                        if (LeftMonoCalibrationHead.IsOpen() &&
+                            RightMonoCalibrationHead.IsOpen())
+                        {
+                            doLeftMono = true;
+                            doRightMono = true;
+                            okToProceed = true;
+                        }
+                        break;
+
+                    case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                        if (LeftMonoCalibrationHead.IsOpen())
+                        {
+                            doLeftMono = true;
+                            okToProceed = true;
+                        }
+                        break;
+                }
+
+                if (okToProceed)
+                {
+                    int taskIndex = 0;
+                    int taskLeftMonoIndex = -1;
+                    int taskRightMonoIndex = -1;
+                    int taskStereoIndex = -1;
+
+                    if (doLeftMono)
+                    {
+                        tasks.Add(LeftMonoCalibrationHead.FindCalibrationBoardZoneAsync());
+                        taskLeftMonoIndex = taskIndex++;
+                    }
+                    if (doRightMono)
+                    {
+                        tasks.Add(RightMonoCalibrationHead.FindCalibrationBoardZoneAsync());
+                        taskRightMonoIndex = taskIndex++;
+                    }
+                    if (doStereo)
+                    {
+                        tasks.Add(StereoCalibrationHead.FindCalibrationBoardZoneAsync());
+                        taskStereoIndex = taskIndex++;
+                    }
+
+                    if (tasks.Count == 0)
+                        return 0;
+
+                    // Your existing flags + timer
+                    //???StartFindCheckTimer();
+
+                    try
+                    {
+                        // Run all finds in parallel, but still observe completion and exceptions
+                        await Task.WhenAll(tasks);
+
+                        // Get result of each task
+                        int stereoResult = 0;
+                        int leftMonoResult = 0;
+                        int rightMonoResult = 0;
+
+                        if (doLeftMono)
+                            leftMonoResult = await ((Task<int>)tasks[taskLeftMonoIndex]);
+                        if (doRightMono)
+                            rightMonoResult = await ((Task<int>)tasks[taskRightMonoIndex]);
+                        if (doStereo)
+                            stereoResult = await ((Task<int>)tasks[taskStereoIndex]);
+
+                        // Check if any failed
+                        if ((doLeftMono && leftMonoResult != 0) ||
+                            (doRightMono && rightMonoResult != 0) ||
+                            (doStereo && stereoResult != 0))
+                        {
+                            Debug.WriteLine($"Error FindCalibrationFrameAsync: Left Mono Result={leftMonoResult}, Right Mono Result={rightMonoResult},Stereo Result={stereoResult}");
+
+                            if (doLeftMono && leftMonoResult != 0)
+                                ret = leftMonoResult;
+                            else if (doRightMono && rightMonoResult != 0)
+                                ret = rightMonoResult;
+                            else if (doStereo && stereoResult != 0)
+                                ret = stereoResult;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        // Handle/log properly
+                        Debug.WriteLine($"Error in FindCalibrationBoardZoneAsync: {ex}");
+                    }
+                }
+                else
+                    ret = -3;
+
+                // Save the calibration board start/end zones
+                InfoBarProcessing.UpdateMessage("Saving calibration board zone...");
+                await SaveFrameDataCachesAsync(false/*no prompts*/);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"FindCalibrationBoardZoneAllHeadsAsync: Exception:{ex.Message}");
+            }
+            finally
+            {
+                InfoBarProcessing.HideProcessing();
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// This is core function. It orchestrates the finding of calibration 
         /// targets by the different UniversalCalibrationHeadUserControls.
         /// This is data on every frame in the media set. This can be time consuming
         /// and it is cached for future use.
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async Task<int> BuildFrameSetsAsync()
+        private async Task<int> BuildFrameSetsAllHeadsAsync()
         {
             int ret = 0;
 
@@ -2150,17 +2470,17 @@ namespace Surveyor
 
                     if (doLeftMono)
                     {
-                        tasks.Add(LeftMonoCalibrationHead.FindCalibrationFrameAsync());
+                        tasks.Add(LeftMonoCalibrationHead.BuildFrameSetsAsync());
                         taskLeftMonoIndex = taskIndex++;
                     }
                     if (doRightMono)
                     {
-                        tasks.Add(RightMonoCalibrationHead.FindCalibrationFrameAsync());
+                        tasks.Add(RightMonoCalibrationHead.BuildFrameSetsAsync());
                         taskRightMonoIndex = taskIndex++;
                     }
                     if (doStereo)
                     {
-                        tasks.Add(StereoCalibrationHead.FindCalibrationFrameAsync());
+                        tasks.Add(StereoCalibrationHead.BuildFrameSetsAsync());
                         taskStereoIndex = taskIndex++;
                     }
 
@@ -2192,7 +2512,7 @@ namespace Surveyor
                             (doRightMono && rightMonoResult != 0) ||
                             (doStereo && stereoResult != 0))
                         {
-                            Debug.WriteLine($"Error FindCalibrationFrameAsync: Left Mono Result={leftMonoResult}, Right Mono Result={rightMonoResult},Stereo Result={stereoResult}");
+                            Debug.WriteLine($"Error BuildFrameSetsAsync: Left Mono Result={leftMonoResult}, Right Mono Result={rightMonoResult},Stereo Result={stereoResult}");
 
                             if (doLeftMono && leftMonoResult != 0)
                                 ret = leftMonoResult;
@@ -2205,19 +2525,19 @@ namespace Surveyor
                     catch (Exception ex)
                     {
                         // Handle/log properly
-                        Debug.WriteLine($"Error in FindAppBarButtonAsync: {ex}");
+                        Debug.WriteLine($"Error in BuildFrameSetsAsync: {ex}");
                     }
                 }
                 else
                     ret = -3;
 
-                    // Save the frames dataset
-                InfoBarProcessing.UpdateMessage("Saving stereo best frames...");
+                // Save the frames dataset
+                InfoBarProcessing.UpdateMessage("Saving frames sets...");
                 await SaveFrameDataCachesAsync(false/*no prompts*/);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"FindAppBarButtonAsync: Exception:{ex.Message}");
+                Debug.WriteLine($"BuildFrameSetsAllHeadsAsync: Exception:{ex.Message}");
             }
             finally
             {
@@ -2229,28 +2549,27 @@ namespace Surveyor
 
 
         /// <summary>
-        /// From the extracted frame information find the best calibration frames
-        /// and run the calibration calculation. Optionally the best frames can be 
-        /// saved to the 'Documents/Camera Calibration' folder
-        /// </summary>        
-        /// <param name="runParams"></param>
-        /// <returns>-1 if calibration project is null, -2 caught exception</returns>
-        private async Task<int> IdentifyBestFramesAndDoCalibrationCalcAsync(RunCalibrationParams runParams)
+        /// Asynchronously finds the best mono frames for all detected heads based on the specified calibration
+        /// parameters.
+        /// </summary>
+        /// <param name="runParams">The calibration parameters to use when evaluating and selecting the best mono frames for each head. Cannot
+        /// be <c>null</c>.</param>
+        /// <returns>The task result contains the number of heads for which a
+        /// best mono frame was successfully found.</returns>
+        private async Task<int> FindBestMonoFramesAllHeadsAsync(RunCalibrationParams runParams)
         {
             int ret = 0;
 
             if (calibProject is null)
                 return -1;
 
-            InfoBarProcessing.ShowProcessing("Finding best frames and calibrating...");
+            InfoBarProcessing.ShowProcessing("Finding best mono frames...");
             SetAppModeOnAllHeads(AppMode.BestFramesCalc);
 
             SetUIControls();
 
-            bool doStereo = false;
             bool doLeftMono = false;
             bool doRightMono = false;
-            bool useExistingMonoBestFrames = false;
 
             switch (calibProject.Data.Media.StereoMonoMediaSetMode)
             {
@@ -2261,7 +2580,6 @@ namespace Surveyor
                         LeftMonoCalibrationHead.IsOpen() &&
                         RightMonoCalibrationHead.IsOpen())
                     {
-                        doStereo = true;
                         doLeftMono = true;
                         doRightMono = true;
                     }
@@ -2270,7 +2588,8 @@ namespace Surveyor
                     if (StereoCalibrationHead.IsOpen() &&
                         (bool)StereoCalibrationHead.IsStereoLocked()!)
                     {
-                        doStereo = true;
+                        doLeftMono = true;
+                        doRightMono = true;
                     }
                     break;
                 case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
@@ -2289,108 +2608,147 @@ namespace Surveyor
                     break;
 
             }
-            // Check if mono calibration is needed but there are old result that could be used
-            if (doLeftMono && doRightMono)
-            {
-                // Check for any cached mono calibration results
-                if (calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray.Any(item => item != null) &&
-                    calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray.Any(item => item != null))
-                {
-                    // Get local folder path
-                    StorageFolder localFolder = ApplicationData.Current.LocalFolder;
-
-                    var dialog = new ContentDialog
-                    {
-                        Title = "Mono Calibration",
-                        Content = $"There is an existing mono calibration set. If you wish to reuse (quick) press 'Yes' else to recalculate (slow) press 'No'?",
-                        PrimaryButtonText = "Yes",
-                        CloseButtonText = "No",
-                        XamlRoot = this.Content.XamlRoot // Set the XamlRoot for proper display
-                    };
-                    var result = await dialog.ShowAsync();
-                    if (result == ContentDialogResult.Primary)
-                    {
-                        // Use the cached mono calibration results
-                        useExistingMonoBestFrames = true;
-                    }
-                    else
-                    {
-                        // Remove cached mono calibration results
-                        Array.Fill(calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray, null);
-                        Array.Fill(calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray, null);
-                    }
-                }
-            }
 
             var monoPhaseTasks = new List<Task<int>>();
             int taskIndex = 0;
             int taskLeftMonoIndex = -1;
             int taskRightMonoIndex = -1;
 
-            if (!useExistingMonoBestFrames)
+            // Find the best frames from the mono calibration frames 
+            if (doLeftMono)
             {
-                // Find the best frames from the mono calibration frames 
-                InfoBarProcessing.UpdateMessage("Best frames calc mono...");
-
-
-                if (doLeftMono)
-                {
-                    monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.FindBestFramesNoUIAsync(
-                                                                 calibProject,
-                                                                 true/*trueLeftFalseRight*/,
-                                                                 runParams.MovementFilterValue,
-                                                                 runParams.BlurFilterValue,
-                                                                 runParams.MonoCornersFilterValue,
-                                                                 runParams.maxFramesFromEachSensorBin,
-                                                                 runParams.maxFramesFromEachPoseBin,
-                                                                 runParams.SaveBestFrames)));
-                    taskLeftMonoIndex = taskIndex++;
-                }
-                if (doRightMono)
-                {
-                    monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.FindBestFramesNoUIAsync(
-                                                                 calibProject,
-                                                                 false/*trueLeftFalseRight*/,
-                                                                 runParams.MovementFilterValue,
-                                                                 runParams.BlurFilterValue,
-                                                                 runParams.MonoCornersFilterValue,
-                                                                 runParams.maxFramesFromEachSensorBin,
-                                                                 runParams.maxFramesFromEachPoseBin,
-                                                                 runParams.SaveBestFrames)));
-                    taskRightMonoIndex = taskIndex++;
-                }
-
-                // Find the best frames in parallel
-                if (monoPhaseTasks.Count > 0)
-                {
-                    try 
-                    {
-                        int[] results = await Task.WhenAll(monoPhaseTasks);
-
-                        if (doLeftMono)
-                        {
-                            if (results[taskLeftMonoIndex] != 0)
-                            {
-                                ret = results[taskLeftMonoIndex];
-                                Debug.WriteLine($"IdentifyBestFramesAndDoCalibrationCalcAsync: Error from FindBestFramesNoUIAsync: Left Mono Result={ret}");                                
-                            }
-                        }
-                        if (doRightMono)
-                        {
-                            if (results[taskRightMonoIndex] != 0)
-                            {
-                                ret = results[taskRightMonoIndex];
-                                Debug.WriteLine($"IdentifyBestFramesAndDoCalibrationCalcAsync: Error from FindBestFramesNoUIAsync: Right Mono Result={ret}");                                
-                            }
-                        }
-                    }
-                    catch (Exception ex) 
-                    { 
-                        Debug.WriteLine($"IdentifyBestFramesAndDoCalibrationCalcAsync: Error running FindBestFramesNoUIAsync tasks, {ex}");
-                        ret = -2;
-                    }
-                }
+                monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.FindBestMonoFramesNoUIAsync(
+                                                                calibProject,
+                                                                true/*trueLeftFalseRight*/,
+                                                                runParams.MovementFilterValue,
+                                                                runParams.BlurFilterValue,
+                                                                runParams.MonoCornersFilterValue,
+                                                                runParams.MaxFramesFromEachSensorBin,
+                                                                runParams.MaxFramesFromEachPoseBin)));
+                taskLeftMonoIndex = taskIndex++;
             }
+            if (doRightMono)
+            {
+                monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.FindBestMonoFramesNoUIAsync(
+                                                                calibProject,
+                                                                false/*trueLeftFalseRight*/,
+                                                                runParams.MovementFilterValue,
+                                                                runParams.BlurFilterValue,
+                                                                runParams.MonoCornersFilterValue,
+                                                                runParams.MaxFramesFromEachSensorBin,
+                                                                runParams.MaxFramesFromEachPoseBin)));
+                taskRightMonoIndex = taskIndex++;
+            }
+
+            // Find the best frames in parallel
+            if (monoPhaseTasks.Count > 0)
+            {
+                try
+                {
+                    int[] results = await Task.WhenAll(monoPhaseTasks);
+
+                    if (doLeftMono)
+                    {
+                        if (results[taskLeftMonoIndex] != 0)
+                        {
+                            ret = results[taskLeftMonoIndex];
+                            Debug.WriteLine($"FindBestMonoFramesAllHeadsAsync: Error from FindBestFramesNoUIAsync: Left Mono Result={ret}");
+                        }
+                    }
+                    if (doRightMono)
+                    {
+                        if (results[taskRightMonoIndex] != 0)
+                        {
+                            ret = results[taskRightMonoIndex];
+                            Debug.WriteLine($"FindBestMonoFramesAllHeadsAsync: Error from FindBestFramesNoUIAsync: Right Mono Result={ret}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"FindBestMonoFramesAllHeadsAsync: Error running FindBestFramesNoUIAsync tasks, {ex}");
+                    ret = -2;
+                }
+
+
+                // Save the frames dataset
+                InfoBarProcessing.UpdateMessage("Saving after stereo phase...");
+                await SaveFrameDataCachesAsync(false/*no prompts*/);
+
+            }
+
+            InfoBarProcessing.HideProcessing();
+
+            SetUIControls();
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Using the best mono frames, perform the mono calibration calculations on all heads
+        /// </summary>
+        /// <param name="runParams"></param>
+        /// <returns></returns>
+        private async Task<int> DoCalibrationMonoCalcsAllHeadsAsync(RunCalibrationParams runParams)
+        {
+            int ret = 0;
+
+            if (calibProject is null)
+                return -1;
+
+            InfoBarProcessing.ShowProcessing("Do mono calibration calcs...");
+            SetAppModeOnAllHeads(AppMode.BestFramesCalc);
+
+            SetUIControls();
+
+            bool doLeftMono = false;
+            bool doRightMono = false;
+
+            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+            {
+
+                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                    if (StereoCalibrationHead.IsOpen() &&
+                        (bool)StereoCalibrationHead.IsStereoLocked()! &&
+                        LeftMonoCalibrationHead.IsOpen() &&
+                        RightMonoCalibrationHead.IsOpen())
+                    {
+                        doLeftMono = true;
+                        doRightMono = true;
+                    }
+                    break;
+                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                    if (StereoCalibrationHead.IsOpen() &&
+                        (bool)StereoCalibrationHead.IsStereoLocked()!)
+                    {
+                        doLeftMono = true;
+                        doRightMono = true;
+                    }
+                    break;
+                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                    if (LeftMonoCalibrationHead.IsOpen() &&
+                        RightMonoCalibrationHead.IsOpen())
+                    {
+                        doLeftMono = true;
+                        doRightMono = true;
+                    }
+                    break;
+                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                    if (LeftMonoCalibrationHead.IsOpen())
+                    {
+                        doLeftMono = true;
+                    }
+                    break;
+
+            }
+
+
+            var monoPhaseTasks = new List<Task<int>>();
+            int taskIndex = 0;
+            int taskLeftMonoIndex = -1;
+            int taskRightMonoIndex = -1;
+
 
             if (ret == 0)
             {
@@ -2431,7 +2789,7 @@ namespace Surveyor
                             if (results[taskLeftMonoIndex] != 0)
                             {
                                 ret = results[taskLeftMonoIndex];
-                                Debug.WriteLine($"IdentifyBestFramesAndDoCalibrationCalcAsync: Error from DoMonoCalibrationCalculationNoUI: Left Mono Result={ret}");
+                                Debug.WriteLine($"DoCalibrationMonoCalcsAllHeadsAsync: Error from DoMonoCalibrationCalculationNoUI: Left Mono Result={ret}");
                             }
                         }
                         if (doRightMono)
@@ -2439,13 +2797,13 @@ namespace Surveyor
                             if (results[taskRightMonoIndex] != 0)
                             {
                                 ret = results[taskRightMonoIndex];
-                                Debug.WriteLine($"IdentifyBestFramesAndDoCalibrationCalcAsync: Error from DoMonoCalibrationCalculationNoUI: Right Mono Result={ret}");
+                                Debug.WriteLine($"DoCalibrationMonoCalcsAllHeadsAsync: Error from DoMonoCalibrationCalculationNoUI: Right Mono Result={ret}");
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"IdentifyBestFramesAndDoCalibrationCalcAsync: Error running DoMonoCalibrationCalculationNoUI tasks, {ex}");
+                        Debug.WriteLine($"DoCalibrationMonoCalcsAllHeadsAsync: Error running DoMonoCalibrationCalculationNoUI tasks, {ex}");
                         ret = -2;
                     }
                 }
@@ -2454,48 +2812,11 @@ namespace Surveyor
             if (ret == 0)
             {
                 // Save the frames dataset
-                InfoBarProcessing.UpdateMessage("Saving aftero mono phase...");
+                InfoBarProcessing.UpdateMessage("Saving after mono phase...");
                 await SaveFrameDataCachesAsync(false/*no prompts*/);
-
-
-                // Find the best frames from the stereo calibration frames
-                if (doStereo)
-                {
-                    InfoBarProcessing.UpdateMessage("Best frames calc stereo...");
-
-                    if (calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray.Any(item => item != null) &&
-                        calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray.Any(item => item != null))
-                    {
-                        ret = await StereoCalibrationHead.BestFramesCalcAndStereoCalibrationAsync(
-                                                                    calibProject,
-                                                                    runParams.MovementFilterValue,
-                                                                    runParams.BlurFilterValue,
-                                                                    runParams.MonoCornersFilterValue,
-                                                                    runParams.maxFramesFromEachSensorBin,
-                                                                    runParams.maxFramesFromEachPoseBin,
-                                                                    runParams.SaveBestFrames);
-
-                    }
-
-                    // Save the frames dataset
-                    InfoBarProcessing.UpdateMessage("Saving after stereo phase...");
-                    await SaveFrameDataCachesAsync(false/*no prompts*/);
-                }
-
-
-                // Save the calibration project file
-                if (doLeftMono || doRightMono || doStereo)
-                {
-                    if (calibProject.IsLoaded)
-                        calibProject.ProjectSave();
-                }
-
-                InfoBarProcessing.HideProcessing();
-
-                // Allow the user to browse the best frames
-                SetAppModeOnAllHeads(AppMode.BestFramesView);
             }
 
+            InfoBarProcessing.HideProcessing();
             SetUIControls();
 
             return ret;
@@ -2503,49 +2824,535 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Return the strongest mono calibration camera data from the left and right mono 
-        /// calibration camera data arrays.  The returned index is the same index for both the
-        /// left and right array. Stereo calibration expects to use mono calibration data that
-        /// was cresated using the same calibration parameters.
+        /// Find the best stereo frames
         /// </summary>
-        /// <param name="leftMonoCalibrationCameraData"></param>
-        /// <param name="rightMonoCalibrationCameraData"></param>
+        /// <param name="runCalibrationParams"></param>
         /// <returns></returns>
-        //[Obsolete]
-        //private static CalibrationParameters? ReturnBestMonoCalibrationCameraData(
-        //                            MonoCalibrationCameraData?[] leftMonoCalibrationCameraData,
-        //                            MonoCalibrationCameraData?[] rightMonoCalibrationCameraData)
+        private async Task<int> FindBestStereoFramesAsync(RunCalibrationParams runParams)
+        {
+            int ret = 0;
+
+            if (calibProject is null)
+                return -1;
+
+            InfoBarProcessing.ShowProcessing("Finding best stereo frames...");
+            SetAppModeOnAllHeads(AppMode.BestFramesCalc);
+
+            SetUIControls();
+
+
+            bool doStereo = false;  
+
+            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+            {
+
+                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                    if (StereoCalibrationHead.IsOpen() &&
+                        (bool)StereoCalibrationHead.IsStereoLocked()!)
+                    {
+                        doStereo = true;
+                    }
+                    break;
+                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                    if (StereoCalibrationHead.IsOpen() &&
+                        (bool)StereoCalibrationHead.IsStereoLocked()!)
+                    {
+                        doStereo = true;
+                    }
+                    break;
+            }
+
+
+            if (doStereo)
+            {
+                ret = await StereoCalibrationHead.FindBestStereoFramesAsync(calibProject, 
+                                                                            runParams.MovementFilterValue,
+                                                                            runParams.BlurFilterValue,
+                                                                            runParams.MonoCornersFilterValue,
+                                                                            runParams.MaxFramesFromEachSensorBin,
+                                                                            runParams.MaxFramesFromEachPoseBin);
+            }
+
+            if (ret == 0)
+            {
+                // Save the frames dataset
+                InfoBarProcessing.UpdateMessage("Saving ...");
+                await SaveFrameDataCachesAsync(false/*no prompts*/);
+            }
+
+            InfoBarProcessing.HideProcessing();
+            SetUIControls();
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Perform the stereo calibration calculation on all heads using the best frames
+        /// </summary>
+        /// <param name="runCalibrationParams"></param>
+        /// <returns></returns>
+        private async Task<int> DoCalibrationStereoCalcsAsync(RunCalibrationParams runParams)
+        {
+            int ret = 0;
+
+            if (calibProject is null)
+                return -1;
+
+            InfoBarProcessing.ShowProcessing("Finding best stereo frames...");
+            SetAppModeOnAllHeads(AppMode.BestFramesCalc);
+
+            SetUIControls();
+
+
+            bool doStereo = false;
+
+            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+            {
+
+                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                    if (StereoCalibrationHead.IsOpen() &&
+                        (bool)StereoCalibrationHead.IsStereoLocked()!)
+                    {
+                        doStereo = true;
+                    }
+                    break;
+                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                    if (StereoCalibrationHead.IsOpen() &&
+                        (bool)StereoCalibrationHead.IsStereoLocked()!)
+                    {
+                        doStereo = true;
+                    }
+                    break;
+            }
+
+
+            if (doStereo)
+            {
+                ret = StereoCalibrationHead.DoCalibrationStereoCalcs(calibProject, runParams.StereoCornersFilterValue);
+
+            }
+
+            if (ret == 0)
+            {
+                // Save the frames dataset
+                InfoBarProcessing.UpdateMessage("Saving ...");
+                await SaveFrameDataCachesAsync(false/*no prompts*/);
+            }
+
+            InfoBarProcessing.HideProcessing();
+            SetUIControls();
+
+            return ret;                                 
+        }
+
+
+        /// <summary>
+        /// Write the best frames on all heads out to separate .png files
+        /// </summary>
+        /// <param name="runCalibrationParams"></param>
+        /// <returns></returns>
+        private async Task<int> SaveBestFramesAllHeadsAsync()
+        {
+            int ret = 0;
+
+            if (calibProject is null)
+                return -1;
+
+            InfoBarProcessing.ShowProcessing("Save the best frame to files...");
+            SetAppModeOnAllHeads(AppMode.BestFramesCalc);
+
+            SetUIControls();
+
+            bool doStereo = false;
+            bool doLeftMono = false;
+            bool doRightMono = false;
+
+            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+            {
+
+                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                    if (StereoCalibrationHead.IsOpen() &&
+                        (bool)StereoCalibrationHead.IsStereoLocked()! &&
+                        LeftMonoCalibrationHead.IsOpen() &&
+                        RightMonoCalibrationHead.IsOpen())
+                    {
+                        doStereo = true;
+                        doLeftMono = true;
+                        doRightMono = true;
+                    }
+                    break;
+                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                    if (StereoCalibrationHead.IsOpen() &&
+                        (bool)StereoCalibrationHead.IsStereoLocked()!)
+                    {
+                        doStereo = true;
+                    }
+                    break;
+                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                    if (LeftMonoCalibrationHead.IsOpen() &&
+                        RightMonoCalibrationHead.IsOpen())
+                    {
+                        doLeftMono = true;
+                        doRightMono = true;
+                    }
+                    break;
+                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                    if (LeftMonoCalibrationHead.IsOpen())
+                    {
+                        doLeftMono = true;
+                    }
+                    break;
+
+            }
+
+
+            var monoPhaseTasks = new List<Task<int>>();
+            int taskIndex = 0;
+            int taskLeftMonoIndex = -1;
+            int taskRightMonoIndex = -1;
+            int taskStereoIndex = -1;
+
+            if (ret == 0)
+            {
+                if (doLeftMono)
+                {
+                    monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.SaveBestFramesAsync()));
+                    taskLeftMonoIndex = taskIndex++;
+                }
+                if (doRightMono)
+                {
+                    monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.SaveBestFramesAsync()));
+                    taskRightMonoIndex = taskIndex++;
+                }
+                if (doStereo)
+                {
+                    monoPhaseTasks.Add(Task.Run(() => StereoCalibrationHead.SaveBestFramesAsync()));
+                    taskStereoIndex = taskIndex++;
+                }
+
+                if (monoPhaseTasks.Count > 0)
+                {
+                    try
+                    {
+                        int[] results = await Task.WhenAll(monoPhaseTasks);
+
+                        if (doLeftMono)
+                        {
+                            if (results[taskLeftMonoIndex] != 0)
+                            {
+                                ret = results[taskLeftMonoIndex];
+                                Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error from SaveBestFramesAsync: Left Mono Result={ret}");
+                            }
+                        }
+                        if (doRightMono)
+                        {
+                            if (results[taskRightMonoIndex] != 0)
+                            {
+                                ret = results[taskRightMonoIndex];
+                                Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error from SaveBestFramesAsync: Right Mono Result={ret}");
+                            }
+                        }
+                        if (doStereo)
+                        {
+                            if (results[taskStereoIndex] != 0)
+                            {
+                                ret = results[taskStereoIndex];
+                                Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error from SaveBestFramesAsync: Stereo Result={ret}");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error running DoMonoCalibrationCalculationNoUI tasks, {ex}");
+                        ret = -2;
+                    }
+                }
+            }
+
+            InfoBarProcessing.HideProcessing();
+            SetUIControls();
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// From the extracted frame information find the best calibration frames
+        /// and run the calibration calculation. Optionally the best frames can be 
+        /// saved to the 'Documents/Camera Calibration' folder
+        /// </summary>        
+        /// <param name="runParams"></param>
+        /// <returns>-1 if calibration project is null, -2 caught exception</returns>
+        ///???
+        //private async Task<int> IdentifyBestFramesAndDoCalibrationCalcAsync(RunCalibrationParams runParams)
         //{
-        //    double bestScore = double.MaxValue;
-        //    int bestIndex = -1;
+        //    int ret = 0;
 
-        //    for (int i = 0; i < leftMonoCalibrationCameraData.Length; i++)
+        //    if (calibProject is null)
+        //        return -1;
+
+        //    InfoBarProcessing.ShowProcessing("Finding best frames and calibrating...");
+        //    SetAppModeOnAllHeads(AppMode.BestFramesCalc);
+
+        //    SetUIControls();
+
+        //    bool doStereo = false;
+        //    bool doLeftMono = false;
+        //    bool doRightMono = false;
+        //    bool useExistingMonoBestFrames = false;
+
+        //    switch (calibProject.Data.Media.StereoMonoMediaSetMode)
         //    {
-        //        var left = leftMonoCalibrationCameraData[i];
-        //        var right = rightMonoCalibrationCameraData[i];
 
-        //        if (left == null || right == null)
-        //            continue;
+        //        case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+        //            if (StereoCalibrationHead.IsOpen() &&
+        //                (bool)StereoCalibrationHead.IsStereoLocked()! &&
+        //                LeftMonoCalibrationHead.IsOpen() &&
+        //                RightMonoCalibrationHead.IsOpen())
+        //            {
+        //                doStereo = true;
+        //                doLeftMono = true;
+        //                doRightMono = true;
+        //            }
+        //            break;
+        //        case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+        //            if (StereoCalibrationHead.IsOpen() &&
+        //                (bool)StereoCalibrationHead.IsStereoLocked()!)
+        //            {
+        //                doStereo = true;
+        //            }
+        //            break;
+        //        case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+        //            if (LeftMonoCalibrationHead.IsOpen() &&
+        //                RightMonoCalibrationHead.IsOpen())
+        //            {
+        //                doLeftMono = true;
+        //                doRightMono = true;
+        //            }
+        //            break;
+        //        case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+        //            if (LeftMonoCalibrationHead.IsOpen())
+        //            {
+        //                doLeftMono = true;
+        //            }
+        //            break;
 
-        //        // Combine left and right metrics
-        //        double rmsAvg = (left.ReprojectionRMS + right.ReprojectionRMS) / 2.0;
-        //        double maxErrAvg = (left.MaxError + right.MaxError) / 2.0;
-
-        //        // Define weighted score (you can tune weights as needed)
-        //        double score = rmsAvg + 0.2 * maxErrAvg;
-
-        //        if (score < bestScore)
+        //    }
+        //    // Check if mono calibration is needed but there are old result that could be used
+        //    if (doLeftMono && doRightMono)
+        //    {
+        //        // Check for any cached mono calibration results
+        //        if (calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray.Any(item => item != null) &&
+        //            calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray.Any(item => item != null))
         //        {
-        //            bestScore = score;
-        //            bestIndex = i;
+        //            // Get local folder path
+        //            StorageFolder localFolder = ApplicationData.Current.LocalFolder;
+
+        //            var dialog = new ContentDialog
+        //            {
+        //                Title = "Mono Calibration",
+        //                Content = $"There is an existing mono calibration set. If you wish to reuse (quick) press 'Yes' else to recalculate (slow) press 'No'?",
+        //                PrimaryButtonText = "Yes",
+        //                CloseButtonText = "No",
+        //                XamlRoot = this.Content.XamlRoot // Set the XamlRoot for proper display
+        //            };
+        //            var result = await dialog.ShowAsync();
+        //            if (result == ContentDialogResult.Primary)
+        //            {
+        //                // Use the cached mono calibration results
+        //                useExistingMonoBestFrames = true;
+        //            }
+        //            else
+        //            {
+        //                // Remove cached mono calibration results
+        //                Array.Fill(calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray, null);
+        //                Array.Fill(calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray, null);
+        //            }
         //        }
         //    }
 
-        //    if (bestIndex == -1)
-        //        return null;
+        //    var monoPhaseTasks = new List<Task<int>>();
+        //    int taskIndex = 0;
+        //    int taskLeftMonoIndex = -1;
+        //    int taskRightMonoIndex = -1;
 
-        //    return (CalibrationParameters)bestIndex;
+        //    if (!useExistingMonoBestFrames)
+        //    {
+        //        // Find the best frames from the mono calibration frames 
+        //        InfoBarProcessing.UpdateMessage("Best frames calc mono...");
+
+
+        //        if (doLeftMono)
+        //        {
+        //            monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.FindBestMonoFramesNoUIAsync(
+        //                                                         calibProject,
+        //                                                         true/*trueLeftFalseRight*/,
+        //                                                         runParams.MovementFilterValue,
+        //                                                         runParams.BlurFilterValue,
+        //                                                         runParams.MonoCornersFilterValue,
+        //                                                         runParams.maxFramesFromEachSensorBin,
+        //                                                         runParams.maxFramesFromEachPoseBin,
+        //                                                         runParams.SaveBestFrames)));
+        //            taskLeftMonoIndex = taskIndex++;
+        //        }
+        //        if (doRightMono)
+        //        {
+        //            monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.FindBestMonoFramesNoUIAsync(
+        //                                                         calibProject,
+        //                                                         false/*trueLeftFalseRight*/,
+        //                                                         runParams.MovementFilterValue,
+        //                                                         runParams.BlurFilterValue,
+        //                                                         runParams.MonoCornersFilterValue,
+        //                                                         runParams.maxFramesFromEachSensorBin,
+        //                                                         runParams.maxFramesFromEachPoseBin,
+        //                                                         runParams.SaveBestFrames)));
+        //            taskRightMonoIndex = taskIndex++;
+        //        }
+
+        //        // Find the best frames in parallel
+        //        if (monoPhaseTasks.Count > 0)
+        //        {
+        //            try 
+        //            {
+        //                int[] results = await Task.WhenAll(monoPhaseTasks);
+
+        //                if (doLeftMono)
+        //                {
+        //                    if (results[taskLeftMonoIndex] != 0)
+        //                    {
+        //                        ret = results[taskLeftMonoIndex];
+        //                        Debug.WriteLine($"IdentifyBestFramesAndDoCalibrationCalcAsync: Error from FindBestFramesNoUIAsync: Left Mono Result={ret}");                                
+        //                    }
+        //                }
+        //                if (doRightMono)
+        //                {
+        //                    if (results[taskRightMonoIndex] != 0)
+        //                    {
+        //                        ret = results[taskRightMonoIndex];
+        //                        Debug.WriteLine($"IdentifyBestFramesAndDoCalibrationCalcAsync: Error from FindBestFramesNoUIAsync: Right Mono Result={ret}");                                
+        //                    }
+        //                }
+        //            }
+        //            catch (Exception ex) 
+        //            { 
+        //                Debug.WriteLine($"IdentifyBestFramesAndDoCalibrationCalcAsync: Error running FindBestFramesNoUIAsync tasks, {ex}");
+        //                ret = -2;
+        //            }
+        //        }
+        //    }
+
+        //    if (ret == 0)
+        //    {
+        //        // Find the best frames from the mono calibration frames 
+        //        InfoBarProcessing.UpdateMessage("Mono calibration calculations...");
+
+        //        // Do the mono calibration calculations
+        //        monoPhaseTasks.Clear();
+        //        taskIndex = 0;
+        //        taskLeftMonoIndex = -1;
+        //        taskRightMonoIndex = -1;
+
+        //        if (doLeftMono)
+        //        {
+        //            monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.DoMonoCalibrationCalculationNoUI(
+        //                                                         calibProject,
+        //                                                         true/*trueLeftFalseRight*/,
+        //                                                         runParams.MonoCornersFilterValue)));
+        //            taskLeftMonoIndex = taskIndex++;
+        //        }
+        //        if (doRightMono)
+        //        {
+        //            monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.DoMonoCalibrationCalculationNoUI(
+        //                                                         calibProject,
+        //                                                         false/*trueLeftFalseRight*/,
+        //                                                         runParams.MonoCornersFilterValue)));
+        //            taskRightMonoIndex = taskIndex++;
+        //        }
+
+        //        if (monoPhaseTasks.Count > 0)
+        //        {
+        //            try
+        //            {
+        //                int[] results = await Task.WhenAll(monoPhaseTasks);
+
+        //                if (doLeftMono)
+        //                {
+        //                    if (results[taskLeftMonoIndex] != 0)
+        //                    {
+        //                        ret = results[taskLeftMonoIndex];
+        //                        Debug.WriteLine($"IdentifyBestFramesAndDoCalibrationCalcAsync: Error from DoMonoCalibrationCalculationNoUI: Left Mono Result={ret}");
+        //                    }
+        //                }
+        //                if (doRightMono)
+        //                {
+        //                    if (results[taskRightMonoIndex] != 0)
+        //                    {
+        //                        ret = results[taskRightMonoIndex];
+        //                        Debug.WriteLine($"IdentifyBestFramesAndDoCalibrationCalcAsync: Error from DoMonoCalibrationCalculationNoUI: Right Mono Result={ret}");
+        //                    }
+        //                }
+        //            }
+        //            catch (Exception ex)
+        //            {
+        //                Debug.WriteLine($"IdentifyBestFramesAndDoCalibrationCalcAsync: Error running DoMonoCalibrationCalculationNoUI tasks, {ex}");
+        //                ret = -2;
+        //            }
+        //        }
+        //    }
+
+        //    if (ret == 0)
+        //    {
+        //        // Save the frames dataset
+        //        InfoBarProcessing.UpdateMessage("Saving aftero mono phase...");
+        //        await SaveFrameDataCachesAsync(false/*no prompts*/);
+
+
+        //        // Find the best frames from the stereo calibration frames
+        //        if (doStereo)
+        //        {
+        //            InfoBarProcessing.UpdateMessage("Best frames calc stereo...");
+
+        //            if (calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray.Any(item => item != null) &&
+        //                calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray.Any(item => item != null))
+        //            {
+        //                ret = await StereoCalibrationHead.BestFramesCalcAndStereoCalibrationAsync(
+        //                                                            calibProject,
+        //                                                            runParams.MovementFilterValue,
+        //                                                            runParams.BlurFilterValue,
+        //                                                            runParams.MonoCornersFilterValue,
+        //                                                            runParams.maxFramesFromEachSensorBin,
+        //                                                            runParams.maxFramesFromEachPoseBin,
+        //                                                            runParams.SaveBestFrames);
+
+        //            }
+
+        //            // Save the frames dataset
+        //            InfoBarProcessing.UpdateMessage("Saving after stereo phase...");
+        //            await SaveFrameDataCachesAsync(false/*no prompts*/);
+        //        }
+
+
+        //        // Save the calibration project file
+        //        if (doLeftMono || doRightMono || doStereo)
+        //        {
+        //            if (calibProject.IsLoaded)
+        //                calibProject.ProjectSave();
+        //        }
+
+        //        InfoBarProcessing.HideProcessing();
+
+        //        // Allow the user to browse the best frames
+        //        SetAppModeOnAllHeads(AppMode.BestFramesView);
+        //    }
+
+        //    SetUIControls();
+
+        //    return ret;
         //}
+
+
+
 
 
 
@@ -2620,6 +3427,42 @@ namespace Surveyor
             );
         }
 
+
+        /// <summary>
+        /// Check if the mono calibration calculations been done
+        /// </summary>
+        /// <returns></returns>
+        public static bool IsMonoCalibrationCalcsSetup(CalibProject calibProject, bool trueLeftFalseRight)
+        {
+            if (trueLeftFalseRight)
+            {
+                if (calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray.Any(item => item is not null))
+                    return true;
+                else
+                    return false;
+            }
+            else
+            {
+                if (calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray.Any(item => item is not null))
+                    return true;
+                else
+                    return false;
+            }
+        }
+
+
+        /// <summary>
+        /// Check if the stereo calibration has been done
+        /// </summary>
+        /// <param name="calibProject"></param>
+        /// <returns></returns>
+        public static bool IsStereoCalibrationCalcsSetup(CalibProject calibProject)
+        {
+            if (calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray.Any(item => item is not null))
+                return true;
+            else
+                return false;   
+        }
 
 
         /// <summary>
@@ -2878,12 +3721,7 @@ namespace Surveyor
                 return;
 
             // Use DispatcherQueue.GetForCurrentThread() to get an instance of DispatcherQueue
-            DispatcherQueue dispatcherQueue = DispatcherQueue.GetForCurrentThread();
-            if (dispatcherQueue == null)
-            {
-                throw new InvalidOperationException("DispatcherQueue is not available on the current thread.");
-            }
-
+            DispatcherQueue dispatcherQueue = DispatcherQueue.GetForCurrentThread() ?? throw new InvalidOperationException("DispatcherQueue is not available on the current thread.");
             _stereoLockCheckTimer = dispatcherQueue.CreateTimer();
             _stereoLockCheckTimer.Interval = TimeSpan.FromSeconds(1);
             _stereoLockCheckTimer.Tick += StereoLockCheckTimer_Tick;
@@ -3056,12 +3894,26 @@ namespace Surveyor
                 // This can happen if the project and movies are loaded and the user clicks the settings a few times.
                 if (entryCount == 1)
                 {
+                    bool findCalibrationBoardZone = CheckIfCacheResultAvailable(CachedResultCheckType.CalibrationBoardZone);
+                    bool buildTheFrameSets = findCalibrationBoardZone && CheckIfCacheResultAvailable(CachedResultCheckType.FrameSets);
+                    bool findBestMonoFrames = buildTheFrameSets && CheckIfCacheResultAvailable(CachedResultCheckType.BestMonoFrames);
+                    bool doCalibrationMonoCalculations = findBestMonoFrames && CheckIfCacheResultAvailable(CachedResultCheckType.MonoCalibrationCalcs);
+                    bool findBestStereoFrames = doCalibrationMonoCalculations && CheckIfCacheResultAvailable(CachedResultCheckType.BestStereoFrames);
+                    bool doCalibrationStereoCalculations = findBestStereoFrames && CheckIfCacheResultAvailable(CachedResultCheckType.StereoCalibrationCalcs);
+
+
                     // These are the paramters setup in the SetupRunCalibration window
                     // and used by the RunCalibration process
-                    RunCalibrationParams runCalibrationParams = new()
+                    RunCalibrationParams runParams = new()
                     {
-                        // Check if cached results file exists and setup UI controls accordingly
-                        UseFrameSetCache = CachedResultsFileExists(),
+                        // Setup the action flags according to what is found
+                        // in the cache
+                        FindCalibrationBoardZone = findCalibrationBoardZone,
+                        BuildTheFrameSets = buildTheFrameSets,
+                        FindBestMonoFrames = findBestMonoFrames,
+                        DoCalibrationMonoCalculations = doCalibrationMonoCalculations,
+                        FindBestStereoFrames = findBestStereoFrames,
+                        DoCalibrationStereoCalculations = doCalibrationStereoCalculations,
 
                         // If a cache is available that get the min movement/blur values (used by the sliders)
                         MovementFilterMin = GetMinMovementFromCachedResults(true/*from all frames*/),
@@ -3074,7 +3926,7 @@ namespace Surveyor
 
 
                     // Initialize if necessary
-                    SetupRunCalibration setupRunCalibration = new(this, calibProject, runCalibrationParams);
+                    SetupRunCalibration setupRunCalibration = new(this, calibProject, runParams);
 
                     // Get the HWND (window handle) for both windows
                     IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);

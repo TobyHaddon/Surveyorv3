@@ -1,4 +1,5 @@
-﻿using Microsoft.UI;
+﻿using Emgu.CV.Flann;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -6,6 +7,7 @@ using Microsoft.UI.Xaml.Shapes;
 using Surveyor.Calibration;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Windows.Foundation;
 
@@ -23,6 +25,10 @@ namespace Surveyor.Controls
     {
 
         private (int gx, int gy) sensorBinGrid;
+
+        private readonly SolidColorBrush BorderBrushNormal = new (Microsoft.UI.Colors.LightGray);
+        private readonly SolidColorBrush BorderBrushHighlighted = new(Microsoft.UI.Colors.Red);
+
 
         public CalibrationFrameSetViewer()
         {
@@ -203,7 +209,7 @@ namespace Surveyor.Controls
                 {
                     var cell = new Border
                     {
-                        BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.LightGray),
+                        BorderBrush = BorderBrushNormal,
                         BorderThickness = new Thickness(0.5),
                         HorizontalAlignment = HorizontalAlignment.Stretch,
                         VerticalAlignment = VerticalAlignment.Stretch
@@ -254,6 +260,19 @@ namespace Surveyor.Controls
                 PoseBinGridItemsControl.RowDefinitions.Add(
                     new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
+            // Precompute middle indices
+            int midCol = gx / 2;
+            int midRow = gy / 2;
+
+            // Compute a max yaw display angle to normalize width scaling
+            // Use the outer-most bins to get the extremes after exaggeration
+            double maxYawDisplayDeg =
+                Math.Max(
+                    Math.Abs(ExaggerateTheDisplayAngle(0, FrameData.PoseBinThresholdYaw)),
+                    Math.Abs(ExaggerateTheDisplayAngle(gx - 1, FrameData.PoseBinThresholdYaw))
+                );
+            if (maxYawDisplayDeg <= 0) maxYawDisplayDeg = 1; // avoid divide-by-zero
+
             // Build each cell: border → inner Grid → [board icon + count label]
             for (int r = 0; r < gy; r++)          // pitch index
             {
@@ -261,8 +280,8 @@ namespace Surveyor.Controls
                 {
                     var cellBorder = new Border
                     {
-                        BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.LightGray),
-                        BorderThickness = new Thickness(0.5),
+                        BorderBrush = BorderBrushNormal,
+                        BorderThickness = new Thickness(1),
                         HorizontalAlignment = HorizontalAlignment.Stretch,
                         VerticalAlignment = VerticalAlignment.Stretch
                     };
@@ -276,7 +295,7 @@ namespace Surveyor.Controls
                     // --- Pose icon (small “board” rectangle) ---
                     var boardRect = new Rectangle
                     {
-                        Width = 20,   // fixed icon size works fine at your current scale
+                        Width = 20,   // base width; ScaleX will shrink this proportionally to yaw
                         Height = 14,
                         Fill = new SolidColorBrush(Microsoft.UI.Colors.DarkSlateGray),
                         HorizontalAlignment = HorizontalAlignment.Center,
@@ -284,29 +303,36 @@ namespace Surveyor.Controls
                         RenderTransformOrigin = new Point(0.5, 0.5)
                     };
 
-                    // Representative yaw/pitch per bin (switch expressions)
-                    double yawDeg = c switch
-                    {
-                        0 => -30,
-                        1 => 30,
-                        _ => 0
-                    };
+                    // Exaggerate the angle so the boxes display better
+                    double yawDisplayDeg = ExaggerateTheDisplayAngle(c, FrameData.PoseBinThresholdYaw);
+                    double pitchDisplayDeg = ExaggerateTheDisplayAngle(r, FrameData.PoseBinThresholdPitch);
 
-                    double pitchDeg = r switch
-                    {
-                        0 => -30,
-                        1 => 30,
-                        _ => 0
-                    };
+                    // Row-based rotation behavior:
+                    // - Middle row: no tilt (zRotation = 0)
+                    // - Top row: positive tilt
+                    // - Bottom row: negative tilt (opposite of top)
+                    int rowSign = (r == midRow) ? 0 : (r < midRow ? +1 : -1);
+
+                    // Column-based behavior:
+                    bool isMiddleColumn = (c == midCol);
 
                     // Map yaw → Z rotation (screen) and pitch → squashing
-                    double zRotation = yawDeg * 0.4; // tweak factor if you want more/less tilt
-                    double pitchFactor = 1.0 - (Math.Abs(pitchDeg) / 90.0) * 0.4;
+                    double zRotationBase = yawDisplayDeg * 0.4;
+                    double zRotation = (isMiddleColumn ? 0.0 : (zRotationBase * rowSign));
+
+                    // Pitch affects apparent height (ScaleY)
+                    double pitchFactor = 1.0 - (Math.Abs(pitchDisplayDeg) / 90.0) * 0.4;
+
+                    // Width decreases proportionately as yaw increases away from zero.
+                    // Normalize by maxYawDisplayDeg, then clamp to avoid disappearing icons.
+                    double yawMagnitude = Math.Abs(yawDisplayDeg);
+                    double widthFactor = 1.0 - 0.6 * (yawMagnitude / maxYawDisplayDeg); // 0.4..1.0 range
+                    widthFactor = Math.Clamp(widthFactor, 0.4, 1.0);
 
                     var transformGroup = new TransformGroup();
                     transformGroup.Children.Add(new ScaleTransform
                     {
-                        ScaleX = 1.0,
+                        ScaleX = widthFactor,
                         ScaleY = pitchFactor
                     });
                     transformGroup.Children.Add(new RotateTransform
@@ -315,12 +341,13 @@ namespace Surveyor.Controls
                     });
                     boardRect.RenderTransform = transformGroup;
 
+                    Debug.Write($"[Y:{yawDisplayDeg,4:F1}, |Y|:{yawMagnitude,4:F1}, W:{widthFactor,3:F2}, P:{pitchDisplayDeg,4:F1}, Rot:{zRotation,5:F1}, ScaleY:{pitchFactor,3:F2}]  ");
                     innerGrid.Children.Add(boardRect);
 
                     // --- Count label (bottom-right) ---
                     var countLabel = new TextBlock
                     {
-                        Text = "", // will be filled in RefreshPoseBinLayers
+                        Text = "",
                         FontFamily = new FontFamily("Segoe UI Variable"),
                         FontSize = 10,
                         FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
@@ -340,62 +367,149 @@ namespace Surveyor.Controls
 
                     PoseBinGridItemsControl.Children.Add(cellBorder);
                 }
+                Debug.WriteLine("");
             }
 
             // Immediately populate counts + tooltips if data is present
             RefreshPoseBin();
+
+            // Exaggerate the pose angle so it displays clearer by averaging thresholds
+            static double ExaggerateTheDisplayAngle(int index, IReadOnlyList<double> PoseBinThreshold)
+            {
+                double ret;
+
+                if (index == 0)
+                    ret = PoseBinThreshold[0];
+                else if (index < PoseBinThreshold.Count)
+                    ret = (PoseBinThreshold[index - 1] + PoseBinThreshold[index]) / 2;
+                else
+                    ret = PoseBinThreshold[index - 1];
+
+                return ret * 2.5;
+            }
         }
 
-        //???private void SetupPoseBin()
+
+        //void SetupPoseBin()
         //{
-        //    if (Data is null) return;
+        //    if (Data is null)
+        //        return;
 
-        //    // Reset the rows and columns
+        //    // Reset the rows, columns and children
         //    PoseBinGridItemsControl.Children.Clear();
+        //    PoseBinGridItemsControl.RowDefinitions.Clear();
+        //    PoseBinGridItemsControl.ColumnDefinitions.Clear();
 
-        //    // Get the number of columns and rows for the pose bin grid
-        //    (int gx, int gy) = FrameCalibrationData.PoseBinGrid;
+        //    // 3×3, but uses whatever FrameCalibrationData says
+        //    (int gx, int gy) = FrameData.PoseBinGrid;
 
-        //    // Create columns and rows
         //    for (int c = 0; c < gx; c++)
-        //        PoseBinGridItemsControl.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        //        PoseBinGridItemsControl.ColumnDefinitions.Add(
+        //            new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
 
         //    for (int r = 0; r < gy; r++)
-        //        PoseBinGridItemsControl.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        //        PoseBinGridItemsControl.RowDefinitions.Add(
+        //            new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
-        //    // Add cell borders and content
-        //    for (int r = 0; r < gy; r++)
+        //    // Build each cell: border → inner Grid → [board icon + count label]
+        //    for (int r = 0; r < gy; r++)          // pitch index
         //    {
-        //        for (int c = 0; c < gx; c++)
+        //        for (int c = 0; c < gx; c++)      // yaw index
         //        {
-        //            var cell = new Border
+        //            var cellBorder = new Border
         //            {
-        //                BorderBrush = new SolidColorBrush(Microsoft.UI.Colors.LightGray),
-        //                BorderThickness = new Thickness(0.5),
+        //                BorderBrush = BorderBrushNormal,
+        //                BorderThickness = new Thickness(1),
         //                HorizontalAlignment = HorizontalAlignment.Stretch,
         //                VerticalAlignment = VerticalAlignment.Stretch
         //            };
 
-        //            var label = new TextBlock
+        //            var innerGrid = new Grid
         //            {
-        //                Text = "", // Default value
-        //                FontFamily = new FontFamily("Segoe UI Variable"),
+        //                HorizontalAlignment = HorizontalAlignment.Stretch,
+        //                VerticalAlignment = VerticalAlignment.Stretch
+        //            };
+
+        //            // --- Pose icon (small “board” rectangle) ---
+        //            var boardRect = new Rectangle
+        //            {
+        //                Width = 20,   // fixed icon size works fine at your current scale
+        //                Height = 14,
+        //                Fill = new SolidColorBrush(Microsoft.UI.Colors.DarkSlateGray),
         //                HorizontalAlignment = HorizontalAlignment.Center,
         //                VerticalAlignment = VerticalAlignment.Center,
+        //                RenderTransformOrigin = new Point(0.5, 0.5)
+        //            };
+
+        //            // Exaggerate the angle to the boxes display better
+        //            double yawDisplayDeg = ExaggerateTheDisplayAngle(c, FrameData.PoseBinThresholdYaw);
+        //            double pitchDisplayDeg = ExaggerateTheDisplayAngle(r, FrameData.PoseBinThresholdPitch);
+
+        //            // Map yaw → Z rotation (screen) and pitch → squashing
+        //            double zRotation = yawDisplayDeg * 0.4; // tweak factor if you want more/less tilt
+        //            double pitchFactor = 1.0 - (Math.Abs(pitchDisplayDeg) / 90.0) * 0.4;
+
+        //            var transformGroup = new TransformGroup();
+        //            transformGroup.Children.Add(new ScaleTransform
+        //            {
+        //                ScaleX = 1.0,
+        //                ScaleY = pitchFactor
+        //            });
+        //            transformGroup.Children.Add(new RotateTransform
+        //            {
+        //                Angle = zRotation
+        //            });
+        //            boardRect.RenderTransform = transformGroup;
+        //            Debug.Write($"[Y:{yawDisplayDeg,4}, P:{pitchDisplayDeg,4}, Rot:{zRotation,3}, Scale:{pitchFactor,3:F1}]  ");
+        //            innerGrid.Children.Add(boardRect);
+
+        //            // --- Count label (bottom-right) ---
+        //            var countLabel = new TextBlock
+        //            {
+        //                Text = "", // will be filled in RefreshPoseBinLayers
+        //                FontFamily = new FontFamily("Segoe UI Variable"),
         //                FontSize = 10,
         //                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-        //                Margin = new Thickness(0),
+        //                HorizontalAlignment = HorizontalAlignment.Right,
+        //                VerticalAlignment = VerticalAlignment.Bottom,
+        //                Margin = new Thickness(1),
         //                Padding = new Thickness(0),
         //                UseLayoutRounding = true
         //            };
 
-        //            Grid.SetRow(cell, r);
-        //            Grid.SetColumn(cell, c);
-        //            cell.Child = label;
-        //            PoseBinGridItemsControl.Children.Add(cell);
+        //            innerGrid.Children.Add(countLabel);
+
+        //            cellBorder.Child = innerGrid;
+
+        //            Grid.SetRow(cellBorder, r);
+        //            Grid.SetColumn(cellBorder, c);
+
+        //            PoseBinGridItemsControl.Children.Add(cellBorder);
         //        }
+        //        Debug.WriteLine("");
+        //    }
+
+        //    // Immediately populate counts + tooltips if data is present
+        //    RefreshPoseBin();
+
+        //    // Exaggerate the pose angle so it display cleaer
+        //    // Do this by averaging the angle of the adjacent pose bin thresholds
+        //    // and compresating at either end
+        //    static double ExaggerateTheDisplayAngle(int index , IReadOnlyList<double> PoseBinThreshold)
+        //    {
+        //        double ret;
+
+        //        if (index == 0)
+        //            ret = PoseBinThreshold[0];
+        //        else if (index < PoseBinThreshold.Count)
+        //            ret = (PoseBinThreshold[index - 1] + PoseBinThreshold[index]) / 2;
+        //        else
+        //            ret = PoseBinThreshold[index - 1];
+
+        //        return ret * 2.5;
         //    }
         //}
+
 
 
         /// <summary>
@@ -495,31 +609,6 @@ namespace Surveyor.Controls
                 ToolTipService.SetToolTip(border, tooltip);
             }
         }
-        //???public void RefreshPoseBin()
-        //{
-        //    if (Data is null)
-        //        return;
-
-        //    if (Data.calibrationStereoFrameSet is not null)
-        //    {
-        //        (int gx, int gy) = FrameCalibrationData.PoseBinGrid;
-
-        //        var counts = Data.calibrationStereoFrameSet.GetPoseBinCounts(Data.trueLeftFalseRight);
-
-        //        foreach (var child in PoseBinGridItemsControl.Children)
-        //        {
-        //            if (child is Border border && border.Child is TextBlock textBlock)
-        //            {
-        //                int column = Grid.GetColumn(border);
-        //                int row = Grid.GetRow(border);
-
-        //                // Updated to use just column/row since gx/gy are implicit in the grid structure
-        //                textBlock.Text = counts.TryGetValue((column, row), out int v) ? v != 0 ? v.ToString() : "" : "";
-        //            }
-        //        }
-
-        //    }
-        //}
 
 
         /// <summary>
@@ -546,7 +635,8 @@ namespace Surveyor.Controls
                             if (child is Border border &&
                                 border.Child is TextBlock textBlock)
                             {
-                                border.Background = null;   //??? new SolidColorBrush(color);
+                                //???border.Background = null;
+                                border.BorderBrush = BorderBrushNormal;
                             }
                         }
                     }
@@ -565,9 +655,11 @@ namespace Surveyor.Controls
                                                             .Any(entry => entry.binx == column && entry.biny == row);
 
                                 if (colourCell)
-                                    border.Background = new SolidColorBrush(Colors.LightBlue);
+                                    //???border.Background = new SolidColorBrush(Colors.LightBlue);
+                                    border.BorderBrush = BorderBrushHighlighted;
                                 else
-                                    border.Background = null;
+                                    //???border.Background = null;
+                                    border.BorderBrush = BorderBrushNormal;
                             }
                         }
                     }
@@ -594,10 +686,11 @@ namespace Surveyor.Controls
                     // Clear colour of the the bins
                     foreach (var child in PoseBinGridItemsControl.Children)
                     {
-                        if (child is Border border &&
-                            border.Child is TextBlock textBlock)
+                        if (child is Border border /*???&&
+                            border.Child is TextBlock textBlock*/)
                         {
-                            border.Background = null;   //??? new SolidColorBrush(color);
+                            //???border.Background = null;
+                            border.BorderBrush = BorderBrushNormal;
                         }
                     }
                 }
@@ -607,20 +700,19 @@ namespace Surveyor.Controls
                     // the current frame occupies it
                     foreach (var child in PoseBinGridItemsControl.Children)
                     {
-                        if (child is Border border &&
-                            border.Child is TextBlock textBlock)
+                        if (child is Border border /*&&
+                            border.Child is TextBlock textBlock*/)
                         {
                             int row = Grid.GetRow(border);
                             int column = Grid.GetColumn(border);
 
-                            //???bool colourCell = frameCalibrationData.PoseBinsOccupied
-                            //???                            .Any(entry => entry.binx == column && entry.biny == row);
-
                             if (frameCalibrationData.PoseBinX == column && 
                                 frameCalibrationData.PoseBinY == row)
-                                border.Background = new SolidColorBrush(Colors.LightBlue);
+                                //???border.Background = new SolidColorBrush(Colors.LightBlue);
+                                border.BorderBrush = BorderBrushHighlighted;
                             else
-                                border.Background = null;
+                                //???border.Background = null;
+                                border.BorderBrush = BorderBrushNormal;
                         }
                     }
                 }
@@ -642,14 +734,22 @@ namespace Surveyor.Controls
 
             try
             {
-                // X axis = yaw (columns)
-                yawText = yawIndex switch
+                if (yawIndex == 0)
                 {
-                    0 => $"Yaw < {FrameData.PoseBinThresholdYaw[0]:F1}°",
-                    1 => $"{FrameData.PoseBinThresholdYaw[0]:F1}° ≤ Yaw < {FrameData.PoseBinThresholdYaw[1]:F1}°",
-                    2 => $"{FrameData.PoseBinThresholdYaw[1]:F1}° ≤ Yaw < {FrameData.PoseBinThresholdYaw[2]:F1}°",
-                    _ => $"Yaw bin {yawIndex}"
-                };
+                    yawText = $"Yaw ≤ {FrameData.PoseBinThresholdYaw[0]:F1}°";
+                }
+                else if (yawIndex < FrameData.PoseBinThresholdYaw.Count)
+                {
+                    yawText = $"{FrameData.PoseBinThresholdYaw[yawIndex - 1]:F1}° ≤ Yaw ≤ {FrameData.PoseBinThresholdYaw[yawIndex]:F1}°";
+                }
+                else if (yawIndex == FrameData.PoseBinThresholdYaw.Count)
+                {
+                    yawText = $"{FrameData.PoseBinThresholdYaw[FrameData.PoseBinThresholdYaw.Count - 1]:F1}° ≤ Yaw";
+                }
+                else
+                {
+                    yawText = $"GetPoseBinTooltipText: yawIndex {yawIndex} out of range";
+                }
             }
             catch (Exception ex)
             {
@@ -658,15 +758,23 @@ namespace Surveyor.Controls
             }
 
             try
-            { 
-                // Y axis = pitch (rows)
-                pitchText = pitchIndex switch
+            {
+                if (pitchIndex == 0)
                 {
-                    0 => $"Pitch < {FrameData.PoseBinThresholdPitch[0]:F1}°",
-                    1 => $"{FrameData.PoseBinThresholdPitch[0]:F1}° ≤ Pitch < {FrameData.PoseBinThresholdPitch[1]:F1}°",
-                    2 => $"{FrameData.PoseBinThresholdPitch[1]:F1}° ≤ Pitch < {FrameData.PoseBinThresholdPitch[2]:F1}°",
-                    _ => $"Pitch bin {pitchIndex}"
-                };
+                    pitchText = $"Pitch ≤ {FrameData.PoseBinThresholdPitch[0]:F1}°";
+                }
+                else if (pitchIndex < FrameData.PoseBinThresholdPitch.Count)
+                {
+                    pitchText = $"{FrameData.PoseBinThresholdPitch[pitchIndex - 1]:F1}° ≤ Pitch ≤ {FrameData.PoseBinThresholdPitch[pitchIndex]:F1}°";
+                }
+                else if (pitchIndex == FrameData.PoseBinThresholdPitch.Count)
+                {
+                    pitchText = $"{FrameData.PoseBinThresholdPitch[FrameData.PoseBinThresholdPitch.Count - 1]:F1}° ≤ Pitch";
+                }
+                else
+                {
+                    pitchText = $"GetPoseBinTooltipText: pitchIndex {pitchIndex} out of range";
+                }                
             }
             catch (Exception ex)
             {

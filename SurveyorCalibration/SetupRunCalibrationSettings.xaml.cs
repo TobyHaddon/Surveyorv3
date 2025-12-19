@@ -34,14 +34,17 @@ namespace Surveyor
 
                 // Hide the border (and hence the checkbox) if no cache is available
                 // Note the checkbox value is handled by the binding
-                ReuseCacheCheckBox.Visibility = navParams.runCalibrationParams.UseFrameSetCache ? Visibility.Visible : Visibility.Collapsed;
-                BorderCache.Visibility = navParams.runCalibrationParams.UseFrameSetCache ? Visibility.Visible : Visibility.Collapsed;
+                RunCalibrationParams runParams = navParams.runCalibrationParams;
+                FindCalibrationBoardZoneCheckBox.Visibility = !runParams.FindCalibrationBoardZone ? Visibility.Visible : Visibility.Collapsed;
+                BuildFrameSetsCheckBox.Visibility = !runParams.BuildTheFrameSets ? Visibility.Visible : Visibility.Collapsed;
+                FindBestMonoFramesCheckBox.Visibility = !runParams.FindBestMonoFrames ? Visibility.Visible : Visibility.Collapsed;
+
+                //??if (navParams.runCalibrationParams.FindCalibrationBoardZone)
+                //??BorderCache.Visibility = navParams.runCalibrationParams.UseFrameSetCache ? Visibility.Visible : Visibility.Collapsed;
 
                 // Set slider values from project data
                 if (navParams.calibProject.Data is not null)
                 {
-                    var runParams = navParams.runCalibrationParams;
-
                     // Movement Slider Value
                     movementDragging = null; // This is so the first OnSliderValueChanged is treated differently to the others
                     MovementFilterSlider.Value = runParams.MovementFilterValue;
@@ -51,6 +54,7 @@ namespace Surveyor
                         MovementFilterSlider.Minimum = 0;
                     else
                         MovementFilterSlider.Minimum = runParams.MovementFilterMin.Value;
+                    
                     MovementFilterMin.Text = MovementFilterSlider.Minimum.ToString("F1");
 
                     // Movement Slider Max
@@ -58,6 +62,7 @@ namespace Surveyor
                         MovementFilterSlider.Maximum = RunCalibrationParams.MovementFilterMaxDefault;
                     else
                         MovementFilterSlider.Maximum = runParams.MovementFilterMax.Value;
+                    
                     MovementFilterMax.Text = MovementFilterSlider.Maximum.ToString("F1");
 
                     // Blur Slider value

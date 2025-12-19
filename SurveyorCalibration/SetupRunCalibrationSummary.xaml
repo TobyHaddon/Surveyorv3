@@ -10,9 +10,10 @@
     mc:Ignorable="d">
 
     <StackPanel Padding="24" Spacing="16">
-        <TextBlock x:Name="Summary" Text="Calibration summary will appear here." 
+		<TextBlock Text="What will happen:" FontWeight="SemiBold" FontSize="16"/>
+		<TextBlock x:Name="Summary" Text="Calibration summary will appear here." 
 				   TextWrapping="Wrap" 
-				   FontSize="16"/>
+				   FontSize="12" Margin="10,0,0,0"/>
         <Button x:Name="RunCalibrationButton" Content="Run Calibration" Click="RunCalibrationButton_Click" Width="180"/>
 
 	</StackPanel>

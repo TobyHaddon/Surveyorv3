@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <UserControl
-    x:Class="Surveyor.User_Controls.ExportUserControl"
+    x:Class="Surveyor.User_Controls.Export"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:CommunityToolkit.WinUI.UI.Controls"
@@ -9,7 +9,7 @@
     mc:Ignorable="d">
 
     <!--Export Dialog-->
-    <Grid MinWidth="490" MinHeight="600">
+    <Grid MinWidth="700" MaxWidth="700" MinHeight="600">
         <Grid.RowDefinitions>
             <RowDefinition Height="2*"/>
             <RowDefinition Height="1*"/>
@@ -21,11 +21,45 @@
 
         <!-- Top-left: Export format -->
         <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Vertical" Spacing="8">
-            <TextBlock Text="Format"/>
-            <StackPanel Orientation="Vertical" Spacing="8">
-                <RadioButton x:Name="FormatNative" Content="Native" GroupName="ExportFormat" IsChecked="True" Checked="FormatChanged"/>
+            <TextBlock Text="Format" FontWeight="SemiBold"/>
+            <StackPanel Orientation="Vertical" Spacing="2">
+                <RadioButton x:Name="FormatNative" Content="Native (Stereo only)" GroupName="ExportFormat" IsChecked="True" Checked="FormatChanged"/>
                 <RadioButton x:Name="FormatOpenCV" Content="OpenCV" GroupName="ExportFormat" Checked="FormatChanged"/>
                 <RadioButton x:Name="FormatText" Content="Text" GroupName="ExportFormat" Checked="FormatChanged"/>
+                <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,2,0,15">
+                    <Hyperlink Click="MailLinkFormat_Click">Need other formats?</Hyperlink>
+                </TextBlock>
+
+                <TextBlock Text="Distortion Mode"  FontWeight="SemiBold"/>
+                <RadioButton x:Name="Model_K1K2P1P2"
+                             GroupName="ExportDistortionModelModel" IsChecked="True" Checked="ModelChanged">
+                    <StackPanel Orientation="Vertical" HorizontalAlignment="Left" Spacing="2">
+                        <TextBlock Text="k1-k2, p1-p2" />
+                        <TextBlock x:Name="Model_K1K2P1P2_Result" Text="RPE:3.45" Opacity="0.8" FontSize="12"/>
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton x:Name="Model_K1K2K3P1P2" 
+                             GroupName="ExportDistortionModelModel" Checked="ModelChanged">
+                    <StackPanel Orientation="Vertical" HorizontalAlignment="Left" Spacing="2">
+                        <TextBlock Text="k1-k3, p1-p2" />
+                        <TextBlock x:Name="Model_K1K2K3P1P2_Result" Text="RPE:3.45" Opacity="0.8" FontSize="12"/>
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton x:Name="Model_K1K2K3K4P1P2" GroupName="ExportDistortionModelModel" Checked="ModelChanged">
+                    <StackPanel Orientation="Vertical" HorizontalAlignment="Left" Spacing="2">
+                        <TextBlock Text="k1-k4, p1-p2" />
+                        <TextBlock x:Name="Model_K1K2K3K4P1P2_Result" Text="RPE:3.45" Opacity="0.8" FontSize="12"/>
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton x:Name="Model_K1K2K3K4P1P2K5K6" GroupName="ExportDistortionModelModel" Checked="ModelChanged">
+                    <StackPanel Orientation="Vertical" HorizontalAlignment="Left" Spacing="2">
+                        <TextBlock Text="k1-k6, p1-p2" />
+                        <TextBlock x:Name="Model_K1K2K3K4P1P2K5K6_Result" Text="RPE:3.45" Opacity="0.8" FontSize="12"/>
+                    </StackPanel>
+                </RadioButton>
+                <TextBlock VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,2,0,15">
+                    <Hyperlink Click="MailLinkModel_Click">Need other distortion models?</Hyperlink>
+                </TextBlock>
             </StackPanel>
         </StackPanel>
 
@@ -38,22 +72,24 @@
             <Grid.ColumnDefinitions>
                 <ColumnDefinition/>
             </Grid.ColumnDefinitions>
-            
-            <TextBlock Grid.Row="0" Text="Preview" FontWeight="SemiBold"/>
+
+            <TextBlock Grid.Row="0" Text="Preview" FontWeight="SemiBold" Margin="10,0,0,0"/>
             <Border Grid.Row="1" 
                     BorderThickness="1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" 
                     Padding="8"
-                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                    HorizontalAlignment="Stretch" VerticalAlignment="Stretch" 
+                    Margin="10,0,0,0">
                 <Grid>
                     <ScrollViewer x:Name="PreviewScrollViewer" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                        <TextBlock x:Name="PreviewText" Text="Select a language to load a sample..." FontFamily="Consolas" FontSize="10" TextWrapping="Wrap"/>
+                        <TextBlock x:Name="PreviewText" Text="Select a language to load a sample..." 
+                                   FontFamily="Consolas" FontSize="10" 
+                                   TextWrapping="Wrap"/>
                     </ScrollViewer>
                 </Grid>
             </Border>
         </Grid>
 
         <!-- Bottom: NavigationView for code samples -->
-
         <NavigationView x:Name="ExportSamplesNav"
                 Grid.Row="1" Grid.ColumnSpan="2"
                 PaneDisplayMode="Top"
@@ -75,10 +111,7 @@
 
             <!-- TextBlock in the PaneFooter -->
             <NavigationView.PaneFooter>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock VerticalAlignment="Center" HorizontalAlignment="Right" TextAlignment="Right" TextWrapping="Wrap">
-                        <Hyperlink Click="MailLink_Click">Need other formats?</Hyperlink>
-                    </TextBlock>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                     <Button x:Name="CopySampleButton" Click="CopySampleButton_Click"
                             ToolTipService.ToolTip="Copy the code sample"
                             HorizontalAlignment="Right"
@@ -86,7 +119,7 @@
                             Background="Transparent"
                             BorderBrush="{x:Null}"
                             Padding="3"
-                            Margin="10,0,0,0">
+                            Margin="0,0,0,0">
                         <FontIcon Glyph="&#xE8C8;" />
                     </Button>
                 </StackPanel>

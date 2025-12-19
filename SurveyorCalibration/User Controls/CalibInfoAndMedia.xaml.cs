@@ -74,6 +74,7 @@ namespace Surveyor.User_Controls
         public void SetupForContentDialog(ContentDialog dialog)
         {
             ParentDialog = dialog;
+            ParentSettings = null;
 
             // Reset Fields
             ResetDialogFields();
@@ -90,6 +91,18 @@ namespace Surveyor.User_Controls
             // Create a exception if not running from the ContentDialog context
             if (!dialog.IsEnabled)
                 throw new InvalidOperationException("This function should only be called from the context of a ContentDialog");
+
+            // In SetupForContentDialog
+            dialog.Opened += (_, __) =>
+            {
+                if (SettingsManagerLocal.TeachingTipsEnabled &&
+                    !SettingsManagerLocal.HasTeachingTipBeenShown("SelectMedia")/* &&
+                    SelectMedia.Visibility == Visibility.Visible &&
+                    XamlRoot is not null*/)
+                {
+                    SelectMediaTeachingTip.IsOpen = true;
+                }
+            };
 
             // Run on the UI thread
             _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
@@ -114,18 +127,27 @@ namespace Surveyor.User_Controls
             // Reset Fields
             ResetDialogFields();
 
-            // Disable the radio buttons
+            // Disable the radio buttons (view only can't change once setup)
             MonoAndStereoMediaSetRadioButton.IsEnabled = false;
             StereoOnlyMediaSetRadioButton.IsEnabled = false;
             MonoPairOnlyMediaSetRadioButton.IsEnabled = false;
             MonoSingleOnlyMediaSetRadioButton.IsEnabled = false;
 
+
+            // Load existing media into dialog
+            settings.Loaded += (_, __) => _ = LoadedAsync(project);
+
             // Hide the select media button
             SelectMedia.Visibility = Visibility.Collapsed;
-
-            EntryFieldsValid(false/*no reporting*/);
         }
 
+        private async Task LoadedAsync(CalibProject project)
+        {
+           await LoadExistingMediaFileNamesIntoDialogAsync(project);
+
+            EnableDisableControlButtons();
+            EntryFieldsValid(false/*no reporting*/);
+        }
 
 
         /// <summary>
@@ -576,7 +598,11 @@ namespace Surveyor.User_Controls
             EnableDisableControlButtons();
         }
 
-
+        private void SelectMediaTeachingTip_ActionButtonClick(TeachingTip sender, object args)
+        {
+            SelectMediaTeachingTip.IsOpen = false;
+            SettingsManagerLocal.SetTeachingTipShown("SelectMedia");
+        }
 
         ///
         /// PRIVATE
@@ -670,71 +696,7 @@ namespace Surveyor.User_Controls
             Debug.WriteLine("SetMediaFiles() Complete");
         }
 
-        //private void CalibrationMediaSelected(IReadOnlyList<StorageFile> _mediaFilesSelected)
-        //{
-
-        //    // Remember the selected files
-        //    this.mediaFilesSelected = _mediaFilesSelected;
-
-        //    // Run on the UI thread
-        //    _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, async () =>
-        //    {
-        //        // Get suitable default thubmnail based on the current theme
-        //        BitmapImage thumbnailDefault = GetDefaultThumbnail();
-
-
-        //        // Loading from Dialog context. This means the users has provided a list of media files via
-        //        // mediaFilesSelected
-        //        if (mediaFilesSelected is not null && mediaFilesSelected.Count > 0)
-        //        {
-        //            // Convert storage files list to a MediaFileItem list and connect other attributes: thumbnail, creation date, GoPro serial number, Frame size, etc.
-        //            List<MediaFileItem> mediaFileItemList = [];
-        //            foreach (StorageFile file in mediaFilesSelected)
-        //            {
-        //                MediaFileItem item = await GetMediaFileInfoAsync(file, thumbnailDefault);
-
-        //                mediaFileItemList.Add(item);
-        //            }
-
-        //            switch (stereoMonoMediaSetMode)
-        //            {
-        //                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-        //                    // Try to figure out which is the left and which is the right media file                        
-        //                    (LeftStereoMediaFileItemList, RightStereoMediaFileItemList, LeftMonoMediaFileItemList, RightMonoMediaFileItemList, _) = SplitIntoStereoAndMonoChannels(mediaFileItemList);
-
-        //                    // Bind the collection to the ListView
-        //                    LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
-        //                    RightMonoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
-        //                    LeftStereoMediaFileNames.ItemsSource = LeftStereoMediaFileItemList;
-        //                    RightStereoMediaFileNames.ItemsSource = RightStereoMediaFileItemList;
-        //                    break;
-        //                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-        //                    (LeftStereoMediaFileItemList, RightStereoMediaFileItemList, _) = DetectLeftAndRightMediaFile(mediaFileItemList);
-
-        //                    // Bind the collection to the ListView
-        //                    LeftStereoMediaFileNames.ItemsSource = LeftStereoMediaFileItemList;
-        //                    RightStereoMediaFileNames.ItemsSource = RightStereoMediaFileItemList;
-        //                    break;
-        //                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-        //                    (LeftMonoMediaFileItemList, RightMonoMediaFileItemList, _) = DetectLeftAndRightMediaFile(mediaFileItemList);
-
-        //                    // Bind the collection to the ListView
-        //                    LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
-        //                    RightMonoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
-        //                    break;
-        //                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-        //                    LeftMonoMediaFileItemList.Add(mediaFileItemList[0]);
-        //                    LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
-        //                    break;
-        //            }
-        //        }
-
-        //        EntryFieldsValid(false/*no reporting*/);
-
-        //    });
-
-        //    Debug.WriteLine($"SetMediaFiles() Complete");
-        //}
+  
 
 
         /// <summary>
@@ -1668,18 +1630,47 @@ namespace Surveyor.User_Controls
                 }
                 else
                 {
-                    Console.WriteLine("Failed to retrieve thumbnail.");
+                    Debug.WriteLine("Failed to retrieve thumbnail.");
                 }
 
             }
             catch (Exception ex)
             {
-                Console.WriteLine("An error occurred: " + ex.Message);
+                Debug.WriteLine("An error occurred: " + ex.Message);
             }
 
             return item;
         }
 
+        private static async Task<MediaFileItem?> GetMediaFileInfoAsync(string file, BitmapImage thumbnailDefault)
+        {
+            StorageFile storageFile;
+            try
+            {
+                if (System.IO.File.Exists(file))
+                {
+                    storageFile = await StorageFile.GetFileFromPathAsync(file);
+
+                    return await GetMediaFileInfoAsync(storageFile, thumbnailDefault);
+                }
+                else
+                {
+                    Debug.WriteLine($"GetMediaFileInfoAsync: File:{file} doesn't exist");
+                    return null;
+                }
+            }
+            catch (UnauthorizedAccessException uae)
+            {
+                Debug.WriteLine($"GetMediaFileInfoAsync: File:{file} no exist, {uae.Message}");
+                return null;
+            }
+            catch (Exception ex)
+            {
+                // handle other errors
+                Debug.WriteLine($"GetMediaFileInfoAsync: File:{file}, {ex.Message}");
+                return null;
+            }
+        }
 
         /// <summary>
         /// Clear all the dialog fields
@@ -1813,60 +1804,62 @@ namespace Surveyor.User_Controls
                     break;
             }
 
-
-
-            if (LeftMonoMediaFileNames.SelectedItem is MediaFileItem)
+            // Only allow media to be moved if in dialog (New Project) mode
+            if (ParentDialog is not null)
             {
-                // Move to Right top listview button
-                moveItemAcrossTopRightIsEnabled = true;
+                if (LeftMonoMediaFileNames.SelectedItem is MediaFileItem)
+                {
+                    // Move to Right top listview button
+                    moveItemAcrossTopRightIsEnabled = true;
 
-                // Move to Left bottom listview button
-                leftSideMoveItemDownIsEnabled = true;
+                    // Move to Left bottom listview button
+                    leftSideMoveItemDownIsEnabled = true;
 
-                // Delete enabled
-                deleteItem2IsEnabled = true;
-            }
-            else if (RightMonoMediaFileNames.SelectedItem is MediaFileItem)
-            {
-                // Move to Right top listview button
-                moveItemAcrossTopLeftIsEnabled = true;
+                    // Delete enabled
+                    deleteItem2IsEnabled = true;
+                }
+                else if (RightMonoMediaFileNames.SelectedItem is MediaFileItem)
+                {
+                    // Move to Right top listview button
+                    moveItemAcrossTopLeftIsEnabled = true;
 
-                // Move to Left bottom listview button
-                rightSideMoveItemDownIsEnabled = true;
+                    // Move to Left bottom listview button
+                    rightSideMoveItemDownIsEnabled = true;
 
-                // Delete enabled
-                deleteItem2IsEnabled = true;
-            }
-            else if (LeftStereoMediaFileNames.SelectedItem is MediaFileItem)
-            {
-                // Move to Right bottom listview button
-                moveItemAcrossBottomRightIsEnabled = true;
+                    // Delete enabled
+                    deleteItem2IsEnabled = true;
+                }
+                else if (LeftStereoMediaFileNames.SelectedItem is MediaFileItem)
+                {
+                    // Move to Right bottom listview button
+                    moveItemAcrossBottomRightIsEnabled = true;
 
-                // Move to Left top listview button
-                leftSideMoveItemUpIsEnabled = true;
+                    // Move to Left top listview button
+                    leftSideMoveItemUpIsEnabled = true;
 
-                // Delete enabled
-                deleteItem2IsEnabled = true;
-            }
-            else if (RightStereoMediaFileNames.SelectedItem is MediaFileItem)
-            {
-                // Move to Right bottom listview button
-                moveItemAcrossBottomLeftIsEnabled = true;
+                    // Delete enabled
+                    deleteItem2IsEnabled = true;
+                }
+                else if (RightStereoMediaFileNames.SelectedItem is MediaFileItem)
+                {
+                    // Move to Right bottom listview button
+                    moveItemAcrossBottomLeftIsEnabled = true;
 
-                // Move to Left top listview button
-                rightSideMoveItemUpIsEnabled = true;
+                    // Move to Left top listview button
+                    rightSideMoveItemUpIsEnabled = true;
 
-                // Delete enabled
-                deleteItem2IsEnabled = true;
-            }
+                    // Delete enabled
+                    deleteItem2IsEnabled = true;
+                }
 
-            // If we are doing mono only work make sure the delete button 1 is enabled
-            // as delete button 2 will not be visable
-            if (stereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoSingleOnlyMediaSet ||
-                stereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoPairOnlyMediaSet)
-            {
-                deleteItem1IsEnabled = deleteItem2IsEnabled;
-                deleteItem2IsEnabled = false;
+                // If we are doing mono only work make sure the delete button 1 is enabled
+                // as delete button 2 will not be visable
+                if (stereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoSingleOnlyMediaSet ||
+                    stereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoPairOnlyMediaSet)
+                {
+                    deleteItem1IsEnabled = deleteItem2IsEnabled;
+                    deleteItem2IsEnabled = false;
+                }
             }
 
             // Set the button enabled states
@@ -1881,6 +1874,56 @@ namespace Surveyor.User_Controls
             DeleteItem1.IsEnabled = deleteItem1IsEnabled;
             DeleteItem2.IsEnabled = deleteItem2IsEnabled;
 
+        }
+
+
+        /// <summary>
+        /// Used to load any existing media file names into the dialog for use in the 
+        /// Settings window
+        /// </summary>
+        /// <param name="project"></param>
+        /// <returns></returns>
+        private async Task LoadExistingMediaFileNamesIntoDialogAsync(CalibProject project)
+        {
+            // Get suitable default thumbnail based on the current theme
+            BitmapImage thumbnailDefault = GetDefaultThumbnail();
+
+            // Left Mono
+            if (project.Data.Media.LeftMonoMP4Path is not null)
+            {
+                MediaFileItem? item = await GetMediaFileInfoAsync(project.Data.Media.LeftMonoMP4Path, thumbnailDefault);
+                if (item is not null)
+                    LeftMonoMediaFileItemList.Add(item);
+            }
+
+            // Right Mono
+            if (project.Data.Media.RightMonoMP4Path is not null)
+            {
+                MediaFileItem? item = await GetMediaFileInfoAsync(project.Data.Media.RightMonoMP4Path, thumbnailDefault);
+                if (item is not null)
+                    RightMonoMediaFileItemList.Add(item);
+            }
+
+            // Left Stereo
+            if (project.Data.Media.LeftStereoMP4Path is not null)
+            {
+                MediaFileItem? item = await GetMediaFileInfoAsync(project.Data.Media.LeftStereoMP4Path, thumbnailDefault);
+                if (item is not null)
+                    LeftStereoMediaFileItemList.Add(item);
+            }
+
+            // Right Stereo
+            if (project.Data.Media.RightStereoMP4Path is not null)
+            {
+                MediaFileItem? item = await GetMediaFileInfoAsync(project.Data.Media.RightStereoMP4Path, thumbnailDefault);
+                if (item is not null)
+                    RightStereoMediaFileItemList.Add(item);
+            }
+
+            LeftMonoMediaFileNames.ItemsSource = LeftMonoMediaFileItemList;
+            RightMonoMediaFileNames.ItemsSource = RightMonoMediaFileItemList;
+            LeftStereoMediaFileNames.ItemsSource = LeftStereoMediaFileItemList;
+            RightStereoMediaFileNames.ItemsSource = RightStereoMediaFileItemList;            
         }
 
 

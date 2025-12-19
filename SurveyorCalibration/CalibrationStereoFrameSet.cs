@@ -50,6 +50,13 @@ namespace Surveyor
             [JsonProperty(nameof(Version))]
             public int Version { get; set; } = -1;
 
+            [JsonProperty(nameof(StartCalibrationBoardZone))]
+            public int StartCalibrationBoardZone { get; set; } = -1;
+
+            [JsonProperty(nameof(StopCalibrationBoardZone))]
+            public int StopCalibrationBoardZone { get; set; } = -1;
+
+
             // A sorted dictionary of frames, sorted by frame index that holds the calibration
             // board corners and ids, the blur factor and the movement factor
             [JsonProperty(nameof(Frames))]
@@ -61,26 +68,38 @@ namespace Surveyor
             // A dictionary of sensor bin totals, where the key is a tuple of (binx, biny)
             // this is updated as frames are added or removed from the set.
             // This dictionary is persistied to JSON 
-            [JsonProperty(nameof(SensorBinTotalsLeft))]
+            [JsonProperty(nameof(AllFramesSensorBinTotalsLeft))]
             [TypeConverter(typeof(TupleInt2JsonConverter))]
-            public Dictionary<(int binx, int biny), int> SensorBinTotalsLeft = [];
+            public Dictionary<(int binx, int biny), int> AllFramesSensorBinTotalsLeft = [];
+            [JsonProperty(nameof(BestFramesSensorBinTotalsLeft))]
+            [TypeConverter(typeof(TupleInt2JsonConverter))]
+            public Dictionary<(int binx, int biny), int> BestFramesSensorBinTotalsLeft = [];
 
             // A dictionary of sensor bin totals, where the key is a tuple of (binx, biny)
             // this is updated as frames are added or removed from the set.
             // This dictionary is persistied to JSON 
-            [JsonProperty(nameof(SensorBinTotalsRight))]
+            [JsonProperty(nameof(AllFramesSensorBinTotalsRight))]
             [TypeConverter(typeof(TupleInt2JsonConverter))]
-            public Dictionary<(int binx, int biny), int> SensorBinTotalsRight = [];
+            public Dictionary<(int binx, int biny), int> AllFramesSensorBinTotalsRight = [];
+            [JsonProperty(nameof(BestFramesSensorBinTotalsRight))]
+            [TypeConverter(typeof(TupleInt2JsonConverter))]
+            public Dictionary<(int binx, int biny), int> BestFramesSensorBinTotalsRight = [];
 
             // A dictionary of the left pose bin totals, where the key is a tuple of (binx, biny)
-            [JsonProperty(nameof(PoseBinTotalsLeft))]
+            [JsonProperty(nameof(AllFramesPoseBinTotalsLeft))]
             [TypeConverter(typeof(TupleInt2JsonConverter))]
-            public Dictionary<(int binx, int biny), int> PoseBinTotalsLeft { get; set; } = [];
+            public Dictionary<(int binx, int biny), int> AllFramesPoseBinTotalsLeft { get; set; } = [];
+            [JsonProperty(nameof(BestFramesPoseBinTotalsLeft))]
+            [TypeConverter(typeof(TupleInt2JsonConverter))]
+            public Dictionary<(int binx, int biny), int> BestFramesPoseBinTotalsLeft { get; set; } = [];
 
             // A dictionary of the right pose bin totals, where the key is a tuple of (binx, biny)
-            [JsonProperty(nameof(PoseBinTotalsRight))]
+            [JsonProperty(nameof(AllFramesPoseBinTotalsRight))]
             [TypeConverter(typeof(TupleInt2JsonConverter))]
-            public Dictionary<(int binx, int biny), int> PoseBinTotalsRight { get; set; } = [];
+            public Dictionary<(int binx, int biny), int> AllFramesPoseBinTotalsRight { get; set; } = [];
+            [JsonProperty(nameof(BestFramesPoseBinTotalsRight))]
+            [TypeConverter(typeof(TupleInt2JsonConverter))]
+            public Dictionary<(int binx, int biny), int> BestFramesPoseBinTotalsRight { get; set; } = [];
         }
 
         public DataClass Data = new();
@@ -126,15 +145,16 @@ namespace Surveyor
         public CalibrationStereoFrameSet()
         {
         }
+
         public void ClearResults()
         {
             // Reset collections
             Data.Frames = [];
             Data.BestFrameIndexes = [];
-            Data.SensorBinTotalsLeft = [];
-            Data.SensorBinTotalsRight = [];
-            Data.PoseBinTotalsLeft = [];
-            Data.PoseBinTotalsRight = [];
+            Data.AllFramesSensorBinTotalsLeft = [];
+            Data.AllFramesSensorBinTotalsRight = [];
+            Data.AllFramesPoseBinTotalsLeft = [];
+            Data.AllFramesPoseBinTotalsRight = [];
         }
 
 
@@ -595,9 +615,9 @@ namespace Surveyor
             CalculateCornerMovement(stereoFrameIndex);
 
             // Update the sensor bin totals
-            AddToTheSensorBinTotals(frameLeft, Data.SensorBinTotalsLeft);
+            AddToTheSensorBinTotals(frameLeft, Data.AllFramesSensorBinTotalsLeft);
             if (frameRight is not null)
-                AddToTheSensorBinTotals(frameRight, Data.SensorBinTotalsRight);
+                AddToTheSensorBinTotals(frameRight, Data.AllFramesSensorBinTotalsRight);
 
             // Helper
             static void AddToTheSensorBinTotals(FrameData target, Dictionary<(int binx, int biny), int> BinTotals)
@@ -626,9 +646,9 @@ namespace Surveyor
                 (FrameData leftTarget, FrameData? rightTarget, _) = Data.Frames[stereoFrameIndex];
 
                 // Remove the bins from the bin totals
-                RemoveFromTheBinTotals(leftTarget, Data.SensorBinTotalsLeft);
+                RemoveFromTheBinTotals(leftTarget, Data.AllFramesSensorBinTotalsLeft);
                 if (rightTarget is not null)
-                    RemoveFromTheBinTotals(rightTarget, Data.SensorBinTotalsRight);
+                    RemoveFromTheBinTotals(rightTarget, Data.AllFramesSensorBinTotalsRight);
 
                 // Helper
                 static void RemoveFromTheBinTotals(FrameData target, Dictionary<(int binx, int biny), int> BinTotals)
@@ -715,7 +735,6 @@ namespace Surveyor
 
             for (int biny = 0; biny < gy; biny++)
             {
-                //???StringBuilder sb = new();
                 for (int binx = 0; binx < gx; binx++)
                 {
                     var targetBin = (binx, biny);
@@ -763,19 +782,13 @@ namespace Surveyor
                                                 .Select(x => x.Key)];
                     }
 
-                    //???if (binx == 0)
-                    //    sb.Append("SelectBestStereoFramesUsingSensorBinOnly:");
-                    //else if (binx > 0)
-                    //    sb.Append(' ');
-                    //sb.Append($"{frameIndexes.Count}");
-
-                    // Append found frame for this bin to the best frames list
+                    // Append found frame for this bin to the best frames hash list
+                    // so only unqiue indexes are added
                     foreach (var index in frameIndexes)
                     {
                         bool wasAdded = frameIndexSet.Add(index);
                     }
                 }
-                //???Debug.WriteLine(sb.ToString());
             }
 
             Data.BestFrameIndexes = [.. frameIndexSet];
@@ -968,7 +981,7 @@ namespace Surveyor
         /// </summary>
         /// <returns></returns>
         /// <exception cref="NotImplementedException"></exception>
-        public async Task<(int startCalibration, int stopCalibration)> FindCalibrationTimeLineRangeAsync(FrameProcessingCallback? callbackDisplay, CancellationToken cancellationToken)
+        public async Task<(int startCalibration, int stopCalibration)> FindCalibrationBoardZoneAsync(FrameProcessingCallback? callbackDisplay, CancellationToken cancellationToken)
         {
             bool leftReady = false;
             bool rightReady = false;
@@ -1107,8 +1120,36 @@ namespace Surveyor
                 }
             }
 
+            Data.StartCalibrationBoardZone = startCalibration;
+            Data.StopCalibrationBoardZone = stopCalibration;
+
             return (startCalibration, stopCalibration);
         }
+
+
+        /// <summary>
+        /// Return the start frame index of the calibration board zone
+        /// previously found in FindCalibrationBoardZoneAsync
+        /// </summary>
+        /// <returns>-1 not found</returns>
+        public int GetStartCalibrationBoardZone()
+        {
+            return Data.StartCalibrationBoardZone;
+        }
+
+
+        /// <summary>
+        /// Return the end frame index of the calibration board zone
+        /// previously found in FindCalibrationBoardZoneAsync
+        /// </summary>
+        /// <returns>-1 not found</returns>
+
+        public int GetStoptCalibrationBoardZone()
+        {
+            return Data.StopCalibrationBoardZone;
+        }
+
+
 
         /// <summary>
         /// Does a recursive search to find the end/stop of the calibration boards in the video
@@ -1822,13 +1863,14 @@ namespace Surveyor
                 );
 
                 // Draw the centre point
-                PointF boardCentre = frameCalibrationTarget.Center;
-                int radius = 40;
-                MCvScalar color = new(0, 255, 0); // Green for Centre 
-                int thickness = 20;
-
+                //??? Remove to simiply display
+                //PointF boardCentre = frameCalibrationTarget.Center;
+                //int radius = 40;
+                //MCvScalar color = new(0, 255, 0); // Green for Centre 
+                //int thickness = 20;
+                //
                 // Draw the circle on the Mat
-                CvInvoke.Circle(frame, new Point((int)boardCentre.X, (int)boardCentre.Y), radius, color, thickness);
+                //CvInvoke.Circle(frame, new Point((int)boardCentre.X, (int)boardCentre.Y), radius, color, thickness);
 
                 // If Mono
                 if (headTrueIsStereoFalseIsMode == false)
@@ -1987,7 +2029,7 @@ namespace Surveyor
                                                     CalibrationParameters calibrationParameters)
         {
             MonoCalibrationCameraData? monoCalibrationCameraData = null;
-            double reprojectionError = -1;
+            double reprojectionRMS = -1;
             double rmsUpper = 3.0; // Set high
             double maxUpper = 5.0; // Set high
             int imageUsable; // Count of usable images
@@ -2106,7 +2148,7 @@ namespace Surveyor
 
                 try
                 {
-                    reprojectionError = ArucoInvoke.CalibrateCameraCharuco(
+                    reprojectionRMS = ArucoInvoke.CalibrateCameraCharuco(
                                                     allCharucoCorners,
                                                     allCharucoIds,
                                                     charucoBoardDefinition.Board,
@@ -2148,12 +2190,12 @@ namespace Surveyor
                     ImageUseable = imageUsable,
                     IntrinsicMatrix = intrinsicMatrix,
                     DistortionCoeffs = distortionCoeffs,
-                    ReprojectionRMS = reprojectionError,
+                    ReprojectionRMS = reprojectionRMS,
                     ProjectionRMS = projectionRms,
                     MaxError = maxError
                 };
 
-                Debug.WriteLine($"{side} mono calibration first pass (pass 0) complete. Reprojection RMS: {reprojectionError:F4}, Projection RMS: {projectionRms:F4}, Max Error: {maxError:F4}");
+                Debug.WriteLine($"{side} mono calibration first pass (pass 0) complete. Reprojection RMS: {reprojectionRMS:F4}, Projection RMS: {projectionRms:F4}, Max Error: {maxError:F4}");
 
                 // Check if frames can be improved and if so re-run the calibration
                 // Select relevant FrameCalibrationData from BestFrameIndexes
@@ -2255,7 +2297,7 @@ namespace Surveyor
                 double frameRms = errors.Count > 0 ? Math.Sqrt(errors.Sum(e => e * e) / errors.Count) : 0.0;
                 double frameMaxError = errors.Count > 0 ? errors.Max() : 0.0;
 
-                // Save the frame quanlity tests
+                // Save the frame quality tests
                 allFrameData[i].monoProjectedPoints[(int)calibrationParameters] = projectedPoints;
                 allFrameData[i].monoFrameRms[(int)calibrationParameters] = frameRms;
                 allFrameData[i].monoFrameMaxError[(int)calibrationParameters] = frameMaxError;
@@ -2775,13 +2817,13 @@ namespace Surveyor
                         {
                             CalcYawAndPitcAndWhichPoseBin(left, monoCalibLeft);
 
-                            AddToThePoseBinTotals(left, Data.PoseBinTotalsLeft);
+                            AddToThePoseBinTotals(left, Data.AllFramesPoseBinTotalsLeft);
                         }
                         if (right is not null && monoCalibRight is not null)
                         {
                             CalcYawAndPitcAndWhichPoseBin(right, monoCalibRight);
 
-                            AddToThePoseBinTotals(right, Data.PoseBinTotalsRight);
+                            AddToThePoseBinTotals(right, Data.AllFramesPoseBinTotalsRight);
                         }
                     }
                 });
@@ -2828,17 +2870,17 @@ namespace Surveyor
                             double yawRad = Math.Atan2(-r20, Math.Sqrt(r00 * r00 + r10 * r10)); // board turning left/right (Y-axis rotation)
 
 
-                            double yawDeg = yawRad * 180.0 / Math.PI;
-                            double pitchDeg = pitchRad * 180.0 / Math.PI;
+                            double yawDeg = Math.Round(yawRad * 180.0 / Math.PI, 1, MidpointRounding.AwayFromZero);
+                            double pitchDeg = Math.Round(pitchRad * 180.0 / Math.PI, 1, MidpointRounding.AwayFromZero);
 
                             // Store the angles in the left frame
                             frameCalibrationData.YawDeg = yawDeg;
                             frameCalibrationData.PitchDeg = pitchDeg;
 
                             // Place correct pose bin
-                            int yawBin = BinFromAngle(frameCalibrationData.YawDeg, FrameData.PoseBinThresholdYaw);
-                            int pitchBin = BinFromAngle(frameCalibrationData.PitchDeg, FrameData.PoseBinThresholdPitch);
-                            //???frameCalibrationData.PoseBinsOccupied = [(yawBin, pitchBin)];
+                            int yawBin = BinYawFromAngle(frameCalibrationData.YawDeg);
+                            int pitchBin = BinPitchFromAngle(frameCalibrationData.PitchDeg);
+
                             frameCalibrationData.PoseBinX = yawBin;
                             frameCalibrationData.PoseBinY = pitchBin;
                         }
@@ -2848,7 +2890,7 @@ namespace Surveyor
                         // Clear values
                         frameCalibrationData.YawDeg = 0;
                         frameCalibrationData.PitchDeg = 0;
-                        //???frameCalibrationData.PoseBinsOccupied.Clear();
+
                         frameCalibrationData.PoseBinX = -1;
                         frameCalibrationData.PoseBinY = -1;
                     }
@@ -2860,26 +2902,36 @@ namespace Surveyor
             // Helper
             static void AddToThePoseBinTotals(FrameData target, Dictionary<(int binx, int biny), int> BinTotals)
             {
-                //???foreach (var bin in target.PoseBinsOccupied)
-                //{
-                //    BinTotals[bin] = BinTotals.GetValueOrDefault(bin) + 1;
-                //}
                 BinTotals[(target.PoseBinX, target.PoseBinY)] = BinTotals.GetValueOrDefault((target.PoseBinX, target.PoseBinY)) + 1;
             }
         }
 
 
         // Helper for binning an angle
-        private static int BinFromAngle(double angle, IReadOnlyList<double> thresholds)
+        private static int BinYawFromAngle(double angle)
         {
-            for (int i = 0; i < thresholds.Count; i++)
+            (int gx, _) = FrameData.PoseBinGrid;
+            int ret = gx - 1;
+
+            for (int i = 0; i < FrameData.PoseBinThresholdYaw.Count; i++)
             {
-                if (angle < thresholds[i])
+                if (angle <= FrameData.PoseBinThresholdYaw[i])
                     return i;
             }
-            return thresholds.Count - 1;
+            return ret;
         }
+        private static int BinPitchFromAngle(double angle)
+        {
+            (_, int gy) = FrameData.PoseBinGrid;
+            int ret = gy - 1;
 
+            for (int i = 0; i < FrameData.PoseBinThresholdPitch.Count; i++)
+            {
+                if (angle <= FrameData.PoseBinThresholdPitch[i])
+                    return i;
+            }
+            return ret;
+        }
 
 
         /// <summary>

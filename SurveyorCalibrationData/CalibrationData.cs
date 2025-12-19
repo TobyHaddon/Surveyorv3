@@ -29,7 +29,13 @@ namespace SurveyorCalibrationData
     public class CalibrationCameraData
     {
         [JsonProperty(nameof(RMS))]
-        public double RMS { get; set; }
+        public double RMS { get; set; } // Reprojection RMS in pixels (return value from CalibrateCameraCharuco) 
+
+        [JsonProperty(nameof(ProjectionRMS))]
+        public double ProjectionRMS { get; set; } // Projection RMS in pixels
+
+        [JsonProperty(nameof(MaxError))]
+        public double MaxError { get; set; } // max reprojection error in pixels
 
         [JsonProperty("CameraMatrix")]
         [JsonConverter(typeof(MatrixJsonConverter))]
@@ -184,7 +190,7 @@ namespace SurveyorCalibrationData
     public class CalibrationStereoCameraData
     {
         [JsonProperty(nameof(RMS))]
-        public double RMS { get; set; } = -1;
+        public double RMS { get; set; } = -1;  // Reprojection RMS in pixels (return value from CalibrateCameraCharuco) 
 
 
         [JsonProperty(nameof(Rotation))]
