@@ -226,8 +226,8 @@
 
             <!-- Network connection status 
                  We need sometime in the Text attribute so this element has suitable width
-                 on the title bar at startup. This is so this area isn't draggable and can 
-                 therefore display a tooltip.
+                 on the title bar at startup. This is so this area isn't drag-able and can 
+                 therefore display a tool tip.
                  Note the glyph actually displayed is changed by the code behind -->
             <TextBlock x:Name="ElapsedProcessingTime"
                        Grid.Row="0" Grid.Column="8"
@@ -263,8 +263,8 @@
 
             <!-- Lock/Unlock Glyph Lock E1F6, Unlock E1F7 set in code behind
                  We need sometime in the Text attribute so this element has suitable width
-                 on the title bar at startup. This is so this area isn't draggable and can 
-                 therefore display a tooltip -->
+                 on the title bar at startup. This is so this area isn't drag-able and can 
+                 therefore display a tool tip -->
             <TextBlock x:Name="LockUnLockIndicator"
                        Grid.Row="0" Grid.Column="11"
                        FontFamily="Segoe Fluent Icons"

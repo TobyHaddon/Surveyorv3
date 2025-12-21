@@ -434,7 +434,7 @@ namespace Surveyor
                 // but start with a single offset between the first left media fist and the first right media file
 
                 [JsonIgnore]
-                private bool _isSynchronized = false;       // If synchronized is switched to false the frame offset isn't removed incase it needs to be recovered 
+                private bool _isSynchronized = false;       // If synchronized is switched to false the frame offset isn't removed in case it needs to be recovered 
 
                 [JsonIgnore]
                 private TimeSpan _timeSpanOffset = TimeSpan.Zero;   // This is right - left

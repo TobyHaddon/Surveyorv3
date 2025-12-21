@@ -92,10 +92,10 @@ public sealed partial class CalibrationTargetTest : UserControl
             boardDefinition.Clear();
 
             // SettingsManagerLocal provides default board parameters
-            int squaresX = SettingsManagerLocal.DefaultCharucoBoard_SquaresX;
-            int squaresY = SettingsManagerLocal.DefaultCharucoBoard_SquaresY;
-            float squareLength = (float)SettingsManagerLocal.DefaultCharucoBoard_SquareLength; // metres
-            float markerLength = (float)SettingsManagerLocal.DefaultCharucoBoard_MarkerLength; // metres
+            int squaresX = SettingsManagerLocal.DefaultChArUcoBoard_SquaresX;
+            int squaresY = SettingsManagerLocal.DefaultChArUcoBoard_SquaresY;
+            float squareLength = (float)SettingsManagerLocal.DefaultChArUcoBoard_SquareLength; // meters
+            float markerLength = (float)SettingsManagerLocal.DefaultChArUcoBoard_MarkerLength; // meters
 
             boardDefinition.Target = CalibrationBoardDefinition.TargetType.ChArUco;
             boardDefinition.SquareLength = squareLength;
@@ -105,7 +105,7 @@ public sealed partial class CalibrationTargetTest : UserControl
 
 
             // Dictionary name mapping (basic)
-            string dictName = SettingsManagerLocal.DefaultCharucoBoard_PredefinedDictionaryName;
+            string dictName = SettingsManagerLocal.DefaultChArUcoBoard_PredefinedDictionaryName;
 
             if (Enum.TryParse(dictName, ignoreCase: true, out PredefinedDictionaryName dictEnum))
             {

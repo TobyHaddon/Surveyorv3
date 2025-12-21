@@ -52,7 +52,7 @@
 
                     <!-- Column 1: Sensor coverage -->
                     <TextBlock x:Name="SensorBinTitle" Grid.Row="0" Grid.Column="1"
-                                                    Text="Camera Sensor Coverage"                                       
+                                                    Text="Frame Coverage"                                       
                                                     VerticalAlignment="Bottom" HorizontalAlignment="Left"
                                                     FontFamily="Segoe UI Variable"
                                                     FontSize="10"                        

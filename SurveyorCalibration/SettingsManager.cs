@@ -1,11 +1,11 @@
 ﻿// Handles the local per user settings and the shipped application settings
 // class SettingsManagerLocal is for the local settings that are stored on the user's device
 // class SettingsManagerApp is for the application settings that are shipped with the application and are read-only
-// Note settings from SettingsManagerApp should be remembered and not learnt repeatedly from SettingsManagerApp 
+// Note settings from SettingsManagerApp should be remembered and not learn repeatedly from SettingsManagerApp 
 // This is because the whole appSettings.json is loaded each time and it is not efficient to read it repeatedly
 //
 // Version 1.3  15 Nov 2025
-// Devived from Surveyor version
+// Derived from Surveyor version
 
 
 using Microsoft.UI.Xaml;
@@ -249,52 +249,52 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Default Charuco Board Squares X
+        /// Default ChArUco Board Squares X
         /// </summary>
-        public static int DefaultCharucoBoard_SquaresX
+        public static int DefaultChArUcoBoard_SquaresX
         {
             get => GetInt(DefaultCharucoBoardSquaresXKey, 14/*default*/);
             set => SetInt(DefaultCharucoBoardSquaresXKey, value);
         }
 
         /// <summary>
-        /// Default Charuco Board Squares Y
+        /// Default ChArUco Board Squares Y
         /// </summary>
-        public static int DefaultCharucoBoard_SquaresY
+        public static int DefaultChArUcoBoard_SquaresY
         {
             get => GetInt(DefaultCharucoBoardSquaresYKey, 9/*default*/);
             set => SetInt(DefaultCharucoBoardSquaresYKey, value);
         }
 
         /// <summary>
-        /// Size of each square in the Charuco board in metres
+        /// Size of each square in the ChArUco board in meters
         /// </summary>
-        public static double DefaultCharucoBoard_SquareLength
+        public static double DefaultChArUcoBoard_SquareLength
         {
             get => GetDouble(DefaultCharucoBoardSquareLengthKey, 0.04/*default*/);  //40mm
             set => SetDouble(DefaultCharucoBoardSquareLengthKey, value);
         }
 
         /// <summary>
-        /// Size of each ArUco marker in the Charuco board in metres
+        /// Size of each ArUco marker in the ChArUco board in meters
         /// </summary>
-        public static double DefaultCharucoBoard_MarkerLength
+        public static double DefaultChArUcoBoard_MarkerLength
         {
             get => GetDouble(DefaultCharucoBoardMarkerLengthKey, 0.03/*default*/);  // 30mm
             set => SetDouble(DefaultCharucoBoardMarkerLengthKey, value);
         }
 
         /// <summary>
-        /// Default dictionary name for the predefined ArUco dictionary used for the Charuco board
+        /// Default dictionary name for the predefined ArUco dictionary used for the ChArUco board
         /// </summary>
-        public static string DefaultCharucoBoard_PredefinedDictionaryName
+        public static string DefaultChArUcoBoard_PredefinedDictionaryName
         {
             get => GetString(DefaultCharucoBoardPredefinedDictionaryNameKey, "DICT5x5_100"/*default*/);  
             set => SetString(DefaultCharucoBoardPredefinedDictionaryNameKey, value);
         }
 
         /// <summary>
-        /// Default Physical Board Size X in metres
+        /// Default Physical Board Size X in meters
         /// </summary>
         public static double DefaultBoard_SizeX
         {
@@ -303,7 +303,7 @@ namespace Surveyor
         }
 
         /// <summary>
-        /// Default Physical Board Size Y in metres
+        /// Default Physical Board Size Y in meters
         /// </summary>
         public static double DefaultBoard_SizeY
         {
@@ -361,11 +361,11 @@ namespace Surveyor
         private static SettingsManagerApp? _instance;
         public static SettingsManagerApp Instance => _instance ??= Load();
 
-        public int RecentSurveysDisplayed { get; set; }  // Only use the 'get' the 'set' is for the Json deserializer
+        public int RecentSurveysDisplayed { get; set; }  // Only use the 'get' the 'set' is for the JSON de-serialize
 
 
         [JsonConverter(typeof(KeyValuePairListJsonConverter))]
-        public List<(string, string)> GoProScripts { get; set; } = [];  // Only use the 'get' the 'set' is for the Json deserializer
+        public List<(string, string)> GoProScripts { get; set; } = [];  // Only use the 'get' the 'set' is for the JSON de-serialize
 
 
 

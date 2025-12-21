@@ -13,7 +13,7 @@ namespace Surveyor.Calibration
 {
     /// <summary>
     /// A FrameCalibrationTarget instance represents metadata on a single frame where
-    /// that frame is observed to have a detectable Charuco Calibration target.
+    /// that frame is observed to have a detectable ChArUco Calibration target.
     /// The instance has a calculate of how 'still' this frame was from the previous to the 
     /// next frame (MovementFactor) and separately a BlurFactor is calculated.
     /// </summary>
@@ -51,7 +51,7 @@ namespace Surveyor.Calibration
         [JsonProperty(nameof(BlurFactor))]
         public double BlurFactor { get; init; } // Higher = sharper
 
-        // Calculated centre point
+        // Calculated center point
         [JsonProperty(nameof(Center))]
         public PointF Center;
 
@@ -88,7 +88,7 @@ namespace Surveyor.Calibration
         [JsonIgnore]
         private static readonly int calibParamCount = Enum.GetValues<CalibrationParameters>().Length;
 
-        // Mono Frame quantily tests        
+        // Mono Frame quality tests        
         [JsonProperty(nameof(monoProjectedPoints))]
         public PointF[][] monoProjectedPoints = new PointF[calibParamCount][];
         [JsonProperty(nameof(monoFrameRms))]
@@ -109,7 +109,7 @@ namespace Surveyor.Calibration
         public double[] stereoFrameMaxError = new double[calibParamCount];
 
 
-        // Parameterless constructor for deserialization
+        // Parameter-less constructor for de-serialization
         [JsonConstructor]
         public FrameData()
         {
@@ -139,7 +139,7 @@ namespace Surveyor.Calibration
 
 
         /// <summary>
-        /// Used to calculates or recalucate the dynamic fields
+        /// Used to calculates or recalculate the dynamic fields
         /// </summary>
         /// <param name="resolutionX"></param>
         /// <param name="resolutionY"></param>
@@ -150,7 +150,7 @@ namespace Surveyor.Calibration
         }
 
 
-        /// Calculates the average movement (Euclidean distance) between matching Charuco corners
+        /// Calculates the average movement (Euclidean distance) between matching ChArUco corners
         /// from frame `a` to frame `b`. The result is symmetric: movement from `a` to `b` equals
         /// movement from `b` to `a`.
         public static double CalculateCornerMovement(FrameData a, FrameData b)
@@ -160,7 +160,7 @@ namespace Surveyor.Calibration
 
             var commonIds = dictA.Keys.Intersect(dictB.Keys).ToList();
 
-            // If there are no common acros found between the two boards, return -1
+            // If there are no common ArUco markers found between the two boards, return -1
             if (commonIds.Count == 0)
                 return -1;
 
@@ -266,7 +266,7 @@ namespace Surveyor.Calibration
                 // Slightly relaxed blur weighting — 2–4 is great, 5–7 is okay, 10+ is poor
                 double blurScore = Math.Clamp(10.0 / BlurFactor, 0.0, 1.0);
 
-                // Use 104 as your actual charuco max corner count (for 14x9)
+                // Use 104 as your actual ChArUco max corner count (for 14x9)
                 double cornerScore = Math.Clamp(CharucoCorners.Length / 104.0, 0.0, 1.0);
 
                 // Weighting — prioritize movement, then blur, then corners
@@ -276,7 +276,7 @@ namespace Surveyor.Calibration
 
 
         /// <summary>
-        /// Calculates which bins for the Charuco corners fit into based on grid layers.
+        /// Calculates which bins for the ChArUco corners fit into based on grid layers.
         /// </summary>
         /// <param name="corners"></param>
         /// <param name="resolutionX"></param>

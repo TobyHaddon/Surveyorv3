@@ -3,7 +3,7 @@
 // 
 // Version 1.4
 // Added RMS to CalibrationCameraData
-// Moved alway from MathNET to use native Emgu types
+// Moved always from MathNET to use native EMGU.CV types
 // Commented out the legacy classes
 //
 // Version 1.5
@@ -29,13 +29,13 @@ namespace SurveyorCalibrationData
     public class CalibrationCameraData
     {
         [JsonProperty(nameof(RMS))]
-        public double RMS { get; set; } // Reprojection RMS in pixels (return value from CalibrateCameraCharuco) 
+        public double RMS { get; set; } // Re-projection RMS in pixels (return value from CalibrateCameraCharuco) 
 
         [JsonProperty(nameof(ProjectionRMS))]
         public double ProjectionRMS { get; set; } // Projection RMS in pixels
 
         [JsonProperty(nameof(MaxError))]
-        public double MaxError { get; set; } // max reprojection error in pixels
+        public double MaxError { get; set; } // max re-projection error in pixels
 
         [JsonProperty("CameraMatrix")]
         [JsonConverter(typeof(MatrixJsonConverter))]
@@ -118,7 +118,7 @@ namespace SurveyorCalibrationData
             if (a.Rows != b.Rows || a.Cols != b.Cols) return false;
             for (int r = 0; r < a.Rows; r++)
                 for (int c = 0; c < a.Cols; c++)
-                    if (Math.Abs(a[r, c] - b[r, c]) > tol) return false; // set tol if you want tolerance
+                    if (Math.Abs(a[r, c] - b[r, c]) > tol) return false; // set 'tol' if you want tolerance
             return true;
         }
 
@@ -166,7 +166,7 @@ namespace SurveyorCalibrationData
 
         /// <summary>
         /// Clone this CalibrationCameraData object
-        /// Uses a json serialization to create a deep copy of the object.
+        /// Uses a JSON serialization to create a deep copy of the object.
         /// </summary>
         /// <returns></returns>
         /// <exception cref="InvalidOperationException"></exception>
@@ -190,7 +190,7 @@ namespace SurveyorCalibrationData
     public class CalibrationStereoCameraData
     {
         [JsonProperty(nameof(RMS))]
-        public double RMS { get; set; } = -1;  // Reprojection RMS in pixels (return value from CalibrateCameraCharuco) 
+        public double RMS { get; set; } = -1;  // Re-projection RMS in pixels (return value from CalibrateCameraCharuco) 
 
 
         [JsonProperty(nameof(Rotation))]
@@ -262,7 +262,7 @@ namespace SurveyorCalibrationData
             if (a.Rows != b.Rows || a.Cols != b.Cols) return false;
             for (int r = 0; r < a.Rows; r++)
                 for (int c = 0; c < a.Cols; c++)
-                    if (Math.Abs(a[r, c] - b[r, c]) > tol) return false; // set tol if you want tolerance
+                    if (Math.Abs(a[r, c] - b[r, c]) > tol) return false; // set 'tol' if you want tolerance
             return true;
         }
 
@@ -299,7 +299,7 @@ namespace SurveyorCalibrationData
 
         /// <summary>
         /// Clone this CalibrationStereoCameraData object
-        /// Uses a json serialization to create a deep copy of the object.
+        /// Uses a JSON serialization to create a deep copy of the object.
         /// </summary>
         /// <returns></returns>
         /// <exception cref="InvalidOperationException"></exception>
@@ -467,7 +467,7 @@ namespace SurveyorCalibrationData
 
         /// <summary>
         /// Clone this CalibrationData object
-        /// Uses json serialization to create a deep copy of the object.
+        /// Uses JSON serialization to create a deep copy of the object.
         /// </summary>
         /// <returns></returns>
         /// <exception cref="InvalidOperationException"></exception>
@@ -487,7 +487,7 @@ namespace SurveyorCalibrationData
 
 
         /// <summary>
-        /// Calcualte the FundamentalMatrix
+        /// Calculate the FundamentalMatrix
         /// </summary>
         /// <param name="E"></param>
         /// <param name="K1"></param>
@@ -539,41 +539,6 @@ namespace SurveyorCalibrationData
 
                 var calibrationData = JsonConvert.DeserializeObject<CalibrationData>(json, settings);
 
-//#if DEBUG
-//                if (calibrationData is not null)
-//                {
-//                    string Description = string.IsNullOrEmpty(calibrationData.Description) == false ? calibrationData.Description : "None";
-//                    string GuidString = calibrationData.CalibrationID?.ToString() ?? "Emtry";
-
-//                    Debug.WriteLine($"Description:{Description},  Guid:{GuidString}");
-//                    Debug.WriteLine($"Left:");
-//                    if (calibrationData.LeftCameraCalibration.Intrinsic is not null)
-//                        Debug.WriteLine($"   Camera Matrix: {FormatMatrixToString(calibrationData.LeftCameraCalibration.Intrinsic, 18/*indent*/)}");
-//                    if (calibrationData.LeftCameraCalibration.Distortion is not null)
-//                        Debug.WriteLine($"   Distortion Coefficients: {FormatMatrixToString(calibrationData.LeftCameraCalibration.Distortion, 28/*indent*/)}");
-//                    if (calibrationData.LeftCameraCalibration.ImageSize is not null)
-//                        Debug.WriteLine($"   Image Size: {FormatMatrixToString(calibrationData.LeftCameraCalibration.ImageSize, 28/*indent*/)}");
-//                    if (!string.IsNullOrEmpty(calibrationData.LeftCameraCalibration.CameraID))
-//                        Debug.WriteLine($"   Camera ID: {calibrationData.LeftCameraCalibration.CameraID}");
-
-//                    Debug.WriteLine($"Right:");
-//                    if (calibrationData.RightCameraCalibration.Intrinsic is not null)
-//                        Debug.WriteLine($"   Camera Matrix: {FormatMatrixToString(calibrationData.RightCameraCalibration.Intrinsic, 18/*indent*/)}");
-//                    if (calibrationData.RightCameraCalibration.Distortion is not null)
-//                        Debug.WriteLine($"   Distortion Coefficients: {FormatMatrixToString(calibrationData.RightCameraCalibration.Distortion, 28/*indent*/)}");
-//                    if (calibrationData.RightCameraCalibration.ImageSize is not null)
-//                        Debug.WriteLine($"   Image Size: {FormatMatrixToString(calibrationData.RightCameraCalibration.ImageSize, 28/*indent*/)}");
-//                    if (!string.IsNullOrEmpty(calibrationData.RightCameraCalibration.CameraID))
-//                        Debug.WriteLine($"   Camera ID: {calibrationData.RightCameraCalibration.CameraID}");
-
-//                    Debug.WriteLine("Stereo:");
-//                    Debug.WriteLine($"   RMS: {calibrationData.StereoCameraCalibration.RMS}");
-//                    if (calibrationData.StereoCameraCalibration.Rotation is not null)
-//                        Debug.WriteLine($"   Rotation: {FormatMatrixToString(calibrationData.StereoCameraCalibration.Rotation, 13/*indent*/)}");
-//                    if (calibrationData.StereoCameraCalibration.Translation is not null)
-//                        Debug.WriteLine($"   Translation: {FormatMatrixToString(calibrationData.StereoCameraCalibration.Translation, 16/*indent*/)}");
-//                }
-//#endif
 
                 // Load this class
                 if (calibrationData is not null)
@@ -996,7 +961,7 @@ namespace SurveyorCalibrationData
 
 
         /// <summary>
-        /// Used to compare for a extact match of the calibration data
+        /// Used to compare for a exact match of the calibration data
         /// Use CalibrationData.Compare() to compare if the values match ignoring the CalibrationID Guid
         /// </summary>
         /// <param name="left"></param>
@@ -1019,7 +984,7 @@ namespace SurveyorCalibrationData
 
 
         /// <summary>
-        /// Used to compare for a extact non-match of the calibration data
+        /// Used to compare for a exact non-match of the calibration data
         /// </summary>
         /// <param name="left"></param>
         /// <param name="right"></param>
@@ -1212,7 +1177,7 @@ namespace SurveyorCalibrationData
             }
             else
             {
-                throw new JsonSerializationException("Unexpected JSON structure for MCvPoint3D64f deserialization.");
+                throw new JsonSerializationException("Unexpected JSON structure for MCvPoint3D64f de-serialization.");
             }
         }
 

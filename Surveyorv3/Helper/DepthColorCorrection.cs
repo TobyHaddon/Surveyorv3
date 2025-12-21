@@ -8,10 +8,10 @@ using System.Threading.Tasks;
 
 namespace Surveyor.Helper
 {
-    public static class DepthColourCorrection
+    public static class DepthColorCorrection
     {
         /// <summary>
-        /// Returns the Red,Gree,Blue gain values to do colour correction at the indicated depth
+        /// Returns the Red,Gree,Blue gain values to do color correction at the indicated depth
         /// </summary>
         /// <param name="depthMeters"></param>
         /// <returns></returns>

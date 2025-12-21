@@ -16,7 +16,41 @@ namespace Surveyor
         public SetupRunCalibration setupRunCalibration = _setupRunCalibration;
 
         // Parameters for running calibration
-        public RunCalibrationParams runCalibrationParams = _runCalibrationParams;
+        public RunCalibrationParams runParams = _runCalibrationParams;
+
+        // Working Values 
+        public bool FindCalibrationBoardZoneWorkingValue { get; set; } = true;
+        public bool BuildTheFrameSetsWorkingValue { get; set; } = true;
+        public bool FindBestMonoFramesWorkingValue { get; set; } = true;
+        public bool DoCalibrationMonoCalculationsWorkingValue { get; set; } = true;
+        public bool FindBestStereoFramesWorkingValue { get; set; } = true;
+        public bool DoCalibrationStereoCalculationsWorkingValue { get; set; } = true;
+
+        public double MovementFilterWorkingValue { get; set; } = -1;
+        public double BlurFilterWorkingValue { get; set; } = -1;
+        public int MonoCornersFilterWorkingValue { get; set; } = -1;
+        public int StereoCornersFilterWorkingValue { get; set; } = -1;
+
+        // Helper
+        public bool AnyActions()
+        {
+            if (FindCalibrationBoardZoneWorkingValue ||
+                BuildTheFrameSetsWorkingValue ||
+                FindBestMonoFramesWorkingValue ||
+                DoCalibrationMonoCalculationsWorkingValue ||
+                FindBestStereoFramesWorkingValue ||
+                DoCalibrationStereoCalculationsWorkingValue ||
+                runParams.SaveBestFrames)
+                return true;
+            else
+                return false;
+        }
+
+        public bool IsMovementFilterChanged() => MovementFilterWorkingValue != runParams.MovementFilterValue;
+        public bool IsBlurFilterChanged() => BlurFilterWorkingValue != runParams.BlurFilterValue;
+        public bool IsMonoCornersFilterChanged() => MonoCornersFilterWorkingValue != runParams.MonoCornersFilterValue;
+        public bool IsStereoCornersFilterChanged() => StereoCornersFilterWorkingValue != runParams.StereoCornersFilterValue;
+
     }
 
     public sealed partial class SetupRunCalibration : WindowEx
@@ -27,7 +61,22 @@ namespace Surveyor
         public SetupRunCalibration(MainWindow _mainWindow, CalibProject _calibProject, RunCalibrationParams _runCalibrationParams)
         {
             // Prepare navigation parameters
-            navParams = new(_mainWindow, _calibProject, this, _runCalibrationParams);
+            navParams = new(_mainWindow, _calibProject, this, _runCalibrationParams)
+            {
+                // Create the initial working values
+                FindCalibrationBoardZoneWorkingValue = _runCalibrationParams.FindCalibrationBoardZone,
+                BuildTheFrameSetsWorkingValue = _runCalibrationParams.BuildTheFrameSets,
+                FindBestMonoFramesWorkingValue = _runCalibrationParams.FindBestMonoFrames,
+                DoCalibrationMonoCalculationsWorkingValue = _runCalibrationParams.DoCalibrationMonoCalculations,
+                FindBestStereoFramesWorkingValue = _runCalibrationParams.FindBestStereoFrames,
+                DoCalibrationStereoCalculationsWorkingValue = _runCalibrationParams.DoCalibrationStereoCalculations,
+
+                MovementFilterWorkingValue = _runCalibrationParams.MovementFilterValue,
+                BlurFilterWorkingValue = _runCalibrationParams.BlurFilterValue,
+                MonoCornersFilterWorkingValue = _runCalibrationParams.MonoCornersFilterValue,
+                StereoCornersFilterWorkingValue = _runCalibrationParams.StereoCornersFilterValue
+            };
+
 
             // Restore the saved window state
             PersistenceId = "SetupRunCalibrationWindow";

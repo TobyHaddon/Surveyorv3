@@ -5,7 +5,7 @@
 // https://learn.microsoft.com/en-us/uwp/api/windows.ui.xaml.controls.mediaplayerelement?view=winrt-22621
 // Useful resource for Windows MediaPLayer, MediaTimelineController etc
 // https://learn.microsoft.com/en-us/windows/uwp/audio-video-camera/play-audio-and-video-with-mediaplayer
-// Usewful example of video syncronisation see Scenario2 where two videos are syncronised with a 5.1 sec offset
+// Useful example of video synchronization see Scenario2 where two videos are synchronized with a 5.1 sec offset
 // https://github.com/microsoft/Windows-universal-samples/tree/main/Samples/VideoPlaybackSynchronization
 //
 // Version 1.1
@@ -14,10 +14,10 @@
 // Moved to using the inbuilt SaveAsync in CanvasBitmap to save the frame to a file
 // Moved all the control of the frame buffer into the VideoFrameManager class (i.e. no direct access to the frame buffer)
 // Version 1.3  09 Mar 2025
-// Refractored based on ExampleMediaTimelineController
+// Refactored based on ExampleMediaTimelineController
 // Moved the setting of 'mode' out of PlaybackSession_PlaybackStateChanged and into where the 
 // Play/Pause is requested
-// Verion 1.4 13 Mar 2025
+// Version 1.4 13 Mar 2025
 // Changed approach to:
 // On pause request, pause timeline controller, wait for pause, grab frame directly from media player
 // On frame forward/backward request, because the is no pause state change to wait on we use the VideoFrameAvailable event
@@ -25,7 +25,7 @@
 // Version 1.5 20 May 2025
 // Move the MagnifyAndMarkerDisplay to be a child of the MediaPlayer control
 // Version 1.6 12 Jun 2025
-// Added depth colour correction (experimental on feature set A)
+// Added depth color correction (experimental on feature set A)
 
 
 using CommunityToolkit.WinUI;
@@ -112,7 +112,7 @@ namespace Surveyor.User_Controls
         private TimeSpan frameRateTimeSpan = TimeSpan.Zero;
         private readonly int displayToDecimalPlaces = 3;     // If we start using frame rate of 120fps then we will need to increase this to 3dp
 
-        // Used in the redenering of a frame to the screen
+        // Used in the rendering of a frame to the screen
         private readonly VideoFrameManager vidFrameMgr = new();
 
         // VideoFrameAvailable thread access lock
@@ -121,7 +121,7 @@ namespace Surveyor.User_Controls
         // Load, unloading or buffering indicator
         private bool isBusy = false;
 
-        // Depth used for colour correction
+        // Depth used for color correction
         private uint depthUnderwater = 0;
 
         // Survey type Stereo, Mono or Benthic
@@ -219,7 +219,7 @@ namespace Surveyor.User_Controls
                 // Remember the survey type
                 surveyType = _surveyType;
 
-                // Remember the depth the video was shot at (for colour correction)
+                // Remember the depth the video was shot at (for color correction)
                 depthUnderwater = _depthUnderwater;
 
                 try
@@ -273,8 +273,8 @@ namespace Surveyor.User_Controls
                         playbackSession.BufferingEnded += PlaybackSession_BufferingEnded;
                         playbackSession.NaturalDurationChanged += PlaybackSession_NaturalDurationChanged;
                         playbackSession.NaturalVideoSizeChanged += PlaybackSession_NaturalVideoSizeChanged;
-                        //playbackSession.PlaybackRateChanged += PlaybackSession_PlaybackRateChanged;  // Incase we need later
-                        //playbackSession.PlayedRangesChanged += PlaybackSession_PlayedRangesChanged;  // Incase we need later
+                        //playbackSession.PlaybackRateChanged += PlaybackSession_PlaybackRateChanged;  // In case we need later
+                        //playbackSession.PlayedRangesChanged += PlaybackSession_PlayedRangesChanged;  // In case we need later
                         playbackSession.PositionChanged += PlaybackSession_PositionChanged;
                         playbackSession.SeekableRangesChanged += PlaybackSession_SeekableRangesChanged;
                         playbackSession.SeekCompleted += PlaybackSession_SeekCompleted;
@@ -877,7 +877,7 @@ namespace Surveyor.User_Controls
             // Mute this media player
             MediaPlayerElement.MediaPlayer.IsMuted = true;
 
-            // Signal the Mute was sucessful
+            // Signal the Mute was successful
             mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Muted, CameraSide, mode));
             Debug.WriteLine($"{CameraSide}: Info SureyorMediaPlayer.Mute  Muted");
         }
@@ -893,9 +893,9 @@ namespace Surveyor.User_Controls
             // Unmute this media player
             MediaPlayerElement.MediaPlayer.IsMuted = false;
 
-            // Signal the Unmuted was sucessful
+            // Signal the Unmuted was successful
             mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Unmuted, CameraSide, mode));
-            Debug.WriteLine($"{CameraSide}: Info SureyorMediaPlayer.Mute  Unmuted");
+            Debug.WriteLine($"{CameraSide}: Info SureyorMediaPlayer.Unmuted");
         }
 
 
@@ -1603,14 +1603,14 @@ namespace Surveyor.User_Controls
             private uint frameHeightSoftwareBitmap = 0;
             private int videoFrameCount = 0;
             private CanvasRenderTarget? correctedTarget;   // same device, same size as inputBitmap
-            private Matrix5x4? colourCorrectionMatrix = null;
+            private Matrix5x4? colorCorrectionMatrix = null;
 
             // Wait for one more frame 
             private bool waitForOneMoreFrame = false;
             private TaskCompletionSource<bool>? taskOneMoreFrameCompletion = null;
             private readonly object _frameLock = new(); // Lock for synchronization
 
-            // Depth used for colour correction
+            // Depth used for color correction
             private uint depthUnderwater = 0;
 
             /// <summary>
@@ -1627,13 +1627,13 @@ namespace Surveyor.User_Controls
 
 
             /// <summary>
-            /// Allow the depth underwater that the video was shot at.  This is used for colour correction
+            /// Allow the depth underwater that the video was shot at.  This is used for color correction
             /// </summary>
             /// <param name="_depthUnderwater"></param>
             public void SetDepthUnderwater(uint _depthUnderwater)
             {
                 depthUnderwater = _depthUnderwater;
-                colourCorrectionMatrix = DepthColourCorrection.GetUnderwaterColorMatrix((uint)depthUnderwater);
+                colorCorrectionMatrix = DepthColorCorrection.GetUnderwaterColorMatrix((uint)depthUnderwater);
             }
 
 
@@ -1674,7 +1674,7 @@ namespace Surveyor.User_Controls
                     // Create inputBitMap to receive the frame from Media Player
                     inputBitmap = CanvasBitmap.CreateFromSoftwareBitmap(canvasDevice, frameServerDest);
 
-                    // Create a CanvasRenderTarget to hold the colour correct frame
+                    // Create a CanvasRenderTarget to hold the color correct frame
                     correctedTarget = new CanvasRenderTarget(canvasDevice, (float)frameWidthSoftwareBitmap, (float)frameHeightSoftwareBitmap, 96);
 
                     // Assign the canvasImageSource to the Image.Source
@@ -1682,7 +1682,7 @@ namespace Surveyor.User_Controls
 
 
 
-                    // Check all setup ok
+                    // Check all setup OK
                     if (frameServerDest != null && canvasImageSource != null && inputBitmap != null)
                         IsSetup = true;
                     else
@@ -1779,7 +1779,7 @@ namespace Surveyor.User_Controls
                     correctedTarget = null;
                 }
 
-                colourCorrectionMatrix = null;
+                colorCorrectionMatrix = null;
 
                 frameWidthSoftwareBitmap = 0;
                 frameHeightSoftwareBitmap = 0;
@@ -1834,7 +1834,7 @@ namespace Surveyor.User_Controls
             /// Setup the request for a signal from the frame server that one more frame has
             /// been rendered in the UI Image control.
             /// This function must be used in conjunction with WaitOneMoreFrame() which actually
-            /// does the waiting for the signel.
+            /// does the waiting for the signal.
             /// ** This method is called on the UI side (waiting side) **
             /// </summary>
             /// <param name="cameraSide"></param>
@@ -1907,7 +1907,7 @@ namespace Surveyor.User_Controls
 
             /// <summary>
             /// Called inside the frame server after a new frame has been rendered into the IU
-            /// image control.  The methed check if the UI side was waiting for one more frame and
+            /// image control.  The method check if the UI side was waiting for one more frame and
             /// if so signals to the waiting thread.
             /// The purpose of this is has the MediaPlayer move from playing to pause that at least
             /// one frame comes via the frame serve so there is an up-to-date frame in the Image UI 
@@ -1921,7 +1921,7 @@ namespace Surveyor.User_Controls
                 {
                     if (waitForOneMoreFrame)
                     {
-                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} (Frame Side) Signalling for one more frame received");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide} (Frame Side) Signaling for one more frame received");
                         if (taskOneMoreFrameCompletion is not null)
                         {
                             taskOneMoreFrameCompletion.TrySetResult(true);
@@ -2000,7 +2000,7 @@ namespace Surveyor.User_Controls
 
 
             /// <summary>
-            /// Do colour correction if we are at depth
+            /// Do color correction if we are at depth
             /// </summary>
             public void UpdateCorrectedTarget()
             {
@@ -2013,7 +2013,7 @@ namespace Surveyor.User_Controls
                 ds.DrawImage(new ColorMatrixEffect
                 {
                     Source = inputBitmap,
-                    ColorMatrix = colourCorrectionMatrix!.Value
+                    ColorMatrix = colorCorrectionMatrix!.Value
                 });
             }
 

@@ -255,7 +255,7 @@ namespace Surveyor.Controls
             }
             else
             {
-                // Throw inexpected exception
+                // Throw unexpected exception
                 throw new InvalidOperationException($"Unexpected theme value: {theme}");
             }
         }
@@ -263,7 +263,7 @@ namespace Surveyor.Controls
 
         /// <summary>
         /// Set up the calibration board type for the stereo camera calibration.
-        /// The boardname is just for reporting
+        /// The board name is just for reporting
         /// Example setup:
         /// 
         ///         // Create dictionary
@@ -321,11 +321,11 @@ namespace Surveyor.Controls
 
                     if (!testFrame.IsEmpty)
                     {
-                        // Create WriteableBitmap with Emgu frame dimensions
+                        // Create WriteableBitmap with EMGU.CV frame dimensions
                         wbLeft = new WriteableBitmap(testFrame.Width, testFrame.Height);
                         frameSize = new Size(testFrame.Width, testFrame.Height);
 
-                        // Reset to first frame — Emgu uses .Set() with CapProp
+                        // Reset to first frame — EMGU.CV uses .Set() with CapProp
                         capLeft.Set(Emgu.CV.CvEnum.CapProp.PosFrames, 0);
 
                         LeftImage.Source = wbLeft;
@@ -373,10 +373,10 @@ namespace Surveyor.Controls
 
                         if (!testFrame.IsEmpty)
                         {
-                            // Create WriteableBitmap with Emgu frame dimensions
+                            // Create WriteableBitmap with EMGU.CV frame dimensions
                             wbRight = new WriteableBitmap(testFrame.Width, testFrame.Height);
 
-                            // Reset to first frame — Emgu uses .Set() with CapProp
+                            // Reset to first frame — EMGU.CV uses .Set() with CapProp
                             capRight.Set(Emgu.CV.CvEnum.CapProp.PosFrames, 0);
 
                             RightImage.Source = wbRight;
@@ -450,7 +450,7 @@ namespace Surveyor.Controls
                 capRight = null;
             }
 
-            // Clear frameset values
+            // Clear frame set values
             this.calibrationStereoFrameSet.ClearResults();
             CalibrationFrameSetViewerLeft.HighLightActiveSensorBin(null);
             CalibrationFrameSetViewerLeft.RefreshSensorBin();
@@ -473,7 +473,7 @@ namespace Surveyor.Controls
             DecorateClear(true/*trueLeftfalseRight*/);
             DecorateClear(false/*trueLeftfalseRight*/);
 
-            // Reset calibration output display display 
+            // Reset calibration output display 
             LeftCalibDataText.Text = string.Empty;
             LeftCalibDataBorder.Visibility = Visibility.Collapsed;
             RightCalibDataText.Text = string.Empty;
@@ -672,7 +672,7 @@ namespace Surveyor.Controls
 
         /// <summary>
         /// Find the start and end of the calibration board zone for this head
-        /// Tgis is the first and last time the calibration boards is seen in 
+        /// This is the first and last time the calibration boards is seen in 
         /// the .MP4
         /// </summary>
         /// <returns></returns>
@@ -706,7 +706,7 @@ namespace Surveyor.Controls
             }
             catch (OperationCanceledException)
             {
-                Debug.WriteLine("Calibration search cancelled.");
+                Debug.WriteLine("Calibration search canceled.");
                 ret = -1;
             }
             catch (Exception ex)
@@ -767,12 +767,12 @@ namespace Surveyor.Controls
                     });
 
                     if (ret == -1)
-                        Debug.WriteLine("BuildFrameSetsAsync: User cancelled.");
+                        Debug.WriteLine("BuildFrameSetsAsync: User canceled.");
                 }
             }
             catch (OperationCanceledException)
             {
-                Debug.WriteLine("Calibration search cancelled.");
+                Debug.WriteLine("Calibration search canceled.");
                 ret = -1;
             }
             catch (Exception ex)
@@ -826,12 +826,12 @@ namespace Surveyor.Controls
         {
             int ret = 0;
 
-            // Check we have a CalibrationStereoFrameSet and this is definately a Mono head
+            // Check we have a CalibrationStereoFrameSet and this is definitely a Mono head
             if (calibrationStereoFrameSet is not null && headTrueIsStereoFalseIsMode == false)
             {
                 try
                 {
-                    // Create a list of the best calibation frames best on the sensor bin only
+                    // Create a list of the best calibration frames best on the sensor bin only
                     if (trueLeftFalseRight)
                         Debug.WriteLine($"Mono Left SelectBestStereoFramesUsingSensorBinOnly," +
                                         $" Min move={movementMinThreshold}, Min blur={blurMinThreshold}," +
@@ -896,19 +896,19 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        /// <returns>Zero is ok</returns>
+        /// <returns>Zero is OK</returns>
         public int DoMonoCalibrationCalculationNoUI(CalibProject calibProject,
                                                     bool trueLeftFalseRight,
                                                     int monoCornersMinThreshold)
         {
             int ret = 0;
 
-            // Check we have a CalibrationStereoFrameSet and this is definately a Mono head
+            // Check we have a CalibrationStereoFrameSet and this is definitely a Mono head
             if (calibrationStereoFrameSet is not null && headTrueIsStereoFalseIsMode == false)
             {
                 try
                 {
-                    // Proceed to do the mono calibration using each the calibration paraemter set
+                    // Proceed to do the mono calibration using each the calibration parameter set
                     foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
                     {
                         // Calibration using the best frames (pass2 calibration)                    
@@ -933,7 +933,7 @@ namespace Surveyor.Controls
 
 
                     // Display the mono calibration results
-                    // Reset calibration output display display 
+                    // Reset calibration output display 
                     // Note. We used the left side display control only for a mono head
                     // even if 'trueLeftFalseRight == false'
                     safeUICall.Call(() => LeftCalibDataText.Text = string.Empty);
@@ -956,7 +956,7 @@ namespace Surveyor.Controls
                         }
                     }
 
-                    // Set calibration output display display 
+                    // Set calibration output display 
                     safeUICall.Call(() => LeftCalibDataText.Text = calibationText);
                     safeUICall.Call(() => LeftCalibDataBorder.Visibility = Visibility.Visible);
                 }
@@ -998,7 +998,7 @@ namespace Surveyor.Controls
 
             if (calibrationStereoFrameSet is not null && headTrueIsStereoFalseIsMode == true)
             {
-                // Proceed to do the stereo calibration using each calibration paraemeter 
+                // Proceed to do the stereo calibration using each calibration parameter 
                 foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
                 {
                     Debug.WriteLine($"BestFramesCalcAndStereoCalibrationAsync: {calibrationParameters.ToString()}");
@@ -1007,7 +1007,7 @@ namespace Surveyor.Controls
 
                     if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
                     {
-                        // Create a list of the best calibation frames best on the sensor bin only
+                        // Create a list of the best calibration frames best on the sensor bin only
                         calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold,
                                                                                            blurMinThreshold,
                                                                                            stereoCornersMinThreshold,
@@ -1058,7 +1058,7 @@ namespace Surveyor.Controls
                 string leftCalibationText = $"Image Size {frameSize.Width} x {frameSize.Height}\n";
                 string rightCalibationText = $"Image Size {frameSize.Width} x {frameSize.Height}\n";
 
-                // Proceed to do the stereo calibration using each calibration paraemeter 
+                // Proceed to do the stereo calibration using each calibration parameter 
                 foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
                 {
                     Debug.WriteLine($"BestFramesCalcAndStereoCalibrationAsync: {calibrationParameters.ToString()}");
@@ -1068,13 +1068,13 @@ namespace Surveyor.Controls
                     if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
                     {
 
-                        // Reset calibration output display display 
+                        // Reset calibration output display 
                         LeftCalibDataText.Text = string.Empty;
                         LeftCalibDataBorder.Visibility = Visibility.Collapsed;
                         RightCalibDataText.Text = string.Empty;
                         RightCalibDataBorder.Visibility = Visibility.Collapsed;
 
-                        // Calibration stereo calc
+                        // Calibration stereo calculations using the best frames
                         CalibrationStereoCameraData? calibrationStereoCameraData = calibrationStereoFrameSet.StereoCalibrateUsingBestFrames(
                                                                     frameSize,
                                                                     stereoCornersMinThreshold,
@@ -1099,7 +1099,7 @@ namespace Surveyor.Controls
                             rightCalibationText += CalibrationStereoFrameSet.CalibrationCameraDataText(calibrationStereoCameraData);
                         }
 
-                        // Set calibration output display display 
+                        // Set calibration output display 
                         LeftCalibDataText.Text = leftCalibationText;
                         LeftCalibDataBorder.Visibility = Visibility.Visible;
                         RightCalibDataText.Text = rightCalibationText;
@@ -1220,7 +1220,7 @@ namespace Surveyor.Controls
                             Debug.WriteLine($"SaveBestFiles: Right Frame saved: [{file.Path}]");
                         }
 
-                        ret = 0;//ok
+                        ret = 0;// OK
                     }
                     catch (Exception ex)
                     {
@@ -1263,7 +1263,7 @@ namespace Surveyor.Controls
                 string leftCalibationText = $"Image Size {frameSize.Width} x {frameSize.Height}\n";
                 string rightCalibationText = $"Image Size {frameSize.Width} x {frameSize.Height}\n";
 
-                // Proceed to do the stereo calibration using each calibration paraemeter 
+                // Proceed to do the stereo calibration using each calibration parameter 
                 foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
                 {
                     Debug.WriteLine($"BestFramesCalcAndStereoCalibrationAsync: {calibrationParameters.ToString()}");
@@ -1272,7 +1272,7 @@ namespace Surveyor.Controls
 
                     if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
                     {
-                        // Create a list of the best calibation frames best on the sensor bin only
+                        // Create a list of the best calibration frames best on the sensor bin only
                         calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold,
                                                                                            blurMinThreshold,
                                                                                            stereoCornersMinThreshold,
@@ -1291,13 +1291,13 @@ namespace Surveyor.Controls
                         CalibrationFrameSetViewerLeft.RefreshPoseBin();
                         CalibrationFrameSetViewerRight.RefreshPoseBin();
 
-                        // Reset calibration output display display 
+                        // Reset calibration output display 
                         LeftCalibDataText.Text = string.Empty;
                         LeftCalibDataBorder.Visibility = Visibility.Collapsed;
                         RightCalibDataText.Text = string.Empty;
                         RightCalibDataBorder.Visibility = Visibility.Collapsed;
 
-                        // Calibration stereo calc
+                        // Calibration stereo calculations using the best frames
                         CalibrationStereoCameraData? calibrationStereoCameraData = calibrationStereoFrameSet.StereoCalibrateUsingBestFrames(
                                                                     frameSize,
                                                                     stereoCornersMinThreshold,
@@ -1322,7 +1322,7 @@ namespace Surveyor.Controls
                             rightCalibationText += CalibrationStereoFrameSet.CalibrationCameraDataText(calibrationStereoCameraData);
                         }
 
-                        // Set calibration output display display 
+                        // Set calibration output display 
                         LeftCalibDataText.Text = leftCalibationText;
                         LeftCalibDataBorder.Visibility = Visibility.Visible;
                         RightCalibDataText.Text = rightCalibationText;
@@ -1345,7 +1345,7 @@ namespace Surveyor.Controls
 
                         if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
                         {
-                            // Create a list of the best calibation frames best on the sensor bin only
+                            // Create a list of the best calibration frames best on the sensor bin only
                             calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold,
                                                                                                blurMinThreshold,
                                                                                                stereoCornersMinThreshold,
@@ -1575,7 +1575,7 @@ namespace Surveyor.Controls
 
 
         /// <summary>
-        /// Right side Frame Backbutton pressed
+        /// Right side frame back button pressed
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -2037,7 +2037,7 @@ namespace Surveyor.Controls
             else
                 Pitch.Text = string.Empty;
 
-            // Feature Count (number of Charuco corners)
+            // Feature Count (number of ChArUco corners)
             if (correspondingCount != -1)
                 // Stereo show corresponding feature count (count of matching features on both left and right)
                 FeatureCount.Text = $"{correspondingCount}";
@@ -2255,116 +2255,7 @@ namespace Surveyor.Controls
             if (rightIndex is not null && rightIndex >= 0)
                 DecorateWithFrameInfo(leftTrueRightFalse, framesetIndex);
         }
-        //???
-        //{
-
-        //    if (isLocked && capLeft != null && wbLeft != null && capRight != null && wbRight != null)
-        //    {
-        //        (int leftFrame, int rightFrame) = calibrationStereoFrameSet.GetIndexes(targetIndex);
-
-        //        FrameData? leftTarget = null;
-        //        FrameData? rightTarget = null;
-
-        //        try
-        //        {
-        //            // Get stereo frame pair
-        //            (leftTarget, rightTarget, int correspondingCount) = calibrationStereoFrameSet.Data.Frames[targetIndex];
-
-        //            UpdateFrameMetaData(true/*leftTrueRightFalse*/,
-        //                        leftTarget.MovementFactor,
-        //                        leftTarget.MovementFromPrevious,
-        //                        leftTarget.MovementToNext,
-        //                        leftTarget.BlurFactor,
-        //                        leftTarget.CharucoCorners.Length /*Size*/,
-        //                        leftTarget.Score,
-        //                        leftTarget.YawDeg,
-        //                        leftTarget.PitchDeg,
-        //                        0);
-
-        //            if (rightTarget is not null)
-        //                UpdateFrameMetaData(false/*leftTrueRightFalse*/,
-        //                            rightTarget.MovementFactor,
-        //                            rightTarget.MovementFromPrevious,
-        //                            rightTarget.MovementToNext,
-        //                            rightTarget.BlurFactor,
-        //                            rightTarget.CharucoCorners.Length /*Size*/,
-        //                            rightTarget.Score,
-        //                            rightTarget.YawDeg,
-        //                            rightTarget.PitchDeg,
-        //                            0);
-        //        }
-        //        catch
-        //        {
-        //            ClearFrameMetaData(false/*leftTrueRightFalse*/);
-        //        }
-
-        //        _JumpFrame(true/*leftTrueRightFalse*/, leftFrame, leftTarget);
-        //        _JumpFrame(false/*leftTrueRightFalse*/, rightFrame, rightTarget);
-        //        LeftUpdateFrameLabel();
-        //        RightUpdateFrameLabel();
-
-        //    }
-        //    else if (leftTrueRightFalse && capLeft != null && wbLeft != null)
-        //    {
-
-        //        FrameData? leftTarget = null;
-
-        //        try
-        //        {
-        //            // Get left mono frame data
-        //            (leftTarget, _, _) = calibrationStereoFrameSet.Data.Frames[targetIndex];
-
-        //            UpdateFrameMetaData(true/*leftTrueRightFalse*/,
-        //                        leftTarget.MovementFactor,
-        //                        leftTarget.MovementFromPrevious,
-        //                        leftTarget.MovementToNext,
-        //                        leftTarget.BlurFactor,
-        //                        leftTarget.CharucoCorners.Length /*Size*/,
-        //                        leftTarget.Score,
-        //                        leftTarget.YawDeg,
-        //                        leftTarget.PitchDeg,
-        //                        0);
-        //        }
-        //        catch
-        //        {
-        //            ClearFrameMetaData(false/*leftTrueRightFalse*/);
-        //        }
-
-        //        _JumpFrame(true/*leftTrueRightFalse*/, targetIndex, leftTarget);
-        //        LeftUpdateFrameLabel();
-
-        //    }
-        //    else if (!leftTrueRightFalse && capRight != null && wbRight != null)
-        //    {
-
-        //        FrameData? rightTarget = null;
-
-        //        try
-        //        {
-        //            // Get left mono frame data
-        //            (rightTarget, _, _) = calibrationStereoFrameSet.Data.Frames[targetIndex];
-
-        //            UpdateFrameMetaData(false/*leftTrueRightFalse*/,
-        //                        rightTarget.MovementFactor,
-        //                        rightTarget.MovementFromPrevious,
-        //                        rightTarget.MovementToNext,
-        //                        rightTarget.BlurFactor,
-        //                        rightTarget.CharucoCorners.Length /*Size*/,
-        //                        rightTarget.Score,
-        //                        rightTarget.YawDeg,
-        //                        rightTarget.PitchDeg,
-        //                        0);
-        //        }
-        //        catch
-        //        {
-        //            ClearFrameMetaData(false/*leftTrueRightFalse*/);
-        //        }
-
-        //        _JumpFrame(false/*leftTrueRightFalse*/, targetIndex, rightTarget);
-        //        RightUpdateFrameLabel();
-        //    }
-        //}
-
+        
 
         /// <summary>
         /// Move back in the best frame list
@@ -2446,8 +2337,8 @@ namespace Surveyor.Controls
 
 
         /// <summary>
-        /// Used to update the UI for frame infomation:
-        ///     The frame index / total frame and timne position
+        /// Used to update the UI for frame information:
+        ///     The frame index / total frame and time position
         ///     The frame metadata (movement, blur, yaw, pitch, features, score)
         ///     Highlight the sensor coverage
         ///     Highlight the pose position
@@ -2473,38 +2364,45 @@ namespace Surveyor.Controls
                     FrameData? rightTarget = null;
                     FrameData? target;
 
-                    // Get mono frame data
-                    (leftTarget, rightTarget, int correpondingCount) = calibrationStereoFrameSet.Data.Frames[framesetIndex];
-
-                    if (leftTrueRightFalse)
-                        target = leftTarget;
-                    else
-                        target = rightTarget;
-
-                    if (target is not null)
+                    // Get frame data
+                    if (calibrationStereoFrameSet.Data.Frames.TryGetValue(framesetIndex, out var tuple))
                     {
-                        // The frame metadata (movement, blur, yaw, pitch, features, score)
-                        UpdateFrameMetaData(leftTrueRightFalse,
-                                    target.MovementFactor,
-                                    target.MovementFromPrevious,
-                                    target.MovementToNext,
-                                    target.BlurFactor,
-                                    target.CharucoCorners.Length /*Size*/,
-                                    target.Score,
-                                    target.YawDeg,
-                                    target.PitchDeg,
-                                    correpondingCount);
-                        // Indicate which of the bin this frame is found in
+                        (leftTarget, rightTarget, int correpondingCount) = tuple;
+
                         if (leftTrueRightFalse)
-                        {
-                            CalibrationFrameSetViewerLeft.HighLightActiveSensorBin(target);
-                            CalibrationFrameSetViewerLeft.HighLightActivePoseBin(target);
-                        }
+                            target = leftTarget;
                         else
+                            target = rightTarget;
+
+                        if (target is not null)
                         {
-                            CalibrationFrameSetViewerRight.HighLightActiveSensorBin(target);
-                            CalibrationFrameSetViewerRight.HighLightActivePoseBin(target);
+                            // The frame metadata (movement, blur, yaw, pitch, features, score)
+                            UpdateFrameMetaData(leftTrueRightFalse,
+                                        target.MovementFactor,
+                                        target.MovementFromPrevious,
+                                        target.MovementToNext,
+                                        target.BlurFactor,
+                                        target.CharucoCorners.Length /*Size*/,
+                                        target.Score,
+                                        target.YawDeg,
+                                        target.PitchDeg,
+                                        correpondingCount);
+                            // Indicate which of the bin this frame is found in
+                            if (leftTrueRightFalse)
+                            {
+                                CalibrationFrameSetViewerLeft.HighLightActiveSensorBin(target);
+                                CalibrationFrameSetViewerLeft.HighLightActivePoseBin(target);
+                            }
+                            else
+                            {
+                                CalibrationFrameSetViewerRight.HighLightActiveSensorBin(target);
+                                CalibrationFrameSetViewerRight.HighLightActivePoseBin(target);
+                            }
                         }
+                    }
+                    else
+                    {
+                        clearMetadataAndHighlights = true;
                     }
                 }
                 catch
@@ -2572,7 +2470,7 @@ namespace Surveyor.Controls
                 wb = wbLeft;
                 frameIndex = Math.Max(0, _currentFrameLeft + 1);
 
-                // Get the frameset index
+                // Get the frame set index
                 framesetIndex = calibrationStereoFrameSet.GetFrameSetIndexFromLeftIndexes(frameIndex);
             }
             else
@@ -2581,7 +2479,7 @@ namespace Surveyor.Controls
                 wb = wbRight;
                 frameIndex = Math.Max(0, _currentFrameRight + 1);
 
-                // Get the frameset index
+                // Get the frame set index
                 framesetIndex = calibrationStereoFrameSet.GetFrameSetIndexFromRightIndexes(frameIndex);
             }
 
@@ -2658,7 +2556,7 @@ namespace Surveyor.Controls
                 wb = wbLeft;
                 frameIndex = Math.Max(0, _currentFrameLeft - 1);
 
-                // Get the frameset index
+                // Get the frame set index
                 framesetIndex = calibrationStereoFrameSet.GetFrameSetIndexFromLeftIndexes(frameIndex);
             }
             else
@@ -2667,13 +2565,13 @@ namespace Surveyor.Controls
                 wb = wbRight;
                 frameIndex = Math.Max(0, _currentFrameRight - 1);
 
-                // Get the frameset index
+                // Get the frame set index
                 framesetIndex = calibrationStereoFrameSet.GetFrameSetIndexFromRightIndexes(frameIndex);
             }
 
             if (cap is not null && wb is not null)
             {
-                // Set frame index in Emgu
+                // Set frame index in EMGU.CV
                 cap!.Set(CapProp.PosFrames, frameIndex);
 
                 using var mat = new Mat();
@@ -2739,7 +2637,7 @@ namespace Surveyor.Controls
 
             if (cap is not null && wb is not null)
             {               
-                // Emgu: use Set with CapProp
+                // EMGU.CV: use Set with CapProp
                 cap!.Set(CapProp.PosFrames, framesetIndex);
 
                 using var mat = new Mat();
@@ -3041,7 +2939,7 @@ namespace Surveyor.Controls
 
         public void SetAppMode(AppMode newAppMode)
         {
-            // Check is AppMode has not cahnged
+            // Check is AppMode has not changed
             if (AppModeCurrent == newAppMode)
                 return;
 
@@ -3138,7 +3036,7 @@ namespace Surveyor.Controls
 
 
         /// <summary>
-        /// Used to manually change the view mode from the Menu>View ment items
+        /// Used to manually change the view mode from the Menu>View menu items
         /// </summary>
         /// <param name="newViewMode"></param>
         public void SetViewMode(ViewMode newViewMode)

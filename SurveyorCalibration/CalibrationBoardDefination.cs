@@ -160,7 +160,7 @@ namespace Surveyor
 
         /// <summary>
         /// Use the board parameters to setup the dictionary and board 
-        /// Ready for EMGU api calls
+        /// Ready for EMGU API calls
         /// </summary>
         /// <returns></returns>
         public bool Setup()

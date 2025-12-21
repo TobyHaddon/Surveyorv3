@@ -2,7 +2,7 @@
 // This is a user control is used to adjust settings
 // 
 // Version 1.3
-// Devived from the Surveyorv3 project
+// Derived from the Surveyorv3 project
 
 
 using CommunityToolkit.WinUI;
@@ -96,7 +96,7 @@ namespace Surveyor.User_Controls
             SettingsProjectCalibrationBoard.SetupForProjectSettingWindow(project!);
 
             // Inform the SettingsDefaultCalibrationBoard user control that it is being used in the SettingsWindow
-            // And the null meants we are only working on the adjusting the default calibration board settings
+            // And the null means we are only working on the adjusting the default calibration board settings
             SettingsDefaultCalibrationBoard.SetupForProjectSettingWindow(null);
 
             // Remove the separate title bar from the window
@@ -170,10 +170,10 @@ namespace Surveyor.User_Controls
                 // Use the default system theme
                 rootElement.RequestedTheme = ElementTheme.Default;
 
-                // Get the background colour used by that theme
+                // Get the background color used by that theme
                 var color = TitleBarHelper.ApplySystemThemeToCaptionButtons(this) == Colors.White ? "Dark" : "Light";
 
-                // Based on the background colour select a suitable application icon 
+                // Based on the background color select a suitable application icon 
                 if (color == "Dark")
                 {
                     AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/SurveyorCalibration-Dark.png");
@@ -216,7 +216,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Set the combobox theme to the last saved theme
+        /// Set the combo box theme to the last saved theme
         /// </summary>
         /// <param name="theme"></param>
         private void OnSettingsPageLoaded(ElementTheme theme)
@@ -243,7 +243,7 @@ namespace Surveyor.User_Controls
                             break;
                     }
 
-                    // Load the current diags info saved state
+                    // Load the current diagnostics info saved state
                     DiagnosticInformation.IsOn = SettingsManagerLocal.DiagnosticInformation;
 
                     // Load the teaching tip saved state
@@ -252,7 +252,7 @@ namespace Surveyor.User_Controls
                     // Load the Use Internet saved state
                     UseInternet.IsOn = SettingsManagerLocal.UseInternetEnabled;
 
-                    // Load the Telemtry setting
+                    // Load the Telemetry setting
                     Telemetry.IsOn = SettingsManagerLocal.TelemetryEnabled;
 
                     // Load the Experimental setting
@@ -287,7 +287,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Unloaded event for the root grid.  This is used to clean up the UI and close any open dialogs
+        /// Unloaded event for the root grid.  This is used to clean up the UI and close any open dialog
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -385,7 +385,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Any traching tips that had been marked not to be shown again will be shown again
+        /// Any teaching tips that had been marked not to be shown again will be shown again
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -396,7 +396,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Toggle the allowed to use interst
+        /// Toggle the allowed to use internet
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -540,7 +540,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Eanbled or disable beat release code
+        /// Enabled or disable beta release code
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -684,7 +684,7 @@ namespace Surveyor.User_Controls
                 double expanderTop = point.Y;
                 double expanderHeight = expander.ActualHeight;
 
-                // Get the height of the visible viewport of the ScrollViewer
+                // Get the height of the visible view port of the ScrollViewer
                 double viewportHeight = contentSV.ViewportHeight;
 
                 // Scroll so that the whole expander is visible if possible

@@ -120,7 +120,7 @@ namespace Surveyor.User_Controls
                 }
                 else
                 {
-                    // User cancelled; do not clear existing selection
+                    // User canceled; do not clear existing selection
                 }
             }
             catch (Exception ex)
@@ -140,7 +140,7 @@ namespace Surveyor.User_Controls
         }
 
         /// <summary>
-        /// Control a Textbox to only allow positive whole numbers
+        /// Control a text box to only allow positive whole numbers
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
@@ -314,7 +314,7 @@ namespace Surveyor.User_Controls
                     // Increment the measurement count
                     measurementCount++;
 
-                    // Loop through each calibration set and re-calc this measurement use one
+                    // Loop through each calibration set and re-calculate this measurement use one
                     for (int i = 0; i < calList.Count; i++)
                     {
                         var cd = calList[i];
@@ -324,7 +324,7 @@ namespace Surveyor.User_Controls
 
                         double? measurement = stereo.Measurement(i);
 
-                        // Use SurveyRulesCalc for calcs and rules per calibration index
+                        // Use SurveyRulesCalc for calculate and rules per calibration index
                         var newRules = new Surveyor.SurveyRulesCalc();
                         newRules.ApplyCalcs(stereo, i);
                         if (survey.Data.SurveyRules.SurveyRulesActive)
@@ -398,11 +398,11 @@ namespace Surveyor.User_Controls
                                                                 .Where(t => !double.IsNaN(t.value))
                                                                 .MinBy(t => t.value).index;
 
-                // Analyse result
+                // Analyze result
                 ResultText = "Cumulative divergence from known length per calibration set:\r\n";
                 for (int i = 0; i < calList.Count; i++)
                 {
-                    // Indicate which calilbration set is the preferred one
+                    // Indicate which calibration set is the preferred one
                     if (i == preferredIdx)
                         ResultText += "*";
 

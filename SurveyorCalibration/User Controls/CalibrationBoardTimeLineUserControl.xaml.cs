@@ -88,15 +88,15 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="calilbrationBoardStartframeIndex"></param>
         /// <param name="calilbrationBoardEndframeIndex"></param>
-        public void CalibrationBoardRange(int calilbrationBoardStartframeIndex, int calilbrationBoardEndframeIndex)
+        public void CalibrationBoardRange(int calibrationBoardStartFrameIndex, int calibrationBoardEndFrameIndex)
         {
             CalibrationBoardTimeLine.Children.Clear();
 
-            if (calilbrationBoardStartframeIndex < startMediaFrameIndex || calilbrationBoardEndframeIndex > endMediaFrameIndex)
+            if (calibrationBoardStartFrameIndex < startMediaFrameIndex || calibrationBoardEndFrameIndex > endMediaFrameIndex)
                 return; // Ignore out-of-range
 
-            double startX = calilbrationBoardStartframeIndex - startMediaFrameIndex;
-            double endX = calilbrationBoardEndframeIndex - startMediaFrameIndex;
+            double startX = calibrationBoardStartFrameIndex - startMediaFrameIndex;
+            double endX = calibrationBoardEndFrameIndex - startMediaFrameIndex;
             double width = endX - startX;
             if (width < 0)
             {

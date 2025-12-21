@@ -45,7 +45,7 @@ namespace Surveyor
             }
 
             // Version of the class (use for data migrations)
-            private const int version = 4;
+            private const int version = 5;
             // Data Version
             [JsonProperty(nameof(Version))]
             public int Version { get; set; } = -1;
@@ -65,9 +65,9 @@ namespace Surveyor
             [JsonProperty(nameof(BestFrameIndexes))]
             public List<int> BestFrameIndexes = [];
 
-            // A dictionary of sensor bin totals, where the key is a tuple of (binx, biny)
+            // A dictionary of sensor bin totals, where the key is a tuple
             // this is updated as frames are added or removed from the set.
-            // This dictionary is persistied to JSON 
+            // This dictionary is persisted to JSON 
             [JsonProperty(nameof(AllFramesSensorBinTotalsLeft))]
             [TypeConverter(typeof(TupleInt2JsonConverter))]
             public Dictionary<(int binx, int biny), int> AllFramesSensorBinTotalsLeft = [];
@@ -75,9 +75,9 @@ namespace Surveyor
             [TypeConverter(typeof(TupleInt2JsonConverter))]
             public Dictionary<(int binx, int biny), int> BestFramesSensorBinTotalsLeft = [];
 
-            // A dictionary of sensor bin totals, where the key is a tuple of (binx, biny)
+            // A dictionary of sensor bin totals, where the key is a tuple
             // this is updated as frames are added or removed from the set.
-            // This dictionary is persistied to JSON 
+            // This dictionary is persisted to JSON 
             [JsonProperty(nameof(AllFramesSensorBinTotalsRight))]
             [TypeConverter(typeof(TupleInt2JsonConverter))]
             public Dictionary<(int binx, int biny), int> AllFramesSensorBinTotalsRight = [];
@@ -85,7 +85,7 @@ namespace Surveyor
             [TypeConverter(typeof(TupleInt2JsonConverter))]
             public Dictionary<(int binx, int biny), int> BestFramesSensorBinTotalsRight = [];
 
-            // A dictionary of the left pose bin totals, where the key is a tuple of (binx, biny)
+            // A dictionary of the left pose bin totals, where the key is a tuple
             [JsonProperty(nameof(AllFramesPoseBinTotalsLeft))]
             [TypeConverter(typeof(TupleInt2JsonConverter))]
             public Dictionary<(int binx, int biny), int> AllFramesPoseBinTotalsLeft { get; set; } = [];
@@ -283,7 +283,7 @@ namespace Surveyor
 
         /// <summary>
         /// Set up the calibration board type for the stereo camera calibration.
-        /// The boardname is just for reporting
+        /// The board name is just for reporting
         /// Example setup:
         /// 
         ///         // Create dictionary
@@ -377,7 +377,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Get the frameset index from the left and right frame indexes.
+        /// Get the frame set index from the left and right frame indexes.
         /// </summary>
         /// <param name="leftIndex"></param>
         /// <param name="rightIndex"></param>
@@ -430,7 +430,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Calculate the frame set index from the leftindex
+        /// Calculate the frame set index from the left index
         /// </summary>
         /// <param name="leftIndex"></param>
         /// <returns></returns>
@@ -440,7 +440,7 @@ namespace Surveyor
 
             var (startLeft, _) = GetStartIndexes();
 
-            // If left starts at 0, frameset index == leftIndex
+            // If left starts at 0, frame set index == leftIndex
             // Otherwise left = framesetIndex + startLeft  => framesetIndex = leftIndex - startLeft
             int i = (startLeft == 0) ? leftIndex : (leftIndex - startLeft);
 
@@ -459,7 +459,7 @@ namespace Surveyor
 
             var (_, startRight) = GetStartIndexes();
 
-            // If right starts at 0, frameset index == rightIndex
+            // If right starts at 0, frame set index == rightIndex
             // Otherwise right = framesetIndex + startRight  => framesetIndex = rightIndex - startRight
             int i = (startRight == 0) ? rightIndex : (rightIndex - startRight);
 
@@ -596,8 +596,8 @@ namespace Surveyor
             if (frameRight is not null && (frameRight.CharucoCorners == null || frameRight.CharucoCorners.Length == 0))
                 return -1;
 
-            // If stereo calc the corresponding count (number of markers that are the same on both the left and right side)
-            int correspondingCount = -1;    // Set to -1 to indicate no correspondance applicable (in case it is a mono head)
+            // If stereo calculate the corresponding count (number of markers that are the same on both the left and right side)
+            int correspondingCount = -1;    // Set to -1 to indicate no correspondence applicable (in case it is a mono head)
 
             if (frameRight is not null)
             {
@@ -609,7 +609,7 @@ namespace Surveyor
 
             Data.Frames[stereoFrameIndex] = (frameLeft, frameRight, correspondingCount);
 
-            // If there is a prior and/or next continious frame, calculate the movement
+            // If there is a prior and/or next contiguous frame, calculate the movement
             // from this frame to those previous frames (note values in all three frames
             // maybe updated
             CalculateCornerMovement(stereoFrameIndex);
@@ -668,7 +668,7 @@ namespace Surveyor
 
                 if (ret)
                 {
-                    // Is there a previous contiguious frame?
+                    // Is there a previous contiguous frame?
                     if (Data.Frames.ContainsKey(stereoFrameIndex - 1))
                     {
                         (FrameData leftTargetPrevious, FrameData? rightTargetPrevious, _) = Data.Frames[stereoFrameIndex - 1];
@@ -680,7 +680,7 @@ namespace Surveyor
                             rightTargetPrevious.MovementFromPrevious = -1;
                         }
                     }
-                    // Is there a next contiguious frame?
+                    // Is there a next contiguous frame?
                     if (Data.Frames.ContainsKey(stereoFrameIndex + 1))
                     {
                         (FrameData leftTargetNext, FrameData? rightTargetNext, _) = Data.Frames[stereoFrameIndex + 1];
@@ -783,7 +783,7 @@ namespace Surveyor
                     }
 
                     // Append found frame for this bin to the best frames hash list
-                    // so only unqiue indexes are added
+                    // so only unique indexes are added
                     foreach (var index in frameIndexes)
                     {
                         bool wasAdded = frameIndexSet.Add(index);
@@ -914,23 +914,28 @@ namespace Surveyor
 
                             if (frameSetDataLoaded.Frames.Count > 0)
                             {
-                                // Get the verison of the FrameCalibrationTarget Frame in the Frames list
+                                // Get the version of the FrameCalibrationTarget Frame in the Frames list
                                 (_,(firstFrameCalibrationTarget, _, _)) = frameSetDataLoaded.Frames.First();
                             }
 
-                            // Recalc values flag
+                            // Recalculate values flag
                             bool recalcFramesDictionary = false;
 
                             // Migrations Section
-                            if (frameSetDataLoaded.Version == -1/*From version*/)
+                            int lastestVersion = new CalibrationStereoFrameSet.DataClass().Version;
+                            if (frameSetDataLoaded.Version != lastestVersion)
                             {
-                                // No Migrations action just set the version number to latest
-                                frameSetDataLoaded.Version = new CalibrationStereoFrameSet.DataClass().Version;
+                                // Future migrations
+                                //if (frameSetDataLoaded.Version == ??)
+                                //{
+                                //}
+                                //else
+                                {
+                                    // Old cache so fail the load
+                                    Debug.WriteLine($"Old format cache file:{path}, version:{frameSetDataLoaded.Version}, current required version is:{lastestVersion}");
+                                    return false;
+                                }
                             }
-                            // Future migrations
-                            //else if (frameSetDataLoaded.Version == ??)
-                            //{
-                            //}
 
                             if (firstFrameCalibrationTarget is not null)
                             {
@@ -975,7 +980,7 @@ namespace Surveyor
 
         /// <summary>
         /// Tries to locate where the calibration first appears in the stereo media 
-        /// and when it stops appearring.
+        /// and when it stops appearing.
         /// This is done with periodic sampling of the media and looking for
         /// the target corners to appear and disappear.
         /// </summary>
@@ -1144,7 +1149,7 @@ namespace Surveyor
         /// </summary>
         /// <returns>-1 not found</returns>
 
-        public int GetStoptCalibrationBoardZone()
+        public int GetStopCalibrationBoardZone()
         {
             return Data.StopCalibrationBoardZone;
         }
@@ -1415,7 +1420,7 @@ namespace Surveyor
         /// <param name="stopCalibrationFrameIndex"></param>
         /// <param name="callback"></param>
         /// <param name="cancellationToken"></param>
-        /// <returns>0 = Ok, -1 = Canceled</returns>
+        /// <returns>0 = OK, -1 = Canceled</returns>
         public async Task<int> FindCalibrationsFramesAsync(int startCalibrationFrameIndex,
                                                            int stopCalibrationFrameIndex,
                                                            FrameProcessingCallback callback,
@@ -1598,7 +1603,7 @@ namespace Surveyor
             // Get pair for stereoFrameIndex
             (FrameData leftTarget, FrameData? rightTarget, _) = Data.Frames[stereoFrameIndex];
 
-            // Is there a previous contiguious frame?
+            // Is there a previous contiguous frame?
             if (Data.Frames.ContainsKey(stereoFrameIndex - 1))
             {
                 // Get pair for stereoFrameIndex - 1
@@ -1633,7 +1638,7 @@ namespace Surveyor
                     rightTarget.MovementFromPrevious = -1;
             }
 
-            // Is there a next contiguious frame?
+            // Is there a next contiguous frame?
             if (Data.Frames.ContainsKey(stereoFrameIndex + 1))
             {
                 // Get pair for stereoFrameIndex + 1
@@ -1735,7 +1740,7 @@ namespace Surveyor
             {
                 frameIndex = Math.Clamp(frameIndex, 0, totalFrames - 1);
 
-                // Emgu: use Set with CapProp
+                // EMGU.CV: use Set with CapProp
                 cap!.Set(CapProp.PosFrames, frameIndex);
 
                 mat = new Mat();
@@ -1747,7 +1752,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Detect the Charuco calibration board in the passed image
+        /// Detect the ChArUco calibration board in the passed image
         /// </summary>
         /// <param name="trueLeftfalseRight"></param>
         /// <param name="frameIndex"></param>
@@ -1762,7 +1767,7 @@ namespace Surveyor
                 try
                 {
 
-                    // Convert to grayscale for detection
+                    // Convert to gray scale for detection
                     using var gray = new Mat();
                     CvInvoke.CvtColor(frame, gray, ColorConversion.Bgr2Gray);
 
@@ -1780,7 +1785,7 @@ namespace Surveyor
 
                     if (markerIds.Size > 0)
                     {
-                        // Optional: Refine marker corners to subpixel accuracy
+                        // Optional: Refine marker corners to sub-pixel accuracy
                         for (int i = 0; i < markerCorners.Size; i++)
                         {
                             using var singleMarker = markerCorners[i]; // Access each marker's corner set
@@ -1793,7 +1798,7 @@ namespace Surveyor
                             );
                         }
 
-                        // Converts detected marker corners + IDs into interpolated Charuco corners.
+                        // Converts detected marker corners + IDs into interpolated ChArUco corners.
                         ArucoInvoke.InterpolateCornersCharuco(
                             markerCorners,
                             markerIds,
@@ -1806,7 +1811,7 @@ namespace Surveyor
                         //???Debug.WriteLine($"Frame:{frameIndex} Detected {charucoIds.Size} ChArUco corners");
 
 
-                        // Convert detected Charuco corners to managed types
+                        // Convert detected ChArUco corners to managed types
                         var managedCorners = new PointF[charucoCorners.Rows];
                         charucoCorners.CopyTo(managedCorners);
                         var managedIds = charucoIds.ToArray();
@@ -1833,7 +1838,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// From the metadata storaged in the list for the indicated frame index draw the 
+        /// From the metadata stored in the list for the indicated frame index draw the 
         /// markers to the frame Mat and update the screen 
         /// </summary>
         /// <param name="trueLeftfalseRight"></param>
@@ -1859,14 +1864,14 @@ namespace Surveyor
                     frame,
                     charucoCorners,
                     charucoIds,
-                    new MCvScalar(0, 255, 0)  // Green for Charuco IDs
+                    new MCvScalar(0, 255, 0)  // Green for ChArUco IDs
                 );
 
-                // Draw the centre point
-                //??? Remove to simiply display
+                // Draw the center point
+                //??? Remove to simply display
                 //PointF boardCentre = frameCalibrationTarget.Center;
                 //int radius = 40;
-                //MCvScalar color = new(0, 255, 0); // Green for Centre 
+                //MCvScalar color = new(0, 255, 0); // Green for Center 
                 //int thickness = 20;
                 //
                 // Draw the circle on the Mat
@@ -1875,7 +1880,7 @@ namespace Surveyor
                 // If Mono
                 if (headTrueIsStereoFalseIsMode == false)
                 { 
-                    // If there are reprojected points then draw them
+                    // If there are re-projected points then draw them
                     int index = frameCalibrationTarget.monoProjectedPoints?
                             .Select((arr, i) => new { arr, i })
                             .FirstOrDefault(x => x.arr != null && x.arr.Length > 0)?.i ?? -1;
@@ -1888,7 +1893,7 @@ namespace Surveyor
                                 frame,
                                 new Point((int)Math.Round(pt.X), (int)Math.Round(pt.Y)),
                                 10,
-                                new MCvScalar(0, 0, 255),  // Red for reprojected
+                                new MCvScalar(0, 0, 255),  // Red for re-projected
                                 3  // Filled circle
                             );
                         }
@@ -1993,7 +1998,7 @@ namespace Surveyor
         // number of detected corners (at least 80 in this case) to ensure robust calibration data.
         // Calibrating the Camera: Using the aggregated allCharucoCorners and allCharucoIds,
         // we call ArucoInvoke.CalibrateCameraCharuco to compute the camera’s intrinsic matrix
-        // and distortion coefficients. This function returns the overall reprojection error (RMS)
+        // and distortion coefficients. This function returns the overall re-projection error (RMS)
         // of the calibration docs.opencv.org, and also outputs a rotation vector (rvecs) and
         // translation vector (tvecs) for each frame (representing the camera pose for that frame).
         // We copy the resulting camera matrix and distortion coefficients into convenient
@@ -2004,20 +2009,20 @@ namespace Surveyor
         // corners on the board (objectPoints). We use CvInvoke.ProjectPoints to project the
         // 3D points back into the image plane using the computed camera parameters.This gives
         // us the projected 2D points for each corner in that frame.
-        // Per-Frame Error Metrics: We compute the reprojection error for each corner by measuring
+        // Per-Frame Error Metrics: We compute the re-projection error for each corner by measuring
         // the distance (Euclidean error) between the observed corner position and its projected
         // position. From these, we calculate the RMS error and maximum error for each frame.
         // These per-frame errors are output to the debug log (Debug.WriteLine) to help identify
         // if any particular frame has a high error (which could indicate an outlier or a
         // detection issue).
         // Overall Error Metrics: We aggregate all observed and projected points from every
-        // frame to compute an overall RMS reprojection error(ProjectionRMS) across all points,
-        // as well as the maximum reprojection error(MaxError) among all the corners in all
+        // frame to compute an overall RMS re-projection error(ProjectionRMS) across all points,
+        // as well as the maximum re-projection error(MaxError) among all the corners in all
         // frames.This provides a global measure of calibration accuracy in addition to the
         // RMS error returned by the calibration function.
         // Output Structure: Finally, we populate the MonoCalibrationCameraData object with
         // the calibration results: the intrinsic camera matrix, distortion coefficients,
-        // the calibration’s reprojection RMS (as returned by CalibrateCameraCharuco), and
+        // the calibration’s re-projection RMS (as returned by CalibrateCameraCharuco), and
         // the calculated ProjectionRMS and MaxError.This gives the calling code access to
         // both the camera parameters and the error metrics for further analysis or display.
 
@@ -2052,7 +2057,7 @@ namespace Surveyor
 
             if (charucoBoardDefinition is null)
             {
-                Debug.WriteLine($"{side} Charuco board definition is null.");
+                Debug.WriteLine($"{side} ChArUco board definition is null.");
                 return null;
             }
 
@@ -2065,7 +2070,7 @@ namespace Surveyor
                 List<FrameData> allFrameData = [];
                 imageUsable = 0;
 
-                // Collect Charuco corner detections from the best frames
+                // Collect ChArUco corner detections from the best frames
                 int frameRemovedFromRMSOrMaxError = 0;
                 foreach (var frameIndex in Data.BestFrameIndexes)
                 {
@@ -2126,7 +2131,7 @@ namespace Surveyor
 
                 if (allCharucoCorners.Size == 0)
                 {
-                    Debug.WriteLine($"{side} No valid Charuco data found in best frames.");
+                    Debug.WriteLine($"{side} No valid ChArUco data found in best frames.");
                     return null;
                 }
                 if (pass == 1 && frameRemovedFromRMSOrMaxError > 0)
@@ -2187,7 +2192,7 @@ namespace Surveyor
                 {
                     CalibrationParameters = calibrationParameters,
                     ImageTotal = Data.BestFrameIndexes.Count,
-                    ImageUseable = imageUsable,
+                    ImageUsable = imageUsable,
                     IntrinsicMatrix = intrinsicMatrix,
                     DistortionCoeffs = distortionCoeffs,
                     ReprojectionRMS = reprojectionRMS,
@@ -2195,7 +2200,7 @@ namespace Surveyor
                     MaxError = maxError
                 };
 
-                Debug.WriteLine($"{side} mono calibration first pass (pass 0) complete. Reprojection RMS: {reprojectionRMS:F4}, Projection RMS: {projectionRms:F4}, Max Error: {maxError:F4}");
+                Debug.WriteLine($"{side} mono calibration first pass (pass 0) complete. Re-projection RMS: {reprojectionRMS:F4}, Projection RMS: {projectionRms:F4}, Max Error: {maxError:F4}");
 
                 // Check if frames can be improved and if so re-run the calibration
                 // Select relevant FrameCalibrationData from BestFrameIndexes
@@ -2227,7 +2232,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Compute the projection errors for the given Charuco corners and IDs
+        /// Compute the projection errors for the given ChArUco corners and IDs
         /// </summary>
         /// <param name="allCharucoCorners"></param>
         /// <param name="allCharucoIds"></param>
@@ -2273,7 +2278,7 @@ namespace Surveyor
                     }
                     else
                     {
-                        Debug.WriteLine($"Missing 3D point for Charuco ID {ids[j]}");
+                        Debug.WriteLine($"Missing 3D point for ChArUco ID {ids[j]}");
                     }
                 }
 
@@ -2350,7 +2355,7 @@ namespace Surveyor
 
             try
             {
-                // Diplay the calibation results
+                // Display the calibration results
                 if (monoCalib is not null && monoCalib.IntrinsicMatrix is not null && monoCalib.DistortionCoeffs is not null)
                 {
                     StringBuilder sb = new();
@@ -2434,7 +2439,7 @@ namespace Surveyor
         {
             try
             {
-                // Diplay the calibation results
+                // Display the calibration results
                 if (stereoCalib is not null && stereoCalib.Rotation is not null && stereoCalib.Translation is not null)
                 {
                     StringBuilder sb = new();
@@ -2479,7 +2484,7 @@ namespace Surveyor
                                         : stereoCalib.RMS.ToString("F2");         // normal fixed-point for typical values
                     sb.AppendLine($"RPE: {rmsText}px {rpeQuanlity}");
                     //Debug.WriteLine($"Projection RMS (point):    {monoCalib.ProjectionRMS:F4} px");
-                    //Debug.WriteLine($"Max Reprojection Error:    {monoCalib.MaxError:F4} px");
+                    //Debug.WriteLine($"Max Re-projection Error:    {monoCalib.MaxError:F4} px");
 
                     // Project RMS and MAX Error
                     //???sb.AppendLine($"Projection RMS: {monoCalib.ProjectionRMS:F2}px  Max Error: {monoCalib.MaxError:F2}px");
@@ -2498,11 +2503,11 @@ namespace Surveyor
 
         /// <summary>
         /// Manually compute the 3D corner positions based on the known board 
-        /// layout (squaresX, squaresY, squareLength, markerLength) and Charuco 
+        /// layout (squaresX, squaresY, squareLength, markerLength) and ChArUco 
         /// ID indexing.
-        /// THis is needed because CharucoBoard in Emgu CV (and OpenCV) doesn't 
+        /// THis is needed because ChArUcoBoard in EMGU.CV (and OpenCV) doesn't 
         /// expose a direct method like GetChessboardCorners() to retrieve the 
-        /// 3D object points for individual Charuco
+        /// 3D object points for individual ChArUco
         /// </summary>
         /// <param name="board"></param>
         /// <returns></returns>
@@ -2669,7 +2674,7 @@ namespace Surveyor
                 //???***TEMP***
                 return calibrationStereoCameraData;
 
-                // Reprojection test
+                // Re-projection test
                 int index = 0;
 
                 foreach (var frameIndex in Data.BestFrameIndexes)
@@ -2692,7 +2697,7 @@ namespace Surveyor
                     distL = leftMonoCalibrationCameraData.DistortionCoeffs.Mat.Clone();
                     distR = rightMonoCalibrationCameraData.DistortionCoeffs.Mat.Clone();
 
-                    // Calc the reprojection errors for this frame
+                    // Calculate the re-projection errors for this frame
                     (PointF[] leftProjected, PointF[] rightProjected) = ValidateStereoProjectionReprojectionError(
                                 frameIndex,
                                 objPts, imgPtsLeft, imgPtsRight,
@@ -2783,12 +2788,12 @@ namespace Surveyor
                 double errL = Math.Sqrt(Math.Pow(imgPtsLeft[j].X - projectedLeft[0].X, 2) + Math.Pow(imgPtsLeft[j].Y - projectedLeft[0].Y, 2));
                 double errR = Math.Sqrt(Math.Pow(imgPtsRight[j].X - projectedRight[0].X, 2) + Math.Pow(imgPtsRight[j].Y - projectedRight[0].Y, 2));
 
-                Debug.WriteLine($"[Stereo Validation] Frame {frameIndex} Point {j}: Reprojection error L={errL:F3}px R={errR:F3}px");
+                Debug.WriteLine($"[Stereo Validation] Frame {frameIndex} Point {j}: Re-projection error L={errL:F3}px R={errR:F3}px");
                 totalErrorLeft += errL;
                 totalErrorRight += errR;
             }
 
-            Debug.WriteLine($"[Stereo Validation] Frame {frameIndex}: Avg reprojection error L={totalErrorLeft / imgPtsLeft.Length:F3}px R={totalErrorRight / imgPtsRight.Length:F3}px");
+            Debug.WriteLine($"[Stereo Validation] Frame {frameIndex}: Avg re-projection error L={totalErrorLeft / imgPtsLeft.Length:F3}px R={totalErrorRight / imgPtsRight.Length:F3}px");
           
             //??? Return left and right RMS
 
@@ -2807,7 +2812,7 @@ namespace Surveyor
             {
                 await Task.Run(() =>
                 {
-                    // Emgu uses System.Drawing
+                    // EMGU.CV uses System.Drawing
                     Size frameSizeCorrectedType = new((int)frameSize.Width, (int)frameSize.Height);
 
                     // Parse the Frames
@@ -2833,7 +2838,7 @@ namespace Surveyor
             {
                 if (charucoBoardDefinition is not null)
                 {
-                    if (frameCalibrationData.CharucoCorners.Length > 0 && frameCalibrationData.CharucoIds.Length >= 6/*min required for DLT calc*/)
+                    if (frameCalibrationData.CharucoCorners.Length > 0 && frameCalibrationData.CharucoIds.Length >= 6/*min required for DLT calculation*/)
                     {
                         using var cornersVec = new VectorOfPointF(frameCalibrationData.CharucoCorners);
                         using var idsVec = new VectorOfInt(frameCalibrationData.CharucoIds);
@@ -2953,33 +2958,8 @@ namespace Surveyor
             {
                 for (int binx = 0; binx < px; binx++)
                 {
-                    //???var targetBin = (binx, biny);
-
                     if (headTrueIsStereoFalseIsMode == false)
                     {
-                        //???frameIndexes = Data.Frames
-                        //                 .Where(kvp =>
-                        //                 {
-                        //                     var (left, _, _) = kvp.Value;
-                        //                     return left.CharucoCorners.Length >= cornersMinThreshold &&
-                        //                            left.PoseBinsOccupied.Contains(targetBin) &&
-                        //                            left.MovementFactor <= maxMovementFactor &&
-                        //                            left.BlurFactor <= maxBlurFactor;
-                        //                 })
-                        //                 .OrderByDescending(kvp => kvp.Value.Item1.CharucoCorners.Length) // correspondingCount descending
-                        //                 .ThenBy(kvp =>
-                        //                 {
-                        //                     var (left, _, _) = kvp.Value;
-                        //                     return left.MovementFactor;
-                        //                 })
-                        //                 .ThenBy(kvp =>
-                        //                 {
-                        //                     var (left, _, _) = kvp.Value;
-                        //                     return left.BlurFactor;
-                        //                 })
-                        //                 .Take(4)
-                        //                 .Select(kvp => kvp.Key)
-                        //                 .ToList();
                         frameIndexes = [.. Data.Frames
                                          .Where(kvp =>
                                          {
@@ -3006,35 +2986,6 @@ namespace Surveyor
                     }
                     else
                     {
-                        //???frameIndexes = Data.Frames
-                        //                .Where(kvp =>
-                        //                {
-                        //                    var (left, right, correspondingCount) = kvp.Value;
-                        //                    return correspondingCount >= cornersMinThreshold &&
-                        //                           left.PoseBinsOccupied.Contains(targetBin) &&
-                        //                           left.MovementFactor <= maxMovementFactor &&
-                        //                           left.BlurFactor <= maxBlurFactor &&
-                        //                           right != null &&
-                        //                           right.MovementFactor <= maxMovementFactor &&
-                        //                           right.BlurFactor <= maxBlurFactor;
-                        //                })
-                        //                .OrderByDescending(kvp => kvp.Value.Item3) // correspondingCount descending
-                        //                .ThenBy(kvp =>
-                        //                {
-                        //                    var (left, right, _) = kvp.Value;
-                        //                    return right is null ? left.MovementFactor
-                        //                                         : Math.MaxMagnitude(left.MovementFactor, right.MovementFactor);
-                        //                })
-                        //                .ThenBy(kvp =>
-                        //                {
-                        //                    var (left, right, _) = kvp.Value;
-                        //                    return right is null ? left.BlurFactor
-                        //                                         : Math.MaxMagnitude(left.BlurFactor, right.BlurFactor);
-                        //                })
-                        //                .Take(2)
-                        //                .Select(kvp => kvp.Key)
-                        //                .ToList();
-
                         // Find diverse poses based on the left frame
                         frameIndexes = [.. Data.Frames
                                         .Where(kvp =>
@@ -3164,61 +3115,6 @@ namespace Surveyor
     }
 
 
-    //???public class TupleInt4JsonConverter : JsonConverter
-    //{
-    //    public override bool CanConvert(Type objectType)
-    //    {
-    //        return objectType == typeof(Dictionary<(int, int, int, int), int>);
-    //    }
-
-    //    public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
-    //    {
-    //        var result = new Dictionary<(int, int, int, int), int>();
-    //        var obj = JObject.Load(reader);
-
-    //        foreach (var prop in obj.Properties())
-    //        {
-    //            // Parse string key: "(6, 4, 3, 0)"
-    //            var keyString = prop.Name.Trim('(', ')');
-    //            var parts = keyString.Split(',');
-
-    //            if (parts.Length == 4 &&
-    //                int.TryParse(parts[0], out int a) &&
-    //                int.TryParse(parts[1], out int b) &&
-    //                int.TryParse(parts[2], out int c) &&
-    //                int.TryParse(parts[3], out int d))
-    //            {
-    //                var key = (a, b, c, d);
-    //                var value = prop.Value.ToObject<int>();
-    //                result[key] = value;
-    //            }
-    //        }
-
-    //        return result;
-    //    }
-    //
-    //    public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
-    //    {
-    //        var dict = value as Dictionary<(int, int, int, int), int>;
-    //        if (dict == null)
-    //        {
-    //            writer.WriteNull();
-    //            return;
-    //        }
-
-    //        writer.WriteStartObject();
-    //        foreach (var kvp in dict)
-    //        {
-    //            string key = $"({kvp.Key.Item1}, {kvp.Key.Item2}, {kvp.Key.Item3}, {kvp.Key.Item4})";
-    //            writer.WritePropertyName(key);
-    //            writer.WriteValue(kvp.Value);
-    //        }
-    //        writer.WriteEndObject();
-    //    }
-
-    //    /*** End of TupleInt4JsonConverter ***/
-    //}
-
     public class TupleInt2JsonConverter : JsonConverter
     {
         public override bool CanConvert(Type objectType)
@@ -3282,8 +3178,8 @@ namespace Surveyor
         public Matrix<double>? IntrinsicMatrix { get; set; }
         public Matrix<double>? DistortionCoeffs { get; set; }
         public int ImageTotal { get; set; }
-        public int ImageUseable { get; set; }
-        public double ReprojectionRMS { get; set; }     // Reprojection RMS Error (RPE RMS)
+        public int ImageUsable { get; set; }
+        public double ReprojectionRMS { get; set; }     // Re-projection RMS Error (RPE RMS)
                                                         // Definition: Root mean square of distances between observed and projected image points.
                                                         // < 0.2    Excellent(usually only in studio/lab with perfect lighting and corner visibility)
                                                         // 0.2–0.5  Very good; suitable for accurate 3D reconstructions and pose estimates
@@ -3301,14 +3197,14 @@ namespace Surveyor
                                                         // If you’re planning accurate triangulation(e.g.fish measurement from stereo), staying under 0.5 px helps ensure depth precision.
                                                         
         public double MaxError { get; set; }            // Maximum Error
-                                                        // Definition: Maximum Euclidean distance between an observed 2D point and its reprojection.
+                                                        // Definition: Maximum Euclidean distance between an observed 2D point and its re-projection.
                                                         // ≤ 0.50px     Excellent — very tight calibration with no significant outliers.
                                                         // 0.5–1.0px    Good — minor outliers, acceptable for most applications.
                                                         // 1.0–2.0px    Acceptable — some frames may have off detections or bad coverage.
                                                         // > 2.0px      Poor — likely issues with blurred frames, incorrect detections, or too few diverse poses.
                                                         // Contextual Considerations
                                                         // High max error doesn't always mean the calibration is bad, but it does indicate a possible weak frame.
-                                                        // If your Reprojection RMS error is good(~0.3–0.4 px) but your max error is >2 px, consider reviewing:
+                                                        // If your Re-projection RMS error is good(~0.3–0.4 px) but your max error is >2 px, consider reviewing:
                                                         //    - Frame sharpness
                                                         //    - Angle coverage of the calibration board
                                                         //    - Board detection quality(false or partial matches)

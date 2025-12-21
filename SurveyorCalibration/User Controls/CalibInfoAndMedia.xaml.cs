@@ -1,5 +1,5 @@
 ///
-/// *** Remember when editting this User Control code that it is used from both   ***
+/// *** Remember when editing this User Control code that it is used from both   ***
 /// *** the context of a ContentDialog (for a new project) and from a SettingCard  ***
 /// *** from the SettingsWindow.                                                  ***  
 ///
@@ -115,7 +115,7 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// Set the parent of this control as a SettingsCard
-        /// This is used when this control is used view survey settings
+        /// This is used when this control is used view project settings
         /// </summary>
         /// <param name="settings"></param>
         public void SetupForSettingWindow(SettingsCard settings, CalibProject project)
@@ -523,7 +523,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void LeftMonoMediaFileNames_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Remove any existing seleced item in the other (right list view)
+            // Remove any existing selected item in the other (right list view)
             if (e.AddedItems.Count > 0)
             {
                 RightMonoMediaFileNames.SelectedIndex = -1;
@@ -544,7 +544,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void RightMonoMediaFileNames_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Remove any existing seleced item in the other (left list view)
+            // Remove any existing selected item in the other (left list view)
             if (e.AddedItems.Count > 0)
             {
                 LeftMonoMediaFileNames.SelectedIndex = -1;
@@ -565,7 +565,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void LeftStereoMediaFileNames_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Remove any existing seleced item in the other (right list view)
+            // Remove any existing selected item in the other (right list view)
             if (e.AddedItems.Count > 0)
             {
                 LeftMonoMediaFileNames.SelectedIndex = -1;
@@ -586,7 +586,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void RightStereoMediaFileNames_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Remove any existing seleced item in the other (left list view)
+            // Remove any existing selected item in the other (left list view)
             if (e.AddedItems.Count > 0)
             {
                 LeftMonoMediaFileNames.SelectedIndex = -1;
@@ -750,7 +750,7 @@ namespace Surveyor.User_Controls
             ObservableCollection<MediaFileItem> leftFiles = [];
             ObservableCollection<MediaFileItem> rightFiles = [];
 
-            // Regex to identify and isolcate 'L' or 'R'
+            // Regex to identify and isolate 'L' or 'R'
             // Regex pattern explanation:
             // (?<![a-zA-Z]) - Ensures there is NO letter before 'L'
             // L             - Matches uppercase 'L'
@@ -825,7 +825,7 @@ namespace Surveyor.User_Controls
             bool mediaValid = true;
             bool mediaGoProSNMatch = true;
             bool mediaSameResolution;   // Set later
-            //???bool mediaSameFrameRate;   // Set later
+            bool mediaSameFrameRate;   // Set later
             bool mediaDatesMatch = true;
             bool mediaContigious = true;
 
@@ -1012,11 +1012,11 @@ namespace Surveyor.User_Controls
                 // there is more than one media file on either the left or right side
                 if (LeftMonoMediaFileItemList.Count > 1 || RightMonoMediaFileItemList.Count > 1)
                 {
-                    SetValidationText(true/*valid*/, ProjectMediaContiguousPanel, ProjectMediaContiguousGlyph, ProjectMediaContiguousValidationText, "All media is contingious", "");
+                    SetValidationText(true/*valid*/, ProjectMediaContiguousPanel, ProjectMediaContiguousGlyph, ProjectMediaContiguousValidationText, "All media is contiguous", "");
                 }
                 else
                 {
-                    SetValidationText(null/*hdie*/, ProjectMediaContiguousPanel, ProjectMediaContiguousGlyph, ProjectMediaContiguousValidationText, "", "");
+                    SetValidationText(null/*hide*/, ProjectMediaContiguousPanel, ProjectMediaContiguousGlyph, ProjectMediaContiguousValidationText, "", "");
                 }
             }
 
@@ -1042,17 +1042,16 @@ namespace Surveyor.User_Controls
             }
 
             // Check if all the media has the same frame rate
-            //??? We don't frame rates to be the same for calibration
-            //mediaSameFrameRate = CheckAllMediaFrameRateaAreTheSame();
-            //if (!mediaSameFrameRate)
-            //{
-            //    SetValidationText(false/*invalid*/, SurveyFrameRateMatchPanel, SurveyFrameRateMatchGlyph, SurveyFrameRateMatchValidationText, "All media files need have the same frame rate", "");
+            mediaSameFrameRate = CheckAllMediaFrameRateaAreTheSame();
+            if (!mediaSameFrameRate)
+            {
+                SetValidationText(false/*invalid*/, ProjectFrameRateMatchPanel, ProjectFrameRateMatchGlyph, ProjectFrameRateMatchValidationText, "All media files need have the same frame rate", "");
 
-            //}
-            //else
-            //{
-            //    SetValidationText(true/*valid*/, SurveyFrameRateMatchPanel, SurveyFrameRateMatchGlyph, SurveyFrameRateMatchValidationText, "All media files have the same frame rate", "");
-            //}
+            }
+            else
+            {
+                SetValidationText(true/*valid*/, ProjectFrameRateMatchPanel, ProjectFrameRateMatchGlyph, ProjectFrameRateMatchValidationText, "All media files have the same frame rate", "");
+            }
 
 
             // Check for warning
@@ -1138,7 +1137,7 @@ namespace Surveyor.User_Controls
                 validationText.Text = text;
             }
 
-            // Retrieve the tooltip programmatically
+            // Retrieve the tool tip programmatically
             bool applyTooltip = false;
 
             if (ToolTipService.GetToolTip(validationText) is not ToolTip existingToolTip)
@@ -1147,11 +1146,11 @@ namespace Surveyor.User_Controls
             }
             else if ((string)existingToolTip.Content != tooltip)
             {
-                // Update tooltip
+                // Update tool tip
                 existingToolTip.Content = tooltip;
             }
 
-            // Change the tooltip
+            // Change the tool tip
             if (applyTooltip)
             {
                 ToolTip toolTip = new() { Content = tooltip };
@@ -1467,55 +1466,55 @@ namespace Surveyor.User_Controls
         /// Check if all the media files have the same frame rate
         /// </summary>
         /// <returns></returns>
-        //private bool CheckAllMediaFrameRateaAreTheSame()
-        //{
-        //    bool ret = true;
+        private bool CheckAllMediaFrameRateaAreTheSame()
+        {
+            bool ret = true;
 
-        //    double? mediaFrameRate;
+            double? mediaFrameRate;
 
-        //    if (LeftMonoMediaFileItemList.Count + RightMonoMediaFileItemList.Count > 1)
-        //    {
-        //        if (LeftMonoMediaFileItemList.Count > 0 && LeftMonoMediaFileItemList[0] is not null)
-        //        {
-        //            MediaFileItem item = LeftMonoMediaFileItemList[0];
-        //            mediaFrameRate = item.MediaFrameRate;
-        //        }
-        //        else if (RightMonoMediaFileItemList.Count > 0 && RightMonoMediaFileItemList[0] is not null && RightMonoMediaFileItemList[0].MediaFilePath is not null)
-        //        {
-        //            MediaFileItem item = RightMonoMediaFileItemList[0];
-        //            mediaFrameRate = item.MediaFrameRate;
-        //        }
-        //        else
-        //            return false;
+            if (LeftMonoMediaFileItemList.Count + RightMonoMediaFileItemList.Count > 1)
+            {
+                if (LeftMonoMediaFileItemList.Count > 0 && LeftMonoMediaFileItemList[0] is not null)
+                {
+                    MediaFileItem item = LeftMonoMediaFileItemList[0];
+                    mediaFrameRate = item.MediaFrameRate;
+                }
+                else if (RightMonoMediaFileItemList.Count > 0 && RightMonoMediaFileItemList[0] is not null && RightMonoMediaFileItemList[0].MediaFilePath is not null)
+                {
+                    MediaFileItem item = RightMonoMediaFileItemList[0];
+                    mediaFrameRate = item.MediaFrameRate;
+                }
+                else
+                    return false;
 
-        //        if (ret == true)
-        //        {
-        //            // Check all the left media files
-        //            foreach (MediaFileItem item in LeftMonoMediaFileItemList)
-        //            {
-        //                if (mediaFrameRate != item.MediaFrameRate)
-        //                {
-        //                    ret = false;
-        //                    break;
-        //                }
-        //            }
-        //        }
-        //        if (ret == true)
-        //        {
-        //            // Check all the right media files
-        //            foreach (MediaFileItem item in RightMonoMediaFileItemList)
-        //            {
-        //                if (mediaFrameRate != item.MediaFrameRate)
-        //                {
-        //                    ret = false;
-        //                    break;
-        //                }
-        //            }
-        //        }
-        //    }
+                if (ret == true)
+                {
+                    // Check all the left media files
+                    foreach (MediaFileItem item in LeftMonoMediaFileItemList)
+                    {
+                        if (mediaFrameRate != item.MediaFrameRate)
+                        {
+                            ret = false;
+                            break;
+                        }
+                    }
+                }
+                if (ret == true)
+                {
+                    // Check all the right media files
+                    foreach (MediaFileItem item in RightMonoMediaFileItemList)
+                    {
+                        if (mediaFrameRate != item.MediaFrameRate)
+                        {
+                            ret = false;
+                            break;
+                        }
+                    }
+                }
+            }
 
-        //    return ret;
-        //}
+            return ret;
+        }
 
 
         /// <summary>
@@ -1722,7 +1721,7 @@ namespace Surveyor.User_Controls
                     MonoTitleRow.Height = GridLength.Auto;
                     StereoTitleRow.Height = GridLength.Auto;
 
-                    // Restore the mono listview grid row
+                    // Restore the mono <ListView> grid row
                     MonoListViewRow.Height = monoListViewRowHeight;
                     StereoListViewRow.Height = stereoListViewRowHeight;
 
@@ -1745,7 +1744,7 @@ namespace Surveyor.User_Controls
                     MonoTitleRow.Height = new GridLength(0);
                     StereoTitleRow.Height = GridLength.Auto;
 
-                    // Hide the mono listview grid row and restore the stereo
+                    // Hide the mono <ListView> grid row and restore the stereo
                     MonoListViewRow.Height = new GridLength(0);
                     StereoListViewRow.Height = monoListViewRowHeight;
 
@@ -1761,11 +1760,11 @@ namespace Surveyor.User_Controls
                     LeftStereoMediaFileNames.SelectedItem = null;
                     RightStereoMediaFileNames.SelectedItem = null;
 
-                    // Restore thr mono and Hide the stereo title grid row
+                    // Restore the mono and Hide the stereo title grid row
                     MonoTitleRow.Height = GridLength.Auto;
                     StereoTitleRow.Height = new GridLength(0);
 
-                    // Restore the mono and hide the stereo listview grid row
+                    // Restore the mono and hide the stereo <ListView> grid row
                     MonoListViewRow.Height = monoListViewRowHeight;
                     StereoListViewRow.Height = new GridLength(0);
 
@@ -1789,7 +1788,7 @@ namespace Surveyor.User_Controls
                     MonoTitleRow.Height = GridLength.Auto;
                     StereoTitleRow.Height = new GridLength(0);
 
-                    // Restore the mono and hide the stereo listview grid row
+                    // Restore the mono and hide the stereo <ListView> grid row
                     MonoListViewRow.Height = monoListViewRowHeight;
                     StereoListViewRow.Height = new GridLength(0);
 
@@ -1809,10 +1808,10 @@ namespace Surveyor.User_Controls
             {
                 if (LeftMonoMediaFileNames.SelectedItem is MediaFileItem)
                 {
-                    // Move to Right top listview button
+                    // Move to Right top <ListView> button
                     moveItemAcrossTopRightIsEnabled = true;
 
-                    // Move to Left bottom listview button
+                    // Move to Left bottom <ListView> button
                     leftSideMoveItemDownIsEnabled = true;
 
                     // Delete enabled
@@ -1820,10 +1819,10 @@ namespace Surveyor.User_Controls
                 }
                 else if (RightMonoMediaFileNames.SelectedItem is MediaFileItem)
                 {
-                    // Move to Right top listview button
+                    // Move to Right top <ListView> button
                     moveItemAcrossTopLeftIsEnabled = true;
 
-                    // Move to Left bottom listview button
+                    // Move to Left bottom <ListView> button
                     rightSideMoveItemDownIsEnabled = true;
 
                     // Delete enabled
@@ -1831,10 +1830,10 @@ namespace Surveyor.User_Controls
                 }
                 else if (LeftStereoMediaFileNames.SelectedItem is MediaFileItem)
                 {
-                    // Move to Right bottom listview button
+                    // Move to Right bottom <ListView> button
                     moveItemAcrossBottomRightIsEnabled = true;
 
-                    // Move to Left top listview button
+                    // Move to Left top <ListView> button
                     leftSideMoveItemUpIsEnabled = true;
 
                     // Delete enabled
@@ -1842,10 +1841,10 @@ namespace Surveyor.User_Controls
                 }
                 else if (RightStereoMediaFileNames.SelectedItem is MediaFileItem)
                 {
-                    // Move to Right bottom listview button
+                    // Move to Right bottom <ListView> button
                     moveItemAcrossBottomLeftIsEnabled = true;
 
-                    // Move to Left top listview button
+                    // Move to Left top <ListView> button
                     rightSideMoveItemUpIsEnabled = true;
 
                     // Delete enabled
@@ -1853,7 +1852,7 @@ namespace Surveyor.User_Controls
                 }
 
                 // If we are doing mono only work make sure the delete button 1 is enabled
-                // as delete button 2 will not be visable
+                // as delete button 2 will not be visible
                 if (stereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoSingleOnlyMediaSet ||
                     stereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoPairOnlyMediaSet)
                 {
@@ -1928,7 +1927,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Use at the top of the function if that function is intended for use use only on the 
+        /// Use at the top of the function if that function is intended for use only on the 
         /// UI Thread.  This is to prevent the function being called from a non-UI thread.
         /// </summary>
         private void CheckIsUIThread()

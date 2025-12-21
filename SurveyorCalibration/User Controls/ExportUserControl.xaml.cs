@@ -75,7 +75,7 @@ namespace Surveyor.User_Controls
                                 calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)p] is not null &&
                                 calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)p] is not null)
                             {
-                                string resultText = $"Reprojection RMS: {calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)p]!.RMS:F4}px";
+                                string resultText = $"Re-projection RMS: {calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)p]!.RMS:F3}px";
                                 switch (p)
                                 {
                                     case CalibrationParameters.K1K2P1P2:
@@ -103,7 +103,7 @@ namespace Surveyor.User_Controls
                         {
                             if (calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)p] is not null)
                             {
-                                string resultText = $"Reprojection RMS: {calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)p]!.RMS:F4}px";
+                                string resultText = $"Re-projection RMS: {calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)p]!.RMS:F3}px";
                                 switch (p)
                                 {
                                     case CalibrationParameters.K1K2P1P2:
@@ -132,8 +132,8 @@ namespace Surveyor.User_Controls
                             if (calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)p] is not null &&
                                 calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)p] is not null)
                             {
-                                string resultText = $"Repro RMS: Left={calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)p]!.ReprojectionRMS:F4}px,"+
-                                                    $" Right={calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)p]!.ReprojectionRMS:F4}px";
+                                string resultText = $"Repro RMS: Left={calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)p]!.ReprojectionRMS:F3}px,"+
+                                                    $" Right={calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)p]!.ReprojectionRMS:F3}px";
                                 switch (p)
                                 {
                                     case CalibrationParameters.K1K2P1P2:
@@ -161,7 +161,7 @@ namespace Surveyor.User_Controls
                         {
                             if (calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)p] is not null)
                             {
-                                string resultText = $"Repro RMS: {calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)p]!.ReprojectionRMS:F4}px";
+                                string resultText = $"Repro RMS: {calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)p]!.ReprojectionRMS:F3}px";
                                 switch (p)
                                 {
                                     case CalibrationParameters.K1K2P1P2:
@@ -308,7 +308,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Email support for additional expory formats
+        /// Email support for additional export formats
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
@@ -323,7 +323,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Email support for additional distortion model coeffient combinations
+        /// Email support for additional distortion model coefficient combinations
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
@@ -518,7 +518,7 @@ namespace Surveyor.User_Controls
                 calibrationData.LeftCameraCalibration.ImageSize[0, 1] = (int)calibProject.Data.Media.FrameHeight;
 
                 calibrationData.LeftCameraCalibration.ImageTotal = leftMonoCalibrationCameraData.ImageTotal;
-                calibrationData.LeftCameraCalibration.ImageUseable = leftMonoCalibrationCameraData.ImageUseable;
+                calibrationData.LeftCameraCalibration.ImageUseable = leftMonoCalibrationCameraData.ImageUsable;
                 calibrationData.LeftCameraCalibration.Intrinsic = leftMonoCalibrationCameraData.IntrinsicMatrix;
                 calibrationData.LeftCameraCalibration.Distortion = leftMonoCalibrationCameraData.DistortionCoeffs;
                 calibrationData.LeftCameraCalibration.RMS = leftMonoCalibrationCameraData.ReprojectionRMS;
@@ -529,7 +529,7 @@ namespace Surveyor.User_Controls
                 calibrationData.RightCameraCalibration.ImageSize[0, 0] = (int)calibProject.Data.Media.FrameWidth;
                 calibrationData.RightCameraCalibration.ImageSize[0, 1] = (int)calibProject.Data.Media.FrameHeight;
                 calibrationData.RightCameraCalibration.ImageTotal = rightMonoCalibrationCameraData.ImageTotal;
-                calibrationData.RightCameraCalibration.ImageUseable = rightMonoCalibrationCameraData.ImageUseable;
+                calibrationData.RightCameraCalibration.ImageUseable = rightMonoCalibrationCameraData.ImageUsable;
                 calibrationData.RightCameraCalibration.Intrinsic = rightMonoCalibrationCameraData.IntrinsicMatrix;
                 calibrationData.RightCameraCalibration.Distortion = rightMonoCalibrationCameraData.DistortionCoeffs;
                 calibrationData.RightCameraCalibration.RMS = rightMonoCalibrationCameraData.ReprojectionRMS;
@@ -568,7 +568,7 @@ namespace Surveyor.User_Controls
             string FormatCvMatrix<T>(Emgu.CV.Matrix<T> m)
                 where T : struct, IConvertible
             {
-                // dt: f for float/double, i for int; Emgu commonly backs with double
+                // dt: f for float/double, i for int; EMGU.CV commonly backs with double
                 string dt = typeof(T) == typeof(float) ? "f" :
                             typeof(T) == typeof(int)   ? "i" : "d";
                 var data = new System.Text.StringBuilder();
@@ -757,10 +757,10 @@ namespace Surveyor.User_Controls
                 if (mono is not null)
                 {
                     sb.AppendLine($"=== Mono {side} Calibration ===");
-                    sb.AppendLine($"{side} Images Used: {mono.ImageUseable} / {mono.ImageTotal}");
-                    sb.AppendLine($"{side} Reprojection RMS: {mono.ReprojectionRMS:F4}px");
-                    sb.AppendLine($"{side} Projection RMS: {mono.ProjectionRMS:F4}px");
-                    sb.AppendLine($"{side} Max Error: {mono.ProjectionRMS:F4}px");
+                    sb.AppendLine($"{side} Images Used: {mono.ImageUsable} / {mono.ImageTotal}");
+                    sb.AppendLine($"{side} Re-projection RMS: {mono.ReprojectionRMS:F3}px");
+                    sb.AppendLine($"{side} Projection RMS: {mono.ProjectionRMS:F3}px");
+                    sb.AppendLine($"{side} Max Error: {mono.ProjectionRMS:F3}px");
 
                     sb.AppendLine($"{side} Intrinsic Matrix:");
                     var m = mono.IntrinsicMatrix;
@@ -770,8 +770,8 @@ namespace Surveyor.User_Controls
                         {
                             sb.AppendLine($"\tfx: {m[0, 0]:F4}\tFocal length in pixel units in the x-direction");
                             sb.AppendLine($"\tfy: {m[1, 1]:F4}\tFocal length in pixel units in the y-direction");
-                            sb.AppendLine($"\tcx: {m[0, 2]:F4}\tThe x-coordinate of the optical centre on the image sensor");
-                            sb.AppendLine($"\tcy: {m[1, 2]:F4}\tThe y-coordinate of the optical centre on the image sensor");
+                            sb.AppendLine($"\tcx: {m[0, 2]:F4}\tThe x-coordinate of the optical center on the image sensor");
+                            sb.AppendLine($"\tcy: {m[1, 2]:F4}\tThe y-coordinate of the optical center on the image sensor");
                             sb.AppendLine($"\tskew: {m[0, 1]:F4}\tPixel skew factor - represents non-rectangular pixels");
                         }
                         else
@@ -846,7 +846,7 @@ namespace Surveyor.User_Controls
             {
                 StringBuilder sb = new();
                 sb.AppendLine("=== Stereo Calibration ===");
-                sb.AppendLine($"Reprojection RMS: {stereo.RMS:F4}px");
+                sb.AppendLine($"Re-projection RMS: {stereo.RMS:F3}px");
 
                 sb.AppendLine("Rotation Matrix (R):");
                 var r = stereo.Rotation;

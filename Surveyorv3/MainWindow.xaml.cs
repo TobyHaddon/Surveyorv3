@@ -112,7 +112,7 @@ namespace Surveyor
         {
             this.InitializeComponent();
             
-            // Event first before the app window is commited to closing (i.e. can be cancelled)
+            // Event first before the app window is committed to closing (i.e. can be canceled)
             if (this.AppWindow is not null)
                 this.AppWindow.Closing += AppWindow_Closing;
 
@@ -395,10 +395,10 @@ namespace Surveyor
                 // Use the default system theme
                 rootElement.RequestedTheme = ElementTheme.Default;
 
-                // Get the background colour used by that theme
+                // Get the background color used by that theme
                 var color = TitleBarHelper.ApplySystemThemeToCaptionButtons(this) == Colors.White ? "Dark" : "Light";
 
-                // Based on the background colour select a suitable application icon 
+                // Based on the background color, select a suitable application icon
                 if (color == "Dark")
                     TitleBarIcon.Source = new BitmapImage(new Uri($"ms-appx:///Assets/Surveyor-Dark.png"));
                 else
@@ -1115,7 +1115,7 @@ namespace Surveyor
                         if (ret == 0)
                         {
                             // Force to the top of the recent surveys list
-                            // Note this survey is definately in the recent survey list
+                            // Note this survey is definitely in the recent survey list
                             // but may be the top item. As the new last opened survey it
                             // should be top
                             AddToRecentSurveys(filePath);
@@ -1344,22 +1344,22 @@ namespace Surveyor
                     {
                         if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == false)
                         {
-                            // We are only storing one calib and we already have this one so inform user we will ignore
+                            // We are only storing one calibration result and we already have this one so inform user we will ignore
                             // Cancel Only
                             message = $"The calibration data '{calibrationData.Description}' is already in the survey file. No action will be taken.";
                         }
                         else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true && surveyClass.Data.Calibration.PreferredCalibrationDataIndex == index)
                         {
-                            // We are storing multiple calibs and this is the preferred one so inform user we will ignore
+                            // We are storing multiple calibration results and this is the preferred one so inform user we will ignore
                             // Cancel Only
                             message = $"The calibration data '{calibrationData.Description}' is already in the survey file and it is the preferred calibration so no action will be taken.";
                         }
                         else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true && surveyClass.Data.Calibration.PreferredCalibrationDataIndex != index)
                         {
-                            // We are storing multiple calibs and this is not the preferred one so ask user if they want this to be the preferred calibration
-                            // Ok/Cancel
+                            // We are storing multiple calibration results and this is not the preferred one so ask user if they want this to be the preferred calibration
+                            // OK/Cancel
                             message = $"The calibration data '{calibrationData.Description}' is already in the survey file but it is not the preferred calibration. Do you would like to make it the preferred calibration?";
-                            primaryButtonText = "Ok";
+                            primaryButtonText = "OK";
                         }
 
                         // Ask the user
@@ -1388,19 +1388,19 @@ namespace Surveyor
                     {
                         if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == false)
                         {
-                            // We are only storing one calib and we already have this one but under a different Description so ask the user if the Description should be updated
+                            // We are only storing one calibration result and we already have this one but under a different Description so ask the user if the Description should be updated
                             message = $"The calibration data '{calibrationData.Description}' is already in the survey file but with a different Description. Do you you want to update the Description?";
-                            primaryButtonText = "Ok";
+                            primaryButtonText = "OK";
                         }
                         else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true && surveyClass.Data.Calibration.PreferredCalibrationDataIndex == index)
                         {
-                            // We are storing multiple calibs and this is the preferred one so info user we will ignore
+                            // We are storing multiple calibration results and this is the preferred one so info user we will ignore
                             message = $"The calibration data '{calibrationData.Description}' is already in the survey file but with a different Description. Do you want to update the Description?";
-                            primaryButtonText = "Ok";
+                            primaryButtonText = "OK";
                         }
                         else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true && surveyClass.Data.Calibration.PreferredCalibrationDataIndex != index)
                         {
-                            // We are storing multiple calibs and this is not the preferred one so ask user if they want this to be the preferred calibration
+                            // We are storing multiple calibration results and this is not the preferred one so ask user if they want this to be the preferred calibration
                             message = $"The calibration data '{calibrationData.Description}' is already in the survey file but with a different Description and is not the preferred calibration. Press 'Yes' to update the Description and make it the preferred calibration or 'No' to just update the Description?";
                             primaryButtonText = "Yes";
                             secondaryButtonText = "No";
@@ -1705,7 +1705,7 @@ namespace Surveyor
                         }
                     }
 
-                    // Engage to the MediaTimelineController
+                    // Engage the MediaTimelineController
                     if (surveyClass is not null && (reEnable || newPosition))
                     {
                         await mediaStereoController.MediaLockMediaPlayersAsync(null/*current media positions*/, surveyClass.Data.Events.EventList);
@@ -2068,7 +2068,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Keyboard accelerator to testing code
+        /// Keyboard accelerator for testing code
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
@@ -2142,7 +2142,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Keyboard accelerator to testing code
+        /// Keyboard accelerator for testing code
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
@@ -2543,11 +2543,11 @@ namespace Surveyor
                     // ** Important notes **
                     // The UserControl SurveyInfoAndMedia is displayed within a ContentDialog for 
                     // the purpose of setting up a new survey (also using from a SettingsCard)
-                    // I stuggled to get the ContentDialog to show width necessary to fully display
+                    // I struggled to get the ContentDialog to show width necessary to fully display
                     // the UserControl.  The solution was to:
                     // Set <x:Double x:key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
                     // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
-                    // This took a lot of trail and error. It seems to effect the title bar is left in
+                    // This took a lot of trial and error. It seems to effect the title bar is left in
                     // default row zero.
                     ContentDialogResult result = await SurveyStereoInfoAndMediaContentDialog.ShowAsync();
                     if (result == ContentDialogResult.Primary)
@@ -2568,7 +2568,7 @@ namespace Surveyor
                     }
                     else
                     {
-                        // User cancelled creating a new survey
+                        // User canceled creating a new survey
                         ret = false;
                     }
                 }
@@ -2581,7 +2581,7 @@ namespace Surveyor
             }
             else
             {
-                // Report twomedia files are required               
+                // Report two media files are required               
                 var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
 
                 // Add a content dialog to report the survey save error
@@ -2679,11 +2679,11 @@ namespace Surveyor
                     // ** Important notes **
                     // The UserControl SurveyInfoAndMedia is displayed within a ContentDialog for 
                     // the purpose of setting up a new survey (also using from a SettingsCard)
-                    // I stuggled to get the ContentDialog to show width necessary to fully display
+                    // I struggled to get the ContentDialog to show width necessary to fully display
                     // the UserControl.  The solution was to:
                     // Set <x:Double x:key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
                     // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
-                    // This took a lot of trail and error. It seems to effect the title bar is left in
+                    // This took a lot of trial and error. It seems to effect the title bar is left in
                     // default row zero.
                     ContentDialogResult result = await SurveyMonoInfoAndMediaContentDialog.ShowAsync();
                     if (result == ContentDialogResult.Primary)
@@ -2695,7 +2695,7 @@ namespace Surveyor
                     }
                     else
                     {
-                        // User cancelled creating a new survey
+                        // User canceled creating a new survey
                         ret = false;
                     }
                 }
@@ -2945,7 +2945,7 @@ namespace Surveyor
                                 warningIcon, // Add the warning icon to the dialog content
                                 new TextBlock
                                 {
-                                    Text = "Before you close this survey do you want to save the changes you have made?\n\nPress 'Yes' to save the existing survey, 'No' to close without saving",
+                                    Text = "Before you close this survey, do you want to save your changes?\n\nPress 'Yes' to save the existing survey, 'No' to close without saving",
                                     TextWrapping = TextWrapping.Wrap, // Enables text wrapping
                                     MaxWidth = 300 // Prevents text from stretching too wide
                                 }
@@ -2976,7 +2976,7 @@ namespace Surveyor
                             // "No" button clicked
                             closeSurvey = true;
                         }
-                        // If the select Cancel the Close Survey request is cancelled
+                        // If the select Cancel the Close Survey request is canceled
                     }
                     catch (Exception ex)
                     {
@@ -3056,7 +3056,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Check that media files list exist incase they have been renamed, moved or deleted.
+        /// Check that media files list exist in case they have been renamed, moved or deleted.
         /// Allow the user to try to find the missing media file(s) or cancel loading the survey
         /// </summary>
         /// <param name="channel"></param>
@@ -3244,7 +3244,7 @@ namespace Surveyor
                 // Open left camera media
                 if (string.IsNullOrEmpty(mediaFileLeft) == false && string.IsNullOrEmpty(mediaFileRight) == false)
                 {
-                    // Extract depth underwater for colour correction
+                    // Extract depth underwater for color correction
                     if (uint.TryParse(surveyClass.Data.Info.SurveyDepth, out uint depthUnderwater) == false)
                         depthUnderwater = 0;
 
@@ -3668,7 +3668,7 @@ namespace Surveyor
         }
 
         /// <summary>
-        /// Used to set the interactive regions in the title bar area which allowed the menubar
+        /// Used to set the interactive regions in the title bar area, allowing the menu bar
         /// to operate properly
         /// </summary>
         private void SetRegionsForCustomTitleBar()

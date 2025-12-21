@@ -56,7 +56,7 @@ namespace Surveyor
 
 
         // Limits 
-        // If there is cache frameset these values get set to the max in those framesets 
+        // If there is cached frame set these values get set to the max in those frame sets 
         public double? MovementFilterMin { get; set; } = null;      
         public double? MovementFilterMax { get; set; } = null;
         public double? BlurFilterMin { get; set; } = null;    
@@ -99,7 +99,7 @@ namespace Surveyor
         private DateTime? _findStartTime;
 
 
-        private bool mediaFromCommandLine = false; // no sure to support this or not
+        private bool mediaFromCommandLine = false; // not sure whether to support this
 
         // Help menu documents
         private readonly HelpDocuments helpDocuments = new();
@@ -114,14 +114,14 @@ namespace Surveyor
 
             InitializeComponent();
 
-            // Event first before the app window is commited to closing (i.e. can be cancelled)
+            // Event first before the app window is committed to closing (i.e. can be canceled)
             if (this.AppWindow is not null)
                 this.AppWindow.Closing += AppWindow_Closing;
 
             // This is used to get/adjust the theme is necessary
             ThemeHelper.Initialize();
 
-            // Set theme (ThemeChanged calls SetTheme but does some prepare work first)
+            // Set theme (ThemeChanged calls SetTheme but performs some preparation first)
             var rootElement = (FrameworkElement)Content;
             if (SettingsManagerLocal.ApplicationTheme != ElementTheme.Default)
                 rootElement.RequestedTheme = SettingsManagerLocal.ApplicationTheme;
@@ -134,7 +134,7 @@ namespace Surveyor
 
             // Allows the menu bar to extend into the title bar
             // Assumes "this" is a XAML Window. In projects that don't use 
-            // WinUI 3 1.3 or later, use interop APIs to get the AppWindow.           
+            // WinUI 3 1.3 or later, use inter-op APIs to get the AppWindow.           
             AppTitleBar.Loaded += AppTitleBar_Loaded;
             AppTitleBar.SizeChanged += AppTitleBar_SizeChanged;
             ExtendsContentIntoTitleBar = true;
@@ -245,10 +245,10 @@ namespace Surveyor
             // so we can set our app icon and caption button colors appropriately
             if (theme == ElementTheme.Default)
             {
-                // Get the background colour used by that theme
+                // Get the background color used by that theme
                 var color = TitleBarHelper.ApplySystemThemeToCaptionButtons(this) == Colors.White ? "Dark" : "Light";
 
-                // Based on the background colour select a suitable application icon 
+                // Based on the background color, select a suitable application icon
                 if (color == "Dark")
                     themeToApply = ElementTheme.Dark;
                 else
@@ -283,7 +283,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Check if cached results file exists for the current media set
+        /// Check if a cached results file exists for the current media set
         /// </summary>
         /// <returns></returns>
         public bool CachedResultsFileExists()
@@ -343,7 +343,7 @@ namespace Surveyor
             StereoCalibrationCalcs
         }
         /// <summary>
-        /// Check is the loaded cached results are available for 
+        /// Check whether the loaded cached results are available for
         /// the requested type
         /// </summary>
         /// <param name="cachedResultCheckType"></param>
@@ -452,7 +452,7 @@ namespace Surveyor
         /// <summary>
         /// Run the calibration as defined in the SetupRunCalibration pages
         /// This method is called once the user presses the Run Calibration button
-        /// in the SetupRunCalibrationSummary page. Hence why it is public
+        /// in the SetupRunCalibrationSummary page. This is why it is public
         /// </summary>
         /// <returns></returns>
         public async Task RunCalibrationAsync(RunCalibrationParams runCalibrationParams)
@@ -461,7 +461,7 @@ namespace Surveyor
 
             if (calibProject is not null)
             {
-                // Prime the board for EMGU Api use
+                // Prime the board for EMGU.CV API use
                 if (calibProject.Data.CharucoBoardDefinition.Setup())
                 {
                     // Load the calibration board type
@@ -474,7 +474,7 @@ namespace Surveyor
                     var dialog = new ContentDialog
                     {
                         Title = "Board Setup Failed",
-                        Content = "Failed to setup the calibration board definition.",
+                        Content = "Failed to setup the calibration board definition",
                         CloseButtonText = "OK",
                         XamlRoot = this.Content.XamlRoot
                     };
@@ -482,7 +482,7 @@ namespace Surveyor
                 }
 
 
-                // Find where in the .MP4 the calibration boards starts and stops
+                // Find where in the .MP4 the calibration board starts and stops
                 if (runCalibrationParams.FindCalibrationBoardZone)
                 {
                     ret = await FindCalibrationBoardZoneAllHeadsAsync();
@@ -523,18 +523,30 @@ namespace Surveyor
                 {
                     // Find the best frames and do the calibration calculation
                     ret = await SaveBestFramesAllHeadsAsync();
-                    //ret = await IdentifyBestFramesAndDoCalibrationCalcAsync(runCalibrationParams);
                 }
 
                 if (ret == 0)
                 {
-
                     if (calibProject.IsCalibrationReady &&
                         SettingsManagerLocal.TeachingTipsEnabled &&
                         !SettingsManagerLocal.HasTeachingTipBeenShown("MenuExport"))
                     {
                         MenuExportTeachingTip.IsOpen = true;
                     }
+                }
+
+                // Make sure the appMode/viewMode are up-to-update (they exist
+                // at both the MainWindow level and in each Head
+                // Switch view mode to best frames if possible
+                if (IsViewModeAvailableOnAllHeads(ViewMode.BestFrames))
+                {
+                    // If the calibration worked
+                    SetViewModeOnAllHeads(ViewMode.BestFrames);
+                }
+                else if (IsViewModeAvailableOnAllHeads(ViewMode.AllFrames))
+                {
+                    // If the calibration didn't work
+                    SetViewModeOnAllHeads(ViewMode.AllFrames);
                 }
             }
 
@@ -593,7 +605,7 @@ namespace Surveyor
 
         /// <summary>
         /// Event raised when the AppTitleBar is loaded, used to set the interactive regions in 
-        /// the title bar area which allowed the menubar (which is on the title bar) to operate
+        /// the title bar area which allowed the menu bar (which is on the title bar) to operate
         /// properly
         /// </summary>
         /// <param name="sender"></param>
@@ -610,7 +622,7 @@ namespace Surveyor
 
         /// <summary>
         /// Event raised when the AppTitleBar size if changed, used to set the interactive regions in 
-        /// the title bar area which allowed the menubar (which is on the title bar) to operate
+        /// the title bar area which allowed the menu bar (which is on the title bar) to operate
         /// properly
         /// </summary>
         /// <param name="sender"></param>
@@ -664,11 +676,11 @@ namespace Surveyor
             // ** Important notes **
             // The UserControl CalibrationMediaContentDialog is displayed within a ContentDialog for 
             // the purpose of setting up a new project (also using from a SettingsCard)
-            // I stuggled to get the ContentDialog to show width necessary to fully display
+            // I struggled to get the ContentDialog to show width necessary to fully display
             // the UserControl.  The solution was to:
             // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
             // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
-            // This took a lot of trail and error. It seems to effect the title bar is left in
+            // This took a lot of trial and error. It seems to effect the title bar is left in
             // default row zero.
             ContentDialogResult result = await CalibrationMediaContentDialog.ShowAsync();
             if (result == ContentDialogResult.Primary)
@@ -677,10 +689,10 @@ namespace Surveyor
 
                 CalibrationMediaUserControl.SaveForContentDialog(calibProject);
 
-                // Save the calib project file
+                // Save the calibration project file
                 if (await SaveAsProjectAsync() == 0)
                 {
-                    // Open the mdeia
+                    // Open the media
                     bool ret = await OpenMediaSetsAsync(calibProject, false/*forceUsdCacheIfAvalable*/, false/*noPrompts*/);
 
                     if (ret)
@@ -695,7 +707,7 @@ namespace Surveyor
                                 MenuRunCalibrationTeachingTip.IsOpen = true;
                             }
                         }
-                        // If it is a stereo calibration show 'Sync stereo vidoes' teaching tip next set if required
+                        // If it is a stereo calibration show 'Sync stereo videos' teaching tip next set if required
                         else if (calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoAndStereoMediaSet ||
                                  calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.StereoOnlyMediaSet)
                         {
@@ -831,7 +843,7 @@ namespace Surveyor
                         if (ret == 0)
                         {
                             // Force to the top of the recent projects list
-                            // Note this project is definately in the recent project list
+                            // Note this project is definitely in the recent project list
                             // but may be the top item. As the new last opened project it
                             // should be top
                             AddToRecentProjects(filePath);
@@ -941,11 +953,11 @@ namespace Surveyor
                 // ** Important notes **
                 // The UserControl ExportUserControlDialog is displayed within a ContentDialog for 
                 // the purpose of setting up a new project (also using from a SettingsCard)
-                // I stuggled to get the ContentDialog to show width necessary to fully display
+                // I struggled to get the ContentDialog to show width necessary to fully display
                 // the UserControl.  The solution was to:
                 // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
                 // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
-                // This took a lot of trail and error. It seems to effect the title bar is left in
+                // This took a lot of trial and error. It seems to effect the title bar is left in
                 // default row zero.
                 ContentDialogResult result = await ExportUserControlDialog.ShowAsync();
 
@@ -1023,7 +1035,7 @@ namespace Surveyor
         }
 
         /// <summary>
-        /// Keyboard accelerator to testing code
+        /// Keyboard accelerator for testing code
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
@@ -1197,7 +1209,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Open the calibration projec files
+        /// Open the calibration project files
         /// </summary>
         /// <param name="surveyFileName"></param>
         /// <returns>-999 If user aborts</returns>
@@ -1258,7 +1270,7 @@ namespace Surveyor
         }
 
         /// <summary>
-        /// Check that media files list exist incase they have been renamed, moved or deleted.
+        /// Check that media files list exist in case they have been renamed, moved or deleted.
         /// Allow the user to try to find the missing media file(s) or cancel loading the survey
         /// </summary>
         /// <param name="channel"></param>
@@ -1328,10 +1340,10 @@ namespace Surveyor
 
                         if (media.MediaPath is not null)
                             message = $"The {mediaType} media file '{fileSpec}' does not exist." +
-                                " Press 'Ok' to try to find the file. Press 'Cancel' to stop loading the project";
+                                " Press 'OK' to try to find the file. Press 'Cancel' to stop loading the project";
                         else
                             message = $"The {mediaType} media file '{fileName}' does not exist." +
-                                " Press 'Ok' to try to find the file. Press 'Cancel' to stop loading the project";
+                                " Press 'OK' to try to find the file. Press 'Cancel' to stop loading the project";
 
                         // Create a SymbolIcon with an exclamation mark
                         var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
@@ -1485,7 +1497,7 @@ namespace Surveyor
 
                     try
                     {
-                        // Save the calib project data to the file
+                        // Save the calibration project data to the file
                         ret = await calibProject.ProjectSaveAsAsync(file.Path);
 
                         // Let Windows know that we're finished changing the file so the other app can update the remote version of the file.
@@ -1531,7 +1543,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Used to pick a .calib file to save the calibration project
+        /// Used to pick a .calproj file to save the calibration project
         /// </summary>
         /// <param name="window"></param>
         /// <returns></returns>
@@ -1571,7 +1583,7 @@ namespace Surveyor
                 // Open Media Files
                 var tasks = new List<Task>();
 
-                InfoBarProcessing.ShowProcessing("Open Media...");
+                InfoBarProcessing.ShowProcessing("Opening Media...");
                 SetAppModeOnAllHeads(AppMode.Open);
 
                 bool openStereo = false;
@@ -1751,7 +1763,7 @@ namespace Surveyor
         {
             if (calibProject is not null)
             {
-                // Settle
+                // Allow operations to settle
                 await Task.Delay(50);
 
                 // Close Media Files
@@ -1815,7 +1827,7 @@ namespace Surveyor
         /// Check if there is an existing project open and if so check if it has unsaved changes
         /// USES 'Internal' to allow Unit Testing
         /// </summary>
-        /// <returns>true is ok to proceed (i.e. no project now open)</returns>
+        /// <returns>true is OK to proceed (i.e. no project now open)</returns>
         internal async Task<bool> CheckForOpenProjectAndCloseAsync(bool isExiting = false)
         {
             bool ret = false;
@@ -1828,10 +1840,10 @@ namespace Surveyor
                 {
                     try
                     {
-                        // Create a FontIcon using the Segoe Fluent Icons font
+                        // Create a FontIcon using the Fluent Icons font
                         var warningIcon = new FontIcon
                         {
-                            Glyph = "\uE814", // Unicode character for a warning icon in Segoe Fluent Icons
+                            Glyph = "\uE814", // Unicode character for a warning icon in Fluent Icons
                             FontFamily = new FontFamily("Segoe Fluent Icons"),
                             Width = 24,
                             Height = 24
@@ -1849,7 +1861,7 @@ namespace Surveyor
                                 warningIcon, // Add the warning icon to the dialog content
                                 new TextBlock
                                 {
-                                    Text = "Before you close this survey do you want to save the changes you have made?\n\nPress 'Yes' to save the existing survey, 'No' to close without saving",
+                                    Text = "Before you close this survey, do you want to save your changes?\n\nPress 'Yes' to save the existing survey, 'No' to close without saving",
                                     TextWrapping = TextWrapping.Wrap, // Enables text wrapping
                                     MaxWidth = 300 // Prevents text from stretching too wide
                                 }
@@ -1880,7 +1892,7 @@ namespace Surveyor
                             // "No" button clicked
                             closeSurvey = true;
                         }
-                        // If the select Cancel the Close Survey request is cancelled
+                        // If the select Cancel the Close Survey request is canceled
                     }
                     catch (Exception ex)
                     {
@@ -1898,7 +1910,7 @@ namespace Surveyor
                         // Wait for things to settle
                         await Task.Delay(100);
 
-                        // Closes the StereoMediaController, clears the title and the sync indicator
+                        // Close the StereoMediaController, clears the title and the sync indicator
                         await CloseMediaSetsAsync(isExiting);
 
                         // Close and clear the Survey class (holds the survey data)
@@ -1928,7 +1940,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Openn and load all the framesset caches
+        /// Open and load all the frames set caches
         /// </summary>
         /// <param name="calibProject"></param>
         /// <returns></returns>
@@ -2043,7 +2055,7 @@ namespace Surveyor
                             case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
                                 if (stereoFramesLoaded == 0 || leftMonoFramesLoaded == 0 || rightMonoFramesLoaded == 0)
                                 {
-                                    contentText = $"The cached results not loaded of incomplete.\n\n" +
+                                    contentText = $"The cached results were not loaded or are incomplete\n\n" +
                                         $"   Stereo Frames Loaded: {stereoFramesLoaded}\n" +
                                         $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n" +
                                         $"   Right Mono Frames Loaded: {rightMonoFramesLoaded}\n";
@@ -2054,7 +2066,7 @@ namespace Surveyor
                             case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                                 if (stereoFramesLoaded == 0)
                                 {
-                                    contentText = $"The cached results not loaded of incomplete.\n\n" +
+                                    contentText = $"The cached results were not loaded or are incomplete\n\n" +
                                         $"   Stereo Frames Loaded: {stereoFramesLoaded}\n";
                                     warn = true;
                                 }
@@ -2063,7 +2075,7 @@ namespace Surveyor
                             case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
                                 if (leftMonoFramesLoaded == 0 || rightMonoFramesLoaded == 0)
                                 {
-                                    contentText = $"The cached results not loaded of incomplete.\n\n" +
+                                    contentText = $"The cached results were not loaded or are incomplete\n\n" +
                                         $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n" +
                                         $"   Right Mono Frames Loaded: {rightMonoFramesLoaded}\n";
                                     warn = true;
@@ -2073,7 +2085,7 @@ namespace Surveyor
                             case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
                                 if (leftMonoFramesLoaded == 0)
                                 {
-                                    contentText = $"The cached results not loaded of incomplete.\n\n" +
+                                    contentText = $"The cached results were not loaded or are incomplete\n\n" +
                                         $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n";
                                     warn = true;
                                 }
@@ -2091,7 +2103,7 @@ namespace Surveyor
                                 // Inform the user that the cached results could not be loaded
                                 var errorDialog = new ContentDialog
                                 {
-                                    Title = "Error Loading Cached Results",
+                                    Title = "Error loading cached results. However, all results can be recreated via File > Run Calibration",
                                     Content = contentText,
                                     CloseButtonText = "OK",
                                     XamlRoot = this.Content.XamlRoot // Set the XamlRoot for proper display
@@ -2113,7 +2125,7 @@ namespace Surveyor
                             SetViewModeOnAllHeads(ViewMode.BestFrames);
                         }
 
-                        // Sucess
+                        // Success
                         ret = true;
                     }
                     else
@@ -2239,7 +2251,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// First and last occurrance of the Calibration board in the .MP4
+        /// First and last occurrence of the Calibration board in the .MP4
         /// This is so detailed (slow) analysis of the frames only occurs
         /// in the frames that really have a calibration board displayed
         /// </summary>
@@ -2532,7 +2544,7 @@ namespace Surveyor
                     ret = -3;
 
                 // Save the frames dataset
-                InfoBarProcessing.UpdateMessage("Saving frames sets...");
+                InfoBarProcessing.UpdateMessage("Saving frame sets...");
                 await SaveFrameDataCachesAsync(false/*no prompts*/);
             }
             catch (Exception ex)
@@ -2697,7 +2709,7 @@ namespace Surveyor
             if (calibProject is null)
                 return -1;
 
-            InfoBarProcessing.ShowProcessing("Do mono calibration calcs...");
+            InfoBarProcessing.ShowProcessing("Do mono calibration calculations...");
             SetAppModeOnAllHeads(AppMode.BestFramesCalc);
 
             SetUIControls();
@@ -2876,7 +2888,7 @@ namespace Surveyor
             if (ret == 0)
             {
                 // Save the frames dataset
-                InfoBarProcessing.UpdateMessage("Saving ...");
+                InfoBarProcessing.UpdateMessage("Saving...");
                 await SaveFrameDataCachesAsync(false/*no prompts*/);
             }
 
@@ -2936,8 +2948,10 @@ namespace Surveyor
             if (ret == 0)
             {
                 // Save the frames dataset
-                InfoBarProcessing.UpdateMessage("Saving ...");
+                InfoBarProcessing.UpdateMessage("Saving...");
                 await SaveFrameDataCachesAsync(false/*no prompts*/);
+
+                SetAppModeOnAllHeads(AppMode.BestFramesView);
             }
 
             InfoBarProcessing.HideProcessing();
@@ -2960,7 +2974,7 @@ namespace Surveyor
                 return -1;
 
             InfoBarProcessing.ShowProcessing("Save the best frame to files...");
-            SetAppModeOnAllHeads(AppMode.BestFramesCalc);
+            //???SetAppModeOnAllHeads(AppMode.BestFramesCalc);
 
             SetUIControls();
 
@@ -3304,7 +3318,7 @@ namespace Surveyor
         //    if (ret == 0)
         //    {
         //        // Save the frames dataset
-        //        InfoBarProcessing.UpdateMessage("Saving aftero mono phase...");
+        //        InfoBarProcessing.UpdateMessage("Saving after mono phase...");
         //        await SaveFrameDataCachesAsync(false/*no prompts*/);
 
 
@@ -3358,7 +3372,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Used to set the interactive regions in the title bar area which allowed the menubar
+        /// Used to set the interactive regions in the title bar area, allowing the menu bar
         /// to operate properly
         /// </summary>
         private void SetRegionsForCustomTitleBar()
@@ -3401,16 +3415,7 @@ namespace Surveyor
                                                                                  LockUnLockIndicator.ActualHeight));
             Windows.Graphics.RectInt32 LockUnLockIndicatorRect = GetRect(boundsLockUnLockIndicator, scaleAdjustment);
 
-            // Area of the Calibrated indicator
-            //??? Delele
-            //GeneralTransform transformCalibratedIndicator = CalibratedIndicator.TransformToVisual(null);
-            //Rect boundsCalibratedIndicator = transformCalibratedIndicator.TransformBounds(new Rect(0, 0,
-            //                                                                     CalibratedIndicator.ActualWidth,
-            //                                                                     CalibratedIndicator.ActualHeight));
-            //Windows.Graphics.RectInt32 CalibratedIndicatorRect = GetRect(boundsCalibratedIndicator, scaleAdjustment);
-
-
-            // Create list of regions that should not be draggable
+            // Create list of regions that should not be drag-able
             var rectArray = new Windows.Graphics.RectInt32[] { MenuBarRect/*, SearchBoxRect*//*, PersonPicRect*/, LockUnLockIndicatorRect/*, CalibratedIndicatorRect*/ };
 
             InputNonClientPointerSource nonClientInputSrc =
@@ -3475,7 +3480,7 @@ namespace Surveyor
             bool isProcessingHappening = IsFindRunning();
             bool isStereo = false;
 
-            // Calc isMediaLocked
+            // Calculate isMediaLocked
             if (isCalibProjectOpen)
             {
                 if (calibProject?.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.StereoOnlyMediaSet ||
@@ -3508,7 +3513,7 @@ namespace Surveyor
             // File>Close Project menu item
             MenuProjectClose.IsEnabled = isCalibProjectOpen && !isProcessingHappening;
 
-            // File>Lock/Unlock Media menu item & Lock/Unlock Titlebar Icon
+            // File>Lock/Unlock Media menu item & Lock/Unlock title bar Icon
             MenuLockUnlockMediaPlayers.IsEnabled = isStereo;
 
             if (isCalibProjectOpen)
@@ -3567,10 +3572,10 @@ namespace Surveyor
             MenuViewBestFrames.IsEnabled = IsViewModeAvailableOnAllHeads(ViewMode.BestFrames);
 
             // View>Filter Frames menu item
-            MenuViewFilterFrames.IsEnabled = false; /*??? Disable until implimented IsViewModeAvailableOnAllHeads(ViewMode.FilterFrames);*/
+            MenuViewFilterFrames.IsEnabled = false; /*??? Disable until implemented IsViewModeAvailableOnAllHeads(ViewMode.FilterFrames);*/
 
             // View>Sensor Coverage menu item
-            MenuViewSensorCoverage.IsEnabled = false; /*??? Disable until implimented IsViewModeAvailableOnAllHeads(ViewMode.SensorCoverage);*/
+            MenuViewSensorCoverage.IsEnabled = false; /*??? Disable until implemented IsViewModeAvailableOnAllHeads(ViewMode.SensorCoverage);*/
 
             // Set the current view mode menu checks
             
@@ -3894,26 +3899,26 @@ namespace Surveyor
                 // This can happen if the project and movies are loaded and the user clicks the settings a few times.
                 if (entryCount == 1)
                 {
-                    bool findCalibrationBoardZone = CheckIfCacheResultAvailable(CachedResultCheckType.CalibrationBoardZone);
-                    bool buildTheFrameSets = findCalibrationBoardZone && CheckIfCacheResultAvailable(CachedResultCheckType.FrameSets);
-                    bool findBestMonoFrames = buildTheFrameSets && CheckIfCacheResultAvailable(CachedResultCheckType.BestMonoFrames);
-                    bool doCalibrationMonoCalculations = findBestMonoFrames && CheckIfCacheResultAvailable(CachedResultCheckType.MonoCalibrationCalcs);
-                    bool findBestStereoFrames = doCalibrationMonoCalculations && CheckIfCacheResultAvailable(CachedResultCheckType.BestStereoFrames);
-                    bool doCalibrationStereoCalculations = findBestStereoFrames && CheckIfCacheResultAvailable(CachedResultCheckType.StereoCalibrationCalcs);
+                    bool calibrationBoardZoneAvailable = CheckIfCacheResultAvailable(CachedResultCheckType.CalibrationBoardZone);
+                    bool frameSetsAvailable = calibrationBoardZoneAvailable && CheckIfCacheResultAvailable(CachedResultCheckType.FrameSets);
+                    bool bestMonoFramesAvailable = frameSetsAvailable && CheckIfCacheResultAvailable(CachedResultCheckType.BestMonoFrames);
+                    bool calibrationMonoCalculationsAvailable = bestMonoFramesAvailable && CheckIfCacheResultAvailable(CachedResultCheckType.MonoCalibrationCalcs);
+                    bool bestStereoFramesAvailable = calibrationMonoCalculationsAvailable && CheckIfCacheResultAvailable(CachedResultCheckType.BestStereoFrames);
+                    bool calibrationStereoCalculationsAvailable = bestStereoFramesAvailable && CheckIfCacheResultAvailable(CachedResultCheckType.StereoCalibrationCalcs);
 
 
-                    // These are the paramters setup in the SetupRunCalibration window
+                    // These are the parameters setup in the SetupRunCalibration window
                     // and used by the RunCalibration process
                     RunCalibrationParams runParams = new()
                     {
                         // Setup the action flags according to what is found
                         // in the cache
-                        FindCalibrationBoardZone = findCalibrationBoardZone,
-                        BuildTheFrameSets = buildTheFrameSets,
-                        FindBestMonoFrames = findBestMonoFrames,
-                        DoCalibrationMonoCalculations = doCalibrationMonoCalculations,
-                        FindBestStereoFrames = findBestStereoFrames,
-                        DoCalibrationStereoCalculations = doCalibrationStereoCalculations,
+                        FindCalibrationBoardZone = !calibrationBoardZoneAvailable,
+                        BuildTheFrameSets = !frameSetsAvailable,
+                        FindBestMonoFrames = !bestMonoFramesAvailable,
+                        DoCalibrationMonoCalculations = !calibrationMonoCalculationsAvailable,
+                        FindBestStereoFrames = !bestStereoFramesAvailable,
+                        DoCalibrationStereoCalculations = !calibrationStereoCalculationsAvailable,
 
                         // If a cache is available that get the min movement/blur values (used by the sliders)
                         MovementFilterMin = GetMinMovementFromCachedResults(true/*from all frames*/),
@@ -4113,7 +4118,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Find the lasmallest blur value from the cached results
+        /// Find the smallest blur value from the cached results
         /// </summary>
         /// <returns></returns>
         private double? GetMinBlurFromCachedResults(bool trueNormalFalseBestFrames)
@@ -4168,9 +4173,8 @@ namespace Surveyor
             if (locked is null)
             {
                 // Show nothing (normally if no media is open)
-                // Four spaces to make it invisible and approximately the same width
-                // as the lock/unlock icons (do not change, not fully understood but
-                // needed to keep the tooltip working as the glyph changes)
+                // Use four spaces to keep layout width similar to the lock/unlock
+                // icons and preserve tool tip behavior as the glyph changes
                 LockUnLockIndicator.Text = "    ";
                 ToolTipService.SetToolTip(LockUnLockIndicator, "");
             }
@@ -4201,7 +4205,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Set the title text elements of the titlebar title text
+        /// Set the title text elements of the title bar title text
         /// </summary>
         /// <param name="titleText"></param>
         public void SetTitle(string titleText)
@@ -4216,7 +4220,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Set the save status text elements of the titlebar title text
+        /// Set the save status text elements of the title bar title text
         /// </summary>
         /// <param name="saveStatus"></param>
         public void SetTitleSaveStatus(string saveStatus)
@@ -4231,7 +4235,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Set the camera side status text elements of the titlebar title text
+        /// Set the camera side status text elements of the title bar title text
         /// </summary>
         /// <param name="cameraSide"></param>
         public void SetTitleCameraSide(string cameraSide)
@@ -4285,11 +4289,11 @@ namespace Surveyor
 
         /// <summary>
         /// If Locking:
-        /// Get the current media positions and record in the Data.Sync class
+        /// Get the current media positions and record them in the Data.Sync class
         /// Inform the Stereo Head to lock
         /// 
         /// If Unlocking:
-        /// Mark as unsynced in the Data.Sync class
+        /// Mark as unsynchronized in the Data.Sync class
         /// Inform the Stereo Head to unlock
         /// 
         /// </summary>
@@ -4333,7 +4337,7 @@ namespace Surveyor
                                         warningIcon, // Add the exclamation icon to the dialog content
                                         new TextBlock
                                         {
-                                            Text = "There is synchronization information already in this survey that is currently disabled. Do you want to re-enable it or do you want to lock the players at their current position?",
+                                            Text = "Synchronization information already exists in this calibration project but is disabled. Do you want to re-enable it, or lock the players at their current positions?",
                                             TextWrapping = TextWrapping.Wrap,
                                             MaxWidth = 320 // Limit width to allow wrapping
                                         }
@@ -4371,7 +4375,7 @@ namespace Surveyor
                     newPosition = true;
                 }
 
-                // Lock the left and right media controlers
+                // Lock the left and right media controllers
                 if (calibProject is not null)
                 {
                     if (reEnable)
@@ -4391,7 +4395,7 @@ namespace Surveyor
                     }
                 }
 
-                // Engage to the MediaTimelineController
+                // Engage the MediaTimelineController
                 if (calibProject is not null && (reEnable || newPosition))
                 {
                     StereoCalibrationHead.LockStereo(calibProject.Data.Sync.SyncFrameIndexLeft,
@@ -4455,8 +4459,8 @@ namespace Surveyor
                     {
                         calibProject.Data.Sync.IsSynchronized = false;
 
-                        // Don't remove the SyncFrameIndexLeft, SyncFrameIndexRight
-                        // in case the user wants to sync again
+                        // Do not remove SyncFrameIndexLeft or SyncFrameIndexRight in
+                        // case the user wants to synchronize again
                     }
 
                     StereoCalibrationHead.UnlockStereo();
@@ -4513,7 +4517,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Update the recent surveys menu from localSettings
+        /// Update the recent projects menu from localSettings
         /// </summary>
         private void UpdateRecentProjectsMenu()
         {
@@ -4549,7 +4553,7 @@ namespace Surveyor
                         Tag = surveyPath // Store the full path in the Tag property
                     };
 
-                    // Add tooltip to show the full file specification
+                    // Add tool tip to show the full file specification
                     ToolTipService.SetToolTip(menuItem, surveyPath);
 
                     // Optionally add a click event handler for the menu item
@@ -4646,7 +4650,7 @@ namespace Surveyor
             if (calibProject is not null)
             {
                 // Return the more 'restrictive view' i.e. if one head is on BestFrames and
-                // another on AllFrames the return should be AllFrames because Bestframes
+                // another on AllFrames the return should be AllFrames because BestFrames
                 // is not available on all heads but AllFrames is.
                 switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                 {

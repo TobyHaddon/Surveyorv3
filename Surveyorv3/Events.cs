@@ -104,7 +104,7 @@ namespace Surveyor.Events
     }
 
     // Used if pairs of points in both the left and right image are set and a
-    // measurement is sucessfully calulated
+    // measurement is successfully calculated
     public class SurveyMeasurement : StereoPairPoints
     {
         // Fish species info
@@ -227,7 +227,7 @@ namespace Surveyor.Events
             var jsonObject = JObject.Load(reader);
             var eventInstance = new Event();
 
-            // Deserialize common properties
+            // De-serialize common properties
             try
             {
                 eventInstance.Guid = jsonObject["Guid"]?.ToObject<Guid>() ?? Guid.Empty;
@@ -242,7 +242,7 @@ namespace Surveyor.Events
             eventInstance.TimeSpanLeftFrame = jsonObject["TimeSpanLeftFrame"]?.ToObject<TimeSpan>() ?? TimeSpan.Zero;
             eventInstance.TimeSpanRightFrame = jsonObject["TimeSpanRightFrame"]?.ToObject<TimeSpan>() ?? TimeSpan.Zero;
 
-            // Deserialize the EventDataType from string
+            // De-serialize the EventDataType from string
             var eventDataTypeString = jsonObject["EventDataType"]?.ToString();
             if (eventDataTypeString is not null && Enum.TryParse(typeof(SurveyDataType), eventDataTypeString, out var eventDataType))
             {
@@ -250,7 +250,7 @@ namespace Surveyor.Events
                     eventInstance.EventDataType = (SurveyDataType)eventDataType;
             }
 
-            // Deserialize the EventData based on EventDataType
+            // De-serialize the EventData based on EventDataType
             eventInstance.EventData = Event.CreateDataType(eventInstance.EventDataType);
 
             if (eventInstance.EventData != null && jsonObject["EventData"] != null)
@@ -262,6 +262,7 @@ namespace Surveyor.Events
                 {
                     if (sm.Measurement == null || sm.Measurement <= 0)
                     {
+                        // *** DO NOT CHANGE THE MISSPELLED "Measurment" STRING BELOW - IT IS INTENTIONAL FOR LEGACY SUPPORT ***
                         var legacy = (jsonObject["EventData"] as JObject)?["Measurment"];
                         if (legacy != null && legacy.Type != JTokenType.Null)
                         {

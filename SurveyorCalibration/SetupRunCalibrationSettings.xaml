@@ -17,23 +17,41 @@
             <Border x:Name="BorderCache" Padding="8" BorderBrush="Gray" BorderThickness="1" CornerRadius="4">
                 <StackPanel>
                     <CheckBox x:Name="FindCalibrationBoardZoneCheckBox"
-                              IsChecked="{x:Bind navParams.runCalibrationParams.FindCalibrationBoardZone, Mode=TwoWay}"
-                              Content="Find Calibration board zone"
+                              IsChecked="{x:Bind navParams.FindCalibrationBoardZoneWorkingValue, Mode=TwoWay}"
+                              Content="Find calibration board zone"
+                              Click="OnActionCheckBoxClick"
                               ToolTipService.ToolTip=""/>
                     <CheckBox x:Name="BuildFrameSetsCheckBox"
-                              IsChecked="{x:Bind navParams.runCalibrationParams.BuildTheFrameSets, Mode=TwoWay}"
+                              IsChecked="{x:Bind navParams.BuildTheFrameSetsWorkingValue, Mode=TwoWay}"
                               Content="Parse media and find calibration board data"
+                              Click="OnActionCheckBoxClick"
                               ToolTipService.ToolTip=""/>
                     <CheckBox x:Name="FindBestMonoFramesCheckBox"
-                              IsChecked="{x:Bind navParams.runCalibrationParams.FindBestMonoFrames, Mode=TwoWay}"
+                              IsChecked="{x:Bind navParams.FindBestMonoFramesWorkingValue, Mode=TwoWay}"
                               Content="Find the best quality mono frames"
+                              Click="OnActionCheckBoxClick"
+                              ToolTipService.ToolTip=""/>
+                    <CheckBox x:Name="DoCalibrationMonoCalculationsCheckBox"
+                              IsChecked="{x:Bind navParams.DoCalibrationMonoCalculationsWorkingValue, Mode=TwoWay}"
+                              Content="Do the mono calibration calculations"
+                              Click="OnActionCheckBoxClick"
+                              ToolTipService.ToolTip=""/>
+                    <CheckBox x:Name="FindBestStereoFramesCheckBox"
+                              IsChecked="{x:Bind navParams.FindBestStereoFramesWorkingValue, Mode=TwoWay}"
+                              Content="Find the best quality stereo frames"
+                              Click="OnActionCheckBoxClick"
+                              ToolTipService.ToolTip=""/>
+                    <CheckBox x:Name="DoCalibrationStereoCalculationsCheckBox"
+                              IsChecked="{x:Bind navParams.DoCalibrationStereoCalculationsWorkingValue, Mode=TwoWay}"
+                              Content="Do the stereo calibration calculations"
+                              Click="OnActionCheckBoxClick"
                               ToolTipService.ToolTip=""/>
                 </StackPanel>
             </Border>
 
             <Border x:Name="BorderBestFrame" Padding="8" BorderBrush="Gray" BorderThickness="1" CornerRadius="4">
                 <CheckBox x:Name="SaveBestFramesCheckBox"
-                          IsChecked="{x:Bind navParams.runCalibrationParams.SaveBestFrames, Mode=TwoWay}"
+                          IsChecked="{x:Bind navParams.runParams.SaveBestFrames, Mode=TwoWay}"
                           Content="Save the best frames for later inspection or use"
                           ToolTipService.ToolTip="Useful if you need to inspect the frames actually being inputting into the calibration calculation process. Or if you need to feed the best frames into a separate calibration process"/>
             </Border>
@@ -60,12 +78,13 @@
                 <!-- Row 0 Movement -->
                 <TextBlock Grid.Row="0" Grid.Column="0" Text="Movement Filter:" VerticalAlignment="Center"/>
                 <TextBlock x:Name="MovementFilterMin" Grid.Row="0" Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="8,0,8,0"/>
-                <Slider x:Name="MovementFilterSlider" Grid.Row="0" Grid.Column="2"                         
+                <Slider x:Name="MovementFilterSlider" Grid.Row="0" Grid.Column="2" 
+                        Value="{x:Bind navParams.MovementFilterWorkingValue, Mode=TwoWay}"
                         StepFrequency="0.1" Width="200" 
                         VerticalAlignment="Center" ValueChanged="OnSliderValueChanged"
-                        PointerPressed="MovementFilterSlider_PointerPressed"
-                        PointerReleased="MovementFilterSlider_PointerReleased"
-                        PointerCaptureLost="MovementFilterSlider_PointerCaptureLost"/>
+                        PointerPressed="OnSliderPointerPressed"
+                        PointerReleased="OnSliderPointerReleased"
+                        PointerCaptureLost="OnSliderPointerCaptureLost"/>
                 <TextBlock x:Name="MovementFilterMax" Grid.Row="0" Grid.Column="3" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
                 <TextBlock x:Name="MovementFilterValue" Grid.Row="1" Grid.Column="2" FontSize="10" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,-6,0,0"/>
                 <TextBlock Grid.Row="0" Grid.Column="4" Text="The amount of movement that is allowed between frames" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
@@ -74,8 +93,12 @@
                 <TextBlock Grid.Row="2" Grid.Column="0" Text="Blur Filter:" VerticalAlignment="Center"/>
                 <TextBlock x:Name="BlurFilterMin" Grid.Row="2" Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="8,0,8,0"/>
                 <Slider x:Name="BlurFilterSlider" Grid.Row="2" Grid.Column="2" 
+                        Value="{x:Bind navParams.BlurFilterWorkingValue, Mode=TwoWay}"
                         StepFrequency="0.1" Width="200" 
-                        ValueChanged="OnSliderValueChanged"/>
+                        ValueChanged="OnSliderValueChanged"
+                        PointerPressed="OnSliderPointerPressed"
+                        PointerReleased="OnSliderPointerReleased"
+                        PointerCaptureLost="OnSliderPointerCaptureLost"/>
                 <TextBlock x:Name="BlurFilterMax" Grid.Row="2" Grid.Column="3" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
                 <TextBlock x:Name="BlurFilterValue" Grid.Row="3" Grid.Column="2" FontSize="10" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,-6,0,0"/>
                 <TextBlock Grid.Row="2" Grid.Column="4" Text="The amount of blur that is allowed in the frame" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
@@ -84,8 +107,12 @@
                 <TextBlock Grid.Row="4" Grid.Column="0" Text="Mono Corner Filter:" VerticalAlignment="Center"/>
                 <TextBlock x:Name="MonoCornerFilterMin" Grid.Row="4" Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="8,0,8,0"/>
                 <Slider x:Name="MonoCornerFilterSlider" Grid.Row="4" Grid.Column="2" 
+                        Value="{x:Bind navParams.MonoCornersFilterWorkingValue, Mode=TwoWay}"
                         StepFrequency="1" Width="200" 
-                        VerticalAlignment="Center" ValueChanged="OnSliderValueChanged"/>
+                        VerticalAlignment="Center" ValueChanged="OnSliderValueChanged"
+                        PointerPressed="OnSliderPointerPressed"
+                        PointerReleased="OnSliderPointerReleased"
+                        PointerCaptureLost="OnSliderPointerCaptureLost"/>
                 <TextBlock x:Name="MonoCornerFilterMax" Grid.Row="4" Grid.Column="3" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
                 <TextBlock x:Name="MonoCornerFilterValue" Grid.Row="5" Grid.Column="2" FontSize="10" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,-6,0,0"/>
                 <TextBlock Grid.Row="4" Grid.Column="4" Text="The minimum number of calibration squares that need to be detected to be considered for mono calibration" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
@@ -94,8 +121,12 @@
                 <TextBlock Grid.Row="6" Grid.Column="0" Text="Stereo Corner Filter:" VerticalAlignment="Center"/>
                 <TextBlock x:Name="StereoCornerFilterMin" Grid.Row="6" Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="8,0,8,0"/>
                 <Slider x:Name="StereoCornerFilterSlider" Grid.Row="6" Grid.Column="2" 
+                        Value="{x:Bind navParams.StereoCornersFilterWorkingValue, Mode=TwoWay}"
                         StepFrequency="1" Width="200" 
-                        VerticalAlignment="Center" ValueChanged="OnSliderValueChanged"/>
+                        VerticalAlignment="Center" ValueChanged="OnSliderValueChanged"
+                        PointerPressed="OnSliderPointerPressed"
+                        PointerReleased="OnSliderPointerReleased"
+                        PointerCaptureLost="OnSliderPointerCaptureLost"/>
                 <TextBlock x:Name="StereoCornerFilterMax" Grid.Row="6" Grid.Column="3" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
                 <TextBlock x:Name="StereoCornerFilterValue" Grid.Row="7" Grid.Column="2" FontSize="10" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,-6,0,0"/>
                 <TextBlock Grid.Row="6" Grid.Column="4" Text="The minimum number of calibration squares that need to be detected to be considered for stereo calibration" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>

@@ -18,7 +18,7 @@ namespace Surveyor.User_Controls
         private TimeSpan bookmarkPosition = TimeSpan.Zero;
         private Point? bookmarkPoint = null;
 
-        private readonly Brush eventBookmarkLineColour = new SolidColorBrush(Microsoft.UI.Colors.Yellow);
+        private readonly Brush eventBookmarkLineColor = new SolidColorBrush(Microsoft.UI.Colors.Yellow);
 
 
 
@@ -114,7 +114,7 @@ namespace Surveyor.User_Controls
                 CanvasDrawingHelper.DrawCircle(canvasFrame,
                                             (Point)bookmarkPoint,
                                             bookmarkSize/*radius*/,
-                                            eventBookmarkLineColour,
+                                            eventBookmarkLineColor,
                                             bookmarkThickness/*stroke thickness*/,
                                             null,
                                             canvasTag,
@@ -123,7 +123,7 @@ namespace Surveyor.User_Controls
                 //CanvasDrawingHelper.DrawCircle(canvasFrame,
                 //                            (Point)bookmarkPoint,
                 //                            bookmarkSize + 5/*radius*/,
-                //                            eventBookmarkLineColour,
+                //                            eventBookmarkLineColor,
                 //                            bookmarkThickness/*stroke thickness*/,
                 //                            null,
                 //                            canvasTag,

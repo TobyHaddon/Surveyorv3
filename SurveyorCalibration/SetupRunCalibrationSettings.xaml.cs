@@ -1,10 +1,7 @@
+//???using iText.Forms.Form.Element;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
-using Surveyor.Helper;
-using System;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Surveyor
@@ -12,13 +9,42 @@ namespace Surveyor
     public sealed partial class SetupRunCalibrationSettings : Page, SetupRunCalibration.IWizardPage
     {
         private NavParams? navParams;
-        private bool? movementDragging; // flag for movement slider drag state
+        // Slider dragging state
+        private bool? movementDragging;
+        private bool? blurDragging;
+        private bool? monoCornerDragging;
+        private bool? stereoCornerDragging;
 
         public SetupRunCalibrationSettings()
         {
             this.InitializeComponent();
         }
 
+
+        public static void TransferSettingsIntoRunParams(NavParams navParams)
+        {
+            // Read current UI values and persist into runCalibrationParams
+            var runParams = navParams.runParams;
+
+            // Apply the action check boxes
+            runParams.FindCalibrationBoardZone = navParams.FindCalibrationBoardZoneWorkingValue;
+            runParams.BuildTheFrameSets = navParams.BuildTheFrameSetsWorkingValue;
+            runParams.FindBestMonoFrames = navParams.FindBestMonoFramesWorkingValue;
+            runParams.DoCalibrationMonoCalculations = navParams.DoCalibrationMonoCalculationsWorkingValue;
+            runParams.FindBestStereoFrames = navParams.FindBestStereoFramesWorkingValue;
+            runParams.DoCalibrationStereoCalculations = navParams.DoCalibrationStereoCalculationsWorkingValue;
+
+            // Apply the slider values
+            runParams.MovementFilterValue = navParams.MovementFilterWorkingValue;
+            runParams.BlurFilterValue = navParams.BlurFilterWorkingValue;
+            runParams.MonoCornersFilterValue = navParams.MonoCornersFilterWorkingValue;
+            runParams.StereoCornersFilterValue = navParams.StereoCornersFilterWorkingValue;
+        }
+
+        /// <summary>
+        /// User has navigated to the calibration run settings page
+        /// </summary>
+        /// <param name="e"></param>
         protected override void OnNavigatedTo(NavigationEventArgs e)
         {
             base.OnNavigatedTo(e);
@@ -32,29 +58,59 @@ namespace Surveyor
                 // Set if the calibration is mono or stereo
                 UpdateModeText();
 
-                // Hide the border (and hence the checkbox) if no cache is available
-                // Note the checkbox value is handled by the binding
-                RunCalibrationParams runParams = navParams.runCalibrationParams;
-                FindCalibrationBoardZoneCheckBox.Visibility = !runParams.FindCalibrationBoardZone ? Visibility.Visible : Visibility.Collapsed;
-                BuildFrameSetsCheckBox.Visibility = !runParams.BuildTheFrameSets ? Visibility.Visible : Visibility.Collapsed;
-                FindBestMonoFramesCheckBox.Visibility = !runParams.FindBestMonoFrames ? Visibility.Visible : Visibility.Collapsed;
 
-                //??if (navParams.runCalibrationParams.FindCalibrationBoardZone)
-                //??BorderCache.Visibility = navParams.runCalibrationParams.UseFrameSetCache ? Visibility.Visible : Visibility.Collapsed;
+                RunCalibrationParams runParams = navParams.runParams;
+                // If the action flag isn't set then that action is necessary required 
+                // but the user can optionally force the action to be redone by checking 
+                // the checkbox
+                // If the action flag is set then that action is required and the checkbox
+                // is hidden
+                FindCalibrationBoardZoneCheckBox.IsEnabled = !runParams.FindCalibrationBoardZone;
+                FindCalibrationBoardZoneCheckBox.IsChecked = navParams.FindCalibrationBoardZoneWorkingValue;
+
+                BuildFrameSetsCheckBox.IsEnabled = !runParams.BuildTheFrameSets;
+                BuildFrameSetsCheckBox.IsChecked = navParams.BuildTheFrameSetsWorkingValue;
+
+                FindBestMonoFramesCheckBox.IsEnabled = !runParams.FindBestMonoFrames;
+                FindBestMonoFramesCheckBox.IsChecked = navParams.FindBestMonoFramesWorkingValue;
+
+                DoCalibrationMonoCalculationsCheckBox.IsEnabled = !runParams.DoCalibrationMonoCalculations;
+                DoCalibrationMonoCalculationsCheckBox.IsChecked = navParams.DoCalibrationMonoCalculationsWorkingValue;
+
+                FindBestStereoFramesCheckBox.IsEnabled = !runParams.FindBestStereoFrames;
+                FindBestStereoFramesCheckBox.IsChecked = navParams.FindBestStereoFramesWorkingValue;
+
+                DoCalibrationStereoCalculationsCheckBox.IsEnabled = !runParams.DoCalibrationStereoCalculations;
+                DoCalibrationStereoCalculationsCheckBox.IsChecked = navParams.DoCalibrationStereoCalculationsWorkingValue;
+
+                // All the action flags are set - hide the whole actions border
+                if (runParams.FindCalibrationBoardZone &&
+                    runParams.BuildTheFrameSets &&
+                    runParams.FindBestMonoFrames &&
+                    runParams.DoCalibrationMonoCalculations &&
+                    runParams.FindBestStereoFrames &&
+                    runParams.DoCalibrationStereoCalculations)
+                {
+                    BorderCache.Visibility = Visibility.Collapsed;
+                }
+                else
+                {
+                    BorderCache.Visibility = Visibility.Visible;
+                }
 
                 // Set slider values from project data
                 if (navParams.calibProject.Data is not null)
                 {
                     // Movement Slider Value
                     movementDragging = null; // This is so the first OnSliderValueChanged is treated differently to the others
-                    MovementFilterSlider.Value = runParams.MovementFilterValue;
+                    //???navParams.MovementFilterWorkingValue = runParams.MovementFilterValue;   // Set the value that is bound to the dialog slider control
 
                     // Movement Slider Min
                     if (runParams.MovementFilterMin is null)
                         MovementFilterSlider.Minimum = 0;
                     else
                         MovementFilterSlider.Minimum = runParams.MovementFilterMin.Value;
-                    
+
                     MovementFilterMin.Text = MovementFilterSlider.Minimum.ToString("F1");
 
                     // Movement Slider Max
@@ -62,11 +118,11 @@ namespace Surveyor
                         MovementFilterSlider.Maximum = RunCalibrationParams.MovementFilterMaxDefault;
                     else
                         MovementFilterSlider.Maximum = runParams.MovementFilterMax.Value;
-                    
+
                     MovementFilterMax.Text = MovementFilterSlider.Maximum.ToString("F1");
 
                     // Blur Slider value
-                    BlurFilterSlider.Value = runParams.BlurFilterValue;
+                    //???navParams.BlurFilterWorkingValue = runParams.BlurFilterValue;   // Set the value that is bound to the dialog slider control
 
                     // Blur Slider Min
                     if (runParams.BlurFilterMin is null)
@@ -83,8 +139,8 @@ namespace Surveyor
                     BlurFilterMax.Text = BlurFilterSlider.Maximum.ToString("F1");
 
                     // Corner Filters values
-                    MonoCornerFilterSlider.Value = runParams.MonoCornersFilterValue;
-                    StereoCornerFilterSlider.Value = runParams.StereoCornersFilterValue;
+                    //???navParams.MonoCornersFilterWorkingValue = runParams.MonoCornersFilterValue;
+                    //???navParams.StereoCornersFilterWorkingValue = runParams.StereoCornersFilterValue;
 
                     // Corners min values
                     MonoCornerFilterMin.Text = "0";
@@ -102,6 +158,22 @@ namespace Surveyor
                 }
             }
         }
+
+
+        /// <summary>
+        /// User has navigated away from the calibration run settings page
+        /// Check for changes and persist to runCalibrationParams
+        /// </summary>
+        /// <param name="e"></param>
+        protected override void OnNavigatingFrom(NavigatingCancelEventArgs e)
+        {
+            base.OnNavigatingFrom(e);
+
+            if (navParams is null) return;
+
+            // This function may not be needed
+        }
+
 
         // Wizard interface
         public bool CanGoBack => navParams?.calibProject != null;
@@ -143,9 +215,9 @@ namespace Surveyor
                 // Mode description
                 text = mode switch
                 {
-                    StereoMonoMediaSetMode.MonoAndStereoMediaSet => "Media setup is for mono and stereo calibration using separate videos. Two for the stereo and one each for the left and right mono.",
-                    StereoMonoMediaSetMode.StereoOnlyMediaSet => "Media setup is for stereo only, mono calibration will use the stereo videos. This is typically less accurate then having dedicated mono videos (one for left and one for the right camera).",
-                    StereoMonoMediaSetMode.MonoPairOnlyMediaSet => "Media setup is for mono pair only. Stereo calibration will not calculated.",
+                    StereoMonoMediaSetMode.MonoAndStereoMediaSet => "Media setup is for mono and stereo calibration using separate videos. Two for the stereo and one each for the left and right mono",
+                    StereoMonoMediaSetMode.StereoOnlyMediaSet => "Media setup is for stereo only, mono calibration will also use the stereo videos. This is typically less accurate then having dedicated mono videos",
+                    StereoMonoMediaSetMode.MonoPairOnlyMediaSet => "Media setup is for mono pair only. Stereo calibration will not calculated",
                     StereoMonoMediaSetMode.MonoSingleOnlyMediaSet => "Media setup is for a single mono camera",
                     _ => string.Empty
                 };
@@ -162,42 +234,272 @@ namespace Surveyor
         {
             if (sender is Slider slider)
             {
-                if (slider == MovementFilterSlider)
-                {
-                    if (movementDragging is null)
-                        movementDragging = false;
-                    else if (!(bool)movementDragging)
-                        movementDragging = true;
-                    else
-                        MovementFilterValue.Visibility = Visibility.Collapsed;
+                // Guard
+                if (navParams is null) return;
 
-                    MovementFilterValue.Text = e.NewValue.ToString("F1");
+
+                switch (slider)
+                {
+                    case Slider s when s == MovementFilterSlider:
+                        ProcessValueChanged(MovementFilterValue, ref movementDragging, e.NewValue);
+                        if (navParams.IsMovementFilterChanged())
+                            // If the movement filter has changed then set all the
+                            // actions after the BestFrameSets checkbox
+                            SetActionsDownstreamOf(BuildFrameSetsCheckBox, true/*To checked on*/);
+                        break;
+                    case Slider s when s == BlurFilterSlider:
+                        ProcessValueChanged(BlurFilterValue, ref blurDragging, e.NewValue);
+                        if (navParams.IsBlurFilterChanged())
+                            // If the blur filter has changed then set all the
+                            // actions after the BestFrameSets checkbox
+                            SetActionsDownstreamOf(BuildFrameSetsCheckBox, true/*To checked on*/);
+                        break;
+                    case Slider s when s == MonoCornerFilterSlider:
+                        ProcessValueChanged(MonoCornerFilterValue, ref monoCornerDragging, e.NewValue);
+                        if (navParams.IsMonoCornersFilterChanged())
+                            // If the mono corner filter has changed then set all the
+                            // actions after the BestFrameSets checkbox
+                            SetActionsDownstreamOf(BuildFrameSetsCheckBox, true/*To checked on*/);
+                        break;
+                    case Slider s when s == StereoCornerFilterSlider:
+                        ProcessValueChanged(StereoCornerFilterValue, ref stereoCornerDragging, e.NewValue);
+                        if (navParams.IsStereoCornersFilterChanged())
+                            // If the stereo corner filter has changed then set all the
+                            // actions after do mono calibration calculations checkbox
+                            SetActionsDownstreamOf(DoCalibrationMonoCalculationsCheckBox, true/*To checked on*/);
+                        break;
                 }
-                else if (slider == BlurFilterSlider) BlurFilterValue.Text = e.NewValue.ToString("F1");
-                else if (slider == MonoCornerFilterSlider) MonoCornerFilterValue.Text = e.NewValue.ToString("F0");
-                else if (slider == StereoCornerFilterSlider) StereoCornerFilterValue.Text = e.NewValue.ToString("F0");
+            }
+
+            static void ProcessValueChanged(TextBlock valueTextBlock, ref bool? dragging, double newValue)
+            {
+                if (dragging is null)
+                    dragging = false;
+                else if (!(bool)dragging)
+                    dragging = true;
+                else
+                    valueTextBlock.Visibility = Visibility.Collapsed;
+
+                valueTextBlock.Text = newValue.ToString("F1");
             }
         }
 
         // Not seen this fire
-        private void MovementFilterSlider_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        private void OnSliderPointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
-            movementDragging = true;
-            MovementFilterValue.Visibility = Visibility.Collapsed;
+            if (sender is Slider slider)
+            {
+                switch (slider)
+                {
+                    case Slider s when s == MovementFilterSlider:
+                        movementDragging = true;
+                        MovementFilterValue.Visibility = Visibility.Collapsed;
+                        break;
+                    case Slider s when s == BlurFilterSlider:
+                        blurDragging = true;
+                        BlurFilterValue.Visibility = Visibility.Collapsed;
+                        break;
+                    case Slider s when s == MonoCornerFilterSlider:
+                        monoCornerDragging = true;
+                        MonoCornerFilterValue.Visibility = Visibility.Collapsed;
+                        break;
+                    case Slider s when s == StereoCornerFilterSlider:
+                        stereoCornerDragging = true;
+                        StereoCornerFilterValue.Visibility = Visibility.Collapsed;
+                        break;
+                }
+            }
         }
 
         // Not seen this fire
-        private void MovementFilterSlider_PointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        private void OnSliderPointerReleased(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
-            movementDragging = false;
-            MovementFilterValue.Visibility = Visibility.Visible;
+            if (sender is Slider slider)
+            {
+                switch (slider)
+                {
+                    case Slider s when s == MovementFilterSlider:
+                        movementDragging = false;
+                        MovementFilterValue.Visibility = Visibility.Visible;
+                        break;
+                    case Slider s when s == BlurFilterSlider:
+                        blurDragging = false;
+                        BlurFilterValue.Visibility = Visibility.Visible;
+                        break;
+                    case Slider s when s == MonoCornerFilterSlider:
+                        monoCornerDragging = false;
+                        MonoCornerFilterValue.Visibility = Visibility.Visible;
+                        break;
+                    case Slider s when s == StereoCornerFilterSlider:
+                        stereoCornerDragging = false;
+                        StereoCornerFilterValue.Visibility = Visibility.Visible;
+                        break;
+                }
+            }
         }
 
         // Seen this fire
-        private void MovementFilterSlider_PointerCaptureLost(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        private void OnSliderPointerCaptureLost(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
         {
-            movementDragging = false;
-            MovementFilterValue.Visibility = Visibility.Visible;
+            if (sender is Slider slider)
+            {
+                switch (slider)
+                {
+                    case Slider s when s == MovementFilterSlider:
+                        movementDragging = false;
+                        MovementFilterValue.Visibility = Visibility.Visible;
+                        break;
+                    case Slider s when s == BlurFilterSlider:
+                        blurDragging = false;
+                        BlurFilterValue.Visibility = Visibility.Visible;
+                        break;
+                    case Slider s when s == MonoCornerFilterSlider:
+                        monoCornerDragging = false;
+                        MonoCornerFilterValue.Visibility = Visibility.Visible;
+                        break;
+                    case Slider s when s == StereoCornerFilterSlider:
+                        stereoCornerDragging = false;
+                        StereoCornerFilterValue.Visibility = Visibility.Visible;
+                        break;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Check other dependent settings
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void OnActionCheckBoxClick(object sender, RoutedEventArgs e)
+        {
+            if (sender is CheckBox checkBox)
+            {
+                // Guard
+                if (checkBox.IsChecked is null)
+                    return;
+
+                if (checkBox.IsChecked == true)
+                {
+                    // If FindCalibrationBoardZone has been checked then
+                    // all the downstream actions need to checked on
+                    SetActionsDownstreamOf(checkBox, true/*To checked on*/);
+                }
+                else
+                {
+                    // If FindCalibrationBoardZone has been checked off
+                    // then revert downstream actions to their original
+                    // runParam values
+                    SetActionsDownstreamOf(checkBox, null/*back to runParam value*/);
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Set the downstream CheckBox to the value however if the value
+        /// is null then set the downstream CheckBox to the original value 
+        /// in navParams.runCalibrationParams
+        /// </summary>
+        /// <param name="checkBox"></param>
+        /// <param name="value"></param>
+        private void SetActionsDownstreamOf(CheckBox checkBox, bool? value)
+        {
+            bool buildFrameSetsCheckBoxApplyValue = false;
+            bool findBestMonoFramesCheckBoxApplyValue = false;
+            bool doCalibrationMonoCalculationsCheckBoxApplyValue = false;
+            bool findBestStereoFramesCheckBoxApplyValue = false;
+            bool doCalibrationStereoCalculationsCheckBoxApplyValue = false;
+
+            bool? buildFrameSetsCheckBoxValue = null;
+            bool? findBestMonoFramesCheckBoxValue = null;
+            bool? doCalibrationMonoCalculationsCheckBoxValue = null;
+            bool? findBestStereoFramesCheckBoxValue = null;
+            bool? doCalibrationStereoCalculationsCheckBoxValue = null;
+            if (checkBox == FindCalibrationBoardZoneCheckBox)
+            {
+                buildFrameSetsCheckBoxApplyValue = true;
+                findBestMonoFramesCheckBoxApplyValue = true;
+                doCalibrationMonoCalculationsCheckBoxApplyValue = true;
+                findBestStereoFramesCheckBoxApplyValue = true;
+                doCalibrationStereoCalculationsCheckBoxApplyValue = true;
+            }
+            else if (checkBox == BuildFrameSetsCheckBox)
+            {
+                findBestMonoFramesCheckBoxApplyValue = true;
+                doCalibrationMonoCalculationsCheckBoxApplyValue = true;
+                findBestStereoFramesCheckBoxApplyValue = true;
+                doCalibrationStereoCalculationsCheckBoxApplyValue = true;
+            }
+            else if (checkBox == FindBestMonoFramesCheckBox)
+            {
+                doCalibrationMonoCalculationsCheckBoxApplyValue = true;
+                findBestStereoFramesCheckBoxApplyValue = true;
+                doCalibrationStereoCalculationsCheckBoxApplyValue = true;
+            }
+            else if (checkBox == DoCalibrationMonoCalculationsCheckBox)
+            {
+                findBestStereoFramesCheckBoxApplyValue = true;
+                doCalibrationStereoCalculationsCheckBoxApplyValue = true;
+            }
+            else if (checkBox == FindBestStereoFramesCheckBox)
+            {
+                doCalibrationStereoCalculationsCheckBoxApplyValue = true;
+            }
+            else
+            {
+                return;
+            }
+
+            // Apply the values to the check boxes as required
+            if (buildFrameSetsCheckBoxApplyValue)
+            {
+                if (value is null)
+                    buildFrameSetsCheckBoxValue = navParams?.runParams.BuildTheFrameSets;
+                else
+                    buildFrameSetsCheckBoxValue = value;
+
+                BuildFrameSetsCheckBox.IsChecked = buildFrameSetsCheckBoxValue;
+            }
+
+            if (findBestMonoFramesCheckBoxApplyValue)
+            {
+                if (value is null)
+                    findBestMonoFramesCheckBoxValue = navParams?.runParams.FindBestMonoFrames;
+                else
+                    findBestMonoFramesCheckBoxValue = value;
+
+                FindBestMonoFramesCheckBox.IsChecked = findBestMonoFramesCheckBoxValue;
+            }
+
+            if (doCalibrationMonoCalculationsCheckBoxApplyValue)
+            {
+                if (value is null)
+                    doCalibrationMonoCalculationsCheckBoxValue = navParams?.runParams.DoCalibrationMonoCalculations;
+                else
+                    doCalibrationMonoCalculationsCheckBoxValue = value;
+
+                DoCalibrationMonoCalculationsCheckBox.IsChecked = doCalibrationMonoCalculationsCheckBoxValue;
+            }
+
+            if (findBestStereoFramesCheckBoxApplyValue)
+            {
+                if (value is null)
+                    findBestStereoFramesCheckBoxValue = navParams?.runParams.FindBestStereoFrames;
+                else
+                    findBestStereoFramesCheckBoxValue = value;
+
+                FindBestStereoFramesCheckBox.IsChecked = findBestStereoFramesCheckBoxValue;
+            }
+
+            if (doCalibrationStereoCalculationsCheckBoxApplyValue)
+            {
+                if (value is null)
+                    doCalibrationStereoCalculationsCheckBoxValue = navParams?.runParams.DoCalibrationStereoCalculations;
+                else
+                    doCalibrationStereoCalculationsCheckBoxValue = value;
+
+                DoCalibrationStereoCalculationsCheckBox.IsChecked = doCalibrationStereoCalculationsCheckBoxValue;
+            }
         }
     }
 }

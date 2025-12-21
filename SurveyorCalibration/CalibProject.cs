@@ -507,7 +507,7 @@ namespace Surveyor
                 }
 
                 // CalibrationResults class version
-                public float Version { get; set; } = 1.0f;
+                public float Version { get; set; } = 2.0f;
 
                 // Values
                 private MonoCalibrationCameraData?[] _leftMonoCalibrationCameraDataArray = new MonoCalibrationCameraData?[Enum.GetValues<CalibrationParameters>().Length];
@@ -592,7 +592,7 @@ namespace Surveyor
                 {
                     Clear();
 
-                    // Load Guid in case new project (may get over written by a deserialization)
+                    // Load Guid in case new project (may get over written by a de-serialization)
                     _leftMonoFrameSetCacheGuid = Guid.NewGuid().ToString();
                     _rightMonoFrameSetCacheGuid = Guid.NewGuid().ToString();
                     _stereoFrameSetCacheGuid = Guid.NewGuid().ToString();
@@ -817,7 +817,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Load the calibration project data from a file as json.
+        /// Load the calibration project data from a file as JSON.
         /// </summary>
         /// <param name="projectFileSpec"></param>
         /// <param name="autoSave"></param>
@@ -884,15 +884,15 @@ namespace Surveyor
                     // New load so not dirty
                     IsDirty = false;
 
-                    // Ensure the project name in the project json matches the actually file name
+                    // Ensure the project name in the project JSON matches the actually file name
                     ret = SetProjectNameAndPath(projectFileSpec);
 
                     
                     IsLoaded = true;
 
-                    // Start the autosave task in background                        
+                    // Start the auto save task in background                        
                     // The AutoSaveEnable flag is checked at the point the save is about to be made
-                    // The adventage with always having the timer running an checking if auto save is
+                    // The advantage with always having the timer running an checking if auto save is
                     // enabled last is that the Auto Save settings can be changed and the application
                     //doesn't need to be restarted.
                     await StartAutoSaveAsync();
@@ -905,7 +905,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Save the calibration project data to a file as json.
+        /// Save the calibration project data to a file as JSON.
         /// Note this is a synchronous method to avoid reentry from the auto save task
         /// </summary>
         /// <returns></returns>
@@ -980,7 +980,7 @@ namespace Surveyor
                     if (string.IsNullOrEmpty(expectedCacheProjectFileName))
                     {
                         // First Save so nothing will need renaming
-                        // Just setup the projext file name in the cache class
+                        // Just setup the project file name in the cache class
                         // So cache file name/ file spec can be created
                         Data.Cache.ProjectFileNameSavedUnder = Data.Info.ProjectFileName ?? "";
                     }
@@ -1108,7 +1108,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Save the calibration project data to a file as json.
+        /// Save the calibration project data to a file as JSON.
         /// </summary>
         /// <param name="projectFileSpec"></param>
         /// <returns></returns>
@@ -1119,7 +1119,7 @@ namespace Surveyor
 
             if (ret == 0)
             {
-                // Save the project to a json file
+                // Save the project to a JSON file
                 ret = ProjectSave();
 
                 if (ret == 0)
@@ -1191,7 +1191,7 @@ namespace Surveyor
                 Report?.Warning("", $"SetProjectNameAndPath() trying to set project name base on:{projectFileSpec}, however were was an error. {e.Message}");
             }
 
-            // Force the ProjectFileName to match the actual file name (incase the file was renamed for example)
+            // Force the ProjectFileName to match the actual file name (in case the file was renamed for example)
             Data.Info.ProjectFileName = fileName ?? "";
 
             // Project path is only set while the project is open so don't let this set the IsDirty flag
@@ -1303,7 +1303,7 @@ namespace Surveyor
         /// <summary>
         private async Task StartAutoSaveAsync()
         {
-            await StopAutoSaveAsync(); // Ensure any previous autosave task is stopped
+            await StopAutoSaveAsync(); // Ensure any previous auto save task is stopped
 
             _autosaveCts = new CancellationTokenSource();
             _autosaveTask = Task.Run(async () =>
@@ -1344,7 +1344,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Request the autosave task to stop
+        /// Request the auto save task to stop
         /// </summary>
         public async Task StopAutoSaveAsync()
         {

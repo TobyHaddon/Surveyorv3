@@ -166,20 +166,20 @@ namespace Surveyor.User_Controls
         private bool? hoveringOverTargetTrueAFalseB = null;
         private Point? hoveringOverTargetPoint = null;
 
-        // Border colours
-        private readonly Brush magColourUnlocked = new SolidColorBrush(Microsoft.UI.Colors.Black);
-        private readonly Brush magColourLocked = new SolidColorBrush(Microsoft.UI.Colors.Orange);
+        // Border colors
+        private readonly Brush magColorUnlocked = new SolidColorBrush(Microsoft.UI.Colors.Black);
+        private readonly Brush magColorLocked = new SolidColorBrush(Microsoft.UI.Colors.Orange);
 
-        // Event graphic colours
-        private readonly Brush eventDimensionLineColour = new SolidColorBrush(Microsoft.UI.Colors.Orange);
-        private readonly Brush eventDimensionHighLightLineColour = new SolidColorBrush(Microsoft.UI.Colors.OrangeRed);
-        private readonly Brush eventArrowLineColour = new SolidColorBrush(Microsoft.UI.Colors.Orange);
-        private readonly Brush eventDimensionTextColour = new SolidColorBrush(ColorHelper.FromArgb(255/*alpha*/, 255/*red*/, 93/*green*/, 89/*blue*/));
+        // Event graphic colors
+        private readonly Brush eventDimensionLineColor = new SolidColorBrush(Microsoft.UI.Colors.Orange);
+        private readonly Brush eventDimensionHighLightLineColor = new SolidColorBrush(Microsoft.UI.Colors.OrangeRed);
+        private readonly Brush eventArrowLineColor = new SolidColorBrush(Microsoft.UI.Colors.Orange);
+        private readonly Brush eventDimensionTextColor = new SolidColorBrush(ColorHelper.FromArgb(255/*alpha*/, 255/*red*/, 93/*green*/, 89/*blue*/));
         private const double eventFontSize = 14.0;
 
-        // Epipolar line colours
-        private readonly Brush epipolarALineColour = new SolidColorBrush(Microsoft.UI.Colors.Red);
-        private readonly Brush epipolarBLineColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 10, 228, 30));
+        // Epipolar line colors
+        private readonly Brush epipolarALineColor = new SolidColorBrush(Microsoft.UI.Colors.Red);
+        private readonly Brush epipolarBLineColor = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 10, 228, 30));
 
 
         // Selected targets set by this UserControl instance
@@ -492,12 +492,12 @@ namespace Surveyor.User_Controls
                 // Use the default system theme
                 rootElement.RequestedTheme = ElementTheme.Default;
 
-                // Get the background colour used by that theme
+                // Get the background color used by that theme
                 if (_mainWindow is not null)
                 {
                     var color = TitleBarHelper.ApplySystemThemeToCaptionButtons(_mainWindow) == Colors.White ? "Dark" : "Light";
 
-                    // Based on the background colour select a suitable application icon 
+                    // Based on the background color select a suitable application icon 
                     if (color == "Dark")
                         SpeciesEditIcon.UriSource = new Uri($"ms-appx:///Assets/Fish-Dark.png");
                     else
@@ -1989,7 +1989,7 @@ namespace Surveyor.User_Controls
                 if (ImageMag is not null)
                     ImageMag.Source = null;
                 if (BorderMag is not null)
-                    BorderMag.BorderBrush = magColourUnlocked;
+                    BorderMag.BorderBrush = magColorUnlocked;
             }
             catch
             { }
@@ -2728,14 +2728,14 @@ namespace Surveyor.User_Controls
                 //    SizeButton(ButtonMagZoomOut, magButtonWidth, magButtonHeight, fontSize);
                 //}
 
-                // In diags mode display a pink box around the canvas to check for alignment with the media player/ImageFrame
+                // In diagnostic mode display a pink box around the canvas to check for alignment with the media player/ImageFrame
                 if (diagnosticInformation)
                 {
-                    Brush colour = new SolidColorBrush(Microsoft.UI.Colors.PaleVioletRed);
-                    CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(0, 0), new Point(0, CanvasFrame.Height - 1), colour, new CanvasTag("", ""), null, null);
-                    CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(0, CanvasFrame.Height - 1), new Point(CanvasFrame.Width - 1, CanvasFrame.Height - 1), colour, new CanvasTag("", ""), null, null);
-                    CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(CanvasFrame.Width - 1, CanvasFrame.Height - 1), new Point(CanvasFrame.Width - 1, 0), colour, new CanvasTag("", ""), null, null);
-                    CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(CanvasFrame.Width - 1, 0), new Point(0, 0), colour, new CanvasTag("", ""), null, null);
+                    Brush color = new SolidColorBrush(Microsoft.UI.Colors.PaleVioletRed);
+                    CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(0, 0), new Point(0, CanvasFrame.Height - 1), color, new CanvasTag("", ""), null, null);
+                    CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(0, CanvasFrame.Height - 1), new Point(CanvasFrame.Width - 1, CanvasFrame.Height - 1), color, new CanvasTag("", ""), null, null);
+                    CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(CanvasFrame.Width - 1, CanvasFrame.Height - 1), new Point(CanvasFrame.Width - 1, 0), color, new CanvasTag("", ""), null, null);
+                    CanvasDrawingHelper.DrawLine(CanvasFrame, new Point(CanvasFrame.Width - 1, 0), new Point(0, 0), color, new CanvasTag("", ""), null, null);
                 }
             }
             else
@@ -2834,8 +2834,8 @@ namespace Surveyor.User_Controls
                 // Update the MagWindow on screen
                 await MagWindowAsync(pointerPosition);
 
-                // Change the border colour to indicate it is locked
-                BorderMag.BorderBrush = magColourLocked;
+                // Change the border color to indicate it is locked
+                BorderMag.BorderBrush = magColorLocked;
                 isMagLocked = true;
                 magLockedCentre = pointerPosition;
 
@@ -2857,7 +2857,7 @@ namespace Surveyor.User_Controls
 
             if (isMagLocked)
             {
-                // Otherwise the Mag Window needs to be automatically cancelled
+                // Otherwise the Mag Window needs to be automatically canceled
                 // (this will set IsMagLocked = false)
                 MagHide();
                 Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Unlock Magnify Window and hide");
@@ -3167,14 +3167,14 @@ namespace Surveyor.User_Controls
         /// </summary>
         internal void MagHide()
         {
-            BorderMag.BorderBrush = magColourUnlocked;
+            BorderMag.BorderBrush = magColorUnlocked;
             BorderMag.Visibility = Visibility.Collapsed;
             isMagLocked = false;
 
             TargetAMag.Visibility = Visibility.Collapsed;
             TargetBMag.Visibility = Visibility.Collapsed;
 
-            // Cancelled any selected
+            // Canceled any selected
             targetSelectedTrueAFalseB = null;
             targetSelected = null;
 

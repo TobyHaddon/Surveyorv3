@@ -260,7 +260,7 @@ namespace Surveyor.Controls
                 PoseBinGridItemsControl.RowDefinitions.Add(
                     new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
-            // Precompute middle indices
+            // Precomputed middle indices
             int midCol = gx / 2;
             int midRow = gy / 2;
 
@@ -370,7 +370,7 @@ namespace Surveyor.Controls
                 Debug.WriteLine("");
             }
 
-            // Immediately populate counts + tooltips if data is present
+            // Immediately populate counts + tool tips if data is present
             RefreshPoseBin();
 
             // Exaggerate the pose angle so it displays clearer by averaging thresholds
@@ -389,129 +389,7 @@ namespace Surveyor.Controls
             }
         }
 
-
-        //void SetupPoseBin()
-        //{
-        //    if (Data is null)
-        //        return;
-
-        //    // Reset the rows, columns and children
-        //    PoseBinGridItemsControl.Children.Clear();
-        //    PoseBinGridItemsControl.RowDefinitions.Clear();
-        //    PoseBinGridItemsControl.ColumnDefinitions.Clear();
-
-        //    // 3×3, but uses whatever FrameCalibrationData says
-        //    (int gx, int gy) = FrameData.PoseBinGrid;
-
-        //    for (int c = 0; c < gx; c++)
-        //        PoseBinGridItemsControl.ColumnDefinitions.Add(
-        //            new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-
-        //    for (int r = 0; r < gy; r++)
-        //        PoseBinGridItemsControl.RowDefinitions.Add(
-        //            new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
-
-        //    // Build each cell: border → inner Grid → [board icon + count label]
-        //    for (int r = 0; r < gy; r++)          // pitch index
-        //    {
-        //        for (int c = 0; c < gx; c++)      // yaw index
-        //        {
-        //            var cellBorder = new Border
-        //            {
-        //                BorderBrush = BorderBrushNormal,
-        //                BorderThickness = new Thickness(1),
-        //                HorizontalAlignment = HorizontalAlignment.Stretch,
-        //                VerticalAlignment = VerticalAlignment.Stretch
-        //            };
-
-        //            var innerGrid = new Grid
-        //            {
-        //                HorizontalAlignment = HorizontalAlignment.Stretch,
-        //                VerticalAlignment = VerticalAlignment.Stretch
-        //            };
-
-        //            // --- Pose icon (small “board” rectangle) ---
-        //            var boardRect = new Rectangle
-        //            {
-        //                Width = 20,   // fixed icon size works fine at your current scale
-        //                Height = 14,
-        //                Fill = new SolidColorBrush(Microsoft.UI.Colors.DarkSlateGray),
-        //                HorizontalAlignment = HorizontalAlignment.Center,
-        //                VerticalAlignment = VerticalAlignment.Center,
-        //                RenderTransformOrigin = new Point(0.5, 0.5)
-        //            };
-
-        //            // Exaggerate the angle to the boxes display better
-        //            double yawDisplayDeg = ExaggerateTheDisplayAngle(c, FrameData.PoseBinThresholdYaw);
-        //            double pitchDisplayDeg = ExaggerateTheDisplayAngle(r, FrameData.PoseBinThresholdPitch);
-
-        //            // Map yaw → Z rotation (screen) and pitch → squashing
-        //            double zRotation = yawDisplayDeg * 0.4; // tweak factor if you want more/less tilt
-        //            double pitchFactor = 1.0 - (Math.Abs(pitchDisplayDeg) / 90.0) * 0.4;
-
-        //            var transformGroup = new TransformGroup();
-        //            transformGroup.Children.Add(new ScaleTransform
-        //            {
-        //                ScaleX = 1.0,
-        //                ScaleY = pitchFactor
-        //            });
-        //            transformGroup.Children.Add(new RotateTransform
-        //            {
-        //                Angle = zRotation
-        //            });
-        //            boardRect.RenderTransform = transformGroup;
-        //            Debug.Write($"[Y:{yawDisplayDeg,4}, P:{pitchDisplayDeg,4}, Rot:{zRotation,3}, Scale:{pitchFactor,3:F1}]  ");
-        //            innerGrid.Children.Add(boardRect);
-
-        //            // --- Count label (bottom-right) ---
-        //            var countLabel = new TextBlock
-        //            {
-        //                Text = "", // will be filled in RefreshPoseBinLayers
-        //                FontFamily = new FontFamily("Segoe UI Variable"),
-        //                FontSize = 10,
-        //                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
-        //                HorizontalAlignment = HorizontalAlignment.Right,
-        //                VerticalAlignment = VerticalAlignment.Bottom,
-        //                Margin = new Thickness(1),
-        //                Padding = new Thickness(0),
-        //                UseLayoutRounding = true
-        //            };
-
-        //            innerGrid.Children.Add(countLabel);
-
-        //            cellBorder.Child = innerGrid;
-
-        //            Grid.SetRow(cellBorder, r);
-        //            Grid.SetColumn(cellBorder, c);
-
-        //            PoseBinGridItemsControl.Children.Add(cellBorder);
-        //        }
-        //        Debug.WriteLine("");
-        //    }
-
-        //    // Immediately populate counts + tooltips if data is present
-        //    RefreshPoseBin();
-
-        //    // Exaggerate the pose angle so it display cleaer
-        //    // Do this by averaging the angle of the adjacent pose bin thresholds
-        //    // and compresating at either end
-        //    static double ExaggerateTheDisplayAngle(int index , IReadOnlyList<double> PoseBinThreshold)
-        //    {
-        //        double ret;
-
-        //        if (index == 0)
-        //            ret = PoseBinThreshold[0];
-        //        else if (index < PoseBinThreshold.Count)
-        //            ret = (PoseBinThreshold[index - 1] + PoseBinThreshold[index]) / 2;
-        //        else
-        //            ret = PoseBinThreshold[index - 1];
-
-        //        return ret * 2.5;
-        //    }
-        //}
-
-
-
+     
         /// <summary>
         /// Refresh the sensor bin layers with the current data.
         /// </summary>
@@ -601,7 +479,7 @@ namespace Surveyor.Controls
                     }
                 }
 
-                // Tooltip with yaw/pitch ranges + count
+                // Tool tip with yaw/pitch ranges + count
                 var tooltip = new ToolTip
                 {
                     Content = GetPoseBinTooltipText(column, row, count)
@@ -629,7 +507,7 @@ namespace Surveyor.Controls
                 {
                     if (frameCalibrationData is null)
                     {
-                        // Clear colour of the the bins
+                        // Clear color of the bins
                         foreach (var child in SensorBinGridItemsControl.Children)
                         {
                             if (child is Border border &&
@@ -651,10 +529,10 @@ namespace Surveyor.Controls
                                 int column = Grid.GetColumn(border);
 
 
-                                bool colourCell = frameCalibrationData.SensorBinsOccupied
+                                bool colorCell = frameCalibrationData.SensorBinsOccupied
                                                             .Any(entry => entry.binx == column && entry.biny == row);
 
-                                if (colourCell)
+                                if (colorCell)
                                     //???border.Background = new SolidColorBrush(Colors.LightBlue);
                                     border.BorderBrush = BorderBrushHighlighted;
                                 else
@@ -683,7 +561,7 @@ namespace Surveyor.Controls
             {
                 if (frameCalibrationData is null)
                 {
-                    // Clear colour of the the bins
+                    // Clear color of the bins
                     foreach (var child in PoseBinGridItemsControl.Children)
                     {
                         if (child is Border border /*???&&
@@ -721,7 +599,7 @@ namespace Surveyor.Controls
 
 
         /// <summary>
-        /// Used to create the tooltip text for a pose bin cell
+        /// Used to create the tool tip text for a pose bin cell
         /// </summary>
         /// <param name="yawIndex"></param>
         /// <param name="pitchIndex"></param>

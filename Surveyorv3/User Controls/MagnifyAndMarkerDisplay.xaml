@@ -94,7 +94,7 @@
         </Canvas>
 
         <!-- CanvasMag is the magnified portion of the Image we are serving. The border    -->
-        <!-- colour is used to indicate if the zoomed image is locked or tracking the      -->
+        <!-- color is used to indicate if the zoomed image is locked or tracking the      -->
         <!-- pointer                                                                       -->
         <Border x:Name="BorderMag" BorderThickness="1" BorderBrush="Black" CornerRadius="5" Visibility="Collapsed" HorizontalAlignment="Left" VerticalAlignment="Top">
             <Grid>

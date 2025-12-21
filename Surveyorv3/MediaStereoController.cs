@@ -244,7 +244,7 @@ namespace Surveyor
             justSaveEventDoAsk = false;
 
 
-            // Set the depth the video were filmed at for colour correction (Feature Set A)
+            // Set the depth the video were filmed at for color correction (Feature Set A)
             uint depthUnderwaterPassed = 0;
             if (experimentalEnabled == true && experimentalFeatureSetAEnabled == true)
             {
@@ -439,8 +439,8 @@ namespace Surveyor
                 mediaTimelineController = new MediaTimelineController();
                 mediaTimelineController.StateChanged += MediaTimelineController_StateChanged;
                 mediaTimelineController.PositionChanged += MediaTimelineController_PositionChanged;
-                //_mediaTimelineController.Ended += MediaTimelineController_Ended;    // Incase we need later
-                //_mediaTimelineController.Failed += MediaTimelineController_Failed;  // Incase we need later
+                //_mediaTimelineController.Ended += MediaTimelineController_Ended;    // In case we need later
+                //_mediaTimelineController.Failed += MediaTimelineController_Failed;  // In case we need later
 
                 // Wait the media players to be ready
                 await WaitForPlayersToHaveValidPositionAsync(mediaPlayerLeft, mediaPlayerRight);
@@ -1093,13 +1093,13 @@ namespace Surveyor
             //???Debug.WriteLine($"MediaTimelineController_PositionChanged: Position={sender.Position}");
         }
 
-        // Incase we need later
+        // In case we need later
         //private void MediaTimelineController_Failed(MediaTimelineController sender, MediaTimelineControllerFailedEventArgs args)
         //{
         //    Debug.WriteLine($"MediaTimelineController_Failed: ");            
         //}
 
-        // Incase we need later
+        // In case we need later
         //private void MediaTimelineController_Ended(MediaTimelineController sender, object args)
         //{
         //    Debug.WriteLine($"MediaTimelineController_Ended: ");
@@ -1847,8 +1847,8 @@ namespace Surveyor
                 surveyMeasurement.RightXB = TargetBRight!.Value.X;
                 surveyMeasurement.RightYB = TargetBRight!.Value.Y;
 
-                // Check that logically Target Left A correponds to Target Right A and Target Left B is correponds to Target Right B
-                // This is incase the user selected the points the wrong way around. If so the target will be swapped
+                // Check that logically Target Left A corresponds to Target Right A and Target Left B is correponds to Target Right B
+                // This is in case the user selected the points the wrong way around. If so the target will be swapped
                 //???This function isn't working properly
                 //???SurveyMeasurementHelper.EnsureCorrectCorrespondence(surveyMeasurement);
 
@@ -1959,8 +1959,8 @@ namespace Surveyor
                 surveyMeasurement.RightXB = TargetBRight!.Value.X;
                 surveyMeasurement.RightYB = TargetBRight!.Value.Y;
 
-                // Check that logically Target Left A correponds to Target Right A and Target Left B is correponds to Target Right B
-                // This is incase the user selected the points the wrong way around. If so the target will be swapped
+                // Check that logically Target Left A corresponds to Target Right A and Target Left B is correponds to Target Right B
+                // This is in case the user selected the points the wrong way around. If so the target will be swapped
                 //???This function isn't working properly
                 //???SurveyMeasurementHelper.EnsureCorrectCorrespondence(surveyMeasurement);
                 await AddMeasurementOr3DPointOrSinglePointRequestAsync(surveyMeasurement, species);
@@ -2145,7 +2145,7 @@ namespace Surveyor
                                                     pointData,
                                                     mainWindow.GetSurveyRulesClass()) == false)
                 {
-                    // Species info cancelled, check the user still want to add the measurement
+                    // Species info canceled, check the user still want to add the measurement
                     // (but only if the Survey Rules all passed, this is some we don't encourage bad RMS
                     // measurements to be saved instead of corrected)
                     bool? surveyRulesPassed = false;
@@ -2175,8 +2175,8 @@ namespace Surveyor
                         EventData = pointData
                     };
 
-                    // This maybe empty if the user cancelled the species selector dialog
-                    // but that is ok.  It maybe that someone is doing the measuring and someone
+                    // This maybe empty if the user canceled the species selector dialog
+                    // but that is OK.  It maybe that someone is doing the measuring and someone
                     // else the fish ID
                     if (pointData is SurveyMeasurement surveyMeasurement)
                     {

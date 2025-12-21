@@ -84,7 +84,7 @@ namespace Surveyor.User_Controls
         {
             InitializeComponent();
 
-            // Configure debounce timer
+            // Configure de-bounce timer
             _previewTimer.Interval = TimeSpan.FromMilliseconds(400);
             _previewTimer.Tick += PreviewTimer_Tick;
 
@@ -108,7 +108,7 @@ namespace Surveyor.User_Controls
             if (IsDefaultsManagerMode)
             {
                 // Set default values for later use
-                if (!Enum.TryParse<PredefinedDictionaryName>(SettingsManagerLocal.DefaultCharucoBoard_PredefinedDictionaryName,
+                if (!Enum.TryParse<PredefinedDictionaryName>(SettingsManagerLocal.DefaultChArUcoBoard_PredefinedDictionaryName,
                                                              ignoreCase: true,
                                                              out PredefinedDictionaryName predefinedDictionaryName))
                 {
@@ -117,10 +117,10 @@ namespace Surveyor.User_Controls
 
                 CbdWorking = new CalibrationBoardDefinition
                 {
-                    SquaresX = SettingsManagerLocal.DefaultCharucoBoard_SquaresX,
-                    SquaresY = SettingsManagerLocal.DefaultCharucoBoard_SquaresY,
-                    SquareLength = (float)SettingsManagerLocal.DefaultCharucoBoard_SquareLength,
-                    MarkerLength = (float)SettingsManagerLocal.DefaultCharucoBoard_MarkerLength,
+                    SquaresX = SettingsManagerLocal.DefaultChArUcoBoard_SquaresX,
+                    SquaresY = SettingsManagerLocal.DefaultChArUcoBoard_SquaresY,
+                    SquareLength = (float)SettingsManagerLocal.DefaultChArUcoBoard_SquareLength,
+                    MarkerLength = (float)SettingsManagerLocal.DefaultChArUcoBoard_MarkerLength,
                     PredefinedDictionaryName = predefinedDictionaryName
                 };
 
@@ -139,27 +139,27 @@ namespace Surveyor.User_Controls
                 // Check if the defaults are required (i.e. first time setup)
                 if (CbdWorking.SquaresX == 0)
                 {
-                    CbdWorking.SquaresX = SettingsManagerLocal.DefaultCharucoBoard_SquaresX;
+                    CbdWorking.SquaresX = SettingsManagerLocal.DefaultChArUcoBoard_SquaresX;
                     Debug.WriteLine($"Set CharucoBoard SquaresX to default {CbdWorking.SquaresX}");
                 }
                 if (CbdWorking.SquaresY == 0)
                 {
-                    CbdWorking.SquaresY = SettingsManagerLocal.DefaultCharucoBoard_SquaresY;
+                    CbdWorking.SquaresY = SettingsManagerLocal.DefaultChArUcoBoard_SquaresY;
                     Debug.WriteLine($"Set CharucoBoard SquaresY to default {CbdWorking.SquaresY}");
                 }
                 if (CbdWorking.SquareLength == 0)
                 {
-                    CbdWorking.SquareLength = (float)SettingsManagerLocal.DefaultCharucoBoard_SquareLength;
+                    CbdWorking.SquareLength = (float)SettingsManagerLocal.DefaultChArUcoBoard_SquareLength;
                     Debug.WriteLine($"Set CharucoBoard SquareLength to default {CbdWorking.SquareLength}");
                 }
                 if (CbdWorking.MarkerLength == 0)
                 {
-                    CbdWorking.MarkerLength = (float)SettingsManagerLocal.DefaultCharucoBoard_MarkerLength;
+                    CbdWorking.MarkerLength = (float)SettingsManagerLocal.DefaultChArUcoBoard_MarkerLength;
                     Debug.WriteLine($"Set CharucoBoard MarkerLength to default {CbdWorking.MarkerLength}");
                 }
                 if (CbdWorking.PredefinedDictionaryName == 0)
                 {
-                    if (!Enum.TryParse<PredefinedDictionaryName>(SettingsManagerLocal.DefaultCharucoBoard_PredefinedDictionaryName,
+                    if (!Enum.TryParse<PredefinedDictionaryName>(SettingsManagerLocal.DefaultChArUcoBoard_PredefinedDictionaryName,
                                                                  ignoreCase: true,
                                                                  out PredefinedDictionaryName predefinedDictionaryNameDefault))
                     {
@@ -222,7 +222,7 @@ namespace Surveyor.User_Controls
         }
 
         /// <summary>
-        /// Number of squares, sqaure size or marker size has changed
+        /// Number of squares, square size or marker size has changed
         /// Used to update the preview image
         /// </summary>
         /// <param name="sender"></param>
@@ -237,7 +237,7 @@ namespace Surveyor.User_Controls
         }
 
         /// <summary>
-        /// Aruco dictionary changed
+        /// ArUco dictionary changed
         /// Used to update the preview image
         /// </summary>
         /// <param name="sender"></param>
@@ -252,7 +252,7 @@ namespace Surveyor.User_Controls
         }
 
         /// <summary>
-        /// Board generation textbox changed.  Check button status and save defaults
+        /// Board generation text box changed.  Check button status and save defaults
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -260,7 +260,7 @@ namespace Surveyor.User_Controls
         {
             UpdateButtons();
 
-            // Set any changed defauls if necessary
+            // Set any changed defaults if necessary
             if (IsDefaultsManagerMode)
             {          
                 // Did the default for Board Size X change?
@@ -285,12 +285,12 @@ namespace Surveyor.User_Controls
                 }
             }
         }
-        
+
 
 
         /// <summary>
         /// User control loaded.  
-        /// Populate Aruco dictionary combo box and setup initial preview.
+        /// Populate ArUco dictionary combo box and setup initial preview.
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -305,7 +305,7 @@ namespace Surveyor.User_Controls
                 TargetTypeCombo.SelectedItem = CalibrationBoardDefinition.TargetType.ChArUco;
                 TargetTypeCombo.IsEnabled = false; // fixed to ChAruco for now
 
-                // Setup Aruco Combo values
+                // Setup ArUco Combo values
                 ArucoDictionaryCombo.ItemsSource = Enum.GetValues(typeof(PredefinedDictionaryName));
 
                 // Set the current selected item
@@ -366,7 +366,7 @@ namespace Surveyor.User_Controls
             hostingWindow?.Activate();
 
             if (file is null)
-                return; // User cancelled
+                return; // User canceled
 
             string fileSpec = file.Path;
 
@@ -402,7 +402,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Schedules a preview update after a short delay to debounce rapid input changes.
+        /// Schedules a preview update after a short delay to de-bounce rapid input changes.
         /// </summary>
         private void SchedulePreviewUpdate()
         {
@@ -457,7 +457,7 @@ namespace Surveyor.User_Controls
 
                 using var boardMat = new Mat();
 
-                // 4. Render the Charuco board into the Mat
+                // 4. Render the ChArUco board into the Mat
                 // marginSize: white border around the board in pixels
                 // borderBits: width (in bits) of the marker border
                 board.GenerateImage(
@@ -491,41 +491,41 @@ namespace Surveyor.User_Controls
                 PreviewCaption2.Text = $"";
             }
 
-            // Set any changed defauls if necessary
+            // Set any changed defaults if necessary
             if (IsDefaultsManagerMode)
             {
                 // Did the default for SquaresX change?
-                if (SettingsManagerLocal.DefaultCharucoBoard_SquaresX != CbdWorking.SquaresX)
+                if (SettingsManagerLocal.DefaultChArUcoBoard_SquaresX != CbdWorking.SquaresX)
                 {
-                    SettingsManagerLocal.DefaultCharucoBoard_SquaresX = CbdWorking.SquaresX;
+                    SettingsManagerLocal.DefaultChArUcoBoard_SquaresX = CbdWorking.SquaresX;
                     Debug.WriteLine($"Updated default CharucoBoard SquaresX to {CbdWorking.SquaresX}");
                 }
 
                 // Did the default for SquaresY change?
-                if (SettingsManagerLocal.DefaultCharucoBoard_SquaresY != CbdWorking.SquaresY)
+                if (SettingsManagerLocal.DefaultChArUcoBoard_SquaresY != CbdWorking.SquaresY)
                 {
-                    SettingsManagerLocal.DefaultCharucoBoard_SquaresY = CbdWorking.SquaresY;
+                    SettingsManagerLocal.DefaultChArUcoBoard_SquaresY = CbdWorking.SquaresY;
                     Debug.WriteLine($"Updated default CharucoBoard SquaresY to {CbdWorking.SquaresY}");
                 }
 
                 // Did the default for SquareLength change?
-                if (SettingsManagerLocal.DefaultCharucoBoard_SquareLength != CbdWorking.SquareLength)
+                if (SettingsManagerLocal.DefaultChArUcoBoard_SquareLength != CbdWorking.SquareLength)
                 {
-                    SettingsManagerLocal.DefaultCharucoBoard_SquareLength = CbdWorking.SquareLength;
+                    SettingsManagerLocal.DefaultChArUcoBoard_SquareLength = CbdWorking.SquareLength;
                     Debug.WriteLine($"Updated default CharucoBoard SquareLength to {(CbdWorking.SquareLength * 1000):F2}mm");
                 }
 
                 // Did the default for MarkerLength change?
-                if (SettingsManagerLocal.DefaultCharucoBoard_MarkerLength != CbdWorking.MarkerLength)
+                if (SettingsManagerLocal.DefaultChArUcoBoard_MarkerLength != CbdWorking.MarkerLength)
                 {
-                    SettingsManagerLocal.DefaultCharucoBoard_MarkerLength = CbdWorking.MarkerLength;
+                    SettingsManagerLocal.DefaultChArUcoBoard_MarkerLength = CbdWorking.MarkerLength;
                     Debug.WriteLine($"Updated default CharucoBoard MarkerLength to {(CbdWorking.MarkerLength * 1000):F2}mm");
                 }
 
                 // Did the default for PredefinedDictionaryName change?
-                if (SettingsManagerLocal.DefaultCharucoBoard_PredefinedDictionaryName != CbdWorking.PredefinedDictionaryName.ToString())
+                if (SettingsManagerLocal.DefaultChArUcoBoard_PredefinedDictionaryName != CbdWorking.PredefinedDictionaryName.ToString())
                 {
-                    SettingsManagerLocal.DefaultCharucoBoard_PredefinedDictionaryName = CbdWorking.PredefinedDictionaryName.ToString();
+                    SettingsManagerLocal.DefaultChArUcoBoard_PredefinedDictionaryName = CbdWorking.PredefinedDictionaryName.ToString();
                     Debug.WriteLine($"Updated default CharucoBoard PredefinedDictionaryName to {CbdWorking.PredefinedDictionaryName}");
                 }
             }
@@ -571,7 +571,7 @@ namespace Surveyor.User_Controls
             int patternWidthPx = Math.Max(1, (int)Math.Round(patternWidthInches * dpi));
             int patternHeightPx = Math.Max(1, (int)Math.Round(patternHeightInches * dpi));
 
-            // --- 3. Generate ChArUco board image with Emgu (in pixels) ---
+            // --- 3. Generate ChArUco board image with EMGU.CV (in pixels) ---
             var dictionary = new Dictionary(charucoBoardDefinition.PredefinedDictionaryName);
             using var board = new CharucoBoard(squaresX,
                                                squaresY,

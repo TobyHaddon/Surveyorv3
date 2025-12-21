@@ -90,8 +90,8 @@
             </StackPanel>
 
 
-            <!-- Select Calilbration Media -->
-            <Button x:Name="SelectMedia" Content="Select Calilbration Media Files..." Click="SelectCalibrationMedia_Click" Margin="0,10,0,0"/>
+            <!-- Select Calibration Media -->
+            <Button x:Name="SelectMedia" Content="Select Calibration Media Files..." Click="SelectCalibrationMedia_Click" Margin="0,10,0,0"/>
             
 
             <Grid x:Name="SurveyMediaGrid" Margin="0,8,0,0">
@@ -235,42 +235,42 @@
 
             </Grid>
 
-            <!--Survey Media Files Same Path-->
+            <!--Project Media Files Same Path-->
             <StackPanel x:Name="ProjectMediaPathPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center" 
                         Margin="0,8,0,0"
                         Visibility="{Binding ElementName=SurveyMediaDateValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
                 <FontIcon x:Name="ProjectMediaPathGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
                 <TextBlock x:Name="ProjectMediaPathValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
-            <!--Survey Media Same Date-->
+            <!--Project Media Same Date-->
             <StackPanel x:Name="ProjectMediaDatePanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
                         Margin="0,8,0,0"
                         Visibility="{Binding ElementName=SurveyMediaDateValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
                 <FontIcon x:Name="ProjectMediaDateGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
                 <TextBlock x:Name="ProjectMediaDateValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
-            <!--Survey Media Files Resolution Matches-->
+            <!--Project Media Files Resolution Matches-->
             <StackPanel x:Name="ProjectResolutionMatchPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
                         Margin="0,8,0,0" 
                         Visibility="{Binding ElementName=SurveyResolutionMatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
                 <FontIcon x:Name="ProjectResolutionMatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
                 <TextBlock x:Name="ProjectResolutionMatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
-            <!--Survey Media Files Frame Rate Matches-->
-            <StackPanel x:Name="SurveyFrameRateMatchPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
+            <!--Project Media Files Frame Rate Matches-->
+            <StackPanel x:Name="ProjectFrameRateMatchPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
                         Margin="0,8,0,0" 
-                        Visibility="{Binding ElementName=SurveyFrameRateMatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
-                <FontIcon x:Name="SurveyFrameRateMatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
-                <TextBlock x:Name="SurveyFrameRateMatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        Visibility="{Binding ElementName=ProjectFrameRateMatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
+                <FontIcon x:Name="ProjectFrameRateMatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
+                <TextBlock x:Name="ProjectFrameRateMatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
-            <!--Survey Media Files From Same GoPro-->
+            <!--Project Media Files From Same GoPro-->
             <StackPanel x:Name="ProjectGoProMatchPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
                         Margin="0,8,0,0" 
                         Visibility="{Binding ElementName=SurveyGoProMatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
                 <FontIcon x:Name="ProjectGoProMatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
                 <TextBlock x:Name="ProjectGoProMatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
-            <!--Survey Media Contiguous-->
+            <!--Project Media Contiguous-->
             <StackPanel x:Name="ProjectMediaContiguousPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
                         Margin="0,8,0,0"
                         Visibility="{Binding ElementName=SurveyMediaContiguousValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
@@ -278,9 +278,6 @@
                 <TextBlock x:Name="ProjectMediaContiguousValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
 
-            <CheckBox x:Name="InheritSurveyData" Content="Inherit Calibration &amp; Rules from a prior survey?" 
-                     HorizontalAlignment="Left" Margin="0,8,0,0"                       
-                     Visibility="Collapsed"/>
         </StackPanel>
 
         <!-- Teaching Tip Section -->

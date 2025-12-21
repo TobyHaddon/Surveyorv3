@@ -125,17 +125,17 @@ namespace Surveyor.User_Controls
             Point p1Start = new(pointA.X, pointA.Y);
             Point p1End = new(pointA.X + (offset * perp.X), pointA.Y + (offset * perp.Y));
 
-            CanvasDrawingHelper.DrawLine(CanvasFrame, p1Start, p1End, eventDimensionLineColour, canvasTagDimensionEnd, EventElement_PointerMoved, EventElement_PointerPressed);
+            CanvasDrawingHelper.DrawLine(CanvasFrame, p1Start, p1End, eventDimensionLineColor, canvasTagDimensionEnd, EventElement_PointerMoved, EventElement_PointerPressed);
 
             // Parallel line 2
             Point p2Start = new(pointB.X, pointB.Y);
             Point p2End = new(pointB.X + (offset * perp.X), pointB.Y + (offset * perp.Y));
-            CanvasDrawingHelper.DrawLine(CanvasFrame, p2Start, p2End, eventDimensionLineColour, canvasTagDimensionEnd, EventElement_PointerMoved, EventElement_PointerPressed);
+            CanvasDrawingHelper.DrawLine(CanvasFrame, p2Start, p2End, eventDimensionLineColor, canvasTagDimensionEnd, EventElement_PointerMoved, EventElement_PointerPressed);
 
             // Draw dimension line
             Point dimPoint1 = new(pointA.X + (offset * perp.X * 0.80), pointA.Y + (offset * perp.Y * 0.80));
             Point dimPoint2 = new(pointB.X + (offset * perp.X * 0.80), pointB.Y + (offset * perp.Y * 0.80));
-            CanvasDrawingHelper.DrawLineWithArrowHeads(CanvasFrame, dimPoint1, dimPoint2, 10/*arrow length*/, eventArrowLineColour, canvasTagDimensionLine, true/*start arrow*/, true/*end arrow*/, EventElement_PointerMoved, EventElement_PointerPressed);
+            CanvasDrawingHelper.DrawLineWithArrowHeads(CanvasFrame, dimPoint1, dimPoint2, 10/*arrow length*/, eventArrowLineColor, canvasTagDimensionLine, true/*start arrow*/, true/*end arrow*/, EventElement_PointerMoved, EventElement_PointerPressed);
 
             // Draw dimension text
             string speciesText = MakeSpeciesText(speciesInfo);
@@ -163,7 +163,7 @@ namespace Surveyor.User_Controls
             // Draw the text
             DrawDimensionAndSpecies(distance, speciesText,
                 new Point((textPoint1.X + textPoint2.X) / 2, (textPoint1.Y + textPoint2.Y) / 2),
-                eventDimensionTextColour, canvasTagDetails);
+                eventDimensionTextColor, canvasTagDetails);
         }
 
 
@@ -179,7 +179,7 @@ namespace Surveyor.User_Controls
             CanvasTag canvasTagPoint = new("Event", "Point", guid);
             CanvasTag canvasTagDetails = new("Event", "Details", guid);
 
-            CanvasDrawingHelper.DrawDot(CanvasFrame, point, 10 * canvasScaleFactor/*diameter*/, eventDimensionLineColour, canvasTagPoint, EventElement_PointerMoved, EventElement_PointerPressed);
+            CanvasDrawingHelper.DrawDot(CanvasFrame, point, 10 * canvasScaleFactor/*diameter*/, eventDimensionLineColor, canvasTagPoint, EventElement_PointerMoved, EventElement_PointerPressed);
 
             // Draw species text
             string speciesText = MakeSpeciesText(speciesInfo);
@@ -197,7 +197,7 @@ namespace Surveyor.User_Controls
 
 
             // Draw the text
-            DrawSpecies(speciesText, textPoint, eventDimensionTextColour, canvasTagDetails);
+            DrawSpecies(speciesText, textPoint, eventDimensionTextColor, canvasTagDetails);
         }
 
 
@@ -291,182 +291,9 @@ namespace Surveyor.User_Controls
             }
         }
 
-
-
-
+                                                           
         /// <summary>
-        /// Called from mediatior to display the epipolar line on the canvas frame.
-        /// **A ChannelWidth of 0 draws a simple epipolar line.
-        /// **A ChannelWidth of -1 clears the epipolar line**.
-        /// </summary>
-        //???TO BE DELELTED Epipolar Line is obsolete
-        //internal void SetCanvasFrameEpipolarLine(bool TrueEpipolarLinePointAFalseEpipolarLinePointB,
-        //                                         double epiLine_a, double epiLine_b, double epiLine_c,                                                  
-        //                                         double channelWidth)
-        //{
-        //    Rect clippingWindow = new(0, 0, CanvasFrame.Width, CanvasFrame.Height);
-
-        //    // Draw the epipolar line and also removes any existing lines
-        //    DrawEpipolarLine(TrueEpipolarLinePointAFalseEpipolarLinePointB,
-        //                    clippingWindow,
-        //                    epiLine_a, epiLine_b, epiLine_c,
-        //                    0/*Draw line*/,
-        //                    true/*trueCanvasFrameFalseMagWindow*/);
-
-        //    if (channelWidth == 0)
-        //    {
-        //        // Remember the epipolar coefficients for use by the Mag Window
-        //        if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
-        //        {
-        //            epipolarLineTargetActiveA = true;
-        //            epipolarLine_aTargetA = epiLine_a;
-        //            epipolarLine_bTargetA = epiLine_b;
-        //            epipolarLine_cTargetA = epiLine_c;
-        //        }
-        //        else
-        //        {
-        //            epipolarLineTargetActiveB = true;
-        //            epipolarLine_aTargetB = epiLine_a;
-        //            epipolarLine_bTargetB = epiLine_b;
-        //            epipolarLine_cTargetB = epiLine_c;
-        //        }
-        //    }
-        //    else if (channelWidth == -1)
-        //    {
-        //        // Remove the epipolar line
-        //        if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
-        //        {
-        //            epipolarLineTargetActiveA = false;
-        //            epipolarLine_aTargetA = 0.0;
-        //            epipolarLine_bTargetA = 0.0;
-        //            epipolarLine_cTargetA = 0.0;
-        //        }
-        //        else
-        //        {
-        //            epipolarLineTargetActiveB = false;
-        //            epipolarLine_aTargetB = 0.0;
-        //            epipolarLine_bTargetB = 0.0;
-        //            epipolarLine_cTargetB = 0.0;
-        //        }
-        //    }
-        //}
-
-
-        /// <summary>
-        /// Called from MagWindow() method to display the epipolar line on the mag window.
-        /// **A ChannelWidth of 0 draws a simple epipolar line.
-        /// **A ChannelWidth of -1 clears the epipolar line**.
-        /// </summary>
-        //???TO BE DELELTED Epipolar Line is obsolete
-        //private void SetMagWindowEpipolarLine(bool TrueEpipolarLinePointAFalseEpipolarLinePointB,
-        //                                      Rect magWindow,                                
-        //                                      double channelWidth)
-        //{
-        //    if (TrueEpipolarLinePointAFalseEpipolarLinePointB)
-        //    {
-        //        DrawEpipolarLine(TrueEpipolarLinePointAFalseEpipolarLinePointB,
-        //                        magWindow,
-        //                        epipolarLine_aTargetA, epipolarLine_bTargetA, epipolarLine_cTargetA,
-        //                        0/*Draw line*/,
-        //                        false/*trueCanvasFrameFalseMagWindow*/);
-        //    }
-        //    else
-        //    {
-        //        DrawEpipolarLine(TrueEpipolarLinePointAFalseEpipolarLinePointB,
-        //                        magWindow,
-        //                        epipolarLine_aTargetB, epipolarLine_bTargetB, epipolarLine_cTargetB,
-        //                        0/*Draw line*/,
-        //                        false/*trueCanvasFrameFalseMagWindow*/);
-        //    }
-
-        //}
-
-        /// <summary>
-        /// Called you display the epipolar line on the canvas.
-        /// If the channelWidth is 0 then the epipolar line is drawn in either red or green. If
-        /// the channelWidth is not 0 then parallel lines are drawn either side of the epipolar line
-        /// and hatching is draw above and below to indicate where the user sould focus. The larger
-        /// the value of channelWidth the further apart the parallel lines are drawn.
-        /// 
-        /// **A ChannelWidth of -1 clears the epipolar line**.
-        /// 
-        /// Line equation:
-        /// ax+by+c=0
-        /// Where:
-        ///     a is the coefficient of x
-        ///     b is the coefficient of y
-        ///     c is the constant term
-        /// y = -(a/b)x - (c/b)
-        /// </summary>
-        /// <param name="trueEpipolarLinePointAFalseEpipolarLinePointB"></param>
-        /// <param name="epiLine_a"></param>
-        /// <param name="epiLine_b"></param>
-        /// <param name="epiLine_c"></param>
-        /// <param name="channelWidth"></param>
-        //???TO BE DELELTED Epipolar Line is obsolete
-        //private void DrawEpipolarLine(bool trueEpipolarLinePointAFalseEpipolarLinePointB,
-        //                             Rect clippingWindow,
-        //                             double epiLine_a, double epiLine_b, double epiLine_c, 
-        //                             double channelWidth,
-        //                             bool trueCanvasFrameFalseMagWindow)
-        //{
-        //    // The tagValue is used to indicate if Point A or B
-        //    string tagValue = trueEpipolarLinePointAFalseEpipolarLinePointB.ToString();
-
-        //    if (trueCanvasFrameFalseMagWindow)
-        //    {
-        //        // Remove any existing epipolar lines
-        //        RemoveCanvasShapesByTag(CanvasFrame, new CanvasTag("EpipolarLine", "Line", tagValue));
-        //    }
-        //    else
-        //    {
-        //        // Remove any existing epipolar lines
-        //        RemoveCanvasShapesByTag(CanvasMag, new CanvasTag("EpipolarLine", "Line", tagValue));
-        //    }
-
-        //    // If channelWidth is 0 then draw a simple epipolar line
-        //    if (channelWidth == 0)
-        //    {
-        //        // Create points for the line start and end points
-        //        var (start, end) = GetEpipolarLineEndpoints(epiLine_a, epiLine_b, epiLine_c,
-        //                                                    clippingWindow);
-
-        //        if (start is not null && end is not null)
-        //        {
-        //            // Set the brush colour
-        //            Brush brush;
-        //            if (trueEpipolarLinePointAFalseEpipolarLinePointB)
-        //                brush = epipolarALineColour;
-        //            else
-        //                brush = epipolarBLineColour;
-
-        //            // Epipolar line with an arrow head on the end with the larger depth 
-        //            if (trueCanvasFrameFalseMagWindow)
-        //            {
-        //                CanvasDrawingHelper.DrawLineWithArrowHeads(CanvasFrame, (Point)start, (Point)end, 10f * (float)canvasScaleFactor/*arrow length*/, brush, new CanvasTag("EpipolarLine", "Line", tagValue), false, true, EventElement_PointerMoved, EventElement_PointerPressed);
-        //            }
-        //            else
-        //            {
-        //                Point magWindowEpipolarStart = new(start.Value.X - clippingWindow.X, start.Value.Y - clippingWindow.Y);
-        //                Point magWindowEpipolarEnd = new(end.Value.X - clippingWindow.X, end.Value.Y - clippingWindow.Y);
-        //                CanvasDrawingHelper.DrawLine(CanvasMag, (Point)magWindowEpipolarStart, (Point)magWindowEpipolarEnd, 1/*thickness*/, brush, new CanvasTag("EpipolarLine", "Line", tagValue), EventElement_PointerMoved, EventElement_PointerPressed);
-        //            }
-        //        }
-        //    }
-
-        //    if (trueCanvasFrameFalseMagWindow && channelWidth != -1)
-        //    {
-        //        // Show TeachingTip is necessary
-        //        if (SettingsManagerLocal.TeachingTipsEnabled == true && !SettingsManagerLocal.HasTeachingTipBeenShown("EpipolarLineTeachingTip"))
-        //        {
-        //            EpipolarLineTeachingTip.IsOpen = true;
-        //        }
-        //    }
-        //}
-
-                                                             
-        /// <summary>
-        /// Called from mediatior to display the epipolar curve on the canvas frame.
+        /// Called from mediator to display the epipolar curve on the canvas frame.
         /// **A ChannelWidth of 0 draws a simple epipolar curve.
         /// **A ChannelWidth of -1 clears the epipolar curve**.
         /// </summary>
@@ -545,7 +372,7 @@ namespace Surveyor.User_Controls
         /// Draw a sampled epipolar curve (distortion aware). The approach:
         /// 1. Decide sampling axis from line angle (slope).
         /// 2. Iterate in 25px steps generating distorted input samples (x or y).
-        /// 3. Undistort the input sample point (identity placeholder if calibration not available).
+        /// 3. Undistorted the input sample point (identity placeholder if calibration not available).
         /// 4. Solve line in undistorted space for the missing coordinate.
         /// 5. Distort the resulting undistorted point (identity placeholder if calibration not available).
         /// 6. Collect distorted output points and render as a polyline.
@@ -570,7 +397,7 @@ namespace Surveyor.User_Controls
                 {
                     StrokeThickness = 1/*thickness*/,
                     Tag = new CanvasTag("EpipolarLine", "Curve", tagValue),
-                    Stroke = trueEpipolarLinePointAFalseEpipolarLinePointB ? epipolarALineColour : epipolarBLineColour
+                    Stroke = trueEpipolarLinePointAFalseEpipolarLinePointB ? epipolarALineColor : epipolarBLineColor
                 };
 
 
@@ -601,7 +428,7 @@ namespace Surveyor.User_Controls
         private static Point PlaceholderDistort(Point p) => p;
 
         /// <summary>
-        /// Compute Epipolar Line Endpoints and clip to be witin the rectClip
+        /// Compute Epipolar Line Endpoints and clip to be within the rectClip
         /// </summary>
         /// <param name="a"></param>
         /// <param name="b"></param>
@@ -666,7 +493,7 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// Check all the Event shapes (lines/TextBlock) drawn on the CanvasFrame and 
-        /// unhighlight any that are hightlighted
+        /// unhighlight any that are highlighted
         /// </summary>
         internal void RemoveAnyLineHightLights()
         {
@@ -682,24 +509,24 @@ namespace Surveyor.User_Controls
                     {
                         if (canvasTag.IsTagType("Event"))
                         {
-                            // Set the line of textblock colour back to normal
+                            // Set the line of text block color back to normal
                             if (element is Line line)
                             {
-                                if (line.Stroke != eventDimensionLineColour)
-                                    line.Stroke = eventDimensionLineColour;
+                                if (line.Stroke != eventDimensionLineColor)
+                                    line.Stroke = eventDimensionLineColor;
                             }
                             else if (element is Ellipse ellipse)
                             {
-                                if (ellipse.Stroke != eventDimensionLineColour)
+                                if (ellipse.Stroke != eventDimensionLineColor)
                                 {
-                                    ellipse.Stroke = eventDimensionLineColour;
-                                    ellipse.Fill = eventDimensionLineColour;
+                                    ellipse.Stroke = eventDimensionLineColor;
+                                    ellipse.Fill = eventDimensionLineColor;
                                 }
                             }
                             else if (element is TextBlock textBlock)
                             {
-                                if (textBlock.Foreground != eventDimensionTextColour)
-                                    textBlock.Foreground = eventDimensionTextColour;
+                                if (textBlock.Foreground != eventDimensionTextColor)
+                                    textBlock.Foreground = eventDimensionTextColor;
                             }
                         }
                     }
@@ -745,16 +572,16 @@ namespace Surveyor.User_Controls
                     // Hightlight the shape
                     if (sender is Line line)
                     {
-                        line.Stroke = eventDimensionHighLightLineColour;
+                        line.Stroke = eventDimensionHighLightLineColor;
                     }
                     else if (sender is Ellipse ellipse)
                     {
-                        ellipse.Stroke = eventDimensionHighLightLineColour;
-                        ellipse.Fill = eventDimensionHighLightLineColour;
+                        ellipse.Stroke = eventDimensionHighLightLineColor;
+                        ellipse.Fill = eventDimensionHighLightLineColor;
                     }
                     else if (sender is TextBlock textBlock)
                     {
-                        textBlock.Foreground = eventDimensionHighLightLineColour;
+                        textBlock.Foreground = eventDimensionHighLightLineColor;
                     }
 
                     // Remember the Guid 
