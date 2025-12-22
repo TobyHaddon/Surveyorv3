@@ -16,7 +16,7 @@
     <Grid x:Name="RootGrid" 
           Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
           KeyDown="RootGrid_KeyDown">
-        <!-- The top level grid only contains the menubar and everything else in two separate cells in 1x2 grid  -->
+        <!-- The top level grid only contains the menu bar and everything else in two separate cells in 1x2 grid  -->
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!--Title Bar-->
             <RowDefinition Height="Auto"/> <!--Info Bar-->
@@ -210,8 +210,8 @@
 
             <!-- Network connection status 
                  We need sometime in the Text attribute so this element has suitable width
-                 on the title bar at startup. This is so this area isn't draggable and can 
-                 therefore display a tooltip.
+                 on the title bar at startup. This is so this area isn't drag-able and can 
+                 therefore display a tool tip.
                  Note the glyph actually displayed is changed by the code behind -->
             <TextBlock x:Name="NetworkConnectionIndicator"
                        Grid.Row="0" Grid.Column="8"
@@ -224,8 +224,8 @@
 
             <!-- Lock/Unlock Glyph Lock E1F6, Unlock E1F7 set in code behind
                  We need sometime in the Text attribute so this element has suitable width
-                 on the title bar at startup. This is so this area isn't draggable and can 
-                 therefore display a tooltip -->
+                 on the title bar at startup. This is so this area isn't drag-able and can 
+                 therefore display a tool tip -->
             <TextBlock x:Name="LockUnLockIndicator"
                        Grid.Row="0" Grid.Column="9"
                        FontFamily="Segoe Fluent Icons"
@@ -237,8 +237,8 @@
 
             <!-- Calibrated Glyph 1F4D0 set in code behind
                  We need sometime in the Text attribute so this element has suitable width
-                 on the title bar at startup. This is so this area isn't draggable and can 
-                 therefore display a tooltip -->
+                 on the title bar at startup. This is so this area isn't drag-able and can 
+                 therefore display a tool tip -->
             <TextBlock x:Name="CalibratedIndicator"
                        Grid.Row="0" Grid.Column="10"
                        FontFamily="Segoe Fluent Icons"
@@ -315,8 +315,8 @@
 
             <!-- Left player and it's media controls, each in a grid to allow WheelChanged event             -->
             <!-- to be added while still allowing RowSpanning for Full Screen and Primary MediaControls only -->
-            <!-- The two ViewPort are outside the SurveyorMediaPlayer so the mousewheel can signal           --> 
-            <!-- the SurveyorMediaControl. If mousewheel is only controlling SurveyorMediaPlayer             -->
+            <!-- The two ViewPort are outside the SurveyorMediaPlayer so the mouse wheel can signal           --> 
+            <!-- the SurveyorMediaControl. If mouse wheel is only controlling SurveyorMediaPlayer             -->
             <!-- functionality the ViewPort can move inside the SurveyorMediaPlayer UserControl              -->
             <Viewbox Grid.Column="0" Grid.Row="0" Stretch="Uniform" 
                      PointerWheelChanged="LeftSubGrid_MouseWheel"
@@ -348,8 +348,6 @@
         </Grid>
 
         <!-- Splitter between MediaPlayer and ListView -->
-        <!--<controls:ContentSizer Grid.Row="4" Orientation="Horizontal"
-                        TargetControl="{x:Bind RootGrid}" />-->
         <!--  Row Grid Splitter  -->
         <controls:GridSplitter Grid.Row="3"                               
                                Height="16"

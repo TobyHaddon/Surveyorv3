@@ -51,7 +51,7 @@ namespace Surveyor
             {
                 Info.Clear();
                 Media.Clear();
-                CharucoBoardDefinition.Clear();
+                ChArUcoBoardDefinition.Clear();
                 Sync.Clear();
                 CalibrationResults.Clear();
                 Cache.Clear();
@@ -742,7 +742,7 @@ namespace Surveyor
 
             public MediaClass Media { get; set; } = new();
             
-            public CalibrationBoardDefinition CharucoBoardDefinition { get; set; } = new();
+            public CalibrationBoardDefinition ChArUcoBoardDefinition { get; set; } = new();
 
             public SyncClass Sync { get; set; } = new();
 
@@ -759,7 +759,7 @@ namespace Surveyor
             {
                 if (Data.Info.IsDirty || 
                     Data.Media.IsDirty || 
-                    Data.CharucoBoardDefinition.IsDirty ||
+                    Data.ChArUcoBoardDefinition.IsDirty ||
                     Data.Sync.IsDirty ||
                     Data.CalibrationResults.IsDirty ||
                     Data.Cache.IsDirty)
@@ -772,7 +772,7 @@ namespace Surveyor
             {
                 Data.Info.IsDirty = value;
                 Data.Media.IsDirty = value;
-                Data.CharucoBoardDefinition.IsDirty = value;
+                Data.ChArUcoBoardDefinition.IsDirty = value;
                 Data.Sync.IsDirty = value;
                 Data.CalibrationResults.IsDirty = value;
                 Data.Cache.IsDirty = value;

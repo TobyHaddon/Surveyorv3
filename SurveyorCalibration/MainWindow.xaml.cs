@@ -121,6 +121,9 @@ namespace Surveyor
             // This is used to get/adjust the theme is necessary
             ThemeHelper.Initialize();
 
+            // Inform the Reporter of the DispatcherQueue
+            Report.SetDispatcherQueue(DispatcherQueue);
+
             // Set theme (ThemeChanged calls SetTheme but performs some preparation first)
             var rootElement = (FrameworkElement)Content;
             if (SettingsManagerLocal.ApplicationTheme != ElementTheme.Default)
@@ -462,12 +465,12 @@ namespace Surveyor
             if (calibProject is not null)
             {
                 // Prime the board for EMGU.CV API use
-                if (calibProject.Data.CharucoBoardDefinition.Setup())
+                if (calibProject.Data.ChArUcoBoardDefinition.Setup())
                 {
                     // Load the calibration board type
-                    StereoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.CharucoBoardDefinition);
-                    LeftMonoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.CharucoBoardDefinition);
-                    RightMonoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.CharucoBoardDefinition);
+                    StereoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.ChArUcoBoardDefinition);
+                    LeftMonoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.ChArUcoBoardDefinition);
+                    RightMonoCalibrationHead.SetupCalibrationBoardType(calibProject.Data.ChArUcoBoardDefinition);
                 }
                 else
                 {
@@ -1200,6 +1203,16 @@ namespace Surveyor
         {
             SetViewModeOnAllHeads(ViewMode.SensorCoverage);
             SetUIControls();
+        }
+
+        /// <summary>
+        /// Toggle the output pane visibility
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ViewOutput_Click(object sender, RoutedEventArgs e)
+        {
+            ???
         }
 
 
@@ -2140,7 +2153,7 @@ namespace Surveyor
                             var errorDialog = new ContentDialog
                             {
                                 Title = "Error Loading Cached Results",
-                                Content = "The cached results could not be loaded.",
+                                Content = "The cached results could not be loaded. However, all results can be recreated via File > Run Calibration",
                                 CloseButtonText = "OK",
                                 XamlRoot = this.Content.XamlRoot // Set the XamlRoot for proper display
                             };
@@ -4704,7 +4717,6 @@ namespace Surveyor
 
         [DllImport("user32.dll")]
         private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
-
 
     }
 }

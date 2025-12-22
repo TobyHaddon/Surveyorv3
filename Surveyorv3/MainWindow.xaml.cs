@@ -220,7 +220,7 @@ namespace Surveyor
                         // Show nothing (normally if no calibration is available)
                         // Four spaces to make it invisible and approximately the same width
                         // as the lock/unlock icons (do not change, not fully understood but
-                        // needed to keep the tooltip working as the glyph changes)
+                        // needed to keep the tool tip working as the glyph changes)
                         NetworkConnectionIndicator.Text = "    ";
                         ToolTipService.SetToolTip(NetworkConnectionIndicator, "");
                     });
@@ -232,7 +232,7 @@ namespace Surveyor
             }, Surveyor.Priority.Normal);
 
 
-            // Initialize internet download/upload mananger
+            // Initialize internet download/upload manager
             internetQueue = new(report);
             _ = internetQueue.LoadAsync(); // fire-and-forget
             networkManager.RegisterAction(async (_isOnline, _isMetered, _bars) =>
@@ -276,13 +276,13 @@ namespace Surveyor
 
             // Allows the menu bar to extend into the title bar
             // Assumes "this" is a XAML Window. In projects that don't use 
-            // WinUI 3 1.3 or later, use interop APIs to get the AppWindow.           
+            // WinUI 3 1.3 or later, use inter-op APIs to get the AppWindow.           
             AppTitleBar.Loaded += AppTitleBar_Loaded;
             AppTitleBar.SizeChanged += AppTitleBar_SizeChanged;
             ExtendsContentIntoTitleBar = true;
 
-            // Now the interactive regions of the titlebar has been established let 
-            // remove the LockUnlockIndicator from the titlebar that was only there
+            // Now the interactive regions of the title bar has been established let 
+            // remove the LockUnlockIndicator from the title bar that was only there
             // so the regions could be calculated correctly
             SetLockUnlockIndicator(null, null);
 
@@ -323,11 +323,11 @@ namespace Surveyor
             // Debug.WriteLine($"Local Folder path:{ApplicationData.Current.LocalFolder.Path}");
             if (!SettingsManagerLocal.DiagnosticInformation)
             {
-                report.Info("", $"App Loaded Ok (Local Path:{ApplicationData.Current.LocalFolder.Path})");
+                report.Info("", $"App Loaded OK (Local Path:{ApplicationData.Current.LocalFolder.Path})");
             }
             else
             {
-                report.Info("", $"App Loaded Ok");
+                report.Info("", $"App Loaded OK");
                 report.Info("", $"Local Path:{ApplicationData.Current.LocalFolder.Path}");
                 report.Info("", $"Exec Path:{Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!}");
             }
@@ -422,7 +422,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Called from the stereo controler to save the current video frame
+        /// Called from the stereo controller to save the current video frame
         /// </summary>
         /// <param name="controlType"></param>
         public async Task SaveCurrentFrameAsync(SurveyorMediaControl.eControlType controlType)
@@ -504,7 +504,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Display the passed pointer coordicates in a textbox on the navigation panel
+        /// Display the passed pointer coordinates in a <TextBox> on the navigation panel
         /// Pass x=-1 to clear the display
         /// </summary>
         /// <param name="x"></param>
@@ -525,11 +525,11 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Returns the posiiton offsets of the left and right media players
+        /// Returns the position offsets of the left and right media players
         /// This is by the SurveryorTesting class to check the media players are correctly in sync
         /// </summary>
         /// <returns></returns>
-        public (TimeSpan?, TimeSpan?) GetMediaPlayerPoisitions()
+        public (TimeSpan?, TimeSpan?) GetMediaPlayerPositions()
         {
             return (MediaPlayerLeft.Position, MediaPlayerRight.Position);
         }
@@ -790,7 +790,7 @@ namespace Surveyor
 
         /// <summary>
         /// Event raised when the AppTitleBar is loaded, used to set the interactive regions in 
-        /// the title bar area which allowed the menubar (which is on the title bar) to operate
+        /// the title bar area which allowed the <MenuBar> (which is on the title bar) to operate
         /// properly
         /// </summary>
         /// <param name="sender"></param>
@@ -807,7 +807,7 @@ namespace Surveyor
 
         /// <summary>
         /// Event raised when the AppTitleBar size if changed, used to set the interactive regions in 
-        /// the title bar area which allowed the menubar (which is on the title bar) to operate
+        /// the title bar area which allowed the <MenuBar> (which is on the title bar) to operate
         /// properly
         /// </summary>
         /// <param name="sender"></param>
@@ -864,45 +864,7 @@ namespace Surveyor
             e.Cancel = false;
             Debug.WriteLine("AppWindow_Closing Exit");
         }
-        //???TODELETE
-        //private async void AppWindow_Closing(object sender, AppWindowClosingEventArgs e)
-        //{
-        //    Debug.WriteLine("AppWindow_Closing Entered");
-
-        //    report.Save();
-
-        //    // Check if there is an unsaved survey
-        //    if (await CheckForOpenSurveyAndClose() == true)
-        //    {
-        //        Debug.WriteLine("AppWindow_Closing Continue after CheckForOpenSurveyAndClose");//???
-        //        await internetQueue.Unload();
-        //        Debug.WriteLine("AppWindow_Closing Continue after internetQueue.Unload");//???
-        //        await mediaStereoController.Unload();
-        //        Debug.WriteLine("AppWindow_Closing Continue after mediaStereoController.Unload");//???
-
-        //        // Remove listener for theme changes
-        //        var rootElement = (FrameworkElement)Content;
-        //        rootElement.ActualThemeChanged -= OnActualThemeChanged;
-        //        Debug.WriteLine("AppWindow_Closing Continue after ActualThemeChanged -= OnActualThemeChanged");//???
-
-        //        //???this.Close(); // This will NOT retrigger AppWindow.Closing
-        //        Debug.WriteLine("AppWindow_Closing Exited this.Close");
-
-        //        // Dump the reporter content to disk
-        //        report.Unload();
-
-        //        e.Cancel = false;
-        //    }
-        //    else
-        //    {
-        //        // User canceled, prevent the app from closing
-        //        e.Cancel = true;
-        //    }
-
-        //    TelemetryLogger.TrackAppStartStop(TrackAppStartStopType.AppStopOk);
-        //    Debug.WriteLine("AppWindow_Closing Exit");
-        //}
-
+        
 
         /// <summary>
         /// Used to set the unsaved data indicated in the title bar
@@ -1123,7 +1085,7 @@ namespace Surveyor
 
                             // Check if the preferred calibration data is the one being using for
                             // the current event measurements calculations
-                            await CheckIfEventMeasurementsAreUpToDateAsync(false/*recalc only if necessary*/);
+                            await CheckIfEventMeasurementsAreUpToDateAsync(false/*recalculate only if necessary*/);
                         }
                         else if (ret != -999/*User aborted*/)
                         {
@@ -1450,7 +1412,7 @@ namespace Surveyor
                             }
                             else if (surveyClass.Data.Calibration.PreferredCalibrationDataIndex == 0 && surveyClass.Data.Calibration.CalibrationDataList.Count == 1)
                             {
-                                // We are only storing one calib and we don't have this one so ask the user if they want to remove the existing one and add this one
+                                // We are only storing one calibration and we don't have this one so ask the user if they want to remove the existing one and add this one
                                 message = $"Are you sure you want to replace '{surveyClass.Data.Calibration.CalibrationDataList[0].Description}' with '{calibrationData.Description}'?";
                                 primaryButtonText = "OK";
 
@@ -1481,7 +1443,7 @@ namespace Surveyor
                         }
                         else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true)
                         {
-                            // We are storing multiple calibs and already have at less one storage. Ask the user if they want this new one to be the preferred calibration
+                            // We are storing multiple calibrations and already have at less one storage. Ask the user if they want this new one to be the preferred calibration
                             message = $"Do you want this new calibration data '{calibrationData.Description}' to be the preferred calibration?";
                             primaryButtonText = "Yes";
                             secondaryButtonText = "No";
@@ -1960,7 +1922,7 @@ namespace Surveyor
                         // Parse the calibration data to see if there is any that supports the current frame size
                         for (int i = 0; i < calibrationClass.CalibrationDataList.Count; i++)
                         {
-                            // Ingore the preferred calibration data as that has been checked above
+                            // Ignore the preferred calibration data as that has been checked above
                             if (i == calibrationClass.PreferredCalibrationDataIndex)
                                 continue;
 
@@ -2237,7 +2199,7 @@ namespace Surveyor
         /// <param name="e"></param>
         private void LeftViewbox_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            // Get the new size of the Viewbox
+            // Get the new size of the <ViewBox>
             double newWidth = e.NewSize.Width;
             double newHeight = e.NewSize.Height;
 
@@ -2247,7 +2209,7 @@ namespace Surveyor
 
         private void RightViewbox_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            // Get the new size of the Viewbox
+            // Get the new size of the <ViewBox>
             double newWidth = e.NewSize.Width;
             double newHeight = e.NewSize.Height;
 
@@ -2910,7 +2872,7 @@ namespace Surveyor
         /// Check if there is an existing survey open and if so check if it has unsaved changes
         /// USES 'Internal' to allow Unit Testing
         /// </summary>
-        /// <returns>true is ok to proceed (i.e. no survey now open)</returns>
+        /// <returns>true is OK to proceed (i.e. no survey now open)</returns>
         internal async Task<bool> CheckForOpenSurveyAndCloseAsync()
         {
             bool ret = false;
@@ -3103,9 +3065,9 @@ namespace Surveyor
                     string message;
 
                     if (mediaClass.MediaPath is not null)
-                        message = $"The {cameraSide.ToLower()} media file {fileNumber}'{fileSpec}' does not exist. Press 'Ok' to try to find the file. Press 'Cancel' to stop loading the survey";
+                        message = $"The {cameraSide.ToLower()} media file {fileNumber}'{fileSpec}' does not exist. Press 'OK' to try to find the file. Press 'Cancel' to stop loading the survey";
                     else
-                        message = $"The {cameraSide.ToLower()} media file {fileNumber}'{fileName}' does not exist. Press 'Ok' to try to find the file. Press 'Cancel' to stop loading the survey";
+                        message = $"The {cameraSide.ToLower()} media file {fileNumber}'{fileName}' does not exist. Press 'OK' to try to find the file. Press 'Cancel' to stop loading the survey";
 
                     // Create a SymbolIcon with an exclamation mark
                     var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
@@ -3366,7 +3328,7 @@ namespace Surveyor
                 // Show nothing (normally if no media is open)
                 // Four spaces to make it invisible and approximately the same width
                 // as the lock/unlock icons (do not change, not fully understood but
-                // needed to keep the tooltip working as the glyph changes)
+                // needed to keep the <ToolTip> working as the glyph changes)
                 LockUnLockIndicator.Text = "    ";
                 ToolTipService.SetToolTip(LockUnLockIndicator, "");
             }
@@ -3432,7 +3394,7 @@ namespace Surveyor
                         tooltip = "Calibration Data Setup";
 
 
-                    // If there is other calibration data available then add it to the tooltip
+                    // If there is other calibration data available then add it to the <ToolTip>
                     if (calibrationClass.CalibrationDataList.Count > 1)
                         tooltip += "\n\nAvailable Calibration:" + MakeCalibrationDescriptionListTooltip(calibrationClass);
 
@@ -3465,14 +3427,14 @@ namespace Surveyor
                 // Show nothing (normally if no calibration is available)
                 // Four spaces to make it invisible and approximately the same width
                 // as the lock/unlock icons (do not change, not fully understood but
-                // needed to keep the tooltip working as the glyph changes)
+                // needed to keep the <ToolTip> working as the glyph changes)
                 CalibratedIndicator.Text = "    ";
                 ToolTipService.SetToolTip(CalibratedIndicator, "");
             }
         }
 
         /// <summary>
-        /// Make a list of calibration descriptions for the tooltip. This includes the description (if present) and the frame size (if present)
+        /// Make a list of calibration descriptions for the <ToolTip>. This includes the description (if present) and the frame size (if present)
         /// </summary>
         /// <param name=""></param>
         /// <returns></returns>
@@ -3509,7 +3471,7 @@ namespace Surveyor
         /// Get the Calibration ID from the preferred calibration data and check if was used for
         /// all the event EventMeasurements.  If not then ask the user if they want to update the
         /// calculation.
-        /// The Mediaplayer must be open so the frame width and height is known
+        /// The MediaPlayer must be open so the frame width and height is known
         /// </summary>
         /// <returns>true if anything changed</returns>
         public async Task<bool> CheckIfEventMeasurementsAreUpToDateAsync(bool forceReCalc)
@@ -3593,7 +3555,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Set the title text elements of the titlebar title text
+        /// Set the title text elements of the <TitleBar> title text
         /// </summary>
         /// <param name="titleText"></param>
         public void SetTitle(string titleText)
@@ -3608,7 +3570,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Set the save status text elements of the titlebar title text
+        /// Set the save status text elements of the <TitleBar> title text
         /// </summary>
         /// <param name="saveStatus"></param>
         public void SetTitleSaveStatus(string saveStatus)
@@ -3623,7 +3585,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Set the camera side status text elements of the titlebar title text
+        /// Set the camera side status text elements of the <TitleBar> title text
         /// </summary>
         /// <param name="cameraSide"></param>
         public void SetTitleCameraSide(string cameraSide)
@@ -3719,7 +3681,7 @@ namespace Surveyor
             Windows.Graphics.RectInt32 CalibratedIndicatorRect = GetRect(boundsCalibratedIndicator, scaleAdjustment);
 
 
-            // Create list of regions that should not be draggable
+            // Create list of regions that should not be drag-able
             var rectArray = new Windows.Graphics.RectInt32[] { MenuBarRect/*, SearchBoxRect*//*, PersonPicRect*/, LockUnLockIndicatorRect, CalibratedIndicatorRect };
 
             InputNonClientPointerSource nonClientInputSrc =
@@ -3739,7 +3701,7 @@ namespace Surveyor
 
         /// <summary>
         /// If the media is synchronized then only display the primary (left) media control. Hide the 
-        /// seconardary media control and centre the primary
+        /// secondary media control and center the primary
         /// </summary>
         /// <param name="mediaSycronized"></param>
         private void MediaControlsDisplayMode(bool mediaSycronized)
@@ -3797,7 +3759,7 @@ namespace Surveyor
         /// </summary>
         internal void DisplayDynamicMeasurement(bool showRMSCombinedOnly, double? measurement, double? range, double? rmsCombined, double? rmsTargetA, double? rmsTargetB)
         {
-            // Measurment dynamic display
+            // Measurement dynamic display
             string measurementText = string.Empty;
             if (measurement is not null)
             {
@@ -3879,7 +3841,7 @@ namespace Surveyor
         {
             if (diagnosticInformation)
             {
-                // Debug Diags Dump Help>Diags Dump 
+                // Debug Diagnostics Dump Help>Diagnostics Dump 
                 MenuDiagsDump.IsEnabled = true;
 
                 // Testing Help>Testing
@@ -3936,7 +3898,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// The users has selected a different tab in the tabview at bottom of the screen
+        /// The users has selected a different tab in the <TabView> at bottom of the screen
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>

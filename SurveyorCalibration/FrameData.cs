@@ -32,10 +32,10 @@ namespace Surveyor.Calibration
 
         // Corners and IDs
         [JsonProperty("Corners")]
-        public PointF[] CharucoCorners { get; init; } = [];
+        public PointF[] ChArUcoCorners { get; init; } = [];
 
         [JsonProperty("Ids")]
-        public int[] CharucoIds { get; init; } = [];
+        public int[] ChArUcoIds { get; init; } = [];
 
 
         // Movement factors
@@ -98,9 +98,9 @@ namespace Surveyor.Calibration
 
         // Stereo calibration specific
         [JsonProperty("StereoSharedCorners")]
-        public PointF[][] StereoSharedCharucoCorners = new PointF[calibParamCount][];
+        public PointF[][] StereoSharedChArUcoCorners = new PointF[calibParamCount][];
         [JsonProperty("StereoSharedIds")]
-        public int[][] StereoSharedCharucoIDs = new int[calibParamCount][];
+        public int[][] StereoSharedChArUcoIDs = new int[calibParamCount][];
         [JsonProperty(nameof(stereoProjectedPoints))]
         public PointF[][] stereoProjectedPoints = new PointF[calibParamCount][];
         [JsonProperty(nameof(stereoFrameRms))]
@@ -116,19 +116,19 @@ namespace Surveyor.Calibration
             // Version will remain -1 if not in the JSON
         }
 
-        public FrameData(int frameIndex, Mat grayFrame, PointF[] charucoCorners, int[] charucoIds, int frameWidth, int frameHeight)
+        public FrameData(int frameIndex, Mat grayFrame, PointF[] chArUcoCorners, int[] ChArUcoIds, int frameWidth, int frameHeight)
         {
             // Set the Version
             Version = version;
 
             // Is this a meaningful records
-            if (charucoCorners == null || charucoCorners.Length == 0)
+            if (chArUcoCorners == null || chArUcoCorners.Length == 0)
                 return;
 
             // Store static data
             FrameIndex = frameIndex;
-            CharucoCorners = charucoCorners;
-            CharucoIds = charucoIds;
+            ChArUcoCorners = chArUcoCorners;
+            this.ChArUcoIds = ChArUcoIds;
 
             // One off dynamic data (because we don't store the source static data)
             BlurFactor = CalculateBlur(grayFrame);
@@ -145,8 +145,8 @@ namespace Surveyor.Calibration
         /// <param name="resolutionY"></param>
         public void CalcDynamicFrameData(int resolutionX, int resolutionY)
         {
-            Center = CalculateCenter(CharucoCorners);            
-            SensorBinsOccupied = GetBinsForCharucoCorners(CharucoCorners, resolutionX, resolutionY);
+            Center = CalculateCenter(ChArUcoCorners);            
+            SensorBinsOccupied = GetBinsForCharucoCorners(ChArUcoCorners, resolutionX, resolutionY);
         }
 
 
@@ -155,8 +155,8 @@ namespace Surveyor.Calibration
         /// movement from `b` to `a`.
         public static double CalculateCornerMovement(FrameData a, FrameData b)
         {
-            var dictA = a.CharucoIds.Select((id, i) => (id, a.CharucoCorners[i])).ToDictionary(t => t.id, t => t.Item2);
-            var dictB = b.CharucoIds.Select((id, i) => (id, b.CharucoCorners[i])).ToDictionary(t => t.id, t => t.Item2);
+            var dictA = a.ChArUcoIds.Select((id, i) => (id, a.ChArUcoCorners[i])).ToDictionary(t => t.id, t => t.Item2);
+            var dictB = b.ChArUcoIds.Select((id, i) => (id, b.ChArUcoCorners[i])).ToDictionary(t => t.id, t => t.Item2);
 
             var commonIds = dictA.Keys.Intersect(dictB.Keys).ToList();
 
@@ -196,16 +196,16 @@ namespace Surveyor.Calibration
 
 
 
-        public static (double? yawProxyDeg, double? pitchProxyDeg) EstimateYawPitch(PointF[] charucoCorners,
-                                                                       int[] charucoIds,
+        public static (double? yawProxyDeg, double? pitchProxyDeg) EstimateYawPitch(PointF[] chArUcoCorners,
+                                                                       int[] chArUcoIds,
                                                                        CharucoBoard board,
                                                                        Size imageSize)
         {
-            if (charucoCorners.Length == 0 || charucoIds.Length == 0)
+            if (chArUcoCorners.Length == 0 || chArUcoIds.Length == 0)
                 return (null, null);
 
-            using var cornersVec = new VectorOfPointF(charucoCorners);
-            using var idsVec = new VectorOfInt(charucoIds);
+            using var cornersVec = new VectorOfPointF(chArUcoCorners);
+            using var idsVec = new VectorOfInt(chArUcoIds);
 
             // Estimate a default camera matrix assuming fx=fy and center in image center
             double focalLength = 0.9 * Math.Max(imageSize.Width, imageSize.Height);
@@ -257,7 +257,7 @@ namespace Surveyor.Calibration
         {
             get
             {
-                if (CharucoCorners == null || CharucoCorners.Length <= 0 || BlurFactor <= 0 || MovementFactor < 0)
+                if (ChArUcoCorners == null || ChArUcoCorners.Length <= 0 || BlurFactor <= 0 || MovementFactor < 0)
                     return 0;
 
                 // Strong preference for low movement — 5 is excellent, 10 is okay, 20+ is poor
@@ -267,7 +267,7 @@ namespace Surveyor.Calibration
                 double blurScore = Math.Clamp(10.0 / BlurFactor, 0.0, 1.0);
 
                 // Use 104 as your actual ChArUco max corner count (for 14x9)
-                double cornerScore = Math.Clamp(CharucoCorners.Length / 104.0, 0.0, 1.0);
+                double cornerScore = Math.Clamp(ChArUcoCorners.Length / 104.0, 0.0, 1.0);
 
                 // Weighting — prioritize movement, then blur, then corners
                 return 0.6 * movementScore + 0.3 * blurScore + 0.1 * cornerScore;

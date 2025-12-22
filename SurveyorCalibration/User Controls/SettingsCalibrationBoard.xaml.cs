@@ -102,7 +102,7 @@ namespace Surveyor.User_Controls
         public void SetupForProjectSettingWindow(CalibProject? project)
         {
             // Remember what was passed in
-            charucoBoardDefinition = project?.Data.CharucoBoardDefinition;
+            charucoBoardDefinition = project?.Data.ChArUcoBoardDefinition;
             
             // Check if are just managing defaults
             if (IsDefaultsManagerMode)

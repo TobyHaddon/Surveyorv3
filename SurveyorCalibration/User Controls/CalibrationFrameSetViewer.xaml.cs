@@ -371,7 +371,7 @@ namespace Surveyor.Controls
             }
 
             // Immediately populate counts + tool tips if data is present
-            RefreshPoseBin();
+            //???RefreshPoseBin();
 
             // Exaggerate the pose angle so it displays clearer by averaging thresholds
             static double ExaggerateTheDisplayAngle(int index, IReadOnlyList<double> PoseBinThreshold)
@@ -393,7 +393,7 @@ namespace Surveyor.Controls
         /// <summary>
         /// Refresh the sensor bin layers with the current data.
         /// </summary>
-        public void RefreshSensorBin()
+        public void RefreshSensorBin(UniversalCalibrationHeadUserControl.ViewMode viewMode)
         {
             if (Data is null)
                 return;
@@ -403,7 +403,7 @@ namespace Surveyor.Controls
                 // Get the size of the sensor bin grid
                 var (gx, gy) = sensorBinGrid;
 
-                var counts = Data.calibrationStereoFrameSet.GetSensorBinCounts(Data.trueLeftFalseRight);
+                var counts = Data.calibrationStereoFrameSet.GetSensorBinCounts(viewMode, Data.trueLeftFalseRight);
 
                 foreach (var child in SensorBinGridItemsControl.Children)
                 {
@@ -433,12 +433,12 @@ namespace Surveyor.Controls
         /// <summary>
         /// Refresh the sensor bin layers with the current data.
         /// </summary>
-        public void RefreshPoseBin()
+        public void RefreshPoseBin(UniversalCalibrationHeadUserControl.ViewMode viewMode)
         {
             if (Data is null || Data.calibrationStereoFrameSet is null)
                 return;
 
-            var counts = Data.calibrationStereoFrameSet.GetPoseBinCounts(Data.trueLeftFalseRight);
+            var counts = Data.calibrationStereoFrameSet.GetPoseBinCounts(viewMode, Data.trueLeftFalseRight);
 
             int maxCount = counts.Count > 0 ? counts.Values.Max() : 0;
 
@@ -491,7 +491,7 @@ namespace Surveyor.Controls
 
         /// <summary>
         /// Highlight on the screen the used sensor bins for this frame
-        /// Set clear the highlight frameCalibrationData = null
+        /// Clear the highlight using frameCalibrationData = null
         /// </summary>
         /// <param name="frameCalibrationData"></param>
         public void HighLightActiveSensorBin(FrameData? frameCalibrationData)
@@ -548,7 +548,7 @@ namespace Surveyor.Controls
 
         /// <summary>
         /// Highlight on the screen the used pose bins for this frame
-        /// Set clear the highlight frameCalibrationData = null
+        /// Clear the highlight using frameCalibrationData = null
         /// </summary>
         /// <param name="frameCalibrationData"></param>
         public void HighLightActivePoseBin(FrameData? frameCalibrationData)

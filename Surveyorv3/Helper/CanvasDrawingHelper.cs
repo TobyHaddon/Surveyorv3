@@ -104,7 +104,7 @@ namespace Surveyor.Helper
         /// Draw a circle centered at the given point with optional fill and pointer handlers.
         /// </summary>
         public static void DrawCircle(Canvas canvas,
-                                      Point centre,
+                                      Point center,
                                       double radius,
                                       Brush strokeBrush,
                                       double strokeThickness,
@@ -131,14 +131,14 @@ namespace Surveyor.Helper
                 if (pointerPressed is not null)
                     ellipse.PointerPressed += pointerPressed;
 
-                Canvas.SetLeft(ellipse, centre.X - radius);
-                Canvas.SetTop(ellipse, centre.Y - radius);
+                Canvas.SetLeft(ellipse, center.X - radius);
+                Canvas.SetTop(ellipse, center.Y - radius);
 
                 canvas.Children.Add(ellipse);
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"CanvasDrawingHelper.DrawCircle: Exception raised, centre ({centre.X},{centre.Y}), r={radius}, {canvasTag.TagType}/{canvasTag.TagSubType}, {ex.Message}");
+                Debug.WriteLine($"CanvasDrawingHelper.DrawCircle: Exception raised, centre ({center.X},{center.Y}), r={radius}, {canvasTag.TagType}/{canvasTag.TagSubType}, {ex.Message}");
             }
         }
 
@@ -146,12 +146,12 @@ namespace Surveyor.Helper
         /// Convenience overload: outlined circle only (no fill), default thickness 1.
         /// </summary>
         public static void DrawCircle(Canvas canvas,
-                                      Point centre,
+                                      Point center,
                                       double radius,
                                       Brush strokeBrush,
                                       CanvasTag canvasTag)
         {
-            DrawCircle(canvas, centre, radius, strokeBrush, 1.0, null, canvasTag, null, null);
+            DrawCircle(canvas, center, radius, strokeBrush, 1.0, null, canvasTag, null, null);
         }
 
 

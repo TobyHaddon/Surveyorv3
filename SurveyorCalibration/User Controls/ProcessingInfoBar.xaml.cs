@@ -21,14 +21,14 @@ namespace Surveyor.User_Controls
         public static readonly DependencyProperty CancelButtonTextProperty =
             DependencyProperty.Register(nameof(CancelButtonText), typeof(string), typeof(ProcessingInfoBar), new PropertyMetadata("Cancel"));
 
-        public static readonly DependencyProperty ElaspedTimeProperty =
-            DependencyProperty.Register(nameof(ElaspedTime), typeof(bool), typeof(ProcessingInfoBar), new PropertyMetadata(true));
+        public static readonly DependencyProperty ElapsedTimeProperty =
+            DependencyProperty.Register(nameof(ElapsedTime), typeof(bool), typeof(ProcessingInfoBar), new PropertyMetadata(true));
 
         public string Title { get => (string)GetValue(TitleProperty); set => SetValue(TitleProperty, value); }
         public string Message { get => (string)GetValue(MessageProperty); set => SetValue(MessageProperty, value); }
         public bool CancelButton { get => (bool)GetValue(CancelButtonProperty); set => SetValue(CancelButtonProperty, value); }
         public string CancelButtonText { get => (string)GetValue(CancelButtonTextProperty); set => SetValue(CancelButtonTextProperty, value); }
-        public bool ElaspedTime { get => (bool)GetValue(ElaspedTimeProperty); set => SetValue(ElaspedTimeProperty, value); }
+        public bool ElapsedTime { get => (bool)GetValue(ElapsedTimeProperty); set => SetValue(ElapsedTimeProperty, value); }
 
         public event RoutedEventHandler? CancelButton_Click;
 
@@ -131,7 +131,7 @@ namespace Surveyor.User_Controls
             }
             if (_savedElapsedFlag is not null)
             {
-                ElaspedTime = _savedElapsedFlag.Value;
+                ElapsedTime = _savedElapsedFlag.Value;
                 _savedElapsedFlag = null;
             }
 
@@ -159,8 +159,8 @@ namespace Surveyor.User_Controls
             }
             if (elapsedOverride is not null)
             {
-                _savedElapsedFlag ??= ElaspedTime;
-                ElaspedTime = elapsedOverride.Value;
+                _savedElapsedFlag ??= ElapsedTime;
+                ElapsedTime = elapsedOverride.Value;
             }
 
             InfoBar.IsOpen = true;
@@ -169,7 +169,7 @@ namespace Surveyor.User_Controls
 
             if (elapsedTextBlock is not null)
             {
-                if (ElaspedTime)
+                if (ElapsedTime)
                 {
                     _start = DateTimeOffset.Now;
                     EnsureTimer();

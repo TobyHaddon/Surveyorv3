@@ -487,7 +487,7 @@ namespace Surveyor.User_Controls
                     if (retOpen == 0)
                     {
                         await Task.Delay(1000);
-                        (TimeSpan? leftOffset, TimeSpan? rightOffset) = mainWindow.GetMediaPlayerPoisitions();
+                        (TimeSpan? leftOffset, TimeSpan? rightOffset) = mainWindow.GetMediaPlayerPositions();
 
                         if (leftOffset is not null && rightOffset is not null)
                         {

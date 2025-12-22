@@ -41,7 +41,9 @@
             <RowDefinition Height="*" />            <!-- 2: Mono Heads -->
             <RowDefinition Height="8" />            <!-- 3: GridSplitter -->            
             <RowDefinition Height="*" />            <!-- 4: Stereo Head -->
-            <RowDefinition Height="0" />            <!-- 5: Hidden Dialog -->
+            <RowDefinition Height="8" />            <!-- 5: GridSplitter -->
+            <RowDefinition Height="*" />            <!-- 6: Reporter -->
+            <RowDefinition Height="0" />            <!-- 7: Hidden Dialog -->
         </Grid.RowDefinitions>
 
         <!-- Custom Title Bar Area -->
@@ -175,6 +177,12 @@
                          GroupName="ViewMode"
                          Click="FileViewSensorCoverage_Click"
                          ToolTipService.ToolTip="Display the coverage of the sensor (camera frame) by the calibration target." />
+                    <MenuFlyoutSeparator/>
+                    <MenuFlyoutItem Name="MenuViewOutput" Text="Output" Click="ViewOutput_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon x:Name="MenuViewOutputIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE1F6;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
                 </MenuBarItem>
 
                 <!-- HELP MENU-->
@@ -361,8 +369,21 @@
                                                       Grid.Row="4"                                                      
                                                       Margin="5,5,5,5"/>
 
+        <!-- Horizontal sizer -->
+        <toolkit:GridSplitter Grid.Row="5"
+                   Height="8"
+                   HorizontalAlignment="Stretch"
+                   VerticalAlignment="Top"
+                   Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
+                   ResizeDirection="Rows"
+                   ResizeBehavior="PreviousAndNext"/>
+
+        <!-- For the HeadTitle Left and Right are automatically applied if the Head is Stereo -->
+        <surveyorControls:Reporter x:Name="Report" Grid.Row="6" Margin="5,5,5,5"/>
+
+
         <!--New Calibration Project Dialog-->
-        <Grid x:Name="CalibInfoAndMediaContentDialogGrid" Grid.Row="5">
+        <Grid x:Name="CalibInfoAndMediaContentDialogGrid" Grid.Row="7">
                     <ContentDialog x:Name="CalibrationMediaContentDialog"
                         Title="Calibration Media Setup"
                         PrimaryButtonText="OK"
@@ -379,7 +400,7 @@
         </Grid>
 
         <!-- Export Dialog -->
-        <Grid x:Name="ExportUserControlDialogGrid" Grid.Row="5">
+        <Grid x:Name="ExportUserControlDialogGrid" Grid.Row="7">
             <ContentDialog x:Name="ExportUserControlDialog"
                         Title="Export"
                         PrimaryButtonText="Save"

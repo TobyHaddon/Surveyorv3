@@ -66,9 +66,19 @@ namespace Surveyor.Controls
         private bool _isBothPlaying = false;
         private readonly DispatcherTimer _playBothTimer;
 
+        // Goto start/end button double click support
+       
+        // Single-click handlers become async de-bounced actions:
+        private CancellationTokenSource? _leftGotoStartCts;
+        private CancellationTokenSource? _leftGotoEndCts;
+        private CancellationTokenSource? _rightGotoStartCts;
+        private CancellationTokenSource? _rightGotoEndCts;
+
+        // Stereo lock state
         private bool isLocked = false;
 
-        private CalibrationStereoFrameSet calibrationStereoFrameSet;
+        // Frame set
+        private readonly CalibrationStereoFrameSet calibrationStereoFrameSet;
 
         private CancellationToken cancellationToken;
         private CancellationTokenSource? cts = null;
@@ -192,7 +202,15 @@ namespace Surveyor.Controls
 
             safeUICall = new(dispatcherQueue);
 
+
+
             this.InitializeComponent();
+
+            // After InitializeComponent(), attach DoubleTapped handlers
+            LeftGotoStartButton.DoubleTapped += LeftGotoStartButton_DoubleTapped;
+            LeftGotoEndButton.DoubleTapped += LeftGotoEndButton_DoubleTapped;
+            RightGotoStartButton.DoubleTapped += RightGotoStartButton_DoubleTapped;
+            RightGotoEndButton.DoubleTapped += RightGotoEndButton_DoubleTapped;
 
             // Set the CalibrationStereoFrameSet
             calibrationStereoFrameSet = new();
@@ -280,9 +298,9 @@ namespace Surveyor.Controls
         /// <param name="arucoDictionary"></param>
         /// <param name="boardName"></param>
         /// <returns></returns>
-        public bool SetupCalibrationBoardType(CalibrationBoardDefinition _charucoBoardDefinition)
+        public bool SetupCalibrationBoardType(CalibrationBoardDefinition _chArUcoBoardDefinition)
         {
-            return calibrationStereoFrameSet.SetupCalibrationBoardType(_charucoBoardDefinition);
+            return calibrationStereoFrameSet.SetupCalibrationBoardType(_chArUcoBoardDefinition);
         }
 
         /// <summary>
@@ -453,14 +471,14 @@ namespace Surveyor.Controls
             // Clear frame set values
             this.calibrationStereoFrameSet.ClearResults();
             CalibrationFrameSetViewerLeft.HighLightActiveSensorBin(null);
-            CalibrationFrameSetViewerLeft.RefreshSensorBin();
+            CalibrationFrameSetViewerLeft.RefreshSensorBin(ViewModeCurrent);
             CalibrationFrameSetViewerLeft.HighLightActivePoseBin(null);
-            CalibrationFrameSetViewerLeft.RefreshPoseBin();
+            CalibrationFrameSetViewerLeft.RefreshPoseBin(ViewModeCurrent);
             CalibrationFrameSetViewerLeft.DrawGraphs();
             CalibrationFrameSetViewerRight.HighLightActiveSensorBin(null);
-            CalibrationFrameSetViewerRight.RefreshSensorBin();
+            CalibrationFrameSetViewerRight.RefreshSensorBin(ViewModeCurrent);
             CalibrationFrameSetViewerRight.HighLightActivePoseBin(null);
-            CalibrationFrameSetViewerRight.RefreshPoseBin();
+            CalibrationFrameSetViewerRight.RefreshPoseBin(ViewModeCurrent);
             CalibrationFrameSetViewerRight.DrawGraphs();
 
             // Clear images
@@ -740,7 +758,7 @@ namespace Surveyor.Controls
                 cancellationToken = cts.Token;
 
                 int startCalibrationBoardZone = calibrationStereoFrameSet.GetStartCalibrationBoardZone();
-                int stopCalibrationBoardZone = calibrationStereoFrameSet.GetStoptCalibrationBoardZone();
+                int stopCalibrationBoardZone = calibrationStereoFrameSet.GetStopCalibrationBoardZone();
 
                 if (startCalibrationBoardZone != -1 && stopCalibrationBoardZone != -1)
                 {
@@ -868,7 +886,7 @@ namespace Surveyor.Controls
                     {
                         // Parse the Frames and calculate the yaw and pitch for each frame using the pass1 calibration
                         await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBinAsync(monoCalib!, null/*monoCalibRight*/, frameSize);
-                        safeUICall.Call(() => CalibrationFrameSetViewerLeft.RefreshPoseBin());
+                        safeUICall.Call(() => CalibrationFrameSetViewerLeft.RefreshPoseBin(_viewMode));
                     }
                     else
                         ret = -1;
@@ -1023,8 +1041,11 @@ namespace Surveyor.Controls
                                                                              stereoCornersMinThreshold,
                                                                              maxFramesFromEachPoseBin);
 
-                        CalibrationFrameSetViewerLeft.RefreshPoseBin();
-                        CalibrationFrameSetViewerRight.RefreshPoseBin();
+                        if (calibrationStereoFrameSet.Data.BestFrameIndexes.Count > 0)
+                            ret = 0; // OK
+
+                        CalibrationFrameSetViewerLeft.RefreshPoseBin(_viewMode);
+                        CalibrationFrameSetViewerRight.RefreshPoseBin(_viewMode);
 
                     }
                 }
@@ -1086,6 +1107,9 @@ namespace Surveyor.Controls
                         if (calibrationStereoCameraData is not null)
                         {
                             calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)calibrationParameters] = calibrationStereoCameraData;
+
+                            // We need at least one working stereo calibration
+                            ret = 0;
                         }
 
                         // Add the stereo calibration display text
@@ -1288,8 +1312,8 @@ namespace Surveyor.Controls
                                                                              stereoCornersMinThreshold,
                                                                              maxFramesFromEachPoseBin);
 
-                        CalibrationFrameSetViewerLeft.RefreshPoseBin();
-                        CalibrationFrameSetViewerRight.RefreshPoseBin();
+                        CalibrationFrameSetViewerLeft.RefreshPoseBin(_viewMode);
+                        CalibrationFrameSetViewerRight.RefreshPoseBin(_viewMode);
 
                         // Reset calibration output display 
                         LeftCalibDataText.Text = string.Empty;
@@ -1384,6 +1408,9 @@ namespace Surveyor.Controls
         /// <param name="e"></param>
         public bool SaveCachedResults(string cacheFileSpec)
         {
+            // Force the version to the current 
+            calibrationStereoFrameSet.Data.Version = new CalibrationStereoFrameSet.DataClass().Version;
+
             bool saved = calibrationStereoFrameSet.SaveToFile(cacheFileSpec);
 
             SetUIControls();
@@ -1431,14 +1458,14 @@ namespace Surveyor.Controls
                 {
                     CalibrationFrameSetViewerData dataLeft = new(true/*trueLeftFalseRight*/, calibrationStereoFrameSet);
                     CalibrationFrameSetViewerLeft.Data = dataLeft;
-                    CalibrationFrameSetViewerLeft.RefreshSensorBin();
-                    CalibrationFrameSetViewerLeft.RefreshPoseBin();
+                    CalibrationFrameSetViewerLeft.RefreshSensorBin(ViewModeCurrent);
+                    CalibrationFrameSetViewerLeft.RefreshPoseBin(ViewModeCurrent);
                     CalibrationFrameSetViewerLeft.DrawGraphs();
 
                     CalibrationFrameSetViewerData dataRight = new(false/*trueLeftFalseRight*/, calibrationStereoFrameSet);
                     CalibrationFrameSetViewerRight.Data = dataRight;
-                    CalibrationFrameSetViewerRight.RefreshSensorBin();
-                    CalibrationFrameSetViewerRight.RefreshPoseBin();
+                    CalibrationFrameSetViewerRight.RefreshSensorBin(ViewModeCurrent);
+                    CalibrationFrameSetViewerRight.RefreshPoseBin(ViewModeCurrent);
                     CalibrationFrameSetViewerRight.DrawGraphs();
 
                     ret = calibrationStereoFrameSet.Data.Frames.Count;
@@ -1563,15 +1590,41 @@ namespace Surveyor.Controls
         }
 
 
-        private void LeftGotoStartClick(object sender, RoutedEventArgs e)
+        /// <summary>
+        /// Receive the Left Goto Start button click and start the single vs double click timer
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void LeftGotoStartClick(object sender, RoutedEventArgs e)
         {
-            Debug.WriteLine("LeftGotoStartClick");
+            _leftGotoStartCts?.Cancel();
+            _leftGotoStartCts = new CancellationTokenSource();
+            var token = _leftGotoStartCts.Token;
+
+            try
+            {
+                // de-bounce window for double-tap
+                await Task.Delay(250, token);
+                // no double-tap arrived within 250ms
+                LeftGotoStartSingle();
+            }
+            catch (TaskCanceledException) {/*canceled by double-tap*/}            
         }
 
-        private void LeftGotoEndClick(object sender, RoutedEventArgs e)
+        private async void LeftGotoEndClick(object sender, RoutedEventArgs e)
         {
-            Debug.WriteLine("LeftGotoEndClick");
+            _leftGotoEndCts?.Cancel();
+            _leftGotoEndCts = new CancellationTokenSource();
+            var token = _leftGotoEndCts.Token;
+
+            try
+            {
+                await Task.Delay(250, token);
+                LeftGotoEndSingle();
+            }
+            catch (TaskCanceledException) {/*canceled by double-tap*/}
         }
+
 
 
         /// <summary>
@@ -1627,17 +1680,182 @@ namespace Surveyor.Controls
             }
         }
 
-        private void RightGotoStartClick(object sender, RoutedEventArgs e)
+
+        /// <summary>
+        /// Receive the Right Goto Start button click and start the single vs double click timer
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async void RightGotoStartClick(object sender, RoutedEventArgs e)
         {
-            Debug.WriteLine("LeftGotoStartClick");
+            _rightGotoStartCts?.Cancel();
+            _rightGotoStartCts = new CancellationTokenSource();
+            var token = _rightGotoStartCts.Token;
+
+            try
+            {
+                await Task.Delay(250, token);
+                RightGotoStartSingle();
+            }
+            catch (TaskCanceledException) {/*canceled by double-tap*/}
         }
 
-        private void RightGotoEndClick(object sender, RoutedEventArgs e)
+        private async void RightGotoEndClick(object sender, RoutedEventArgs e)
         {
-            Debug.WriteLine("LeftGotoEndClick");
+            _rightGotoEndCts?.Cancel();
+            _rightGotoEndCts = new CancellationTokenSource();
+            var token = _rightGotoEndCts.Token;
+
+            try
+            {
+                await Task.Delay(250, token);
+                RightGotoEndSingle();
+            }
+            catch (TaskCanceledException) {/*canceled by double-tap*/}
         }
 
 
+
+        // Goto Start/End DoubleTapped support handlers: mark pending and execute double-click action
+        // DoubleTapped cancels the pending single and executes immediately:
+        private void LeftGotoStartButton_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+        {
+            _leftGotoStartCts?.Cancel();
+            LeftGotoStartDouble();
+        }
+
+        private void LeftGotoEndButton_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+        {
+            _leftGotoEndCts?.Cancel();
+            LeftGotoEndDouble();
+        }
+
+        private void RightGotoStartButton_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+        {
+            _rightGotoStartCts?.Cancel();
+            RightGotoStartDouble();
+        }
+
+        private void RightGotoEndButton_DoubleTapped(object sender, Microsoft.UI.Xaml.Input.DoubleTappedRoutedEventArgs e)
+        {
+            _rightGotoEndCts?.Cancel();
+            RightGotoEndDouble();
+        }
+
+
+        // Actual single vs double behaviors 
+
+        /// <summary>
+        /// Single click go to the start of the calibration board zone if known
+        /// </summary>
+        private void LeftGotoStartSingle()
+        {
+            // Guard
+            if (headTrueIsStereoFalseIsMode is null) return;
+
+            if (ViewModeCurrent == ViewMode.AllFrames)
+            {
+                int frameIndex = calibrationStereoFrameSet.GetStartCalibrationBoardZone();
+                if (frameIndex != -1)
+                {
+                    FrameJump(true/*left*/, frameIndex);
+                    return;
+                }
+
+                // Just go to the first frame
+                LeftGotoStartDouble();
+            }
+        }
+
+        /// <summary>
+        /// Double click go the start of the media
+        /// </summary>
+        private void LeftGotoStartDouble()
+        {
+            switch (ViewModeCurrent)
+            {
+                case ViewMode.AllFrames:
+                    FrameJump(true/*left*/, 0);
+                    break;
+                case ViewMode.BestFrames:
+                    BestFrameJump(0);
+                    break;
+            }           
+        }
+
+
+        /// <summary>
+        /// Single click go to the end of the calibration board zone if known
+        /// </summary>
+        private void LeftGotoEndSingle()
+        {
+            // Guard
+            if (headTrueIsStereoFalseIsMode is null) return;
+
+            if (ViewModeCurrent == ViewMode.AllFrames)
+            {
+                int frameIndex = calibrationStereoFrameSet.GetStopCalibrationBoardZone();
+                if (frameIndex != -1)
+                {
+                    FrameJump(true/*left*/, frameIndex);
+                    return;
+                }
+
+                // Just go to the first frame
+                LeftGotoEndDouble();
+            }
+        }
+
+        /// <summary>
+        /// Double click go to the end of the media
+        /// </summary>
+        private void LeftGotoEndDouble()
+        {
+            switch (ViewModeCurrent)
+            {
+                case ViewMode.AllFrames:
+                    FrameJump(true/*left*/, _totalFramesLeft - 1);
+                    break;
+                case ViewMode.BestFrames:
+                    BestFrameJump(calibrationStereoFrameSet.Data.BestFrameIndexes.Count - 1);
+                    break;
+            }
+        }
+
+        private void RightGotoStartSingle()
+        {
+            FrameJump(false/*right*/, 0);
+        }
+        private void RightGotoStartDouble()
+        {
+            int start = calibrationStereoFrameSet.GetStartCalibrationBoardZone();
+            FrameJump(false/*right*/, start >= 0 ? start : 0);
+        }
+
+        private void RightGotoEndSingle()
+        {
+            switch (ViewModeCurrent)
+            {
+                case ViewMode.AllFrames:
+                    FrameMoveForward(false/*right*/);
+                    break;
+                case ViewMode.BestFrames:
+                    BestFrameMoveForward();
+                    break;
+            }
+        }
+        private void RightGotoEndDouble()
+        {
+            if (ViewModeCurrent == ViewMode.AllFrames)
+            {
+                int target = _currentFrameRight + 10;
+                FrameJump(false/*right*/, target);
+            }
+            else if (ViewModeCurrent == ViewMode.BestFrames)
+            {
+                BestFrameJump(_currentBestFrame + 5);
+            }
+        }
 
 
         /// <summary>
@@ -1888,12 +2106,12 @@ namespace Surveyor.Controls
                     // Note these are fully recreated from the full list to date
                     if (leftFrameCalibrationTarget is not null)
                     {
-                        CalibrationFrameSetViewerLeft.RefreshSensorBin();
+                        CalibrationFrameSetViewerLeft.RefreshSensorBin(ViewModeCurrent);
                         CalibrationFrameSetViewerLeft.DrawGraphs();
                     }
                     if (rightFrameCalibrationTarget is not null)
                     {
-                        CalibrationFrameSetViewerRight.RefreshSensorBin();
+                        CalibrationFrameSetViewerRight.RefreshSensorBin(ViewModeCurrent);
                         CalibrationFrameSetViewerRight.DrawGraphs();
                     }
 
@@ -1910,7 +2128,7 @@ namespace Surveyor.Controls
                         UpdateFrameMetaData(true/*trueLeftfalseRight*/,
                                             movementFactor, movementFromPrevious, movementToNext,
                                             leftFrameCalibrationTarget.BlurFactor,
-                                            leftFrameCalibrationTarget.CharucoCorners.Length /*Size*/,
+                                            leftFrameCalibrationTarget.ChArUcoCorners.Length /*Size*/,
                                             leftFrameCalibrationTarget.Score,
                                             leftFrameCalibrationTarget.YawDeg,
                                             leftFrameCalibrationTarget.PitchDeg,
@@ -1924,7 +2142,7 @@ namespace Surveyor.Controls
                         UpdateFrameMetaData(false/*trueLeftfalseRight*/,
                                             movementFactor, movementFromPrevious, movementToNext,
                                             rightFrameCalibrationTarget.BlurFactor,
-                                            rightFrameCalibrationTarget.CharucoCorners.Length /*Size*/,
+                                            rightFrameCalibrationTarget.ChArUcoCorners.Length /*Size*/,
                                             rightFrameCalibrationTarget.Score,
                                             rightFrameCalibrationTarget.YawDeg,
                                             rightFrameCalibrationTarget.PitchDeg,
@@ -2382,7 +2600,7 @@ namespace Surveyor.Controls
                                         target.MovementFromPrevious,
                                         target.MovementToNext,
                                         target.BlurFactor,
-                                        target.CharucoCorners.Length /*Size*/,
+                                        target.ChArUcoCorners.Length /*Size*/,
                                         target.Score,
                                         target.YawDeg,
                                         target.PitchDeg,
@@ -2946,92 +3164,62 @@ namespace Surveyor.Controls
             // Remember the new AppMode
             AppModeCurrent = newAppMode;
 
-            bool leftFrameBackButtonIsEnabled = true;
-            bool leftPlayPauseButtonIsEnabled = true;
-            bool leftFrameForwardButtonIsEnabled = true;
-            bool rightFrameBackButtonIsEnabled = true;
-            bool rightPlayPauseButtonIsEnabled = true;
-            bool rightFrameForwardButtonsEnabled = true;
-            bool leftFrameInfoTextBoxIsVisable = true;
-            bool rightFrameInfoTextBoxIsVisable = true;
 
             if (AppModeCurrent == AppMode.Close)
             {
-                leftFrameBackButtonIsEnabled = false;
-                leftPlayPauseButtonIsEnabled = false;
-                leftFrameForwardButtonIsEnabled = false;
-                rightFrameBackButtonIsEnabled = false;
-                rightPlayPauseButtonIsEnabled = false;
-                rightFrameForwardButtonsEnabled = false;
-                leftFrameInfoTextBoxIsVisable = false;
-                rightFrameInfoTextBoxIsVisable = false;
-
                 // No view mode really but set to All Frames
-                ViewModeCurrent = ViewMode.AllFrames;
+                SetViewMode(ViewMode.AllFrames);
+                //???ViewModeCurrent = ViewMode.AllFrames;
+
+                SetMediaControls(true/*trueLeftFalseRight*/, null);
+                SetMediaControls(false/*trueLeftFalseRight*/, null);
             }
             if (AppModeCurrent == AppMode.Open)
             {
                 // All Flag set correct;
 
                 // Set view mode
-                ViewModeCurrent = ViewMode.AllFrames;
+                SetViewMode(ViewMode.AllFrames);
+
                 FrameJump(true/*trueLeftFalseRight*/, 0);
                 FrameJump(false/*trueLeftFalseRight*/, 0);
             }
             else if (AppModeCurrent == AppMode.FindCalibrationsFrames)
             {
-                leftFrameBackButtonIsEnabled = false;
-                leftPlayPauseButtonIsEnabled = false;
-                leftFrameForwardButtonIsEnabled = false;
-                leftFrameInfoTextBoxIsVisable = false;
+                SetMediaControls(true/*trueLeftFalseRight*/, null);
+                SetMediaControls(false/*trueLeftFalseRight*/, null);
 
-                rightFrameBackButtonIsEnabled = false;
-                rightPlayPauseButtonIsEnabled = false;
-                rightFrameForwardButtonsEnabled = false;
-                rightFrameInfoTextBoxIsVisable = false;
-
-                // Clear the metadata display fields
-                ClearFrameMetaData(true/*trueLeftfalseRight*/);
-                ClearFrameMetaData(false/*trueLeftfalseRight*/);
-
+                // Clear frame UI display data
+                DecorateClear(true/*trueLeftfalseRight*/);
+                DecorateClear(false/*trueLeftfalseRight*/);
                 
                 // Don't change the view mode
             }
             else if (AppModeCurrent == AppMode.BestFramesCalc)
             {
-                leftFrameBackButtonIsEnabled = false;
-                leftPlayPauseButtonIsEnabled = false;
-                leftFrameForwardButtonIsEnabled = false;
-                leftFrameInfoTextBoxIsVisable = false;
-                rightPlayPauseButtonIsEnabled = false;   // No play - only frame forward/back
+                // Clear frame UI display data
+                DecorateClear(true/*trueLeftfalseRight*/);
+                DecorateClear(false/*trueLeftfalseRight*/);
 
-                rightFrameBackButtonIsEnabled = false;
-                rightPlayPauseButtonIsEnabled = false;
-                rightFrameForwardButtonsEnabled = false;
-                rightFrameInfoTextBoxIsVisable = false;
-                leftPlayPauseButtonIsEnabled = false;   // No play - only frame forward/back
+                // Change the view mode so we can see the frame count build in the UI
+                SetViewMode(ViewMode.BestFrames);
 
-                // Don't change the view mode
+                // Because we are process disable the media controls
+                SetMediaControls(true/*trueLeftFalseRight*/, null);
+                SetMediaControls(false/*trueLeftFalseRight*/, null);
             }
             else if (AppModeCurrent == AppMode.BestFramesView)
             {
-                ViewModeCurrent = ViewMode.BestFrames;
+                // Set view mode
+                SetViewMode(ViewMode.BestFrames);
                 BestFrameJump(0);
             }
             else if (AppModeCurrent == AppMode.BestFramesSave)
             {
-                // Don't change the view mode
+              
+                if (ViewModeCurrent != ViewMode.BestFrames)
+                    SetViewMode(ViewMode.BestFrames);
             }
-
-            LeftFrameBackButton.IsEnabled = leftFrameBackButtonIsEnabled;
-            LeftPlayPauseButton.IsEnabled = leftPlayPauseButtonIsEnabled;
-            LeftFrameForwardButton.IsEnabled = leftFrameForwardButtonIsEnabled;
-            LeftGoToFrameTextBox.Visibility = leftFrameInfoTextBoxIsVisable ? Visibility.Visible : Visibility.Collapsed;
-
-            RightFrameBackButton.IsEnabled = rightFrameBackButtonIsEnabled;
-            RightPlayPauseButton.IsEnabled = rightPlayPauseButtonIsEnabled;
-            RightFrameForwardButton.IsEnabled = rightFrameForwardButtonsEnabled;
-            RightGoToFrameTextBox.Visibility = rightFrameInfoTextBoxIsVisable ? Visibility.Visible : Visibility.Collapsed;
         }
 
 
@@ -3042,6 +3230,37 @@ namespace Surveyor.Controls
         public void SetViewMode(ViewMode newViewMode)
         {
             ViewModeCurrent = newViewMode;
+
+            switch (ViewModeCurrent)
+            {
+                case ViewMode.AllFrames:
+                    // All Flag set correct;
+                    SetMediaControls(true/*trueLeftFalseRight*/, ViewMode.AllFrames);
+                    SetMediaControls(false/*trueLeftFalseRight*/, ViewMode.AllFrames);
+                    break;
+
+                case ViewMode.BestFrames:
+                    SetMediaControls(true/*trueLeftFalseRight*/, ViewMode.BestFrames);
+                    SetMediaControls(false/*trueLeftFalseRight*/, ViewMode.BestFrames);
+                    break;
+
+                case ViewMode.FilterFrames:
+                    throw new Exception("Not implemented");
+
+                case ViewMode.SensorCoverage:
+                    throw new Exception("Not implemented");
+            }
+
+            // Clear frame UI display data
+            DecorateClear(true/*trueLeftfalseRight*/);
+            DecorateClear(false/*trueLeftfalseRight*/);
+
+            // Update the totals in the sensor and pose bin displays
+            CalibrationFrameSetViewerLeft.RefreshSensorBin(ViewModeCurrent);
+            CalibrationFrameSetViewerLeft.RefreshPoseBin(ViewModeCurrent);
+            CalibrationFrameSetViewerRight.RefreshSensorBin(ViewModeCurrent);
+            CalibrationFrameSetViewerRight.RefreshPoseBin(ViewModeCurrent);
+
 
             // Change the view mode
             SetUIControls();
@@ -3080,6 +3299,95 @@ namespace Surveyor.Controls
             }
 
             return ret;
+        }
+
+
+        /// <summary>
+        /// Set the media buttons and other UI controls to either the 
+        ///     AllFrame state   (all controls enabled)
+        ///     BestFrames state (all controls enabled except play buttons)
+        ///     null state       (all controls disabled)
+        /// </summary>
+        /// <exception cref="Exception"></exception>
+        private void SetMediaControls(bool trueLeftFalseRight, ViewMode? viewMode)
+        {
+            Button gotoStartButton;
+            Button frameBackButton;
+            Button playPauseButton;
+            Button frameForwardButton;
+            Button gotoEndButton;
+            TextBox goToFrameTextBox;
+
+            if (trueLeftFalseRight)
+            {
+                gotoStartButton = LeftGotoStartButton;
+                frameBackButton = LeftFrameBackButton;
+                playPauseButton = LeftPlayPauseButton;
+                frameForwardButton = LeftFrameForwardButton;
+                gotoEndButton = LeftGotoEndButton;
+                goToFrameTextBox = LeftGoToFrameTextBox;
+            }
+            else 
+            {
+                gotoStartButton = RightGotoStartButton;
+                frameBackButton = RightFrameBackButton;
+                playPauseButton = RightPlayPauseButton;
+                frameForwardButton = RightFrameForwardButton;
+                gotoEndButton = RightGotoEndButton;
+                goToFrameTextBox = RightGoToFrameTextBox;
+            }
+            
+            // Media control button flags
+            bool gotoStartButtonIsEnabled = false;
+            bool frameBackButtonIsEnabled = false;
+            bool playPauseButtonIsEnabled = false;
+            bool frameForwardButtonIsEnabled = false;
+            bool gotoEndButtonIsEnabled = false; 
+            bool goToFrameTextBoxIsVisable = false;
+            
+            switch (viewMode)
+            {
+                case null:
+                    gotoStartButtonIsEnabled = false;
+                    frameBackButtonIsEnabled = false;
+                    playPauseButtonIsEnabled = false;
+                    frameForwardButtonIsEnabled = false;
+                    gotoEndButtonIsEnabled = false;
+                    goToFrameTextBoxIsVisable = false;
+                    break;
+
+                case ViewMode.AllFrames:
+                    gotoStartButtonIsEnabled = true;
+                    frameBackButtonIsEnabled = true;
+                    playPauseButtonIsEnabled = true;
+                    frameForwardButtonIsEnabled = true;
+                    gotoEndButtonIsEnabled = true;
+                    goToFrameTextBoxIsVisable = true;
+                    break;
+
+                case ViewMode.BestFrames:
+                    gotoStartButtonIsEnabled = true;
+                    frameBackButtonIsEnabled = true;
+                    playPauseButtonIsEnabled = false;       // No play option in BestFrame view mode
+                    frameForwardButtonIsEnabled = true;
+                    gotoEndButtonIsEnabled = true;
+                    goToFrameTextBoxIsVisable = true;
+                    break;
+
+                case ViewMode.FilterFrames:
+                    throw new Exception("Not implemented");
+
+                case ViewMode.SensorCoverage:
+                    throw new Exception("Not implemented");
+            }
+
+            gotoStartButton.IsEnabled = gotoStartButtonIsEnabled;
+            frameBackButton.IsEnabled = frameBackButtonIsEnabled;
+            playPauseButton.IsEnabled = playPauseButtonIsEnabled;
+            frameForwardButton.IsEnabled = frameForwardButtonIsEnabled;
+            gotoEndButton.IsEnabled = gotoEndButtonIsEnabled;
+            goToFrameTextBox.Visibility = goToFrameTextBoxIsVisable ? Visibility.Visible : Visibility.Collapsed;
+
         }
 
 
