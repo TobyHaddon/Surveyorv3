@@ -8,6 +8,7 @@ using Org.BouncyCastle.Bcpg;
 using Surveyor.Calibration;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
+using Surveyor.User_Controls;
 using SurveyorCalibrationData;
 using System;
 using System.Diagnostics;
@@ -34,6 +35,9 @@ namespace Surveyor.Controls
         // Needed because background thread can't access UI elements
         // Including the Head property
         private bool? headTrueIsStereoFalseIsMode = null;
+
+        // Reporter
+        private Reporter? report = null;
 
         // Media file files and handles
         private string leftMediaFileSpec = string.Empty;
@@ -242,6 +246,18 @@ namespace Surveyor.Controls
 
             SetAppMode(AppMode.Close);
         }
+
+
+        /// <summary>
+        /// Set the Reporter, used to output messages.
+        /// Call as early as possible after creating the class instance.
+        /// </summary>
+        /// <param name="_report"></param>
+        public void SetReporter(Reporter _report)
+        {
+            report = _report;
+        }
+
 
         /// <summary>
         /// Clean up timers, event handlers, disposable resources etc.
@@ -541,7 +557,6 @@ namespace Surveyor.Controls
         /// <returns></returns>
         public (int frameIndexLeft, int frameIndexRight) GetCurrentFrameIndexes()
         {
-            // TODO
             return (_currentFrameLeft, _currentFrameRight);
         }
 
@@ -1213,11 +1228,11 @@ namespace Surveyor.Controls
                     {
                         (FrameData leftTarget, FrameData? rightTarget, _) = calibrationStereoFrameSet.Data.Frames[frameIndex];
 
-                        // Force the frame with MoveJump
-                        _JumpFrame(true/*trueLeftFalseRight*/, leftTarget.FrameIndex);
+                        // Force the frame with MoveJump (without the calibration board markup)
+                        _JumpFrame(true/*trueLeftFalseRight*/, leftTarget.FrameIndex, null, -1);
 
                         if (rightTarget is not null)
-                            _JumpFrame(false/*trueLeftFalseRight*/, rightTarget.FrameIndex);
+                            _JumpFrame(false/*trueLeftFalseRight*/, rightTarget.FrameIndex, null, -1);
 
                         await Task.Delay(100);
 
@@ -2331,29 +2346,64 @@ namespace Surveyor.Controls
             int? leftIndex = null;
             int? rightIndex = null;
             int framesetIndex = -1;
+            FrameData? leftFrameData = null;
+            FrameData? rightFrameData = null;
+            int correpondingCount = -1;
 
+            // If stereo and locked
             if (isLocked && capLeft != null && wbLeft != null && capRight != null && wbRight != null)
             {
-                leftIndex = _BackFrame(true/*leftTrueRightFalse*/);
-                rightIndex = _BackFrame(false/*leftTrueRightFalse*/);
-                framesetIndex = calibrationStereoFrameSet.GetFrameSetIndexFromLeftRightIndexes((int)leftIndex, (int)rightIndex);
+                // Get the next index (if valid)
+                leftIndex = GetNextIndex(leftTrueRightFalse, -1/*relative*/, null/*absolute*/);
+                rightIndex = GetNextIndex(!leftTrueRightFalse, -1/*relative*/, null/*absolute*/);
+
+                if (leftIndex is not null && rightIndex is not null)
+                {
+                    framesetIndex = calibrationStereoFrameSet.GetFrameSetIndexFromLeftRightIndexes((int)leftIndex, (int)rightIndex);
+
+                    if (calibrationStereoFrameSet.Data.Frames.TryGetValue(framesetIndex, out var tuple))
+                        (leftFrameData, rightFrameData, correpondingCount) = tuple;
+
+                    // if frame data is null then there is no decoration
+                    _JumpFrame(true/*leftTrueRightFalse*/, (int)leftIndex, leftFrameData, correpondingCount);
+                    _JumpFrame(false/*leftTrueRightFalse*/, (int)rightIndex, rightFrameData, correpondingCount);    
+                }
             }
+            // If mono left or stereo unlocked left
             else if (leftTrueRightFalse && capLeft != null && wbLeft != null)
             {
-                leftIndex = _BackFrame(true/*leftTrueRightFalse*/);
-                framesetIndex = (int)leftIndex;
+                // Get the next index (if valid)
+                leftIndex = GetNextIndex(leftTrueRightFalse, -1/*relative*/, null/*absolute*/);
+               
+                if (leftIndex is not null)
+                {                  
+                    if (calibrationStereoFrameSet.Data.Frames.TryGetValue((int)leftIndex, out var tuple))
+                        (leftFrameData, _, correpondingCount) = tuple;
+
+                    _JumpFrame(true/*leftTrueRightFalse*/, (int)leftIndex, leftFrameData, correpondingCount);
+                }
             }
+            // If mono right or stereo unlocked right
             else if (!leftTrueRightFalse && capRight != null && wbRight != null)
             {
-                rightIndex = _BackFrame(false/*leftTrueRightFalse*/);
-                framesetIndex = (int)rightIndex;
+                // Get the next index (if valid)
+                rightIndex = GetNextIndex(leftTrueRightFalse, -1/*relative*/, null/*absolute*/);
+
+                if (rightIndex is not null)
+                {
+                    if (calibrationStereoFrameSet.Data.Frames.TryGetValue((int)rightIndex, out var tuple))
+                        (_, rightFrameData, correpondingCount) = tuple;
+
+                    _JumpFrame(false/*leftTrueRightFalse*/, (int)rightIndex, rightFrameData, correpondingCount);
+                }
             }
 
-            if (leftIndex is not null && leftIndex >= 0)
-                DecorateWithFrameInfo(leftTrueRightFalse, framesetIndex);
+            //???
+            //if (leftIndex is not null && leftIndex >= 0)
+            //    DecorateWithFrameInfo(leftTrueRightFalse, framesetIndex);
 
-            if (rightIndex is not null && rightIndex >= 0)
-                DecorateWithFrameInfo(leftTrueRightFalse, framesetIndex);
+            //if (rightIndex is not null && rightIndex >= 0)
+            //    DecorateWithFrameInfo(leftTrueRightFalse, framesetIndex);
 
         }
 
@@ -2380,11 +2430,12 @@ namespace Surveyor.Controls
                 framesetIndex = (int)rightIndex;
             }
 
-            if (leftIndex is not null && leftIndex >= 0)
-                DecorateWithFrameInfo(leftTrueRightFalse, framesetIndex);
-
-            if (rightIndex is not null && rightIndex >= 0)
-                DecorateWithFrameInfo(leftTrueRightFalse, framesetIndex);
+            //???
+            //if (leftIndex is not null && leftIndex >= 0)
+            //    DecorateWithFrameInfo(leftTrueRightFalse, framesetIndex);
+            //
+            //if (rightIndex is not null && rightIndex >= 0)
+            //    DecorateWithFrameInfo(leftTrueRightFalse, framesetIndex);
         }
 
 
@@ -2443,35 +2494,91 @@ namespace Surveyor.Controls
 
         /// <summary>
         /// In All Frames view mode, jump to the requested frame set index
+        /// framesetIndex = null to display/redisplay the current frame
         /// </summary>
         /// <param name="leftTrueRightFalse"></param>
         /// <param name="framesetIndex"></param>
-        private void FrameJump(bool leftTrueRightFalse, int framesetIndex)
+        private void FrameJump(bool leftTrueRightFalse, int? framesetIndexRequest)
         {
-            int? leftIndex = null;
+            int framesetIndex = 0;
+            int leftIndex = -1;
             int? rightIndex = null;
+
+            FrameData? targetLeft = null;
+            FrameData? targetRight = null;
+            int correpondingCount = -1;
 
             if (isLocked && capLeft != null && wbLeft != null && capRight != null && wbRight != null)
             {
-                (int leftFrame, int rightFrame) = calibrationStereoFrameSet.GetIndexes(framesetIndex);
+                // null means jump to existing frame
+                if (framesetIndexRequest is null)
+                    framesetIndex = _currentFrameLeft;
+                else
+                    framesetIndex = (int)framesetIndexRequest;
 
-                leftIndex = _JumpFrame(true/*leftTrueRightFalse*/, leftFrame);
-                rightIndex = _JumpFrame(false/*leftTrueRightFalse*/, rightFrame);
+                if (calibrationStereoFrameSet.Data.Frames.TryGetValue(framesetIndex, out var tuple))
+                {
+                    (targetLeft, targetRight, correpondingCount) = tuple;
+
+                    leftIndex = targetLeft.FrameIndex;
+                    rightIndex = targetRight?.FrameIndex;
+                }
+                else
+                { 
+                    (leftIndex, rightIndex) = calibrationStereoFrameSet.GetIndexes(framesetIndex);
+                }
+
+                leftIndex = _JumpFrame(true/*leftTrueRightFalse*/, leftIndex, targetLeft, correpondingCount);
+                if (rightIndex is not null) // Won't be null but keep compiler happy
+                    rightIndex = _JumpFrame(false/*leftTrueRightFalse*/, (int)rightIndex, targetRight, correpondingCount);
             }
             else if (leftTrueRightFalse && capLeft != null && wbLeft != null)
             {
-                leftIndex = _JumpFrame(true/*leftTrueRightFalse*/, framesetIndex);
+                if (framesetIndexRequest is null)
+                    framesetIndex = _currentFrameLeft;
+                else
+                    framesetIndex = (int)framesetIndexRequest;
+
+                if (calibrationStereoFrameSet.Data.Frames.TryGetValue(framesetIndex, out var tuple))
+                {
+                    (targetLeft, _, correpondingCount) = tuple;
+                    leftIndex = targetLeft.FrameIndex;                  
+                }
+                else
+                {
+                    (leftIndex, _) = calibrationStereoFrameSet.GetIndexes(framesetIndex);
+                }
+
+                leftIndex = _JumpFrame(true/*leftTrueRightFalse*/, leftIndex, targetLeft, correpondingCount);
             }
             else if (!leftTrueRightFalse && capRight != null && wbRight != null)
             {
-                rightIndex = _JumpFrame(false/*leftTrueRightFalse*/, framesetIndex);
+                if (framesetIndexRequest is null)
+                    framesetIndex = _currentFrameRight;
+                else 
+                    framesetIndex = (int)framesetIndexRequest;
+
+                if (calibrationStereoFrameSet.Data.Frames.TryGetValue(framesetIndex, out var tuple))
+                {
+                    (_, targetRight, correpondingCount) = tuple;
+                    if (targetRight is not null)
+                        rightIndex = targetRight.FrameIndex;
+                }
+                else
+                {
+                    (_, rightIndex) = calibrationStereoFrameSet.GetIndexes(framesetIndex);
+                }
+
+                if (rightIndex is not null)
+                    rightIndex = _JumpFrame(false/*leftTrueRightFalse*/, (int)rightIndex, targetRight, correpondingCount);
             }
 
-            if (leftIndex is not null && leftIndex >= 0)
-                DecorateWithFrameInfo(leftTrueRightFalse, framesetIndex);
-
-            if (rightIndex is not null && rightIndex >= 0)
-                DecorateWithFrameInfo(leftTrueRightFalse, framesetIndex);
+            //???
+            //if (leftIndex >= 0)
+            //    DecorateWithFrameInfo(leftTrueRightFalse, framesetIndex);
+            //
+            //if (rightIndex is not null && rightIndex >= 0)
+            //    DecorateWithFrameInfo(leftTrueRightFalse, framesetIndex);
         }
         
 
@@ -2500,12 +2607,18 @@ namespace Surveyor.Controls
             BestFrameJump(targetIndex);
         }
 
-        private void BestFrameJump(int targetIndex)
+        private void BestFrameJump(int? targetIndexRequest)
         {
             bool ok = false;
+            int targetIndex = 0;
 
             if (calibrationStereoFrameSet is not null)
             {
+                if (targetIndexRequest is null)
+                    targetIndex = _currentBestFrame;
+                else
+                    targetIndex = (int)targetIndexRequest;
+
                 // Check the request best frame index is with range
                 if (targetIndex < 0)
                     targetIndex = 0;
@@ -2523,17 +2636,17 @@ namespace Surveyor.Controls
                     (FrameData leftTarget, FrameData? rightTarget, int correspondingCount) = calibrationStereoFrameSet.Data.Frames[frameIndex];
 
                     // Jump to the left side best frame
-                    _JumpFrame(true/*leftTrueRightFalse*/, leftTarget.FrameIndex);
+                    _JumpFrame(true/*leftTrueRightFalse*/, leftTarget.FrameIndex, leftTarget, correspondingCount);
 
-                    DecorateWithFrameInfo(true/*leftTrueRightFalse*/, frameIndex);
+                    //???DecorateWithFrameInfo(true/*leftTrueRightFalse*/, frameIndex);
                   
 
                     if (rightTarget is not null)
                     {
                         // Jump to the right side best frame
-                        _JumpFrame(false/*leftTrueRightFalse*/, rightTarget.FrameIndex);
+                        _JumpFrame(false/*leftTrueRightFalse*/, rightTarget.FrameIndex, rightTarget, correspondingCount);
 
-                        DecorateWithFrameInfo(false/*leftTrueRightFalse*/, frameIndex);
+                        //???DecorateWithFrameInfo(false/*leftTrueRightFalse*/, frameIndex);
                     }
 
                     ok = true;
@@ -2547,9 +2660,6 @@ namespace Surveyor.Controls
             if (ok)
             {
                 _currentBestFrame = targetIndex;
-                //???
-                //LeftUpdateFrameLabel();
-                //RightUpdateFrameLabel();
             }
         }
 
@@ -2567,66 +2677,36 @@ namespace Surveyor.Controls
         /// framesetIndex = -1 clears the UI frame fields
         /// </summary>
         /// <param name="framesetIndex"></param>
-        private void DecorateWithFrameInfo(bool leftTrueRightFalse, int framesetIndex)
+        private void DecorateWithFrameInfo(bool leftTrueRightFalse, FrameData? frameData, int correpondingCount)
         {
             // Set frame index / total frame and time position
             UpdateFrameLabel(leftTrueRightFalse);
 
             bool clearMetadataAndHighlights = false;
-            if (framesetIndex != -1)
+            if (frameData is not null)
             {
-                // The remaining functionality requires calibration frame set data
-                try
+                // The frame metadata (movement, blur, yaw, pitch, features, score)
+                UpdateFrameMetaData(leftTrueRightFalse,
+                            frameData.MovementFactor,
+                            frameData.MovementFromPrevious,
+                            frameData.MovementToNext,
+                            frameData.BlurFactor,
+                            frameData.ChArUcoCorners.Length /*Size*/,
+                            frameData.Score,
+                            frameData.YawDeg,
+                            frameData.PitchDeg,
+                            correpondingCount);
+                // Indicate which of the bin this frame is found in
+                if (leftTrueRightFalse)
                 {
-                    FrameData? leftTarget = null;
-                    FrameData? rightTarget = null;
-                    FrameData? target;
-
-                    // Get frame data
-                    if (calibrationStereoFrameSet.Data.Frames.TryGetValue(framesetIndex, out var tuple))
-                    {
-                        (leftTarget, rightTarget, int correpondingCount) = tuple;
-
-                        if (leftTrueRightFalse)
-                            target = leftTarget;
-                        else
-                            target = rightTarget;
-
-                        if (target is not null)
-                        {
-                            // The frame metadata (movement, blur, yaw, pitch, features, score)
-                            UpdateFrameMetaData(leftTrueRightFalse,
-                                        target.MovementFactor,
-                                        target.MovementFromPrevious,
-                                        target.MovementToNext,
-                                        target.BlurFactor,
-                                        target.ChArUcoCorners.Length /*Size*/,
-                                        target.Score,
-                                        target.YawDeg,
-                                        target.PitchDeg,
-                                        correpondingCount);
-                            // Indicate which of the bin this frame is found in
-                            if (leftTrueRightFalse)
-                            {
-                                CalibrationFrameSetViewerLeft.HighLightActiveSensorBin(target);
-                                CalibrationFrameSetViewerLeft.HighLightActivePoseBin(target);
-                            }
-                            else
-                            {
-                                CalibrationFrameSetViewerRight.HighLightActiveSensorBin(target);
-                                CalibrationFrameSetViewerRight.HighLightActivePoseBin(target);
-                            }
-                        }
-                    }
-                    else
-                    {
-                        clearMetadataAndHighlights = true;
-                    }
+                    CalibrationFrameSetViewerLeft.HighLightActiveSensorBin(frameData);
+                    CalibrationFrameSetViewerLeft.HighLightActivePoseBin(frameData);
                 }
-                catch
+                else
                 {
-                    clearMetadataAndHighlights = true;
-                }
+                    CalibrationFrameSetViewerRight.HighLightActiveSensorBin(frameData);
+                    CalibrationFrameSetViewerRight.HighLightActivePoseBin(frameData);
+                }            
             }
             else
             {
@@ -2832,9 +2912,9 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="leftTrueRightFalse"></param>
         /// <param name="targetIndex"></param>
-        /// <param name="frameCalibrationData"></param>
+        /// <param name="frameData"></param>
         /// <returns>-1 if out of range (end of media normally)</returns>
-        private int _JumpFrame(bool leftTrueRightFalse, int targetIndex)
+        private int _JumpFrame(bool leftTrueRightFalse, int targetIndex, FrameData? frameData, int correpondingCount)
         {
             VideoCapture? cap;
             WriteableBitmap? wb;
@@ -2864,21 +2944,21 @@ namespace Surveyor.Controls
                 if (!mat.IsEmpty && wb is not null)
                 {
                     // Get the target calibration frame data safely using the dictionary key
-                    if (calibrationStereoFrameSet.Data.Frames.TryGetValue(framesetIndex, out var tuple))
-                    {
-                        (FrameData? targetLeft, FrameData? targetRight, _) = tuple;
-                        FrameData? target = leftTrueRightFalse ? targetLeft : targetRight;
+                    //???if (calibrationStereoFrameSet.Data.Frames.TryGetValue(framesetIndex, out var tuple))
+                    //???{
+                    //???    (FrameData? targetLeft, FrameData? targetRight, _) = tuple;
+                    //???    FrameData? target = leftTrueRightFalse ? targetLeft : targetRight;
 
                         // Apply the calibration board markup and draw to screen
-                        ProcessFrame(leftTrueRightFalse, framesetIndex, mat, wb, target);
-                    }
-                    else
-                    {
-                        // Draw frame to screen
-                        ProcessFrame(leftTrueRightFalse, framesetIndex, mat, wb, null);
-
-                        DecorateWithFrameInfo(leftTrueRightFalse, -1);
-                    }
+                        ProcessFrame(leftTrueRightFalse, framesetIndex, mat, wb, frameData);
+                        DecorateWithFrameInfo(leftTrueRightFalse, frameData, correpondingCount);
+                    //???}
+                    //???else
+                    //???{
+                        // Draw frame to screen (pre-frame set being available)
+                    //???    ProcessFrame(leftTrueRightFalse, framesetIndex, mat, wb, null);                       
+                    //???    DecorateWithFrameInfo(leftTrueRightFalse, framesetIndex);
+                    //???}
                 }
 
                 if (leftTrueRightFalse)
@@ -2892,6 +2972,60 @@ namespace Surveyor.Controls
             }
 
             return framesetIndex;
+        }
+
+
+        /// <summary>
+        /// Calculate the new index for the given size return null is index is 
+        /// out of range
+        /// </summary>
+        /// <param name="leftTrueRightFalse"></param>
+        /// <param name="relative"></param>
+        /// <param name="absolute"></param>
+        /// <returns></returns>
+        private int? GetNextIndex(bool leftTrueRightFalse, int? relative, int? absolute)
+        {
+            // Guard
+            if (relative is null && absolute is null) return null;
+
+            int? index = null;
+
+            if (leftTrueRightFalse)
+            {
+                if (relative is not null)
+                {
+                    if (_currentFrameLeft + (int)relative >= 0 &&
+                        _currentFrameLeft + (int)relative < _totalFramesLeft)                
+                        index = _currentFrameLeft + (int)relative;
+               
+                }
+                else if (absolute is not null)
+                {
+                    if ((int)absolute >= 0 &&
+                        (int)absolute < _totalFramesLeft)                    
+                        index = (int)absolute;
+                    
+                }
+            }
+            else
+            {
+                if (relative is not null)
+                {
+                    if (_currentFrameRight + (int)relative >= 0 &&
+                        _currentFrameRight + (int)relative < _totalFramesRight)
+                        index = _currentFrameRight + (int)relative;
+
+                }
+                else if (absolute is not null)
+                {
+                    if ((int)absolute >= 0 &&
+                        (int)absolute < _totalFramesRight)
+                        index = (int)absolute;
+
+                }
+            }
+
+            return index;
         }
 
 
@@ -3234,14 +3368,20 @@ namespace Surveyor.Controls
             switch (ViewModeCurrent)
             {
                 case ViewMode.AllFrames:
-                    // All Flag set correct;
                     SetMediaControls(true/*trueLeftFalseRight*/, ViewMode.AllFrames);
                     SetMediaControls(false/*trueLeftFalseRight*/, ViewMode.AllFrames);
+                    
+                    // Display last shown 'AllFrames' frame
+                    FrameJump(true/*trueLeftFalseRight*/, null);
+                    FrameJump(false/*trueLeftFalseRight*/, null);
                     break;
 
                 case ViewMode.BestFrames:
                     SetMediaControls(true/*trueLeftFalseRight*/, ViewMode.BestFrames);
                     SetMediaControls(false/*trueLeftFalseRight*/, ViewMode.BestFrames);
+
+                    // Display last shown 'AllFrames' frame
+                    BestFrameJump(null);
                     break;
 
                 case ViewMode.FilterFrames:

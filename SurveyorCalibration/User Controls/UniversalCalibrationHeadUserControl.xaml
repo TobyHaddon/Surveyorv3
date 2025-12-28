@@ -15,16 +15,13 @@
         <x:String x:Key="YawToolTipText">The detected tilt of the calibration board in the left/right direction (yaw). A positive angle means the left side is nearer to you</x:String>
         <x:String x:Key="PitchToolTipText">The detected tilt of the calibration board in the up/down direction (pitch). A positive angle means the board is tilted forward</x:String>
         <x:String x:Key="FeaturesToolTipText">The number of markers detected on the calibration board. For stereo detection it is count of the corresponding markers found on the left and right calibration board i.e. marker is only counted if it can be seen on the left and the right side simultaneously</x:String>
-        <x:String x:Key="ScoreToolTipText">A quality score calucated for this frame</x:String>
+        <x:String x:Key="ScoreToolTipText">A quality score calculated for this frame</x:String>
     </UserControl.Resources>
 
     <Grid x:Name="RootGrid">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
-            <!--<RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />-->
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*" />
@@ -64,7 +61,7 @@
                            
                 <controls:CalibrationBoardTimeLineUserControl x:Name="CalibrationBoardTimeLineLeft"
                                                Grid.Row="1"
-                                               HorizontalAlignment="Stretch" Visibility="Collapsed" Margin="0,2,0,0"/>
+                                               HorizontalAlignment="Stretch" Visibility="Collapsed" Margin="0,1,0,0"/>
             </Grid>
 
             <!-- Left: Calibration Results -->

@@ -160,7 +160,7 @@
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xF196;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem x:Name="MenuDiagsDump" Text="Diags Dump" IsEnabled="False" Click="HelpDiagsDump_Click">
+                    <MenuFlyoutItem x:Name="MenuDiagsDump" Text="Diagnostics Dump" IsEnabled="False" Click="HelpDiagsDump_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEBE8;" />
                         </MenuFlyoutItem.Icon>

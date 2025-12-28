@@ -5,6 +5,7 @@ using Microsoft.UI.Input;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Surveyor;
@@ -13,6 +14,7 @@ using Surveyor.Helper;
 using Surveyor.User_Controls;
 using SurveyorCalibrationData;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
@@ -98,6 +100,9 @@ namespace Surveyor
         private DispatcherQueueTimer? _findCheckTimer;
         private DateTime? _findStartTime;
 
+        // Output display (debug, info, warning, error messages)
+        private bool displayOutput = false;
+
 
         private bool mediaFromCommandLine = false; // not sure whether to support this
 
@@ -124,12 +129,16 @@ namespace Surveyor
             // Inform the Reporter of the DispatcherQueue
             Report.SetDispatcherQueue(DispatcherQueue);
 
+            // Set the Reporter to use for output messages
+            LeftMonoCalibrationHead.SetReporter(Report);
+            RightMonoCalibrationHead.SetReporter(Report);
+            StereoCalibrationHead.SetReporter(Report);
+
             // Set theme (ThemeChanged calls SetTheme but performs some preparation first)
             var rootElement = (FrameworkElement)Content;
             if (SettingsManagerLocal.ApplicationTheme != ElementTheme.Default)
                 rootElement.RequestedTheme = SettingsManagerLocal.ApplicationTheme;
             ApplyTheme(SettingsManagerLocal.ApplicationTheme);
-
 
             // Add listener for theme changes            
             rootElement.Loaded += MainWindow_Loaded;
@@ -214,6 +223,8 @@ namespace Surveyor
                                               HelpDocumentsXLSSection);
 
             SetUIControls();
+
+            Report.Info("", "App Started");
         }
 
 
@@ -688,7 +699,7 @@ namespace Surveyor
             ContentDialogResult result = await CalibrationMediaContentDialog.ShowAsync();
             if (result == ContentDialogResult.Primary)
             {
-                calibProject = new();
+                calibProject = new(Report);
 
                 CalibrationMediaUserControl.SaveForContentDialog(calibProject);
 
@@ -771,7 +782,7 @@ namespace Surveyor
                     }
                     else
                     {
-                        Debug.WriteLine($"FileProjectOpenClickAsync: OpenProjectAsync() failed, survey path:{file.Path}, ret = {ret}");
+                        Debug.WriteLine($"FileProjectOpenClickAsync: OpenProjectAsync() failed, survey path:{file.Path}, return code = {ret}");
                     }
                 }
 
@@ -1212,8 +1223,47 @@ namespace Surveyor
         /// <param name="e"></param>
         private void ViewOutput_Click(object sender, RoutedEventArgs e)
         {
-            ???
+            if (displayOutput)
+            {
+                // Switch off display Output
+
+                // Take the tick off the View>Output menu item
+                MenuViewOutput.IsChecked = false;
+
+                // Hide the Reporter panel and it's splitter
+                Report.Visibility = Visibility.Collapsed;
+                OutputSplitter.Visibility = Visibility.Collapsed;
+
+                // Hide output area
+                OutputSplitterRow.Height = new GridLength(0);
+                OutputRow.Height = new GridLength(0);
+
+                // Mark display output as off
+                displayOutput = false;
+            }
+            else
+            {
+                // Switch on display Output
+
+                // Show the Reporter panel and it's splitter
+                Report.Visibility = Visibility.Visible;
+                OutputSplitter.Visibility = Visibility.Visible;
+
+                // Show output area: Row6 gets 14% of the variable space, Row5 is the splitter thickness
+                OutputSplitterRow.Height = new GridLength(8);                          // splitter thickness
+                OutputRow.Height = new GridLength(14, GridUnitType.Star);      // reporter
+
+                // Put a tick on the View>Output menu item
+                MenuViewOutput.IsChecked = true;
+
+                // Mark display output as on
+                displayOutput = true;
+            }
         }
+
+
+       
+
 
 
         ///
@@ -1232,7 +1282,7 @@ namespace Surveyor
 
             if (calibProject is null)
             {
-                calibProject ??= new CalibProject();
+                calibProject ??= new CalibProject(Report);
                 calibProject.PropertyChanged += Project_PropertyChanged;
             }
 

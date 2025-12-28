@@ -341,7 +341,7 @@ namespace Surveyor.Controls
                     });
                     boardRect.RenderTransform = transformGroup;
 
-                    Debug.Write($"[Y:{yawDisplayDeg,4:F1}, |Y|:{yawMagnitude,4:F1}, W:{widthFactor,3:F2}, P:{pitchDisplayDeg,4:F1}, Rot:{zRotation,5:F1}, ScaleY:{pitchFactor,3:F2}]  ");
+                    //Debug.Write($"[Y:{yawDisplayDeg,4:F1}, |Y|:{yawMagnitude,4:F1}, W:{widthFactor,3:F2}, P:{pitchDisplayDeg,4:F1}, Rot:{zRotation,5:F1}, ScaleY:{pitchFactor,3:F2}]  ");
                     innerGrid.Children.Add(boardRect);
 
                     // --- Count label (bottom-right) ---

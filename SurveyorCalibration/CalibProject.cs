@@ -2,6 +2,7 @@
 using Microsoft.UI.Composition;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
+using Surveyor.User_Controls;
 using SurveyorCalibrationData;
 using System;
 using System.ComponentModel;
@@ -29,7 +30,7 @@ namespace Surveyor
         // Event handler for property changed
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        readonly Reporter? Report = new();
+        readonly Reporter Report;
 
         // Auto Save variables
         private readonly TimeSpan autosaveInterval = TimeSpan.FromSeconds(20);
@@ -40,7 +41,11 @@ namespace Surveyor
         // Use to stop the auto save and save methods from being called at the same time
         private readonly object _lockObject = new();
 
-
+        public CalibProject(Reporter _report)
+        {
+            Report = _report;
+            Clear();
+        }
 
         public partial class DataClass
         {
@@ -1481,31 +1486,6 @@ namespace Surveyor
         private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-        }
-
-    }
-
-    /// <summary>
-    /// Reporter class for logging warnings and errors
-    /// </summary>
-    public class Reporter
-    {
-        public void Error(string channel, string message)
-        {
-            System.Diagnostics.Debug.WriteLine($"Error [{channel}]: {message}");
-        }
-
-        public void Warning(string channel, string message)
-        {
-            System.Diagnostics.Debug.WriteLine($"Warning [{channel}]: {message}");
-        }
-        public void Info(string channel, string message)
-        {
-            System.Diagnostics.Debug.WriteLine($"Info [{channel}]: {message}");
-        }
-        public void Debug(string channel, string message)
-        {
-            System.Diagnostics.Debug.WriteLine($"Debug [{channel}]: {message}");
         }
 
     }

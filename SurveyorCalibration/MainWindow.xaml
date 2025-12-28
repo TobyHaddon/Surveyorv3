@@ -36,14 +36,14 @@
         </Grid.Resources>
 
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>          <!-- 0: Title Bar -->
-            <RowDefinition Height="Auto" />         <!-- 1: CommandBar -->
-            <RowDefinition Height="*" />            <!-- 2: Mono Heads -->
-            <RowDefinition Height="8" />            <!-- 3: GridSplitter -->            
-            <RowDefinition Height="*" />            <!-- 4: Stereo Head -->
-            <RowDefinition Height="8" />            <!-- 5: GridSplitter -->
-            <RowDefinition Height="*" />            <!-- 6: Reporter -->
-            <RowDefinition Height="0" />            <!-- 7: Hidden Dialog -->
+            <RowDefinition Height="Auto"/>                          <!-- 0: Title Bar -->
+            <RowDefinition Height="Auto" />                         <!-- 1: CommandBar -->
+            <RowDefinition x:Name="MonoHeadRow" Height="42*" />     <!-- 2: Mono Heads -->
+            <RowDefinition Height="8" />                            <!-- 3: GridSplitter -->
+            <RowDefinition x:Name="StereoHeadRow" Height="42*" />   <!-- 4: Stereo Head -->
+            <RowDefinition x:Name="OutputSplitterRow" Height="0" /> <!-- 5: GridSplitter -->
+            <RowDefinition x:Name="OutputRow" Height="0" />         <!-- 6: Reporter -->
+            <RowDefinition Height="0" />                            <!-- 7: Hidden Dialog -->
         </Grid.RowDefinitions>
 
         <!-- Custom Title Bar Area -->
@@ -178,11 +178,9 @@
                          Click="FileViewSensorCoverage_Click"
                          ToolTipService.ToolTip="Display the coverage of the sensor (camera frame) by the calibration target." />
                     <MenuFlyoutSeparator/>
-                    <MenuFlyoutItem Name="MenuViewOutput" Text="Output" Click="ViewOutput_Click">
-                        <MenuFlyoutItem.Icon>
-                            <FontIcon x:Name="MenuViewOutputIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE1F6;" />
-                        </MenuFlyoutItem.Icon>
-                    </MenuFlyoutItem>
+                    <ToggleMenuFlyoutItem x:Name="MenuViewOutput" Text="Output"
+                                          IsChecked="False" Click="ViewOutput_Click"/>
+    
                 </MenuBarItem>
 
                 <!-- HELP MENU-->
@@ -370,16 +368,18 @@
                                                       Margin="5,5,5,5"/>
 
         <!-- Horizontal sizer -->
-        <toolkit:GridSplitter Grid.Row="5"
+        <toolkit:GridSplitter x:Name="OutputSplitter" Grid.Row="5"
                    Height="8"
                    HorizontalAlignment="Stretch"
                    VerticalAlignment="Top"
                    Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
                    ResizeDirection="Rows"
-                   ResizeBehavior="PreviousAndNext"/>
+                   ResizeBehavior="PreviousAndNext"
+                   Visibility="Collapsed"/>
 
         <!-- For the HeadTitle Left and Right are automatically applied if the Head is Stereo -->
-        <surveyorControls:Reporter x:Name="Report" Grid.Row="6" Margin="5,5,5,5"/>
+        <surveyorControls:Reporter x:Name="Report" Grid.Row="6" Visibility="Collapsed"
+                                   Margin="5,5,5,5"/>
 
 
         <!--New Calibration Project Dialog-->

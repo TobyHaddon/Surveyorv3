@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using WinUIEx;
 using System;
+using Surveyor.User_Controls;
 
 namespace Surveyor
 {
@@ -55,6 +56,9 @@ namespace Surveyor
 
     public sealed partial class SetupRunCalibration : WindowEx
     {
+        // Reporter
+        private Reporter? report = null;
+
         // Copy of the calibration project instance being edited
         private readonly NavParams? navParams;
 
@@ -103,6 +107,18 @@ namespace Surveyor
                 }
             };
         }
+
+
+        /// <summary>
+        /// Set the Reporter, used to output messages.
+        /// Call as early as possible after creating the class instance.
+        /// </summary>
+        /// <param name="_report"></param>
+        public void SetReporter(Reporter _report)
+        {
+            report = _report;
+        }
+
 
         // Allow pages to request a refresh when internal state changes
         internal void RequestFooterButtonsRefresh() => UpdateFooterButtons();

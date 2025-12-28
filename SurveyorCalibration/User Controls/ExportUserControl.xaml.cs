@@ -21,6 +21,9 @@ namespace Surveyor.User_Controls
 {
     public sealed partial class Export : UserControl
     {
+        // Reporter
+        private Reporter? report = null;
+
         private bool _isReady;
 
         private ContentDialog? ParentDialog { get; set; } = null;
@@ -32,6 +35,16 @@ namespace Surveyor.User_Controls
             Loaded += ExportUserControl_Loaded;
         }
 
+
+        /// <summary>
+        /// Set the Reporter, used to output messages.
+        /// Call as early as possible after creating the class instance.
+        /// </summary>
+        /// <param name="_report"></param>
+        public void SetReporter(Reporter _report)
+        {
+            report = _report;
+        }
 
         public void SetupForContentDialog(ContentDialog dialog, CalibProject calibProject)
         {
