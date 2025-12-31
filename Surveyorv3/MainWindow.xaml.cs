@@ -3966,7 +3966,7 @@ namespace Surveyor
                     SetWindowEnabled(mainWindowHandle, true);
 
                     // Check if the settings windows indicated a recalculation is required
-                    if (settingsWindow.RecalcRequired())
+                    if (settingsWindow.RecalculationRequired())
                     {
                         InfoBarReCalc.IsOpen = true;
                         await Task.Delay(500); // Give the user a chance to see the info bar open

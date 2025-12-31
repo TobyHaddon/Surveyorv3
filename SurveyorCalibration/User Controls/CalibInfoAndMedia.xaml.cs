@@ -37,7 +37,7 @@ using WinRT.Interop;
 
 namespace Surveyor.User_Controls
 {
-    public sealed partial class CalibInfoAndMedia : UserControl
+    public sealed partial class CalibrationInfoAndMedia : UserControl
     {        
         public IReadOnlyList<StorageFile>? mediaFilesSelected = null;
 
@@ -53,7 +53,7 @@ namespace Surveyor.User_Controls
 
         private StereoMonoMediaSetMode stereoMonoMediaSetMode = StereoMonoMediaSetMode.MonoAndStereoMediaSet; 
 
-        public CalibInfoAndMedia()
+        public CalibrationInfoAndMedia()
         {
             this.InitializeComponent();
 

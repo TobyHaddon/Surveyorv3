@@ -30,21 +30,21 @@ namespace Surveyor
             base.OnNavigatedTo(e);
             navParams = e.Parameter as NavParams;
 
-            // Guard
-            if (navParams is null) return;
+            if (navParams is not null)
+            {
+                // Set footer buttons
+                if (navParams is not null && navParams.setupRunCalibration is not null)
+                    navParams.setupRunCalibration.RequestFooterButtonsRefresh();
 
-            // Set footer buttons
-            if (navParams is not null && navParams.setupRunCalibration is not null)
-                navParams.setupRunCalibration.RequestFooterButtonsRefresh();
+                // Summarize current calibration project
+                UpdateSummary();
 
-            // Summarize current calibration project
-            UpdateSummary();
-
-            // Disable the RunCalibration button if no actions requested
-            if (navParams.AnyActions())
-                RunCalibrationButton.IsEnabled = true;
-            else
-                RunCalibrationButton.IsEnabled = false;
+                // Disable the RunCalibration button if no actions requested
+                if (navParams is not null && navParams.AnyActions())
+                    RunCalibrationButton.IsEnabled = true;
+                else
+                    RunCalibrationButton.IsEnabled = false;
+            }
         }
 
 

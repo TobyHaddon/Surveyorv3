@@ -105,8 +105,8 @@ namespace Surveyor
 
         public DataClass Data = new();
 
-        public const double BLUR_LARGEVALUE = 10.0;
-        public const double MOVEMENT_LARGEVALUE = 400.0;
+        public const double BLUR_LARGE_VALUE = 10.0;
+        public const double MOVEMENT_LARGE_VALUE = 400.0;
 
         public const int MONO_CORNER_COUNT_THRESHOLD = 80;
         public const int STEREO_CORNER_COUNT_THRESHOLD = 50;
@@ -362,9 +362,9 @@ namespace Surveyor
         /// <summary>
         /// Get the left and right frame indexes for a given frame set index.
         /// </summary>
-        /// <param name="framesetIndex"></param>
+        /// <param name="frameSetIndex"></param>
         /// <returns></returns>
-        public (int frameLeft, int frameRight) GetIndexes(int framesetIndex)
+        public (int frameLeft, int frameRight) GetIndexes(int frameSetIndex)
         {
             int frameLeft;
             int frameRight;
@@ -373,13 +373,13 @@ namespace Surveyor
 
             if (startFrameLeft == 0)
             {
-                frameLeft = framesetIndex;
-                frameRight = framesetIndex + startFrameRight;
+                frameLeft = frameSetIndex;
+                frameRight = frameSetIndex + startFrameRight;
             }
             else
             {
-                frameLeft = framesetIndex + startFrameLeft;
-                frameRight = framesetIndex;
+                frameLeft = frameSetIndex + startFrameLeft;
+                frameRight = frameSetIndex;
             }
 
             return (frameLeft, frameRight);
@@ -759,19 +759,19 @@ namespace Surveyor
         /// <summary>
         /// Find and report on very large movement values in the set.
         /// </summary>
-        /// <param name="trueLeftrightFalse"></param>
+        /// <param name="trueLeftFalseRight"></param>
         /// <param name="suppressValues"></param>
-        public void ReportOnLargeValues(bool trueLeftrightFalse, bool suppressValues)
+        public void ReportOnLargeValues(bool trueLeftFalseRight, bool suppressValues)
         {
             // Return a list of frame indexes where the movement factor is large
             List<int> largeMovementList = [.. Data.Frames.Where(f =>
-                                                           f.Value.frameCalibrationTargetLeft.MovementFactor > MOVEMENT_LARGEVALUE ||
-                                                           (f.Value.frameCalibrationTargetRight?.MovementFactor ?? -1) > MOVEMENT_LARGEVALUE)
+                                                           f.Value.frameCalibrationTargetLeft.MovementFactor > MOVEMENT_LARGE_VALUE ||
+                                                           (f.Value.frameCalibrationTargetRight?.MovementFactor ?? -1) > MOVEMENT_LARGE_VALUE)
                                                     .Select(f => f.Key)];
 
             if (largeMovementList.Count > 0)
             {
-                string side = trueLeftrightFalse ? "Left" : "Right";
+                string side = trueLeftFalseRight ? "Left" : "Right";
                 Debug.WriteLine($"{side} side large movement frames: {string.Join(", ", largeMovementList)}");
             }
         }
@@ -1097,6 +1097,9 @@ namespace Surveyor
         {
             bool leftReady = false;
             bool rightReady = false;
+
+            // Clears results ready for the next run
+            ClearResults();
 
             if (leftCapture is not null && leftCapture.IsOpened)
                 leftReady = true;
@@ -1557,9 +1560,7 @@ namespace Surveyor
                 trueStereoFalseSoloLeft = false;
             }
 
-            // Clears results ready for the next run
-            ClearResults();
-
+           
             // Loop through the frames in the target range
             for (int frameIndex = startCalibrationFrameIndex; frameIndex <= stopCalibrationFrameIndex; frameIndex++)
             {

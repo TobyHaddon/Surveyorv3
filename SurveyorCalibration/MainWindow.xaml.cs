@@ -157,11 +157,8 @@ namespace Surveyor
             // Update the Recent open surveys sub menu
             UpdateRecentProjectsMenu();
 
-
-            // Set the sliders
-            //SetMovementAndBlurSliderMax();
-
-
+            /////////////////////////////////////
+            ///May want this code
             // Check for command line            
             //bool isStereoLeft = false;
             //bool isStereoRight = false;
@@ -188,7 +185,7 @@ namespace Surveyor
             //    calibProject.Data.Media.RightMonoMP4Path = AppLaunchArgs.MonoRight;
             //    isMonoRight = true;
             //}
-
+            //
             //if (isStereoLeft && isStereoRight && isMonoLeft && isMonoRight)
             //{
             //    calibProject.Data.Media.StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.MonoAndStereoMediaSet;
@@ -209,8 +206,7 @@ namespace Surveyor
             //    calibProject.Data.Media.StereoMonoMediaSetMode = CalibInfoAndMedia.StereoMonoMediaSetMode.MonoSingleOnlyMediaSet;
             //    mediaFromCommandLine = true;
             //}
-
-
+            //
             //if (mediaFromCommandLine)
             //    _ = OpenMedia(calibProject, true/*forceUsdCacheIfAvalable*/, AppLaunchArgs.RunWithoutPrompts/*noPrompts*/);
 
@@ -234,66 +230,100 @@ namespace Surveyor
         /// <param name="theme">Dark or Light</param>
         public void SetTheme(ElementTheme theme)
         {
-            ElementTheme themeToApply = ElementTheme.Default;
-
             var rootElement = (FrameworkElement)(Content);
 
-            // If the app settings are controlling the theme 
-            // then set the theme directly
-            if (theme == ElementTheme.Dark)
-            {
-                // Set the RequestedTheme of the root element to Dark
-                rootElement.RequestedTheme = ElementTheme.Dark;
+            // Always set RequestedTheme to reflect the chosen mode
+            rootElement.RequestedTheme = theme;
 
-                themeToApply = ElementTheme.Dark;
-            }
-            else if (theme == ElementTheme.Light)
-            {
-                // Set the RequestedTheme of the root element to Light
-                rootElement.RequestedTheme = ElementTheme.Light;
-
-                themeToApply = ElementTheme.Light;
-            }
-
-            // If we are using the system theme, determine what that is
-            // so we can set our app icon and caption button colors appropriately
+            // Derive a concrete theme to choose icons/caption colors
+            ElementTheme themeToApply = theme;
             if (theme == ElementTheme.Default)
             {
-                // Get the background color used by that theme
-                var color = TitleBarHelper.ApplySystemThemeToCaptionButtons(this) == Colors.White ? "Dark" : "Light";
-
-                // Based on the background color, select a suitable application icon
-                if (color == "Dark")
-                    themeToApply = ElementTheme.Dark;
-                else
-                    themeToApply = ElementTheme.Light;
+                var colorMode = TitleBarHelper.ApplySystemThemeToCaptionButtons(this) == Colors.White ? "Dark" : "Light";
+                themeToApply = colorMode == "Dark" ? ElementTheme.Dark : ElementTheme.Light;
             }
 
+            // Update title bar icon/caption buttons
             if (themeToApply == ElementTheme.Dark)
             {
-                // Use a dark theme icon
-                var bitmapImage = new BitmapImage(new Uri($"ms-appx:///Assets/SurveyorCalibration-Dark.png"));
-                TitleBarIcon.Source = bitmapImage;
-
+                TitleBarIcon.Source = new BitmapImage(new Uri($"ms-appx:///Assets/SurveyorCalibration-Dark.png"));
                 TitleBarHelper.SetCaptionButtonColors(this, Colors.White);
             }
-            else if (themeToApply == ElementTheme.Light)
+            else
             {
-                // Use a light theme icon
-                var bitmapImage = new BitmapImage(new Uri($"ms-appx:///Assets/SurveyorCalibration-Light.png"));
-                TitleBarIcon.Source = bitmapImage;
-
+                TitleBarIcon.Source = new BitmapImage(new Uri($"ms-appx:///Assets/SurveyorCalibration-Light.png"));
                 TitleBarHelper.SetCaptionButtonColors(this, Colors.Black);
             }
 
-            // Inform child controls
+            // Propagate theme to child heads
             LeftMonoCalibrationHead.SetTheme(themeToApply);
             RightMonoCalibrationHead.SetTheme(themeToApply);
             StereoCalibrationHead.SetTheme(themeToApply);
 
-            // If the theme has changed, announce the change to the user
             UIHelper.AnnounceActionForAccessibility(rootElement, "Theme changed", "ThemeChangedNotificationActivityId");
         }
+        //public void SetTheme(ElementTheme theme)
+        //{
+        //    ElementTheme themeToApply = ElementTheme.Default;
+
+        //    var rootElement = (FrameworkElement)(Content);
+
+        //    // If the app settings are controlling the theme 
+        //    // then set the theme directly
+        //    if (theme == ElementTheme.Dark)
+        //    {
+        //        // Set the RequestedTheme of the root element to Dark
+        //        rootElement.RequestedTheme = ElementTheme.Dark;
+
+        //        themeToApply = ElementTheme.Dark;
+        //    }
+        //    else if (theme == ElementTheme.Light)
+        //    {
+        //        // Set the RequestedTheme of the root element to Light
+        //        rootElement.RequestedTheme = ElementTheme.Light;
+
+        //        themeToApply = ElementTheme.Light;
+        //    }
+
+        //    // If we are using the system theme, determine what that is
+        //    // so we can set our app icon and caption button colors appropriately
+        //    if (theme == ElementTheme.Default)
+        //    {
+        //        // Get the background color used by that theme
+        //        var color = TitleBarHelper.ApplySystemThemeToCaptionButtons(this) == Colors.White ? "Dark" : "Light";
+
+        //        // Based on the background color, select a suitable application icon
+        //        if (color == "Dark")
+        //            themeToApply = ElementTheme.Dark;
+        //        else
+        //            themeToApply = ElementTheme.Light;
+        //    }
+
+        //    if (themeToApply == ElementTheme.Dark)
+        //    {
+        //        // Use a dark theme icon
+        //        var bitmapImage = new BitmapImage(new Uri($"ms-appx:///Assets/SurveyorCalibration-Dark.png"));
+        //        TitleBarIcon.Source = bitmapImage;
+
+        //        TitleBarHelper.SetCaptionButtonColors(this, Colors.White);
+        //    }
+        //    else if (themeToApply == ElementTheme.Light)
+        //    {
+        //        // Use a light theme icon
+        //        var bitmapImage = new BitmapImage(new Uri($"ms-appx:///Assets/SurveyorCalibration-Light.png"));
+        //        TitleBarIcon.Source = bitmapImage;
+
+        //        TitleBarHelper.SetCaptionButtonColors(this, Colors.Black);
+        //    }
+
+        //    // Inform child controls
+        //    LeftMonoCalibrationHead.SetTheme(themeToApply);
+        //    RightMonoCalibrationHead.SetTheme(themeToApply);
+        //    StereoCalibrationHead.SetTheme(themeToApply);
+
+        //    // If the theme has changed, announce the change to the user
+        //    UIHelper.AnnounceActionForAccessibility(rootElement, "Theme changed", "ThemeChangedNotificationActivityId");
+        //}
 
 
         /// <summary>
@@ -668,8 +698,8 @@ namespace Surveyor
             // Apply additional changes
             SetTheme(newTheme);
 
-            // ??Not sure if this is right or if we should set the newTheme??
-            SettingsManagerLocal.ApplicationTheme = ElementTheme.Default;
+            // Persist exactly what was requested so settings are consistent
+            SettingsManagerLocal.ApplicationTheme = newTheme;
         }
 
 
@@ -2176,6 +2206,11 @@ namespace Surveyor
                         }
                     }
 
+                    // Display calibration result
+                    StereoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, null);
+                    LeftMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, true/*trueLeftFalseRightNullStereo*/);
+                    RightMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, false/*trueLeftFalseRightNullStereo*/);
+
                     // Check if error loading
                     if (loaded)
                     {
@@ -2692,7 +2727,7 @@ namespace Surveyor
             // Find the best frames from the mono calibration frames 
             if (doLeftMono)
             {
-                monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.FindBestMonoFramesNoUIAsync(
+                monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.FindBestMonoFramesSafeUIAsync(
                                                                 calibProject,
                                                                 true/*trueLeftFalseRight*/,
                                                                 runParams.MovementFilterValue,
@@ -2704,7 +2739,7 @@ namespace Surveyor
             }
             if (doRightMono)
             {
-                monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.FindBestMonoFramesNoUIAsync(
+                monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.FindBestMonoFramesSafeUIAsync(
                                                                 calibProject,
                                                                 false/*trueLeftFalseRight*/,
                                                                 runParams.MovementFilterValue,
@@ -2727,7 +2762,7 @@ namespace Surveyor
                         if (results[taskLeftMonoIndex] != 0)
                         {
                             ret = results[taskLeftMonoIndex];
-                            Debug.WriteLine($"FindBestMonoFramesAllHeadsAsync: Error from FindBestFramesNoUIAsync: Left Mono Result={ret}");
+                            Debug.WriteLine($"FindBestMonoFramesAllHeadsAsync: Error from FindBestFramesSafeUIAsync: Left Mono Result={ret}");
                         }
                     }
                     if (doRightMono)
@@ -2735,13 +2770,13 @@ namespace Surveyor
                         if (results[taskRightMonoIndex] != 0)
                         {
                             ret = results[taskRightMonoIndex];
-                            Debug.WriteLine($"FindBestMonoFramesAllHeadsAsync: Error from FindBestFramesNoUIAsync: Right Mono Result={ret}");
+                            Debug.WriteLine($"FindBestMonoFramesAllHeadsAsync: Error from FindBestFramesSafeUIAsync: Right Mono Result={ret}");
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"FindBestMonoFramesAllHeadsAsync: Error running FindBestFramesNoUIAsync tasks, {ex}");
+                    Debug.WriteLine($"FindBestMonoFramesAllHeadsAsync: Error running FindBestFramesSafeUIAsync tasks, {ex}");
                     ret = -2;
                 }
 
@@ -2838,7 +2873,7 @@ namespace Surveyor
 
                 if (doLeftMono)
                 {
-                    monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.DoMonoCalibrationCalculationNoUI(
+                    monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.DoMonoCalibrationCalculationSafeUI(
                                                                  calibProject,
                                                                  true/*trueLeftFalseRight*/,
                                                                  runParams.MonoCornersFilterValue)));
@@ -2846,7 +2881,7 @@ namespace Surveyor
                 }
                 if (doRightMono)
                 {
-                    monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.DoMonoCalibrationCalculationNoUI(
+                    monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.DoMonoCalibrationCalculationSafeUI(
                                                                  calibProject,
                                                                  false/*trueLeftFalseRight*/,
                                                                  runParams.MonoCornersFilterValue)));
@@ -2864,7 +2899,7 @@ namespace Surveyor
                             if (results[taskLeftMonoIndex] != 0)
                             {
                                 ret = results[taskLeftMonoIndex];
-                                Debug.WriteLine($"DoCalibrationMonoCalcsAllHeadsAsync: Error from DoMonoCalibrationCalculationNoUI: Left Mono Result={ret}");
+                                Debug.WriteLine($"DoCalibrationMonoCalcsAllHeadsAsync: Error from DoMonoCalibrationCalculationSafeUI: Left Mono Result={ret}");
                             }
                         }
                         if (doRightMono)
@@ -2872,13 +2907,13 @@ namespace Surveyor
                             if (results[taskRightMonoIndex] != 0)
                             {
                                 ret = results[taskRightMonoIndex];
-                                Debug.WriteLine($"DoCalibrationMonoCalcsAllHeadsAsync: Error from DoMonoCalibrationCalculationNoUI: Right Mono Result={ret}");
+                                Debug.WriteLine($"DoCalibrationMonoCalcsAllHeadsAsync: Error from DoMonoCalibrationCalculationSafeUI: Right Mono Result={ret}");
                             }
                         }
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"DoCalibrationMonoCalcsAllHeadsAsync: Error running DoMonoCalibrationCalculationNoUI tasks, {ex}");
+                        Debug.WriteLine($"DoCalibrationMonoCalcsAllHeadsAsync: Error running DoMonoCalibrationCalculationSafeUI tasks, {ex}");
                         ret = -2;
                     }
                 }
@@ -3004,8 +3039,7 @@ namespace Surveyor
 
             if (doStereo)
             {
-                ret = StereoCalibrationHead.DoCalibrationStereoCalcs(calibProject, runParams.StereoCornersFilterValue);
-
+                ret = StereoCalibrationHead.DoCalibrationStereoCalculations(calibProject, runParams.StereoCornersFilterValue);
             }
 
             if (ret == 0)
@@ -3141,7 +3175,7 @@ namespace Surveyor
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error running DoMonoCalibrationCalculationNoUI tasks, {ex}");
+                        Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error running DoMonoCalibrationCalculationSafeUI tasks, {ex}");
                         ret = -2;
                     }
                 }

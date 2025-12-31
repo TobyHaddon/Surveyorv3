@@ -99,7 +99,7 @@ namespace Surveyor.User_Controls
         private SurveyorMediaPlayer.eCameraSide CameraSide = SurveyorMediaPlayer.eCameraSide.None;
 
         // The Image UIElement control we are serving
-        private Image? imageUIElement = null;   // This is a reference to the Image control we are pigbacking on
+        private Image? imageUIElement = null;   // This is a reference to the Image control we are pig-backing on
         private bool isImageAtFullResolution = false;
         private bool imageLoaded = false;
 
@@ -108,12 +108,12 @@ namespace Surveyor.User_Controls
         private uint imageSourceWidth = 0;
         private uint imageSourceHeight = 0;
 
-        // Image poistion (which frame in the video as a TimeSpace)
+        // Image position (which frame in the video as a TimeSpace)
         private TimeSpan? position = null;
         private long frameIndex = 0;    // Note position is the master reference point in the media, frameIndex is calculated
 
         // The scale factor between the actual image in the Image frame and the size of the
-        // ImageFrame in the screen. i.e. the actual iamge size could be 3840x2160 and say the 
+        // ImageFrame in the screen. i.e. the actual image size could be 3840x2160 and say the 
         // ImageFrame is 1600x900 then the scale factor X would be 1600/3840 = 0.4167
         private double canvasFrameScaleX = -1;  //??? Need to phased out
         private double canvasFrameScaleY = -1;  //??? Need to phased out
@@ -572,15 +572,15 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="layeTypeBit"></param>
         /// <param name="TrueOnFalseOff"></param>
-        /// <returns>The current set of layer types being displayer</returns>
-        public LayerType SetLayerType(LayerType layeTypeBit, bool TrueOnFalseOff)
+        /// <returns>The current set of layer types being displayed</returns>
+        public LayerType SetLayerType(LayerType layerTypeBit, bool TrueOnFalseOff)
         {
             LayerType layerType = GetLayerType();
 
             if (TrueOnFalseOff)
-                layerType |= layeTypeBit;
+                layerType |= layerTypeBit;
             else
-                layerType &= ~layeTypeBit;
+                layerType &= ~layerTypeBit;
 
             SetLayerType(layerType);
 
@@ -592,9 +592,9 @@ namespace Surveyor.User_Controls
         /// Used to set the layer type for display (i.e set absolutely the layer)
         /// </summary>
         /// <param name="layeType"></param>
-        public void SetLayerType(LayerType layeTyper)
+        public void SetLayerType(LayerType layerType)
         {
-            layerTypesDisplayed = layeTyper;
+            layerTypesDisplayed = layerType;
 
             // Refresh on screen display
             TransferExistingEvents();

@@ -9,81 +9,89 @@
 	d:DataContext="{d:DesignInstance Type=local:CalibProject}"
     mc:Ignorable="d">
 
-    <StackPanel Padding="24" Spacing="16">
-		<TextBlock Text="What will happen:" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,4"/>
+	<ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+		<StackPanel Padding="24" Spacing="16">
+			<TextBlock Text="What will happen:" FontWeight="SemiBold" FontSize="16" Margin="0,0,0,4"/>
 
-		<!-- Repeating lines with glyph bullets -->
-		<ListView x:Name="SummaryList"
-				  SelectionMode="None"
-				  IsItemClickEnabled="False"
-				  HorizontalAlignment="Left"
-				  BorderThickness="0"
-				  Margin="0">
-			<ListView.ItemTemplate>
-				<DataTemplate x:DataType="local:SummaryItem">
-					<StackPanel Orientation="Horizontal" Margin="0,0,0,12">
-						<FontIcon FontFamily="Segoe Fluent Icons"
-								  Glyph="{x:Bind Glyph}"
-								  Foreground="{ThemeResource TextFillColorPrimaryBrush}"
-								  HorizontalAlignment="Left"
-								  VerticalAlignment="Top"/>
-						<StackPanel Orientation="Vertical" Margin="10,0,0,0">
-							<TextBlock Text="{x:Bind ActionTitle}"/>
-							<TextBlock Text="{x:Bind ActionDescription}" FontSize="12" TextWrapping="Wrap" Width="600" />
+			<!-- Repeating lines with glyph bullets -->
+			<ListView x:Name="SummaryList"
+					  SelectionMode="None"
+					  IsItemClickEnabled="False"
+					  HorizontalAlignment="Left"
+					  BorderThickness="0"
+					  Margin="0">
+				<ListView.ItemTemplate>
+					<DataTemplate x:DataType="local:SummaryItem">
+						<StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+							<FontIcon FontFamily="Segoe Fluent Icons"
+									  Glyph="{x:Bind Glyph}"
+									  Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+									  HorizontalAlignment="Left"
+									  VerticalAlignment="Top"/>
+							<StackPanel Orientation="Vertical" Margin="10,0,0,0">
+								<TextBlock Text="{x:Bind ActionTitle}"/>
+								<TextBlock Text="{x:Bind ActionDescription}" FontSize="12" TextWrapping="Wrap" Width="600" />
+							</StackPanel>
 						</StackPanel>
-					</StackPanel>
-				</DataTemplate>
-			</ListView.ItemTemplate>
-		</ListView>
+					</DataTemplate>
+				</ListView.ItemTemplate>
+			</ListView>
 
-		<!-- Project info -->
-		<StackPanel Spacing="4" Margin="0,0,0,0">
-			<TextBlock Text="Project Information:" FontWeight="SemiBold" FontSize="16"/>
-			<TextBlock x:Name="ModeText" Margin="0,8,0,0"/>
-			<TextBlock x:Name="ModeDescriptionText" FontSize="12" TextWrapping="Wrap" Width="600" HorizontalAlignment="Left"/>						
-			<Grid>
-				<Grid.ColumnDefinitions>					
-					<ColumnDefinition Width="Auto"/>
-					<ColumnDefinition Width="Auto"/>
-				</Grid.ColumnDefinitions>
-				<Grid.RowDefinitions>
-					<RowDefinition Height="Auto"/>									<!-- Project File Name -->
-					<RowDefinition x:Name="LeftMonoMediaRow" Height="Auto"/>		<!-- Left Mono -->
-					<RowDefinition x:Name="RightMonoMediaRow" Height="Auto"/>		<!-- Right Mono -->
-					<RowDefinition x:Name="LeftStereoMediaRow" Height="Auto"/>		<!-- Left Stereo -->
-					<RowDefinition x:Name="RightStereoMediaRow" Height="Auto"/>		<!-- Right Stereo -->
-					<RowDefinition Height="Auto"/>									<!-- Left Serial Number -->
-					<RowDefinition x:Name="RightSerialNumberRow" Height="Auto"/>	<!-- Right Serial Number -->
-				</Grid.RowDefinitions>
-				<!-- Project File Name -->
-				<TextBlock Grid.Row="0" Grid.Column="0" Text="Project File:" FontSize="12" Margin="0,8,0,0" />
-				<TextBlock x:Name="ProjectFileNameText" Grid.Row="0" Grid.Column="1" FontSize="12" Margin="10,8,0,0" />
-				<!-- Left Mono Media -->
-				<TextBlock Grid.Row="1" Grid.Column="0" Text="Left Mono Media:" FontSize="12" Margin="0,8,0,0" />
-				<TextBlock x:Name="LeftMonoMediaText" Grid.Row="1" Grid.Column="1" FontSize="12" Margin="10,8,0,0"/>
-				<!-- Right Mono Media -->
-				<TextBlock Grid.Row="2" Grid.Column="0" Text="Right Mono Media:" FontSize="12" />
-				<TextBlock x:Name="RightMonoMediaText" Grid.Row="2" Grid.Column="1" FontSize="12" Margin="10,0,0,0"/>
-				<!-- Left Stereo Media -->
-				<TextBlock Grid.Row="3" Grid.Column="0" Text="Left Stereo Media:" FontSize="12" />
-				<TextBlock x:Name="LeftStereoMediaText" Grid.Row="3" Grid.Column="1" FontSize="12" Margin="10,0,0,0"/>
-				<!-- Right Stereo Media -->
-				<TextBlock Grid.Row="4" Grid.Column="0" Text="Right Stereo Media:" FontSize="12" />
-				<TextBlock x:Name="RightStereoMediaText" Grid.Row="4" Grid.Column="1" FontSize="12" Margin="10,0,0,0"/>
-				<!-- Left Camera Serial Number -->
-				<TextBlock Grid.Row="5" Grid.Column="0" Text="Left Camera Serial Number:" FontSize="12" Margin="0,8,0,0" />
-				<TextBlock x:Name="LeftCamSerialNumberText" Grid.Row="5" Grid.Column="1" FontSize="12" Margin="10,8,0,0"/>
-				<!-- Right Camera Serial Number -->
-				<TextBlock Grid.Row="6" Grid.Column="0" Text="Right Camera Serial Number:" FontSize="12" />
-				<TextBlock x:Name="RightCamSerialNumberText" Grid.Row="6" Grid.Column="1" FontSize="12" Margin="10,0,0,0"/>
-			</Grid>
+			<!-- Run calibration button -->
+			<Button x:Name="RunCalibrationButton"
+					Content="Run Calibration"
+					Click="RunCalibrationButton_Click"
+					Width="180" Margin="0,16,0,0"/>
+
+			<!-- Project info -->
+			<StackPanel Spacing="4" Margin="0,0,0,0">
+				<TextBlock Text="Project Information:" FontWeight="SemiBold" FontSize="16"/>
+				<TextBlock x:Name="ModeText" Margin="0,8,0,0"/>
+				<TextBlock x:Name="ModeDescriptionText" FontSize="12" TextWrapping="Wrap" Width="600" HorizontalAlignment="Left"/>
+				<Grid>
+					<Grid.ColumnDefinitions>
+						<ColumnDefinition Width="Auto"/>
+						<ColumnDefinition Width="Auto"/>
+					</Grid.ColumnDefinitions>
+					<Grid.RowDefinitions>
+						<RowDefinition Height="Auto"/>
+						<!-- Project File Name -->
+						<RowDefinition x:Name="LeftMonoMediaRow" Height="Auto"/>
+						<!-- Left Mono -->
+						<RowDefinition x:Name="RightMonoMediaRow" Height="Auto"/>
+						<!-- Right Mono -->
+						<RowDefinition x:Name="LeftStereoMediaRow" Height="Auto"/>
+						<!-- Left Stereo -->
+						<RowDefinition x:Name="RightStereoMediaRow" Height="Auto"/>
+						<!-- Right Stereo -->
+						<RowDefinition Height="Auto"/>
+						<!-- Left Serial Number -->
+						<RowDefinition x:Name="RightSerialNumberRow" Height="Auto"/>
+						<!-- Right Serial Number -->
+					</Grid.RowDefinitions>
+					<!-- Project File Name -->
+					<TextBlock Grid.Row="0" Grid.Column="0" Text="Project File:" FontSize="12" Margin="0,8,0,0" />
+					<TextBlock x:Name="ProjectFileNameText" Grid.Row="0" Grid.Column="1" FontSize="12" Margin="10,8,0,0" />
+					<!-- Left Mono Media -->
+					<TextBlock Grid.Row="1" Grid.Column="0" Text="Left Mono Media:" FontSize="12" Margin="0,8,0,0" />
+					<TextBlock x:Name="LeftMonoMediaText" Grid.Row="1" Grid.Column="1" FontSize="12" Margin="10,8,0,0"/>
+					<!-- Right Mono Media -->
+					<TextBlock Grid.Row="2" Grid.Column="0" Text="Right Mono Media:" FontSize="12" />
+					<TextBlock x:Name="RightMonoMediaText" Grid.Row="2" Grid.Column="1" FontSize="12" Margin="10,0,0,0"/>
+					<!-- Left Stereo Media -->
+					<TextBlock Grid.Row="3" Grid.Column="0" Text="Left Stereo Media:" FontSize="12" />
+					<TextBlock x:Name="LeftStereoMediaText" Grid.Row="3" Grid.Column="1" FontSize="12" Margin="10,0,0,0"/>
+					<!-- Right Stereo Media -->
+					<TextBlock Grid.Row="4" Grid.Column="0" Text="Right Stereo Media:" FontSize="12" />
+					<TextBlock x:Name="RightStereoMediaText" Grid.Row="4" Grid.Column="1" FontSize="12" Margin="10,0,0,0"/>
+					<!-- Left Camera Serial Number -->
+					<TextBlock Grid.Row="5" Grid.Column="0" Text="Left Camera Serial Number:" FontSize="12" Margin="0,8,0,0" />
+					<TextBlock x:Name="LeftCamSerialNumberText" Grid.Row="5" Grid.Column="1" FontSize="12" Margin="10,8,0,0"/>
+					<!-- Right Camera Serial Number -->
+					<TextBlock Grid.Row="6" Grid.Column="0" Text="Right Camera Serial Number:" FontSize="12" />
+					<TextBlock x:Name="RightCamSerialNumberText" Grid.Row="6" Grid.Column="1" FontSize="12" Margin="10,0,0,0"/>
+				</Grid>
+			</StackPanel>
 		</StackPanel>
-
-		<!-- Run calibration button -->
-		<Button x:Name="RunCalibrationButton"
-				Content="Run Calibration"
-				Click="RunCalibrationButton_Click"
-				Width="180" Margin="0,16,0,0"/>
-
-	</StackPanel>
+	</ScrollViewer>
 </Page>

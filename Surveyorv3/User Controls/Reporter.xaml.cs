@@ -7,6 +7,7 @@ using System;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
+using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 using static Surveyor.User_Controls.Reporter;
 
@@ -347,7 +348,7 @@ namespace Surveyor.User_Controls
         public void Info(string channel, string message) => Out(WarningLevel.Info, channel, message);
         public void Debug(string channel, string message) => Out(WarningLevel.Debug, channel, message);
 
-        public async void Display(ReporterListViewItem item)
+        public async Task DisplayAsync(ReporterListViewItem item)
         {
             var display = $"Level: {item.WarningLevel}\r\nReport Time: {item.Time}\r\n\r\n{item.Message}";
 
@@ -377,11 +378,12 @@ namespace Surveyor.User_Controls
         public int GetWarningCount() => warningCount;
         public int GetErrorCount() => errorCount;
 
-        private void ViewMenuItem_Click(object sender, RoutedEventArgs e)
+        private void ViewMenuItem_Click(object sender, RoutedEventArgs e) => _ = ViewMenuItemAsync();
+        private async Task ViewMenuItemAsync()
         {
             if (ListViewReporter.SelectedItem is ReporterListViewItem selectedItem)
             {
-                Display(selectedItem);
+                await DisplayAsync(selectedItem);
             }
         }
     }

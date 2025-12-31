@@ -4,7 +4,7 @@
 // Version 1.0
 // 
 // Version 1.1
-// 2025-01-17 Intregrated with new SurveyInfoAndMedia user control
+// 2025-01-17 Integrated with new SurveyInfoAndMedia user control
 // Version 1.2
 // 2025-01-25 Stop the flashing on load between themes
 
@@ -165,7 +165,7 @@ namespace Surveyor.User_Controls
             // Inform the Calibration Test user control of the reporter so it can log messages
             SettingsCalibrationTest.SetReporter(report!);
 
-            // Inform the Calilbration Test user control of the hosting Window (used by File Picker)
+            // Inform the Calibration Test user control of the hosting Window (used by File Picker)
             SettingsCalibrationTest.SetHostingWindow(this);
 
             // Hide the Survey Settings if the Survey is null
@@ -252,10 +252,10 @@ namespace Surveyor.User_Controls
                 // Use the default system theme
                 rootElement.RequestedTheme = ElementTheme.Default;
 
-                // Get the background colour used by that theme
+                // Get the background color used by that theme
                 var color = TitleBarHelper.ApplySystemThemeToCaptionButtons(this) == Colors.White ? "Dark" : "Light";
 
-                // Based on the background colour select a suitable application icon 
+                // Based on the background color select a suitable application icon 
                 if (color == "Dark")
                 {
                     AboutAppIcon.UriSource = new Uri($"ms-appx:///Assets/Surveyor-Dark.png");
@@ -277,7 +277,7 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Return is a recalculation of the event measurements is required
         /// </summary>
-        public bool RecalcRequired()
+        public bool RecalculationRequired()
         {
             return recalcRequired;
         }

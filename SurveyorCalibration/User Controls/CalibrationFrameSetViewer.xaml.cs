@@ -85,7 +85,7 @@ namespace Surveyor.Controls
 
                 double xStep = widthMovementCanvas / (double)((int)Math.Ceiling((double)frames.Count / 100.0) * 100);
 
-                double maxMovement = Math.Clamp(Data.calibrationStereoFrameSet.MaxMovementFactor, 0.0, CalibrationStereoFrameSet.MOVEMENT_LARGEVALUE);
+                double maxMovement = Math.Clamp(Data.calibrationStereoFrameSet.MaxMovementFactor, 0.0, CalibrationStereoFrameSet.MOVEMENT_LARGE_VALUE);
                 double maxBlur = Data.calibrationStereoFrameSet.MaxBlurFactor * 1.1;
 
 
@@ -102,7 +102,7 @@ namespace Surveyor.Controls
                         if (frame is not null && frame.MovementFactor != -1)
                         {
                             double movementFactor = frame.MovementFactor;
-                            movementFactor = Math.Clamp(movementFactor, 0.0, CalibrationStereoFrameSet.MOVEMENT_LARGEVALUE);
+                            movementFactor = Math.Clamp(movementFactor, 0.0, CalibrationStereoFrameSet.MOVEMENT_LARGE_VALUE);
 
                             double yMovement = heightMovementCanvas * (1 - movementFactor / maxMovement);
 

@@ -28,7 +28,7 @@ namespace Surveyor.Helper
 
 
         /// <summary>
-        /// Returns a list of visual tree dependants
+        /// Returns a list of visual tree dependents
         /// </summary>
         /// <param name="start"></param>
         /// <returns></returns>
@@ -104,12 +104,12 @@ namespace Surveyor.Helper
         }
 
         // Confirmation of Action
-        static public void AnnounceActionForAccessibility(UIElement ue, string annoucement, string activityID)
+        static public void AnnounceActionForAccessibility(UIElement ue, string announcement, string activityID)
         {
             var peer = FrameworkElementAutomationPeer.FromElement(ue);
 
             peer?.RaiseNotificationEvent(AutomationNotificationKind.ActionCompleted,
-                                            AutomationNotificationProcessing.ImportantMostRecent, annoucement, activityID);
+                                            AutomationNotificationProcessing.ImportantMostRecent, announcement, activityID);
         }
 
 

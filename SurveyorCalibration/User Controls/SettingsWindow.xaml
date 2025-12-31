@@ -68,7 +68,7 @@
                     <toolkit:SettingsExpander.Items>
                         <!-- Calibration media -->
                         <toolkit:SettingsCard x:Name="SettingsCardProjectStereoInfoAndMedia">
-                            <surveyorControls:CalibInfoAndMedia x:Name="ProjectStereoInfoAndMedia"/>
+                            <surveyorControls:CalibrationInfoAndMedia x:Name="ProjectStereoInfoAndMedia"/>
                         </toolkit:SettingsCard>
                     </toolkit:SettingsExpander.Items>
                 </toolkit:SettingsExpander>

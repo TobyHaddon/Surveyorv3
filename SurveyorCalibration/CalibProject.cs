@@ -1333,7 +1333,7 @@ namespace Surveyor
                             if (SettingsManagerLocal.AutoSaveEnabled && IsDirty)
                             {
                                 ProjectSave();
-                                Report?.Debug("", $"Autosave Saved completed");
+                                Report?.Debug("", $"Auto-save Saved completed");
                             }
                         }
                     }
@@ -1343,7 +1343,7 @@ namespace Surveyor
                         break;
                     }
                 }
-                Report?.Info("", $"Auto save thread stopped on request");
+                Report?.Info("", $"Auto-save thread stopped on request");
             });
         }
 

@@ -16,8 +16,8 @@
     MinWidth="1400"
     MinHeight="800">
 
-    
-    <Grid>
+
+    <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
         <Grid.Resources>
             <Storyboard x:Name="TitleBarViewModeChangeStoryboard">
                 <DoubleAnimation Storyboard.TargetName="TitleBarViewModeScale"
@@ -395,7 +395,7 @@
                         MaxHeight="400"
                         IsPrimaryButtonEnabled="True"
                         RequestedTheme="Default">
-                <surveyorControls:CalibInfoAndMedia x:Name="CalibrationMediaUserControl" />
+                <surveyorControls:CalibrationInfoAndMedia x:Name="CalibrationMediaUserControl" />
             </ContentDialog>
         </Grid>
 
