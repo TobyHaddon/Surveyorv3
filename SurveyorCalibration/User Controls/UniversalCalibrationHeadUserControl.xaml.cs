@@ -307,6 +307,54 @@ namespace Surveyor.Controls
             return calibrationStereoFrameSet.SetupCalibrationBoardType(_chArUcoBoardDefinition);
         }
 
+
+        /// <summary>
+        /// Reset all internal values
+        /// </summary>
+        public void Clear()
+        {
+            // Stop the play timers
+            _playLeftTimer.Stop();
+            _playRightTimer.Stop();
+            _playBothTimer.Stop();
+            _isLeftPlaying = false;
+            _isRightPlaying = false;
+            _isBothPlaying = false;
+
+
+            frameSize = new(0.0, 0.0);
+            wbLeft = null;
+            wbRight = null;
+
+            // Reset total frame counts
+            _totalFramesLeft = -1;
+            _totalFramesRight = -1;
+
+            // Reset current frame indexes
+            _currentFrameLeft = 0;
+            _currentFrameRight = 0;
+
+            // Reset current Best frame Indexes
+            _currentBestFrame = 0;
+       
+            // Reset stereo lock state
+            isLocked = false;
+
+            // Reset frame set
+            calibrationStereoFrameSet.ClearResults();
+
+            //???private CancellationToken cancellationToken;
+            //???private CancellationTokenSource? cts = null;
+
+            isFindCalibrationFrameRunning = false;
+
+            leftMediaFileSpec = string.Empty;
+            rightMediaFileSpec = string.Empty;
+            capLeft = null;
+            capRight = null;
+        }
+
+
         /// <summary>
         /// Open the media files for the left and right cameras.
         /// </summary>
@@ -320,10 +368,7 @@ namespace Surveyor.Controls
             bool? rightOpened = null;
 
             // Reset
-            leftMediaFileSpec = string.Empty;
-            rightMediaFileSpec = string.Empty;
-            capLeft = null;
-            capRight = null;
+            Clear();
 
             // Open Left side
             if (File.Exists(_leftMediaFileSpec))
@@ -486,11 +531,9 @@ namespace Surveyor.Controls
             CalibrationFrameSetViewerRight.DrawGraphs();
 
             // Clear images
-            LeftImage.Source = null;
-            _currentFrameLeft = 0;
+            LeftImage.Source = null;          
             RightImage.Source = null;
-            _currentFrameRight = 0;
-
+            
             // Clear frame UI display data
             DecorateClear(true/*trueLeftfalseRight*/);
             DecorateClear(false/*trueLeftfalseRight*/);
@@ -500,6 +543,9 @@ namespace Surveyor.Controls
             LeftCalibDataBorder.Visibility = Visibility.Collapsed;
             RightCalibDataText.Text = string.Empty;
             RightCalibDataBorder.Visibility = Visibility.Collapsed;
+
+            // Clear internals
+            Clear();
 
             SetUIControls();
 
@@ -2218,8 +2264,8 @@ namespace Surveyor.Controls
             if (isLocked && capLeft != null && wbLeft != null && capRight != null && wbRight != null)
             {
                 // Get the next index (if valid)
-                leftIndex = GetNextIndex(leftTrueRightFalse, -1/*relative*/, null/*absolute*/);
-                rightIndex = GetNextIndex(!leftTrueRightFalse, -1/*relative*/, null/*absolute*/);
+                leftIndex = GetNextIndex(true/*leftTrueRightFalse*/, -1/*relative*/, null/*absolute*/);
+                rightIndex = GetNextIndex(false/*leftTrueRightFalse*/, -1/*relative*/, null/*absolute*/);
 
                 if (leftIndex is not null && rightIndex is not null)
                 {
@@ -2275,8 +2321,8 @@ namespace Surveyor.Controls
             if (isLocked && capLeft != null && wbLeft != null && capRight != null && wbRight != null)
             {
                 // Get the next index (if valid)
-                leftIndex = GetNextIndex(leftTrueRightFalse, 1/*relative*/, null/*absolute*/);
-                rightIndex = GetNextIndex(!leftTrueRightFalse, 1/*relative*/, null/*absolute*/);
+                leftIndex = GetNextIndex(true/*leftTrueRightFalse*/, 1/*relative*/, null/*absolute*/);
+                rightIndex = GetNextIndex(false/*leftTrueRightFalse*/, 1/*relative*/, null/*absolute*/);
 
                 if (leftIndex is not null && rightIndex is not null)
                 {
@@ -2292,7 +2338,7 @@ namespace Surveyor.Controls
             else if (leftTrueRightFalse && capLeft != null && wbLeft != null)
             {
                 // Get the next index (if valid)
-                leftIndex = GetNextIndex(leftTrueRightFalse, 1/*relative*/, null/*absolute*/);
+                leftIndex = GetNextIndex(true/*leftTrueRightFalse*/, 1/*relative*/, null/*absolute*/);
 
                 if (leftIndex is not null)
                 {
@@ -2305,7 +2351,7 @@ namespace Surveyor.Controls
             else if (!leftTrueRightFalse && capRight != null && wbRight != null)
             {
                 // Get the next index (if valid)
-                rightIndex = GetNextIndex(!leftTrueRightFalse, 1/*relative*/, null/*absolute*/);
+                rightIndex = GetNextIndex(false/*leftTrueRightFalse*/, 1/*relative*/, null/*absolute*/);
 
                 if (rightIndex is not null)
                 {
