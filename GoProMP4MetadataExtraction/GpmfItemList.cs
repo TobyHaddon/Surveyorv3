@@ -6,7 +6,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace GoProMP4MetadataExtraction
+namespace ActionCameraMP4MetadataExtraction
 {
     /// <summary>
     /// A list of items read from GPMF data.

@@ -118,7 +118,7 @@
                 <TextBlock Grid.Row="4" Grid.Column="4" Text="The minimum number of calibration squares that need to be detected to be considered for mono calibration" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
                 
                 <!-- Row 6 Stereo Corner -->
-                <TextBlock Grid.Row="6" Grid.Column="0" Text="Stereo Corner Filter:" VerticalAlignment="Center"/>
+                <TextBlock x:Name="StereoCornerFilterLabel" Grid.Row="6" Grid.Column="0" Text="Stereo Corner Filter:" VerticalAlignment="Center"/>
                 <TextBlock x:Name="StereoCornerFilterMin" Grid.Row="6" Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="8,0,8,0"/>
                 <Slider x:Name="StereoCornerFilterSlider" Grid.Row="6" Grid.Column="2" 
                         Value="{x:Bind navParams.StereoCornersFilterWorkingValue, Mode=TwoWay}"
@@ -129,7 +129,7 @@
                         PointerCaptureLost="OnSliderPointerCaptureLost"/>
                 <TextBlock x:Name="StereoCornerFilterMax" Grid.Row="6" Grid.Column="3" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
                 <TextBlock x:Name="StereoCornerFilterValue" Grid.Row="7" Grid.Column="2" FontSize="10" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,-6,0,0"/>
-                <TextBlock Grid.Row="6" Grid.Column="4" Text="The minimum number of calibration squares that need to be detected to be considered for stereo calibration" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <TextBlock x:Name ="StereoCornerFilterHelp" Grid.Row="6" Grid.Column="4" Text="The minimum number of calibration squares that need to be detected to be considered for stereo calibration" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </Grid>
 
         </StackPanel>

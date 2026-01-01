@@ -50,17 +50,18 @@
                         <TextBlock Text="{x:Bind MediaFrameHeight}" FontSize="12" />
                     </StackPanel>
 
-                    <!--GoPro Serial Number-->
+                    <!--Camera Serial Number-->
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Text="GoPro S/N:" FontSize="12" Padding="0,0,4,0"/>
-                        <TextBlock Text="{x:Bind GoProSerialNumber}" FontSize="12" Style="{ThemeResource CaptionTextBlockStyle}"/>
+                        <TextBlock Text="{x:Bind CameraFamily}" FontSize="12" Padding="0,0,4,0"/>
+                        <TextBlock Text="S/N:" FontSize="12" Padding="0,0,4,0"/>
+                        <TextBlock Text="{x:Bind CameraSerialNumber}" FontSize="12" Style="{ThemeResource CaptionTextBlockStyle}"/>
                     </StackPanel>
                 </StackPanel>
             </Grid>
         </DataTemplate>
     </UserControl.Resources>
     
-    <Grid>
+    <Grid Width="850">
         <StackPanel>
             <!-- Stereo or Mono Calibration Media Set -->
             <StackPanel  Margin="8,8,0,0"
@@ -137,7 +138,7 @@
                 </StackPanel>
 
                 <!--Right Mono Camera Media Files-->
-                <TextBlock Text="Right Mono Calibration Media" Grid.Row="0" Grid.Column="2" 
+                <TextBlock x:Name="RightMonoTitle" Text="Right Mono Calibration Media" Grid.Row="0" Grid.Column="2" 
                         Style="{StaticResource BodyStrongTextBlockStyle}"
                         FontSize="14"
                         Margin="0,8,0,4"/>
@@ -210,8 +211,8 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- Text on the left of the cell -->
-                    <TextBlock Text="Right Stereo Calibration Media"
+                    <!-- Text on the right of the cell -->
+                    <TextBlock x:Name="RightStereoTitle" Text="Right Stereo Calibration Media"
                                Style="{StaticResource BodyStrongTextBlockStyle}"
                                FontSize="14"
                                Margin="0,8,0,4"
@@ -263,12 +264,12 @@
                 <FontIcon x:Name="ProjectFrameRateMatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
                 <TextBlock x:Name="ProjectFrameRateMatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
-            <!--Project Media Files From Same GoPro-->
-            <StackPanel x:Name="ProjectGoProMatchPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
+            <!--Project Media Files From Same Camera-->
+            <StackPanel x:Name="ProjectCameraMatchPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
                         Margin="0,8,0,0" 
-                        Visibility="{Binding ElementName=SurveyGoProMatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
-                <FontIcon x:Name="ProjectGoProMatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
-                <TextBlock x:Name="ProjectGoProMatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        Visibility="{Binding ElementName=SurveyCameraMatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
+                <FontIcon x:Name="ProjectCameraMatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
+                <TextBlock x:Name="ProjectCameraMatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
             <!--Project Media Contiguous-->
             <StackPanel x:Name="ProjectMediaContiguousPanel" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  

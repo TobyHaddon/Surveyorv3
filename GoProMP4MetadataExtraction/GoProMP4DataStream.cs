@@ -10,7 +10,7 @@ using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Streams;
 
-namespace GoProMP4MetadataExtraction
+namespace ActionCameraMP4MetadataExtraction
 {
     public static class GetMP4DataStream
     {

@@ -1,5 +1,5 @@
 using CommunityToolkit.WinUI.Controls;
-using GoProMP4MetadataExtraction;
+using ActionCameraMP4MetadataExtraction;
 using Microsoft.UI.Dispatching;
 ///
 /// *** Remember when editting this User Control code that it is used from both   ***
@@ -1463,7 +1463,7 @@ namespace Surveyor.User_Controls
                 item.MediaFileCreateDateTime = creationTime;
 
                 // Get the GoPro serial number
-                GpmfItemList? gpmfItemList = await GetMP4UtdaFileProperities.ExtractPropertiesAsync(file);
+                GpmfItemList? gpmfItemList = await GetGoProMP4StaticMetadata.ExtractPropertiesAsync(file);
                 if (gpmfItemList is not null)
                 {
                     GpmfItemList? gpmfItemListResult = gpmfItemList.GetItems("CASN");

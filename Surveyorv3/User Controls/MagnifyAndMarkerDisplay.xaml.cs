@@ -854,7 +854,7 @@ namespace Surveyor.User_Controls
                         MagHide();
 
                         // Show the Mag Window as it new size
-                        await MagLockInCurrentPoisitionAsync(magLockedCentre, PointerDeviceType.Mouse);
+                        await MagLockInCurrentPositionAsync(magLockedCentre, PointerDeviceType.Mouse);
                     }
                     // Adjust the magnification
                     else if (changeMagnification)
@@ -952,7 +952,7 @@ namespace Surveyor.User_Controls
                     else
                     {
                         if (!isMagLocked)
-                            await MagLockInCurrentPoisitionAsync(pointerPoint.Position, pointerPoint.PointerDeviceType);
+                            await MagLockInCurrentPositionAsync(pointerPoint.Position, pointerPoint.PointerDeviceType);
                     }
                 }
                 // Display the context menu if the right pointer button is pressed 
@@ -1164,7 +1164,7 @@ namespace Surveyor.User_Controls
                         // Get the pointer point relative to the sender (Image control)
                         PointerPoint pointerPoint = e.GetCurrentPoint(CanvasFrame);
 
-                        await MagLockInCurrentPoisitionAsync(pointerPoint.Position, pointerPoint.PointerDeviceType);
+                        await MagLockInCurrentPositionAsync(pointerPoint.Position, pointerPoint.PointerDeviceType);
                     }
                     else
                     {
@@ -1653,7 +1653,7 @@ namespace Surveyor.User_Controls
 
                             // Lock the mag windows at the centre point of the measurement or 3D point
                             await MagWindowAsync(magWindowCentrePoint);
-                            await MagLockInCurrentPoisitionAsync(magWindowCentrePoint, PointerDeviceType.Mouse);
+                            await MagLockInCurrentPositionAsync(magWindowCentrePoint, PointerDeviceType.Mouse);
 
                             //// Set Target A on this instance
                             //TOBE DELETED
@@ -2804,7 +2804,7 @@ namespace Surveyor.User_Controls
         /// The Mag Window is locked to the pointer location and the target markers can be set
         /// </summary>
         /// <param name="pointerPoint"></param>
-        public async Task MagLockInCurrentPoisitionAsync(Point pointerPosition, PointerDeviceType pointerDeviceType)
+        public async Task MagLockInCurrentPositionAsync(Point pointerPosition, PointerDeviceType pointerDeviceType)
         {
             if (diagnosticInformation)
             {
@@ -3931,7 +3931,7 @@ namespace Surveyor.User_Controls
                     MagHide();
 
                     // Show the Mag Window as it new size
-                    await MagLockInCurrentPoisitionAsync(magLockedCentre, PointerDeviceType.Mouse);
+                    await MagLockInCurrentPositionAsync(magLockedCentre, PointerDeviceType.Mouse);
                 }
             }
         }
@@ -4073,7 +4073,7 @@ namespace Surveyor.User_Controls
             MagHide();
 
             // Re-display the Mag Window as it new size/zoom
-            await MagLockInCurrentPoisitionAsync(magLockedCentre, PointerDeviceType.Mouse);
+            await MagLockInCurrentPositionAsync(magLockedCentre, PointerDeviceType.Mouse);
         }
 
 

@@ -7,7 +7,9 @@
 // This is a user control is used to setup and calibration media list
 // 
 // Version 1.0  01 Jun 2025
-//
+// Version 1.1  30 Dec 2025
+// More from only GoPro to support GoPro/Insta360/DJI
+
 
 using Surveyor; 
 using Microsoft.UI.Xaml;
@@ -28,7 +30,7 @@ using Windows.Storage;
 using CommunityToolkit.WinUI.Controls;
 using Microsoft.UI.Dispatching;
 using System.Diagnostics;
-using GoProMP4MetadataExtraction;
+using ActionCameraMP4MetadataExtraction;
 using System.Threading.Tasks;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
@@ -196,8 +198,8 @@ namespace Surveyor.User_Controls
                     mediaPath = Path.GetDirectoryName(leftMonoMediaFileItem.MediaFilePath) ?? string.Empty;
                     saveMediaPath = true;
 
-                    // Get and remember left GoPro serial number (try the left mono)
-                    calibProject.Data.Media.LeftCameraID = leftMonoMediaFileItem.GoProSerialNumber;
+                    // Get and remember left camera serial number (try the left mono)
+                    calibProject.Data.Media.LeftCameraID = leftMonoMediaFileItem.CameraSerialNumber;
                 }
 
 
@@ -209,8 +211,8 @@ namespace Surveyor.User_Controls
                     mediaPath = Path.GetDirectoryName(rightMonoMediaFileItem.MediaFilePath) ?? string.Empty;
                     saveMediaPath = true;
 
-                    // Get and remember right GoPro serial number  (try the right mono)                 
-                    calibProject.Data.Media.RightCameraID = rightMonoMediaFileItem.GoProSerialNumber;
+                    // Get and remember right camera serial number  (try the right mono)                 
+                    calibProject.Data.Media.RightCameraID = rightMonoMediaFileItem.CameraSerialNumber;
                 }
             }
             else if (LeftMonoMediaFileNames is not null && LeftMonoMediaFileNames.Items.Count == 1)
@@ -223,8 +225,8 @@ namespace Surveyor.User_Controls
                     mediaPath = Path.GetDirectoryName(leftMonoMediaFileItem.MediaFilePath) ?? string.Empty;
                     saveMediaPath = true;
 
-                    // Get and remember left GoPro serial number (try the left mono)
-                    calibProject.Data.Media.LeftCameraID = leftMonoMediaFileItem.GoProSerialNumber;
+                    // Get and remember left camera serial number (try the left mono)
+                    calibProject.Data.Media.LeftCameraID = leftMonoMediaFileItem.CameraSerialNumber;
                 }
             }
 
@@ -239,8 +241,8 @@ namespace Surveyor.User_Controls
                     mediaPath = Path.GetDirectoryName(leftStereoMediaFileItem.MediaFilePath) ?? string.Empty;
                     saveMediaPath = true;
 
-                    // Get and remember left GoPro serial number (try the left stereo)
-                    calibProject.Data.Media.LeftCameraID = leftStereoMediaFileItem.GoProSerialNumber;
+                    // Get and remember left camera serial number (try the left stereo)
+                    calibProject.Data.Media.LeftCameraID = leftStereoMediaFileItem.CameraSerialNumber;
                 }
 
                 // Load stereo right media
@@ -251,8 +253,8 @@ namespace Surveyor.User_Controls
                     mediaPath = Path.GetDirectoryName(rightStereoMediaFileItem.MediaFilePath) ?? string.Empty;
                     saveMediaPath = true;
 
-                    // Get and remember right GoPro serial number (try the right stereo)
-                    calibProject.Data.Media.RightCameraID = rightStereoMediaFileItem.GoProSerialNumber;
+                    // Get and remember right camera serial number (try the right stereo)
+                    calibProject.Data.Media.RightCameraID = rightStereoMediaFileItem.CameraSerialNumber;
                 }
             }
 
@@ -823,28 +825,37 @@ namespace Surveyor.User_Controls
             EntryFieldsValidReturn ret = EntryFieldsValidReturn.Valid;
             bool infoValid = true;
             bool mediaValid = true;
-            bool mediaGoProSNMatch = true;
+            bool mediaCameraSNMatch = true;
             bool mediaSameResolution;   // Set later
             bool mediaSameFrameRate;   // Set later
             bool mediaDatesMatch = true;
             bool mediaContigious = true;
+            int totalMediaCount = LeftMonoMediaFileItemList.Count +
+                                  RightMonoMediaFileItemList.Count +
+                                  LeftStereoMediaFileItemList.Count + 
+                                  RightStereoMediaFileItemList.Count;
 
 
             // Check all media from the same path
-            bool mediaPathSame = CheckAllMediaPathAreTheSame();
-            if (!mediaPathSame)
+            if (totalMediaCount > 1)
             {
-                SetValidationText(false/*invalid*/, ProjectMediaPathPanel, ProjectMediaPathGlyph, ProjectMediaPathValidationText, "All media files need to be in the same directory", "");
-                mediaValid = false;
+                bool mediaPathSame = CheckAllMediaPathAreTheSame();
+                if (!mediaPathSame)
+                {
+                    SetValidationText(false/*invalid*/, ProjectMediaPathPanel, ProjectMediaPathGlyph, ProjectMediaPathValidationText, "All media files need to be in the same directory", "");
+                    mediaValid = false;
+                }
+                else
+                {
+                    // No need to show anything if the media is all from the same path
+                    SetValidationText(null, ProjectMediaPathPanel, ProjectMediaPathGlyph, ProjectMediaPathValidationText, ""/*"All media files are in the same directory"*/, "");
+                }
             }
-            else
-            {
-                // No need to show anything if the media is all from the same path
-                SetValidationText(null, ProjectMediaPathPanel, ProjectMediaPathGlyph, ProjectMediaPathValidationText, ""/*"All media files are in the same directory"*/, "");
-            }
+            else                    
+                // No need to show anything if there isn't more than one media file
+                SetValidationText(null, ProjectMediaPathPanel, ProjectMediaPathGlyph, ProjectMediaPathValidationText, "", "");
 
 
-            
             DateTime? sameDateMonoLeftMedia = CheckMediaDatesMatch(LeftMonoMediaFileItemList);
             DateTime? sameDateMonoRightMedia = CheckMediaDatesMatch(RightMonoMediaFileItemList);
             DateTime? sameDateStereoLeftMedia = CheckMediaDatesMatch(LeftStereoMediaFileItemList);
@@ -895,14 +906,14 @@ namespace Surveyor.User_Controls
                     break;
             }
 
-            // Check all the media is from the same date (warning only as date maybe wrong on GoPros)
+            // Check all the media is from the same date (warning only as date maybe wrong on cameras)
             if (sameDateMonoLeftMedia is not null && sameDateMonoRightMedia is not null && sameDateStereoLeftMedia is not null && sameDateStereoRightMedia is not null)
             {
                 if (!(sameDateMonoLeftMedia.Value.Date == sameDateMonoRightMedia.Value.Date &&
                      sameDateMonoRightMedia.Value.Date == sameDateStereoLeftMedia.Value.Date &&
                      sameDateStereoLeftMedia.Value.Date == sameDateStereoRightMedia.Value.Date))
                 {  
-                    SetValidationText(false/*invalid*/, ProjectMediaDatePanel, ProjectMediaDateGlyph, ProjectMediaDateValidationText, "The media file dates differ", "The date of the media files do not match each other.\nThis can happen if the dates on the GoPro isn't set correctly and isn't a problem. However if the dates are set correctly this is a problem.");
+                    SetValidationText(false/*invalid*/, ProjectMediaDatePanel, ProjectMediaDateGlyph, ProjectMediaDateValidationText, "The media file dates differ", "The date of the media files do not match each other.\nThis can happen if the dates on the camera isn't set correctly and isn't a problem. However if the dates are set correctly this is a problem.");
                     mediaDatesMatch = false;
                 }
                 else
@@ -929,54 +940,54 @@ namespace Surveyor.User_Controls
             }
 
 
-            // Check all left & right media from the same GoPro
-            bool? sameGoProLeftMedia = CheckGoProSNMatch(LeftMonoMediaFileItemList, LeftStereoMediaFileItemList);    // Will return Null if no GoPro serial number found or there is only one left media file
-            bool? sameGoProRightMedia = CheckGoProSNMatch(RightMonoMediaFileItemList, RightStereoMediaFileItemList);  // Will return Null if no GoPro serial number found or there is only one right media file
+            // Check all left & right media from the same camera
+            bool? sameCameraLeftMedia = CheckCameraSNMatch(LeftMonoMediaFileItemList, LeftStereoMediaFileItemList);    // Will return Null if no camera serial number found or there is only one left media file
+            bool? sameCameraRightMedia = CheckCameraSNMatch(RightMonoMediaFileItemList, RightStereoMediaFileItemList);  // Will return Null if no camera serial number found or there is only one right media file
 
-            // Report on the status of the GoPro serial numbers in the media set
-            string mediaGoProSNMatchWarningText = "";
-            string mediaGoProSNMatchWarningToolTip = "";
+            // Report on the status of the camera serial numbers in the media set
+            string mediaCameraSNMatchWarningText = "";
+            string mediaCameraSNMatchWarningToolTip = "";
             
-            if ((sameGoProLeftMedia is null/*No S/N*/ || (sameGoProLeftMedia is not null && (bool)sameGoProLeftMedia)) && (sameGoProRightMedia is not null && !(bool)sameGoProRightMedia))
+            if ((sameCameraLeftMedia is null/*No S/N*/ || (sameCameraLeftMedia is not null && (bool)sameCameraLeftMedia)) && (sameCameraRightMedia is not null && !(bool)sameCameraRightMedia))
             {
-                mediaGoProSNMatchWarningText = "The right media files are not all from the same GoPro";
-                mediaGoProSNMatchWarningToolTip = "No all the serial numbers embedded in the right media files match";
-                mediaGoProSNMatch = false;
+                mediaCameraSNMatchWarningText = "The right media files are not all from the same camera";
+                mediaCameraSNMatchWarningToolTip = "No all the serial numbers embedded in the right media files match";
+                mediaCameraSNMatch = false;
 
             }
-            else if ((sameGoProLeftMedia is not null && !(bool)sameGoProLeftMedia) && (sameGoProRightMedia is null/*No S/N*/ || (sameGoProRightMedia is not null && (bool)sameGoProRightMedia)))
+            else if ((sameCameraLeftMedia is not null && !(bool)sameCameraLeftMedia) && (sameCameraRightMedia is null/*No S/N*/ || (sameCameraRightMedia is not null && (bool)sameCameraRightMedia)))
             {
-                mediaGoProSNMatchWarningText = "The left media files are not all from the same GoPro";
-                mediaGoProSNMatchWarningToolTip = "No all the serial numbers embedded in the left media files match";
-                mediaGoProSNMatch = false;
+                mediaCameraSNMatchWarningText = "The left media files are not all from the same camera";
+                mediaCameraSNMatchWarningToolTip = "No all the serial numbers embedded in the left media files match";
+                mediaCameraSNMatch = false;
 
              }
-            else if ((sameGoProLeftMedia is not null && !(bool)sameGoProLeftMedia) && (sameGoProRightMedia is not null && !(bool)sameGoProRightMedia))
+            else if ((sameCameraLeftMedia is not null && !(bool)sameCameraLeftMedia) && (sameCameraRightMedia is not null && !(bool)sameCameraRightMedia))
             {
-                mediaGoProSNMatchWarningText = "The media files on each side need to be from their specific GoPro";
-                mediaGoProSNMatchWarningToolTip = "All the media files on the left side need to be from the left GoPro and all the media files on the right side need to be from right GoPro. From the GoPro serial numbers embedded in the MP4 files this is not currently the case.";
-                mediaGoProSNMatch = false;
+                mediaCameraSNMatchWarningText = "The media files on each side need to be from their specific camera";
+                mediaCameraSNMatchWarningToolTip = "All the media files on the left side need to be from the left camera and all the media files on the right side need to be from right camera. From the camera serial numbers embedded in the MP4 files this is not currently the case.";
+                mediaCameraSNMatch = false;
 
              }
 
 
-            if (!mediaGoProSNMatch)
+            if (!mediaCameraSNMatch)
             {
-                SetValidationText(false/*invalid*/, ProjectGoProMatchPanel, ProjectGoProMatchGlyph, ProjectGoProMatchValidationText, mediaGoProSNMatchWarningText, mediaGoProSNMatchWarningToolTip);
+                SetValidationText(false/*invalid*/, ProjectCameraMatchPanel, ProjectCameraMatchGlyph, ProjectCameraMatchValidationText, mediaCameraSNMatchWarningText, mediaCameraSNMatchWarningToolTip);
             }
             else
             {
-                // Only show the validation text if we found the GoPro serial numbers and
+                // Only show the validation text if we found the camera serial numbers and
                 // there is more than one media file on either the left or right side
-                if ((sameGoProLeftMedia is not null || sameGoProRightMedia is not null) &&
-                    ((sameGoProLeftMedia is not null && LeftMonoMediaFileItemList.Count > 1) ||
-                     (sameGoProRightMedia is not null && RightMonoMediaFileItemList.Count > 1)))
+                if ((sameCameraLeftMedia is not null || sameCameraRightMedia is not null) &&
+                    ((sameCameraLeftMedia is not null && LeftMonoMediaFileItemList.Count > 1) ||
+                     (sameCameraRightMedia is not null && RightMonoMediaFileItemList.Count > 1)))
                 {
-                    SetValidationText(true/*valid*/, ProjectGoProMatchPanel, ProjectGoProMatchGlyph, ProjectGoProMatchValidationText, "GoPro serial numbers match", "");
+                    SetValidationText(true/*valid*/, ProjectCameraMatchPanel, ProjectCameraMatchGlyph, ProjectCameraMatchValidationText, "Camera serial numbers match", "");
                 }
                 else
                 {
-                    SetValidationText(null/*hide*/, ProjectGoProMatchPanel, ProjectGoProMatchGlyph, ProjectGoProMatchValidationText, "", "");
+                    SetValidationText(null/*hide*/, ProjectCameraMatchPanel, ProjectCameraMatchGlyph, ProjectCameraMatchValidationText, "", "");
                 }
             }
 
@@ -1008,7 +1019,7 @@ namespace Surveyor.User_Controls
             }
             else
             {
-                // Only show the validation text if we found the GoPro serial numbers and
+                // Only show the validation text if we found the camera serial numbers and
                 // there is more than one media file on either the left or right side
                 if (LeftMonoMediaFileItemList.Count > 1 || RightMonoMediaFileItemList.Count > 1)
                 {
@@ -1022,17 +1033,25 @@ namespace Surveyor.User_Controls
 
 
             // Check if all the media has the same resolution
-            if (LeftMonoMediaFileItemList.Count + RightMonoMediaFileItemList.Count + LeftStereoMediaFileItemList.Count + RightStereoMediaFileItemList.Count > 0)
+            if (totalMediaCount > 1)
             {
-                mediaSameResolution = CheckAllMediaResolutionAreTheSame();
-                if (!mediaSameResolution)
+                if (LeftMonoMediaFileItemList.Count + RightMonoMediaFileItemList.Count + LeftStereoMediaFileItemList.Count + RightStereoMediaFileItemList.Count > 0)
                 {
-                    SetValidationText(false/*invalid*/, ProjectResolutionMatchPanel, ProjectResolutionMatchGlyph, ProjectResolutionMatchValidationText, "All media files need have the same frame resolution", "");
+                    mediaSameResolution = CheckAllMediaResolutionAreTheSame();
+                    if (!mediaSameResolution)
+                    {
+                        SetValidationText(false/*invalid*/, ProjectResolutionMatchPanel, ProjectResolutionMatchGlyph, ProjectResolutionMatchValidationText, "All media files need have the same frame resolution", "");
 
+                    }
+                    else
+                    {
+                        SetValidationText(true/*valid*/, ProjectResolutionMatchPanel, ProjectResolutionMatchGlyph, ProjectResolutionMatchValidationText, "All media files have the same frame resolution", "");
+                    }
                 }
                 else
                 {
-                    SetValidationText(true/*valid*/, ProjectResolutionMatchPanel, ProjectResolutionMatchGlyph, ProjectResolutionMatchValidationText, "All media files have the same frame resolution", "");
+                    mediaSameResolution = true;
+                    SetValidationText(null, ProjectResolutionMatchPanel, ProjectResolutionMatchGlyph, ProjectResolutionMatchValidationText, "", "");
                 }
             }
             else
@@ -1042,15 +1061,24 @@ namespace Surveyor.User_Controls
             }
 
             // Check if all the media has the same frame rate
-            mediaSameFrameRate = CheckAllMediaFrameRateaAreTheSame();
-            if (!mediaSameFrameRate)
+            if (totalMediaCount > 1)
             {
-                SetValidationText(false/*invalid*/, ProjectFrameRateMatchPanel, ProjectFrameRateMatchGlyph, ProjectFrameRateMatchValidationText, "All media files need have the same frame rate", "");
 
+                mediaSameFrameRate = CheckAllMediaFrameRateaAreTheSame();
+                if (!mediaSameFrameRate)
+                {
+                    SetValidationText(false/*invalid*/, ProjectFrameRateMatchPanel, ProjectFrameRateMatchGlyph, ProjectFrameRateMatchValidationText, "All media files need have the same frame rate", "");
+
+                }
+                else
+                {
+                    SetValidationText(true/*valid*/, ProjectFrameRateMatchPanel, ProjectFrameRateMatchGlyph, ProjectFrameRateMatchValidationText, "All media files have the same frame rate", "");
+                }
             }
             else
             {
-                SetValidationText(true/*valid*/, ProjectFrameRateMatchPanel, ProjectFrameRateMatchGlyph, ProjectFrameRateMatchValidationText, "All media files have the same frame rate", "");
+                SetValidationText(null, ProjectFrameRateMatchPanel, ProjectFrameRateMatchGlyph, ProjectFrameRateMatchValidationText, "", "");
+                mediaSameFrameRate = true;
             }
 
 
@@ -1059,7 +1087,7 @@ namespace Surveyor.User_Controls
                 ret = EntryFieldsValidReturn.Warning;
 
             // Return Invalid if any invalid data
-            if (!infoValid || !mediaValid || !mediaGoProSNMatch || !mediaSameResolution /*???|| !mediaSameFrameRate*/)
+            if (!infoValid || !mediaValid || !mediaCameraSNMatch || !mediaSameResolution /*???|| !mediaSameFrameRate*/)
                 ret = EntryFieldsValidReturn.Invalid;
 
 
@@ -1287,38 +1315,44 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Check if all the GoPro serial number in the list match
+        /// Check if all the camera serial numbers in the list match
         /// </summary>
         /// <param name="mediaFileItemList"></param>
         /// <returns></returns>
-        private static bool CheckGoProSNMatch(ObservableCollection<MediaFileItem> mediaFileMonoItemList, ObservableCollection<MediaFileItem> mediaFileStereoItemList)
+        private static bool CheckCameraSNMatch(ObservableCollection<MediaFileItem> mediaFileMonoItemList, ObservableCollection<MediaFileItem> mediaFileStereoItemList)
         {
             bool ret = true;
 
-            string firstGoProSerialNumber = string.Empty;
+            string firstCameraSerialNumber = string.Empty;
 
+            // Prefer mono first if present
             if (mediaFileMonoItemList.Count > 1)
             {
-                firstGoProSerialNumber = mediaFileMonoItemList[0].GoProSerialNumber;
-            }
-            if (firstGoProSerialNumber == string.Empty && mediaFileMonoItemList.Count > 1)
-            {
-                firstGoProSerialNumber = mediaFileMonoItemList[0].GoProSerialNumber;
+                firstCameraSerialNumber = mediaFileMonoItemList[0].CameraSerialNumber;
             }
 
+            // If still empty, seed from stereo list 
+            if (firstCameraSerialNumber == string.Empty && mediaFileStereoItemList.Count > 0)
+            {
+                firstCameraSerialNumber = mediaFileStereoItemList[0].CameraSerialNumber;
+            }
+
+            // Compare all mono items
             for (int i = 1; i < mediaFileMonoItemList.Count; i++)
             {
-                if (string.Compare(firstGoProSerialNumber, mediaFileMonoItemList[i].GoProSerialNumber) != 0)
+                if (string.Compare(firstCameraSerialNumber, mediaFileMonoItemList[i].CameraSerialNumber) != 0)
                 {
                     ret = false;
                     break;
                 }
             }
+
             if (ret)
             {
+                // If still matching, compare all stereo items
                 for (int i = 1; i < mediaFileStereoItemList.Count; i++)
                 {
-                    if (string.Compare(firstGoProSerialNumber, mediaFileStereoItemList[i].GoProSerialNumber) != 0)
+                    if (string.Compare(firstCameraSerialNumber, mediaFileStereoItemList[i].CameraSerialNumber) != 0)
                     {
                         ret = false;
                         break;
@@ -1522,7 +1556,7 @@ namespace Surveyor.User_Controls
         /// extracted from the media file
         /// </summary>
         /// <returns></returns>
-        private BitmapImage GetDefaultThumbnail()
+        private static BitmapImage GetDefaultThumbnail()
         {
             // Get the current theme so we can figure out whether to use a dark or light default thumbnail
             BitmapImage thumbnailDefault = new();
@@ -1568,22 +1602,66 @@ namespace Surveyor.User_Controls
                 DateTime creationTime = File.GetCreationTime(file.Path);
                 item.MediaFileCreateDateTime = creationTime;
 
-                // Get the GoPro serial number
-                GpmfItemList? gpmfItemList = await GetMP4UtdaFileProperities.ExtractPropertiesAsync(file);
-                if (gpmfItemList is not null)
+                // Get the camera family (GoPro/Insta360/DJI)
+                var id = await IdentifyCameraFamily.IdentifyCameraFamilyAsync(file);
+                switch (id.Family)
                 {
-                    GpmfItemList? gpmfItemListResult = gpmfItemList.GetItems("CASN");
-                    if (gpmfItemListResult is not null && gpmfItemListResult.Count > 0)
+                    case ActionCamFamily.GoPro_Hero9Plus:
+                        item.CameraFamily = "GoPro";
+                        break;
+                    case ActionCamFamily.Insta360_AceProFamily:
+                        item.CameraFamily = "Insta360";
+                        break;
+                    case ActionCamFamily.DJI_OsmoActionFamily:
+                        item.CameraFamily = "DJI";
+                        break;
+                    default:
+                        Debug.WriteLine($"Warning: Unrecognized camera family: {id.Family}");
+                        item.CameraFamily = string.Empty;
+                        break;
+                }
+
+                // If it's a GoPro Hero 9 Plus get the serial number
+                item.CameraSerialNumber = string.Empty;
+                if (id.Family == ActionCamFamily.GoPro_Hero9Plus)
+                {
+                    // Get the GoPro serial number
+                    GpmfItemList? gpmfItemList = await GetGoProMP4StaticMetadata.ExtractPropertiesAsync(file);
+                    if (gpmfItemList is not null)
                     {
-                        GpmfItem gpmfItem = gpmfItemListResult[0];
-                        if (gpmfItem is not null && gpmfItem.Payload is not null)
-                            item.GoProSerialNumber = (string)gpmfItem.Payload as string;
+                        GpmfItemList? gpmfItemListResult = gpmfItemList.GetItems("CASN");
+                        if (gpmfItemListResult is not null && gpmfItemListResult.Count > 0)
+                        {
+                            GpmfItem gpmfItem = gpmfItemListResult[0];
+                            if (gpmfItem is not null && gpmfItem.Payload is not null)
+                                item.CameraSerialNumber = (string)gpmfItem.Payload as string;
+                        }
+                        else
+                        {
+                            item.CameraSerialNumber = "Unknown";
+                        }
+                    }
+                }
+                // If it's an Insta360 Ace Pro family camera get the serial number
+                else if (id.Family == ActionCamFamily.Insta360_AceProFamily)
+                {
+                    string ? insta360SerialNumber =  await GetInsta360SerialAfterMoov.TryExtractSerialAsync(file.Path);
+                    if (insta360SerialNumber is not null)
+                    {
+                        // Look for the serial number in the extracted strings
+                        item.CameraSerialNumber = insta360SerialNumber;
                     }
                     else
                     {
-                        item.GoProSerialNumber = "Unknown";
+                        item.CameraSerialNumber = "Unknown";
                     }
                 }
+                else if (id.Family == ActionCamFamily.DJI_OsmoActionFamily)
+                {
+                    // DJI don't embed their serial number in the MP4s they generate
+                    item.CameraSerialNumber = "Not available";
+                }
+
 
                 // Get the frame size and frame rate
                 Dictionary<string, string> fileProperties = await GetMP4FileProperities.ExtractProperties(file);
@@ -1691,8 +1769,9 @@ namespace Surveyor.User_Controls
         /// list view control selection of viable options for moving or
         /// changing the order of media files
         /// </summary>
-        private GridLength monoListViewRowHeight = new GridLength(0);
-        private GridLength stereoListViewRowHeight = new GridLength(0);
+        private GridLength monoListViewRowHeight = new (0);
+        private GridLength stereoListViewRowHeight = new (0);
+        
         private void EnableDisableControlButtons()
         {
             bool moveItemAcrossTopRightIsEnabled = false;
@@ -1707,12 +1786,11 @@ namespace Surveyor.User_Controls
             bool deleteItem2IsEnabled = false;
 
 
-            // Remember the current heights on initial load
+            // Remember the current heights and widths on initial load
             if (monoListViewRowHeight == new GridLength(0))
                 monoListViewRowHeight = MonoListViewRow.Height;
             if (stereoListViewRowHeight == new GridLength(0))
-                stereoListViewRowHeight = MonoListViewRow.Height;
-
+                stereoListViewRowHeight = StereoListViewRow.Height;
 
             switch (stereoMonoMediaSetMode)
             {
@@ -1725,14 +1803,18 @@ namespace Surveyor.User_Controls
                     MonoListViewRow.Height = monoListViewRowHeight;
                     StereoListViewRow.Height = stereoListViewRowHeight;
 
-                    // Show right mono
-                    RightMonoMediaFileNames.IsEnabled = true;
+                    // Hide the right side
+                    HideShowRightColumnControls(Visibility.Visible);
 
-                    // Hide the up/down buttons
+                    // Show the up/down buttons
                     LeftSideMoveItemUp.Visibility = Visibility.Visible;
                     LeftSideMoveItemDown.Visibility = Visibility.Visible;
                     RightSideMoveItemUp.Visibility = Visibility.Visible;
                     RightSideMoveItemDown.Visibility = Visibility.Visible;
+
+                    // Show the mono left/right buttons
+                    MoveItemAcrossTopLeft.Visibility = Visibility.Visible;
+                    MoveItemAcrossTopRight.Visibility = Visibility.Visible;
                     break;
 
                 case StereoMonoMediaSetMode.StereoOnlyMediaSet:
@@ -1747,6 +1829,9 @@ namespace Surveyor.User_Controls
                     // Hide the mono <ListView> grid row and restore the stereo
                     MonoListViewRow.Height = new GridLength(0);
                     StereoListViewRow.Height = monoListViewRowHeight;
+
+                    // Hide the right side
+                    HideShowRightColumnControls(Visibility.Visible);
 
                     // Hide the up/down buttons
                     LeftSideMoveItemUp.Visibility = Visibility.Collapsed;
@@ -1768,15 +1853,18 @@ namespace Surveyor.User_Controls
                     MonoListViewRow.Height = monoListViewRowHeight;
                     StereoListViewRow.Height = new GridLength(0);
 
-
-                    // Show right mono
-                    RightMonoMediaFileNames.IsEnabled = true;
+                    // Hide the right side
+                    HideShowRightColumnControls(Visibility.Visible);
 
                     // Hide the up/down buttons
                     LeftSideMoveItemUp.Visibility = Visibility.Collapsed;
                     LeftSideMoveItemDown.Visibility = Visibility.Collapsed;
                     RightSideMoveItemUp.Visibility = Visibility.Collapsed;
                     RightSideMoveItemDown.Visibility = Visibility.Collapsed;
+
+                    // Show the mono left/right buttons
+                    MoveItemAcrossTopLeft.Visibility = Visibility.Visible;
+                    MoveItemAcrossTopRight.Visibility = Visibility.Visible;
                     break;
 
                 case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
@@ -1792,14 +1880,16 @@ namespace Surveyor.User_Controls
                     MonoListViewRow.Height = monoListViewRowHeight;
                     StereoListViewRow.Height = new GridLength(0);
 
-                    // Hide right mono
-                    RightMonoMediaFileNames.IsEnabled = false;
+                    // Hide the right side
+                    HideShowRightColumnControls(Visibility.Collapsed);
 
                     // Hide the up/down buttons
                     LeftSideMoveItemUp.Visibility = Visibility.Collapsed;
                     LeftSideMoveItemDown.Visibility = Visibility.Collapsed;
-                    RightSideMoveItemUp.Visibility = Visibility.Collapsed;
-                    RightSideMoveItemDown.Visibility = Visibility.Collapsed;
+
+                    // Hide the mono left/right buttons
+                    MoveItemAcrossTopLeft.Visibility = Visibility.Collapsed;
+                    MoveItemAcrossTopRight.Visibility = Visibility.Collapsed;
                     break;
             }
 
@@ -1877,6 +1967,25 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Note. reducing the right column width to zero doesn't work
+        /// for hiding the right column (unlike for hiding rows). Instead
+        /// I change the visibility of the controls in the right column
+        /// </summary>
+        /// <param name="visibility"></param>
+        private void HideShowRightColumnControls(Visibility visibility)
+        {
+            RightMonoTitle.Visibility = visibility;
+            RightMonoMediaFileNames.Visibility = visibility;
+
+            RightSideMoveItemUp.Visibility = visibility;
+            RightSideMoveItemDown.Visibility = visibility;
+
+            RightStereoTitle.Visibility = visibility;
+            RightStereoMediaFileNames.Visibility = visibility;
+        }
+
+
+        /// <summary>
         /// Used to load any existing media file names into the dialog for use in the 
         /// Settings window
         /// </summary>
@@ -1949,7 +2058,8 @@ namespace Surveyor.User_Controls
     {
         private string? _mediaFilePath = null;
         private BitmapImage? _mediaFileThumbnail = null;
-        private string _goProSerialNumber = "";
+        private string _cameraFamily = "";
+        private string _cameraSerialNumber = "";
         private int _mediaFrameWidth = 0;
         private int _mediaFrameHeight = 0;
         private double _mediaFrameRate = 0.0;
@@ -1968,10 +2078,17 @@ namespace Surveyor.User_Controls
             set => SetProperty(ref _mediaFileThumbnail, value);
         }
 
-        public string GoProSerialNumber
+        public string CameraFamily
         {
-            get => _goProSerialNumber;
-            set => SetProperty(ref _goProSerialNumber, value);
+            get => _cameraFamily;
+            set => SetProperty(ref _cameraFamily, value);
+        }
+
+
+        public string CameraSerialNumber
+        {
+            get => _cameraSerialNumber;
+            set => SetProperty(ref _cameraSerialNumber, value);
         }
 
         public int MediaFrameWidth

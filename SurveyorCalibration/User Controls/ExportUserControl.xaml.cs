@@ -68,9 +68,15 @@ namespace Surveyor.User_Controls
             {
                 // Native is only for a stereo calibration result
                 if (calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoAndStereoMediaSet)
+                {
                     FormatNative.IsEnabled = true;
+                }
                 else
+                {
                     FormatNative.IsEnabled = false;
+                    // Default export the Text
+                    FormatText.IsChecked = true;
+                }
 
                 // See what results we have available
                 bool IsK1K2P1P2Available = false;
@@ -208,7 +214,7 @@ namespace Surveyor.User_Controls
 
 
                 // Default to the best result
-                CalibrationParameters? calibParams = calibProject.ReturnBestStereoCalibrationCameraData();
+                CalibrationParameters? calibParams = GetBestCalibrationRersultConsideringStereoMonoMediaSetMode(calibProject);
 
                 switch (calibParams)
                 {
@@ -425,21 +431,6 @@ namespace Surveyor.User_Controls
             if (!_isReady || PreviewText is null || ExportSamplesNav is null)
                 return;
 
-            //???
-            //if (FormatText.IsChecked == true)
-            //{
-            //    ExportSamplesNav.IsEnabled = false;
-            //    CodeMarkdown.Text = string.Empty;
-            //}
-            //
-            //// Restore normal preview layout
-            //PreviewText.Visibility = Visibility.Visible;
-            //PreviewText.HorizontalAlignment = HorizontalAlignment.Stretch;
-            //PreviewText.VerticalAlignment = VerticalAlignment.Stretch;
-            //PreviewText.TextAlignment = TextAlignment.Left;
-            //
-            //ExportSamplesNav.IsEnabled = true;
-
             LoadExportPreview();
         }
 
@@ -481,7 +472,7 @@ namespace Surveyor.User_Controls
             if (DataContext is CalibProject calibProject)
             {
                 // Return the best stereo calibration set
-                CalibrationParameters? calibrationParameters = calibProject.ReturnBestStereoCalibrationCameraData();
+                CalibrationParameters? calibrationParameters = GetBestCalibrationRersultConsideringStereoMonoMediaSetMode(calibProject);
                 if (calibrationParameters is not null)
                 {
 
@@ -562,7 +553,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// 
+        /// Create the export data
         /// </summary>
         /// <param name="calibProject"></param>
         /// <returns></returns>
@@ -572,8 +563,23 @@ namespace Surveyor.User_Controls
             var left = calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
             var right = calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters];
 
-            if (stereo is null || left is null || right is null)
-                return string.Empty;
+            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+            {
+                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                    if (stereo is null || left is null || right is null)
+                        return string.Empty;
+                    break;
+                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                    if (left is null || right is null)
+                        return string.Empty;
+                    break;
+                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                    if (left is null)
+                        return string.Empty;
+                    break;
+            }
+
 
             int imgWidth  = (int)calibProject.Data.Media.FrameWidth;
             int imgHeight = (int)calibProject.Data.Media.FrameHeight;
@@ -602,28 +608,47 @@ namespace Surveyor.User_Controls
 
             var sb = new System.Text.StringBuilder();
             sb.AppendLine("%YAML:1.0");
-            sb.AppendLine("left_camera:");
-            sb.AppendLine($"  image_width: {imgWidth}");
-            sb.AppendLine($"  image_height: {imgHeight}");
-            sb.AppendLine("  camera_matrix: " + FormatCvMatArray(left.IntrinsicMatrix).Replace("\n", "\n  "));
-            sb.AppendLine("  distortion_coefficients: " + FormatCvMatArray(left.DistortionCoeffs).Replace("\n", "\n  "));
-            sb.AppendLine($"  rms: {left.ReprojectionRMS.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
-            sb.AppendLine($"  camera_id: \"{calibProject.Data.Media.LeftCameraID}\"");
+            if (left is not null)
+            {
+                sb.AppendLine("left_camera:");
+                sb.AppendLine($"  image_width: {imgWidth}");
+                sb.AppendLine($"  image_height: {imgHeight}");
+                if (left.IntrinsicMatrix is not null)
+                    sb.AppendLine("  camera_matrix: " + FormatCvMatArray(left.IntrinsicMatrix).Replace("\n", "\n  "));
+                if (left.DistortionCoeffs is not null)
+                    sb.AppendLine("  distortion_coefficients: " + FormatCvMatArray(left.DistortionCoeffs).Replace("\n", "\n  "));
+                sb.AppendLine($"  rms: {left.ReprojectionRMS.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+                sb.AppendLine($"  camera_id: \"{calibProject.Data.Media.LeftCameraID}\"");
+            }
 
-            sb.AppendLine("right_camera:");
-            sb.AppendLine($"  image_width: {imgWidth}");
-            sb.AppendLine($"  image_height: {imgHeight}");
-            sb.AppendLine("  camera_matrix: " + FormatCvMatArray(right.IntrinsicMatrix).Replace("\n", "\n  "));
-            sb.AppendLine("  distortion_coefficients: " + FormatCvMatArray(right.DistortionCoeffs).Replace("\n", "\n  "));
-            sb.AppendLine($"  rms: {right.ReprojectionRMS.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
-            sb.AppendLine($"  camera_id: \"{calibProject.Data.Media.RightCameraID}\"");
+            // Allow the modes that include right camera mono results
+            if (right is not null &&
+                (calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoAndStereoMediaSet ||
+                 calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.StereoOnlyMediaSet ||
+                 calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoPairOnlyMediaSet))
+            {
+                sb.AppendLine("right_camera:");
+                sb.AppendLine($"  image_width: {imgWidth}");
+                sb.AppendLine($"  image_height: {imgHeight}");
+                if (right.IntrinsicMatrix is not null)
+                    sb.AppendLine("  camera_matrix: " + FormatCvMatArray(right.IntrinsicMatrix).Replace("\n", "\n  "));
+                if (right.DistortionCoeffs is not null)
+                    sb.AppendLine("  distortion_coefficients: " + FormatCvMatArray(right.DistortionCoeffs).Replace("\n", "\n  "));
+                sb.AppendLine($"  rms: {right.ReprojectionRMS.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
+                sb.AppendLine($"  camera_id: \"{calibProject.Data.Media.RightCameraID}\"");
+            }
 
             // Stereo terms (if available in your data type)
-            sb.AppendLine("stereo:");
-            sb.AppendLine("  R: " + FormatOptional(stereo.Rotation).Replace("\n", "\n  "));
-            sb.AppendLine("  T: " + FormatOptional(stereo.Translation).Replace("\n", "\n  "));
-      //???      sb.AppendLine("  E: " + FormatOptional(stereo.E).Replace("\n", "\n  "));
-      //???      sb.AppendLine("  F: " + FormatOptional(stereo.F).Replace("\n", "\n  "));
+            if (stereo is not null &&
+                (calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoAndStereoMediaSet ||
+                 calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.StereoOnlyMediaSet))
+            {
+                sb.AppendLine("stereo:");
+                sb.AppendLine("  R: " + FormatOptional(stereo.Rotation).Replace("\n", "\n  "));
+                sb.AppendLine("  T: " + FormatOptional(stereo.Translation).Replace("\n", "\n  "));
+                //???      sb.AppendLine("  E: " + FormatOptional(stereo.E).Replace("\n", "\n  "));
+                //???      sb.AppendLine("  F: " + FormatOptional(stereo.F).Replace("\n", "\n  "));
+            }
 
             return sb.ToString();
         }
@@ -1021,5 +1046,32 @@ namespace Surveyor.User_Controls
             }
         }
 
+
+        /// <summary>
+        /// Find the CalibrationParameters that delivered the best quality
+        /// calibration result factoring in the StereoMonoMediaSetMode
+        /// </summary>
+        /// <param name="calibProject"></param>
+        /// <returns>null if fails</returns>
+        private static CalibrationParameters? GetBestCalibrationRersultConsideringStereoMonoMediaSetMode(CalibProject calibProject)
+        {
+            // Default to the best result
+            CalibrationParameters? calibParams = null;
+            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+            {
+                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                    calibParams = calibProject.ReturnBestStereoCalibrationCameraData();
+                    break;
+                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                    calibParams = calibProject.ReturnBestMonoCalibrationCameraData(null/*best considering left and right*/);
+                    break;
+                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                    calibParams = calibProject.ReturnBestMonoCalibrationCameraData(true/*trueLeftRightFalse*/);
+                    break;
+            }
+
+            return calibParams;
+        }
     }
 }

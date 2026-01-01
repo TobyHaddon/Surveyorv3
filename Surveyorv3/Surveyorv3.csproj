@@ -111,7 +111,7 @@
     <ProjectCapability Include="Msix" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\GoProMP4MetadataExtraction\GoProMP4MetadataExtraction.csproj" />
+    <ProjectReference Include="..\GoProMP4MetadataExtraction\ActionCameraMP4MetadataExtraction.csproj" />
     <ProjectReference Include="..\SurveyorCalibrationData\SurveyorCalibrationData.csproj" />
   </ItemGroup>
   <ItemGroup>

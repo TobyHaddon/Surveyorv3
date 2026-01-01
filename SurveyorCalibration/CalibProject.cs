@@ -1209,6 +1209,75 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Find the best mono calibration result for either:
+        /// Both (pass null) - best average Re-projection RMS score
+        /// Left only (pass true) - best left side Re-projection RMS score
+        /// Right only (pass true) - best right side Re-projection RMS score
+        /// </summary>
+        /// <param name="trueLeftRightFalseNullBoth"></param>
+        /// <returns>null if fails</returns>
+        public CalibrationParameters? ReturnBestMonoCalibrationCameraData(bool? trueLeftRightFalseNullBoth)
+        {
+            double bestScore = double.MaxValue;
+            int bestIndex = -1;
+
+            for (int i = 0; i < Data.CalibrationResults.CalibrationStereoCameraDataArray.Length; i++)
+            {
+                var leftMonoResult = Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[i];
+                var rightMonoResult = Data.CalibrationResults.RightMonoCalibrationCameraDataArray[i];
+
+                // Check suitable results exist
+                if (trueLeftRightFalseNullBoth is null)
+                {
+                    if (leftMonoResult is null || rightMonoResult is null)
+                        continue;
+                }
+                else if (trueLeftRightFalseNullBoth == true)
+                {
+                    if (leftMonoResult is null)
+                        continue;
+
+                }
+                else
+                {
+                    if (rightMonoResult is null)
+                        continue;
+                }
+
+
+                // Define weighted score (you can tune weights as needed)
+                double score = 0;
+                if (trueLeftRightFalseNullBoth is null)
+                {
+                    if (leftMonoResult is not null && rightMonoResult is not null)
+                        score = (leftMonoResult.ReprojectionRMS /*???+ 0.2 * stereoResult.MaxError*/ + rightMonoResult.ReprojectionRMS) / 2;
+                }
+                else if (trueLeftRightFalseNullBoth == true)
+                {
+                    if (leftMonoResult is not null)
+                        score = leftMonoResult.ReprojectionRMS /*???+ 0.2 * stereoResult.MaxError*/;
+                }
+                else
+                {
+                    if (rightMonoResult is not null)
+                        score = rightMonoResult.ReprojectionRMS;
+                }
+
+                if (score < bestScore)
+                {
+                    bestScore = score;
+                    bestIndex = i;
+                }
+            }
+
+            if (bestIndex == -1)
+                return null;
+
+            return (CalibrationParameters?)bestIndex;
+        }
+
+
+        /// <summary>
         /// Returns the stereo calibration result set with the best RMS
         /// </summary>
         /// <returns></returns>

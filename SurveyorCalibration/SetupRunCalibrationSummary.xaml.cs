@@ -169,26 +169,35 @@ namespace Surveyor
                     ActionDescription  = navParams.DoCalibrationMonoCalculationsWorkingValue
                         ? "Using the best mono frames perform the mono calibration calculations"
                         : ""
-                },
-                new() {
-                    Glyph = glyphStar,
-                    ActionTitle  = navParams.FindBestStereoFramesWorkingValue
-                        ? "Find best stereo frames"
-                        : "Use existing best stereo frames",
-                    ActionDescription  = navParams.FindBestStereoFramesWorkingValue
-                        ? "From the stereo frame set select the best frames for calibration based on corner count, marker count, movement and blur"
-                        : ""
-                },
-                new() {
-                    Glyph = glyphCalibration,
-                    ActionTitle  = navParams.DoCalibrationStereoCalculationsWorkingValue
-                        ? "Perform stereo calibration calculations"
-                        : "Use existing stereo calibration calculations",
-                    ActionDescription  = navParams.DoCalibrationStereoCalculationsWorkingValue
-                        ? "Using the best stereo frames and the mono calibration results perform the stereo calibration calculation" 
-                        : ""
                 }
             };
+
+            // Stereo specific actions
+            if (navParams.calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoAndStereoMediaSet ||
+                navParams.calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.StereoOnlyMediaSet)
+            {
+                items.Add(new SummaryItem()
+                {
+                    Glyph = glyphStar,
+                    ActionTitle = navParams.FindBestStereoFramesWorkingValue
+                        ? "Find best stereo frames"
+                        : "Use existing best stereo frames",
+                    ActionDescription = navParams.FindBestStereoFramesWorkingValue
+                        ? "From the stereo frame set select the best frames for calibration based on corner count, marker count, movement and blur"
+                        : ""
+                });
+
+                items.Add(new SummaryItem()
+                {
+                    Glyph = glyphCalibration,
+                    ActionTitle = navParams.DoCalibrationStereoCalculationsWorkingValue
+                        ? "Perform stereo calibration calculations"
+                        : "Use existing stereo calibration calculations",
+                    ActionDescription = navParams.DoCalibrationStereoCalculationsWorkingValue
+                        ? "Using the best stereo frames and the mono calibration results perform the stereo calibration calculation"
+                        : ""
+                });
+            }
 
             if (navParams.runParams.SaveBestFrames)
             {

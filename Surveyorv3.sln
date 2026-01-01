@@ -17,7 +17,7 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "EMObsReader", "EMObsReader\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Surveyor3.Tests", "Surveyor3.Tests\Surveyor3.Tests.csproj", "{DC0B2AED-F033-4935-9535-C062554AF32F}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GoProMP4MetadataExtraction", "GoProMP4MetadataExtraction\GoProMP4MetadataExtraction.csproj", "{B7899B87-13A9-4AB5-97B3-8D94ED6358B8}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ActionCameraMP4MetadataExtraction", "GoProMP4MetadataExtraction\ActionCameraMP4MetadataExtraction.csproj", "{B7899B87-13A9-4AB5-97B3-8D94ED6358B8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SurveyorCalibration", "SurveyorCalibration\SurveyorCalibration.csproj", "{B57B9EE2-AE9C-A6A1-9A84-1D58E6A77DC2}"
 	ProjectSection(ProjectDependencies) = postProject

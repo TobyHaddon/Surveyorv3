@@ -39,7 +39,7 @@
             <RowDefinition Height="Auto"/>                          <!-- 0: Title Bar -->
             <RowDefinition Height="Auto" />                         <!-- 1: CommandBar -->
             <RowDefinition x:Name="MonoHeadRow" Height="42*" />     <!-- 2: Mono Heads -->
-            <RowDefinition Height="8" />                            <!-- 3: GridSplitter -->
+            <RowDefinition x:Name="MonoStereoSplitterRow" Height="8" />                            <!-- 3: GridSplitter -->
             <RowDefinition x:Name="StereoHeadRow" Height="42*" />   <!-- 4: Stereo Head -->
             <RowDefinition x:Name="OutputSplitterRow" Height="0" /> <!-- 5: GridSplitter -->
             <RowDefinition x:Name="OutputRow" Height="0" />         <!-- 6: Reporter -->
@@ -315,9 +315,9 @@
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="*" />
+                <ColumnDefinition x:Name="LeftMonoHeadColumn" Width="*" />
+                <ColumnDefinition x:Name="LeftRightMonoSplitterColumn" Width="Auto" />
+                <ColumnDefinition x:Name="RightMonoHeadColumn" Width="*" />
             </Grid.ColumnDefinitions>
 
             <!-- Left Mono Head -->
@@ -328,9 +328,8 @@
                                                           Grid.Column="0" 
                                                           Margin="5,5,0,5"/>
             
-            <!-- Vertical sizer -->
-
-            <toolkit:GridSplitter Grid.Column="1"
+            <!-- Mono Left/Right Vertical splitter -->
+            <toolkit:GridSplitter x:Name="LeftRightMonoSplitter" Grid.Column="1"
                           Width="8"
                           HorizontalAlignment="Center"
                           VerticalAlignment="Stretch"
@@ -351,7 +350,7 @@
         </Grid>
 
         <!-- Horizontal sizer -->        
-        <toolkit:GridSplitter Grid.Row="3"
+        <toolkit:GridSplitter x:Name="MonoStereoSplitter" Grid.Row="3"
                           Height="8"
                           HorizontalAlignment="Stretch"
                           VerticalAlignment="Top"

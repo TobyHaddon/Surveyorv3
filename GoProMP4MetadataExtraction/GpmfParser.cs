@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 
 
-namespace GoProMP4MetadataExtraction
+namespace ActionCameraMP4MetadataExtraction
 {
 	/// <summary>
 	/// GPMF data parser.

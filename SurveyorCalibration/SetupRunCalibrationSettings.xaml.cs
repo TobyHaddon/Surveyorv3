@@ -31,8 +31,18 @@ namespace Surveyor
             runParams.BuildTheFrameSets = navParams.BuildTheFrameSetsWorkingValue;
             runParams.FindBestMonoFrames = navParams.FindBestMonoFramesWorkingValue;
             runParams.DoCalibrationMonoCalculations = navParams.DoCalibrationMonoCalculationsWorkingValue;
-            runParams.FindBestStereoFrames = navParams.FindBestStereoFramesWorkingValue;
-            runParams.DoCalibrationStereoCalculations = navParams.DoCalibrationStereoCalculationsWorkingValue;
+            // Stereo only actions
+            if (navParams.calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoAndStereoMediaSet ||
+                navParams.calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.StereoOnlyMediaSet)
+            {
+                runParams.FindBestStereoFrames = navParams.FindBestStereoFramesWorkingValue;
+                runParams.DoCalibrationStereoCalculations = navParams.DoCalibrationStereoCalculationsWorkingValue;
+            }
+            else
+            {
+                runParams.FindBestStereoFrames = false;
+                runParams.DoCalibrationStereoCalculations = false;
+            }
 
             // Apply the slider values
             runParams.MovementFilterValue = navParams.MovementFilterWorkingValue;
@@ -77,11 +87,26 @@ namespace Surveyor
                 DoCalibrationMonoCalculationsCheckBox.IsEnabled = !runParams.DoCalibrationMonoCalculations;
                 DoCalibrationMonoCalculationsCheckBox.IsChecked = navParams.DoCalibrationMonoCalculationsWorkingValue;
 
-                FindBestStereoFramesCheckBox.IsEnabled = !runParams.FindBestStereoFrames;
-                FindBestStereoFramesCheckBox.IsChecked = navParams.FindBestStereoFramesWorkingValue;
+                // Stereo specific actions
+                if (navParams.calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoAndStereoMediaSet ||
+                    navParams.calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.StereoOnlyMediaSet)
+                {
+                    FindBestStereoFramesCheckBox.Visibility = Visibility.Visible;
+                    FindBestStereoFramesCheckBox.IsEnabled = !runParams.FindBestStereoFrames;
+                    FindBestStereoFramesCheckBox.IsChecked = navParams.FindBestStereoFramesWorkingValue;
 
-                DoCalibrationStereoCalculationsCheckBox.IsEnabled = !runParams.DoCalibrationStereoCalculations;
-                DoCalibrationStereoCalculationsCheckBox.IsChecked = navParams.DoCalibrationStereoCalculationsWorkingValue;
+                    DoCalibrationStereoCalculationsCheckBox.Visibility = Visibility.Visible;
+                    DoCalibrationStereoCalculationsCheckBox.IsEnabled = !runParams.DoCalibrationStereoCalculations;
+                    DoCalibrationStereoCalculationsCheckBox.IsChecked = navParams.DoCalibrationStereoCalculationsWorkingValue;
+                }
+                else
+                {
+                    // Hide stereo actions
+                    FindBestStereoFramesCheckBox.Visibility = Visibility.Collapsed;
+                    FindBestStereoFramesCheckBox.IsChecked = false;
+                    DoCalibrationStereoCalculationsCheckBox.Visibility = Visibility.Collapsed;
+                    DoCalibrationStereoCalculationsCheckBox.IsChecked = false;
+                }
 
                 // All the action flags are set - hide the whole actions border
                 if (runParams.FindCalibrationBoardZone &&
@@ -150,10 +175,31 @@ namespace Surveyor
                     CalibrationBoardDefinition charucoBoardDefinition = navParams.calibProject.Data.ChArUcoBoardDefinition;
                     int maxCorners = (charucoBoardDefinition.SquaresX - 1) * (charucoBoardDefinition.SquaresY - 1);
                     MonoCornerFilterSlider.Maximum = maxCorners;
-                    StereoCornerFilterSlider.Maximum = maxCorners;
                     MonoCornerFilterMax.Text = MonoCornerFilterSlider.Maximum.ToString();
-                    StereoCornerFilterMax.Text = StereoCornerFilterSlider.Maximum.ToString();
 
+                    // Stereo specific filter
+                    if (navParams.calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoAndStereoMediaSet ||
+                        navParams.calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.StereoOnlyMediaSet)
+                    {
+                        StereoCornerFilterSlider.Maximum = maxCorners;
+                        StereoCornerFilterMax.Text = StereoCornerFilterSlider.Maximum.ToString();
+
+                        StereoCornerFilterLabel.Visibility = Visibility.Visible;
+                        StereoCornerFilterMin.Visibility = Visibility.Visible;
+                        StereoCornerFilterSlider.Visibility = Visibility.Visible;
+                        StereoCornerFilterMax.Visibility = Visibility.Visible;
+                        StereoCornerFilterValue.Visibility = Visibility.Visible;
+                        StereoCornerFilterHelp.Visibility = Visibility.Visible;
+                    }
+                    else
+                    {
+                        StereoCornerFilterLabel.Visibility = Visibility.Collapsed;
+                        StereoCornerFilterMin.Visibility = Visibility.Collapsed;
+                        StereoCornerFilterSlider.Visibility = Visibility.Collapsed;
+                        StereoCornerFilterMax.Visibility = Visibility.Collapsed;
+                        StereoCornerFilterValue.Visibility = Visibility.Collapsed;
+                        StereoCornerFilterHelp.Visibility = Visibility.Collapsed;
+                    }
 
                 }
             }

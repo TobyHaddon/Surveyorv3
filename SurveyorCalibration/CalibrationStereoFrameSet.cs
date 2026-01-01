@@ -394,7 +394,7 @@ namespace Surveyor
         /// <returns></returns>
         public int GetFrameSetIndexFromLeftRightIndexes(int leftIndex, int rightIndex)
         {
-            int framesetIndex;
+            int framesetIndex = -1;
 
             // Require media to be set up and lock indexes defined
             if (leftIndex < 0 || rightIndex < 0)
@@ -406,6 +406,7 @@ namespace Surveyor
             // Case 1: left starts at 0, right is offset
             //   left = i
             //   right = i + startRight  => i = right - startRight
+            
             if (startLeft == 0)
             {
                 int i = leftIndex;
@@ -416,6 +417,7 @@ namespace Surveyor
             // Case 2: right starts at 0, left is offset
             //   left = i + startLeft
             //   right = i               => i = right
+            if (startRight == 0)
             {
                 int i = rightIndex;
                 int expectedLeft = i + startLeft;
@@ -2543,18 +2545,18 @@ namespace Surveyor
         /// </summary>
         /// <param name="monoCalib"></param>
         /// <returns></returns>
-        public static string CalibrationCameraDataText(CalibrationStereoCameraData? stereoCalib)
+        public static string CalibrationCameraDataText(CalibrationStereoCameraData? stereoCalibration)
         {
             try
             {
                 // Display the calibration results
-                if (stereoCalib is not null && stereoCalib.Rotation is not null && stereoCalib.Translation is not null)
+                if (stereoCalibration is not null && stereoCalibration.Rotation is not null && stereoCalibration.Translation is not null)
                 {
                     StringBuilder sb = new();
                     sb.AppendLine("Rotation:");
                     for (int i = 0; i < 3; i++)
                     {
-                        sb.AppendLine($"{stereoCalib.Rotation[i, 0],6:F3}  {stereoCalib.Rotation[i, 1],6:F3}  {stereoCalib.Rotation[i, 2],6:F3}");
+                        sb.AppendLine($"{stereoCalibration.Rotation[i, 0],6:F3}  {stereoCalibration.Rotation[i, 1],6:F3}  {stereoCalibration.Rotation[i, 2],6:F3}");
                     }
 
                     sb.AppendLine($"Translation:");
@@ -2564,32 +2566,36 @@ namespace Surveyor
                         if (i > 0)
                             sb.Append("  ");
 
-                        sb.Append($"{stereoCalib.Translation[i, 0],6:F3}");
+                        sb.Append($"{stereoCalibration.Translation[i, 0],6:F3}");
                     }
                     sb.AppendLine();
 
 
                     // RPE RMS
                     string rpeQuanlity = string.Empty;
-                    if (stereoCalib.RMS <= 0.2)
+                    if (stereoCalibration.RMS <= 0.5)
                         rpeQuanlity = "(excellent)";
-                    else if (stereoCalib.RMS <= 0.5)
+                    else if (stereoCalibration.RMS <= 1.0)
                         rpeQuanlity = "(very good)";
-                    else if (stereoCalib.RMS <= 1.0)
+                    else if (stereoCalibration.RMS <= 1.8)
                         rpeQuanlity = "(acceptable)";
-                    else if (stereoCalib.RMS <= 1.5)
+                    else if (stereoCalibration.RMS <= 2.5)
                         rpeQuanlity = "(poor)";
-                    else if (stereoCalib.RMS <= 2.0)
+                    else if (stereoCalibration.RMS <= 3.5)
                         rpeQuanlity = "(very poor)";
                     else
                         rpeQuanlity = "(terrible)";
-                    // < 0.2    Excellent(usually only in studio/lab with perfect lighting and corner visibility)
-                    // 0.2–0.5  Very good; suitable for accurate 3D reconstructions and pose estimates
-                    // 0.5–1.0  Acceptable for many real-world use cases, especially underwater, drone, etc.
-                    // > 1.0    Often indicates blur, motion, poor corner detection, or bad coverage
-                    string rmsText = stereoCalib.RMS > 999
-                                        ? stereoCalib.RMS.ToString("0.###E+0")    // exponent format for very large values
-                                        : stereoCalib.RMS.ToString("F2");         // normal fixed-point for typical values
+                    // Stereo re-projection RMS (px)
+                    // Stereo RMS includes inter-camera geometry and is naturally higher than mono RMS.
+                    //<= 0.5   excellent
+                    //<= 1.0   very good
+                    //<= 1.8   acceptable
+                    //<= 2.5   poor
+                    //<= 3.5   very poor
+                    //> 3.5   terrible
+                    string rmsText = stereoCalibration.RMS > 999
+                                        ? stereoCalibration.RMS.ToString("0.###E+0")    // exponent format for very large values
+                                        : stereoCalibration.RMS.ToString("F2");         // normal fixed-point for typical values
                     sb.AppendLine($"RPE: {rmsText}px {rpeQuanlity}");
                     //Debug.WriteLine($"Projection RMS (point):    {monoCalib.ProjectionRMS:F4} px");
                     //Debug.WriteLine($"Max Re-projection Error:    {monoCalib.MaxError:F4} px");

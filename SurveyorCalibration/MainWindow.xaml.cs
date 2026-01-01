@@ -535,31 +535,58 @@ namespace Surveyor
                 // Build the frame sets by finding calibration targets in all frames
                 if (ret == 0 && runCalibrationParams.BuildTheFrameSets)
                 {
+                    SetAppModeOnAllHeads(AppMode.FindCalibrationsFrames);
+
                     ret = await BuildFrameSetsAllHeadsAsync();
                 }
 
                 // Identify the best mono frames from the frame sets 
                 if (ret == 0 && runCalibrationParams.FindBestMonoFrames)
                 {
+                    SetAppModeOnAllHeads(AppMode.BestFramesCalc);
+
                     ret = await FindBestMonoFramesAllHeadsAsync(runCalibrationParams);
                 }
 
                 // Do the calibration mono calculations
                 if (ret == 0 && runCalibrationParams.DoCalibrationMonoCalculations)
                 {
+                    SetAppModeOnAllHeads(AppMode.BestFramesCalc);
+
                     ret = await DoCalibrationMonoCalcsAllHeadsAsync(runCalibrationParams);
+
+                    if (ret == 0)
+                    {
+                        if (calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoPairOnlyMediaSet ||
+                            calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoSingleOnlyMediaSet)
+                        {
+                            // Mono calibration only so swap to best frames view 
+                            SetAppModeOnAllHeads(AppMode.BestFramesView);
+                        }
+                    }
+                    else
+                        SetAppModeOnAllHeads(AppMode.Open); // Problem
                 }
 
                 // Identify the best stereo frames from the frame sets 
                 if (ret == 0 && runCalibrationParams.FindBestStereoFrames)
                 {
+                    SetAppModeOnAllHeads(AppMode.BestFramesCalc);
+
                     ret = await FindBestStereoFramesAsync(runCalibrationParams);
                 }
 
                 // Do the calibration calculations
                 if (ret == 0 && runCalibrationParams.DoCalibrationStereoCalculations)
                 {
+                    SetAppModeOnAllHeads(AppMode.BestFramesCalc);
+
                     ret = await DoCalibrationStereoCalcsAsync(runCalibrationParams);
+
+                    if (ret == 0)
+                        SetAppModeOnAllHeads(AppMode.BestFramesView);
+                    else
+                        SetAppModeOnAllHeads(AppMode.Open); // Problem
                 }
 
                 // Save the best frames images to disk if requested
@@ -591,6 +618,12 @@ namespace Surveyor
                 {
                     // If the calibration didn't work
                     SetViewModeOnAllHeads(ViewMode.AllFrames);
+                }
+
+                // Save project if necessary
+                if (calibProject.IsDirty)
+                {
+                    calibProject.ProjectSave();
                 }
             }
 
@@ -733,6 +766,10 @@ namespace Surveyor
 
                 CalibrationMediaUserControl.SaveForContentDialog(calibProject);
 
+                // Setup display for selected StereoMonoMediaSetMode
+                SetupMainWindowForStereoMonoMediaSetMode(calibProject.Data.Media.StereoMonoMediaSetMode);
+
+               
                 // Save the calibration project file
                 if (await SaveAsProjectAsync() == 0)
                 {
@@ -806,6 +843,10 @@ namespace Surveyor
 
                     if (ret == 0)
                     {
+                        // Setup display for selected StereoMonoMediaSetMode
+                        if (calibProject is not null)
+                            SetupMainWindowForStereoMonoMediaSetMode(calibProject.Data.Media.StereoMonoMediaSetMode);
+
                         // Add to Recent Projects list
                         AddToRecentProjects(file.Path);
                         UpdateRecentProjectsMenu();
@@ -886,6 +927,10 @@ namespace Surveyor
 
                         if (ret == 0)
                         {
+                            // Setup display for selected StereoMonoMediaSetMode
+                            if (calibProject is not null)
+                                SetupMainWindowForStereoMonoMediaSetMode(calibProject.Data.Media.StereoMonoMediaSetMode);
+
                             // Force to the top of the recent projects list
                             // Note this project is definitely in the recent project list
                             // but may be the top item. As the new last opened project it
@@ -2207,9 +2252,24 @@ namespace Surveyor
                     }
 
                     // Display calibration result
-                    StereoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, null);
-                    LeftMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, true/*trueLeftFalseRightNullStereo*/);
-                    RightMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, false/*trueLeftFalseRightNullStereo*/);
+                    switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+                    {
+                        case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                            StereoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, null);
+                            LeftMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, true/*trueLeftFalseRightNullStereo*/);
+                            RightMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, false/*trueLeftFalseRightNullStereo*/);
+                            break;
+                        case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                            StereoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, null);
+                            break;
+                        case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                            LeftMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, true/*trueLeftFalseRightNullStereo*/);
+                            RightMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, false/*trueLeftFalseRightNullStereo*/);
+                            break;
+                        case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                            LeftMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, true/*trueLeftFalseRightNullStereo*/);
+                            break;
+                    }
 
                     // Check if error loading
                     if (loaded)
@@ -2520,8 +2580,7 @@ namespace Surveyor
             try
             {
                 var tasks = new List<Task>();
-                InfoBarProcessing.ShowProcessing("Finding calibration frames...");
-                SetAppModeOnAllHeads(AppMode.FindCalibrationsFrames);
+                InfoBarProcessing.ShowProcessing("Finding calibration frames...");              
 
                 bool doLeftMono = false;
                 bool doRightMono = false;
@@ -2674,10 +2733,7 @@ namespace Surveyor
                 return -1;
 
             InfoBarProcessing.ShowProcessing("Finding best mono frames...");
-            SetAppModeOnAllHeads(AppMode.BestFramesCalc);
-
-            SetUIControls();
-
+           
             bool doLeftMono = false;
             bool doRightMono = false;
 
@@ -2780,11 +2836,9 @@ namespace Surveyor
                     ret = -2;
                 }
 
-
                 // Save the frames dataset
                 InfoBarProcessing.UpdateMessage("Saving after stereo phase...");
                 await SaveFrameDataCachesAsync(false/*no prompts*/);
-
             }
 
             InfoBarProcessing.HideProcessing();
@@ -2808,10 +2862,7 @@ namespace Surveyor
                 return -1;
 
             InfoBarProcessing.ShowProcessing("Do mono calibration calculations...");
-            SetAppModeOnAllHeads(AppMode.BestFramesCalc);
-
-            SetUIControls();
-
+                      
             bool doLeftMono = false;
             bool doRightMono = false;
 
@@ -2946,8 +2997,7 @@ namespace Surveyor
                 return -1;
 
             InfoBarProcessing.ShowProcessing("Finding best stereo frames...");
-            SetAppModeOnAllHeads(AppMode.BestFramesCalc);
-
+           
             SetUIControls();
 
 
@@ -3009,8 +3059,7 @@ namespace Surveyor
             if (calibProject is null)
                 return -1;
 
-            InfoBarProcessing.ShowProcessing("Finding best stereo frames...");
-            SetAppModeOnAllHeads(AppMode.BestFramesCalc);
+            InfoBarProcessing.ShowProcessing("Finding best stereo frames...");            
 
             SetUIControls();
 
@@ -3047,8 +3096,6 @@ namespace Surveyor
                 // Save the frames dataset
                 InfoBarProcessing.UpdateMessage("Saving...");
                 await SaveFrameDataCachesAsync(false/*no prompts*/);
-
-                SetAppModeOnAllHeads(AppMode.BestFramesView);
             }
 
             InfoBarProcessing.HideProcessing();
@@ -4673,6 +4720,8 @@ namespace Surveyor
             StereoCalibrationHead.SetAppMode(appMode);
             LeftMonoCalibrationHead.SetAppMode(appMode);
             RightMonoCalibrationHead.SetAppMode(appMode);
+
+            SetUIControls();
         }
 
 
@@ -4770,6 +4819,136 @@ namespace Surveyor
             }
 
             return ret;
+        }
+
+
+        /// <summary>
+        /// Configures the main window layout and visibility of calibration controls based on the specified stereo or
+        /// mono media set mode.
+        /// It shows only the calibration heads required for the given StereoMonoMediaSetMode
+        /// </summary>
+        /// <remarks>This method updates the visibility and arrangement of UI elements to match the
+        /// requirements of the selected media set mode. It should be called whenever the media set mode changes to
+        /// ensure the main window reflects the current calibration scenario.</remarks>
+        /// <param name="stereoMonoMediaSetMode">The media set mode that determines which calibration controls and layout elements are displayed. Must be a
+        /// valid value of the StereoMonoMediaSetMode enumeration.</param>
+        private void SetupMainWindowForStereoMonoMediaSetMode(StereoMonoMediaSetMode stereoMonoMediaSetMode)
+        {
+            bool showStereoCalibrationHead = false;
+            bool showMonoStereoSplitter = false;
+            bool showMonoCalibrationHeads = false;
+            bool showLeftRightSplitter = false;
+            bool showRightMonoCalibrationHead = false;
+
+            switch (stereoMonoMediaSetMode)
+            {
+                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                    LeftMonoCalibrationHead.HeadTitle = "Left Mono Calibration Video";
+
+                    // Show the both mono heads and the stereo head and their splitters
+                    showStereoCalibrationHead = true;
+                    showMonoStereoSplitter = true;
+                    showMonoCalibrationHeads = true;
+                    showLeftRightSplitter = true;
+                    showRightMonoCalibrationHead = true;
+                    break;
+
+                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                    // Show the stereo head only
+                    showStereoCalibrationHead = true;
+                    showMonoStereoSplitter = false;
+                    showMonoCalibrationHeads = false;                    
+                    break;
+
+                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                    LeftMonoCalibrationHead.HeadTitle = "Left Mono Calibration Video";
+
+                    // Show the both mono heads only
+                    showStereoCalibrationHead = false;
+                    showMonoStereoSplitter = false;
+                    showMonoCalibrationHeads = true;
+                    showLeftRightSplitter = true;
+                    showRightMonoCalibrationHead = true;
+                    break;
+                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                    LeftMonoCalibrationHead.HeadTitle = "Mono Calibration Video";
+
+                    // Show the only the left mono head
+                    showStereoCalibrationHead = false;
+                    showMonoStereoSplitter = false;
+                    showMonoCalibrationHeads = true;
+                    showLeftRightSplitter = false;
+                    showRightMonoCalibrationHead = false;
+                    break;
+            }
+
+ 
+            // Stereo Calibration Head
+            if (showStereoCalibrationHead)
+            {
+                // Show the stereo calibration head
+                StereoCalibrationHead.Visibility = Visibility.Visible;
+                StereoHeadRow.Height = new GridLength(42, GridUnitType.Star);
+            }
+            else
+            {
+                // Hide the stereo calibration head
+                StereoCalibrationHead.Visibility = Visibility.Collapsed;
+                StereoHeadRow.Height = new GridLength(0);
+            }
+
+            // Splitter between mono and stereo heads
+            if (showMonoStereoSplitter)
+            {
+                // Show the stereo/mono splitter
+                MonoStereoSplitter.Visibility = Visibility.Visible;
+                MonoStereoSplitterRow.Height = new GridLength(8);
+            }
+            else
+            {
+                // Show the stereo/mono splitter
+                MonoStereoSplitter.Visibility = Visibility.Collapsed;
+                MonoStereoSplitterRow.Height = new GridLength(0);
+            }
+
+            // Mono Calibration Heads (the grid that holds them)
+            if (showMonoCalibrationHeads)
+            {
+                // Show both mono heads and the splitter below
+                MonoCalibrationHeads.Visibility = Visibility.Visible;
+                MonoHeadRow.Height = new GridLength(42, GridUnitType.Star);
+            }
+            else
+            {
+                // Hide both mono heads and the splitter below
+                MonoCalibrationHeads.Visibility = Visibility.Collapsed;
+                MonoHeadRow.Height = new GridLength(0);
+            }
+
+            // Splitter between the mono calibration heads
+            if (showLeftRightSplitter)
+            {
+                LeftRightMonoSplitter.Visibility = Visibility.Visible;
+                LeftRightMonoSplitterColumn.Width = new GridLength(8);
+            }
+            else
+            {
+                LeftRightMonoSplitter.Visibility = Visibility.Collapsed;
+                LeftRightMonoSplitterColumn.Width = new GridLength(0);
+            }
+
+            if (showRightMonoCalibrationHead)
+            {
+                // Ensure the right mono head and the left/right splitter was visible
+                RightMonoCalibrationHead.Visibility = Visibility.Visible;
+                RightMonoHeadColumn.Width = new GridLength(1, GridUnitType.Star);
+            }
+            else 
+            {
+                // Hide the right mono head and the left/right splitter was visible
+                RightMonoCalibrationHead.Visibility = Visibility.Collapsed;
+                RightMonoHeadColumn.Width = new GridLength(0);
+            }
         }
 
 

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace GoProMP4MetadataExtraction
+namespace ActionCameraMP4MetadataExtraction
 {
 	/// <summary>
 	/// The size values of an item read from GPMF data.

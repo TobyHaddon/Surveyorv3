@@ -6,7 +6,7 @@
 using System;
 using System.Diagnostics;
 
-namespace GoProMP4MetadataExtraction
+namespace ActionCameraMP4MetadataExtraction
 {
     /// <summary>
     /// An item read from GPMF data.
