@@ -67,9 +67,14 @@ namespace Surveyor.Controls
                 return;
 
             double widthMovementCanvas = MovementCanvas.ActualWidth;
-            double heightMovementCanvas = MovementCanvas.ActualHeight;
+            double heightMovementCanvas = MovementCanvas.ActualHeight - 10;  // To add a margin so the line is never above the border
             double widthBlurCanvas = BlurCanvas.ActualWidth;
-            double heightBlurCanvas = BlurCanvas.ActualHeight;
+            double heightBlurCanvas = BlurCanvas.ActualHeight - 10;          // To add a margin so the line is never above the border
+
+            // Skip until measured
+            if (heightMovementCanvas <= 0 || widthMovementCanvas <= 0 ||
+                heightBlurCanvas <= 0 || widthBlurCanvas <= 0)
+                return;
 
             MovementCanvas.Children.Clear();
             BlurCanvas.Children.Clear();
@@ -86,8 +91,10 @@ namespace Surveyor.Controls
                 double xStep = widthMovementCanvas / (double)((int)Math.Ceiling((double)frames.Count / 100.0) * 100);
 
                 double maxMovement = Math.Clamp(Data.calibrationStereoFrameSet.MaxMovementFactor, 0.0, CalibrationStereoFrameSet.MOVEMENT_LARGE_VALUE);
-                double maxBlur = Data.calibrationStereoFrameSet.MaxBlurFactor * 1.1;
+                if (maxMovement <= 0) maxMovement = 1.0; // prevent divide-by-zero
 
+                double maxBlur = Data.calibrationStereoFrameSet.MaxBlurFactor * 1.1;
+                if (maxBlur <= 0) maxBlur = 1.0;
 
                 double x;
                 int i = 0;
@@ -101,11 +108,9 @@ namespace Surveyor.Controls
                     {                        
                         if (frame is not null && frame.MovementFactor != -1)
                         {
-                            double movementFactor = frame.MovementFactor;
-                            movementFactor = Math.Clamp(movementFactor, 0.0, CalibrationStereoFrameSet.MOVEMENT_LARGE_VALUE);
-
+                            double movementFactor = Math.Clamp(frame.MovementFactor, 0.0, CalibrationStereoFrameSet.MOVEMENT_LARGE_VALUE);
                             double yMovement = heightMovementCanvas * (1 - movementFactor / maxMovement);
-
+                            yMovement = Math.Clamp(yMovement, 0.0, heightMovementCanvas);
                             movementPoints.Add(new Point(x, yMovement));
                         }
                     }
@@ -120,6 +125,7 @@ namespace Surveyor.Controls
                         if (frame is not null)
                         {
                             double yBlur = heightBlurCanvas * (1 - frame.BlurFactor / maxBlur);
+                            yBlur = Math.Clamp(yBlur, 0.0, heightBlurCanvas);
                             blurPoints.Add(new Point(x, yBlur));
                         }
                     }

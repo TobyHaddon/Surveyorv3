@@ -175,6 +175,7 @@
                 Spacing="10" Margin="0,3,0,0">
                 <!-- Go to start of the calibration board zone or start of the video, E622 -->
                 <Button x:Name="LeftGotoStartButton" Height="30" Padding="16,4"
+                        Click="LeftGotoStartButton_Click"
                         PointerPressed="LeftGotoStartButton_PointerPressed"
                         ToolTipService.ToolTip="Go to the start of the where the calibration board as been detected. Right click to go to start of the media. If no calibration board has been detected go to the start of the media">
                     <FontIcon Glyph="&#xE622;"/>
@@ -199,6 +200,7 @@
                 </Button>
                 <!-- Go to end of the calibration board zone or end of the video, E623 -->
                 <Button x:Name="LeftGotoEndButton" Height="30" Padding="16,4" 
+                        Click="LeftGotoEndButton_Click"
                         PointerPressed="LeftGotoEndButton_PointerPressed"
                         ToolTipService.ToolTip="Go to the end of the where the calibration board as been detected. Right click to go to end of the media. If no calibration board has been detected go to the end of the media">
                     <FontIcon Glyph="&#xE623;"/>
@@ -357,6 +359,7 @@
                 <!-- Go to start of the calibration board zone or start of the video, E622 -->
                 <!--ToolTipService.ToolTip="Go to the start of the where the calibration board as been detected. Double click to go to start of the media. If no calibration board has been detected go to the start of the media"-->
                 <Button x:Name="RightGotoStartButton" Height="30" Padding="16,4" 
+                        Click="RightGotoStartButton_Click"
                         PointerPressed="RightGotoStartButton_PointerPressed"
                         ToolTipService.ToolTip="Go to the start of the where the calibration board as been detected. Right click to go to start of the media. If no calibration board has been detected go to the start of the media">
                     <FontIcon Glyph="&#xE622;"/>
@@ -382,6 +385,7 @@
                 <!-- Go to end of the calibration board zone or end of the video, E623 -->
                 <!--ToolTipService.ToolTip="Go to the end of the where the calibration board as been detected. Double click to go to end of the media. If no calibration board has been detected go to the end of the media">-->
                 <Button x:Name="RightGotoEndButton" Height="30" Padding="16,4" 
+                        Click="RightGotoEndButton_Click"
                         PointerPressed="RightGotoEndButton_PointerPressed"
                         ToolTipService.ToolTip="Go to the end of the where the calibration board as been detected. Right click to go to end of the media. If no calibration board has been detected go to the end of the media">
                     <FontIcon Glyph="&#xE623;"/>

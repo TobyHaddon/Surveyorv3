@@ -538,11 +538,8 @@ namespace Surveyor.Controls
             DecorateClear(true/*trueLeftfalseRight*/);
             DecorateClear(false/*trueLeftfalseRight*/);
 
-            // Reset calibration output display 
-            LeftCalibDataText.Text = string.Empty;
-            LeftCalibDataBorder.Visibility = Visibility.Collapsed;
-            RightCalibDataText.Text = string.Empty;
-            RightCalibDataBorder.Visibility = Visibility.Collapsed;
+            // Reset calibration output display
+            ClearCalibrationResultsDisplay();
 
             // Clear internals
             Clear();
@@ -734,6 +731,18 @@ namespace Surveyor.Controls
                 }
             }
             return -1;
+        }
+
+
+        /// <summary>
+        /// Clear calibration results from the UI
+        /// </summary>
+        public void ClearCalibrationResultsDisplay()
+        {
+            LeftCalibDataText.Text = string.Empty;
+            LeftCalibDataBorder.Visibility = Visibility.Collapsed;
+            RightCalibDataText.Text = string.Empty;
+            RightCalibDataBorder.Visibility = Visibility.Collapsed;
         }
 
 
@@ -1397,7 +1406,7 @@ namespace Surveyor.Controls
         /// <param name="_leftMediaFileSpec"></param>
         /// <param name="_rightMediaFileSpec"></param>
         /// <returns>null is error or the number of frames loaded</returns>
-        public int LoadCachedResults(string cacheFileSpec)
+        public async Task<int> LoadCachedResultsAsync(string cacheFileSpec)
         {
             int ret = 0;
             string messageText;
@@ -1408,7 +1417,7 @@ namespace Surveyor.Controls
             if (File.Exists(cacheFileSpec))
             {
                 // Load the calibration frame set                
-                if (calibrationStereoFrameSet.LoadFromFile(cacheFileSpec))
+                if (await calibrationStereoFrameSet.LoadFromFileAsync(cacheFileSpec))
                 {
                     CalibrationFrameSetViewerData dataLeft = new(true/*trueLeftFalseRight*/, calibrationStereoFrameSet);
                     CalibrationFrameSetViewerLeft.Data = dataLeft;
@@ -1560,8 +1569,21 @@ namespace Surveyor.Controls
 
 
         /// <summary>
-        /// Detect left click (go to start of calibration board zone, 
-        /// is possible) or right click (go to start of media)
+        /// Detect left click go to start of left calibration zone
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void LeftGotoStartButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Jump to start of left calibration zone
+            JumpToStartOrEnd(true/*trueLeftFalseRight*/,
+                             true/*trueStartFalseEnd*/,
+                             false/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
+        }
+
+
+        /// <summary>
+        /// Detect right click go to start of left media
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -1574,34 +1596,34 @@ namespace Surveyor.Controls
             var element = (UIElement)sender;
             var pt = e.GetCurrentPoint(element);
 
-            switch (ViewModeCurrent)
+            if (pt.Properties.IsRightButtonPressed)
             {
-                case ViewMode.AllFrames:
-                    if (pt.Properties.IsLeftButtonPressed)
-                    {
-                        int frameIndex = calibrationStereoFrameSet.GetStartCalibrationBoardZone();
-                        if (frameIndex != -1)
-                            FrameJump(true/*left*/, frameIndex);
-                        else
-                            FrameJump(true/*left*/, 0);
-                    }
-                    else if (pt.Properties.IsRightButtonPressed)
-                    {
-                        FrameJump(true/*left*/, 0);
-                    }
-                    break;
+                // Jump to start of left media
+                JumpToStartOrEnd(true/*trueLeftFalseRight*/,
+                                 true/*trueStartFalseEnd*/,
+                                 true/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
 
-                case ViewMode.BestFrames:
-                    BestFrameJump(0);
-                    break;
             }
             e.Handled = true;
         }
 
 
         /// <summary>
-        /// Detect left click (go to end of calibration board zone, 
-        /// is possible) or right click (go to end of media)
+        /// Detect left click go to end of left calibration zone
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void LeftGotoEndButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Jump to start of right calibration zone
+            JumpToStartOrEnd(true/*trueLeftFalseRight*/,
+                             false/*trueStartFalseEnd*/,
+                             false/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
+        }
+
+      
+        /// <summary>
+        /// Detect right click go to end of left media
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -1614,32 +1636,105 @@ namespace Surveyor.Controls
             var element = (UIElement)sender;
             var pt = e.GetCurrentPoint(element);
 
+            // Note this only works for right click you have to used the regular 'Click' handler
+            // for the left click
+            if (pt.Properties.IsRightButtonPressed)
+            {
+                // Jump to end of left media
+                JumpToStartOrEnd(true/*trueLeftFalseRight*/, 
+                                 false/*trueStartFalseEnd*/, 
+                                 true/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
+            }
+            e.Handled = true;
+        }
+
+
+        /// <summary>
+        /// Used to jump to the start or end of the media or start or end of the calibration zone
+        /// </summary>
+        /// <param name="trueLeftFalseRight"></param>
+        /// <param name="trueStartFalseEnd"></param>
+        /// <param name="trueMediaStartEndFalseCalibrationZoneStartEnd"></param>
+        private void JumpToStartOrEnd(bool trueLeftFalseRight, bool trueStartFalseEnd, bool trueMediaStartEndFalseCalibrationZoneStartEnd)
+        {
+            int frameIndex = -1;
+            string side = trueLeftFalseRight ? "left" : "right";
+            string lockState = isLocked == true ? "(locked)" : "";
+
             switch (ViewModeCurrent)
             {
                 case ViewMode.AllFrames:
-                    if (pt.Properties.IsLeftButtonPressed)
+                    if (trueStartFalseEnd)
                     {
-                        int frameIndex = calibrationStereoFrameSet.GetStopCalibrationBoardZone();
-                        if (frameIndex != -1)
-                            FrameJump(true/*left*/, frameIndex);
-                        else
+                        if (!trueMediaStartEndFalseCalibrationZoneStartEnd)
                         {
-                            Debug.WriteLine($"LeftGotoEndSingle: go to left AllFrames frame:{_totalFramesLeft - 1}");
-                            FrameJump(true/*left*/, _totalFramesLeft - 1);
+                            // Try to go to all frames calibration zone start
+                            frameIndex = calibrationStereoFrameSet.GetStartCalibrationBoardZone();
+                            if (frameIndex != -1)
+                                Debug.WriteLine($"JumpToStartOrEnd: Go to calibration zone start {side} AllFrames frame:{frameIndex}");
+                        }
+
+                        // Catch all go to all frames media start
+                        if (frameIndex == -1)
+                        {
+                            frameIndex = 0;
+                            Debug.WriteLine($"JumpToStartOrEnd: Go to media start {side} AllFrames frame:{frameIndex}");
                         }
                     }
-                    else if (pt.Properties.IsRightButtonPressed)
+                    else
                     {
-                        Debug.WriteLine($"LeftGotoEndSingle: go to left AllFrames frame:{_totalFramesLeft - 1}");
-                        FrameJump(true/*left*/, _totalFramesLeft - 1);
+                        if (!trueMediaStartEndFalseCalibrationZoneStartEnd)
+                        {
+                            // Try to go to all frames calibration zone end
+                            frameIndex = calibrationStereoFrameSet.GetStopCalibrationBoardZone();
+                            if (frameIndex != -1)
+                                Debug.WriteLine($"JumpToStartOrEnd: Go to calibration zone end {side} AllFrames frame:{frameIndex}");
+                        }
+
+                        // Catch all go to all frames media end
+                        if (frameIndex == -1)
+                        {
+                            if (isLocked)
+                            {
+                                frameIndex = calibrationStereoFrameSet.GetNaturalDuration() - 1;
+                            }
+                            else if (trueLeftFalseRight == true)
+                            {
+                                frameIndex = _totalFramesLeft - 1;
+                            }
+                            else if (trueLeftFalseRight == false)
+                            {
+                                frameIndex = _totalFramesRight - 1;
+                            }
+
+                            Debug.WriteLine($"JumpToStartOrEnd: Go to media end {side} {lockState} AllFrames frame:{frameIndex}");
+                        }
                     }
+
+                    // Actual jump
+                    if (frameIndex != -1)
+                        FrameJump(trueLeftFalseRight, frameIndex);
                     break;
+
                 case ViewMode.BestFrames:
-                    Debug.WriteLine($"LeftGotoEndSingle: go to left BestFrames frame:{calibrationStereoFrameSet.Data.BestFrameIndexes.Count - 1}");
-                    BestFrameJump(calibrationStereoFrameSet.Data.BestFrameIndexes.Count - 1);                   
+                    if (trueStartFalseEnd)
+                    {
+                        // Note a best frame is always inside the calibration zone
+                        frameIndex = 0;
+                        Debug.WriteLine($"JumpToStartOrEnd: Go to media start {side} BestFrames frame:{frameIndex}");
+                    }
+                    else
+                    {
+                        // Note a best frame is always inside the calibration zone
+                        frameIndex = calibrationStereoFrameSet.Data.BestFrameIndexes.Count - 1;
+                        Debug.WriteLine($"JumpToStartOrEnd: Go to media end {side} BestFrames frame:{frameIndex}");
+                    }
+
+                    // Actual jump
+                    if (frameIndex != -1)
+                        BestFrameJump(frameIndex);
                     break;
             }
-            e.Handled = true;
         }
 
 
@@ -1699,8 +1794,21 @@ namespace Surveyor.Controls
 
 
         /// <summary>
-        /// Detect left click (go to start of calibration board zone, 
-        /// is possible) or right click (go to start of media)
+        /// Detect left click go to start of right calibration zone
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void RightGotoStartButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Jump to start of right calibration zone
+            JumpToStartOrEnd(false/*trueLeftFalseRight*/,
+                             true/*trueStartFalseEnd*/,
+                             false/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
+        }
+
+
+        /// <summary>
+        /// Detect right click go to start of right media
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -1713,34 +1821,33 @@ namespace Surveyor.Controls
             var element = (UIElement)sender;
             var pt = e.GetCurrentPoint(element);
 
-            switch (ViewModeCurrent)
+            if (pt.Properties.IsRightButtonPressed)
             {
-                case ViewMode.AllFrames:
-                    if (pt.Properties.IsLeftButtonPressed)
-                    {
-                        int frameIndex = calibrationStereoFrameSet.GetStartCalibrationBoardZone();
-                        if (frameIndex != -1)
-                            FrameJump(false/*right*/, frameIndex);
-                        else
-                            FrameJump(false/*right*/, 0);
-                    }
-                    else if (pt.Properties.IsRightButtonPressed)
-                    {
-                        FrameJump(false/*right*/, 0);
-                    }
-                    break;
-
-                case ViewMode.BestFrames:
-                    BestFrameJump(0);
-                    break;
+                // Jump to start of right media
+                JumpToStartOrEnd(false/*trueLeftFalseRight*/,
+                                 true/*trueStartFalseEnd*/,
+                                 true/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
             }
             e.Handled = true;
         }
 
 
         /// <summary>
-        /// Detect left click (go to end of calibration board zone, 
-        /// is possible) or right click (go to end of media)
+        /// Detect left click go to end of right calibration zone
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void RightGotoEndButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Jump to start of right calibration zone
+            JumpToStartOrEnd(false/*trueLeftFalseRight*/,
+                             false/*trueStartFalseEnd*/,
+                             false/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
+        }
+
+
+        /// <summary>
+        /// Detect right click go to end of right media
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -1753,31 +1860,14 @@ namespace Surveyor.Controls
             var element = (UIElement)sender;
             var pt = e.GetCurrentPoint(element);
 
-            switch (ViewModeCurrent)
+            if (pt.Properties.IsRightButtonPressed)
             {
-                case ViewMode.AllFrames:
-                    if (pt.Properties.IsLeftButtonPressed)
-                    {
-                        int frameIndex = calibrationStereoFrameSet.GetStopCalibrationBoardZone();
-                        if (frameIndex != -1)
-                            FrameJump(false/*right*/, frameIndex);
-                        else
-                        {
-                            Debug.WriteLine($"RightGotoEndSingle: go to right AllFrames frame:{_totalFramesRight - 1}");
-                            FrameJump(false/*right*/, _totalFramesRight - 1);
-                        }
-                    }
-                    else if (pt.Properties.IsRightButtonPressed)
-                    {
-                        Debug.WriteLine($"RightGotoEndSingle: go to right AllFrames frame:{_totalFramesRight - 1}");
-                        FrameJump(false/*right*/, _totalFramesRight - 1);
-                    }
-                    break;
-                case ViewMode.BestFrames:
-                    Debug.WriteLine($"RightGotoEndSingle: go to right BestFrames frame:{calibrationStereoFrameSet.Data.BestFrameIndexes.Count - 1}");
-                    BestFrameJump(calibrationStereoFrameSet.Data.BestFrameIndexes.Count - 1);
-                    break;
+                // Jump to end of left media
+                JumpToStartOrEnd(false/*trueLeftFalseRight*/,
+                                 false/*trueStartFalseEnd*/,
+                                 true/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
             }
+
             e.Handled = true;
         }
 
@@ -2062,6 +2152,10 @@ namespace Surveyor.Controls
                                             leftFrameCalibrationTarget.PitchDeg,
                                             correspondingCount);
                     }
+                    else
+                    {
+                        ClearFrameMetaData(true/*trueLeftfalseRight*/);
+                    }
 
                     if (rightFrameCalibrationTarget is not null)
                     {
@@ -2076,6 +2170,10 @@ namespace Surveyor.Controls
                                             rightFrameCalibrationTarget.PitchDeg,
                                             correspondingCount);
 
+                    }
+                    else
+                    {
+                        ClearFrameMetaData(false/*trueLeftfalseRight*/);
                     }
                 }
                 catch (Exception ex)
@@ -2425,8 +2523,8 @@ namespace Surveyor.Controls
         /// <param name="framesetIndex"></param>
         private void FrameJump(bool leftTrueRightFalse, int? framesetIndexRequest)
         {
-            int framesetIndex = 0;
-            int leftIndex = -1;
+            int framesetIndex;
+            int? leftIndex = null;
             int? rightIndex = null;
 
             FrameData? targetLeft = null;
@@ -2453,10 +2551,15 @@ namespace Surveyor.Controls
                     (leftIndex, rightIndex) = calibrationStereoFrameSet.GetIndexes(framesetIndex);
                 }
 
-                _JumpFrame(true/*leftTrueRightFalse*/, leftIndex, targetLeft, correpondingCount);
+                // Check next index is valid
+                leftIndex = GetNextIndex(true/*leftTrueRightFalse*/, null/*relative*/, leftIndex/*absolute*/);
+                rightIndex = GetNextIndex(false/*leftTrueRightFalse*/, null/*relative*/, rightIndex/*absolute*/);
 
-                if (rightIndex is not null) // rightIndex won't be null but keep compiler happy
+                if (leftIndex is not null && rightIndex is not null)
+                {
+                    _JumpFrame(true/*leftTrueRightFalse*/, (int)leftIndex, targetLeft, correpondingCount);
                     _JumpFrame(false/*leftTrueRightFalse*/, (int)rightIndex, targetRight, correpondingCount);
+                }
             }
             else if (leftTrueRightFalse && capLeft != null && wbLeft != null)
             {
@@ -2475,7 +2578,11 @@ namespace Surveyor.Controls
                     (leftIndex, _) = calibrationStereoFrameSet.GetIndexes(framesetIndex);
                 }
 
-                _JumpFrame(true/*leftTrueRightFalse*/, leftIndex, targetLeft, correpondingCount);
+                // Check next index is valid
+                leftIndex = GetNextIndex(true/*leftTrueRightFalse*/, null/*relative*/, leftIndex/*absolute*/);
+
+                if (leftIndex is not null)
+                    _JumpFrame(true/*leftTrueRightFalse*/, (int)leftIndex, targetLeft, correpondingCount);
             }
             else if (!leftTrueRightFalse && capRight != null && wbRight != null)
             {
@@ -2494,6 +2601,9 @@ namespace Surveyor.Controls
                 {
                     (_, rightIndex) = calibrationStereoFrameSet.GetIndexes(framesetIndex);
                 }
+
+                // Check next index is valid
+                rightIndex = GetNextIndex(false/*leftTrueRightFalse*/, null/*relative*/, rightIndex/*absolute*/);
 
                 if (rightIndex is not null)
                     _JumpFrame(false/*leftTrueRightFalse*/, (int)rightIndex, targetRight, correpondingCount);
@@ -2778,17 +2888,17 @@ namespace Surveyor.Controls
 
                 if (!mat.IsEmpty && wb is not null)
                 {
-                        // Apply the calibration board markup and draw to screen
-                        ProcessFrame(leftTrueRightFalse, targetIndex, mat, wb, frameData);
+                    // Apply the calibration board markup and draw to screen
+                    ProcessFrame(leftTrueRightFalse, targetIndex, mat, wb, frameData);
 
-                        // Remember the frame index
-                        if (leftTrueRightFalse)
-                            _currentFrameLeft = targetIndex;
-                        else
-                            _currentFrameRight = targetIndex;
+                    // Remember the frame index
+                    if (leftTrueRightFalse)
+                        _currentFrameLeft = targetIndex;
+                    else
+                        _currentFrameRight = targetIndex;
 
-                        // Update metadata, frame label etc
-                        DecorateWithFrameInfo(leftTrueRightFalse, frameData, correpondingCount);
+                    // Update metadata, frame label etc
+                    DecorateWithFrameInfo(leftTrueRightFalse, frameData, correpondingCount);
                 }
             }
 
@@ -2919,7 +3029,6 @@ namespace Surveyor.Controls
         /// <summary>
         /// Update the left or right frame label
         /// </summary>
-        
         private void UpdateFrameLabel(bool leftTrueRightFalse)
         {
             int targetIndex = -1;
@@ -2928,15 +3037,24 @@ namespace Surveyor.Controls
             switch (ViewModeCurrent)
             {
                 case ViewMode.AllFrames:
-                    if (leftTrueRightFalse)
+                    if (isLocked)
                     {
-                        targetIndex = _currentFrameLeft;
-                        totalFrames = _totalFramesLeft;
+                        targetIndex = calibrationStereoFrameSet.GetFrameSetIndexFromLeftIndexes(_currentFrameLeft);
+
+                        totalFrames = calibrationStereoFrameSet.GetNaturalDuration();
                     }
                     else
                     {
-                        targetIndex = _currentFrameRight;
-                        totalFrames = _totalFramesRight;
+                        if (leftTrueRightFalse)
+                        {
+                            targetIndex = _currentFrameLeft;
+                            totalFrames = _totalFramesLeft;
+                        }
+                        else
+                        {
+                            targetIndex = _currentFrameRight;
+                            totalFrames = _totalFramesRight;
+                        }
                     }
                     break;
                 case ViewMode.BestFrames:
@@ -2948,12 +3066,10 @@ namespace Surveyor.Controls
             if (leftTrueRightFalse)
             {
                 UpdateFrameAndTimeLabel(LeftFrameInfoLabel, LeftTimeInfoLabel, capLeft, targetIndex, totalFrames);
-                LeftGoToFrameTextBox.Text = string.Empty;   //??? $"{_currentFrameLeft}";
             }
             else
             {
                 UpdateFrameAndTimeLabel(RightFrameInfoLabel, RightTimeInfoLabel, capRight, targetIndex, totalFrames);
-                RightGoToFrameTextBox.Text = string.Empty; //??? $"{_currentFrameRight}";
             }
         }
         
@@ -3212,10 +3328,6 @@ namespace Surveyor.Controls
                     throw new Exception("Not implemented");
             }
 
-            // Clear frame UI display data
-            //???DecorateClear(true/*trueLeftfalseRight*/);
-            //???DecorateClear(false/*trueLeftfalseRight*/);
-
             // Update the totals in the sensor and pose bin displays
             CalibrationFrameSetViewerLeft.RefreshSensorBin(ViewModeCurrent);
             CalibrationFrameSetViewerLeft.RefreshPoseBin(ViewModeCurrent);
@@ -3366,6 +3478,9 @@ namespace Surveyor.Controls
             if (int.TryParse(frameEditText.Text, out int targetIndex) && targetIndex != currentFrame)
             {
                 FrameJump(leftTrueRightFalse, targetIndex);
+
+                // Always clear the Go To Frame TextBox after use
+                frameEditText.Text = string.Empty;   
             }
         }
     }

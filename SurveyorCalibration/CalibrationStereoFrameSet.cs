@@ -989,7 +989,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
-        public bool LoadFromFile(string path)
+        public async Task<bool> LoadFromFileAsync(string path)
         {
             bool ret = false;
 
@@ -997,7 +997,7 @@ namespace Surveyor
 
             try
             {
-                var json = File.ReadAllText(path);
+                var json = await File.ReadAllTextAsync(path);
                 if (json is not null)
                 {
                     try
