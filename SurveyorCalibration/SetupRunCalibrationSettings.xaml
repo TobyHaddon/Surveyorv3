@@ -52,7 +52,7 @@
             <Border x:Name="BorderBestFrame" Padding="8" BorderBrush="Gray" BorderThickness="1" CornerRadius="4">
                 <CheckBox x:Name="SaveBestFramesCheckBox"
                           IsChecked="{x:Bind navParams.runParams.SaveBestFrames, Mode=TwoWay}"
-                          Content="Save the best frames for later inspection or use"
+                          Content="Save the best frames for later inspection or use in a separate calibration process"
                           ToolTipService.ToolTip="Useful if you need to inspect the frames actually being inputting into the calibration calculation process. Or if you need to feed the best frames into a separate calibration process"/>
             </Border>
             

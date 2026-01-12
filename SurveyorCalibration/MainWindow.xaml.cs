@@ -2763,6 +2763,8 @@ namespace Surveyor
            
             bool doLeftMono = false;
             bool doRightMono = false;
+            bool doLeftMonoUsingLeftStereoAsTheMonoInput = false;
+            bool doRightMonoUsingRightStereoAsTheMonoInput = false;
 
             switch (calibProject.Data.Media.StereoMonoMediaSetMode)
             {
@@ -2781,8 +2783,8 @@ namespace Surveyor
                     if (StereoCalibrationHead.IsOpen() &&
                         (bool)StereoCalibrationHead.IsStereoLocked()!)
                     {
-                        doLeftMono = true;
-                        doRightMono = true;
+                        doLeftMonoUsingLeftStereoAsTheMonoInput = true;
+                        doRightMonoUsingRightStereoAsTheMonoInput = true;
                     }
                     break;
                 case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
@@ -2820,9 +2822,34 @@ namespace Surveyor
                                                                 runParams.MaxFramesFromEachPoseBin)));
                 taskLeftMonoIndex = taskIndex++;
             }
+            else if (doLeftMonoUsingLeftStereoAsTheMonoInput)
+            {
+                monoPhaseTasks.Add(Task.Run(() => StereoCalibrationHead.FindBestMonoFramesSafeUIAsync(
+                                                                calibProject,
+                                                                true/*trueLeftFalseRight*/,
+                                                                runParams.MovementFilterValue,
+                                                                runParams.BlurFilterValue,
+                                                                runParams.MonoCornersFilterValue,
+                                                                runParams.MaxFramesFromEachSensorBin,
+                                                                runParams.MaxFramesFromEachPoseBin)));
+                taskLeftMonoIndex = taskIndex++;
+            }
+
             if (doRightMono)
             {
                 monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.FindBestMonoFramesSafeUIAsync(
+                                                                calibProject,
+                                                                false/*trueLeftFalseRight*/,
+                                                                runParams.MovementFilterValue,
+                                                                runParams.BlurFilterValue,
+                                                                runParams.MonoCornersFilterValue,
+                                                                runParams.MaxFramesFromEachSensorBin,
+                                                                runParams.MaxFramesFromEachPoseBin)));
+                taskRightMonoIndex = taskIndex++;
+            }
+            else if (doRightMonoUsingRightStereoAsTheMonoInput)
+            {
+                monoPhaseTasks.Add(Task.Run(() => StereoCalibrationHead.FindBestMonoFramesSafeUIAsync(
                                                                 calibProject,
                                                                 false/*trueLeftFalseRight*/,
                                                                 runParams.MovementFilterValue,
@@ -2840,7 +2867,7 @@ namespace Surveyor
                 {
                     int[] results = await Task.WhenAll(monoPhaseTasks);
 
-                    if (doLeftMono)
+                    if (doLeftMono || doLeftMonoUsingLeftStereoAsTheMonoInput)
                     {
                         if (results[taskLeftMonoIndex] != 0)
                         {
@@ -2848,7 +2875,7 @@ namespace Surveyor
                             Debug.WriteLine($"FindBestMonoFramesAllHeadsAsync: Error from FindBestFramesSafeUIAsync: Left Mono Result={ret}");
                         }
                     }
-                    if (doRightMono)
+                    if (doRightMono || doRightMonoUsingRightStereoAsTheMonoInput)
                     {
                         if (results[taskRightMonoIndex] != 0)
                         {
@@ -2892,6 +2919,8 @@ namespace Surveyor
                       
             bool doLeftMono = false;
             bool doRightMono = false;
+            bool doLeftMonoUsingLeftStereoAsTheMonoInput = false;
+            bool doRightMonoUsingRightStereoAsTheMonoInput = false;
 
             switch (calibProject.Data.Media.StereoMonoMediaSetMode)
             {
@@ -2910,8 +2939,8 @@ namespace Surveyor
                     if (StereoCalibrationHead.IsOpen() &&
                         (bool)StereoCalibrationHead.IsStereoLocked()!)
                     {
-                        doLeftMono = true;
-                        doRightMono = true;
+                        doLeftMonoUsingLeftStereoAsTheMonoInput = true;
+                        doRightMonoUsingRightStereoAsTheMonoInput = true;
                     }
                     break;
                 case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
@@ -2928,7 +2957,6 @@ namespace Surveyor
                         doLeftMono = true;
                     }
                     break;
-
             }
 
 
@@ -2957,6 +2985,15 @@ namespace Surveyor
                                                                  runParams.MonoCornersFilterValue)));
                     taskLeftMonoIndex = taskIndex++;
                 }
+                else if (doLeftMonoUsingLeftStereoAsTheMonoInput)
+                {
+                    monoPhaseTasks.Add(Task.Run(() => StereoCalibrationHead.DoMonoCalibrationCalculationSafeUI(
+                                                                 calibProject,
+                                                                 true/*trueLeftFalseRight*/,
+                                                                 runParams.MonoCornersFilterValue)));
+                    taskLeftMonoIndex = taskIndex++;
+                }
+
                 if (doRightMono)
                 {
                     monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.DoMonoCalibrationCalculationSafeUI(
@@ -2965,6 +3002,15 @@ namespace Surveyor
                                                                  runParams.MonoCornersFilterValue)));
                     taskRightMonoIndex = taskIndex++;
                 }
+                else if (doRightMonoUsingRightStereoAsTheMonoInput)
+                {
+                    monoPhaseTasks.Add(Task.Run(() => StereoCalibrationHead.DoMonoCalibrationCalculationSafeUI(
+                                                                 calibProject,
+                                                                 false/*trueLeftFalseRight*/,
+                                                                 runParams.MonoCornersFilterValue)));
+                    taskLeftMonoIndex = taskIndex++;
+                }
+
 
                 if (monoPhaseTasks.Count > 0)
                 {
@@ -2972,7 +3018,7 @@ namespace Surveyor
                     {
                         int[] results = await Task.WhenAll(monoPhaseTasks);
 
-                        if (doLeftMono)
+                        if (doLeftMono || doLeftMonoUsingLeftStereoAsTheMonoInput)
                         {
                             if (results[taskLeftMonoIndex] != 0)
                             {
@@ -2980,7 +3026,7 @@ namespace Surveyor
                                 Debug.WriteLine($"DoCalibrationMonoCalcsAllHeadsAsync: Error from DoMonoCalibrationCalculationSafeUI: Left Mono Result={ret}");
                             }
                         }
-                        if (doRightMono)
+                        if (doRightMono || doRightMonoUsingRightStereoAsTheMonoInput)
                         {
                             if (results[taskRightMonoIndex] != 0)
                             {
@@ -3191,68 +3237,96 @@ namespace Surveyor
 
             }
 
-
+#if MULTITASKVERSION
             var monoPhaseTasks = new List<Task<int>>();
             int taskIndex = 0;
             int taskLeftMonoIndex = -1;
             int taskRightMonoIndex = -1;
             int taskStereoIndex = -1;
+#endif
 
             if (ret == 0)
             {
+#if MULTITASKVERSION
+                //if (doLeftMono)
+                //{
+                //    monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.SaveBestFramesAsync()));
+                //    taskLeftMonoIndex = taskIndex++;
+                //}
+                //if (doRightMono)
+                //{
+                //    monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.SaveBestFramesAsync()));
+                //    taskRightMonoIndex = taskIndex++;
+                //}
+                //if (doStereo)
+                //{
+                //    monoPhaseTasks.Add(Task.Run(() => StereoCalibrationHead.SaveBestFramesAsync()));
+                //    taskStereoIndex = taskIndex++;
+                //}
+
+                //if (monoPhaseTasks.Count > 0)
+                //{
+                //    try
+                //    {
+                //        int[] results = await Task.WhenAll(monoPhaseTasks);
+
+                //        if (doLeftMono)
+                //        {
+                //            if (results[taskLeftMonoIndex] != 0)
+                //            {
+                //                ret = results[taskLeftMonoIndex];
+                //                Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error from SaveBestFramesAsync: Left Mono Result={ret}");
+                //            }
+                //        }
+                //        if (doRightMono)
+                //        {
+                //            if (results[taskRightMonoIndex] != 0)
+                //            {
+                //                ret = results[taskRightMonoIndex];
+                //                Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error from SaveBestFramesAsync: Right Mono Result={ret}");
+                //            }
+                //        }
+                //        if (doStereo)
+                //        {
+                //            if (results[taskStereoIndex] != 0)
+                //            {
+                //                ret = results[taskStereoIndex];
+                //                Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error from SaveBestFramesAsync: Stereo Result={ret}");
+                //            }
+                //        }
+                //    }
+                //    catch (Exception ex)
+                //    {
+                //        Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error running DoMonoCalibrationCalculationSafeUI tasks, {ex}");
+                //        ret = -2;
+                //    }
+                //}
+#else
                 if (doLeftMono)
                 {
-                    monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.SaveBestFramesAsync()));
-                    taskLeftMonoIndex = taskIndex++;
+                    ret = await LeftMonoCalibrationHead.SaveBestFramesAsync();
+                    if (ret != 0)
+                    {
+                        Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error from SaveBestFramesAsync: Left Mono Result={ret}");
+                    }                    
                 }
                 if (doRightMono)
                 {
-                    monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.SaveBestFramesAsync()));
-                    taskRightMonoIndex = taskIndex++;
+                    ret = await RightMonoCalibrationHead.SaveBestFramesAsync();
+                    if (ret != 0)
+                    {
+                        Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error from SaveBestFramesAsync: Right Mono Result={ret}");
+                    }
                 }
                 if (doStereo)
                 {
-                    monoPhaseTasks.Add(Task.Run(() => StereoCalibrationHead.SaveBestFramesAsync()));
-                    taskStereoIndex = taskIndex++;
-                }
-
-                if (monoPhaseTasks.Count > 0)
-                {
-                    try
+                    ret = await StereoCalibrationHead.SaveBestFramesAsync();
+                    if (ret != 0)
                     {
-                        int[] results = await Task.WhenAll(monoPhaseTasks);
-
-                        if (doLeftMono)
-                        {
-                            if (results[taskLeftMonoIndex] != 0)
-                            {
-                                ret = results[taskLeftMonoIndex];
-                                Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error from SaveBestFramesAsync: Left Mono Result={ret}");
-                            }
-                        }
-                        if (doRightMono)
-                        {
-                            if (results[taskRightMonoIndex] != 0)
-                            {
-                                ret = results[taskRightMonoIndex];
-                                Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error from SaveBestFramesAsync: Right Mono Result={ret}");
-                            }
-                        }
-                        if (doStereo)
-                        {
-                            if (results[taskStereoIndex] != 0)
-                            {
-                                ret = results[taskStereoIndex];
-                                Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error from SaveBestFramesAsync: Stereo Result={ret}");
-                            }
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error running DoMonoCalibrationCalculationSafeUI tasks, {ex}");
-                        ret = -2;
-                    }
+                        Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error from SaveBestFramesAsync: Stereo Result={ret}");
+                    }                
                 }
+#endif
             }
 
             InfoBarProcessing.HideProcessing();

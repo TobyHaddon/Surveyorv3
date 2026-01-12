@@ -3103,7 +3103,7 @@ namespace Surveyor
                                          .Where(kvp =>
                                          {
                                              var (left, _, _) = kvp.Value;
-                                             return left.ChArUcoCorners.Length >= cornersMinThreshold &&
+                                             return /*left.ChArUcoCorners.Length >= cornersMinThreshold &&*/
                                                     left.PoseBinX == binx &&
                                                     left.PoseBinY == biny &&
                                                     left.MovementFactor <= maxMovementFactor &&

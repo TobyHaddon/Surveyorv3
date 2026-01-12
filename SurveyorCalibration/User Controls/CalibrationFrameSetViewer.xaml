@@ -12,81 +12,79 @@
 
     <UserControl.Content>
         <Grid>
+            <Grid x:Name="MainPanel" Padding="0" Height="120">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>                       <!-- Movement and Blur -->
+                    <ColumnDefinition Width="Auto"/>                    <!-- Sensor Coverage -->
+                    <ColumnDefinition Width="Auto"/>                    <!-- Pose -->
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>                      <!-- Titles -->
+                    <RowDefinition Height="100"/>                       <!-- Graphs or Bins -->
+                </Grid.RowDefinitions>
 
-            <ScrollViewer HorizontalScrollBarVisibility="Visible">
-                <Grid x:Name="MainPanel" Padding="0" Height="120">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>    <!-- Movement and Blur -->
-                        <ColumnDefinition Width="Auto"/>    <!-- Sensor Coverage -->
-                        <ColumnDefinition Width="Auto"/>    <!-- Pose -->
-                    </Grid.ColumnDefinitions>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto"/>  <!-- Titles -->
-                        <RowDefinition Height="*"/>  <!-- Graphs or Bins -->
-                    </Grid.RowDefinitions>
-
-                    <!-- Column 0: Movement and Blur -->
-                    <!-- Used for the title of the Head e.g. Stereo Left -->
-                    <TextBlock x:Name="TitleText" Grid.Row="0" Grid.Column="0"
+                <!-- Column 0: Movement and Blur -->
+                <!-- Used for the title of the Head e.g. Stereo Left -->
+                <TextBlock x:Name="TitleText" Grid.Row="0" Grid.Column="0"
                                                     Text=""                                   
                                                     VerticalAlignment="Bottom" HorizontalAlignment="Left"
                                                     FontFamily="Segoe UI Variable"
                                                     FontSize="10"
                                                     FontWeight="Bold"
                                                     Margin="0,0,0,0"/>
-                    <!-- Frame Movement and Blur Graphs -->
-                    <Border x:Name="GraphsBorder" Grid.Row="1" Grid.Column="0"
+                <!-- Frame Movement and Blur Graphs -->
+                <Border x:Name="GraphsBorder" Grid.Row="1" Grid.Column="0"
                                                     BorderBrush="Gray"
                                                     BorderThickness="2"
-                                                    VerticalAlignment="Stretch">
-                        <Grid Width="300">
-                            <Grid.RowDefinitions>
-                                <RowDefinition Height="*"/>
-                                <RowDefinition Height="*"/>
-                            </Grid.RowDefinitions>
-                            <Canvas x:Name="MovementCanvas" Grid.Row="0"/>
-                            <Canvas x:Name="BlurCanvas" Grid.Row="1"/>
-                        </Grid>
-                    </Border>
+                                                    HorizontalAlignment="Stretch"  VerticalAlignment="Top">
+                    <Grid Height="100">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Canvas x:Name="MovementCanvas" Grid.Row="0" 
+                                HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                        <Canvas x:Name="BlurCanvas" Grid.Row="1" 
+                                HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
+                    </Grid>
+                </Border>
 
 
-                    <!-- Column 1: Sensor coverage -->
-                    <TextBlock x:Name="SensorBinTitle" Grid.Row="0" Grid.Column="1"
+                <!-- Column 1: Sensor coverage -->
+                <TextBlock x:Name="SensorBinTitle" Grid.Row="0" Grid.Column="1"
                                                     Text="Frame Coverage"                                       
                                                     VerticalAlignment="Bottom" HorizontalAlignment="Left"
                                                     FontFamily="Segoe UI Variable"
                                                     FontSize="10"                        
                                                     Margin="5,0,0,0"/>
 
-                    <Border x:Name="SensorBinBorder" Grid.Row="1" Grid.Column="1"
+                <Border x:Name="SensorBinBorder" Grid.Row="1" Grid.Column="1"
                                                     BorderBrush="Gray"
                                                     BorderThickness="1" Margin="5,0,0,0">
-                        <Grid x:Name="SensorBinGridItemsControl"
+                    <Grid x:Name="SensorBinGridItemsControl"
                                                     Width="200"                          
                                                     VerticalAlignment="Stretch" HorizontalAlignment="Left"                                            
                                                     Padding="0"/>
-                    </Border>
+                </Border>
 
 
-                    <!-- Column 2: Pose diversity -->
-                    <TextBlock x:Name="PoseBinTitle" Grid.Row="0" Grid.Column="2"
+                <!-- Column 2: Pose diversity -->
+                <TextBlock x:Name="PoseBinTitle" Grid.Row="0" Grid.Column="2"
                                                     Text="Frame Pose Diversity"                                   
                                                     VerticalAlignment="Bottom" HorizontalAlignment="Left"
                                                     FontFamily="Segoe UI Variable"
                                                     FontSize="10"                                   
                                                     Margin="5,0,0,0"/>
 
-                    <Border x:Name="PoseBinBorder" Grid.Row="2" Grid.Column="2"
+                <Border x:Name="PoseBinBorder" Grid.Row="1" Grid.Column="2"
                                                     BorderBrush="Gray"
                                                     BorderThickness="1" Margin="5,0,0,0">
-                        <Grid x:Name="PoseBinGridItemsControl"
+                    <Grid x:Name="PoseBinGridItemsControl"
                                                     Width="150"
                                                     VerticalAlignment="Stretch" HorizontalAlignment="Left"
                                                     Padding="0"/>
-                    </Border>
-                </Grid>
-            </ScrollViewer>
-
+                </Border>
+            </Grid>
         </Grid>
     </UserControl.Content>
 </UserControl>

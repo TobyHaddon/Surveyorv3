@@ -482,7 +482,8 @@ namespace Surveyor.User_Controls
 
                 // 7. Set it as the source of your <Image>
                 PreviewImage.Source = bitmapImage;
-                PreviewCaption1.Text = $"{CbdWorking.Description}";
+                string previewCaption1 = CbdWorking.Description();
+                PreviewCaption1.Text = $"{previewCaption1}";
                 PreviewCaption2.Text = $"This should look exactly the same as your physical board i.e. same number of squares and same markers in the same positions.";
             }
             catch (Exception ex)
