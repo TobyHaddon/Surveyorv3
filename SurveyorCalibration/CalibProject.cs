@@ -7,6 +7,7 @@ using SurveyorCalibrationData;
 using System;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
@@ -589,27 +590,40 @@ namespace Surveyor
                 }
             }
 
+            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties)]
             public partial class CacheClass : INotifyPropertyChanged
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
 
                 public CacheClass()
-                {
-                    Clear();
-
-                    // Load Guid in case new project (may get over written by a de-serialization)
-                    _leftMonoFrameSetCacheGuid = Guid.NewGuid().ToString();
-                    _rightMonoFrameSetCacheGuid = Guid.NewGuid().ToString();
-                    _stereoFrameSetCacheGuid = Guid.NewGuid().ToString();
+                {       
                 }
 
                 public void Clear()
                 {
                     _projectFileNameSavedUnder = string.Empty;
-                    _leftMonoFrameSetCacheGuid = string.Empty;
-                    _rightMonoFrameSetCacheGuid = string.Empty;
-                    _stereoFrameSetCacheGuid = string.Empty;
+
+                    // Load Guid in case new project (may get over written by a de-serialization)
+                    // Cache should always have a valid Guid's setup
+                    _leftMonoFrameSetCacheGuid = Guid.NewGuid().ToString();
+                    _rightMonoFrameSetCacheGuid = Guid.NewGuid().ToString();
+                    _stereoFrameSetCacheGuid = Guid.NewGuid().ToString();
+
                     IsDirty = false;
+                }
+
+                /// <summary>
+                /// This method is never called. Its purpose is to prevent the .NET Native tool chain
+                /// from trimming the property setters during Release builds. By creating a static reference
+                /// to the setters, we ensure they are preserved for reflection-based de serialization.
+                /// </summary>
+                [UnconditionalSuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "This method is never called, it is only for the trimmer.")]
+                private void KeepMembers()
+                {
+                    _projectFileNameSavedUnder = "";
+                    _leftMonoFrameSetCacheGuid = "";
+                    _rightMonoFrameSetCacheGuid = "";
+                    _stereoFrameSetCacheGuid = "";
                 }
 
                 // Info class version
@@ -628,6 +642,7 @@ namespace Surveyor
                 // This is separate from the Info.ProjectFileName in
                 // case the project gets renamed and the cache files
                 // need to be renamed to match
+
                 public string ProjectFileNameSavedUnder
                 {
                     get => _projectFileNameSavedUnder;
@@ -642,6 +657,7 @@ namespace Surveyor
                     }
                 }
 
+  
                 public string LeftMonoFrameSetCacheGuid
                 {
                     get => _leftMonoFrameSetCacheGuid;
@@ -656,6 +672,7 @@ namespace Surveyor
                     }
                 }
 
+    
                 public string RightMonoFrameSetCacheGuid
                 {
                     get => _rightMonoFrameSetCacheGuid;
@@ -669,6 +686,7 @@ namespace Surveyor
                         }
                     }
                 }
+
 
                 public string StereoFrameSetCacheGuid
                 {
@@ -742,11 +760,10 @@ namespace Surveyor
                 }
             }
 
-
             public InfoClass Info { get; set; } = new();
 
             public MediaClass Media { get; set; } = new();
-            
+
             public CalibrationBoardDefinition ChArUcoBoardDefinition { get; set; } = new();
 
             public SyncClass Sync { get; set; } = new();
@@ -827,6 +844,7 @@ namespace Surveyor
         /// <param name="projectFileSpec"></param>
         /// <param name="autoSave"></param>
         /// <returns></returns>
+        [RequiresUnreferencedCode("ProjectLoadAsync uses Json.NET serialization which may not be compatible with trimming.")]
         public async Task<int> ProjectLoadAsync(string projectFileSpec, bool autoSave = true)
         {
             int ret = -1;
@@ -872,9 +890,66 @@ namespace Surveyor
                 var settings = CreateJsonOptions();
 
                 DataClass? data = null;
+#if !DEBUG
+                // Diagnostic code to check for property trimming and JSON parsing in Release mode
                 try
-                {                    
-                    data = JsonConvert.DeserializeObject<DataClass>(json, settings);
+                {
+                    var parsedJson = Newtonsoft.Json.Linq.JObject.Parse(json);
+                    var cacheToken = parsedJson.SelectToken("Cache");
+                    if (cacheToken == null)
+                    {
+                        Trace.WriteLine("DIAGNOSTIC: JObject could not find 'Data.Cache' token in JSON.");
+                    }
+                    else
+                    {
+                        var guidToken = cacheToken.SelectToken("LeftMonoFrameSetCacheGuid");
+                        if (guidToken == null)
+                        {
+                            Trace.WriteLine("DIAGNOSTIC: JObject found 'Cache' but could NOT find 'LeftMonoFrameSetCacheGuid' token.");
+                        }
+                        else
+                        {
+                            Trace.WriteLine($"DIAGNOSTIC: JObject found 'LeftMonoFrameSetCacheGuid' with value: {guidToken.ToString()}");
+                        }
+                        guidToken = cacheToken.SelectToken("RightMonoFrameSetCacheGuid");
+                        if (guidToken == null)
+                        {
+                            Trace.WriteLine("DIAGNOSTIC: JObject found 'Cache' but could NOT find 'RightMonoFrameSetCacheGuid' token.");
+                        }
+                        else
+                        {
+                            Trace.WriteLine($"DIAGNOSTIC: JObject found 'RightMonoFrameSetCacheGuid' with value: {guidToken.ToString()}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Trace.WriteLine($"DIAGNOSTIC: JObject.Parse failed: {ex.Message}");
+                }
+
+                var cacheClassType = typeof(DataClass.CacheClass);
+                var /*propertyInfo = cacheClassType.GetProperty("LeftMonoFrameSetCacheGuid");
+                if (propertyInfo == null)
+                {
+                    Trace.WriteLine("DIAGNOSTIC: 'LeftMonoFrameSetCacheGuid' property NOT FOUND on CacheClass.");
+                }
+                else
+                {
+                    Trace.WriteLine($"DIAGNOSTIC: 'LeftMonoFrameSetCacheGuid' property FOUND. CanWrite: {propertyInfo.CanWrite}");
+                }*/
+                propertyInfo = cacheClassType.GetProperty("RightMonoFrameSetCacheGuid");
+                if (propertyInfo == null)
+                {
+                    Trace.WriteLine("DIAGNOSTIC: 'RightMonoFrameSetCacheGuid' property NOT FOUND on CacheClass.");
+                }
+                else
+                {
+                    Trace.WriteLine($"DIAGNOSTIC: 'RightMonoFrameSetCacheGuid' property FOUND. CanWrite: {propertyInfo.CanWrite}");
+                }
+#endif
+                try
+                {
+                    data = DeserializeWithTrimmingAnnotations<DataClass>(json, settings);
                 }
                 catch (Exception e)
                 {
@@ -895,17 +970,24 @@ namespace Surveyor
                     
                     IsLoaded = true;
 
-                    // Start the auto save task in background                        
-                    // The AutoSaveEnable flag is checked at the point the save is about to be made
-                    // The advantage with always having the timer running an checking if auto save is
-                    // enabled last is that the Auto Save settings can be changed and the application
-                    //doesn't need to be restarted.
-                    await StartAutoSaveAsync();
-
+                    if (autoSave)
+                    {
+                        // Start the auto save task in background                        
+                        // The AutoSaveEnable flag is checked at the point the save is about to be made
+                        // The advantage with always having the timer running an checking if auto save is
+                        // enabled last is that the Auto Save settings can be changed and the application
+                        //doesn't need to be restarted.
+                        await StartAutoSaveAsync();
+                    }
                 }
             }
 
             return ret;
+        }
+
+        private static T? DeserializeWithTrimmingAnnotations<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties)] T>(string json, JsonSerializerSettings settings)
+        {
+            return JsonConvert.DeserializeObject<T>(json, settings);
         }
 
 
@@ -914,6 +996,7 @@ namespace Surveyor
         /// Note this is a synchronous method to avoid reentry from the auto save task
         /// </summary>
         /// <returns></returns>
+        [RequiresUnreferencedCode("ProjectSave uses Json.NET serialization which may not be compatible with trimming.")]
         public int ProjectSave()
         {
             int ret = -1;
@@ -1067,43 +1150,60 @@ namespace Surveyor
                     // Remove the project Path so the project can be safely moved to a different folder
                     Data.Info.ProjectPath = string.Empty;
 
-                    string json = JsonConvert.SerializeObject(Data, settings);
+                    // Convert to JSon
+                    string json = string.Empty;
+
+                    try
+                    {
+                        json = JsonConvert.SerializeObject(Data, settings);
+                    }
+                    catch (Exception ex)
+                    {
+                        Report?.Error(
+                            "",
+                            $"Failed to save project file, failed to convert to JSon. {ex.Message}. Inner: {ex.InnerException?.Message}"
+                        );
+                        ret = -6;
+                    }
 
                     // Restore project path
                     Data.Info.ProjectPath = projectPath;
 
-                    // Write to disk
-                    try
+                    if (!string.IsNullOrEmpty(json))
                     {
-                        File.WriteAllText(filePath, json);
+                        // Write to disk
+                        try
+                        {
+                            File.WriteAllText(filePath, json);
 
-                        this.IsDirty = false;
-                        ret = 0;
-                    }
-                    catch (UnauthorizedAccessException e)
-                    {
-                        ret = -1;
-                        Report?.Warning("", $"Save project failed due to an unauthorized access request, file:{filePath}. You do not have permission to write to this file. {e.Message}");
-                    }
-                    catch (DirectoryNotFoundException e)
-                    {
-                        ret = -2;
-                        Report?.Warning("", $"Save project failed due to a bad directory, file:{filePath}. The specified directory could not be found. {e.Message}");
-                    }
-                    catch (PathTooLongException e)
-                    {
-                        ret = -3;
-                        Report?.Warning("", $"Save project failed due to the file name too long, file:{filePath}. The specified path, file name, or both exceed the system-defined maximum length. {e.Message}");
-                    }
-                    catch (IOException e)
-                    {
-                        ret = -4;
-                        Report?.Warning("", $"Save project failed due to an I/O error, file:{filePath}. {e.Message}");
-                    }
-                    catch (Exception e)
-                    {
-                        ret = -5;
-                        Report?.Warning("", $"Save project failed due to an unexpected error, file:{filePath}. {e.Message}");
+                            this.IsDirty = false;
+                            ret = 0;
+                        }
+                        catch (UnauthorizedAccessException e)
+                        {
+                            ret = -1;
+                            Report?.Warning("", $"Save project failed due to an unauthorized access request, file:{filePath}. You do not have permission to write to this file. {e.Message}");
+                        }
+                        catch (DirectoryNotFoundException e)
+                        {
+                            ret = -2;
+                            Report?.Warning("", $"Save project failed due to a bad directory, file:{filePath}. The specified directory could not be found. {e.Message}");
+                        }
+                        catch (PathTooLongException e)
+                        {
+                            ret = -3;
+                            Report?.Warning("", $"Save project failed due to the file name too long, file:{filePath}. The specified path, file name, or both exceed the system-defined maximum length. {e.Message}");
+                        }
+                        catch (IOException e)
+                        {
+                            ret = -4;
+                            Report?.Warning("", $"Save project failed due to an I/O error, file:{filePath}. {e.Message}");
+                        }
+                        catch (Exception e)
+                        {
+                            ret = -5;
+                            Report?.Warning("", $"Save project failed due to an unexpected error, file:{filePath}. {e.Message}");
+                        }
                     }
                 }
             }
@@ -1117,6 +1217,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="projectFileSpec"></param>
         /// <returns></returns>
+        [RequiresUnreferencedCode("ProjectSaveAsAsync uses Json.NET serialization which may not be compatible with trimming.")]
         public async Task<int> ProjectSaveAsAsync(string projectFileSpec)
         {
             // Set the project name using the stem of the file name and extract the project path
@@ -1358,7 +1459,7 @@ namespace Surveyor
             }
         }
 
-
+        [RequiresUnreferencedCode("Calls Newtonsoft.Json.Converters.StringEnumConverter.StringEnumConverter()")]
         private static JsonSerializerSettings CreateJsonOptions()
         {
             var opts = new JsonSerializerSettings
@@ -1367,6 +1468,7 @@ namespace Surveyor
             };
 
             opts.Converters.Add(new MatrixJsonConverter());
+            opts.Converters.Add(new Newtonsoft.Json.Converters.StringEnumConverter()); // explicit to try to fix release mode linker trimming issues
 
             return opts;
         }
@@ -1375,6 +1477,7 @@ namespace Surveyor
         /// <summary>
         /// Start the auto save task
         /// <summary>
+        [RequiresUnreferencedCode("StartAutoSaveAsync uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task StartAutoSaveAsync()
         {
             await StopAutoSaveAsync(); // Ensure any previous auto save task is stopped

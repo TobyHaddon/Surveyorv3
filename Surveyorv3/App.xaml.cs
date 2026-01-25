@@ -10,7 +10,6 @@ using Windows.ApplicationModel;
 #if !DEBUG
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Extensibility;
-using System.Threading.Tasks;
 #endif
 using static Surveyor.Helper.TelemetryLogger;
 

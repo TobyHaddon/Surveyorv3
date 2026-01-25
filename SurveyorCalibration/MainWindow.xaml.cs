@@ -18,6 +18,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -110,7 +111,7 @@ namespace Surveyor
         // Help menu documents
         private readonly HelpDocuments helpDocuments = new();
 
-
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.CheckForOpenProjectAndCloseAsync(Boolean) which uses Json.NET serialization which may not be compatible with trimming.")]
         public MainWindow()
         {
             // Restore the saved window state
@@ -352,7 +353,9 @@ namespace Surveyor
                         break;
 
                     case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                        if (Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.StereoFrameSetCacheFileSpec))
+                        if (Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.StereoFrameSetCacheFileSpec) &&
+                            Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.LeftMonoFrameSetCacheFileSpec) &&
+                            Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.RightMonoFrameSetCacheFileSpec))
                         {
                             cachedResultsAvailable = true;
                         }
@@ -419,7 +422,9 @@ namespace Surveyor
 
                     case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                         if (StereoCalibrationHead.IsOpen() &&
-                            (bool)StereoCalibrationHead.IsStereoLocked()!)
+                            (bool)StereoCalibrationHead.IsStereoLocked()! &&
+                            LeftMonoCalibrationHead.IsOpen() &&
+                            RightMonoCalibrationHead.IsOpen())
                         {
                             doStereo = true;
                         }
@@ -500,6 +505,9 @@ namespace Surveyor
         /// in the SetupRunCalibrationSummary page. This is why it is public
         /// </summary>
         /// <returns></returns>
+
+
+        [RequiresUnreferencedCode("ProjectSave uses Json.NET serialization which may not be compatible with trimming.")]
         public async Task RunCalibrationAsync(RunCalibrationParams runCalibrationParams)
         {
             int ret = 0;
@@ -662,7 +670,10 @@ namespace Surveyor
         /// Window close has been requested by user, check for open Surveys
         /// </summary>
         /// <returns></returns>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.AppWindowClosingAsync(AppWindowClosingEventArgs) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private void AppWindow_Closing(object sender, AppWindowClosingEventArgs e) => _ = AppWindowClosingAsync(e);
+
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.CheckForOpenProjectAndCloseAsync(Boolean) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task AppWindowClosingAsync(AppWindowClosingEventArgs e)
         {
             Debug.WriteLine("AppWindow_Closing Entered");
@@ -746,7 +757,10 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.FileProjectNewAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private void FileProjectNew_Click(object sender, RoutedEventArgs e) => _ = FileProjectNewAsync();
+
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.SaveAsProjectAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task FileProjectNewAsync()
         {
             // Reset Title
@@ -814,7 +828,10 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.FileProjectOpenClickAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private void FileProjectOpen_Click(object sender, RoutedEventArgs e) => _ = FileProjectOpenClickAsync();
+
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.OpenProjectAsync(String) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task FileProjectOpenClickAsync()
         {
             // First check if an existing survey is already open
@@ -874,7 +891,10 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.FileProjectSaveClickAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private void FileProjectSave_Click(object sender, RoutedEventArgs e) => _ = FileProjectSaveClickAsync();
+
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.FileProjectSaveOrSaveAsAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task FileProjectSaveClickAsync()
         {
             await FileProjectSaveOrSaveAsAsync();
@@ -886,7 +906,10 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.FileProjectSaveAsClickAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private void FileProjectSaveAs_Click(object sender, RoutedEventArgs e) => _ = FileProjectSaveAsClickAsync();
+
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.FileProjectSaveOrSaveAsAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task FileProjectSaveAsClickAsync()
         {
             await FileProjectSaveOrSaveAsAsync();
@@ -898,7 +921,10 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.FileProjectCloseClickAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private void FileProjectClose_Click(object sender, RoutedEventArgs e) => _ = FileProjectCloseClickAsync();
+
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.CheckForOpenProjectAndCloseAsync(Boolean) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task FileProjectCloseClickAsync()
         {
             await CheckForOpenProjectAndCloseAsync();
@@ -912,7 +938,10 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.FileRecentProjectClickAsync(Object) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private void FileRecentProject_Click(object sender, RoutedEventArgs e) => _ = FileRecentProjectClickAsync(sender);
+
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.OpenProjectAsync(String) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task FileRecentProjectClickAsync(object sender)
         {
             var menuItem = sender as MenuFlyoutItem;
@@ -996,7 +1025,10 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.FileLockUnlockMediaPlayersAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private void FileLockUnlockMediaPlayers_Click(object sender, RoutedEventArgs e) => _ = FileLockUnlockMediaPlayersAsync();
+
+        [RequiresUnreferencedCode("ProjectSave uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task FileLockUnlockMediaPlayersAsync()
         {
             if (calibProject is not null)
@@ -1192,7 +1224,9 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender">The source of the event, typically the button that was clicked.</param>
         /// <param name="e">The event data associated with the click event.</param>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.InfoBarLockMediaButtonAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private void InfoBarLockMediaButton_Click(object sender, RoutedEventArgs e) => _ = InfoBarLockMediaButtonAsync();
+        [RequiresUnreferencedCode("ProjectSave uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task InfoBarLockMediaButtonAsync()
         {
             await LockUnlockMediaPlayersAsync(true/*lockTrueUnLockFalse*/);
@@ -1354,7 +1388,7 @@ namespace Surveyor
         }
 
 
-       
+
 
 
 
@@ -1368,6 +1402,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="surveyFileName"></param>
         /// <returns>-999 If user aborts</returns>
+        [RequiresUnreferencedCode("ProjectLoadAsync uses Json.NET serialization which may not be compatible with trimming.")]     
         private async Task<int> OpenProjectAsync(string projectFileSpec)
         {
             int ret = 0;
@@ -1605,6 +1640,7 @@ namespace Surveyor
         /// Centralized project save
         /// </summary>
         /// <returns></returns>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.SaveAsProjectAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task<int> FileProjectSaveOrSaveAsAsync()
         {
             int ret = -1;
@@ -1633,6 +1669,7 @@ namespace Surveyor
         /// Save the current calibration project to a new file
         /// </summary>
         /// <returns></returns>
+        [RequiresUnreferencedCode("Calls Surveyor.CalibProject.ProjectSaveAsAsync(String)")]
         private async Task<int> SaveAsProjectAsync()
         {
             int ret = 0;
@@ -1755,6 +1792,8 @@ namespace Surveyor
 
                     case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                         openStereo = true;
+                        openLeftMono = true;
+                        openRightMono = true;
                         break;
 
                     case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
@@ -1936,6 +1975,8 @@ namespace Surveyor
 
                     case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                         closeStereo = true;
+                        closeLeftMono = true;
+                        closeRightMono = true;
                         break;
 
                     case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
@@ -1983,6 +2024,7 @@ namespace Surveyor
         /// USES 'Internal' to allow Unit Testing
         /// </summary>
         /// <returns>true is OK to proceed (i.e. no project now open)</returns>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.FileProjectSaveOrSaveAsAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         internal async Task<bool> CheckForOpenProjectAndCloseAsync(bool isExiting = false)
         {
             bool ret = false;
@@ -2099,6 +2141,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="calibProject"></param>
         /// <returns></returns>
+        [RequiresUnreferencedCode("Calls Surveyor.Controls.UniversalCalibrationHeadUserControl.LoadCachedResultsAsync(String) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task<bool> LoadFrameDataCachesAsync(bool noPrompts)
         {
             bool ret = false;
@@ -2132,6 +2175,8 @@ namespace Surveyor
 
                         case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                             stereoFramesLoad = true;
+                            leftMonoFramesLoad = true;
+                            rightMonoFramesLoad = true;
                             break;
 
                         case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
@@ -2232,7 +2277,9 @@ namespace Surveyor
                                 if (stereoFramesLoaded == 0)
                                 {
                                     contentText = $"The cached results were not loaded or are incomplete\n\n" +
-                                        $"   Stereo Frames Loaded: {stereoFramesLoaded}\n";
+                                        $"   Stereo Frames Loaded: {stereoFramesLoaded}\n" +
+                                        $"   Left Mono Frames Loaded: {leftMonoFramesLoaded}\n" +
+                                        $"   Right Mono Frames Loaded: {rightMonoFramesLoaded}\n";
                                     warn = true;
                                 }
                                 break;
@@ -2354,6 +2401,8 @@ namespace Surveyor
         /// </summary>
         /// <param name="calibProject"></param>
         /// <returns></returns>
+        [RequiresUnreferencedCode("Calls Surveyor.Controls.UniversalCalibrationHeadUserControl.SaveCachedResults(String) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
+
         private async Task<bool> SaveFrameDataCachesAsync(bool noPrompts)
         {
             bool ret = false;
@@ -2386,6 +2435,8 @@ namespace Surveyor
                         if (StereoCalibrationHead.IsOpen())
                         {
                             doStereo = true;
+                            doLeftMono = true;
+                            doRightMono = true;
                         }
                         break;
                     case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
@@ -2441,6 +2492,7 @@ namespace Surveyor
         /// in the frames that really have a calibration board displayed
         /// </summary>
         /// <returns></returns>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.SaveFrameDataCachesAsync(Boolean) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task<int> FindCalibrationBoardZoneAllHeadsAsync()
         {
             int ret = 0;
@@ -2478,6 +2530,8 @@ namespace Surveyor
                         if (StereoCalibrationHead.IsOpen() &&
                             (bool)StereoCalibrationHead.IsStereoLocked()!)
                         {
+                            doLeftMono = true;
+                            doRightMono = true;
                             doStereo = true;
                             okToProceed = true;
                         }
@@ -2572,6 +2626,24 @@ namespace Surveyor
                 else
                     ret = -3;
 
+                // If there is an error then clear any collected
+                // values and reset the display
+                if (ret != 0)
+                {
+                    if (doLeftMono)
+                    {
+                        LeftMonoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
+                    }
+                    if (doRightMono)
+                    {
+                        RightMonoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
+                    }
+                    if (doStereo)
+                    {
+                        StereoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
+                    }
+                }
+
                 // Save the calibration board start/end zones
                 InfoBarProcessing.UpdateMessage("Saving calibration board zone...");
                 await SaveFrameDataCachesAsync(false/*no prompts*/);
@@ -2585,6 +2657,8 @@ namespace Surveyor
                 InfoBarProcessing.HideProcessing();
             }
 
+            Debug.WriteLine($"FindCalibrationBoardZoneAllHeadsAsync Run Status  Left:{LeftMonoCalibrationHead.IsFindRunning()}  Right:{RightMonoCalibrationHead.IsFindRunning()}  Stereo:{StereoCalibrationHead.IsFindRunning()}");
+
             return ret;
         }
 
@@ -2597,6 +2671,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.SaveFrameDataCachesAsync(Boolean) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task<int> BuildFrameSetsAllHeadsAsync()
         {
             int ret = 0;
@@ -2633,6 +2708,8 @@ namespace Surveyor
                         if (StereoCalibrationHead.IsOpen() &&
                             (bool)StereoCalibrationHead.IsStereoLocked()!)
                         {
+                            doLeftMono = true;  // This is the same video as used in the left stereo
+                            doRightMono = true; // This is the same video as used in the right stereo
                             doStereo = true;
                             okToProceed = true;
                         }
@@ -2684,7 +2761,7 @@ namespace Surveyor
                         return 0;
 
                     // Your existing flags + timer
-                    StartFindCheckTimer();
+                    //???StartFindCheckTimer();
 
                     try
                     {
@@ -2727,6 +2804,25 @@ namespace Surveyor
                 else
                     ret = -3;
 
+
+                // If there is an error then clear any collected
+                // values and reset the display
+                if (ret != 0)
+                {
+                    if (doLeftMono)
+                    {
+                        LeftMonoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.FrameSets);
+                    }
+                    if (doRightMono)
+                    {
+                        RightMonoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.FrameSets);
+                    }
+                    if (doStereo)
+                    {
+                        StereoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.FrameSets);
+                    }
+                }
+
                 // Save the frames dataset
                 InfoBarProcessing.UpdateMessage("Saving frame sets...");
                 await SaveFrameDataCachesAsync(false/*no prompts*/);
@@ -2740,6 +2836,8 @@ namespace Surveyor
                 InfoBarProcessing.HideProcessing();
             }
 
+            Debug.WriteLine($"BuildFrameSetsAllHeadsAsync Run Status  Left:{LeftMonoCalibrationHead.IsFindRunning()}  Right:{RightMonoCalibrationHead.IsFindRunning()}  Stereo:{StereoCalibrationHead.IsFindRunning()}");
+
             return ret;
         }
 
@@ -2752,6 +2850,7 @@ namespace Surveyor
         /// be <c>null</c>.</param>
         /// <returns>The task result contains the number of heads for which a
         /// best mono frame was successfully found.</returns>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.SaveFrameDataCachesAsync(Boolean) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task<int> FindBestMonoFramesAllHeadsAsync(RunCalibrationParams runParams)
         {
             int ret = 0;
@@ -2763,8 +2862,6 @@ namespace Surveyor
            
             bool doLeftMono = false;
             bool doRightMono = false;
-            bool doLeftMonoUsingLeftStereoAsTheMonoInput = false;
-            bool doRightMonoUsingRightStereoAsTheMonoInput = false;
 
             switch (calibProject.Data.Media.StereoMonoMediaSetMode)
             {
@@ -2783,8 +2880,8 @@ namespace Surveyor
                     if (StereoCalibrationHead.IsOpen() &&
                         (bool)StereoCalibrationHead.IsStereoLocked()!)
                     {
-                        doLeftMonoUsingLeftStereoAsTheMonoInput = true;
-                        doRightMonoUsingRightStereoAsTheMonoInput = true;
+                        doLeftMono = true;
+                        doRightMono = true;
                     }
                     break;
                 case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
@@ -2822,34 +2919,10 @@ namespace Surveyor
                                                                 runParams.MaxFramesFromEachPoseBin)));
                 taskLeftMonoIndex = taskIndex++;
             }
-            else if (doLeftMonoUsingLeftStereoAsTheMonoInput)
-            {
-                monoPhaseTasks.Add(Task.Run(() => StereoCalibrationHead.FindBestMonoFramesSafeUIAsync(
-                                                                calibProject,
-                                                                true/*trueLeftFalseRight*/,
-                                                                runParams.MovementFilterValue,
-                                                                runParams.BlurFilterValue,
-                                                                runParams.MonoCornersFilterValue,
-                                                                runParams.MaxFramesFromEachSensorBin,
-                                                                runParams.MaxFramesFromEachPoseBin)));
-                taskLeftMonoIndex = taskIndex++;
-            }
 
             if (doRightMono)
             {
                 monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.FindBestMonoFramesSafeUIAsync(
-                                                                calibProject,
-                                                                false/*trueLeftFalseRight*/,
-                                                                runParams.MovementFilterValue,
-                                                                runParams.BlurFilterValue,
-                                                                runParams.MonoCornersFilterValue,
-                                                                runParams.MaxFramesFromEachSensorBin,
-                                                                runParams.MaxFramesFromEachPoseBin)));
-                taskRightMonoIndex = taskIndex++;
-            }
-            else if (doRightMonoUsingRightStereoAsTheMonoInput)
-            {
-                monoPhaseTasks.Add(Task.Run(() => StereoCalibrationHead.FindBestMonoFramesSafeUIAsync(
                                                                 calibProject,
                                                                 false/*trueLeftFalseRight*/,
                                                                 runParams.MovementFilterValue,
@@ -2867,7 +2940,7 @@ namespace Surveyor
                 {
                     int[] results = await Task.WhenAll(monoPhaseTasks);
 
-                    if (doLeftMono || doLeftMonoUsingLeftStereoAsTheMonoInput)
+                    if (doLeftMono)
                     {
                         if (results[taskLeftMonoIndex] != 0)
                         {
@@ -2875,7 +2948,7 @@ namespace Surveyor
                             Debug.WriteLine($"FindBestMonoFramesAllHeadsAsync: Error from FindBestFramesSafeUIAsync: Left Mono Result={ret}");
                         }
                     }
-                    if (doRightMono || doRightMonoUsingRightStereoAsTheMonoInput)
+                    if (doRightMono)
                     {
                         if (results[taskRightMonoIndex] != 0)
                         {
@@ -2890,6 +2963,21 @@ namespace Surveyor
                     ret = -2;
                 }
 
+
+                // If there is an error then clear any collected
+                // values and reset the display
+                if (ret != 0)
+                {
+                    if (doLeftMono)
+                    {
+                        LeftMonoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.BestFrames);
+                    }
+                    if (doRightMono)
+                    {
+                        RightMonoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.BestFrames);
+                    }
+                }
+
                 // Save the frames dataset
                 InfoBarProcessing.UpdateMessage("Saving after stereo phase...");
                 await SaveFrameDataCachesAsync(false/*no prompts*/);
@@ -2898,6 +2986,8 @@ namespace Surveyor
             InfoBarProcessing.HideProcessing();
 
             SetUIControls();
+
+            Debug.WriteLine($"FindBestMonoFramesAllHeadsAsync Run Status  Left:{LeftMonoCalibrationHead.IsFindRunning()}  Right:{RightMonoCalibrationHead.IsFindRunning()}");
 
             return ret;
         }
@@ -2908,6 +2998,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="runParams"></param>
         /// <returns></returns>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.SaveFrameDataCachesAsync(Boolean) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task<int> DoCalibrationMonoCalcsAllHeadsAsync(RunCalibrationParams runParams)
         {
             int ret = 0;
@@ -2919,8 +3010,6 @@ namespace Surveyor
                       
             bool doLeftMono = false;
             bool doRightMono = false;
-            bool doLeftMonoUsingLeftStereoAsTheMonoInput = false;
-            bool doRightMonoUsingRightStereoAsTheMonoInput = false;
 
             switch (calibProject.Data.Media.StereoMonoMediaSetMode)
             {
@@ -2937,10 +3026,12 @@ namespace Surveyor
                     break;
                 case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                     if (StereoCalibrationHead.IsOpen() &&
-                        (bool)StereoCalibrationHead.IsStereoLocked()!)
+                        (bool)StereoCalibrationHead.IsStereoLocked()! &&
+                        LeftMonoCalibrationHead.IsOpen() &&
+                        RightMonoCalibrationHead.IsOpen())
                     {
-                        doLeftMonoUsingLeftStereoAsTheMonoInput = true;
-                        doRightMonoUsingRightStereoAsTheMonoInput = true;
+                        doLeftMono = true;
+                        doRightMono = true;
                     }
                     break;
                 case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
@@ -2985,14 +3076,6 @@ namespace Surveyor
                                                                  runParams.MonoCornersFilterValue)));
                     taskLeftMonoIndex = taskIndex++;
                 }
-                else if (doLeftMonoUsingLeftStereoAsTheMonoInput)
-                {
-                    monoPhaseTasks.Add(Task.Run(() => StereoCalibrationHead.DoMonoCalibrationCalculationSafeUI(
-                                                                 calibProject,
-                                                                 true/*trueLeftFalseRight*/,
-                                                                 runParams.MonoCornersFilterValue)));
-                    taskLeftMonoIndex = taskIndex++;
-                }
 
                 if (doRightMono)
                 {
@@ -3002,14 +3085,6 @@ namespace Surveyor
                                                                  runParams.MonoCornersFilterValue)));
                     taskRightMonoIndex = taskIndex++;
                 }
-                else if (doRightMonoUsingRightStereoAsTheMonoInput)
-                {
-                    monoPhaseTasks.Add(Task.Run(() => StereoCalibrationHead.DoMonoCalibrationCalculationSafeUI(
-                                                                 calibProject,
-                                                                 false/*trueLeftFalseRight*/,
-                                                                 runParams.MonoCornersFilterValue)));
-                    taskLeftMonoIndex = taskIndex++;
-                }
 
 
                 if (monoPhaseTasks.Count > 0)
@@ -3018,7 +3093,7 @@ namespace Surveyor
                     {
                         int[] results = await Task.WhenAll(monoPhaseTasks);
 
-                        if (doLeftMono || doLeftMonoUsingLeftStereoAsTheMonoInput)
+                        if (doLeftMono)
                         {
                             if (results[taskLeftMonoIndex] != 0)
                             {
@@ -3026,7 +3101,7 @@ namespace Surveyor
                                 Debug.WriteLine($"DoCalibrationMonoCalcsAllHeadsAsync: Error from DoMonoCalibrationCalculationSafeUI: Left Mono Result={ret}");
                             }
                         }
-                        if (doRightMono || doRightMonoUsingRightStereoAsTheMonoInput)
+                        if (doRightMono)
                         {
                             if (results[taskRightMonoIndex] != 0)
                             {
@@ -3043,6 +3118,21 @@ namespace Surveyor
                 }
             }
 
+            if (ret != 0)
+            {
+                calibProject.Data.CalibrationResults.Clear();  // This actually clears all calibration results left, right and stereo
+
+                if (doLeftMono)
+                {
+                    calibProject.Data.CalibrationResults.Clear();
+                    LeftMonoCalibrationHead.ClearCalibrationResultsDisplay();
+                }
+                if (doRightMono)
+                {
+                    RightMonoCalibrationHead.ClearCalibrationResultsDisplay();
+                }
+            }
+
             if (ret == 0)
             {
                 // Save the frames dataset
@@ -3053,6 +3143,8 @@ namespace Surveyor
             InfoBarProcessing.HideProcessing();
             SetUIControls();
 
+            Debug.WriteLine($"DoCalibrationMonoCalcsAllHeadsAsync Run Status  Left:{LeftMonoCalibrationHead.IsFindRunning()}  Right:{RightMonoCalibrationHead.IsFindRunning()}");
+
             return ret;
         }
 
@@ -3062,6 +3154,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="runCalibrationParams"></param>
         /// <returns></returns>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.SaveFrameDataCachesAsync(Boolean) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task<int> FindBestStereoFramesAsync(RunCalibrationParams runParams)
         {
             int ret = 0;
@@ -3106,6 +3199,18 @@ namespace Surveyor
                                                                             runParams.MaxFramesFromEachPoseBin);
             }
 
+
+            // If there is an error then clear any collected
+            // values and reset the display
+            if (ret != 0)
+            {
+                if (doStereo)
+                {
+                    StereoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.BestFrames);
+                }
+            }
+
+
             if (ret == 0)
             {
                 // Save the frames dataset
@@ -3116,6 +3221,8 @@ namespace Surveyor
             InfoBarProcessing.HideProcessing();
             SetUIControls();
 
+            Debug.WriteLine($"FindBestStereoFramesAsync Run Status  Stereo:{StereoCalibrationHead.IsFindRunning()}");
+
             return ret;
         }
 
@@ -3125,6 +3232,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="runCalibrationParams"></param>
         /// <returns></returns>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.SaveFrameDataCachesAsync(Boolean) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task<int> DoCalibrationStereoCalcsAsync(RunCalibrationParams runParams)
         {
             int ret = 0;
@@ -3164,6 +3272,15 @@ namespace Surveyor
                 ret = StereoCalibrationHead.DoCalibrationStereoCalculations(calibProject, runParams.StereoCornersFilterValue);
             }
 
+            if (ret != 0)
+            {
+                if (doStereo)
+                {
+                    calibProject.Data.CalibrationResults.Clear();  // This actually clears all calibration results left, right and stereo
+                    StereoCalibrationHead.ClearCalibrationResultsDisplay();
+                }
+            }
+
             if (ret == 0)
             {
                 // Save the frames dataset
@@ -3173,6 +3290,8 @@ namespace Surveyor
 
             InfoBarProcessing.HideProcessing();
             SetUIControls();
+
+            Debug.WriteLine($"DoCalibrationStereoCalcsAsync Run Status  Stereo:{StereoCalibrationHead.IsFindRunning()}");
 
             return ret;                                 
         }
@@ -3218,6 +3337,8 @@ namespace Surveyor
                         (bool)StereoCalibrationHead.IsStereoLocked()!)
                     {
                         doStereo = true;
+                        doLeftMono = true;
+                        doRightMono = true;
                     }
                     break;
                 case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
@@ -3973,8 +4094,8 @@ namespace Surveyor
                         ret = Math.Max(leftMonoMax, rightMonoMax);
                     break;
                 case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                    if (stereoMax != 0)
-                        ret = stereoMax;
+                    if (leftMonoMax != 0 || rightMonoMax != 0 || stereoMax != 0)
+                        ret = Math.Max(leftMonoMax, Math.Max(rightMonoMax, stereoMax));
                     break;
                 case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
                     if (leftMonoMax != 0 || rightMonoMax != 0 || stereoMax != 0)
@@ -4020,8 +4141,8 @@ namespace Surveyor
                         ret = Math.Min(leftMonoMin, rightMonoMin);
                     break;
                 case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                    if (stereoMin != double.MaxValue)
-                        ret = stereoMin;
+                    if (leftMonoMin != double.MaxValue || rightMonoMin != double.MaxValue || stereoMin != double.MaxValue)
+                        ret = Math.Min(leftMonoMin, Math.Min(rightMonoMin, stereoMin));
                     break;
                 case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
                     if (leftMonoMin != double.MaxValue || rightMonoMin != double.MaxValue || stereoMin != double.MaxValue)
@@ -4067,8 +4188,8 @@ namespace Surveyor
                         ret = Math.Max(leftMonoMax, rightMonoMax);
                     break;
                 case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                    if (stereoMax != 0)
-                        ret = stereoMax;
+                    if (leftMonoMax != 0 || rightMonoMax != 0 || stereoMax != 0)
+                        ret = Math.Max(leftMonoMax, Math.Max(rightMonoMax, stereoMax));
                     break;
                 case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
                     if (leftMonoMax != 0 || rightMonoMax != 0 || stereoMax != 0)
@@ -4114,8 +4235,8 @@ namespace Surveyor
                         ret = Math.Min(leftMonoMin, rightMonoMin);
                     break;
                 case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                    if (stereoMin != double.MaxValue)
-                        ret = stereoMin;
+                    if (leftMonoMin != double.MaxValue || rightMonoMin != double.MaxValue || stereoMin != double.MaxValue)
+                        ret = Math.Min(leftMonoMin, Math.Min(rightMonoMin, stereoMin));
                     break;
                 case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
                     if (leftMonoMin != double.MaxValue || rightMonoMin != double.MaxValue || stereoMin != double.MaxValue)
@@ -4438,6 +4559,7 @@ namespace Surveyor
         /// Add the selected survey to the recent surveys list
         /// </summary>
         /// <param name="filePath"></param>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.UpdateRecentProjectsMenu() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private void AddToRecentProjects(string filePath)
         {
             var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
@@ -4465,6 +4587,7 @@ namespace Surveyor
         /// Remove the selected survey to the recent surveys list
         /// </summary>
         /// <param name="filePath"></param>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.UpdateRecentProjectsMenu() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private void RemoveToRecentSurveys(string filePath)
         {
             var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
@@ -4484,6 +4607,7 @@ namespace Surveyor
         /// <summary>
         /// Update the recent projects menu from localSettings
         /// </summary>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.FileRecentProject_Click(Object, RoutedEventArgs)")]
         private void UpdateRecentProjectsMenu()
         {
             var localSettings = Windows.Storage.ApplicationData.Current.LocalSettings;
@@ -4600,7 +4724,7 @@ namespace Surveyor
                         ret = left && right;
                         break;
                     case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                        ret = stereo;
+                        ret = stereo && left && right;
                         break;
                     case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
                         ret = stereo && left && right;
@@ -4641,7 +4765,7 @@ namespace Surveyor
                         ret = (ViewMode)Math.Min((int)left, (int)right);
                         break;
                     case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                        ret = stereo;
+                        ret = (ViewMode)Math.Min((int)stereo, Math.Min((int)left, (int)right));
                         break;
                     case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
                         ret = (ViewMode)Math.Min((int)stereo, Math.Min((int)left, (int)right));
@@ -4688,10 +4812,14 @@ namespace Surveyor
                     break;
 
                 case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                    // Show the stereo head only
+                    LeftMonoCalibrationHead.HeadTitle = "Left Mono Calibration Video";
+
+                    // Show both mono and stereo heads but the mono head are using the stay videos as the stereo head 
                     showStereoCalibrationHead = true;
-                    showMonoStereoSplitter = false;
-                    showMonoCalibrationHeads = false;                    
+                    showMonoStereoSplitter = true;
+                    showMonoCalibrationHeads = true;
+                    showLeftRightSplitter = true;
+                    showRightMonoCalibrationHead = true;
                     break;
 
                 case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:

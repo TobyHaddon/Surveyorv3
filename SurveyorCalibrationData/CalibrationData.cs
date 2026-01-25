@@ -11,6 +11,8 @@
 // Surveyorv3 and SurveyorCalibration
 
 
+// Ignore Spelling: Json
+
 using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
@@ -53,8 +55,8 @@ namespace SurveyorCalibrationData
         [JsonProperty(nameof(ImageTotal))]
         public int ImageTotal { get; set; }     // Total number of images supplied to the calibration process
 
-        [JsonProperty(nameof(ImageUseable))]
-        public int ImageUseable { get; set; }   // Number of images that were possible to use in the calibration process
+        [JsonProperty(nameof(ImagesUsed))]
+        public int ImagesUsed { get; set; }   // Number of images that were possible to use in the calibration process
 
         [JsonProperty(nameof(CameraID))]
         public string CameraID { get; set; } = "";  // Unique camera ID (i.e. the serial number) if known
@@ -65,7 +67,7 @@ namespace SurveyorCalibrationData
             var hash = new HashCode();
             hash.Add(RMS);
             hash.Add(ImageTotal);
-            hash.Add(ImageUseable);
+            hash.Add(ImagesUsed);
             hash.Add(CameraID, StringComparer.Ordinal);
             hash.Add(HashMatrix(Intrinsic));   // content hash
             hash.Add(HashMatrix(Distortion));  // content hash
@@ -105,7 +107,7 @@ namespace SurveyorCalibrationData
 
             return RMS == other.RMS &&
                    ImageTotal == other.ImageTotal &&
-                   ImageUseable == other.ImageUseable &&
+                   ImagesUsed == other.ImagesUsed &&
                    string.Equals(CameraID, other.CameraID, StringComparison.Ordinal) &&
                    MatEqual(Intrinsic, other.Intrinsic) &&
                    MatEqual(Distortion, other.Distortion) &&
@@ -159,7 +161,7 @@ namespace SurveyorCalibrationData
             Distortion = null;
             ImageSize = null;
             ImageTotal = 0;
-            ImageUseable = 0;
+            ImagesUsed = 0;
             CameraID = "";
         }
 
@@ -174,7 +176,8 @@ namespace SurveyorCalibrationData
         {
             var settings = new JsonSerializerSettings
             {
-                Converters = [new MatrixJsonConverter()]
+                Converters = [new MatrixJsonConverter(),
+                              new Newtonsoft.Json.Converters.StringEnumConverter()]
             };
 
             var json = JsonConvert.SerializeObject(this, settings);
@@ -206,8 +209,8 @@ namespace SurveyorCalibrationData
         [JsonProperty(nameof(ImageTotal))]
         public int ImageTotal { get; set; }     // Total number of images supplied to the calibration process
 
-        [JsonProperty(nameof(ImageUseable))]
-        public int ImageUseable { get; set; }   // Number of images that were possible to use in the calibration process
+        [JsonProperty(nameof(ImagesUsed))]
+        public int ImagesUsed { get; set; }   // Number of images that were possible to use in the calibration process
 
 
 
@@ -216,7 +219,7 @@ namespace SurveyorCalibrationData
             var hash = new HashCode();
             hash.Add(RMS);
             hash.Add(ImageTotal);
-            hash.Add(ImageUseable);
+            hash.Add(ImagesUsed);
             hash.Add(HashMatrix(Rotation));
             hash.Add(HashMatrix(Translation));
             return hash.ToHashCode();
@@ -251,7 +254,7 @@ namespace SurveyorCalibrationData
 
             return RMS == other.RMS &&
                    ImageTotal == other.ImageTotal &&
-                   ImageUseable == other.ImageUseable &&
+                   ImagesUsed == other.ImagesUsed &&
                    MatEqual(Rotation, other.Rotation) &&
                    MatEqual(Translation, other.Translation);
         }
@@ -293,7 +296,7 @@ namespace SurveyorCalibrationData
             Rotation = null;
             Translation = null;
             ImageTotal = 0;
-            ImageUseable = 0;
+            ImagesUsed = 0;
         }
 
 
@@ -307,7 +310,8 @@ namespace SurveyorCalibrationData
         {
             var settings = new JsonSerializerSettings
             {
-                Converters = [new MatrixJsonConverter()]
+                Converters = [new MatrixJsonConverter(),
+                              new Newtonsoft.Json.Converters.StringEnumConverter()]
             };
 
             var json = JsonConvert.SerializeObject(this, settings);
@@ -475,7 +479,9 @@ namespace SurveyorCalibrationData
         {
             var settings = new JsonSerializerSettings
             {
-                Converters = [new MatrixJsonConverter(), new VectorJsonConverter()]
+                Converters = [new MatrixJsonConverter(), 
+                              new VectorJsonConverter(),
+                              new Newtonsoft.Json.Converters.StringEnumConverter()]
             };
 
             var json = JsonConvert.SerializeObject(this, settings);
@@ -536,6 +542,7 @@ namespace SurveyorCalibrationData
                 var settings = new JsonSerializerSettings();
                 settings.Converters.Add(new MatrixJsonConverter());
                 settings.Converters.Add(new VectorJsonConverter());
+                settings.Converters.Add(new Newtonsoft.Json.Converters.StringEnumConverter());
 
                 var calibrationData = JsonConvert.DeserializeObject<CalibrationData>(json, settings);
 
@@ -566,7 +573,7 @@ namespace SurveyorCalibrationData
 
                         LeftCameraCalibration.RMS = calibrationData.LeftCameraCalibration.RMS;
                         LeftCameraCalibration.ImageTotal = calibrationData.LeftCameraCalibration.ImageTotal;
-                        LeftCameraCalibration.ImageUseable = calibrationData.LeftCameraCalibration.ImageUseable;
+                        LeftCameraCalibration.ImagesUsed = calibrationData.LeftCameraCalibration.ImagesUsed;
                         LeftCameraCalibration.ImageSize = calibrationData.LeftCameraCalibration.ImageSize;
                         LeftCameraCalibration.CameraID = calibrationData.LeftCameraCalibration.CameraID;
                     }
@@ -592,7 +599,7 @@ namespace SurveyorCalibrationData
 
                         RightCameraCalibration.RMS = calibrationData.RightCameraCalibration.RMS;
                         RightCameraCalibration.ImageTotal = calibrationData.RightCameraCalibration.ImageTotal;
-                        RightCameraCalibration.ImageUseable = calibrationData.RightCameraCalibration.ImageUseable;
+                        RightCameraCalibration.ImagesUsed = calibrationData.RightCameraCalibration.ImagesUsed;
                         RightCameraCalibration.ImageSize = calibrationData.RightCameraCalibration.ImageSize;
                         RightCameraCalibration.CameraID = calibrationData.RightCameraCalibration.CameraID;
                     }
@@ -601,7 +608,7 @@ namespace SurveyorCalibrationData
                     {
                         StereoCameraCalibration.RMS = calibrationData.StereoCameraCalibration.RMS;
                         StereoCameraCalibration.ImageTotal = calibrationData.StereoCameraCalibration.ImageTotal;
-                        StereoCameraCalibration.ImageUseable = calibrationData.StereoCameraCalibration.ImageUseable;
+                        StereoCameraCalibration.ImagesUsed = calibrationData.StereoCameraCalibration.ImagesUsed;
 
                         if (calibrationData.StereoCameraCalibration.Rotation is not null)
                             StereoCameraCalibration.Rotation = calibrationData.StereoCameraCalibration.Rotation;
@@ -729,7 +736,7 @@ namespace SurveyorCalibrationData
                             // Tangential Distortion Coefficient 2 - Works with p1 to correct asymmetric distortion.
                             int? p2_state = (int?)intrinsics["p2"]?["state"];
                             double? p2 = (p2_state ?? 2) != 2 ? (double?)intrinsics["p2"]?["val"] ?? 0.0 : 0.0;
-                            // These coeeffients are not currently used
+                            // These coefficients are not currently used
                             double? s1 = (double?)intrinsics["s1"]?["val"];
                             double? s2 = (double?)intrinsics["s2"]?["val"];
                             double? s3 = (double?)intrinsics["s3"]?["val"];
@@ -888,7 +895,9 @@ namespace SurveyorCalibrationData
                     settings = new()
                     {
                         Formatting = Formatting.Indented, // For pretty-printing the JSON
-                        Converters = new List<JsonConverter> { new MatrixJsonConverter(), new VectorJsonConverter() }
+                        Converters = [new MatrixJsonConverter(), 
+                                      new VectorJsonConverter(),
+                                      new Newtonsoft.Json.Converters.StringEnumConverter()]
                     };
                 }
                 else

@@ -2,6 +2,7 @@
 using Surveyor.Helper;
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Reflection;
 using Windows.ApplicationModel;
@@ -32,6 +33,7 @@ namespace Surveyor
         /// Invoked when the application is launched.
         /// </summary>
         /// <param name="args">Details about the launch request and process.</param>
+        [RequiresUnreferencedCode("Required")]
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             // Load the command line Args

@@ -11,6 +11,7 @@
 using Microsoft.UI.Xaml;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -359,12 +360,14 @@ namespace Surveyor
     {
         // Singleton instance
         private static SettingsManagerApp? _instance;
+
+        [UnconditionalSuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "<Pending>")]
         public static SettingsManagerApp Instance => _instance ??= Load();
 
         public int RecentSurveysDisplayed { get; set; }  // Only use the 'get' the 'set' is for the JSON de-serialize
 
 
-        [JsonConverter(typeof(KeyValuePairListJsonConverter))]
+        [JsonConverter(typeof(KeyValuePairListJSonConverter))]
         public List<(string, string)> GoProScripts { get; set; } = [];  // Only use the 'get' the 'set' is for the JSON de-serialize
 
 
@@ -379,6 +382,8 @@ namespace Surveyor
         /// </summary>
 
         private static readonly string SettingsFilePath = Path.Combine(AppContext.BaseDirectory, "appSettings.json");
+
+        [RequiresUnreferencedCode("Calls System.Text.Json.JsonSerializer.Deserialize<TValue>(String, JsonSerializerOptions)")]
         private static SettingsManagerApp Load()
         {
             if (File.Exists(SettingsFilePath))
@@ -395,9 +400,9 @@ namespace Surveyor
 
 
     /// <summary>
-    /// Custom JSON converter for KeyValuePairList
+    /// Custom JSon converter for KeyValuePairList
     /// </summary>
-    public class KeyValuePairListJsonConverter : JsonConverter<List<(string, string)>>
+    public class KeyValuePairListJSonConverter : JsonConverter<List<(string, string)>>
     {
         public override List<(string, string)> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
         {

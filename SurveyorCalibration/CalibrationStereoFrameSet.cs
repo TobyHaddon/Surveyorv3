@@ -1,4 +1,6 @@
-﻿using Emgu.CV;
+﻿// Ignore Spelling: Json Coeffs
+
+using Emgu.CV;
 using Emgu.CV.Aruco;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Face;
@@ -13,6 +15,7 @@ using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -147,24 +150,43 @@ namespace Surveyor
         {
         }
 
-        public void ClearResults()
+
+        public enum ClearRequest
         {
-            // Reset collections
-            Data.StartCalibrationBoardZone = -1;
-            Data.StopCalibrationBoardZone = -1;
+            All,
+            StartStopCalibrationBoardZone,
+            FrameSets,
+            BestFrames
+        }
+        public void ClearResults(ClearRequest clearRequest)
+        {
+            // Reset 
 
-            Data.Frames = [];
-            Data.BestFrameIndexes = [];
+            if (clearRequest == ClearRequest.All || clearRequest == ClearRequest.StartStopCalibrationBoardZone)
+            {
+                Data.StartCalibrationBoardZone = -1;
+                Data.StopCalibrationBoardZone = -1;
+            }
 
-            Data.AllFramesSensorBinTotalsLeft = [];
-            Data.AllFramesSensorBinTotalsRight = [];
-            Data.AllFramesPoseBinTotalsLeft = [];
-            Data.AllFramesPoseBinTotalsRight = [];
+            if (clearRequest == ClearRequest.All || clearRequest == ClearRequest.FrameSets)
+            {
+                Data.Frames = [];
 
-            Data.BestFramesSensorBinTotalsLeft = [];
-            Data.BestFramesSensorBinTotalsRight = [];
-            Data.BestFramesPoseBinTotalsLeft = [];
-            Data.BestFramesPoseBinTotalsRight = [];
+                Data.AllFramesSensorBinTotalsLeft = [];
+                Data.AllFramesSensorBinTotalsRight = [];
+                Data.AllFramesPoseBinTotalsLeft = [];
+                Data.AllFramesPoseBinTotalsRight = [];
+            }
+
+            if (clearRequest == ClearRequest.All || clearRequest == ClearRequest.BestFrames)
+            {
+                Data.BestFrameIndexes = [];
+
+                Data.BestFramesSensorBinTotalsLeft = [];
+                Data.BestFramesSensorBinTotalsRight = [];
+                Data.BestFramesPoseBinTotalsLeft = [];
+                Data.BestFramesPoseBinTotalsRight = [];
+            }
         }
 
 
@@ -233,6 +255,9 @@ namespace Surveyor
             rightCapture = _rightCapture;
             totalFramesLeft = 0;
             totalFramesRight = 0;
+            // Reset the lock index
+            LockFrameIndexLeft = -1;
+            LockFrameIndexRight = -1;
 
             // Get left total frame count
             if (leftCapture is not null && leftCapture.IsOpened)
@@ -989,6 +1014,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="path"></param>
         /// <returns></returns>
+        [RequiresUnreferencedCode("LoadFromFileAsync uses Json.NET serialization which may not be compatible with trimming.")]
         public async Task<bool> LoadFromFileAsync(string path)
         {
             bool ret = false;
@@ -1004,7 +1030,9 @@ namespace Surveyor
                     {
                         var settings = new JsonSerializerSettings
                         {
-                            Converters = { /*new TupleInt4JsonConverter(),*/ new TupleInt2JsonConverter() }
+                            Converters = { new TupleInt2JsonConverter(), 
+                                           new Newtonsoft.Json.Converters.StringEnumConverter()
+                            }
                         };
 
                         frameSetDataLoaded = JsonConvert.DeserializeObject<CalibrationStereoFrameSet.DataClass>(json, settings);
@@ -1040,7 +1068,7 @@ namespace Surveyor
                                     Debug.WriteLine($"Old format cache file:{path}, version:{frameSetDataLoaded.Version}, current required version is:{lastestVersion}");
 
                                     // Clear the loaded data
-                                    this.ClearResults();
+                                    this.ClearResults(ClearRequest.All);
 
                                     return false;
                                 }
@@ -1101,7 +1129,7 @@ namespace Surveyor
             bool rightReady = false;
 
             // Clears results ready for the next run
-            ClearResults();
+            ClearResults(ClearRequest.All);
 
             if (leftCapture is not null && leftCapture.IsOpened)
                 leftReady = true;
@@ -1675,6 +1703,7 @@ namespace Surveyor
         /// Save the CalibrationFrameSet.Data class to a JSON file.
         /// </summary>
         /// <param name="path"></param>
+        [RequiresUnreferencedCode("SaveToFile uses Json.NET serialization which may not be compatible with trimming.")]
         public bool SaveToFile(string path)
         {
             bool ret = false;
@@ -1683,12 +1712,14 @@ namespace Surveyor
                 var settings = new JsonSerializerSettings
                 {
                     Formatting = Formatting.None,
-                    Converters = { /*???new TupleInt4JsonConverter(),*/ new TupleInt2JsonConverter() }
+                    Converters = { new TupleInt2JsonConverter(),
+                                   new Newtonsoft.Json.Converters.StringEnumConverter()}
                 };
 
                 var json = JsonConvert.SerializeObject(this.Data, settings);
                 File.WriteAllText(path, json);
                 ret = true;
+                Debug.WriteLine($"Info Saved to file: {path}");
             }
             catch (Exception ex)
             {
@@ -2302,7 +2333,7 @@ namespace Surveyor
                 {
                     CalibrationParameters = calibrationParameters,
                     ImageTotal = Data.BestFrameIndexes.Count,
-                    ImageUsable = imageUsable,
+                    ImagesUsed = imageUsable,
                     IntrinsicMatrix = intrinsicMatrix,
                     DistortionCoeffs = distortionCoeffs,
                     ReprojectionRMS = reprojectionRMS,
@@ -2780,7 +2811,7 @@ namespace Surveyor
                     Rotation = Rmat /*???new Emgu.CV.Matrix<double>(3, 3)*/,
                     Translation = Tmat /*???new Emgu.CV.Matrix<double>(3, 1)*/,
                     ImageTotal = Data.BestFrameIndexes.Count,
-                    ImageUseable = imageUseable,
+                    ImagesUsed = imageUseable,
                     RMS = error
                 };
 
@@ -3270,6 +3301,7 @@ namespace Surveyor
             return objectType == typeof(Dictionary<(int, int), int>);
         }
 
+        [RequiresUnreferencedCode("ReadJson uses Json.NET serialization which may not be compatible with trimming.")]
         public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
         {
             var result = new Dictionary<(int, int), int>();
@@ -3326,7 +3358,7 @@ namespace Surveyor
         public Matrix<double>? IntrinsicMatrix { get; set; }
         public Matrix<double>? DistortionCoeffs { get; set; }
         public int ImageTotal { get; set; }
-        public int ImageUsable { get; set; }
+        public int ImagesUsed{ get; set; }
         public double ReprojectionRMS { get; set; }     // Re-projection RMS Error (RPE RMS)
                                                         // Definition: Root mean square of distances between observed and projected image points.
                                                         // < 0.2    Excellent(usually only in studio/lab with perfect lighting and corner visibility)

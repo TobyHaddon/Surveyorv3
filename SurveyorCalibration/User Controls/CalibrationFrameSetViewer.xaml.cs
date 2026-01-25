@@ -605,6 +605,21 @@ namespace Surveyor.Controls
 
 
         /// <summary>
+        /// Note for this to be effective a call to CalibrationStereoFrameSet.ClearResults
+        /// is required for the graph to be cleared
+        /// </summary>
+        /// <param name="viewMode"></param>
+        public void ClearDisplay(UniversalCalibrationHeadUserControl.ViewMode viewMode)
+        {
+            HighLightActiveSensorBin(null);
+            RefreshSensorBin(viewMode);
+            HighLightActivePoseBin(null);
+            RefreshPoseBin(viewMode);
+            DrawGraphs();
+        }
+
+
+        /// <summary>
         /// Used to create the tool tip text for a pose bin cell
         /// </summary>
         /// <param name="yawIndex"></param>

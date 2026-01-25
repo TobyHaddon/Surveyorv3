@@ -264,6 +264,16 @@ namespace Surveyor.User_Controls
                 calibProject.Data.Media.MediaPath = mediaPath;
             }
 
+            // If the mode is Stereo Only then we reuse the stereo videos for the mono calibration
+            if (calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.StereoOnlyMediaSet)
+            {
+                // Load mono left media
+                calibProject.Data.Media.LeftMonoMP4FileName = calibProject.Data.Media.LeftStereoMP4FileName;
+
+                // Load mono right media
+                calibProject.Data.Media.RightMonoMP4FileName = calibProject.Data.Media.RightStereoMP4FileName;
+            }
+
             // Just to set variables up correctly
             StereoMonoRadioButtons_SelectionChanged(null!, null!);
 

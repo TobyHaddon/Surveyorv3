@@ -13,6 +13,7 @@ using Surveyor.User_Controls;
 using SurveyorCalibrationData;
 using System;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -310,6 +311,8 @@ namespace Surveyor.Controls
 
         /// <summary>
         /// Reset all internal values
+        /// Note see ClearResults(...) to clear the CalibrationStereoFrameSet 
+        /// values and align the display accordingly
         /// </summary>
         public void Clear()
         {
@@ -341,7 +344,7 @@ namespace Surveyor.Controls
             isLocked = false;
 
             // Reset frame set
-            calibrationStereoFrameSet.ClearResults();
+            calibrationStereoFrameSet.ClearResults(CalibrationStereoFrameSet.ClearRequest.All);
 
             //???private CancellationToken cancellationToken;
             //???private CancellationTokenSource? cts = null;
@@ -352,6 +355,55 @@ namespace Surveyor.Controls
             rightMediaFileSpec = string.Empty;
             capLeft = null;
             capRight = null;
+
+            // Clear the 'Go to' TextBox
+            LeftGoToFrameTextBox.Text = string.Empty;
+            RightGoToFrameTextBox.Text = string.Empty;
+        }
+
+
+        /// <summary>
+        /// Clear the CalibrationStereoFrameSet 
+        /// values and align the display accordingly
+        /// Note see Clear() to reset all internal values (full close down)
+        /// </summary>
+        /// <param name=""></param>
+        public void ClearResults(CalibrationStereoFrameSet.ClearRequest clearRequest)
+        {
+
+            switch (clearRequest)
+            {
+                case CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone:
+                    // Clear the calibration board zone values and visualization of the timeline
+                    calibrationStereoFrameSet.ClearResults(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
+                    CalibrationBoardTimeLineLeft.Clear();
+                    CalibrationBoardTimeLineRight.Clear();
+                    break;
+
+                case CalibrationStereoFrameSet.ClearRequest.FrameSets:
+                    // Clear the frame sets and the display if necessary
+                    calibrationStereoFrameSet.ClearResults(CalibrationStereoFrameSet.ClearRequest.FrameSets);
+                    CalibrationFrameSetViewerLeft.ClearDisplay(ViewModeCurrent);
+                    CalibrationFrameSetViewerRight.ClearDisplay(ViewModeCurrent);
+
+                    // Clear frame UI display data
+                    DecorateClear(true/*trueLeftfalseRight*/);
+                    DecorateClear(false/*trueLeftfalseRight*/);
+                    break;
+
+                case CalibrationStereoFrameSet.ClearRequest.BestFrames:
+                    // Clear the best frame sets and the display if necessary
+                    calibrationStereoFrameSet.ClearResults(CalibrationStereoFrameSet.ClearRequest.BestFrames);
+                    CalibrationFrameSetViewerLeft.ClearDisplay(ViewModeCurrent);
+                    CalibrationFrameSetViewerRight.ClearDisplay(ViewModeCurrent);
+
+                    // Clear frame UI display data
+                    DecorateClear(true/*trueLeftfalseRight*/);
+                    DecorateClear(false/*trueLeftfalseRight*/);
+
+                    break;
+
+            }
         }
 
 
@@ -518,17 +570,9 @@ namespace Surveyor.Controls
             }
 
             // Clear frame set values
-            this.calibrationStereoFrameSet.ClearResults();
-            CalibrationFrameSetViewerLeft.HighLightActiveSensorBin(null);
-            CalibrationFrameSetViewerLeft.RefreshSensorBin(ViewModeCurrent);
-            CalibrationFrameSetViewerLeft.HighLightActivePoseBin(null);
-            CalibrationFrameSetViewerLeft.RefreshPoseBin(ViewModeCurrent);
-            CalibrationFrameSetViewerLeft.DrawGraphs();
-            CalibrationFrameSetViewerRight.HighLightActiveSensorBin(null);
-            CalibrationFrameSetViewerRight.RefreshSensorBin(ViewModeCurrent);
-            CalibrationFrameSetViewerRight.HighLightActivePoseBin(null);
-            CalibrationFrameSetViewerRight.RefreshPoseBin(ViewModeCurrent);
-            CalibrationFrameSetViewerRight.DrawGraphs();
+            this.calibrationStereoFrameSet.ClearResults(CalibrationStereoFrameSet.ClearRequest.All);
+            CalibrationFrameSetViewerLeft.ClearDisplay(ViewModeCurrent);
+            CalibrationFrameSetViewerRight.ClearDisplay(ViewModeCurrent);
 
             // Clear images
             LeftImage.Source = null;          
@@ -784,13 +828,25 @@ namespace Surveyor.Controls
             {
                 Debug.WriteLine("Calibration search canceled.");
                 ret = -1;
+
+                if (ret == -1)
+                {
+                    calibrationStereoFrameSet.ClearResults(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
+                    calibrationStereoFrameSet.ClearResults(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
+                    CalibrationBoardTimeLineLeft.Clear();
+                    CalibrationBoardTimeLineRight.Clear();
+
+                    Debug.WriteLine("FindCalibrationBoardZoneAsync: User canceled.");
+                }
+
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error during calibration board zone search: {ex.Message}");
+                Debug.WriteLine($"FindCalibrationBoardZoneAsync: Error during calibration board zone search: {ex.Message}");
             }
             finally
             {
+                isFindCalibrationFrameRunning = false;
                 SetUIControls();
             }
 
@@ -827,23 +883,33 @@ namespace Surveyor.Controls
                     // Next find the calibration frames with in that range
                     ret = await Task.Run(async () =>
                     {
+                        int ret = -1;
 
                         try
                         {
-                            return await calibrationStereoFrameSet.FindCalibrationsFramesAsync(
+                            ret = await calibrationStereoFrameSet.FindCalibrationsFramesAsync(
                                             startCalibrationBoardZone,
                                             stopCalibrationBoardZone,
                                             FrameProcessingCallbackFindCalibrationsFrames,
                                             cancellationToken);
                         }
-                        finally
+                        catch (Exception ex)
                         {
-                            isFindCalibrationFrameRunning = false;
+                            Debug.WriteLine($"BuildFrameSetsAsync: FindCalibrationsFramesAsync Failed, {ex.Message}");
                         }
+
+                        return ret;
                     });
 
                     if (ret == -1)
+                    {
+                        calibrationStereoFrameSet.ClearResults(CalibrationStereoFrameSet.ClearRequest.FrameSets);
+                        calibrationStereoFrameSet.ClearResults(CalibrationStereoFrameSet.ClearRequest.BestFrames);
+                        CalibrationFrameSetViewerLeft.ClearDisplay(ViewModeCurrent);
+                        CalibrationFrameSetViewerRight.ClearDisplay(ViewModeCurrent);
+
                         Debug.WriteLine("BuildFrameSetsAsync: User canceled.");
+                    }
                 }
             }
             catch (OperationCanceledException)
@@ -858,6 +924,7 @@ namespace Surveyor.Controls
             finally
             {
                 SetUIControls();
+                isFindCalibrationFrameRunning = false;
             }
 
             return ret;
@@ -883,15 +950,20 @@ namespace Surveyor.Controls
         }
 
 
-        /// <summary>
         /// ** Safe to call from a background thread **
         /// ** All UI via SafeUICall **
         /// Extract the best frames and do a mono calibration.
         /// If it is called from a Stereo head both left and right are mono calibrated and the result 
         /// reported on screen.  However only the left MonoCalibrationCameraData array is returned
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
+        /// <param name="calibProject"></param>
+        /// <param name="trueLeftFalseRight"></param>
+        /// <param name="movementMinThreshold"></param>
+        /// <param name="blurMinThreshold"></param>
+        /// <param name="monoCornersMinThreshold"></param>
+        /// <param name="maxFramesFromEachSensorBin"></param>
+        /// <param name="maxFramesFromEachPoseBin"></param>
+        /// <returns>-1 if fails</returns>
         public async Task<int> FindBestMonoFramesSafeUIAsync(CalibProject calibProject,
                                                            bool trueLeftFalseRight,
                                                            double movementMinThreshold,
@@ -901,19 +973,38 @@ namespace Surveyor.Controls
                                                            int maxFramesFromEachPoseBin)
         {
             int ret = 0;
+            bool doMonoBestFrames = false;
+
+            // Guard
+            if (headTrueIsStereoFalseIsMode is null) return -1;
+            if (calibrationStereoFrameSet is null) return -1;
+
+            string headType = (bool)headTrueIsStereoFalseIsMode ? "Stereo" : "Mono";
+
+            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+            {
+                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                case StereoMonoMediaSetMode.StereoOnlyMediaSet:     // There are only a stereo pair so also use this for the mono calibration
+                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                    doMonoBestFrames = true;
+                    break;
+            }
 
             // Check we have a CalibrationStereoFrameSet and this is definitely a Mono head
-            if (calibrationStereoFrameSet is not null && headTrueIsStereoFalseIsMode == false)
+            if (doMonoBestFrames)
             {
                 try
                 {
+                    isFindCalibrationFrameRunning = true;
+
                     // Create a list of the best calibration frames best on the sensor bin only
                     if (trueLeftFalseRight)
-                        Debug.WriteLine($"Mono Left SelectBestStereoFramesUsingSensorBinOnly," +
+                        Debug.WriteLine($"{headType} Left SelectBestStereoFramesUsingSensorBinOnly," +
                                         $" Min move={movementMinThreshold}, Min blur={blurMinThreshold}," +
                                         $" Corners threshold={monoCornersMinThreshold}:");
                     else
-                        Debug.WriteLine($"Mono Right SelectBestStereoFramesUsingSensorBinOnly, " +
+                        Debug.WriteLine($"{headType} Right SelectBestStereoFramesUsingSensorBinOnly, " +
                                         $"Min move={movementMinThreshold}, Min blur={blurMinThreshold}, " +
                                         $"Corners threshold={monoCornersMinThreshold}:");
 
@@ -954,6 +1045,10 @@ namespace Surveyor.Controls
                 {
                     Debug.WriteLine($"FindBestMonoFramesSafeUIAsync: Error during best frames extraction: {ex.Message}");
                 }
+                finally
+                {
+                    isFindCalibrationFrameRunning = false;
+                }
             }
 
             safeUICall.Call(() => BestFrameJump(0));
@@ -984,6 +1079,8 @@ namespace Surveyor.Controls
             {
                 try
                 {
+                    isFindCalibrationFrameRunning = true;
+
                     // Proceed to do the mono calibration using each the calibration parameter set
                     foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
                     {
@@ -1018,7 +1115,11 @@ namespace Surveyor.Controls
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"Error during mono calibration calculation: {ex.Message}");
+                    Debug.WriteLine($"DoMonoCalibrationCalculationSafeUI: Error during mono calibration calculation: {ex.Message}");
+                }
+                finally
+                {
+                    isFindCalibrationFrameRunning = false;
                 }
             }
 
@@ -1054,38 +1155,47 @@ namespace Surveyor.Controls
 
             if (calibrationStereoFrameSet is not null && headTrueIsStereoFalseIsMode == true)
             {
-                // Proceed to do the stereo calibration using each calibration parameter 
-                foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
+                try
                 {
-                    Debug.WriteLine($"BestFramesCalcAndStereoCalibrationAsync: {calibrationParameters.ToString()}");
-                    MonoCalibrationCameraData? leftMonoCalibrationCameraData = calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
-                    MonoCalibrationCameraData? rightMonoCalibrationCameraData = calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters];
+                    isFindCalibrationFrameRunning = true;
 
-                    if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
+                    // Proceed to do the stereo calibration using each calibration parameter 
+                    foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
                     {
-                        // Create a list of the best calibration frames best on the sensor bin only
-                        calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold,
-                                                                                           blurMinThreshold,
-                                                                                           stereoCornersMinThreshold,
-                                                                                           maxFramesFromEachSensorBin);
+                        Debug.WriteLine($"FindBestStereoFramesAsync: {calibrationParameters.ToString()}");
+                        MonoCalibrationCameraData? leftMonoCalibrationCameraData = calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
+                        MonoCalibrationCameraData? rightMonoCalibrationCameraData = calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters];
 
-                        // Parse the Frames and calculate the yaw and pitch for each frame using the pass1 calibration
-                        await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBinAsync(leftMonoCalibrationCameraData,
-                                                                                                       rightMonoCalibrationCameraData,
-                                                                                                       frameSize);
-                        // Next top-up with pose diverse frames
-                        calibrationStereoFrameSet.AddBestFramesUsingPoseBins(movementMinThreshold,
-                                                                             blurMinThreshold,
-                                                                             stereoCornersMinThreshold,
-                                                                             maxFramesFromEachPoseBin);
+                        if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
+                        {
+                            // Create a list of the best calibration frames best on the sensor bin only
+                            calibrationStereoFrameSet.SelectBestStereoFramesUsingSensorBinOnly(movementMinThreshold,
+                                                                                               blurMinThreshold,
+                                                                                               stereoCornersMinThreshold,
+                                                                                               maxFramesFromEachSensorBin);
 
-                        if (calibrationStereoFrameSet.Data.BestFrameIndexes.Count > 0)
-                            ret = 0; // OK
+                            // Parse the Frames and calculate the yaw and pitch for each frame using the pass1 calibration
+                            await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBinAsync(leftMonoCalibrationCameraData,
+                                                                                                           rightMonoCalibrationCameraData,
+                                                                                                           frameSize);
+                            // Next top-up with pose diverse frames
+                            calibrationStereoFrameSet.AddBestFramesUsingPoseBins(movementMinThreshold,
+                                                                                 blurMinThreshold,
+                                                                                 stereoCornersMinThreshold,
+                                                                                 maxFramesFromEachPoseBin);
 
-                        CalibrationFrameSetViewerLeft.RefreshPoseBin(_viewMode);
-                        CalibrationFrameSetViewerRight.RefreshPoseBin(_viewMode);
+                            if (calibrationStereoFrameSet.Data.BestFrameIndexes.Count > 0)
+                                ret = 0; // OK
 
+                            CalibrationFrameSetViewerLeft.RefreshPoseBin(_viewMode);
+                            CalibrationFrameSetViewerRight.RefreshPoseBin(_viewMode);
+
+                        }
                     }
+                }
+                finally
+                {
+                    isFindCalibrationFrameRunning = false;
                 }
             }
 
@@ -1113,41 +1223,50 @@ namespace Surveyor.Controls
 
             if (calibrationStereoFrameSet is not null && headTrueIsStereoFalseIsMode == true)
             {
-                // Calibration result string (start with the Image Size)
-                //string leftCalibationText = $"Image Size {frameSize.Width} x {frameSize.Height}\n";
-                //string rightCalibationText = $"Image Size {frameSize.Width} x {frameSize.Height}\n";
-
-                // Proceed to do the stereo calibration using each calibration parameter 
-                foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
+                try
                 {
-                    Debug.WriteLine($"BestFramesCalcAndStereoCalibrationAsync: {calibrationParameters.ToString()}");
-                    MonoCalibrationCameraData? leftMonoCalibrationCameraData = calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
-                    MonoCalibrationCameraData? rightMonoCalibrationCameraData = calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters];
+                    isFindCalibrationFrameRunning = true;
 
-                    if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
+                    // Calibration result string (start with the Image Size)
+                    //string leftCalibationText = $"Image Size {frameSize.Width} x {frameSize.Height}\n";
+                    //string rightCalibationText = $"Image Size {frameSize.Width} x {frameSize.Height}\n";
+
+                    // Proceed to do the stereo calibration using each calibration parameter 
+                    foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
                     {
+                        Debug.WriteLine($"DoCalibrationStereoCalculations: {calibrationParameters.ToString()}");
+                        MonoCalibrationCameraData? leftMonoCalibrationCameraData = calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
+                        MonoCalibrationCameraData? rightMonoCalibrationCameraData = calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters];
 
-                        // Calibration stereo calculations using the best frames
-                        CalibrationStereoCameraData? calibrationStereoCameraData = calibrationStereoFrameSet.StereoCalibrateUsingBestFrames(
-                                                                    frameSize,
-                                                                    stereoCornersMinThreshold,
-                                                                    leftMonoCalibrationCameraData,
-                                                                    rightMonoCalibrationCameraData,
-                                                                    calibrationParameters);
-
-
-                        if (calibrationStereoCameraData is not null)
+                        if (leftMonoCalibrationCameraData is not null && rightMonoCalibrationCameraData is not null)
                         {
-                            calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)calibrationParameters] = calibrationStereoCameraData;
 
-                            // We need at least one working stereo calibration
-                            ret = 0;
+                            // Calibration stereo calculations using the best frames
+                            CalibrationStereoCameraData? calibrationStereoCameraData = calibrationStereoFrameSet.StereoCalibrateUsingBestFrames(
+                                                                        frameSize,
+                                                                        stereoCornersMinThreshold,
+                                                                        leftMonoCalibrationCameraData,
+                                                                        rightMonoCalibrationCameraData,
+                                                                        calibrationParameters);
+
+
+                            if (calibrationStereoCameraData is not null)
+                            {
+                                calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)calibrationParameters] = calibrationStereoCameraData;
+
+                                // We need at least one working stereo calibration
+                                ret = 0;
+                            }
                         }
                     }
-                }
 
-                // Display the mono & stereo calibration results
-                DisplayCalibrationInfoSafeUI(calibProject, null/*trueLeftFalseRightNullStereo*/);
+                    // Display the mono & stereo calibration results
+                    DisplayCalibrationInfoSafeUI(calibProject, null/*trueLeftFalseRightNullStereo*/);
+                }
+                finally
+                {
+                    isFindCalibrationFrameRunning = false;
+                }
             }
 
             SetAppMode(AppMode.BestFramesView);
@@ -1185,7 +1304,7 @@ namespace Surveyor.Controls
                 // Proceed to do the stereo calibration using each calibration parameter 
                 foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
                 {
-                    Debug.WriteLine($"BestFramesCalcAndStereoCalibrationAsync: {calibrationParameters}");
+                    Debug.WriteLine($"DisplayCalibrationInfoSafeUI: {calibrationParameters}");
                     MonoCalibrationCameraData? leftMonoCalibrationCameraData = null;
                     MonoCalibrationCameraData? rightMonoCalibrationCameraData = null;
 
@@ -1299,7 +1418,7 @@ namespace Surveyor.Controls
                         catch (Exception ex)
                         {
                             // Optional: handle or log the exception
-                            Debug.WriteLine($"Failed to delete {file}: {ex.Message}");
+                            Debug.WriteLine($"SaveBestFramesAsync: Failed to delete {file}: {ex.Message}");
                         }
                     }
                 }
@@ -1333,7 +1452,7 @@ namespace Surveyor.Controls
                         StorageFolder folder = await StorageFolder.GetFolderFromPathAsync(imageOutputSubFolder);
                         StorageFile file = await folder.CreateFileAsync(frameFileName, CreationCollisionOption.ReplaceExisting);
                         await SaveWriteableBitmapToFileAsync(wbLeft, file);
-                        Debug.WriteLine($"SaveBestFiles: Left Frame saved: [{file.Path}]");
+                        Debug.WriteLine($"SaveBestFramesAsync: Left Frame saved: [{file.Path}]");
 
                         if (rightTarget is not null && wbRight is not null)
                         {
@@ -1345,14 +1464,14 @@ namespace Surveyor.Controls
                             folder = await StorageFolder.GetFolderFromPathAsync(imageOutputSubFolder);
                             file = await folder.CreateFileAsync(frameFileName, CreationCollisionOption.ReplaceExisting);
                             await SaveWriteableBitmapToFileAsync(wbRight, file);
-                            Debug.WriteLine($"SaveBestFiles: Right Frame saved: [{file.Path}]");
+                            Debug.WriteLine($"SaveBestFramesAsync: Right Frame saved: [{file.Path}]");
                         }
 
                         ret = 0;// OK
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"SaveBestFiles: Error saving frame {frameIndex} to path:[{imageOutputSubFolder}], {ex.Message}");
+                        Debug.WriteLine($"SaveBestFramesAsync: Error saving frame {frameIndex} to path:[{imageOutputSubFolder}], {ex.Message}");
                     }
                 }
             }
@@ -1369,6 +1488,7 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
+        [RequiresUnreferencedCode("Calls SurveyorCalibration.CalibrationStereoFrameSet.SaveToFile(String) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         public bool SaveCachedResults(string cacheFileSpec)
         {
             // Force the version to the current 
@@ -1406,6 +1526,7 @@ namespace Surveyor.Controls
         /// <param name="_leftMediaFileSpec"></param>
         /// <param name="_rightMediaFileSpec"></param>
         /// <returns>null is error or the number of frames loaded</returns>
+        [RequiresUnreferencedCode("Calls SurveyorCalibration.CalibrationStereoFrameSet.LoadFromFileAsync(String) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         public async Task<int> LoadCachedResultsAsync(string cacheFileSpec)
         {
             int ret = 0;
@@ -3002,7 +3123,7 @@ namespace Surveyor.Controls
 
                 if (wb.PixelWidth != bgraFrame.Width || wb.PixelHeight != bgraFrame.Height)
                 {
-                    Debug.WriteLine($"Warning: Frame dimensions {bgraFrame.Width}x{bgraFrame.Height} " +
+                    Debug.WriteLine($"Warning: DrawFrameToScreen  Frame dimensions {bgraFrame.Width}x{bgraFrame.Height} " +
                                     $"don't match WriteableBitmap {wb.PixelWidth}x{wb.PixelHeight}");
                     return;
                 }
@@ -3021,7 +3142,7 @@ namespace Surveyor.Controls
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"DrawFrame: Error drawing frame: {ex.Message}");
+                Debug.WriteLine($"DrawFrameToScreen: Error drawing frame: {ex.Message}");
             }
         }
 
@@ -3122,13 +3243,13 @@ namespace Surveyor.Controls
                     if (fileInfo.Length == 0)
                     {
                         File.Delete(filePath);
-                        Debug.WriteLine($"Deleted zero-byte file: {filePath}");
+                        Debug.WriteLine($"DeleteIfZeroByteFile: Deleted zero-byte file: {filePath}");
                     }
                 }
             }
             catch (Exception ex)
             {
-                Debug.WriteLine($"Error checking/deleting file: {ex.Message}");
+                Debug.WriteLine($"DeleteIfZeroByteFile: Error checking/deleting file: {ex.Message}");
             }
         }
 

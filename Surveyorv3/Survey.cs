@@ -16,6 +16,8 @@
 // Added SurveyType to InfoClass and moved it's version to 2.0
 
 
+// Ignore Spelling: Json
+
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Converters;
@@ -81,7 +83,7 @@ namespace Surveyor
 
 
             /// <summary>
-            /// Diags dump of class information
+            /// Diagnostics dump of class information
             /// </summary>
             public void DumpAllProperties(Reporter? report)
             {
@@ -190,7 +192,7 @@ namespace Surveyor
                 }
 
                 /// <summary>
-                /// This is the name of the persion who analysed the survey (not the person who collected the data)
+                /// This is the name of the person who analyzed the survey (not the person who collected the data)
                 /// </summary>
                 public string? SurveyAnalystName
                 {
@@ -207,7 +209,7 @@ namespace Surveyor
                 }
 
                 /// <summary>
-                /// This is the depth of the survey in metres as a number e.g. 10
+                /// This is the depth of the survey in meters as a number e.g. 10
                 /// </summary>
                 public string? SurveyDepth
                 {
@@ -428,7 +430,7 @@ namespace Surveyor
                 // Sync class version
                 public float Version { get; set; } = 1.3f;
 
-                // Expand this class to include all the syning points like the lock on multiple media files
+                // Expand this class to include all the syncing points like the lock on multiple media files
                 // maybe support for multiple sync points
                 // maybe support for period start/stop
                 // but start with a single offset between the first left media fist and the first right media file
@@ -440,10 +442,10 @@ namespace Surveyor
                 private TimeSpan _timeSpanOffset = TimeSpan.Zero;   // This is right - left
 
                 [JsonIgnore]
-                private TimeSpan _actualTimeSpanOffsetLeft = TimeSpan.Zero;  // The actual sync timespan offset in the left media file, normally a torch flash
+                private TimeSpan _actualTimeSpanOffsetLeft = TimeSpan.Zero;  // The actual sync offset in the left media file, normally a torch flash
 
                 [JsonIgnore]
-                private TimeSpan _actualTimeSpanOffsetRight = TimeSpan.Zero; // The actual sync timespan offset in the right media file, normally a torch flash
+                private TimeSpan _actualTimeSpanOffsetRight = TimeSpan.Zero; // The actual sync offset in the right media file, normally a torch flash
 
                 public bool IsSynchronized
                 {
@@ -1169,9 +1171,9 @@ namespace Surveyor
                         IsDirty = false;
                         IsLoaded = true;
 
-                        // Start the autosave task in background
+                        // Start the auto save task in background
                         // The AutoSaveEnable flag is checked at the point the save is about to be made
-                        // The adventage with always having the timer running an checking if auto save is
+                        // The advantage with always having the timer running an checking if auto save is
                         // enabled last is that the Auto Save settings can be changed and the application
                         //doesn't need to be restarted.
 
@@ -1311,7 +1313,7 @@ namespace Surveyor
 
         /// <summary>
         /// Save a survey to a json file using passed file spec
-        /// Start an autosave task
+        /// Start an auto save task
         /// </summary>
         /// <param name="surveyFileSpec"></param>
         /// <returns></returns>
@@ -1406,7 +1408,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="mediaFileSpec"></param>
         /// <param name="FalseLeftTrueRight"></param>
-        /// <returns>0 Ok</returns>
+        /// <returns>0 means OK</returns>
         /// <returns>-1 if the media file is in a different path to the other media files</returns>
         public int AddMediaFile(string mediaFileSpec, bool FalseLeftTrueRight)
         {
@@ -1573,7 +1575,7 @@ namespace Surveyor
         /// <summary>
         private async Task StartAutoSaveAsync()
         {
-            await StopAutoSaveAsync(); // Ensure any previous autosave task is stopped
+            await StopAutoSaveAsync(); // Ensure any previous auto save task is stopped
 
             _autosaveCts = new CancellationTokenSource();
             _autosaveTask = Task.Run(async () =>
@@ -1596,7 +1598,7 @@ namespace Surveyor
                             if (SettingsManagerLocal.AutoSaveEnabled && IsDirty)
                             {
                                 SurveySave();
-                                Report?.Debug("", $"Autosave completed");
+                                Report?.Debug("", $"Auto save completed");
                             }
                         }
                     }
@@ -1612,7 +1614,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Request the autosave task to stop
+        /// Request the auto save task to stop
         /// </summary>
         public async Task StopAutoSaveAsync()
         {
@@ -1651,7 +1653,7 @@ namespace Surveyor
 
     public class CalibrationDataListJsonConverter : JsonConverter
     {
-        public CalibrationDataListJsonConverter() { } // Ensure parameterless constructor exists
+        public CalibrationDataListJsonConverter() { } // Ensure parameter-less constructor exists
 
         public override bool CanConvert(Type objectType)
         {

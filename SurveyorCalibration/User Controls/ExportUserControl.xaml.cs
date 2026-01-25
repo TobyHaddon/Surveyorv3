@@ -412,7 +412,7 @@ namespace Surveyor.User_Controls
             return null;
         }
 
-        private string GetMarkdownLang(string tag) => tag switch
+        private static string GetMarkdownLang(string tag) => tag switch
         {
             "cs" => "csharp",
             "cpp" => "cpp",
@@ -472,7 +472,7 @@ namespace Surveyor.User_Controls
             if (DataContext is CalibProject calibProject)
             {
                 // Return the best stereo calibration set
-                CalibrationParameters? calibrationParameters = GetBestCalibrationRersultConsideringStereoMonoMediaSetMode(calibProject);
+                CalibrationParameters? calibrationParameters = GetSelectedModel();  //???GetBestCalibrationRersultConsideringStereoMonoMediaSetMode(calibProject);
                 if (calibrationParameters is not null)
                 {
 
@@ -522,7 +522,7 @@ namespace Surveyor.User_Controls
                 calibrationData.LeftCameraCalibration.ImageSize[0, 1] = (int)calibProject.Data.Media.FrameHeight;
 
                 calibrationData.LeftCameraCalibration.ImageTotal = leftMonoCalibrationCameraData.ImageTotal;
-                calibrationData.LeftCameraCalibration.ImageUseable = leftMonoCalibrationCameraData.ImageUsable;
+                calibrationData.LeftCameraCalibration.ImagesUsed = leftMonoCalibrationCameraData.ImagesUsed;
                 calibrationData.LeftCameraCalibration.Intrinsic = leftMonoCalibrationCameraData.IntrinsicMatrix;
                 calibrationData.LeftCameraCalibration.Distortion = leftMonoCalibrationCameraData.DistortionCoeffs;
                 calibrationData.LeftCameraCalibration.RMS = leftMonoCalibrationCameraData.ReprojectionRMS;
@@ -533,7 +533,7 @@ namespace Surveyor.User_Controls
                 calibrationData.RightCameraCalibration.ImageSize[0, 0] = (int)calibProject.Data.Media.FrameWidth;
                 calibrationData.RightCameraCalibration.ImageSize[0, 1] = (int)calibProject.Data.Media.FrameHeight;
                 calibrationData.RightCameraCalibration.ImageTotal = rightMonoCalibrationCameraData.ImageTotal;
-                calibrationData.RightCameraCalibration.ImageUseable = rightMonoCalibrationCameraData.ImageUsable;
+                calibrationData.RightCameraCalibration.ImagesUsed = rightMonoCalibrationCameraData.ImagesUsed;
                 calibrationData.RightCameraCalibration.Intrinsic = rightMonoCalibrationCameraData.IntrinsicMatrix;
                 calibrationData.RightCameraCalibration.Distortion = rightMonoCalibrationCameraData.DistortionCoeffs;
                 calibrationData.RightCameraCalibration.RMS = rightMonoCalibrationCameraData.ReprojectionRMS;
@@ -795,7 +795,7 @@ namespace Surveyor.User_Controls
                 if (mono is not null)
                 {
                     sb.AppendLine($"=== Mono {side} Calibration ===");
-                    sb.AppendLine($"{side} Images Used: {mono.ImageUsable} / {mono.ImageTotal}");
+                    sb.AppendLine($"{side} Images Used: {mono.ImagesUsed} / {mono.ImageTotal}");
                     sb.AppendLine($"{side} Re-projection RMS: {mono.ReprojectionRMS:F3}px");
                     sb.AppendLine($"{side} Projection RMS: {mono.ProjectionRMS:F3}px");
                     sb.AppendLine($"{side} Max Error: {mono.ProjectionRMS:F3}px");
@@ -1069,6 +1069,35 @@ namespace Surveyor.User_Controls
                 case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
                     calibParams = calibProject.ReturnBestMonoCalibrationCameraData(true/*trueLeftRightFalse*/);
                     break;
+            }
+
+            return calibParams;
+        }
+
+
+        /// <summary>
+        /// Returns the current selected distortion model from the radio buttons
+        /// </summary>
+        /// <returns></returns>
+        private CalibrationParameters? GetSelectedModel()
+        {
+            CalibrationParameters? calibParams = null;
+
+            if (Model_K1K2P1P2.IsChecked == true)
+            {
+                calibParams = CalibrationParameters.K1K2P1P2;
+            }
+            else if (Model_K1K2K3P1P2.IsChecked == true)
+            {
+                calibParams = CalibrationParameters.K1K2K3P1P2;
+            }
+            else if (Model_K1K2K3K4P1P2.IsChecked == true)
+            {
+                calibParams = CalibrationParameters.K1K2K3K4P1P2;
+            }
+            else if (Model_K1K2K3K4P1P2K5K6.IsChecked == true)
+            {
+                calibParams = CalibrationParameters.K1K2K3K4P1P2K5K6;
             }
 
             return calibParams;

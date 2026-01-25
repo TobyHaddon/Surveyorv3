@@ -326,7 +326,7 @@
                                                           Head="Mono" 
                                                           Grid.Row="0" 
                                                           Grid.Column="0" 
-                                                          Margin="5,5,0,5"/>
+                                                          Margin="2,5,2,5"/>
             
             <!-- Mono Left/Right Vertical splitter -->
             <toolkit:GridSplitter x:Name="LeftRightMonoSplitter" Grid.Column="1"
@@ -343,7 +343,7 @@
                                                           Head="Mono" 
                                                           Grid.Row="0" 
                                                           Grid.Column="2"
-                                                          Margin="5,5,5,5"/>
+                                                          Margin="2,5,2,5"/>
 
 
         
@@ -364,7 +364,7 @@
                                                       HeadTitle="Stereo Calibration Video" 
                                                       Head="Stereo" 
                                                       Grid.Row="4"                                                      
-                                                      Margin="5,5,5,5"/>
+                                                      Margin="2,5,2,5"/>
 
         <!-- Horizontal sizer -->
         <toolkit:GridSplitter x:Name="OutputSplitter" Grid.Row="5"
