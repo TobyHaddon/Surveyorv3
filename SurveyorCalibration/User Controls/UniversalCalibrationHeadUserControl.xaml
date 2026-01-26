@@ -247,7 +247,7 @@
             </Grid>
 
             <!-- Right: Calibration Results -->
-            <Border x:Name="RightCalibDataBorder" Grid.Column="2" Grid.Row="0" BorderBrush="Gray" 
+            <!--<Border x:Name="RightCalibDataBorder" Grid.Column="2" Grid.Row="0" BorderBrush="Gray" 
                     BorderThickness="1" Padding="4" CornerRadius="2"  Visibility="Collapsed" Margin="3">
                 <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <TextBlock x:Name="RightCalibDataText"
@@ -257,7 +257,7 @@
                                TextTrimming="None"
                                xml:space="preserve" />
                 </ScrollViewer>
-            </Border>
+            </Border>-->
 
             <!-- Right: Frame Metadata -->
             <Border x:Name="RightFrameMetadataBorder" Grid.Column="1" Grid.Row="0" BorderBrush="Gray" 

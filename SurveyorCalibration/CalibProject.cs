@@ -42,6 +42,19 @@ namespace Surveyor
         // Use to stop the auto save and save methods from being called at the same time
         private readonly object _lockObject = new();
 
+
+        // The DynamicDependency are there to stop the Linker in Release mode from trimming 
+        // so the public properties which stopped the NewtonSoft JSon method working because
+        // they rely on reflection.  The problem was observed on the DataClass.CacheClass
+        // on the three Guid properties and on the mono and stereo results arrays in
+        // DataClass.CalibrationResultClass. 
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(CalibProject))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(CalibProject.DataClass))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(CalibProject.DataClass.CalibrationResultClass))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(CalibProject.DataClass.CacheClass))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(CalibProject.DataClass.InfoClass))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(CalibProject.DataClass.MediaClass))]
+        [DynamicDependency(DynamicallyAccessedMemberTypes.PublicProperties, typeof(CalibProject.DataClass.SyncClass))]
         public CalibProject(Reporter _report)
         {
             Report = _report;
@@ -590,7 +603,6 @@ namespace Surveyor
                 }
             }
 
-            [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties)]
             public partial class CacheClass : INotifyPropertyChanged
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
@@ -612,19 +624,6 @@ namespace Surveyor
                     IsDirty = false;
                 }
 
-                /// <summary>
-                /// This method is never called. Its purpose is to prevent the .NET Native tool chain
-                /// from trimming the property setters during Release builds. By creating a static reference
-                /// to the setters, we ensure they are preserved for reflection-based de serialization.
-                /// </summary>
-                [UnconditionalSuppressMessage("Trimming", "IL2026:Members annotated with 'RequiresUnreferencedCodeAttribute' require dynamic access otherwise can break functionality when trimming application code", Justification = "This method is never called, it is only for the trimmer.")]
-                private void KeepMembers()
-                {
-                    _projectFileNameSavedUnder = "";
-                    _leftMonoFrameSetCacheGuid = "";
-                    _rightMonoFrameSetCacheGuid = "";
-                    _stereoFrameSetCacheGuid = "";
-                }
 
                 // Info class version
                 public float Version { get; set; } = 1.0f;
@@ -890,66 +889,9 @@ namespace Surveyor
                 var settings = CreateJsonOptions();
 
                 DataClass? data = null;
-#if !DEBUG
-                // Diagnostic code to check for property trimming and JSON parsing in Release mode
                 try
                 {
-                    var parsedJson = Newtonsoft.Json.Linq.JObject.Parse(json);
-                    var cacheToken = parsedJson.SelectToken("Cache");
-                    if (cacheToken == null)
-                    {
-                        Trace.WriteLine("DIAGNOSTIC: JObject could not find 'Data.Cache' token in JSON.");
-                    }
-                    else
-                    {
-                        var guidToken = cacheToken.SelectToken("LeftMonoFrameSetCacheGuid");
-                        if (guidToken == null)
-                        {
-                            Trace.WriteLine("DIAGNOSTIC: JObject found 'Cache' but could NOT find 'LeftMonoFrameSetCacheGuid' token.");
-                        }
-                        else
-                        {
-                            Trace.WriteLine($"DIAGNOSTIC: JObject found 'LeftMonoFrameSetCacheGuid' with value: {guidToken.ToString()}");
-                        }
-                        guidToken = cacheToken.SelectToken("RightMonoFrameSetCacheGuid");
-                        if (guidToken == null)
-                        {
-                            Trace.WriteLine("DIAGNOSTIC: JObject found 'Cache' but could NOT find 'RightMonoFrameSetCacheGuid' token.");
-                        }
-                        else
-                        {
-                            Trace.WriteLine($"DIAGNOSTIC: JObject found 'RightMonoFrameSetCacheGuid' with value: {guidToken.ToString()}");
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Trace.WriteLine($"DIAGNOSTIC: JObject.Parse failed: {ex.Message}");
-                }
-
-                var cacheClassType = typeof(DataClass.CacheClass);
-                var /*propertyInfo = cacheClassType.GetProperty("LeftMonoFrameSetCacheGuid");
-                if (propertyInfo == null)
-                {
-                    Trace.WriteLine("DIAGNOSTIC: 'LeftMonoFrameSetCacheGuid' property NOT FOUND on CacheClass.");
-                }
-                else
-                {
-                    Trace.WriteLine($"DIAGNOSTIC: 'LeftMonoFrameSetCacheGuid' property FOUND. CanWrite: {propertyInfo.CanWrite}");
-                }*/
-                propertyInfo = cacheClassType.GetProperty("RightMonoFrameSetCacheGuid");
-                if (propertyInfo == null)
-                {
-                    Trace.WriteLine("DIAGNOSTIC: 'RightMonoFrameSetCacheGuid' property NOT FOUND on CacheClass.");
-                }
-                else
-                {
-                    Trace.WriteLine($"DIAGNOSTIC: 'RightMonoFrameSetCacheGuid' property FOUND. CanWrite: {propertyInfo.CanWrite}");
-                }
-#endif
-                try
-                {
-                    data = DeserializeWithTrimmingAnnotations<DataClass>(json, settings);
+                    data = JsonConvert.DeserializeObject<DataClass>(json, settings);
                 }
                 catch (Exception e)
                 {
@@ -976,18 +918,13 @@ namespace Surveyor
                         // The AutoSaveEnable flag is checked at the point the save is about to be made
                         // The advantage with always having the timer running an checking if auto save is
                         // enabled last is that the Auto Save settings can be changed and the application
-                        //doesn't need to be restarted.
+                        // doesn't need to be restarted.
                         await StartAutoSaveAsync();
                     }
                 }
             }
 
             return ret;
-        }
-
-        private static T? DeserializeWithTrimmingAnnotations<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicProperties)] T>(string json, JsonSerializerSettings settings)
-        {
-            return JsonConvert.DeserializeObject<T>(json, settings);
         }
 
 

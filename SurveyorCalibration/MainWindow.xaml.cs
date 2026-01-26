@@ -30,6 +30,7 @@ using Windows.Storage.Pickers;
 using Windows.Storage.Provider;
 using WinRT.Interop;
 using WinUIEx;
+using WinUIEx.Messaging;
 using static iText.Svg.SvgConstants;
 using static Surveyor.Controls.UniversalCalibrationHeadUserControl;
 
@@ -1086,8 +1087,33 @@ namespace Surveyor
                 // This took a lot of trial and error. It seems to effect the title bar is left in
                 // default row zero.
                 ContentDialogResult result = await ExportUserControlDialog.ShowAsync();
+            }
+        }
 
-                //???await ExportUserControl.ShowExportDialogAsync(calibProject, this.Content.XamlRoot);
+
+        /// <summary>
+        /// Compare the calibration results 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileCompare_Click(object sender, RoutedEventArgs e) => _ = FileCompareAsync();
+        private async Task FileCompareAsync()
+        {
+            if (calibProject is not null)
+            {
+                // Load the Info and Media user control to setup the project
+                CompareUserControl.SetupForContentDialog(CompareUserControlDialog, calibProject);
+
+                // ** Important notes **
+                // The UserControl CompareUserControlDialog is displayed within a ContentDialog for 
+                // the purpose of setting up a new project (also using from a SettingsCard)
+                // I struggled to get the ContentDialog to show width necessary to fully display
+                // the UserControl.  The solution was to:
+                // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
+                // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
+                // This took a lot of trial and error. It seems to effect the title bar is left in
+                // default row zero.
+                ContentDialogResult result = await CompareUserControlDialog.ShowAsync();
             }
         }
 

@@ -27,6 +27,7 @@
     <None Remove="CalibrationFrameSetViewer.xaml" />
     <None Remove="ImageViewer.xaml" />
     <None Remove="User Controls\CalibrationTargetTest.xaml" />
+    <None Remove="User Controls\CompareUserControl.xaml" />
     <None Remove="User Controls\ExportUserControl.xaml" />
     <None Remove="User Controls\ProcessingInfoBar.xaml" />
   </ItemGroup>
@@ -122,6 +123,9 @@
     <None Update="Help Documents\ChArUco Target 14x9 Dict5X5_100 Square=40.00mm Marker=30.00mm.pdf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <Page Update="User Controls\CompareUserControl.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
     <Page Update="User Controls\ExportUserControl.xaml">
       <Generator>MSBuild:Compile</Generator>
     </Page>

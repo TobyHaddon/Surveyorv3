@@ -785,8 +785,8 @@ namespace Surveyor.Controls
         {
             LeftCalibDataText.Text = string.Empty;
             LeftCalibDataBorder.Visibility = Visibility.Collapsed;
-            RightCalibDataText.Text = string.Empty;
-            RightCalibDataBorder.Visibility = Visibility.Collapsed;
+            //???RightCalibDataText.Text = string.Empty;
+            //???RightCalibDataBorder.Visibility = Visibility.Collapsed;
         }
 
 
@@ -1288,12 +1288,7 @@ namespace Surveyor.Controls
             // Reset left calibration output display if left mono, right mono (which used the left side) or stereo
             safeUICall.Call(() => LeftCalibDataText.Text = string.Empty);
             safeUICall.Call(() => LeftCalibDataBorder.Visibility = Visibility.Collapsed);
-            // Reset right calibration output display if stereo (only time the right side is actually used)
-            if (trueLeftFalseRightNullStereo is null)
-            {
-                safeUICall.Call(() => RightCalibDataText.Text = string.Empty);
-                safeUICall.Call(() => RightCalibDataBorder.Visibility = Visibility.Collapsed);
-            }
+
 
             if (calibrationStereoFrameSet is not null)
             {
@@ -1304,63 +1299,57 @@ namespace Surveyor.Controls
                 // Proceed to do the stereo calibration using each calibration parameter 
                 foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
                 {
-                    Debug.WriteLine($"DisplayCalibrationInfoSafeUI: {calibrationParameters}");
-                    MonoCalibrationCameraData? leftMonoCalibrationCameraData = null;
-                    MonoCalibrationCameraData? rightMonoCalibrationCameraData = null;
+                    //???Debug.WriteLine($"DisplayCalibrationInfoSafeUI: {calibrationParameters}");
 
-                    // Calibration stereo calculations using the best frames
-                    CalibrationStereoCameraData? calibrationStereoCameraData = calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)calibrationParameters];
-
-                    // If left mono or for left side stereo
-                    if ((trueLeftFalseRightNullStereo is not null && trueLeftFalseRightNullStereo == true) ||
-                            trueLeftFalseRightNullStereo is null)
+                    // Display mono results, either left or right
+                    if (trueLeftFalseRightNullStereo is not null)
                     {
-                        leftMonoCalibrationCameraData = calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
-
-                        if (leftMonoCalibrationCameraData is not null)
+                        if (trueLeftFalseRightNullStereo == true)
                         {
-                            leftCalibationText += "\n" + calibrationParameters.ToString() + ":\n";
-                            leftCalibationText += CalibrationStereoFrameSet.CalibrationCameraDataText(leftMonoCalibrationCameraData);
+                            // Left mono
+                            MonoCalibrationCameraData? leftMonoCalibrationCameraData = calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
 
-                            // Add the stereo calibration display text
-                            if (trueLeftFalseRightNullStereo is null && calibrationStereoCameraData is not null)
-                                leftCalibationText += CalibrationStereoFrameSet.CalibrationCameraDataText(calibrationStereoCameraData);
-
-                            // Set calibration output display 
-                            safeUICall.Call(() => LeftCalibDataText.Text = leftCalibationText);
-                            safeUICall.Call(() => LeftCalibDataBorder.Visibility = Visibility.Visible);
-                        }
-                    }
-
-
-                    // If right mono or we are right side stereo
-                    if ((trueLeftFalseRightNullStereo is not null && trueLeftFalseRightNullStereo == false) ||
-                            trueLeftFalseRightNullStereo is null)
-                    {
-                        rightMonoCalibrationCameraData = calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters];
-
-                        if (rightMonoCalibrationCameraData is not null)
-                        {                             
-                            rightCalibationText += "\n" + calibrationParameters.ToString() + ":\n";
-                            rightCalibationText += CalibrationStereoFrameSet.CalibrationCameraDataText(rightMonoCalibrationCameraData);
-
-                            // Add the stereo calibration display text
-                            if (trueLeftFalseRightNullStereo is null && calibrationStereoCameraData is not null)
-                                rightCalibationText += CalibrationStereoFrameSet.CalibrationCameraDataText(calibrationStereoCameraData);
-
-                            // Set calibration output display 
-                            if (trueLeftFalseRightNullStereo is null)
+                            if (leftMonoCalibrationCameraData is not null)
                             {
-                                safeUICall.Call(() => RightCalibDataText.Text = rightCalibationText);
-                                safeUICall.Call(() => RightCalibDataBorder.Visibility = Visibility.Visible);
+                                leftCalibationText += "\n" + calibrationParameters.ToString() + ":\n";
+                                leftCalibationText += CalibrationStereoFrameSet.CalibrationCameraDataText(leftMonoCalibrationCameraData);
+
+                                // Set calibration output display 
+                                safeUICall.Call(() => LeftCalibDataText.Text = leftCalibationText);
+                                safeUICall.Call(() => LeftCalibDataBorder.Visibility = Visibility.Visible);
                             }
-                            else
+                        }
+                        else
+                        {
+                            // Right Mono (but display on left side control of the right mono head)
+                            MonoCalibrationCameraData? rightMonoCalibrationCameraData = calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters];
+
+                            if (rightMonoCalibrationCameraData is not null)
                             {
+                                rightCalibationText += "\n" + calibrationParameters.ToString() + ":\n";
+                                rightCalibationText += CalibrationStereoFrameSet.CalibrationCameraDataText(rightMonoCalibrationCameraData);
+
                                 // Note. We used the left side display control only for a right mono head
                                 // even if 'trueLeftFalseRight == false'
                                 safeUICall.Call(() => LeftCalibDataText.Text = rightCalibationText);
                                 safeUICall.Call(() => LeftCalibDataBorder.Visibility = Visibility.Visible);
-                            }
+                            }                           
+                        }
+                    }
+                    // Display stereo results
+                    else
+                    {
+                        // Get the stereo Calibration data for this calibration parameter set
+                        CalibrationStereoCameraData? calibrationStereoCameraData = calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)calibrationParameters];
+
+                        if (calibrationStereoCameraData is not null)
+                        {
+                            leftCalibationText += "\n" + calibrationParameters.ToString() + ":\n";
+                            leftCalibationText += CalibrationStereoFrameSet.CalibrationCameraDataText(calibrationStereoCameraData);
+
+                            // Set calibration output display 
+                            safeUICall.Call(() => LeftCalibDataText.Text = leftCalibationText);
+                            safeUICall.Call(() => LeftCalibDataBorder.Visibility = Visibility.Visible);
                         }
                     }
                 }
