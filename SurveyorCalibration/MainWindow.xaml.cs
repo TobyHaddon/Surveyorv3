@@ -221,6 +221,12 @@ namespace Surveyor
                                               HelpDocumentsDOCSection,
                                               HelpDocumentsXLSSection);
 
+            // Experimental
+            // Only show the File>Compare option if in Debug
+#if !DEBUG
+            MenuCompare.IsEnabled = false;
+#endif
+
             SetUIControls();
 
             Report.Info("", "App Started");
@@ -535,10 +541,15 @@ namespace Surveyor
                     await dialog.ShowAsync();
                 }
 
-                // Clear all the calibration results
-                StereoCalibrationHead.ClearCalibrationResultsDisplay();
-                LeftMonoCalibrationHead.ClearCalibrationResultsDisplay();
-                RightMonoCalibrationHead.ClearCalibrationResultsDisplay();
+                // Clear the calibration results if they are going to be recalculated
+                if (runCalibrationParams.DoCalibrationMonoCalculations)
+                {
+                    LeftMonoCalibrationHead.ClearCalibrationResultsDisplay();
+                    RightMonoCalibrationHead.ClearCalibrationResultsDisplay();
+                }
+                if (runCalibrationParams.DoCalibrationStereoCalculations)
+                    StereoCalibrationHead.ClearCalibrationResultsDisplay();
+
 
                 // Find where in the .MP4 the calibration board starts and stops
                 if (runCalibrationParams.FindCalibrationBoardZone)
@@ -898,7 +909,7 @@ namespace Surveyor
         [RequiresUnreferencedCode("Calls Surveyor.MainWindow.FileProjectSaveOrSaveAsAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task FileProjectSaveClickAsync()
         {
-            await FileProjectSaveOrSaveAsAsync();
+            await FileProjectSaveOrSaveAsAsync(false /*trueForceSaveAs*/);
         }
 
 
@@ -913,7 +924,7 @@ namespace Surveyor
         [RequiresUnreferencedCode("Calls Surveyor.MainWindow.FileProjectSaveOrSaveAsAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task FileProjectSaveAsClickAsync()
         {
-            await FileProjectSaveOrSaveAsAsync();
+            await FileProjectSaveOrSaveAsAsync(true/*force SaveAs*/);
         }
 
 
@@ -1077,6 +1088,8 @@ namespace Surveyor
                 // Load the Info and Media user control to setup the project
                 ExportUserControl.SetupForContentDialog(ExportUserControlDialog, calibProject);
 
+                ExportUserControl.SetReporter(Report);
+
                 // ** Important notes **
                 // The UserControl ExportUserControlDialog is displayed within a ContentDialog for 
                 // the purpose of setting up a new project (also using from a SettingsCard)
@@ -1099,22 +1112,21 @@ namespace Surveyor
         private void FileCompare_Click(object sender, RoutedEventArgs e) => _ = FileCompareAsync();
         private async Task FileCompareAsync()
         {
-            if (calibProject is not null)
-            {
-                // Load the Info and Media user control to setup the project
-                CompareUserControl.SetupForContentDialog(CompareUserControlDialog, calibProject);
+            // Load the Info and Media user control to setup the project
+            CompareUserControl.SetupForContentDialog(CompareUserControlDialog, calibProject);
 
-                // ** Important notes **
-                // The UserControl CompareUserControlDialog is displayed within a ContentDialog for 
-                // the purpose of setting up a new project (also using from a SettingsCard)
-                // I struggled to get the ContentDialog to show width necessary to fully display
-                // the UserControl.  The solution was to:
-                // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
-                // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
-                // This took a lot of trial and error. It seems to effect the title bar is left in
-                // default row zero.
-                ContentDialogResult result = await CompareUserControlDialog.ShowAsync();
-            }
+            CompareUserControl.SetReporter(Report);
+
+            // ** Important notes **
+            // The UserControl CompareUserControlDialog is displayed within a ContentDialog for 
+            // the purpose of setting up a new project (also using from a SettingsCard)
+            // I struggled to get the ContentDialog to show width necessary to fully display
+            // the UserControl.  The solution was to:
+            // Set <x:Double x:Key="ContentDialogMaxWidth">1200</x:Double> in the <ResourceDictionary>
+            // to setup the ContentDialog in XAML in MainWindow and place it in Grid.Row=2.
+            // This took a lot of trial and error. It seems to effect the title bar is left in
+            // default row zero.
+            ContentDialogResult result = await CompareUserControlDialog.ShowAsync();
         }
 
 
@@ -1667,13 +1679,13 @@ namespace Surveyor
         /// </summary>
         /// <returns></returns>
         [RequiresUnreferencedCode("Calls Surveyor.MainWindow.SaveAsProjectAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
-        private async Task<int> FileProjectSaveOrSaveAsAsync()
+        private async Task<int> FileProjectSaveOrSaveAsAsync(bool trueForceSaveAs)
         {
             int ret = -1;
 
             if (calibProject is not null)
             {
-                if (calibProject.Data.Info.ProjectPath == null || calibProject.Data.Info.ProjectFileName == null)
+                if (trueForceSaveAs || calibProject.Data.Info.ProjectPath == null || calibProject.Data.Info.ProjectFileName == null)
                 {
                     // Not saved yet so use 'Save As'
                     ret = await SaveAsProjectAsync();
@@ -2106,7 +2118,7 @@ namespace Surveyor
                         if (result == ContentDialogResult.Primary)
                         {
                             // "Yes" button clicked
-                            await FileProjectSaveOrSaveAsAsync();
+                            await FileProjectSaveOrSaveAsAsync(false /*trueForceSaveAs*/);
                             closeSurvey = true;
 
                         }
@@ -3266,7 +3278,7 @@ namespace Surveyor
             if (calibProject is null)
                 return -1;
 
-            InfoBarProcessing.ShowProcessing("Finding best stereo frames...");            
+            InfoBarProcessing.ShowProcessing("Do stereo calibration calculations...");            
 
             SetUIControls();
 
@@ -3336,8 +3348,7 @@ namespace Surveyor
                 return -1;
 
             InfoBarProcessing.ShowProcessing("Save the best frame to files...");
-            //???SetAppModeOnAllHeads(AppMode.BestFramesCalc);
-
+           
             SetUIControls();
 
             bool doStereo = false;

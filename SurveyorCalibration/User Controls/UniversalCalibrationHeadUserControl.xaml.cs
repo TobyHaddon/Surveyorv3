@@ -200,8 +200,6 @@ namespace Surveyor.Controls
 
             safeUICall = new(dispatcherQueue);
 
-
-
             this.InitializeComponent();
 
 
@@ -245,6 +243,8 @@ namespace Surveyor.Controls
         public void SetReporter(Reporter _report)
         {
             report = _report;
+
+            calibrationStereoFrameSet.SetReporter(report);
         }
 
 
@@ -1099,6 +1099,9 @@ namespace Surveyor.Controls
                                 calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters] = monoCalib2;
                             else
                                 calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters] = monoCalib2;
+
+                            // Manually set the IsDirty flag.  The IsDirty is only automatically set if the whole array is replaced
+                            calibProject.Data.CalibrationResults.IsDirty = true;
                         }
                         else
                             ret = -1;
@@ -1253,6 +1256,9 @@ namespace Surveyor.Controls
                             if (calibrationStereoCameraData is not null)
                             {
                                 calibProject.Data.CalibrationResults.CalibrationStereoCameraDataArray[(int)calibrationParameters] = calibrationStereoCameraData;
+
+                                // Manually set the IsDirty flag.  The IsDirty is only automatically set if the whole array is replaced
+                                calibProject.Data.CalibrationResults.IsDirty = true;
 
                                 // We need at least one working stereo calibration
                                 ret = 0;
@@ -1435,25 +1441,25 @@ namespace Surveyor.Controls
 
                         // Make left image file name
                         string videoName = Path.GetFileNameWithoutExtension(leftMediaFileSpec);
-                        string frameFileName = $"{videoName}_{frameIndex}.png";
+                        string frameFileName = $"{videoName}_{frameIndex}_L{leftTarget.FrameIndex}.png";
 
                         // Save the left image file
                         StorageFolder folder = await StorageFolder.GetFolderFromPathAsync(imageOutputSubFolder);
                         StorageFile file = await folder.CreateFileAsync(frameFileName, CreationCollisionOption.ReplaceExisting);
                         await SaveWriteableBitmapToFileAsync(wbLeft, file);
-                        Debug.WriteLine($"SaveBestFramesAsync: Left Frame saved: [{file.Path}]");
+                        Debug.WriteLine($"SaveBestFramesAsync: Left Frame saved: [{file.Path}], Stereo Index:{frameIndex}, Left Index:{leftTarget.FrameIndex}");
 
                         if (rightTarget is not null && wbRight is not null)
                         {
                             // Make right image file name
                             videoName = Path.GetFileNameWithoutExtension(rightMediaFileSpec);
-                            frameFileName = $"{videoName}_{frameIndex}.png";
+                            frameFileName = $"{videoName}_{frameIndex}_R{rightTarget.FrameIndex}.png";
 
                             // Save the left image file
                             folder = await StorageFolder.GetFolderFromPathAsync(imageOutputSubFolder);
                             file = await folder.CreateFileAsync(frameFileName, CreationCollisionOption.ReplaceExisting);
                             await SaveWriteableBitmapToFileAsync(wbRight, file);
-                            Debug.WriteLine($"SaveBestFramesAsync: Right Frame saved: [{file.Path}]");
+                            Debug.WriteLine($"SaveBestFramesAsync: Right Frame saved: [{file.Path}], Stereo Index:{frameIndex}, Left Index:{rightTarget.FrameIndex}");
                         }
 
                         ret = 0;// OK
@@ -2260,6 +2266,8 @@ namespace Surveyor.Controls
                                             leftFrameCalibrationTarget.Score,
                                             leftFrameCalibrationTarget.YawDeg,
                                             leftFrameCalibrationTarget.PitchDeg,
+                                            leftFrameCalibrationTarget.FrameIndex,
+                                            null, /*position*/
                                             correspondingCount);
                     }
                     else
@@ -2278,6 +2286,8 @@ namespace Surveyor.Controls
                                             rightFrameCalibrationTarget.Score,
                                             rightFrameCalibrationTarget.YawDeg,
                                             rightFrameCalibrationTarget.PitchDeg,
+                                            rightFrameCalibrationTarget.FrameIndex,
+                                            null, /*position*/
                                             correspondingCount);
 
                     }
@@ -2334,6 +2344,7 @@ namespace Surveyor.Controls
             double movementFactor, double movementFromPrevious, double movementToNext,
             double blurFactor, int featureCount, double score,
             double yaw, double pitch,
+            int frameIndex, double? position,
             int correspondingCount)
         {
             TextBlock MovementFactor;
@@ -2342,6 +2353,8 @@ namespace Surveyor.Controls
             TextBlock Score;
             TextBlock Yaw;
             TextBlock Pitch;
+            TextBlock FrameIndex;
+            TextBlock Position;
 
             if (trueLeftfalseRight)
             {                
@@ -2351,6 +2364,8 @@ namespace Surveyor.Controls
                 Pitch = LeftPitchText;
                 FeatureCount = LeftFeatureCountText;
                 Score = LeftScoreText;
+                FrameIndex = LeftFrameIndex;
+                Position = LeftPosition;
             }
             else
             {
@@ -2360,6 +2375,8 @@ namespace Surveyor.Controls
                 Score = RightScoreText;
                 Yaw = RightYawText;
                 Pitch = RightPitchText;
+                FrameIndex = RightFrameIndex;
+                Position = RightPosition;
             }
 
             // Display movement and blur factor
@@ -2404,6 +2421,18 @@ namespace Surveyor.Controls
                 Score.Text = $"{score:F2}";
             else
                 Score.Text = string.Empty;
+
+            // Frame Index
+            if (frameIndex != -1)
+                FrameIndex.Text = $"{frameIndex}";
+            else
+                FrameIndex.Text = string.Empty;
+
+            // Position
+            if (position is not null)
+                Position.Text = $"{position:F2}";
+            else
+                Position.Text = string.Empty;
         }
 
         /// <summary>
@@ -2419,6 +2448,8 @@ namespace Surveyor.Controls
                 LeftScoreText.Text = string.Empty;
                 LeftYawText.Text = string.Empty;
                 LeftPitchText.Text = string.Empty;
+                LeftFrameIndex.Text = string.Empty;
+                LeftPosition.Text = string.Empty;
             }
             else
             {
@@ -2428,6 +2459,8 @@ namespace Surveyor.Controls
                 RightScoreText.Text = string.Empty;
                 RightYawText.Text = string.Empty;
                 RightPitchText.Text = string.Empty;
+                RightFrameIndex.Text = string.Empty;
+                RightPosition.Text = string.Empty;
             }
         }
 
@@ -2826,7 +2859,7 @@ namespace Surveyor.Controls
         /// framesetIndex = -1 clears the UI frame fields
         /// </summary>
         /// <param name="framesetIndex"></param>
-        private void DecorateWithFrameInfo(bool leftTrueRightFalse, FrameData? frameData, int correpondingCount)
+        private void DecorateWithFrameInfo(bool leftTrueRightFalse, FrameData? frameData, int frameIndex, double? time, int correpondingCount)
         {
             // Set frame index / total frame and time position
             UpdateFrameLabel(leftTrueRightFalse);
@@ -2844,6 +2877,8 @@ namespace Surveyor.Controls
                             frameData.Score,
                             frameData.YawDeg,
                             frameData.PitchDeg,
+                            frameIndex, /* Don't used frameData.FrameIndex */
+                            time,
                             correpondingCount);
                 // Indicate which of the bin this frame is found in
                 if (leftTrueRightFalse)
@@ -2871,6 +2906,32 @@ namespace Surveyor.Controls
                 CalibrationFrameSetViewerRight.HighLightActiveSensorBin(null);
                 CalibrationFrameSetViewerLeft.HighLightActivePoseBin(null);
                 CalibrationFrameSetViewerRight.HighLightActivePoseBin(null);
+
+                // All we have to display is the frame index and time position
+                TextBlock FrameIndex;
+                TextBlock Position;
+                if (leftTrueRightFalse == true)
+                {
+                    FrameIndex = LeftFrameIndex;
+                    Position = LeftPosition;
+                }
+                else
+                {
+                    FrameIndex = RightFrameIndex;
+                    Position = RightPosition;
+                }
+
+                // Frame Index
+                if (frameIndex != -1)
+                    FrameIndex.Text = $"{frameIndex}";
+                else
+                    FrameIndex.Text = string.Empty;
+
+                // Position
+                if (time is not null)
+                    Position.Text = $"{time:F2}";
+                else
+                    Position.Text = string.Empty;
             }
         }
 
@@ -2956,7 +3017,8 @@ namespace Surveyor.Controls
                         _currentFrameRight = targetIndex;
 
                     // Update metadata, frame label etc
-                    DecorateWithFrameInfo(leftTrueRightFalse, frameData, correpondingCount);                   
+                    double time = cap.Get(CapProp.PosMsec) / 1000.0;
+                    DecorateWithFrameInfo(leftTrueRightFalse, frameData, targetIndex, time, correpondingCount);                   
                 }
             }
 
@@ -3008,7 +3070,8 @@ namespace Surveyor.Controls
                         _currentFrameRight = targetIndex;
 
                     // Update metadata, frame label etc
-                    DecorateWithFrameInfo(leftTrueRightFalse, frameData, correpondingCount);
+                    double time = cap.Get(CapProp.PosMsec) / 1000.0;
+                    DecorateWithFrameInfo(leftTrueRightFalse, frameData, targetIndex, time, correpondingCount);
                 }
             }
 

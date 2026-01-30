@@ -81,13 +81,6 @@
                 </toolkit:SettingsExpander>
 
                 <!--SURVEY CALIBRATION-->
-                <!--<toolkit:SettingsCard x:Name="CalibrationExpander" Header="Calibration"
-                                    ToolTipService.ToolTip="Calibration information for the stereo camera rig.">
-                    <toolkit:SettingsCard.HeaderIcon>
-                        <FontIcon Glyph="&#xEB3C;" />
-                    </toolkit:SettingsCard.HeaderIcon>
-                    --><!--<ToggleSwitch x:Name="magnifierWindowAutomaticXXX" Toggled="MagnifierWindowAutomatic_Toggled" />--><!--
-                </toolkit:SettingsCard>-->
                 <surveyorControls:SettingsCalibration x:Name="SettingsCalibration"/>
 
                 <!--SURVEY RULES-->
@@ -97,7 +90,7 @@
                 <!--SYSTEM SETTINGS-->
                 <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="System Settings"  MaxWidth="1200"/>
 
-                <!--SYSTEM SETTINGS > GENERAL SETTINGS-->
+                <!--GENERAL SETTINGS-->
                 <toolkit:SettingsExpander x:Name="GeneralSettingsExpander" Header="General Settings" MaxWidth="1200">
                     <toolkit:SettingsExpander.HeaderIcon>
                         <FontIcon Glyph="&#xE115;" />
@@ -134,8 +127,8 @@
                             <ToggleSwitch x:Name="UseInternet" Toggled="UseInternet_Toggled" />
                         </toolkit:SettingsCard>
 
-                        <!-- Mousewheel frame forward/back -->
-                        <toolkit:SettingsCard Header="Mousewheel Frame Forward/Back" Description="Use the mousewheel or a two fingers swipe to move the frame forward or back">
+                        <!-- Mouse wheel frame forward/back -->
+                        <toolkit:SettingsCard Header="Mouse wheel Frame Forward/Back" Description="Use the mousewheel or a two fingers swipe to move the frame forward or back">
                             <toolkit:SettingsCard.HeaderIcon>
                                 <FontIcon Glyph="&#xE65A;" ToolTipService.ToolTip="You can use either the mousewheel or a two fingers swipe up/down on the trackpad to move the frame forward or back in the video.  The pointer needs to be on the media player and the magnifier window cannot be open."/>
                             </toolkit:SettingsCard.HeaderIcon>
@@ -516,7 +509,7 @@
                                     <TextBlock Text="Created" FontWeight="Bold" Grid.Column="7" Padding="2"/>
                                 </Grid>
 
-                                <!-- Scrollable + Selectable ListView -->
+                                <!-- Scroll-able + Selectable ListView -->
                                 <ListView x:Name="InternetQueueListView"
                                             ItemsSource="{x:Bind mainWindow.internetQueue.InternetQueueView, Mode=OneWay}"
                                             SelectionMode="Single"
@@ -623,7 +616,7 @@
                         <toolkit:SettingsCard HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" MaxWidth="1200">
                             <StackPanel>
                               
-                                <!-- Scrollable + Selectable ListView -->
+                                <!-- Scroll-able + Selectable ListView -->
                                 <ListView x:Name="SpeciesImageCacheListView"
                                             ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView, Mode=OneWay}"
                                             SelectionMode="Single"

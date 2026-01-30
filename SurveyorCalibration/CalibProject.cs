@@ -42,6 +42,12 @@ namespace Surveyor
         // Use to stop the auto save and save methods from being called at the same time
         private readonly object _lockObject = new();
 
+        // Generates an instance ID only used for debugging
+        private static int _instanceCounter = 0;
+        private readonly int _instanceId = Interlocked.Increment(ref _instanceCounter);
+        [JsonIgnore]
+        public string DebugInstanceTag => $"CalibProject#{_instanceId} (idHash={RuntimeHelpers.GetHashCode(this)}, gen={GC.GetGeneration(this)})";
+
 
         // The DynamicDependency are there to stop the Linker in Release mode from trimming 
         // so the public properties which stopped the NewtonSoft JSon method working because
@@ -1417,6 +1423,8 @@ namespace Surveyor
         [RequiresUnreferencedCode("StartAutoSaveAsync uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task StartAutoSaveAsync()
         {
+            Debug.WriteLine($"{DebugInstanceTag}: StartAutoSaveAsync entered. IsDirty={IsDirty}");
+
             await StopAutoSaveAsync(); // Ensure any previous auto save task is stopped
 
             _autosaveCts = new CancellationTokenSource();
@@ -1479,6 +1487,8 @@ namespace Surveyor
                 _autosaveCts.Dispose();
                 _autosaveCts = null;
                 _autosaveTask = null;
+
+                Debug.WriteLine($"{DebugInstanceTag}: StopAutoSaveAsync exited.");
             }
         }
 

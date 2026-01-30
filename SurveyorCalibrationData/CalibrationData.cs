@@ -195,16 +195,19 @@ namespace SurveyorCalibrationData
         [JsonProperty(nameof(RMS))]
         public double RMS { get; set; } = -1;  // Re-projection RMS in pixels (return value from CalibrateCameraCharuco) 
 
+        [JsonProperty(nameof(ProjectionRMS))]
+        public double ProjectionRMS { get; set; } // Projection RMS in pixels
+
+        [JsonProperty(nameof(MaxError))]
+        public double MaxError { get; set; } // max re-projection error in pixels
 
         [JsonProperty(nameof(Rotation))]
         [JsonConverter(typeof(MatrixJsonConverter))]
         public Emgu.CV.Matrix<double>? Rotation { get; set; }       // Rotation matrix 3x3
 
-
         [JsonProperty(nameof(Translation))]
         [JsonConverter(typeof(MatrixJsonConverter))]
         public Emgu.CV.Matrix<double>? Translation { get; set; }     // Translation vector 3x1
-
 
         [JsonProperty(nameof(ImageTotal))]
         public int ImageTotal { get; set; }     // Total number of images supplied to the calibration process
@@ -213,11 +216,12 @@ namespace SurveyorCalibrationData
         public int ImagesUsed { get; set; }   // Number of images that were possible to use in the calibration process
 
 
-
         public override int GetHashCode()
         {
             var hash = new HashCode();
             hash.Add(RMS);
+            hash.Add(ProjectionRMS);
+            hash.Add(MaxError);
             hash.Add(ImageTotal);
             hash.Add(ImagesUsed);
             hash.Add(HashMatrix(Rotation));
@@ -253,6 +257,8 @@ namespace SurveyorCalibrationData
             if (obj is not CalibrationStereoCameraData other) return false;
 
             return RMS == other.RMS &&
+                   ProjectionRMS == other.ProjectionRMS &&
+                   MaxError == other.MaxError &&
                    ImageTotal == other.ImageTotal &&
                    ImagesUsed == other.ImagesUsed &&
                    MatEqual(Rotation, other.Rotation) &&
@@ -293,6 +299,8 @@ namespace SurveyorCalibrationData
         public void Clear()
         {
             RMS = 0;
+            ProjectionRMS = 0;
+            MaxError = 0;
             Rotation = null;
             Translation = null;
             ImageTotal = 0;

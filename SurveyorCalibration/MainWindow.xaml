@@ -420,6 +420,22 @@
             </ContentDialog>
         </Grid>
 
+        <!-- Compare Dialog -->
+        <Grid x:Name="CompareUserControlDialogGrid" Grid.Row="7">
+            <ContentDialog x:Name="CompareUserControlDialog"
+                        Title="Compare Results"
+                        CloseButtonText="Cancel"
+                        DefaultButton="Close"
+                        MinWidth="600"
+                        MaxWidth="600"
+                        MinHeight="200"
+                        MaxHeight="400"
+                        IsPrimaryButtonEnabled="False"
+                        RequestedTheme="Default">
+                <surveyorControls:Compare x:Name="CompareUserControl" />
+            </ContentDialog>
+        </Grid>
+
         <!-- Teaching Tip Section -->
         <TeachingTip x:Name="MenuFileTeachingTip"
              Title="Start Here!"

@@ -14,7 +14,7 @@ using Windows.Storage;
 using Windows.Storage.Pickers;
 using WinRT.Interop;
 using static Surveyor.CalibProject.DataClass;
-
+            
 
 
 namespace Surveyor.User_Controls
@@ -51,6 +51,8 @@ namespace Surveyor.User_Controls
             ParentDialog = dialog;
             DataContext = calibProject;
 
+            // Unload an previously handle. This so we don't get multiple Save dialogs
+            dialog.PrimaryButtonClick -= ExportDialog_Save_Click;
             dialog.PrimaryButtonClick += ExportDialog_Save_Click;
         }
 
@@ -515,7 +517,8 @@ namespace Surveyor.User_Controls
                 // Populate the CalibrationData
                 CalibrationData calibrationData = new()
                 {
-                    StereoCameraCalibration = calibrationStereoCameraData,
+                    Description = $"{Path.GetFileNameWithoutExtension(calibProject.Data.Info.ProjectFileName)} / {calibrationParameters}",
+                    StereoCameraCalibration = calibrationStereoCameraData
                 };
                 calibrationData.LeftCameraCalibration.ImageSize = new Emgu.CV.Matrix<int>(1/*rows*/, 2/*cols*/);
                 calibrationData.LeftCameraCalibration.ImageSize[0, 0] = (int)calibProject.Data.Media.FrameWidth;

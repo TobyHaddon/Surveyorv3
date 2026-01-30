@@ -17,6 +17,8 @@
         <x:String x:Key="PitchToolTipText">The detected tilt of the calibration board in the up/down direction (pitch). A positive angle means the board is tilted forward</x:String>
         <x:String x:Key="FeaturesToolTipText">The number of markers detected on the calibration board. For stereo detection it is count of the corresponding markers found on the left and right calibration board i.e. marker is only counted if it can be seen on the left and the right side simultaneously</x:String>
         <x:String x:Key="ScoreToolTipText">A quality score calculated for this frame</x:String>
+        <x:String x:Key="FrameIndexToolTipText">Video frame index number</x:String>
+        <x:String x:Key="PositionToolTipText">Time position in video</x:String>
     </UserControl.Resources>
 
     <Grid x:Name="RootGrid">
@@ -95,6 +97,8 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
                     <!-- Row 0 -->
@@ -165,6 +169,26 @@
                                     Grid.Row="5" Grid.Column="1" FontSize="12"
                                     Margin="0,2,0,2" VerticalAlignment="Center"
                                     ToolTipService.ToolTip="{StaticResource ScoreToolTipText}"/>
+
+                    <!-- Row 6: Frame Index  -->
+                    <TextBlock Grid.Row="6" Grid.Column="0" 
+                                Text="#" FontSize="16" 
+                                VerticalAlignment="Center" Margin="4,0,4,0"
+                                ToolTipService.ToolTip="{StaticResource ScoreToolTipText}"/>
+                    <TextBlock x:Name="LeftFrameIndex"
+                                    Grid.Row="6" Grid.Column="1" FontSize="12"
+                                    Margin="0,2,0,2" VerticalAlignment="Center"
+                                    ToolTipService.ToolTip="{StaticResource FrameIndexToolTipText}"/>
+
+                    <!-- Row 7: Position  -->
+                    <StackPanel Grid.Row="7" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,2,4,2">
+                        <FontIcon Glyph="&#xE916;" FontSize="16" ToolTipService.ToolTip="{StaticResource PositionToolTipText}"/>
+                    </StackPanel>
+                    <TextBlock x:Name="LeftPosition"
+                                    Grid.Row="7" Grid.Column="1" FontSize="12"
+                                    Margin="0,2,0,2" VerticalAlignment="Center"
+                                    ToolTipService.ToolTip="{StaticResource ScoreToolTipText}"/>
+
                 </Grid>
             </Border>
 
@@ -246,19 +270,6 @@
                                                HorizontalAlignment="Stretch" Visibility="Collapsed" Margin="0,2,0,0"/>
             </Grid>
 
-            <!-- Right: Calibration Results -->
-            <!--<Border x:Name="RightCalibDataBorder" Grid.Column="2" Grid.Row="0" BorderBrush="Gray" 
-                    BorderThickness="1" Padding="4" CornerRadius="2"  Visibility="Collapsed" Margin="3">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                    <TextBlock x:Name="RightCalibDataText"
-                               FontFamily="Consolas"
-                               FontSize="10"
-                               TextWrapping="Wrap"
-                               TextTrimming="None"
-                               xml:space="preserve" />
-                </ScrollViewer>
-            </Border>-->
-
             <!-- Right: Frame Metadata -->
             <Border x:Name="RightFrameMetadataBorder" Grid.Column="1" Grid.Row="0" BorderBrush="Gray" 
                     BorderThickness="1" Padding="4" CornerRadius="2"  Visibility="Visible" Width="70" Margin="1,3,0,0"
@@ -270,6 +281,8 @@
                     </Grid.ColumnDefinitions>
 
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -344,6 +357,25 @@
                     </StackPanel>
                     <TextBlock x:Name="RightScoreText"
                                     Grid.Row="5" Grid.Column="1" FontSize="12"
+                                    Margin="0,2,0,2" VerticalAlignment="Center"
+                                    ToolTipService.ToolTip="{StaticResource ScoreToolTipText}"/>
+
+                    <!-- Row 6: Frame Index  -->
+                    <TextBlock Grid.Row="6" Grid.Column="0" 
+                                Text="#" FontSize="16" 
+                                VerticalAlignment="Center" Margin="4,0,4,0"
+                                ToolTipService.ToolTip="{StaticResource ScoreToolTipText}"/>
+                    <TextBlock x:Name="RightFrameIndex"
+                                    Grid.Row="6" Grid.Column="1" FontSize="12"
+                                    Margin="0,2,0,2" VerticalAlignment="Center"
+                                    ToolTipService.ToolTip="{StaticResource FrameIndexToolTipText}"/>
+                    
+                    <!-- Row 7: Position  -->
+                    <StackPanel Grid.Row="7" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,2,4,2">
+                        <FontIcon Glyph="&#xE916;" FontSize="16" ToolTipService.ToolTip="{StaticResource PositionToolTipText}"/>
+                    </StackPanel>
+                    <TextBlock x:Name="RightPosition"
+                                    Grid.Row="7" Grid.Column="1" FontSize="12"
                                     Margin="0,2,0,2" VerticalAlignment="Center"
                                     ToolTipService.ToolTip="{StaticResource ScoreToolTipText}"/>
                 </Grid>

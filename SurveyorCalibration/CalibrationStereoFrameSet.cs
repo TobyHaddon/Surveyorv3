@@ -10,6 +10,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Surveyor.Calibration;
 using Surveyor.Controls;
+using Surveyor.User_Controls;
 using SurveyorCalibrationData;
 using System;
 using System.Collections.Generic;
@@ -42,6 +43,7 @@ namespace Surveyor
     {
         public class DataClass
         {
+
             public DataClass() 
             {
                 // Set the Version
@@ -123,6 +125,10 @@ namespace Surveyor
         [JsonIgnore]
         private bool? headTrueIsStereoFalseIsMode = null;
 
+        // Reporter
+        [JsonIgnore]
+        private Reporter? report = null;
+
         // Lock point (passed in from Calibration Project)
         [JsonIgnore]
         private int LockFrameIndexLeft = -1;
@@ -148,6 +154,17 @@ namespace Surveyor
 
         public CalibrationStereoFrameSet()
         {
+        }
+
+
+        /// <summary>
+        /// Set the Reporter, used to output messages.
+        /// Call as early as possible after creating the class instance.
+        /// </summary>
+        /// <param name="_report"></param>
+        public void SetReporter(Reporter _report)
+        {
+            report = _report;
         }
 
 
@@ -2336,7 +2353,7 @@ namespace Surveyor
                     ImagesUsed = imageUsable,
                     IntrinsicMatrix = intrinsicMatrix,
                     DistortionCoeffs = distortionCoeffs,
-                    ReprojectionRMS = reprojectionRMS,
+                    ReprojectionRMS = reprojectionRMS,  // return from ArucoInvoke.CalibrateCameraCharuco
                     ProjectionRMS = projectionRms,
                     MaxError = maxError
                 };
@@ -2628,11 +2645,12 @@ namespace Surveyor
                                         ? stereoCalibration.RMS.ToString("0.###E+0")    // exponent format for very large values
                                         : stereoCalibration.RMS.ToString("F2");         // normal fixed-point for typical values
                     sb.AppendLine($"RPE: {rmsText}px {rpeQuanlity}");
-                    //Debug.WriteLine($"Projection RMS (point):    {monoCalib.ProjectionRMS:F4} px");
-                    //Debug.WriteLine($"Max Re-projection Error:    {monoCalib.MaxError:F4} px");
 
                     // Project RMS and MAX Error
-                    //???sb.AppendLine($"Projection RMS: {monoCalib.ProjectionRMS:F2}px  Max Error: {monoCalib.MaxError:F2}px");
+                    if (stereoCalibration.ProjectionRMS != 0)
+                        sb.AppendLine($"Projection RMS: {stereoCalibration.ProjectionRMS:F2}px");
+                    if (stereoCalibration.MaxError != 0)
+                        sb.AppendLine($"Max Error: {stereoCalibration.MaxError:F2}px");
 
                     return sb.ToString();
                 }
@@ -2703,11 +2721,11 @@ namespace Surveyor
                 return null;
 
             // Define output containers
-            var objectPoints = new List<MCvPoint3D32f[]>();
-            var imagePointsLeft = new List<PointF[]>();
-            var imagePointsRight = new List<PointF[]>();
+            List<MCvPoint3D32f[]> objectPoints = [];
+            List<PointF[]> imagePointsLeft = [];
+            List<PointF[]> imagePointsRight = [];
 
-            var charucoCorner3DMap = GetCharucoCorner3DPoints(chArUcoBoardDefinition);
+            Dictionary<int, MCvPoint3D32f> charucoCorner3DMap = GetCharucoCorner3DPoints(chArUcoBoardDefinition);
 
             foreach (var frameIndex in Data.BestFrameIndexes)
             {
@@ -2717,25 +2735,27 @@ namespace Surveyor
                 var left = framePair.frameCalibrationTargetLeft;
                 var right = framePair.frameCalibrationTargetRight;
 
-                if (left == null || right == null || left.ChArUcoIds.Length < minCharucoIdsCount || right.ChArUcoIds.Length < minCharucoIdsCount)
+                if (left == null || right == null || 
+                    left.ChArUcoIds.Length < minCharucoIdsCount || right.ChArUcoIds.Length < minCharucoIdsCount)
                     continue;
 
                 // Match corners by ID
-                var leftDict = new Dictionary<int, PointF>();
+                Dictionary<int, PointF> leftDict = [];
                 for (int i = 0; i < left.ChArUcoIds.Length; i++)
                     leftDict[left.ChArUcoIds[i]] = left.ChArUcoCorners[i];
 
-                var rightDict = new Dictionary<int, PointF>();
+                Dictionary<int, PointF> rightDict = [];
                 for (int i = 0; i < right.ChArUcoIds.Length; i++)
                     rightDict[right.ChArUcoIds[i]] = right.ChArUcoCorners[i];
 
-                var sharedIds = leftDict.Keys.Intersect(rightDict.Keys).ToList();
+                List<int> sharedIds = [.. leftDict.Keys.Intersect(rightDict.Keys)];
                 if (sharedIds.Count < stereoCornerCountThreshold)
                     continue;
 
-                var objPts = new List<MCvPoint3D32f>();
-                var imgPtsLeft = new List<PointF>();
-                var imgPtsRight = new List<PointF>();
+                List<MCvPoint3D32f> objPts = [];
+                List<PointF> imgPtsLeft = [];
+                List<PointF> imgPtsRight = [];
+                List<int> usedIds = [];
 
                 foreach (var id in sharedIds)
                 {
@@ -2745,14 +2765,13 @@ namespace Surveyor
                     objPts.Add(pt3D);
                     imgPtsLeft.Add(leftDict[id]);
                     imgPtsRight.Add(rightDict[id]);
-
+                    usedIds.Add(id);
                 }
 
                 // And store of displaying later
                 left.StereoSharedChArUcoCorners[(int)calibrationParameters] = [.. imgPtsLeft];
                 right.StereoSharedChArUcoCorners[(int)calibrationParameters] = [.. imgPtsRight];
-                left.StereoSharedChArUcoIDs[(int)calibrationParameters] = [.. sharedIds];  // Only need on the left side as both left and right are the same
-
+                left.StereoSharedChArUcoIDs[(int)calibrationParameters] = [.. usedIds];  // Only need on the left side as both left and right are the same
 
                 if (objPts.Count >= stereoCornerCountThreshold)
                 {
@@ -2767,183 +2786,185 @@ namespace Surveyor
             if (objectPoints.Count < 3)
                 return null;
 
-            if (leftMonoCalibrationCameraData.IntrinsicMatrix is not null &&
-                rightMonoCalibrationCameraData.IntrinsicMatrix is not null &&
-                leftMonoCalibrationCameraData.DistortionCoeffs is not null &&
-                rightMonoCalibrationCameraData.DistortionCoeffs is not null)
+            if (leftMonoCalibrationCameraData.IntrinsicMatrix is null ||
+                rightMonoCalibrationCameraData.IntrinsicMatrix is null ||
+                leftMonoCalibrationCameraData.DistortionCoeffs is null ||
+                rightMonoCalibrationCameraData.DistortionCoeffs is null)
             {
-                var camMatL = leftMonoCalibrationCameraData.IntrinsicMatrix.Mat.Clone();
-                var camMatR = rightMonoCalibrationCameraData.IntrinsicMatrix.Mat.Clone();
-                var distL = leftMonoCalibrationCameraData.DistortionCoeffs.Mat.Clone();
-                var distR = rightMonoCalibrationCameraData.DistortionCoeffs.Mat.Clone();
-
-                var R = new Mat();
-                var T = new Mat();
-                var E = new Mat();
-                var F = new Mat();
-
-                Size imgSize = new((int)frameSize.Width, (int)frameSize.Height);
-
-                double error = CvInvoke.StereoCalibrate(
-                    [.. objectPoints],
-                    [.. imagePointsLeft],
-                    [.. imagePointsRight],
-                    camMatL, distL,
-                    camMatR, distR,
-                    imgSize,
-                    R, T, E, F,
-                    CalibType.FixIntrinsic,
-                    new MCvTermCriteria(30, 1e-6)
-                );
-
-
-                var Rmat = new Matrix<double>(3, 3);
-                R.CopyTo(Rmat);
-                var Tmat = new Matrix<double>(3, 1);
-                T.CopyTo(Tmat);
-                var Emat = new Matrix<double>(3, 3);
-                E.CopyTo(Emat);
-                var Fmat = new Matrix<double>(3, 3);
-                F.CopyTo(Fmat);
-
-                calibrationStereoCameraData = new()
-                {
-                    Rotation = Rmat /*???new Emgu.CV.Matrix<double>(3, 3)*/,
-                    Translation = Tmat /*???new Emgu.CV.Matrix<double>(3, 1)*/,
-                    ImageTotal = Data.BestFrameIndexes.Count,
-                    ImagesUsed = imageUseable,
-                    RMS = error
-                };
-
-
-                //???***TEMP***
-                return calibrationStereoCameraData;
-
-                // Re-projection test
-                int index = 0;
-
-                foreach (var frameIndex in Data.BestFrameIndexes)
-                {
-                    if (!Data.Frames.TryGetValue(frameIndex, out var framePair))
-                        continue;
-
-                    var left = framePair.frameCalibrationTargetLeft;
-                    var right = framePair.frameCalibrationTargetRight;
-
-                    if (left == null || right == null || 
-                        left.ChArUcoIds.Length < minCharucoIdsCount || right.ChArUcoIds.Length < minCharucoIdsCount)
-                        continue;
-
-                    var objPts = objectPoints[index];
-                    var imgPtsLeft = imagePointsLeft[index];
-                    var imgPtsRight = imagePointsRight[index];
-
-                    // Re-Setup distL & distR because CvInvoke.StereoCalibrate will change them
-                    distL = leftMonoCalibrationCameraData.DistortionCoeffs.Mat.Clone();
-                    distR = rightMonoCalibrationCameraData.DistortionCoeffs.Mat.Clone();
-
-                    // Calculate the re-projection errors for this frame
-                    (PointF[] leftProjected, PointF[] rightProjected) = ValidateStereoProjectionReprojectionError(
-                                frameIndex,
-                                objPts, imgPtsLeft, imgPtsRight,
-                                camMatL, distL,
-                                camMatR, distR,
-                                Rmat, Tmat);
-
-                    // Check if leftProjected is not empty
-                    if (leftProjected.Length > 0 && leftProjected.Length == rightProjected.Length)
-                    {
-                        left.stereoProjectedPoints[(int)calibrationParameters] = leftProjected;
-                        right.stereoProjectedPoints[(int)calibrationParameters] = rightProjected;
-                        //???left.stereoFrameRms[(int)calibrationParameters]
-                        //???left.stereoFrameMaxError[(int)calibrationParameters]
-                        //???right.stereoFrameRms[(int)calibrationParameters]
-                        //???right.stereoFrameMaxError[(int)calibrationParameters]
-                    }
-                }
+                return null;
             }
 
+            var camMatL = leftMonoCalibrationCameraData.IntrinsicMatrix.Mat.Clone();
+            var camMatR = rightMonoCalibrationCameraData.IntrinsicMatrix.Mat.Clone();
+            var distL = leftMonoCalibrationCameraData.DistortionCoeffs.Mat.Clone();
+            var distR = rightMonoCalibrationCameraData.DistortionCoeffs.Mat.Clone();
+
+            var R = new Mat();
+            var T = new Mat();
+            var E = new Mat();
+            var F = new Mat();
+
+            Size imgSize = new((int)frameSize.Width, (int)frameSize.Height);
+            double error;
+
+            try
+            {
+                error = CvInvoke.StereoCalibrate([.. objectPoints],
+                                                [.. imagePointsLeft],
+                                                [.. imagePointsRight],
+                                                camMatL, distL,
+                                                camMatR, distR,
+                                                imgSize,
+                                                R, T, E, F,
+                                                CalibType.FixIntrinsic,
+                                                new MCvTermCriteria(30, 1e-6));
+
+            }
+            catch (Exception ex)
+            {
+                report?.Warning("", $"Stereo calibration CvInvoke.StereoCalibrate failed: {ex.Message}");
+                return null;
+            }
+
+            var Rmat = new Matrix<double>(3, 3);
+            R.CopyTo(Rmat);
+            var Tmat = new Matrix<double>(3, 1);
+            T.CopyTo(Tmat);
+            var Emat = new Matrix<double>(3, 3);
+            E.CopyTo(Emat);
+            var Fmat = new Matrix<double>(3, 3);
+            F.CopyTo(Fmat);
+
+            calibrationStereoCameraData = new()
+            {
+                Rotation = Rmat /*???new Emgu.CV.Matrix<double>(3, 3)*/,
+                Translation = Tmat /*???new Emgu.CV.Matrix<double>(3, 1)*/,
+                ImageTotal = Data.Frames.Count,
+                ImagesUsed = imageUseable,
+                RMS = error
+            };
+
+            // Stereo per-frame + overall projection errors 
+            var allErrors = new List<double>(capacity: 4096);
+
+            // Re-projection test               
+            foreach (var frameIndex in Data.BestFrameIndexes)
+            {
+                if (!Data.Frames.TryGetValue(frameIndex, out var framePair))
+                    continue;
+
+                var left = framePair.frameCalibrationTargetLeft;
+                var right = framePair.frameCalibrationTargetRight;
+
+                if (left == null || right == null ||
+                    left.ChArUcoIds.Length < minCharucoIdsCount || right.ChArUcoIds.Length < minCharucoIdsCount)
+                    continue;
+
+                // Reset (in case previously set)
+                left.stereoFrameRms[(int)calibrationParameters] = -1;
+                left.stereoFrameMaxError[(int)calibrationParameters] = -1;
+                right.stereoFrameRms[(int)calibrationParameters] = -1;
+                right.stereoFrameMaxError[(int)calibrationParameters] = -1;
+
+                // Match corners by ID
+                Dictionary<int, PointF> leftDict = [];
+                for (int i = 0; i < left.ChArUcoIds.Length; i++)
+                    leftDict[left.ChArUcoIds[i]] = left.ChArUcoCorners[i];
+
+                Dictionary<int, PointF> rightDict = [];
+                for (int i = 0; i < right.ChArUcoIds.Length; i++)
+                    rightDict[right.ChArUcoIds[i]] = right.ChArUcoCorners[i];
+
+                List<int> sharedIds = [.. leftDict.Keys.Intersect(rightDict.Keys)];
+                if (sharedIds.Count < stereoCornerCountThreshold)
+                    continue;
+
+                List<MCvPoint3D32f> objPts = [];
+                List<PointF> imgPtsLeft = [];
+                List<PointF> imgPtsRight = [];
+
+                foreach (var id in sharedIds)
+                {
+                    if (!charucoCorner3DMap.TryGetValue(id, out var pt3D))
+                        continue;
+
+                    objPts.Add(pt3D);
+                    imgPtsLeft.Add(leftDict[id]);
+                    imgPtsRight.Add(rightDict[id]);
+                }
+
+
+                // Re-Setup distL & distR because CvInvoke.StereoCalibrate will change them
+                distL = leftMonoCalibrationCameraData.DistortionCoeffs.Mat.Clone();
+                distR = rightMonoCalibrationCameraData.DistortionCoeffs.Mat.Clone();
+
+                // Calculate the re-projection errors for this frame
+                PointF[] leftProjected;
+                PointF[] rightProjected;
+
+                try
+                {
+                    (leftProjected, rightProjected) = ValidateStereoProjectionReprojectionError(frameIndex,
+                                                                                                [.. objPts], [.. imgPtsLeft], [.. imgPtsRight],
+                                                                                                camMatL, distL,
+                                                                                                camMatR, distR,
+                                                                                                Rmat, Tmat);
+                }
+                catch (Exception ex)
+                {
+                    report?.Warning("", $"Stereo calibration ValidateStereoProjectionReprojectionError failed: {ex.Message}");
+                    return null;
+                }
+
+                if (leftProjected.Length == 0 || rightProjected.Length == 0)
+                    continue;
+
+                int n = Math.Min(imgPtsLeft.Count, Math.Min(leftProjected.Length, rightProjected.Length));
+                if (n <= 0)
+                    continue;
+
+                var errorsFrame = new double[n * 2];
+                int k = 0;
+
+                for (int j = 0; j < n; j++)
+                {
+                    double errL = Math.Sqrt(Math.Pow(imgPtsLeft[j].X - leftProjected[j].X, 2) + Math.Pow(imgPtsLeft[j].Y - leftProjected[j].Y, 2));
+                    double errR = Math.Sqrt(Math.Pow(imgPtsRight[j].X - rightProjected[j].X, 2) + Math.Pow(imgPtsRight[j].Y - rightProjected[j].Y, 2));
+
+                    errorsFrame[k++] = errL;
+                    errorsFrame[k++] = errR;
+                }
+
+                double frameRms = Math.Sqrt(errorsFrame.Sum(e => e * e) / errorsFrame.Length);
+                double frameMax = errorsFrame.Max();
+
+                left.stereoProjectedPoints[(int)calibrationParameters] = leftProjected;
+                right.stereoProjectedPoints[(int)calibrationParameters] = rightProjected;
+
+                left.stereoFrameRms[(int)calibrationParameters] = frameRms;
+                left.stereoFrameMaxError[(int)calibrationParameters] = frameMax;
+
+                right.stereoFrameRms[(int)calibrationParameters] = frameRms;
+                right.stereoFrameMaxError[(int)calibrationParameters] = frameMax;
+
+                allErrors.AddRange(errorsFrame);
+            }
+            
+
+            if (allErrors.Count > 0)
+            {
+                calibrationStereoCameraData.ProjectionRMS = Math.Sqrt(allErrors.Sum(e => e * e) / allErrors.Count);
+                calibrationStereoCameraData.MaxError = allErrors.Max();
+            }
+            else
+            {
+                calibrationStereoCameraData.ProjectionRMS = 0;
+                calibrationStereoCameraData.MaxError = 0;
+            }
 
             return calibrationStereoCameraData;
         }
 
-
-        private (PointF[] leftProjected, PointF[] rightProjected) ValidateStereoProjectionReprojectionError(
-                        int frameIndex,
-                        MCvPoint3D32f[] objPts,
-                        PointF[] imgPtsLeft,
-                        PointF[] imgPtsRight,
-                        Mat intrLeft, Mat distLeft,
-                        Mat intrRight, Mat distRight,
-                        Matrix<double> R, Matrix<double> T)
-        {
-            PointF[] leftProjected = [];
-            PointF[] rightProjected = [];
-
-            Matrix<double> R1 = new(3, 3);
-            R.CopyTo(R1);
-            Matrix<double> T1 = new(3, 1);
-            T.CopyTo(T1);
-
-
-            using var vecLeft = new VectorOfPointF(imgPtsLeft);
-            using var vecRight = new VectorOfPointF(imgPtsRight);
-            using var undistLeft = new VectorOfPointF();
-            using var undistRight = new VectorOfPointF();
-
-            CvInvoke.UndistortPoints(vecLeft, undistLeft, intrLeft, distLeft, null, intrLeft);
-            CvInvoke.UndistortPoints(vecRight, undistRight, intrRight, distRight, null, intrRight);
-
-            var points4D = new Mat();
-            CvInvoke.TriangulatePoints(intrLeft, intrRight, undistLeft, undistRight, points4D);
-
-            var totalErrorLeft = 0.0;
-            var totalErrorRight = 0.0;
-            Matrix<float> ptsMat = new(points4D.Rows, points4D.Cols);
-            points4D.CopyTo(ptsMat);
-
-            var objectPointsUnDist = new List<MCvPoint3D32f>();
-
-            // Now access like: ptsMat[0, j], ptsMat[1, j], etc.
-            for (int j = 0; j < ptsMat.Cols; j++)
-            {
-                float w = ptsMat[3, j];
-                var point3D = new MCvPoint3D32f(
-                    ptsMat[0, j] / w,
-                    ptsMat[1, j] / w,
-                    ptsMat[2, j] / w
-                );
-
-                objectPointsUnDist.Add(point3D);
-            }
-
-
-            using var projectedLeft = new VectorOfPointF();
-            using var projectedRight = new VectorOfPointF();
-
-            Matrix<double> zeroRotation = new(3, 1); // all zeros by default
-            Matrix<double> zeroTranslation = new(3, 1); // all zeros by default
-
-            CvInvoke.ProjectPoints([.. objectPointsUnDist], zeroRotation, zeroTranslation, intrLeft, distLeft, projectedLeft);
-            CvInvoke.ProjectPoints([.. objectPointsUnDist], R1, T1, intrRight, distRight, projectedRight);
-
-
-            for (int j = 0; j < ptsMat.Cols; j++)
-            {
-                double errL = Math.Sqrt(Math.Pow(imgPtsLeft[j].X - projectedLeft[0].X, 2) + Math.Pow(imgPtsLeft[j].Y - projectedLeft[0].Y, 2));
-                double errR = Math.Sqrt(Math.Pow(imgPtsRight[j].X - projectedRight[0].X, 2) + Math.Pow(imgPtsRight[j].Y - projectedRight[0].Y, 2));
-
-                Debug.WriteLine($"[Stereo Validation] Frame {frameIndex} Point {j}: Re-projection error L={errL:F3}px R={errR:F3}px");
-                totalErrorLeft += errL;
-                totalErrorRight += errR;
-            }
-
-            Debug.WriteLine($"[Stereo Validation] Frame {frameIndex}: Avg re-projection error L={totalErrorLeft / imgPtsLeft.Length:F3}px R={totalErrorRight / imgPtsRight.Length:F3}px");
-          
-            //??? Return left and right RMS
-
-            return (leftProjected, rightProjected);
-        }
 
         /// <summary>
         /// Calculate the yaw and pitch angles for each frame in the set,
@@ -3289,7 +3310,112 @@ namespace Surveyor
 
             return (flags, distRowCount);
         }
+        private (PointF[] leftProjected, PointF[] rightProjected) ValidateStereoProjectionReprojectionError(
+                        int frameIndex,
+                        MCvPoint3D32f[] objPts,
+                        PointF[] imgPtsLeft,
+                        PointF[] imgPtsRight,
+                        Mat intrLeft, Mat distLeft,
+                        Mat intrRight, Mat distRight,
+                        Matrix<double> R, Matrix<double> T)
+        {
+            if (imgPtsLeft.Length == 0 || imgPtsRight.Length == 0)
+                return ([], []);
 
+            if (imgPtsLeft.Length != imgPtsRight.Length)
+                throw new InvalidOperationException($"Stereo validation: point count mismatch frame={frameIndex} left={imgPtsLeft.Length} right={imgPtsRight.Length}");
+
+            // Convert R/T to Mat for OpenCV ops
+            using var Rmat = new Mat(3, 3, DepthType.Cv64F, 1);
+            using var Tmat = new Mat(3, 1, DepthType.Cv64F, 1);
+            R.Mat.CopyTo(Rmat);
+            T.Mat.CopyTo(Tmat);
+
+            // Undistort to normalized coordinates (P = null => normalized)
+            using var vecLeft = new VectorOfPointF(imgPtsLeft);
+            using var vecRight = new VectorOfPointF(imgPtsRight);
+            using var undistLeft = new VectorOfPointF();
+            using var undistRight = new VectorOfPointF();
+
+            CvInvoke.UndistortPoints(vecLeft, undistLeft, intrLeft, distLeft, null, null);
+            CvInvoke.UndistortPoints(vecRight, undistRight, intrRight, distRight, null, null);
+
+            // Build projection matrices for normalized coordinates:
+            // P1 = [I|0], P2 = [R|T]   (both 3x4)
+            using var P1 = new Mat(3, 4, DepthType.Cv64F, 1);
+            using var P2 = new Mat(3, 4, DepthType.Cv64F, 1);
+            P1.SetTo(new MCvScalar(0));
+            P2.SetTo(new MCvScalar(0));
+
+            // P1 left 3x3 = Identity
+            using (var I = Mat.Eye(3, 3, DepthType.Cv64F, 1))
+            using (var left33 = new Mat(P1, new Rectangle(0, 0, 3, 3)))
+                I.CopyTo(left33);
+
+            // P2 left 3x3 = R
+            using (var right33 = new Mat(P2, new Rectangle(0, 0, 3, 3)))
+                Rmat.CopyTo(right33);
+
+            // P2 right column = T
+            using (var rightCol = new Mat(P2, new Rectangle(3, 0, 1, 3)))
+                Tmat.CopyTo(rightCol);
+
+            // Triangulate -> homogeneous 4D points (4 x N)
+            using var points4D = new Mat();
+            CvInvoke.TriangulatePoints(P1, P2, undistLeft, undistRight, points4D);
+
+            // Convert 4D homogeneous -> 3D points in left camera coordinates
+            var objectPointsTriangulated = new List<MCvPoint3D32f>(imgPtsLeft.Length);
+            using var ptsMat = new Matrix<float>(points4D.Rows, points4D.Cols);
+            points4D.CopyTo(ptsMat);
+
+            for (int j = 0; j < ptsMat.Cols; j++)
+            {
+                float w = ptsMat[3, j];
+                if (Math.Abs(w) < 1e-12f)
+                    continue;
+
+                objectPointsTriangulated.Add(new MCvPoint3D32f(
+                    ptsMat[0, j] / w,
+                    ptsMat[1, j] / w,
+                    ptsMat[2, j] / w));
+            }
+
+            // Reproject into both images in pixel coordinates
+            var leftProj = CvInvoke.ProjectPoints(
+                [.. objectPointsTriangulated],
+                new Matrix<double>(3, 1), // rvec = 0
+                new Matrix<double>(3, 1), // tvec = 0
+                intrLeft,
+                distLeft);
+
+            var rightProj = CvInvoke.ProjectPoints(
+                [.. objectPointsTriangulated],
+                R,
+                T,
+                intrRight,
+                distRight);
+
+            // Compute reprojection errors
+            double totalErrorLeft = 0.0;
+            double totalErrorRight = 0.0;
+            int n = Math.Min(imgPtsLeft.Length, objectPointsTriangulated.Count);
+
+            for (int j = 0; j < n; j++)
+            {
+                double errL = Math.Sqrt(Math.Pow(imgPtsLeft[j].X - leftProj[j].X, 2) + Math.Pow(imgPtsLeft[j].Y - leftProj[j].Y, 2));
+                double errR = Math.Sqrt(Math.Pow(imgPtsRight[j].X - rightProj[j].X, 2) + Math.Pow(imgPtsRight[j].Y - rightProj[j].Y, 2));
+                totalErrorLeft += errL;
+                totalErrorRight += errR;
+            }
+
+            if (n > 0)
+            {
+                Debug.WriteLine($"[Stereo Validation] Frame {frameIndex}: Avg re-projection error L={totalErrorLeft / n:F3}px R={totalErrorRight / n:F3}px");
+            }
+
+            return (leftProj, rightProj);
+        }
         /*** End of CalibrationStereoFrameSet ***/
     }
 
