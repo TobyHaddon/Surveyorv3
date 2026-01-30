@@ -35,6 +35,18 @@ namespace Surveyor
         K1K2K3K4P1P2K5K6       // 8 coefficients: k1–k6, p1, p2
     }
 
+
+    [Flags]
+    public enum BestFrameReason
+    {
+        None = 0,
+        SensorCoverage = 1 << 0,
+        PoseDiversity = 1 << 1,
+    }
+
+    public sealed record BestFrame(int FrameIndex, BestFrameReason Reason);
+
+
     /// <summary>
     /// A CalibrationStereoFrameSet instance holds all the extracted calibration frames metadata (FrameCalibrationTarget)
     /// in a sorted directory called 'Frames'.
@@ -51,7 +63,7 @@ namespace Surveyor
             }
 
             // Version of the class (use for data migrations)
-            private const int version = 5;
+            private const int version = 6;
             // Data Version
             [JsonProperty(nameof(Version))]
             public int Version { get; set; } = -1;
@@ -69,7 +81,7 @@ namespace Surveyor
             public SortedDictionary<int, (FrameData frameCalibrationTargetLeft, FrameData? frameCalibrationTargetRight, int correspondingCount)> Frames { get; set; } = [];
 
             [JsonProperty(nameof(BestFrameIndexes))]
-            public List<int> BestFrameIndexes = [];
+            public List<BestFrame> BestFrameIndexes = [];
 
             // A dictionary of sensor bin totals, where the key is a tuple
             // this is updated as frames are added or removed from the set.
@@ -610,9 +622,9 @@ namespace Surveyor
         /// 
         /// </summary>
         public double MaxBestMovementFactor => Data.BestFrameIndexes
-                            .SelectMany(index =>
+                            .SelectMany(bestFrame =>
                             {
-                                if (!Data.Frames.TryGetValue(index, out var pair))
+                                if (!Data.Frames.TryGetValue(bestFrame.FrameIndex, out var pair))
                                     return Enumerable.Empty<FrameData>();
 
                                 return new[] { pair.frameCalibrationTargetLeft!, pair.frameCalibrationTargetRight! };
@@ -622,9 +634,9 @@ namespace Surveyor
                             .DefaultIfEmpty(0)
                             .Max();
         public double MinBestMovementFactor => Data.BestFrameIndexes
-                    .SelectMany(index =>
+                    .SelectMany(bestFrame =>
                     {
-                        if (!Data.Frames.TryGetValue(index, out var pair))
+                        if (!Data.Frames.TryGetValue(bestFrame.FrameIndex, out var pair))
                             return Enumerable.Empty<FrameData>();
 
                         return new[] { pair.frameCalibrationTargetLeft!, pair.frameCalibrationTargetRight! };
@@ -750,7 +762,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="frameIndexes">A list of frame indexes to consider for addition. Cannot be <c>null</c>.</param>
         /// <returns>The number of frames successfully added from the provided list.</returns>
-        private int AddBestFrames(List<int> frameIndexes)
+        private int AddBestFrames(List<int> frameIndexes, BestFrameReason reason)
         {
             if (frameIndexes == null || frameIndexes.Count == 0)
                 return 0;
@@ -770,7 +782,8 @@ namespace Surveyor
                     // Only add unique indexes
                     if (!Data.BestFrameIndexes.Contains(frameIndex))
                     {
-                        Data.BestFrameIndexes.Add(frameIndex);
+                        BestFrame bestFrame = new(frameIndex, reason);
+                        Data.BestFrameIndexes.Add(bestFrame);
                         addedCount++;
 
                         // Update sensor bin totals for best frames
@@ -827,8 +840,6 @@ namespace Surveyor
         /// <returns></returns>
         public bool SelectBestStereoFramesUsingSensorBinOnly(double maxMovementFactor, double maxBlurFactor, int chArUcoCornersThreshold, int maxFramePerBin)
         {
-            //???HashSet<int> frameIndexSet = [];
-
             List<int> frameIndexes;
 
             // Get the sensor grid size
@@ -887,17 +898,9 @@ namespace Surveyor
                     // Add to the best frames list only allowing unique indexes
                     AddBestFrames(frameIndexes);
 
-                    // Append found frame for this bin to the best frames hash list
-                    // so only unique indexes are added
-                    //???
-                    //foreach (var index in frameIndexes)
-                    //{
-                    //    bool wasAdded = frameIndexSet.Add(index);
-                    //}
                 }
             }
-            
-            //???Data.BestFrameIndexes = [.. frameIndexSet];
+
 
             return true;
         }
@@ -994,8 +997,10 @@ namespace Surveyor
                 FrameData? rightTarget;
                 FrameData? target;
 
-                foreach (int frameIndex in Data.BestFrameIndexes)
+                foreach (BestFrame bestFrame in Data.BestFrameIndexes)
                 {
+                    int frameIndex = bestFrame.FrameIndex;
+
                     if (Data.Frames.TryGetValue(frameIndex, out var tuple))
                     {
                         (leftTarget, rightTarget, _) = tuple;
@@ -1970,7 +1975,7 @@ namespace Surveyor
 
 
                         // Convert detected ChArUco corners to managed types
-                        var managedCorners = new PointF[charucoCorners.Rows];
+                        PointF[] managedCorners = new PointF[charucoCorners.Rows];
                         charucoCorners.CopyTo(managedCorners);
                         var managedIds = charucoIds.ToArray();
 
@@ -2230,8 +2235,10 @@ namespace Surveyor
 
                 // Collect ChArUco corner detections from the best frames
                 int frameRemovedFromRMSOrMaxError = 0;
-                foreach (var frameIndex in Data.BestFrameIndexes)
+                foreach (BestFrame bestFrame in Data.BestFrameIndexes)
                 {
+                    int frameIndex = bestFrame.FrameIndex;
+
                     if (!Data.Frames.TryGetValue(frameIndex, out var framePair))
                         continue;
 
@@ -2363,7 +2370,7 @@ namespace Surveyor
                 // Check if frames can be improved and if so re-run the calibration
                 // Select relevant FrameCalibrationData from BestFrameIndexes
                 var selectedFrames = Data.BestFrameIndexes
-                    .Select(index => Data.Frames.TryGetValue(index, out var tuple)
+                    .Select(bestFrame => Data.Frames.TryGetValue(bestFrame.FrameIndex, out var tuple)
                         ? (success: true, data: trueTargetLeftFalseUseTargetRight ? tuple.frameCalibrationTargetLeft : tuple.frameCalibrationTargetRight)
                         : (success: false, data: null))
                     .Where(t => t.success && t.data != null)
@@ -2727,8 +2734,10 @@ namespace Surveyor
 
             Dictionary<int, MCvPoint3D32f> charucoCorner3DMap = GetCharucoCorner3DPoints(chArUcoBoardDefinition);
 
-            foreach (var frameIndex in Data.BestFrameIndexes)
+            foreach (BestFrame bestFrame in Data.BestFrameIndexes)
             {
+                int frameIndex = bestFrame.FrameIndex;
+
                 if (!Data.Frames.TryGetValue(frameIndex, out var framePair))
                     continue;
 
@@ -2848,8 +2857,10 @@ namespace Surveyor
             var allErrors = new List<double>(capacity: 4096);
 
             // Re-projection test               
-            foreach (var frameIndex in Data.BestFrameIndexes)
+            foreach (BestFrame bestFrame in Data.BestFrameIndexes)
             {
+                int frameIndex = bestFrame.FrameIndex;
+
                 if (!Data.Frames.TryGetValue(frameIndex, out var framePair))
                     continue;
 
@@ -3136,9 +3147,6 @@ namespace Surveyor
         /// </summary>
         public bool AddBestFramesUsingPoseBins(double maxMovementFactor, double maxBlurFactor, int cornersMinThreshold, int maxFramePerBin)
         {
-            //???int poseFramesAdded = 0;
-            //???int poseFramesTotal = 0;
-            //???HashSet<int> frameIndexSet = [.. Data.BestFrameIndexes];
 
             // Layer dimensions
             var (px, py) = FrameData.PoseBinGrid;
@@ -3211,14 +3219,6 @@ namespace Surveyor
                     // Add to the best frames list only allowing unique indexes
                     AddBestFrames(frameIndexes);
 
-                    // Add any new unique frames found
-                    //???
-                    //foreach (var index in frameIndexes)
-                    //{
-                    //    poseFramesTotal++;
-                    //    if (frameIndexSet.Add(index))
-                    //        poseFramesAdded++;
-                    //}
 
                     // Find diverse poses based on the right frame
                     frameIndexes = [.. Data.Frames
@@ -3253,26 +3253,9 @@ namespace Surveyor
 
                     // Add to the best frames list only allowing unique indexes
                     AddBestFrames(frameIndexes);
-
-                    // Add any new unique frames found
-                    //???
-                    //foreach (var index in frameIndexes)
-                    //{
-                    //    poseFramesTotal++;
-                    //    if (frameIndexSet.Add(index))
-                    //        poseFramesAdded++;
-                    //}
                 }
             }
         
-            //???
-            //if (frameIndexes is not null)
-            //{
-            //    Debug.WriteLine($"AddBestStereoFramesUsingPoseBins: {poseFramesAdded} unique pose diverse frames added from {poseFramesTotal} diverse frames found (any different is because the frames already existed in the best frames list ");
-            //
-            //    Data.BestFrameIndexes = [.. frameIndexSet];
-            //}
-
             return true;
         }
 

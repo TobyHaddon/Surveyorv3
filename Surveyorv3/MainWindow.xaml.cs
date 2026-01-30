@@ -332,7 +332,7 @@ namespace Surveyor
                 report.Info("", $"Exec Path:{Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!}");
             }
 
-            // Load a startup survey if the application was started via a file assoication
+            // Load a startup survey if the application was started via a file association
             // Now check for startup file
             LoadSurveyIfRequestedAndJumpToPoistionIfNeeded();
            
@@ -760,11 +760,11 @@ namespace Surveyor
 
                     // Check if the preferred calibration data is the one being using for
                     // the current event measurements calculations
-                    await CheckIfEventMeasurementsAreUpToDateAsync(false/*recalc only if necessary*/);
+                    await CheckIfEventMeasurementsAreUpToDateAsync(false/*recalculate only if necessary*/);
                 }
                 else
                 { 
-                    report.Warning("", $"OpenSurveyFromFile: OpenSurvey() failed, survey path:{surveyPath}, ret = {ret}");
+                    report.Warning("", $"OpenSurveyFromFile: OpenSurvey() failed, survey path:{surveyPath}, return = {ret}");
                 }
             
                 // Enable/Disable menu items based on the current survey state
@@ -999,11 +999,11 @@ namespace Surveyor
 
                         // Check if the preferred calibration data is the one being using for
                         // the current event measurements calculations
-                        await CheckIfEventMeasurementsAreUpToDateAsync(false/*recalc only if necessary*/);
+                        await CheckIfEventMeasurementsAreUpToDateAsync(false/*recalculate only if necessary*/);
                     }
                     else
                     { 
-                        report.Warning("", $"FileSurveyOpen_Click: OpenSurvey() failed, survey path:{file.Path}, ret = {ret}");
+                        report.Warning("", $"FileSurveyOpen_Click: OpenSurvey() failed, survey path:{file.Path}, return = {ret}");
                     }
                 }
 
@@ -1027,7 +1027,7 @@ namespace Surveyor
 
             if (ret != 0)
             {
-                report.Warning("", $"FileSurveySave_Click: FileSurveySaveOrSaveAs() failed, ret = {ret}");
+                report.Warning("", $"FileSurveySave_Click: FileSurveySaveOrSaveAs() failed, return = {ret}");
             }
         }
 
@@ -1046,7 +1046,7 @@ namespace Surveyor
 
             if (ret != 0)
             {
-                report.Warning("", $"FileSurveySave_Click: FileSurveySaveOrSaveAs() failed, ret = {ret}");
+                report.Warning("", $"FileSurveySave_Click: FileSurveySaveOrSaveAs() failed, return = {ret}");
             }
 
             report.Save();
@@ -1351,7 +1351,7 @@ namespace Surveyor
                         if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == false)
                         {
                             // We are only storing one calibration result and we already have this one but under a different Description so ask the user if the Description should be updated
-                            message = $"The calibration data '{calibrationData.Description}' is already in the survey file but with a different Description. Do you you want to update the Description?";
+                            message = $"The calibration data '{calibrationData.Description}' is already in the survey file but with a different Description. Do you want to update the Description?";
                             primaryButtonText = "OK";
                         }
                         else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true && surveyClass.Data.Calibration.PreferredCalibrationDataIndex == index)
@@ -1407,7 +1407,7 @@ namespace Surveyor
                         {
                             if (surveyClass.Data.Calibration.CalibrationDataList.Count == 0)
                             {
-                                makeThisCalibPreferred = int.MaxValue;      // Basically if we are added a new calib any non -1 value will make it the preferred calib
+                                makeThisCalibPreferred = int.MaxValue;      // Basically if we are added a new calibration any non -1 value will make it the preferred calibration
                                 addNewCalib = true;
                             }
                             else if (surveyClass.Data.Calibration.PreferredCalibrationDataIndex == 0 && surveyClass.Data.Calibration.CalibrationDataList.Count == 1)
@@ -1437,7 +1437,7 @@ namespace Surveyor
                                     // Remove the existing calibration
                                     removeAllCalibs = true;
                                     addNewCalib = true;
-                                    makeThisCalibPreferred = int.MaxValue;      // Basically if we are added a new calib any non -1 value will make it the preferred calib
+                                    makeThisCalibPreferred = int.MaxValue;      // Basically if we are added a new calibration any non -1 value will make it the preferred calibration
                                 }
                             }
                         }
@@ -1468,7 +1468,7 @@ namespace Surveyor
 
                             if (resultDlg == ContentDialogResult.Primary)
                             {
-                                makeThisCalibPreferred = int.MaxValue;      // Basically if we are added a new calib any non -1 value will make it the preferred calib
+                                makeThisCalibPreferred = int.MaxValue;      // Basically if we are added a new calibration any non -1 value will make it the preferred calibration
                                 addNewCalib = true;
                             }
                             else if (resultDlg == ContentDialogResult.Secondary)
@@ -1510,7 +1510,7 @@ namespace Surveyor
                     }
                 }
 
-                // Load the calibation data to the Stereo Projection class 
+                // Load the calibration data to the Stereo Projection class 
                 stereoProjection.SetCalibrationData(surveyClass.Data.Calibration);
 
                 // Using the left player get the current frame size (if any)
@@ -1519,7 +1519,7 @@ namespace Surveyor
 
                 // Check if the preferred calibration data is the one being using for
                 // the current event measurements calculations
-                await CheckIfEventMeasurementsAreUpToDateAsync(false/*recalc only if necessary*/);
+                await CheckIfEventMeasurementsAreUpToDateAsync(false/*recalculate only if necessary*/);
 
 
                 // Display the missing calibration warning InfoBar if necessary
@@ -1563,7 +1563,7 @@ namespace Surveyor
 
         /// <summary>
         /// Users wants to lock or unlock the media players. 
-        /// i.e. synchronize or unsynchronize the media
+        /// i.e. synchronize or unlock the synchronization of the media
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -1649,7 +1649,7 @@ namespace Surveyor
 
                     }
 
-                    // Lock the left and right media controlers
+                    // Lock the left and right media controllers
                     if (surveyClass is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
                         MediaPlayerLeft.Position is not null && MediaPlayerRight.Position is not null)
                     {
@@ -1716,7 +1716,7 @@ namespace Surveyor
 
                     if (result == ContentDialogResult.Primary)
                     {
-                        // Lock the left and right media controlers
+                        // Lock the left and right media controllers
                         if (surveyClass is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
                         MediaPlayerLeft.Position is not null && MediaPlayerRight.Position is not null)
                         {
@@ -1893,7 +1893,7 @@ namespace Surveyor
 
         /// <summary>
         /// This method is called to check that suitable calibration data is available for the current frame size and that 
-        /// it is set as the preferred calibration data.  If that isn't the case the method to see if there is any calidation data
+        /// it is set as the preferred calibration data.  If that isn't the case the method to see if there is any calibration data
         /// the support the current frame size but is not set to be preferred.  If that is the case the user is asked if they want to
         /// make that calibration data the preferred calibration data.
         /// </summary>
@@ -1916,7 +1916,7 @@ namespace Surveyor
                         ready = true;
 
 
-                    // Check if suitable preferred calibration data wwas found
+                    // Check if suitable preferred calibration data was found
                     if (!ready)
                     {
                         // Parse the calibration data to see if there is any that supports the current frame size
@@ -1962,7 +1962,7 @@ namespace Surveyor
 
                         // Check if the preferred calibration data is the one being using for
                         // the current event measurements calculations
-                        await CheckIfEventMeasurementsAreUpToDateAsync(false/*recalc only if necessary*/);
+                        await CheckIfEventMeasurementsAreUpToDateAsync(false/*recalculate only if necessary*/);
 
                     }
                 }
@@ -2373,7 +2373,7 @@ namespace Surveyor
                             }
                             else
                             {
-                                report.Warning("", $"SurveyCreateAllTypes failed, survey path:{surveyPath}, ret = {ret2}");
+                                report.Warning("", $"SurveyCreateAllTypes failed, survey path:{surveyPath}, return = {ret2}");
                             }
                         }
                         else
@@ -2384,7 +2384,7 @@ namespace Surveyor
                     }
                     else
                     {
-                        report.Warning("", $"SurveyCreateAllTypes failed, ret = {ret2}");
+                        report.Warning("", $"SurveyCreateAllTypes failed, return = {ret2}");
                     }
 
                     if (ret2 != 0)
@@ -3826,8 +3826,8 @@ namespace Surveyor
             // Tuned for readability:
             // - In light theme, use deeper tones.
             // - In dark theme, use lighter tones.
-            var red = isDark ? MakeBrush(255, 255, 160, 160) : MakeBrush(255, 178, 34, 34);   // Light red vs Firebrick-ish
-            var green = isDark ? MakeBrush(255, 160, 245, 160) : MakeBrush(255, 34, 139, 34);   // Light green vs ForestGreen-ish
+            var red = isDark ? MakeBrush(255, 255, 160, 160) : MakeBrush(255, 178, 34, 34);   // Light red vs Firebrick
+            var green = isDark ? MakeBrush(255, 160, 245, 160) : MakeBrush(255, 34, 139, 34);   // Light green vs ForestGreen
             return (red, green);
         }
 
@@ -4141,7 +4141,7 @@ namespace Surveyor
                         Tag = surveyPath // Store the full path in the Tag property
                     };
 
-                    // Add tooltip to show the full file specification
+                    // Add tool tip to show the full file specification
                     ToolTipService.SetToolTip(menuItem, surveyPath);
 
                     // Optionally add a click event handler for the menu item
@@ -4154,7 +4154,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Diags dump of class information
+        /// Diagnostics dump of class information
         /// </summary>
         private void DumpAllProperties()
         {
@@ -4199,25 +4199,7 @@ namespace Surveyor
             if (DownloadIndicator is not null)
                 DownloadIndicator.Glyph = "";
         }
-        //???TO DELETE
-        //private void StartDownloadUploadSpinner()
-        //{
-        //    _spinnerTimer.Interval = TimeSpan.FromMilliseconds(100);
-        //
-        //    _spinnerTimer.Tick += (sender, args) =>
-        //    {
-        //        DownloadIndicator.Glyph = _brailleFrames[_spinnerframeIndex];
-        //        _spinnerframeIndex = (_spinnerframeIndex + 1) % _brailleFrames.Length;
-        //    };
-        //
-        //    _spinnerTimer.Start();
-        //}
-        //
-        //private void StopDownloadUploadSpinner()
-        //{
-        //    _spinnerTimer?.Stop();
-        //    DownloadIndicator.Glyph = ""; // or a finished icon
-        //}
+
 
 
         /// <summary>
@@ -4229,7 +4211,7 @@ namespace Surveyor
         ///     “Normal” app starts (Start menu, taskbar, debug F5), or launching the EXE 
         ///     with plain command-line args.
         /// ExtendedActivationKind.Protocol
-        ///     Custom URI scheme activation (e.g., underwatersurveyor://open?file=...&start=... 
+        ///     Custom URI scheme activation (e.g., UnderwaterSurveyor://open?file=...&start=... 
         ///     from a browser, Run dialog, or hyperlink).
         /// </summary>
         private void LoadSurveyIfRequestedAndJumpToPoistionIfNeeded()
@@ -4300,7 +4282,7 @@ namespace Surveyor
                     // Go to the start position in the video if requested
                     if (startSeconds is not null)
                     {
-                        // Go to the start position in the video (only if stereo set and sync'd)
+                        // Go to the start position in the video (only if stereo set and synced)
                         if (surveyClass?.Data.Info.SurveyType == Survey.SurveyType.StereoFish &&
                             surveyClass?.Data.Sync.IsSynchronized == true)
                         {
@@ -4316,7 +4298,7 @@ namespace Surveyor
                             Event? evt = eventsControl.FindEventFromTimeSpanTimelineController(startPositionTS);
                             if (evt is not null)
                             {
-                                // Jump to the correct event in the eventcontrol and display the correct frame
+                                // Jump to the correct event in the EventControl and display the correct frame
                                 report.Info("", $"Start event: {evt.TimeSpanTimelineController:hh\\:mm\\:ss\\.ff} ({evt.TimeSpanTimelineController.TotalSeconds:F2})");
                                 eventsControl.GoToEvent(evt);
                             }
@@ -4339,7 +4321,7 @@ namespace Surveyor
                             Event? evt = eventsControl.FindEventFromTimeSpanTimelineController(startPositionTS);
                             if (evt is not null)
                             {
-                                // Jump to the correct event in the eventcontrol and display the correct frame
+                                // Jump to the correct event in the EventControl and display the correct frame
                                 report.Info("", $"Start event: {evt.TimeSpanTimelineController:hh\\:mm\\:ss\\.ff} ({evt.TimeSpanTimelineController.TotalSeconds:F2})");
                                 eventsControl.GoToEvent(evt);
                             }
@@ -4415,7 +4397,7 @@ namespace Surveyor
 
                 // If a new frame is being rendered then clear any dynamic measurements
                 // We are depending on the FrameRendered message from the left camera
-                // The dynamic measurments are only from stereo calcs, we only need to clear
+                // The dynamic measurements are only from stereo calculates, we only need to clear
                 // the measurement once (no left frame/right frame concept)
                 if (data.cameraSide == SurveyorMediaPlayer.eCameraSide.Left &&
                     data.mediaPlayerEvent == eMediaPlayerEvent.FrameRendered)
