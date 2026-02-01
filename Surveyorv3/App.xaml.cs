@@ -7,6 +7,8 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
+using System.IO;
+
 #if !DEBUG
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Extensibility;
@@ -39,10 +41,13 @@ namespace Surveyor
         /// </summary>
         public App()
         {
-            // Catch unhandled exceptions
-            this.UnhandledException += App_UnhandledException;    
 
             this.InitializeComponent();
+
+            // Catch unhandled exceptions
+            UnhandledException += App_UnhandledException;
+            AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
+            TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
 
             // Assuming m_window will be initialized later
             mainWindow = null!;
@@ -100,7 +105,7 @@ namespace Surveyor
             }
             catch { /* swallow on shutdown */ }
 #else
-            await Task.Delay(1);        // Just to supress async warning
+            await Task.Delay(1);        // Just to suppress async warning
 #endif
 
         }
@@ -117,7 +122,7 @@ namespace Surveyor
             }
             catch { }
 #else
-            await Task.Delay(1); // Just to suspress async warning
+            await Task.Delay(1); // Just to suppress async warning
 #endif
         }
 
@@ -131,6 +136,9 @@ namespace Surveyor
 
         private void App_UnhandledException(object sender, Microsoft.UI.Xaml.UnhandledExceptionEventArgs e)
         {
+            WriteCrashLog("WinUI UnhandledException", e.Exception);
+            Debug.WriteLine(e.Exception);
+
             try
             {
 #if !DEBUG
@@ -149,6 +157,22 @@ namespace Surveyor
             {
                 Debug.WriteLine($"Error while handling unhandled exception: {ex.Message}");
             }
+        }
+
+        private static void CurrentDomain_UnhandledException(object sender, System.UnhandledExceptionEventArgs e)
+        {
+            if (e.ExceptionObject is Exception ex)
+            {
+                WriteCrashLog("AppDomain UnhandledException", ex);
+                Debug.WriteLine(ex);
+            }
+        }
+
+        private static void TaskScheduler_UnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+        {
+            WriteCrashLog("TaskScheduler UnobservedTaskException", e.Exception);
+            Debug.WriteLine(e.Exception);
+            e.SetObserved();
         }
 
         public static string WinAppSdkDetails
@@ -195,6 +219,21 @@ namespace Surveyor
                 throw new InvalidOperationException("Generic parameter 'TEnum' must be an enum.");
             }
             return (TEnum)Enum.Parse(typeof(TEnum), text);
+        }
+
+        private static void WriteCrashLog(string title, Exception ex)
+        {
+            try
+            {
+                var folder = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+                var path = Path.Combine(folder, "crash.log");
+                File.AppendAllText(path,
+                    $"[{DateTime.Now:O}] {title}\r\n{ex}\r\n\r\n");
+            }
+            catch
+            {
+                // ignore logging failures
+            }
         }
     }
 }

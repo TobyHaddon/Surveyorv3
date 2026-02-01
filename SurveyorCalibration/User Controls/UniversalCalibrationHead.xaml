@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <UserControl
-    x:Class="Surveyor.Controls.UniversalCalibrationHeadUserControl"
+    x:Class="Surveyor.Controls.UniversalCalibrationHead"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Surveyor"
@@ -17,6 +17,8 @@
         <x:String x:Key="PitchToolTipText">The detected tilt of the calibration board in the up/down direction (pitch). A positive angle means the board is tilted forward</x:String>
         <x:String x:Key="FeaturesToolTipText">The number of markers detected on the calibration board. For stereo detection it is count of the corresponding markers found on the left and right calibration board i.e. marker is only counted if it can be seen on the left and the right side simultaneously</x:String>
         <x:String x:Key="ScoreToolTipText">A quality score calculated for this frame</x:String>
+        <x:String x:Key="FrameRMSToolTipText">The RMS calculated for this frame</x:String>
+        <x:String x:Key="FrameMaxErrorToolTipText">The maximum error calculated for this frame</x:String>
         <x:String x:Key="FrameIndexToolTipText">Video frame index number</x:String>
         <x:String x:Key="PositionToolTipText">Time position in video</x:String>
     </UserControl.Resources>
@@ -57,11 +59,21 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <Image x:Name="LeftImage" Grid.Row="0"                           
+                <!-- Overlay container -->
+                <Grid x:Name="LeftOverlayContainer" Grid.Row="0" Margin="0,2,0,0">
+                    <Image x:Name="LeftImage"                           
                            Stretch="Uniform"
                            HorizontalAlignment="Center" VerticalAlignment="Top"                           
-                           Margin="0,2,0,0" SizeChanged="LeftImage_SizeChanged"/>
-                           
+                           SizeChanged="LeftImage_SizeChanged"/>
+                    
+                    <Canvas x:Name="LeftSensorCoverage"
+                            IsHitTestVisible="False"
+                            Visibility="Collapsed"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                            Background="#FF323232"/>
+                </Grid>
+                
                 <controls:CalibrationBoardTimeLineUserControl x:Name="CalibrationBoardTimeLineLeft"
                                                Grid.Row="1"
                                                HorizontalAlignment="Stretch" Visibility="Collapsed" Margin="0,1,0,0"/>
@@ -91,6 +103,8 @@
                     </Grid.ColumnDefinitions>
 
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -170,22 +184,64 @@
                                     Margin="0,2,0,2" VerticalAlignment="Center"
                                     ToolTipService.ToolTip="{StaticResource ScoreToolTipText}"/>
 
-                    <!-- Row 6: Frame Index  -->
-                    <TextBlock Grid.Row="6" Grid.Column="0" 
+                    <!-- Row 6: Frame RMS -->
+                    <RichTextBlock Grid.Row="6" Grid.Column="0" FontFamily="Segoe UI Variable" FontSize="18"
+                                    IsTextSelectionEnabled="False">
+                        <Paragraph Margin="0">
+                            <Run Text="σ"/>
+                            <InlineUIContainer>
+                                <TextBlock Text="r" FontSize="8" FontFamily="Segoe UI Variable"
+                                            RenderTransformOrigin="0,1">
+                                    <TextBlock.RenderTransform>
+                                        <!-- X pulls it left; Y pushes it down to look like a subscript -->
+                                        <TranslateTransform X="-6" Y="4"/>
+                                    </TextBlock.RenderTransform>
+                                </TextBlock>
+                            </InlineUIContainer>
+                        </Paragraph>
+                    </RichTextBlock>
+                    <TextBlock x:Name="LeftFrameRMSText"
+                                    Grid.Row="6" Grid.Column="1" FontSize="12"
+                                    Margin="0,2,0,2" VerticalAlignment="Center"
+                                    ToolTipService.ToolTip="{StaticResource FrameRMSToolTipText}"/>
+
+                    <!-- Row 7: Frame Max Error -->
+                    <RichTextBlock Grid.Row="7" Grid.Column="0" FontFamily="Segoe UI Variable" FontSize="18"
+                                    IsTextSelectionEnabled="False">
+                        <Paragraph Margin="0">
+                            <Run Text="ε"/>
+                            <InlineUIContainer>
+                                <TextBlock Text="max" FontSize="8" FontFamily="Segoe UI Variable"
+                                            RenderTransformOrigin="0,1">
+                                    <TextBlock.RenderTransform>
+                                        <!-- X pulls it left; Y pushes it down to look like a subscript -->
+                                        <TranslateTransform X="-6" Y="4"/>
+                                    </TextBlock.RenderTransform>
+                                </TextBlock>
+                            </InlineUIContainer>
+                        </Paragraph>
+                    </RichTextBlock>
+                    <TextBlock x:Name="LeftFrameMaxErrorText"
+                                    Grid.Row="7" Grid.Column="1" FontSize="12"
+                                    Margin="0,2,0,2" VerticalAlignment="Center"
+                                    ToolTipService.ToolTip="{StaticResource FrameMaxErrorToolTipText}"/>
+
+                    <!-- Row 8: Frame Index  -->
+                    <TextBlock Grid.Row="8" Grid.Column="0" 
                                 Text="#" FontSize="16" 
                                 VerticalAlignment="Center" Margin="4,0,4,0"
                                 ToolTipService.ToolTip="{StaticResource ScoreToolTipText}"/>
                     <TextBlock x:Name="LeftFrameIndex"
-                                    Grid.Row="6" Grid.Column="1" FontSize="12"
+                                    Grid.Row="8" Grid.Column="1" FontSize="12"
                                     Margin="0,2,0,2" VerticalAlignment="Center"
                                     ToolTipService.ToolTip="{StaticResource FrameIndexToolTipText}"/>
 
-                    <!-- Row 7: Position  -->
-                    <StackPanel Grid.Row="7" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,2,4,2">
+                    <!-- Row 9: Position  -->
+                    <StackPanel Grid.Row="9" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,2,4,2">
                         <FontIcon Glyph="&#xE916;" FontSize="16" ToolTipService.ToolTip="{StaticResource PositionToolTipText}"/>
                     </StackPanel>
                     <TextBlock x:Name="LeftPosition"
-                                    Grid.Row="7" Grid.Column="1" FontSize="12"
+                                    Grid.Row="9" Grid.Column="1" FontSize="12"
                                     Margin="0,2,0,2" VerticalAlignment="Center"
                                     ToolTipService.ToolTip="{StaticResource ScoreToolTipText}"/>
 
@@ -260,11 +316,21 @@
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <Image x:Name="RightImage" Grid.Row="0"                           
+                <!-- Overlay container -->
+                <Grid x:Name="RightOverlayContainer" Grid.Row="0" Margin="0,2,0,0">
+                    <Image x:Name="RightImage"                           
                            Stretch="Uniform"
                            HorizontalAlignment="Center" VerticalAlignment="Top"                           
-                           Margin="0,2,0,0" SizeChanged="RightImage_SizeChanged"/>
+                           SizeChanged="RightImage_SizeChanged"/>
 
+                    <Canvas x:Name="RightSensorCoverage"
+                            IsHitTestVisible="False"
+                            Visibility="Collapsed"
+                            HorizontalAlignment="Left"
+                            VerticalAlignment="Top"
+                            Background="#FF323232"/>
+                </Grid>
+                
                 <controls:CalibrationBoardTimeLineUserControl x:Name="CalibrationBoardTimeLineRight"
                                                Grid.Row="1"
                                                HorizontalAlignment="Stretch" Visibility="Collapsed" Margin="0,2,0,0"/>
@@ -281,6 +347,8 @@
                     </Grid.ColumnDefinitions>
 
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -360,22 +428,64 @@
                                     Margin="0,2,0,2" VerticalAlignment="Center"
                                     ToolTipService.ToolTip="{StaticResource ScoreToolTipText}"/>
 
-                    <!-- Row 6: Frame Index  -->
-                    <TextBlock Grid.Row="6" Grid.Column="0" 
+                    <!-- Row 6: Frame RMS -->
+                    <RichTextBlock Grid.Row="6" Grid.Column="0" FontFamily="Segoe UI Variable" FontSize="18"
+                                    IsTextSelectionEnabled="False">
+                        <Paragraph Margin="0">
+                            <Run Text="σ"/>
+                            <InlineUIContainer>
+                                <TextBlock Text="r" FontSize="8" FontFamily="Segoe UI Variable"
+                                            RenderTransformOrigin="0,1">
+                                    <TextBlock.RenderTransform>
+                                        <!-- X pulls it left; Y pushes it down to look like a subscript -->
+                                        <TranslateTransform X="-6" Y="4"/>
+                                    </TextBlock.RenderTransform>
+                                </TextBlock>
+                            </InlineUIContainer>
+                        </Paragraph>
+                    </RichTextBlock>
+                    <TextBlock x:Name="RightFrameRMSText"
+                                    Grid.Row="6" Grid.Column="1" FontSize="12"
+                                    Margin="0,2,0,2" VerticalAlignment="Center"
+                                    ToolTipService.ToolTip="{StaticResource FrameRMSToolTipText}"/>
+
+                    <!-- Row 7: Frame Max Error -->
+                    <RichTextBlock Grid.Row="7" Grid.Column="0" FontFamily="Segoe UI Variable" FontSize="18"
+                                    IsTextSelectionEnabled="False">
+                        <Paragraph Margin="0">
+                            <Run Text="ε"/>
+                            <InlineUIContainer>
+                                <TextBlock Text="max" FontSize="8" FontFamily="Segoe UI Variable"
+                                            RenderTransformOrigin="0,1">
+                                    <TextBlock.RenderTransform>
+                                        <!-- X pulls it left; Y pushes it down to look like a subscript -->
+                                        <TranslateTransform X="-6" Y="4"/>
+                                    </TextBlock.RenderTransform>
+                                </TextBlock>
+                            </InlineUIContainer>
+                        </Paragraph>
+                    </RichTextBlock>
+                    <TextBlock x:Name="RightFrameMaxErrorText"
+                                    Grid.Row="7" Grid.Column="1" FontSize="12"
+                                    Margin="0,2,0,2" VerticalAlignment="Center"
+                                    ToolTipService.ToolTip="{StaticResource FrameMaxErrorToolTipText}"/>
+
+                    <!-- Row 8: Frame Index  -->
+                    <TextBlock Grid.Row="8" Grid.Column="0" 
                                 Text="#" FontSize="16" 
                                 VerticalAlignment="Center" Margin="4,0,4,0"
                                 ToolTipService.ToolTip="{StaticResource ScoreToolTipText}"/>
                     <TextBlock x:Name="RightFrameIndex"
-                                    Grid.Row="6" Grid.Column="1" FontSize="12"
+                                    Grid.Row="8" Grid.Column="1" FontSize="12"
                                     Margin="0,2,0,2" VerticalAlignment="Center"
                                     ToolTipService.ToolTip="{StaticResource FrameIndexToolTipText}"/>
                     
-                    <!-- Row 7: Position  -->
-                    <StackPanel Grid.Row="7" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,2,4,2">
+                    <!-- Row 9: Position  -->
+                    <StackPanel Grid.Row="9" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,2,4,2">
                         <FontIcon Glyph="&#xE916;" FontSize="16" ToolTipService.ToolTip="{StaticResource PositionToolTipText}"/>
                     </StackPanel>
                     <TextBlock x:Name="RightPosition"
-                                    Grid.Row="7" Grid.Column="1" FontSize="12"
+                                    Grid.Row="9" Grid.Column="1" FontSize="12"
                                     Margin="0,2,0,2" VerticalAlignment="Center"
                                     ToolTipService.ToolTip="{StaticResource ScoreToolTipText}"/>
                 </Grid>

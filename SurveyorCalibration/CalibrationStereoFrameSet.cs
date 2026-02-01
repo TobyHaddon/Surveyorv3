@@ -1,4 +1,4 @@
-﻿// Ignore Spelling: Json Coeffs
+﻿// Ignore Spelling: Json Coeffs Uco Reprojection
 
 using Emgu.CV;
 using Emgu.CV.Aruco;
@@ -63,7 +63,7 @@ namespace Surveyor
             }
 
             // Version of the class (use for data migrations)
-            private const int version = 6;
+            private const int version = 7;
             // Data Version
             [JsonProperty(nameof(Version))]
             public int Version { get; set; } = -1;
@@ -86,38 +86,38 @@ namespace Surveyor
             // A dictionary of sensor bin totals, where the key is a tuple
             // this is updated as frames are added or removed from the set.
             // This dictionary is persisted to JSON 
-            [JsonProperty(nameof(AllFramesSensorBinTotalsLeft))]
-            [TypeConverter(typeof(TupleInt2JsonConverter))]
-            public Dictionary<(int binx, int biny), int> AllFramesSensorBinTotalsLeft = [];
-            [JsonProperty(nameof(BestFramesSensorBinTotalsLeft))]
-            [TypeConverter(typeof(TupleInt2JsonConverter))]
-            public Dictionary<(int binx, int biny), int> BestFramesSensorBinTotalsLeft = [];
+            //???[JsonProperty(nameof(AllFramesSensorBinTotalsLeft))]
+            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
+            //???public Dictionary<(int binx, int biny), int> AllFramesSensorBinTotalsLeft = [];
+            //???[JsonProperty(nameof(BestFramesSensorBinTotalsLeft))]
+            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
+            //???public Dictionary<(int binx, int biny), int> BestFramesSensorBinTotalsLeft = [];
 
             // A dictionary of sensor bin totals, where the key is a tuple
             // this is updated as frames are added or removed from the set.
             // This dictionary is persisted to JSON 
-            [JsonProperty(nameof(AllFramesSensorBinTotalsRight))]
-            [TypeConverter(typeof(TupleInt2JsonConverter))]
-            public Dictionary<(int binx, int biny), int> AllFramesSensorBinTotalsRight = [];
-            [JsonProperty(nameof(BestFramesSensorBinTotalsRight))]
-            [TypeConverter(typeof(TupleInt2JsonConverter))]
-            public Dictionary<(int binx, int biny), int> BestFramesSensorBinTotalsRight = [];
+            //???[JsonProperty(nameof(AllFramesSensorBinTotalsRight))]
+            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
+            //???public Dictionary<(int binx, int biny), int> AllFramesSensorBinTotalsRight = [];
+            //???[JsonProperty(nameof(BestFramesSensorBinTotalsRight))]
+            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
+            //???public Dictionary<(int binx, int biny), int> BestFramesSensorBinTotalsRight = [];
 
             // A dictionary of the left pose bin totals, where the key is a tuple
-            [JsonProperty(nameof(AllFramesPoseBinTotalsLeft))]
-            [TypeConverter(typeof(TupleInt2JsonConverter))]
-            public Dictionary<(int binx, int biny), int> AllFramesPoseBinTotalsLeft { get; set; } = [];
-            [JsonProperty(nameof(BestFramesPoseBinTotalsLeft))]
-            [TypeConverter(typeof(TupleInt2JsonConverter))]
-            public Dictionary<(int binx, int biny), int> BestFramesPoseBinTotalsLeft { get; set; } = [];
+            //???[JsonProperty(nameof(AllFramesPoseBinTotalsLeft))]
+            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
+            //???public Dictionary<(int binx, int biny), int> AllFramesPoseBinTotalsLeft { get; set; } = [];
+            //???[JsonProperty(nameof(BestFramesPoseBinTotalsLeft))]
+            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
+            //???public Dictionary<(int binx, int biny), int> BestFramesPoseBinTotalsLeft { get; set; } = [];
 
             // A dictionary of the right pose bin totals, where the key is a tuple of (binx, biny)
-            [JsonProperty(nameof(AllFramesPoseBinTotalsRight))]
-            [TypeConverter(typeof(TupleInt2JsonConverter))]
-            public Dictionary<(int binx, int biny), int> AllFramesPoseBinTotalsRight { get; set; } = [];
-            [JsonProperty(nameof(BestFramesPoseBinTotalsRight))]
-            [TypeConverter(typeof(TupleInt2JsonConverter))]
-            public Dictionary<(int binx, int biny), int> BestFramesPoseBinTotalsRight { get; set; } = [];
+            //???[JsonProperty(nameof(AllFramesPoseBinTotalsRight))]
+            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
+            //???public Dictionary<(int binx, int biny), int> AllFramesPoseBinTotalsRight { get; set; } = [];
+            //???[JsonProperty(nameof(BestFramesPoseBinTotalsRight))]
+            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
+            //???public Dictionary<(int binx, int biny), int> BestFramesPoseBinTotalsRight { get; set; } = [];
         }
 
         public DataClass Data = new();
@@ -201,20 +201,20 @@ namespace Surveyor
             {
                 Data.Frames = [];
 
-                Data.AllFramesSensorBinTotalsLeft = [];
-                Data.AllFramesSensorBinTotalsRight = [];
-                Data.AllFramesPoseBinTotalsLeft = [];
-                Data.AllFramesPoseBinTotalsRight = [];
+                //???Data.AllFramesSensorBinTotalsLeft = [];
+                //???Data.AllFramesSensorBinTotalsRight = [];
+                //???Data.AllFramesPoseBinTotalsLeft = [];
+                //???Data.AllFramesPoseBinTotalsRight = [];
             }
 
             if (clearRequest == ClearRequest.All || clearRequest == ClearRequest.BestFrames)
             {
                 Data.BestFrameIndexes = [];
 
-                Data.BestFramesSensorBinTotalsLeft = [];
-                Data.BestFramesSensorBinTotalsRight = [];
-                Data.BestFramesPoseBinTotalsLeft = [];
-                Data.BestFramesPoseBinTotalsRight = [];
+                //???Data.BestFramesSensorBinTotalsLeft = [];
+                //???Data.BestFramesSensorBinTotalsRight = [];
+                //???Data.BestFramesPoseBinTotalsLeft = [];
+                //???Data.BestFramesPoseBinTotalsRight = [];
             }
         }
 
@@ -681,9 +681,9 @@ namespace Surveyor
             CalculateCornerMovement(stereoFrameIndex);
 
             // Update the sensor bin totals
-            AddToTheSensorBinTotals(frameLeft, Data.AllFramesSensorBinTotalsLeft);
-            if (frameRight is not null)
-                AddToTheSensorBinTotals(frameRight, Data.AllFramesSensorBinTotalsRight);
+            //???AddToTheSensorBinTotals(frameLeft, Data.AllFramesSensorBinTotalsLeft);
+            //???if (frameRight is not null)
+            //???    AddToTheSensorBinTotals(frameRight, Data.AllFramesSensorBinTotalsRight);
 
             return correspondingCount;
         }
@@ -703,22 +703,22 @@ namespace Surveyor
                 (FrameData leftTarget, FrameData? rightTarget, _) = Data.Frames[stereoFrameIndex];
 
                 // Remove the bins from the bin totals
-                RemoveFromTheBinTotals(leftTarget, Data.AllFramesSensorBinTotalsLeft);
-                if (rightTarget is not null)
-                    RemoveFromTheBinTotals(rightTarget, Data.AllFramesSensorBinTotalsRight);
+                //???RemoveFromTheBinTotals(leftTarget, Data.AllFramesSensorBinTotalsLeft);
+                //???if (rightTarget is not null)
+                //???    RemoveFromTheBinTotals(rightTarget, Data.AllFramesSensorBinTotalsRight);
 
                 // Helper
-                static void RemoveFromTheBinTotals(FrameData target, Dictionary<(int binx, int biny), int> BinTotals)
-                {
-                    foreach (var bin in target.SensorBinsOccupied)
-                    {
-                        BinTotals[bin] = BinTotals.GetValueOrDefault(bin) - 1;
-                        if (BinTotals[bin] == 0)
-                        {
-                            BinTotals.Remove(bin);
-                        }
-                    }
-                }
+                //???static void RemoveFromTheBinTotals(FrameData target, Dictionary<(int binx, int biny), int> BinTotals)
+                //{
+                //    foreach (var bin in target.SensorBinsOccupied)
+                //    {
+                //        BinTotals[bin] = BinTotals.GetValueOrDefault(bin) - 1;
+                //        if (BinTotals[bin] == 0)
+                //        {
+                //            BinTotals.Remove(bin);
+                //        }
+                //    }
+                //}
 
                 // Remove the frame from the dictionary 
                 ret = Data.Frames.Remove(stereoFrameIndex);
@@ -758,45 +758,51 @@ namespace Surveyor
 
         /// <summary>
         /// Adds the best frame indexes from the specified list the best frame list.  
-        /// This method ensures no duplicate frames are add to the best frame list
+        /// This method ensures no duplicate frames are add to the best frame list. 
+        /// If the frame index already exists it's reason can be updated
         /// </summary>
         /// <param name="frameIndexes">A list of frame indexes to consider for addition. Cannot be <c>null</c>.</param>
         /// <returns>The number of frames successfully added from the provided list.</returns>
-        private int AddBestFrames(List<int> frameIndexes, BestFrameReason reason)
+        private (int added, int updated) AddBestFrames(List<int> frameIndexes, BestFrameReason reason)
         {
             if (frameIndexes == null || frameIndexes.Count == 0)
-                return 0;
+                return (0,0);
 
             int addedCount = 0;
+            int updatedCount = 0;
 
             foreach (int frameIndex in frameIndexes)
             {
                 try
                 {
                     // Ensure frame exists in the Frames dictionary
-                    if (!Data.Frames.TryGetValue(frameIndex, out var tuple))
+                    if (!Data.Frames.ContainsKey(frameIndex))
                         continue;
 
-                    var (frameLeft, frameRight, _) = tuple;
+                    // Locate existing BestFrame (if any)
+                    int existingIndex = Data.BestFrameIndexes.FindIndex(f => f.FrameIndex == frameIndex);
 
-                    // Only add unique indexes
-                    if (!Data.BestFrameIndexes.Contains(frameIndex))
+                    if (existingIndex >= 0)
                     {
-                        BestFrame bestFrame = new(frameIndex, reason);
-                        Data.BestFrameIndexes.Add(bestFrame);
+                        // Update 
+
+                        // Merge reason flags
+                        BestFrame existing = Data.BestFrameIndexes[existingIndex];
+                        BestFrameReason mergedReason = existing.Reason | reason;
+
+                        if (mergedReason != existing.Reason)
+                        {
+                            Data.BestFrameIndexes[existingIndex] = existing with { Reason = mergedReason };
+                            updatedCount++;
+                        }
+                    }
+                    else
+                    {
+                        // New
+
+                        // Add new entry
+                        Data.BestFrameIndexes.Add(new BestFrame(frameIndex, reason));
                         addedCount++;
-
-                        // Update sensor bin totals for best frames
-                        if (frameLeft is not null)
-                            AddToTheSensorBinTotals(frameLeft, Data.BestFramesSensorBinTotalsLeft);
-                        if (frameRight is not null)
-                            AddToTheSensorBinTotals(frameRight, Data.BestFramesSensorBinTotalsRight);
-
-                        // Update pose bin totals for best frames (only if pose bins are valid)
-                        if (frameLeft is not null && frameLeft.PoseBinX != -1 && frameLeft.PoseBinY != -1)
-                            AddToThePoseBinTotals(frameLeft, Data.BestFramesPoseBinTotalsLeft);
-                        if (frameRight is not null && frameRight.PoseBinX != -1 && frameRight.PoseBinY != -1)
-                            AddToThePoseBinTotals(frameRight, Data.BestFramesPoseBinTotalsRight);
                     }
                 }
                 catch (Exception ex)
@@ -805,11 +811,13 @@ namespace Surveyor
                 }
             }
 
-            // Keep BestFrameIndexes sorted for deterministic traversal
+            // Keep BestFrameIndexes sorted by FrameIndex for deterministic traversal
             if (addedCount > 0)
-                Data.BestFrameIndexes.Sort();
+            {
+                Data.BestFrameIndexes.Sort(static (a, b) => a.FrameIndex.CompareTo(b.FrameIndex));
+            }
 
-            return addedCount;
+            return (addedCount, updatedCount);
         }
 
 
@@ -896,7 +904,7 @@ namespace Surveyor
 
 
                     // Add to the best frames list only allowing unique indexes
-                    AddBestFrames(frameIndexes);
+                    AddBestFrames(frameIndexes, BestFrameReason.SensorCoverage);
 
                 }
             }
@@ -911,12 +919,12 @@ namespace Surveyor
         /// </summary>
         /// <param name="trueLeftFalseRight"></param>
         /// <returns></returns>
-        public Dictionary<(int binx, int biny), int> GetSensorBinCounts(UniversalCalibrationHeadUserControl.ViewMode viewModel, bool trueLeftFalseRight)
+        public Dictionary<(int binx, int biny), int> GetSensorBinCounts(UniversalCalibrationHead.ViewMode viewModel, bool trueLeftFalseRight)
         {
             var counts = new Dictionary<(int binx, int biny), int>();
 
 
-            if (viewModel == UniversalCalibrationHeadUserControl.ViewMode.AllFrames)
+            if (viewModel == UniversalCalibrationHead.ViewMode.AllFrames)
             {
                 FrameData? target;
 
@@ -931,14 +939,16 @@ namespace Surveyor
                         ProcessFrameData(target, counts);
                 }
             }
-            else if (viewModel == UniversalCalibrationHeadUserControl.ViewMode.BestFrames)
+            else if (viewModel == UniversalCalibrationHead.ViewMode.BestFrames)
             {
                 FrameData leftTarget;
                 FrameData? rightTarget;
                 FrameData? target;
 
-                foreach (int frameIndex in Data.BestFrameIndexes)
+                foreach (BestFrame bestFrame in Data.BestFrameIndexes)
                 {
+                    int frameIndex = bestFrame.FrameIndex;
+
                     if (Data.Frames.TryGetValue(frameIndex, out var tuple))
                     {
                         (leftTarget, rightTarget, _) = tuple;
@@ -973,10 +983,10 @@ namespace Surveyor
         /// </summary>
         /// <param name="trueLeftFalseRight"></param>
         /// <returns></returns>
-        public Dictionary<(int binx, int biny), int> GetPoseBinCounts(UniversalCalibrationHeadUserControl.ViewMode viewModel, bool trueLeftFalseRight)
+        public Dictionary<(int binx, int biny), int> GetPoseBinCounts(UniversalCalibrationHead.ViewMode viewModel, bool trueLeftFalseRight)
         {
             var counts = new Dictionary<(int binx, int biny), int>();
-            if (viewModel == UniversalCalibrationHeadUserControl.ViewMode.AllFrames)
+            if (viewModel == UniversalCalibrationHead.ViewMode.AllFrames)
             {
                 FrameData? target;
 
@@ -991,7 +1001,7 @@ namespace Surveyor
                         ProcessFrameData(target, counts);
                 }
             }
-            else if (viewModel == UniversalCalibrationHeadUserControl.ViewMode.BestFrames)
+            else if (viewModel == UniversalCalibrationHead.ViewMode.BestFrames)
             {
                 FrameData leftTarget;
                 FrameData? rightTarget;
@@ -1052,7 +1062,7 @@ namespace Surveyor
                     {
                         var settings = new JsonSerializerSettings
                         {
-                            Converters = { new TupleInt2JsonConverter(), 
+                            Converters = { /*???new TupleInt2JsonConverter(),*/ 
                                            new Newtonsoft.Json.Converters.StringEnumConverter()
                             }
                         };
@@ -1734,7 +1744,7 @@ namespace Surveyor
                 var settings = new JsonSerializerSettings
                 {
                     Formatting = Formatting.None,
-                    Converters = { new TupleInt2JsonConverter(),
+                    Converters = { /*new TupleInt2JsonConverter(),*/
                                    new Newtonsoft.Json.Converters.StringEnumConverter()}
                 };
 
@@ -2030,15 +2040,6 @@ namespace Surveyor
                     new MCvScalar(0, 255, 0)  // Green for ChArUco IDs
                 );
 
-                // Draw the center point
-                //??? Remove to simply display
-                //PointF boardCentre = frameCalibrationTarget.Center;
-                //int radius = 40;
-                //MCvScalar color = new(0, 255, 0); // Green for Center 
-                //int thickness = 20;
-                //
-                // Draw the circle on the Mat
-                //CvInvoke.Circle(frame, new Point((int)boardCentre.X, (int)boardCentre.Y), radius, color, thickness);
 
                 // If Mono
                 if (headTrueIsStereoFalseIsMode == false)
@@ -2239,26 +2240,35 @@ namespace Surveyor
                 {
                     int frameIndex = bestFrame.FrameIndex;
 
+                    
                     if (!Data.Frames.TryGetValue(frameIndex, out var framePair))
                         continue;
 
-                    var calibrationData = trueTargetLeftFalseUseTargetRight
-                        ? framePair.frameCalibrationTargetLeft
-                        : framePair.frameCalibrationTargetRight;
+                    FrameData? calibrationFrame = null;
+                    try
+                    {
+                        calibrationFrame = trueTargetLeftFalseUseTargetRight
+                            ? framePair.frameCalibrationTargetLeft
+                            : framePair.frameCalibrationTargetRight;
+                    }
+                    catch(Exception ex)
+                    {
+                        Debug.WriteLine($"{side} MonoCalibrateUsingBestFrames: Error accessing frame data for frame index {frameIndex}: {ex.Message}");
+                    }
 
                     // The first pass (pass zero) is used to gather all frames with sufficient corners.
                     if (pass == 0)
                     {
-                        if (calibrationData is null ||
-                            calibrationData.ChArUcoCorners.Length == 0 ||
-                            calibrationData.ChArUcoIds.Length == 0 ||
-                            calibrationData.ChArUcoCorners.Length < monoCornerCountThreshold)
+                        if (calibrationFrame is null ||
+                            calibrationFrame.ChArUcoCorners.Length == 0 ||
+                            calibrationFrame.ChArUcoIds.Length == 0 ||
+                            calibrationFrame.ChArUcoCorners.Length < monoCornerCountThreshold)
                         {
                             // Ensure the projected RMS and Max Error are reset (may have been previously set)
-                            if (calibrationData is not null)
+                            if (calibrationFrame is not null)
                             {
-                                calibrationData.monoFrameRms[(int)calibrationParameters] = -1; // Mark as invalid
-                                calibrationData.monoFrameMaxError[(int)calibrationParameters] = -1; // Mark as invalid
+                                calibrationFrame.monoFrameRms[(int)calibrationParameters] = -1; // Mark as invalid
+                                calibrationFrame.monoFrameMaxError[(int)calibrationParameters] = -1; // Mark as invalid
                             }
                             continue;
                         }
@@ -2268,16 +2278,16 @@ namespace Surveyor
                     // Note the projected RMS and Max Error were calculated in the first pass
                     else if (pass == 1)
                     {
-                        if (calibrationData is null ||
-                            calibrationData.ChArUcoCorners.Length == 0 ||
-                            calibrationData.ChArUcoIds.Length == 0 ||
-                            calibrationData.ChArUcoCorners.Length < monoCornerCountThreshold )
+                        if (calibrationFrame is null ||
+                            calibrationFrame.ChArUcoCorners.Length == 0 ||
+                            calibrationFrame.ChArUcoIds.Length == 0 ||
+                            calibrationFrame.ChArUcoCorners.Length < monoCornerCountThreshold )
                         {
                             continue;
                         }
-                        if (calibrationData is not null &&
-                            (calibrationData.monoFrameRms[(int)calibrationParameters] > rmsUpper || 
-                             calibrationData.monoFrameMaxError[(int)calibrationParameters] > maxUpper))
+                        if (calibrationFrame is not null &&
+                            (calibrationFrame.monoFrameRms[(int)calibrationParameters] > rmsUpper || 
+                             calibrationFrame.monoFrameMaxError[(int)calibrationParameters] > maxUpper))
                         {
                             frameRemovedFromRMSOrMaxError++;
                             continue;
@@ -2285,12 +2295,12 @@ namespace Surveyor
                     }
 
 
-                    if (calibrationData is not null)
+                    if (calibrationFrame is not null)
                     {
                         imageUsable++;
-                        allCharucoCorners.Push(new VectorOfPointF(calibrationData.ChArUcoCorners));
-                        allCharucoIds.Push(new VectorOfInt(calibrationData.ChArUcoIds));
-                        allFrameData.Add(calibrationData);
+                        allCharucoCorners.Push(new VectorOfPointF(calibrationFrame.ChArUcoCorners));
+                        allCharucoIds.Push(new VectorOfInt(calibrationFrame.ChArUcoIds));
+                        allFrameData.Add(calibrationFrame);
                     }
                 }
 
@@ -2512,60 +2522,60 @@ namespace Surveyor
         /// <summary>
         /// Return a text of the mono calibration data
         /// </summary>
-        /// <param name="monoCalib"></param>
+        /// <param name="monoCalibration"></param>
         /// <returns></returns>
-        public static string CalibrationCameraDataText(MonoCalibrationCameraData? monoCalib)
+        public static string CalibrationCameraDataText(MonoCalibrationCameraData? monoCalibration)
         {
             int DistRowCount  = -1;
 
             try
             {
                 // Display the calibration results
-                if (monoCalib is not null && monoCalib.IntrinsicMatrix is not null && monoCalib.DistortionCoeffs is not null)
+                if (monoCalibration is not null && monoCalibration.IntrinsicMatrix is not null && monoCalibration.DistortionCoeffs is not null)
                 {
                     StringBuilder sb = new();
                     sb.AppendLine("Intrinsic:");
                     for (int i = 0; i < 3; i++)
                     {
-                        sb.AppendLine($"{monoCalib.IntrinsicMatrix[i, 0],7:F1} {monoCalib.IntrinsicMatrix[i, 1],7:F1} {monoCalib.IntrinsicMatrix[i, 2],7:F1}");
+                        sb.AppendLine($"{monoCalibration.IntrinsicMatrix[i, 0],7:F1} {monoCalibration.IntrinsicMatrix[i, 1],7:F1} {monoCalibration.IntrinsicMatrix[i, 2],7:F1}");
                     }
 
                     sb.AppendLine($"Distortion:");
-                    (_, DistRowCount) = GetCalibrationFlags(monoCalib.CalibrationParameters);
+                    (_, DistRowCount) = GetCalibrationFlags(monoCalibration.CalibrationParameters);
 
                     if (DistRowCount >= 5)
                     {
-                        sb.AppendLine($"k1:{monoCalib.DistortionCoeffs[0, 0],7:F3}  k2:{monoCalib.DistortionCoeffs[0, 1],7:F3}");
-                        sb.AppendLine($"p1:{monoCalib.DistortionCoeffs[0, 2],7:F3}  p2:{monoCalib.DistortionCoeffs[0, 3],7:F3}");
-                        sb.AppendLine($"k3:{monoCalib.DistortionCoeffs[0, 4],7:F3}");
+                        sb.AppendLine($"k1:{monoCalibration.DistortionCoeffs[0, 0],7:F3}  k2:{monoCalibration.DistortionCoeffs[0, 1],7:F3}");
+                        sb.AppendLine($"p1:{monoCalibration.DistortionCoeffs[0, 2],7:F3}  p2:{monoCalibration.DistortionCoeffs[0, 3],7:F3}");
+                        sb.AppendLine($"k3:{monoCalibration.DistortionCoeffs[0, 4],7:F3}");
                     }
                     if (DistRowCount >= 8)
                     {
-                        sb.AppendLine($"k4:{monoCalib.DistortionCoeffs[0, 5],7:F3}");
-                        sb.AppendLine($"k5:{monoCalib.DistortionCoeffs[0, 6],7:F3}  k6:{monoCalib.DistortionCoeffs[0, 7],7:F3}");
+                        sb.AppendLine($"k4:{monoCalibration.DistortionCoeffs[0, 5],7:F3}");
+                        sb.AppendLine($"k5:{monoCalibration.DistortionCoeffs[0, 6],7:F3}  k6:{monoCalibration.DistortionCoeffs[0, 7],7:F3}");
                     }
                     if (DistRowCount >= 12)
                     {
-                        sb.AppendLine($"s1:{monoCalib.DistortionCoeffs[0, 8],7:F3}  s2:{monoCalib.DistortionCoeffs[0, 9],7:F3}");
-                        sb.AppendLine($"s3:{monoCalib.DistortionCoeffs[0, 10],7:F3}  s4:{monoCalib.DistortionCoeffs[0, 11],7:F3}");
+                        sb.AppendLine($"s1:{monoCalibration.DistortionCoeffs[0, 8],7:F3}  s2:{monoCalibration.DistortionCoeffs[0, 9],7:F3}");
+                        sb.AppendLine($"s3:{monoCalibration.DistortionCoeffs[0, 10],7:F3}  s4:{monoCalibration.DistortionCoeffs[0, 11],7:F3}");
                     }
                     if (DistRowCount >= 14)
                     {
-                        sb.AppendLine($"tx:{monoCalib.DistortionCoeffs[0, 12],7:F3}  ty:{monoCalib.DistortionCoeffs[0, 13],7:F3}");
+                        sb.AppendLine($"tx:{monoCalibration.DistortionCoeffs[0, 12],7:F3}  ty:{monoCalibration.DistortionCoeffs[0, 13],7:F3}");
                     }
 
 
                     // RPE RMS
                     string rpeQuanlity = string.Empty;
-                    if (monoCalib.ReprojectionRMS <= 0.2)
+                    if (monoCalibration.ReprojectionRMS <= 0.2)
                         rpeQuanlity = "(excellent)";
-                    else if (monoCalib.ReprojectionRMS <= 0.5)
+                    else if (monoCalibration.ReprojectionRMS <= 0.5)
                         rpeQuanlity = "(very good)";
-                    else if (monoCalib.ReprojectionRMS <= 1.0)
+                    else if (monoCalibration.ReprojectionRMS <= 1.0)
                         rpeQuanlity = "(acceptable)";
-                    else if (monoCalib.ReprojectionRMS <= 1.5)
+                    else if (monoCalibration.ReprojectionRMS <= 1.5)
                         rpeQuanlity = "(poor)";
-                    else if (monoCalib.ReprojectionRMS <= 2.0)
+                    else if (monoCalibration.ReprojectionRMS <= 2.0)
                         rpeQuanlity = "(very poor)";
                     else
                         rpeQuanlity = "(terrible)";
@@ -2573,11 +2583,11 @@ namespace Surveyor
                     // 0.2–0.5  Very good; suitable for accurate 3D reconstructions and pose estimates
                     // 0.5–1.0  Acceptable for many real-world use cases, especially underwater, drone, etc.
                     // > 1.0    Often indicates blur, motion, poor corner detection, or bad coverage
-                    sb.AppendLine($"RPE: {monoCalib.ReprojectionRMS:F2}px {rpeQuanlity}");
+                    sb.AppendLine($"RPE: {monoCalibration.ReprojectionRMS:F2}px {rpeQuanlity}");
 
                     // Project RMS and MAX Error
-                    sb.AppendLine($"Projection RMS: {monoCalib.ProjectionRMS:F2}px");
-                    sb.AppendLine($"Max Error: {monoCalib.MaxError:F2}px");
+                    sb.AppendLine($"Projection RMS: {monoCalibration.ProjectionRMS:F2}px");
+                    sb.AppendLine($"Max Error: {monoCalibration.MaxError:F2}px");
 
                     return sb.ToString();
                 }
@@ -2587,8 +2597,8 @@ namespace Surveyor
                 
                 Debug.WriteLine($"CalibrationCameraDataText: Error generating calibration text, " +
                     $"Distortion coefficient Count={DistRowCount}, " +
-                    $"Distortion matrix is {monoCalib?.DistortionCoeffs?.Rows}x{monoCalib?.DistortionCoeffs?.Cols}" +
-                    $"Intrinsic matrix is {monoCalib?.IntrinsicMatrix?.Rows}x{monoCalib?.IntrinsicMatrix?.Cols}, " +
+                    $"Distortion matrix is {monoCalibration?.DistortionCoeffs?.Rows}x{monoCalibration?.DistortionCoeffs?.Cols}" +
+                    $"Intrinsic matrix is {monoCalibration?.IntrinsicMatrix?.Rows}x{monoCalibration?.IntrinsicMatrix?.Cols}, " +
                     $"{ex.Message}");
             }
 
@@ -2981,8 +2991,8 @@ namespace Surveyor
         /// Calculate the yaw and pitch angles for each frame in the set,
         /// </summary>
         /// <returns></returns>
-        public async Task CalculateFramesYawPitchAndPopulatePoseBinAsync(MonoCalibrationCameraData monoCalibLeft, 
-                                                                         MonoCalibrationCameraData? monoCalibRight, 
+        public async Task CalculateFramesYawPitchAndPopulatePoseBinAsync(MonoCalibrationCameraData monoCalibrationLeft, 
+                                                                         MonoCalibrationCameraData? monoCalibrationRight, 
                                                                          Windows.Foundation.Size frameSize)
         {
             if (chArUcoBoardDefinition is not null)
@@ -2997,15 +3007,15 @@ namespace Surveyor
                     {
                         if (left is not null)
                         {
-                            CalcYawAndPitcAndWhichPoseBin(left, monoCalibLeft);
+                            CalcYawAndPitcAndWhichPoseBin(left, monoCalibrationLeft);
 
-                            AddToThePoseBinTotals(left, Data.AllFramesPoseBinTotalsLeft);
+                            //???AddToThePoseBinTotals(left, Data.AllFramesPoseBinTotalsLeft);
                         }
-                        if (right is not null && monoCalibRight is not null)
+                        if (right is not null && monoCalibrationRight is not null)
                         {
-                            CalcYawAndPitcAndWhichPoseBin(right, monoCalibRight);
+                            CalcYawAndPitcAndWhichPoseBin(right, monoCalibrationRight);
 
-                            AddToThePoseBinTotals(right, Data.AllFramesPoseBinTotalsRight);
+                            //???AddToThePoseBinTotals(right, Data.AllFramesPoseBinTotalsRight);
                         }
                     }
                 });
@@ -3145,8 +3155,11 @@ namespace Surveyor
         /// Add to the existing best frame array 2 frames from each of the 
         /// pose bins to ensure pose diversity
         /// </summary>
-        public bool AddBestFramesUsingPoseBins(double maxMovementFactor, double maxBlurFactor, int cornersMinThreshold, int maxFramePerBin)
+        public (int added, int updated) AddBestFramesUsingPoseBins(double maxMovementFactor, double maxBlurFactor, int cornersMinThreshold, int maxFramePerBin)
         {
+            int totalAdded = 0;
+            int totalUpdated = 0;
+
 
             // Layer dimensions
             var (px, py) = FrameData.PoseBinGrid;
@@ -3182,9 +3195,19 @@ namespace Surveyor
                                          })
                                          .Take(maxFramePerBin)
                                          .Select(kvp => kvp.Key)];
+
+                        // Add to the mono best frames list only allowing unique to be
+                        // indexes added and updating the reason in existing entries if
+                        // needed
+                        (int added, int updated) = AddBestFrames(frameIndexes, BestFrameReason.PoseDiversity);
+                        totalAdded += added;
+                        totalUpdated += updated;
                     }
                     else
                     {
+                        int added;
+                        int updated;
+
                         // Find diverse poses based on the left frame
                         frameIndexes = [.. Data.Frames
                                         .Where(kvp =>
@@ -3214,49 +3237,56 @@ namespace Surveyor
                                         })
                                         .Take(maxFramePerBin / 2) /* Divide by 2 because each stereo pair adds 2 frames */
                                         .Select(kvp => kvp.Key)];
+
+                        // Add to the left stereo best frames list only allowing unique to be
+                        // indexes added and updating the reason in existing entries if
+                        // needed
+                        (added, updated) = AddBestFrames(frameIndexes, BestFrameReason.PoseDiversity);
+                        totalAdded += added;
+                        totalUpdated += updated;
+
+
+                        // Find diverse poses based on the right frame
+                        frameIndexes = [.. Data.Frames
+                                            .Where(kvp =>
+                                            {
+                                                var (left, right, correspondingCount) = kvp.Value;
+                                                return correspondingCount >= cornersMinThreshold &&
+                                                       left.MovementFactor <= maxMovementFactor &&
+                                                       left.BlurFactor <= maxBlurFactor &&
+                                                       right != null &&
+                                                       right.PoseBinX == binx &&
+                                                       right.PoseBinY == biny &&
+                                                       right.MovementFactor <= maxMovementFactor &&
+                                                       right.BlurFactor <= maxBlurFactor;
+                                            })
+                                            .OrderByDescending(kvp => kvp.Value.Item3) // correspondingCount descending
+                                            .ThenBy(kvp =>
+                                            {
+                                                var (left, right, _) = kvp.Value;
+                                                return right is null ? left.MovementFactor
+                                                                     : Math.MaxMagnitude(left.MovementFactor, right.MovementFactor);
+                                            })
+                                            .ThenBy(kvp =>
+                                            {
+                                                var (left, right, _) = kvp.Value;
+                                                return right is null ? left.BlurFactor
+                                                                     : Math.MaxMagnitude(left.BlurFactor, right.BlurFactor);
+                                            })
+                                            .Take(maxFramePerBin / 2) /* Divide by 2 because each stereo pair adds 2 frames */
+                                            .Select(kvp => kvp.Key)];
+
+                        // Add to the right stereo best frames list only allowing unique to be
+                        // indexes added and updating the reason in existing entries if
+                        // needed
+                        (added, updated) = AddBestFrames(frameIndexes, BestFrameReason.PoseDiversity);
+                        totalAdded += added;
+                        totalUpdated += updated;
                     }
-
-                    // Add to the best frames list only allowing unique indexes
-                    AddBestFrames(frameIndexes);
-
-
-                    // Find diverse poses based on the right frame
-                    frameIndexes = [.. Data.Frames
-                                        .Where(kvp =>
-                                        {
-                                            var (left, right, correspondingCount) = kvp.Value;
-                                            return correspondingCount >= cornersMinThreshold &&
-                                                   left.MovementFactor <= maxMovementFactor &&
-                                                   left.BlurFactor <= maxBlurFactor &&
-                                                   right != null &&
-                                                   right.PoseBinX == binx &&
-                                                   right.PoseBinY == biny &&
-                                                   right.MovementFactor <= maxMovementFactor &&
-                                                   right.BlurFactor <= maxBlurFactor;
-                                        })
-                                        .OrderByDescending(kvp => kvp.Value.Item3) // correspondingCount descending
-                                        .ThenBy(kvp =>
-                                        {
-                                            var (left, right, _) = kvp.Value;
-                                            return right is null ? left.MovementFactor
-                                                                 : Math.MaxMagnitude(left.MovementFactor, right.MovementFactor);
-                                        })
-                                        .ThenBy(kvp =>
-                                        {
-                                            var (left, right, _) = kvp.Value;
-                                            return right is null ? left.BlurFactor
-                                                                 : Math.MaxMagnitude(left.BlurFactor, right.BlurFactor);
-                                        })
-                                        .Take(maxFramePerBin / 2) /* Divide by 2 because each stereo pair adds 2 frames */
-                                        .Select(kvp => kvp.Key)];
-
-
-                    // Add to the best frames list only allowing unique indexes
-                    AddBestFrames(frameIndexes);
                 }
             }
-        
-            return true;
+                    
+            return (totalAdded, totalUpdated);
         }
 
 
@@ -3367,8 +3397,8 @@ namespace Surveyor
             // Reproject into both images in pixel coordinates
             var leftProj = CvInvoke.ProjectPoints(
                 [.. objectPointsTriangulated],
-                new Matrix<double>(3, 1), // rvec = 0
-                new Matrix<double>(3, 1), // tvec = 0
+                new Matrix<double>(3, 1), // rvecs = 0
+                new Matrix<double>(3, 1), // tvecs = 0
                 intrLeft,
                 distLeft);
 
@@ -3392,10 +3422,10 @@ namespace Surveyor
                 totalErrorRight += errR;
             }
 
-            if (n > 0)
-            {
-                Debug.WriteLine($"[Stereo Validation] Frame {frameIndex}: Avg re-projection error L={totalErrorLeft / n:F3}px R={totalErrorRight / n:F3}px");
-            }
+            //if (n > 0)
+            //{
+            //    Debug.WriteLine($"[Stereo Validation] Frame {frameIndex}: Avg re-projection error L={totalErrorLeft / n:F3}px R={totalErrorRight / n:F3}px");
+            //}
 
             return (leftProj, rightProj);
         }
@@ -3403,59 +3433,59 @@ namespace Surveyor
     }
 
 
-    public class TupleInt2JsonConverter : JsonConverter
-    {
-        public override bool CanConvert(Type objectType)
-        {
-            return objectType == typeof(Dictionary<(int, int), int>);
-        }
+    //???public class TupleInt2JsonConverter : JsonConverter
+    //{
+    //    public override bool CanConvert(Type objectType)
+    //    {
+    //        return objectType == typeof(Dictionary<(int, int), int>);
+    //    }
 
-        [RequiresUnreferencedCode("ReadJson uses Json.NET serialization which may not be compatible with trimming.")]
-        public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
-        {
-            var result = new Dictionary<(int, int), int>();
-            var obj = JObject.Load(reader);
+    //    [RequiresUnreferencedCode("ReadJson uses Json.NET serialization which may not be compatible with trimming.")]
+    //    public override object? ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
+    //    {
+    //        var result = new Dictionary<(int, int), int>();
+    //        var obj = JObject.Load(reader);
 
-            foreach (var prop in obj.Properties())
-            {
-                // Parse string key: "(6, 4)"
-                var keyString = prop.Name.Trim('(', ')');
-                var parts = keyString.Split(',');
+    //        foreach (var prop in obj.Properties())
+    //        {
+    //            // Parse string key: "(6, 4)"
+    //            var keyString = prop.Name.Trim('(', ')');
+    //            var parts = keyString.Split(',');
 
-                if (parts.Length == 4 &&
-                    int.TryParse(parts[0], out int a) &&
-                    int.TryParse(parts[1], out int b))
-                {
-                    var key = (a, b);
-                    var value = prop.Value.ToObject<int>();
-                    result[key] = value;
-                }
-            }
+    //            if (parts.Length == 4 &&
+    //                int.TryParse(parts[0], out int a) &&
+    //                int.TryParse(parts[1], out int b))
+    //            {
+    //                var key = (a, b);
+    //                var value = prop.Value.ToObject<int>();
+    //                result[key] = value;
+    //            }
+    //        }
 
-            return result;
-        }
+    //        return result;
+    //    }
 
-        public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
-        {
-            var dict = value as Dictionary<(int, int), int>;
-            if (dict == null)
-            {
-                writer.WriteNull();
-                return;
-            }
+    //    public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
+    //    {
+    //        var dict = value as Dictionary<(int, int), int>;
+    //        if (dict == null)
+    //        {
+    //            writer.WriteNull();
+    //            return;
+    //        }
 
-            writer.WriteStartObject();
-            foreach (var kvp in dict)
-            {
-                string key = $"({kvp.Key.Item1}, {kvp.Key.Item2})";
-                writer.WritePropertyName(key);
-                writer.WriteValue(kvp.Value);
-            }
-            writer.WriteEndObject();
-        }
+    //        writer.WriteStartObject();
+    //        foreach (var kvp in dict)
+    //        {
+    //            string key = $"({kvp.Key.Item1}, {kvp.Key.Item2})";
+    //            writer.WritePropertyName(key);
+    //            writer.WriteValue(kvp.Value);
+    //        }
+    //        writer.WriteEndObject();
+    //    }
 
-        /*** End of TupleInt2JsonConverter ***/
-    }
+    //    /*** End of TupleInt2JsonConverter ***/
+    //}
 
     
     /// <summary>

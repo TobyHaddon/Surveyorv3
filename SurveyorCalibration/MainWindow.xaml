@@ -326,7 +326,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- Left Mono Head -->
-            <controls:UniversalCalibrationHeadUserControl x:Name="LeftMonoCalibrationHead" 
+            <controls:UniversalCalibrationHead x:Name="LeftMonoCalibrationHead" 
                                                           HeadTitle="Left Mono Calibration Video"
                                                           Head="Mono" 
                                                           Grid.Row="0" 
@@ -343,7 +343,7 @@
                           ResizeBehavior="PreviousAndNext" />
 
             <!-- Right Mono Head -->
-            <controls:UniversalCalibrationHeadUserControl x:Name="RightMonoCalibrationHead" 
+            <controls:UniversalCalibrationHead x:Name="RightMonoCalibrationHead" 
                                                           HeadTitle="Right Mono Calibration Video"
                                                           Head="Mono" 
                                                           Grid.Row="0" 
@@ -365,7 +365,7 @@
 
 
         <!-- For the HeadTitle Left and Right are automatically applied if the Head is Stereo -->
-        <controls:UniversalCalibrationHeadUserControl x:Name="StereoCalibrationHead" 
+        <controls:UniversalCalibrationHead x:Name="StereoCalibrationHead" 
                                                       HeadTitle="Stereo Calibration Video" 
                                                       Head="Stereo" 
                                                       Grid.Row="4"                                                      

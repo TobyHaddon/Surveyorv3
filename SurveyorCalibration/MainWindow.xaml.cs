@@ -32,7 +32,7 @@ using WinRT.Interop;
 using WinUIEx;
 using WinUIEx.Messaging;
 using static iText.Svg.SvgConstants;
-using static Surveyor.Controls.UniversalCalibrationHeadUserControl;
+using static Surveyor.Controls.UniversalCalibrationHead;
 
 
 namespace Surveyor
@@ -351,33 +351,33 @@ namespace Surveyor
                 switch (calibProject.Data.Media.StereoMonoMediaSetMode)
                 {
                     case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
-                        if (Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.StereoFrameSetCacheFileSpec) &&
-                            Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.LeftMonoFrameSetCacheFileSpec) &&
-                            Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.RightMonoFrameSetCacheFileSpec))
+                        if (Controls.UniversalCalibrationHead.CachedResultsFileExists(cache.StereoFrameSetCacheFileSpec) &&
+                            Controls.UniversalCalibrationHead.CachedResultsFileExists(cache.LeftMonoFrameSetCacheFileSpec) &&
+                            Controls.UniversalCalibrationHead.CachedResultsFileExists(cache.RightMonoFrameSetCacheFileSpec))
                         {
                             cachedResultsAvailable = true;
                         }
                         break;
 
                     case StereoMonoMediaSetMode.StereoOnlyMediaSet:
-                        if (Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.StereoFrameSetCacheFileSpec) &&
-                            Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.LeftMonoFrameSetCacheFileSpec) &&
-                            Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.RightMonoFrameSetCacheFileSpec))
+                        if (Controls.UniversalCalibrationHead.CachedResultsFileExists(cache.StereoFrameSetCacheFileSpec) &&
+                            Controls.UniversalCalibrationHead.CachedResultsFileExists(cache.LeftMonoFrameSetCacheFileSpec) &&
+                            Controls.UniversalCalibrationHead.CachedResultsFileExists(cache.RightMonoFrameSetCacheFileSpec))
                         {
                             cachedResultsAvailable = true;
                         }
                         break;
 
                     case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-                        if (Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.LeftMonoFrameSetCacheFileSpec) &&
-                            Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.RightMonoFrameSetCacheFileSpec))
+                        if (Controls.UniversalCalibrationHead.CachedResultsFileExists(cache.LeftMonoFrameSetCacheFileSpec) &&
+                            Controls.UniversalCalibrationHead.CachedResultsFileExists(cache.RightMonoFrameSetCacheFileSpec))
                         {
                             cachedResultsAvailable = true;
                         }
                         break;
 
                     case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-                        if (Controls.UniversalCalibrationHeadUserControl.CachedResultsFileExists(cache.LeftMonoFrameSetCacheFileSpec))
+                        if (Controls.UniversalCalibrationHead.CachedResultsFileExists(cache.LeftMonoFrameSetCacheFileSpec))
                         {
                             cachedResultsAvailable = true;
                         }
@@ -2187,6 +2187,8 @@ namespace Surveyor
             if (calibProject is null)
                 return ret;
 
+            InfoBarProcessing.ShowProcessing("Loading cache files...");
+
             try
             {
                 // Check if cached results files are available
@@ -2428,6 +2430,7 @@ namespace Surveyor
             }
             finally
             {
+                InfoBarProcessing.HideProcessing();
                 SetUIControls();
             }
 
@@ -2670,15 +2673,15 @@ namespace Surveyor
                 {
                     if (doLeftMono)
                     {
-                        LeftMonoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
+                        await LeftMonoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
                     }
                     if (doRightMono)
                     {
-                        RightMonoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
+                        await RightMonoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
                     }
                     if (doStereo)
                     {
-                        StereoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
+                        await StereoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
                     }
                 }
 
@@ -2849,15 +2852,15 @@ namespace Surveyor
                 {
                     if (doLeftMono)
                     {
-                        LeftMonoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.FrameSets);
+                        await LeftMonoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.FrameSets);
                     }
                     if (doRightMono)
                     {
-                        RightMonoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.FrameSets);
+                        await RightMonoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.FrameSets);
                     }
                     if (doStereo)
                     {
-                        StereoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.FrameSets);
+                        await StereoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.FrameSets);
                     }
                 }
 
@@ -3008,11 +3011,11 @@ namespace Surveyor
                 {
                     if (doLeftMono)
                     {
-                        LeftMonoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.BestFrames);
+                        await LeftMonoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.BestFrames);
                     }
                     if (doRightMono)
                     {
-                        RightMonoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.BestFrames);
+                        await RightMonoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.BestFrames);
                     }
                 }
 
@@ -3229,7 +3232,7 @@ namespace Surveyor
 
             if (doStereo)
             {
-                ret = await StereoCalibrationHead.FindBestStereoFramesAsync(calibProject, 
+                ret = await StereoCalibrationHead.FindBestStereoFramesSafeUIAsync(calibProject, 
                                                                             runParams.MovementFilterValue,
                                                                             runParams.BlurFilterValue,
                                                                             runParams.MonoCornersFilterValue,
@@ -3244,7 +3247,7 @@ namespace Surveyor
             {
                 if (doStereo)
                 {
-                    StereoCalibrationHead.ClearResults(CalibrationStereoFrameSet.ClearRequest.BestFrames);
+                    await StereoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.BestFrames);
                 }
             }
 
@@ -3698,7 +3701,7 @@ namespace Surveyor
             MenuViewFilterFrames.IsEnabled = false; /*??? Disable until implemented IsViewModeAvailableOnAllHeads(ViewMode.FilterFrames);*/
 
             // View>Sensor Coverage menu item
-            MenuViewSensorCoverage.IsEnabled = false; /*??? Disable until implemented IsViewModeAvailableOnAllHeads(ViewMode.SensorCoverage);*/
+            MenuViewSensorCoverage.IsEnabled = IsViewModeAvailableOnAllHeads(ViewMode.SensorCoverage);
 
             // Set the current view mode menu checks
             

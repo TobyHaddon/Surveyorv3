@@ -46,7 +46,7 @@ namespace Surveyor.User_Controls
         public Window? ParentWindow { get; set; } = null;
 
         // Export Excel columns for calibration test
-        public enum ExportExcelColmns
+        public enum ExportExcelColumns
         {
             SurveyName = 1,
             Depth,
@@ -269,29 +269,29 @@ namespace Surveyor.User_Controls
                 var ws = package.Workbook.Worksheets.Add("Data");
 
                 // Headers
-                ws.Cells[1, (int)ExportExcelColmns.SurveyName].Value = "Survey Name";
-                ws.Cells[1, (int)ExportExcelColmns.Depth].Value = "Depth";
-                ws.Cells[1, (int)ExportExcelColmns.Transect].Value = "Transect";
-                ws.Cells[1, (int)ExportExcelColmns.Analyst].Value = "Operator";
-                ws.Cells[1, (int)ExportExcelColmns.Time].Value = "Position Time";
-                ws.Cells[1, (int)ExportExcelColmns.TimeSecs].Value = "Position Secs";
-                ws.Cells[1, (int)ExportExcelColmns.Type].Value = "Type";
-                ws.Cells[1, (int)ExportExcelColmns.Measurement].Value = "Measurement";
-                ws.Cells[1, (int)ExportExcelColmns.Range].Value = "Distance";
-                ws.Cells[1, (int)ExportExcelColmns.HorizontalOffset].Value = "Horizontal Offset";
-                ws.Cells[1, (int)ExportExcelColmns.VerticalOffset].Value = "Vertical Offset";
-                ws.Cells[1, (int)ExportExcelColmns.RMS].Value = "RMS";
-                ws.Cells[1, (int)ExportExcelColmns.RulesPassed].Value = "Rules Passed";
-                ws.Cells[1, (int)ExportExcelColmns.CalibrationDataIndex].Value = "Calib Index";
-                ws.Cells[1, (int)ExportExcelColmns.PreferredCalibrationDataIndex].Value = "Preferred?";
-                ws.Cells[1, (int)ExportExcelColmns.DiffToKnownLength].Value = "Diff to Known %";
+                ws.Cells[1, (int)ExportExcelColumns.SurveyName].Value = "Survey Name";
+                ws.Cells[1, (int)ExportExcelColumns.Depth].Value = "Depth";
+                ws.Cells[1, (int)ExportExcelColumns.Transect].Value = "Transect";
+                ws.Cells[1, (int)ExportExcelColumns.Analyst].Value = "Operator";
+                ws.Cells[1, (int)ExportExcelColumns.Time].Value = "Position Time";
+                ws.Cells[1, (int)ExportExcelColumns.TimeSecs].Value = "Position Secs";
+                ws.Cells[1, (int)ExportExcelColumns.Type].Value = "Type";
+                ws.Cells[1, (int)ExportExcelColumns.Measurement].Value = "Measurement";
+                ws.Cells[1, (int)ExportExcelColumns.Range].Value = "Distance";
+                ws.Cells[1, (int)ExportExcelColumns.HorizontalOffset].Value = "Horizontal Offset";
+                ws.Cells[1, (int)ExportExcelColumns.VerticalOffset].Value = "Vertical Offset";
+                ws.Cells[1, (int)ExportExcelColumns.RMS].Value = "RMS";
+                ws.Cells[1, (int)ExportExcelColumns.RulesPassed].Value = "Rules Passed";
+                ws.Cells[1, (int)ExportExcelColumns.CalibrationDataIndex].Value = "Calibration Index";
+                ws.Cells[1, (int)ExportExcelColumns.PreferredCalibrationDataIndex].Value = "Preferred?";
+                ws.Cells[1, (int)ExportExcelColumns.DiffToKnownLength].Value = "Diff to Known %";
 
                 int row = 2;
                 var calList = survey.Data.Calibration.CalibrationDataList;
                 int preferredIdx = survey.Data.Calibration.PreferredCalibrationDataIndex;
                 int measurementCount = 0;
 
-                // Cumlative Divergence from the known length for each calibration set
+                // Cumulative Divergence from the known length for each calibration set
                 double[] knownLengthCumulativeDivergenceArray = new double[calList.Count];
                 double[] knownLengthCumulativeRMSArray = new double[calList.Count];
 
@@ -341,29 +341,29 @@ namespace Surveyor.User_Controls
                         }
 
                         // Common data per row
-                        ws.Cells[row, (int)ExportExcelColmns.SurveyName].Value = survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName;
-                        ws.Cells[row, (int)ExportExcelColmns.Depth].Value = survey.Data.Info.SurveyDepth;
+                        ws.Cells[row, (int)ExportExcelColumns.SurveyName].Value = survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName;
+                        ws.Cells[row, (int)ExportExcelColumns.Depth].Value = survey.Data.Info.SurveyDepth;
                         string transect = EventsControl.GetTransectMarkerNameForEvent(survey.Data.Events.EventList, evt) ?? string.Empty;
-                        ws.Cells[row, (int)ExportExcelColmns.Transect].Value = transect;
-                        ws.Cells[row, (int)ExportExcelColmns.Analyst].Value = survey.Data.Info.SurveyAnalystName;
+                        ws.Cells[row, (int)ExportExcelColumns.Transect].Value = transect;
+                        ws.Cells[row, (int)ExportExcelColumns.Analyst].Value = survey.Data.Info.SurveyAnalystName;
 
                         var t = evt.TimeSpanTimelineController;
-                        var cellTime = ws.Cells[row, (int)ExportExcelColmns.Time];
+                        var cellTime = ws.Cells[row, (int)ExportExcelColumns.Time];
                         cellTime.Value = t;
                         cellTime.Style.Numberformat.Format = "hh:mm:ss";
-                        ws.Cells[row, (int)ExportExcelColmns.TimeSecs].Value = t.TotalSeconds.ToString(CultureInfo.InvariantCulture);
-                        ws.Cells[row, (int)ExportExcelColmns.Type].Value = "Measurement";
+                        ws.Cells[row, (int)ExportExcelColumns.TimeSecs].Value = t.TotalSeconds.ToString(CultureInfo.InvariantCulture);
+                        ws.Cells[row, (int)ExportExcelColumns.Type].Value = "Measurement";
 
-                        ws.Cells[row, (int)ExportExcelColmns.Measurement].Value = measurement ?? (object)string.Empty;
-                        ws.Cells[row, (int)ExportExcelColmns.Range].Value = newRules.Range ?? (object)string.Empty;
-                        ws.Cells[row, (int)ExportExcelColmns.HorizontalOffset].Value = newRules.XOffset ?? (object)string.Empty;
-                        ws.Cells[row, (int)ExportExcelColmns.VerticalOffset].Value = newRules.YOffset ?? (object)string.Empty;
-                        ws.Cells[row, (int)ExportExcelColmns.RMS].Value = newRules.RMSMean ?? (object)string.Empty;
-                        ws.Cells[row, (int)ExportExcelColmns.RulesPassed].Value = newRules.SurveyRules?.ToString() ?? string.Empty;
-                        ws.Cells[row, (int)ExportExcelColmns.CalibrationDataIndex].Value = i;
-                        ws.Cells[row, (int)ExportExcelColmns.PreferredCalibrationDataIndex].Value = (i == preferredIdx) ? "Y" : string.Empty;
+                        ws.Cells[row, (int)ExportExcelColumns.Measurement].Value = measurement ?? (object)string.Empty;
+                        ws.Cells[row, (int)ExportExcelColumns.Range].Value = newRules.Range ?? (object)string.Empty;
+                        ws.Cells[row, (int)ExportExcelColumns.HorizontalOffset].Value = newRules.XOffset ?? (object)string.Empty;
+                        ws.Cells[row, (int)ExportExcelColumns.VerticalOffset].Value = newRules.YOffset ?? (object)string.Empty;
+                        ws.Cells[row, (int)ExportExcelColumns.RMS].Value = newRules.RMSMean ?? (object)string.Empty;
+                        ws.Cells[row, (int)ExportExcelColumns.RulesPassed].Value = newRules.SurveyRules?.ToString() ?? string.Empty;
+                        ws.Cells[row, (int)ExportExcelColumns.CalibrationDataIndex].Value = i;
+                        ws.Cells[row, (int)ExportExcelColumns.PreferredCalibrationDataIndex].Value = (i == preferredIdx) ? "Y" : string.Empty;
                         if (diffPct.HasValue)
-                            ws.Cells[row, (int)ExportExcelColmns.DiffToKnownLength].Value = diffPct.Value;
+                            ws.Cells[row, (int)ExportExcelColumns.DiffToKnownLength].Value = diffPct.Value;
 
                         if (measurement is not null)
                         {
@@ -425,7 +425,7 @@ namespace Surveyor.User_Controls
                     double aveError = knownLengthCumulativeDivergenceArray[i] / measurementCount;
                     double aveErrorRatio = KnownLength > 0 ? aveError / KnownLength : 0.0;
                     double aveRMS = knownLengthCumulativeRMSArray[i] / measurementCount;
-                    ResultText += $"Calib set:{i}: Average error:{aveError:F0}mm({aveErrorRatio:P1}){bestKnownLenth} Ave RMS:{aveRMS:F0}{bestRMS}  {calList[i].Description}\r\n";
+                    ResultText += $"Calibration set:{i}: Average error:{aveError:F0}mm({aveErrorRatio:P1}){bestKnownLenth} Ave RMS:{aveRMS:F0}{bestRMS}  {calList[i].Description}\r\n";
                 }
             }
             catch (Exception ex)

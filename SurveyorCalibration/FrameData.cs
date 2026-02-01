@@ -1,4 +1,6 @@
-﻿using Emgu.CV;
+﻿// Ignore Spelling: Uco
+
+using Emgu.CV;
 using Emgu.CV.Aruco;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
@@ -101,6 +103,8 @@ namespace Surveyor.Calibration
         public PointF[][] StereoSharedChArUcoCorners = new PointF[calibParamCount][];
         [JsonProperty("StereoSharedIds")]
         public int[][] StereoSharedChArUcoIDs = new int[calibParamCount][];
+
+        // Stereo Frame quality tests        
         [JsonProperty(nameof(stereoProjectedPoints))]
         public PointF[][] stereoProjectedPoints = new PointF[calibParamCount][];
         [JsonProperty(nameof(stereoFrameRms))]
@@ -134,7 +138,7 @@ namespace Surveyor.Calibration
             BlurFactor = CalculateBlur(grayFrame);
 
             // Calculate dynamic data
-            CalcDynamicFrameData(frameWidth, frameHeight);
+            CalculateDynamicFrameData(frameWidth, frameHeight);
         }
 
 
@@ -143,7 +147,7 @@ namespace Surveyor.Calibration
         /// </summary>
         /// <param name="resolutionX"></param>
         /// <param name="resolutionY"></param>
-        public void CalcDynamicFrameData(int resolutionX, int resolutionY)
+        public void CalculateDynamicFrameData(int resolutionX, int resolutionY)
         {
             Center = CalculateCenter(ChArUcoCorners);            
             SensorBinsOccupied = GetBinsForCharucoCorners(ChArUcoCorners, resolutionX, resolutionY);
