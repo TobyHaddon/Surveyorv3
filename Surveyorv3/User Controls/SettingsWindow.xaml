@@ -9,12 +9,10 @@
     xmlns:surveyorControls="using:Surveyor.User_Controls"
     xmlns:converters="using:Surveyor.Converters"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    MinWidth="1100"
+    MinWidth="1200"    
     MinHeight="800"
-    MaxHeight="1000"
-    MaxWidth="1200"
+    MaxHeight="1000"    
     Title="Settings">
-
 
     <Grid x:Name="RootGrid" Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" Unloaded="RootGrid_Unloaded">
 
@@ -40,710 +38,716 @@
             IsTabStop="False"
             UseSystemFocusVisuals="False"
             VerticalScrollBarVisibility="Auto"
-            VerticalScrollMode="Auto">
-            <StackPanel Spacing="{StaticResource SettingsCardSpacing}">
-                <StackPanel.ChildrenTransitions>
-                    <TransitionCollection>
-                        <EntranceThemeTransition FromVerticalOffset="50" />
-                        <RepositionThemeTransition IsStaggeringEnabled="False" />
-                    </TransitionCollection>
-                </StackPanel.ChildrenTransitions>
+            VerticalScrollMode="Auto"
+            HorizontalScrollBarVisibility="Disabled"
+            HorizontalScrollMode="Disabled">
 
-                <!--SURVEY SETTINGS-->
-                <TextBlock x:Name="SurveySettingsTitle" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Survey Settings"  MaxWidth="1200"/>
+            <Grid HorizontalAlignment="Stretch" MinWidth="0">
 
-                <!--SURVEY SETTINGS > SURVEY INFO AND MEDIA-->
-                <toolkit:SettingsExpander x:Name="SurveyInfoAndMediaExpander" Header="Survey Info &amp; Media">
-                    <toolkit:SettingsExpander.HeaderIcon>
-                        <FontIcon Glyph="&#xF0E3;" ToolTipService.ToolTip="Survey setup information and survey media"/>
-                    </toolkit:SettingsExpander.HeaderIcon>
+                <StackPanel Spacing="{StaticResource SettingsCardSpacing}">
+                    <StackPanel.ChildrenTransitions>
+                        <TransitionCollection>
+                            <EntranceThemeTransition FromVerticalOffset="50" />
+                            <RepositionThemeTransition IsStaggeringEnabled="False" />
+                        </TransitionCollection>
+                    </StackPanel.ChildrenTransitions>
 
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                        <Button x:Name="ReCalculate" Content="Re-Calculate Measurements" Click="ReCalculate_Click" Margin="0,0,10,0"/>
+                    <!--SURVEY SETTINGS-->
+                    <TextBlock x:Name="SurveySettingsTitle" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Survey Settings"  MaxWidth="1200"/>
+
+                    <!--SURVEY SETTINGS > SURVEY INFO AND MEDIA-->
+                    <toolkit:SettingsExpander x:Name="SurveyInfoAndMediaExpander" Header="Survey Info &amp; Media">
+                        <toolkit:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xF0E3;" ToolTipService.ToolTip="Survey setup information and survey media"/>
+                        </toolkit:SettingsExpander.HeaderIcon>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button x:Name="ReCalculate" Content="Re-Calculate Measurements" Click="ReCalculate_Click" Margin="0,0,10,0"/>
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                IsTextSelectionEnabled="True"
+                                Text="{x:Bind SettingsExpanderInfoText}" 
+                                VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <toolkit:SettingsExpander.Items>
+                            <!-- Stereo Fish (SVS) -->
+                            <toolkit:SettingsCard x:Name="SettingsCardSurveyStereoInfoAndMedia">
+                                <surveyorControls:SurveyStereoInfoAndMedia x:Name="SurveyStereoInfoAndMedia"/>
+                            </toolkit:SettingsCard>
+
+                            <!-- Mono Fish and Benthic -->
+                            <toolkit:SettingsCard x:Name="SettingsCardSurveyMonoInfoAndMedia">
+                                <surveyorControls:SurveyMonoInfoAndMedia x:Name="SurveyMonoInfoAndMedia"/>
+                            </toolkit:SettingsCard>
+                        </toolkit:SettingsExpander.Items>
+                    </toolkit:SettingsExpander>
+
+                    <!--SURVEY CALIBRATION-->
+                    <surveyorControls:SettingsCalibration x:Name="SettingsCalibration"/>
+
+                    <!--SURVEY RULES-->
+                    <surveyorControls:SettingsSurveyRules x:Name="SettingsSurveyRules"/>
+
+
+                    <!--SYSTEM SETTINGS-->
+                    <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="System Settings"  MaxWidth="1200"/>
+
+                    <!--GENERAL SETTINGS-->
+                    <toolkit:SettingsExpander x:Name="GeneralSettingsExpander" Header="General Settings" MaxWidth="1200">
+                        <toolkit:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xE115;" />
+                        </toolkit:SettingsExpander.HeaderIcon>
+
+                        <toolkit:SettingsExpander.Items>
+                            <!-- Auto Save -->
+                            <toolkit:SettingsCard Header="Auto Save" Description="Automatically saves the survey periodically">
+                                <toolkit:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE74E;" ToolTipService.ToolTip="If enabled work is saved automatically every 20 secs."/>
+                                </toolkit:SettingsCard.HeaderIcon>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <ToggleSwitch x:Name="AutoSave" Toggled="AutoSave_Toggled" />
+                                </StackPanel>
+                            </toolkit:SettingsCard>
+
+                            <!-- Theme -->
+                            <toolkit:SettingsCard Description="Select which app theme to display" Header="App theme">
+                                <toolkit:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE790;" />
+                                </toolkit:SettingsCard.HeaderIcon>
+                                <ComboBox x:Name="themeMode" AutomationProperties.AutomationId="themeModeComboBox" SelectionChanged="ThemeMode_SelectionChanged">
+                                    <ComboBoxItem Content="Light" Tag="Light" />
+                                    <ComboBoxItem Content="Dark" Tag="Dark" />
+                                    <ComboBoxItem Content="Use system setting" Tag="Default" />
+                                </ComboBox>
+                            </toolkit:SettingsCard>
+
+                            <!-- Internet -->
+                            <toolkit:SettingsCard Header="Use Internet" Description="Allows the application to use the internet">
+                                <toolkit:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE701;" ToolTipService.ToolTip="When the internet is available the application is allowed to download images and upload data."/>
+                                </toolkit:SettingsCard.HeaderIcon>
+                                <ToggleSwitch x:Name="UseInternet" Toggled="UseInternet_Toggled" />
+                            </toolkit:SettingsCard>
+
+                            <!-- Mouse wheel frame forward/back -->
+                            <toolkit:SettingsCard Header="Mouse wheel Frame Forward/Back" Description="Use the mousewheel or a two fingers swipe to move the frame forward or back">
+                                <toolkit:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE65A;" ToolTipService.ToolTip="You can use either the mousewheel or a two fingers swipe up/down on the trackpad to move the frame forward or back in the video.  The pointer needs to be on the media player and the magnifier window cannot be open."/>
+                                </toolkit:SettingsCard.HeaderIcon>
+                                <ToggleSwitch x:Name="MouseWheelFrameMove" Toggled="MouseWheelFrameMoveEnabled_Toggled" />
+                            </toolkit:SettingsCard>
+
+                            <!-- Allow Survey inheritance -->
+                            <toolkit:SettingsCard Header="Allow Survey Inheritance" Description="Allow calibration and Survey Rules inheritance from the last 'Recent Survey'">
+                                <toolkit:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE71B;" ToolTipService.ToolTip="The New Survey screen displays an option to inherit calibration and Survey Rules from the last Recent Survey provide that survey is not older than two weeks. This is stop out-of-date calibration being inherited."/>
+                                </toolkit:SettingsCard.HeaderIcon>
+                                <ToggleSwitch x:Name="AllowSurveyInheritance" Toggled="AllowSurveyInheritance_Toggled" />
+                            </toolkit:SettingsCard>
+
+                            <!-- Teaching Tips -->
+                            <toolkit:SettingsCard Header="Teaching Tips">
+                                <toolkit:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE7BE;" />
+                                </toolkit:SettingsCard.HeaderIcon>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button x:Name="ReshowTeachingTips" Content="Reshow Tips" Click="ReshowTeachingTips_Click" Margin="0,0,10,0"/>
+                                    <ToggleSwitch x:Name="TeachingTips" Toggled="TeachingTips_Toggled" />
+                                </StackPanel>
+                            </toolkit:SettingsCard>
+
+                            <!-- Species Image Cache -->
+                            <toolkit:SettingsCard Header="Use Species Images" Description="Downloads fish images to help with fish ID (requires 'Use Internet' enabled)">
+                                <toolkit:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE8B9;" ToolTipService.ToolTip="The species image cache tries to download stock image for each fish species. This is used to help with fish ID."/>
+                                </toolkit:SettingsCard.HeaderIcon>
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <ComboBox x:Name="FishBaseURL"  
+                                              SelectionChanged="FishBaseURL_SelectionChanged" 
+                                              Margin="0,0,10,0">
+                                        <ComboBoxItem Content="Fishbase.se" Tag="https://www.fishbase.se" />
+                                        <ComboBoxItem Content="Fishbase.org" Tag="https://www.fishbase.org" />
+                                        <ComboBoxItem Content="Fishbase.us" Tag="https://www.fishbase.us" />
+                                        <ComboBoxItem Content="Fishbase.au" Tag="https://www.fishbase.au" />
+                                    </ComboBox>
+                                    <ToggleSwitch x:Name="UseSpeciesImageCache" Toggled="UseSpeciesImageCache_Toggled" />
+                                </StackPanel>
+                            </toolkit:SettingsCard>
+
+                            <!-- Microsoft Insights Telemetry -->
+                            <toolkit:SettingsCard Header="Telemetry" Description="Enable telemetry to be uploaded" >
+                                <toolkit:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE82F;" ToolTipService.ToolTip="Usage, crash and diagnostic information can be automatically uploaded. This is indepentant of the 'Use Internet' setting." />
+                                </toolkit:SettingsCard.HeaderIcon>
+                                <ToggleSwitch x:Name="Telemetry" Toggled="Telemetry_Toggled" />
+                            </toolkit:SettingsCard>
+
+
+                        </toolkit:SettingsExpander.Items>
+                    </toolkit:SettingsExpander>
+
+
+                    <!-- SYSTEM SETTINGS > SPECIES CODE LIST -->
+                    <toolkit:SettingsExpander x:Name="SpeciesCodeListExpander" Header="Species List" MaxWidth="1200">
+                        <toolkit:SettingsExpander.HeaderIcon>
+                            <BitmapIcon x:Name="SpeciesCodeListIcon" ShowAsMonochrome="False" UriSource="/Assets/fish-dark.png" />
+                        </toolkit:SettingsExpander.HeaderIcon>
+
+                        <StackPanel Orientation="Horizontal">
+
+                            <!-- File location information-->
+                            <Button Click="SpeciesCodeListFileSpec_Click"
+                                    ToolTipService.ToolTip="Path to the Species.txt file  (path has been copied to the clipboard)"
+                                    Background="Transparent"
+                                    BorderBrush="{x:Null}"
+                                    Padding="0" MinWidth="0" MinHeight="0"
+                                    HorizontalAlignment="Center" VerticalAlignment="Center"
+                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                    Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <FontIcon x:Name="SpeciesCodeListFileSpec"
+                                          Glyph="&#xE946;"
+                                          Margin="0,0,10,0"
+                                          VerticalAlignment="Center" />
+                            </Button>
+
+                            <!-- SpeciesCodeList Search -->
+                            <AutoSuggestBox x:Name="SpeciesCodeListSearchBox"
+                                                    PlaceholderText="Search"
+                                                    Width="250"
+                                                    QueryIcon="Find"
+                                                    TextChanged="SpeciesCodeListSearchBox_TextChanged"
+                                                    SuggestionChosen="SpeciesCodeListSearchBox_SuggestionChosen"
+                                                    QuerySubmitted="SpeciesCodeListSearchBox_QuerySubmitted" 
+                                                    Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" 
+                                                    Margin="0,0,10,0" VerticalAlignment="Center"/>
+
+                            <!-- SpeciesCodeList Item Count-->
+                            <TextBlock x:Name="SpeciesCodeListItemCount" Text="{x:Bind mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
+
+
+                            <!-- SpeciesCodeList New Button -->
+                            <Button Click="SpeciesCodeListAdd_Click"
+                                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                                            ToolTipService.ToolTip="Add a new species code list item."
+                                            Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <FontIcon Glyph="&#xE710;" />
+                                    <TextBlock Text="Add" Margin="4,0,0,0" />
+                                </StackPanel>
+                            </Button>
+
+                            <!-- SpeciesCodeList Edit Button -->
+                            <Button x:Name="SpeciesCodeListEditButton" Click="SpeciesCodeListEdit_Click"
+                                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                                            ToolTipService.ToolTip="Edit existing species code list item."
+                                            Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
+                                <StackPanel Orientation="Horizontal">
+                                    <FontIcon Glyph="&#xE70F;" />
+                                    <TextBlock Text="Edit" Margin="4,0,0,0" />
+                                </StackPanel>
+                            </Button>
+
+                            <!-- SpeciesCodeList Delete Button -->
+                            <Button x:Name="SpeciesCodeListDeleteButton" Click="SpeciesCodeListDelete_Click" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                            ToolTipService.ToolTip="Delete species code list item."
+                                            Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <FontIcon Glyph="&#xE738;" />
+                                    <TextBlock Text="Delete" Margin="4,0,0,0" />
+                                </StackPanel>
+                            </Button>
+
+                            <TextBlock Text="Scientific Order" Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="10,0,10,0" VerticalAlignment="Center"/>
+                            <ToggleSwitch x:Name="SpeciesCodeListScientificNameOrder" Toggled="SpeciesCodeListSort_Toggled" Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                        </StackPanel>
+
+                        <toolkit:SettingsExpander.Items>
+                            <toolkit:SettingsCard HorizontalContentAlignment="Left" HorizontalAlignment="Left">
+                                <StackPanel Spacing="8">
+                                    <!-- ScrollViewer only around the DataGrid -->
+                                    <ScrollViewer HorizontalScrollBarVisibility="Auto"
+                                                  VerticalScrollBarVisibility="Auto">
+                                        <!-- SpeciesCodeList DataGrid -->
+                                        <dg:DataGrid x:Name="SpeciesCodeListDataGrid" 
+                                                                DoubleTapped="SpeciesCodeListDataGrid_DoubleTapped"
+                                                                SelectionChanged="SpeciesCodeListDataGrid_SelectionChanged"
+                                                                ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems, Mode=OneWay}"
+                                                                AutoGenerateColumns="False"
+                                                                HeadersVisibility="Column"
+                                                                CanUserSortColumns="False"                                               
+                                                                IsReadOnly="True"
+                                                                GridLinesVisibility="Horizontal"
+                                                                SelectionMode="Single"                                                
+                                                                MaxHeight="300">
+                                            <dg:DataGrid.Columns>
+                                                <dg:DataGridTextColumn Header="Family" Binding="{Binding Family}" />
+                                                <dg:DataGridTextColumn Header="Genus" Binding="{Binding Genus}" />
+                                                <dg:DataGridTextColumn Header="Species" Binding="{Binding Species}" />
+                                                <dg:DataGridTextColumn Header="Code" Binding="{Binding Code}" />
+                                            </dg:DataGrid.Columns>
+                                        </dg:DataGrid>
+                                    </ScrollViewer>
+                                </StackPanel>
+                            </toolkit:SettingsCard>
+                        </toolkit:SettingsExpander.Items>
+                    </toolkit:SettingsExpander>
+
+
+                    <!-- SYSTEM SETTINGS > STEREO CAMERA -->
+                    <toolkit:SettingsExpander x:Name="CameraExpander" Header="Stereo Cameras" Description="GoPro setup instructions" MaxWidth="1200"
+                                              Expanded="CameraExpander_Expanded" Collapsed="CameraExpander_Collapsed">
+                        <toolkit:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xE722;" />
+                        </toolkit:SettingsExpander.HeaderIcon>
+
+                        <toolkit:SettingsExpander.Items>
+                            <toolkit:SettingsCard HorizontalContentAlignment="Left" ContentAlignment="Vertical">
+                                <StackPanel Orientation="Vertical" Margin="50,10,50,0">
+                                    <TextBlock TextWrapping="WrapWholeWords">
+                                        <TextBlock.Inlines>
+                                            <Run Text="The GoPro survey cameras must have GoPro Labs installed on each camera. Follow the link to " />
+                                            <Hyperlink NavigateUri="https://gopro.github.io/labs/">
+                                                <Run Text="GoPro Labs" />
+                                            </Hyperlink>
+                                            <Run Text=".  Download the correct version for your GoPro." />
+                                        </TextBlock.Inlines>
+                                    </TextBlock>
+                                    <TextBlock Text="After Labs is installed on each GoPro switch each camera on and point at the QR Code below. It maybe need a bit of moving back and forward and a bright screen for the GoPro to pickup the QR code. After the GoPro has read the QR Code switch the camera off." TextWrapping="WrapWholeWords"/>
+                                    <TextBlock Text="The QR Code sets up the following:" TextWrapping="WrapWholeWords"  Margin="0,10,0,0"/>
+                                    <TextBlock TextWrapping="WrapWholeWords" Margin="10,0,0,0">
+                                        <Run Text="• Sets the maximum MP4 file size of 64Gb" /><LineBreak/>
+                                        <Run Text="• Set the required resolution and frame rate" /><LineBreak/>
+                                        <Run Text="• Once switched on the GoPros will start recording with a firm shake of the camera rig" />
+                                    </TextBlock>
+                                    <Grid Margin="0,10,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Orientation="Vertical" VerticalAlignment="Top" HorizontalAlignment="Left">
+                                            <!-- Selection GoPro Script-->
+                                            <DropDownButton x:Name="GoProQRSelection" Grid.Column="0" HorizontalAlignment="Left"  VerticalAlignment="Top" Content="Standard Setup">
+                                                <DropDownButton.Flyout>
+                                                    <MenuFlyout x:Name="GoProQRSelectionFlyout"/>
+                                                </DropDownButton.Flyout>
+                                            </DropDownButton>
+
+                                            <!-- DisplayGoPro Script-->
+                                            <TextBlock Text="Script:" Style="{StaticResource CaptionTextBlockStyle}" Margin="0,10,20,0" TextWrapping="WrapWholeWords"/>
+                                            <TextBox x:Name="GoProQRScript"
+                                                     Text="" 
+                                                     IsReadOnly="True"
+                                                     TextWrapping="Wrap"
+                                                     AcceptsReturn="True"
+                                                     FontFamily="Consolas"
+                                                     FontSize="14"
+                                                     Padding="10"
+                                                     BorderThickness="1"
+                                                     BorderBrush="Gray" Margin="0,5,20,0"/>
+
+                                        </StackPanel>
+                                        <CheckBox x:Name="GoProQRSetDateTime" Content="Set Date &amp; Time"
+                                                  IsChecked="True" IsEnabled="False"/>
+
+                                        <!-- Display Scrip QR Code-->
+                                        <Image x:Name="GoProQRCode"  HorizontalAlignment="Right" Grid.Column="1" Width="400" Height="400" Margin="10,0,00,0"/>
+                                    </Grid>
+                                </StackPanel>
+                            </toolkit:SettingsCard>
+                        </toolkit:SettingsExpander.Items>
+                    </toolkit:SettingsExpander>
+
+
+                    <!--  ADVANCED  -->
+                    <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Advanced"  MaxWidth="1200"/>
+
+                    <!-- Diagnostic Info -->
+                    <toolkit:SettingsExpander x:Name="DiagnosticsExpander" Header="Diagnostics">
+                        <toolkit:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xEBD3;"/>
+                        </toolkit:SettingsExpander.HeaderIcon>
+
+                        <toolkit:SettingsExpander.Items>
+                            <toolkit:SettingsCard Header="Diagnostic Information" Description="Increase the level of information sent to the Output window" >
+                                <toolkit:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xEBE8;" ToolTipService.ToolTip="Enable diagnostic information and features. Some features need the application to be restarted." />
+                                </toolkit:SettingsCard.HeaderIcon>
+                                <ToggleSwitch x:Name="DiagnosticInformation" Toggled="DiagnosticInformation_Toggled" />
+                            </toolkit:SettingsCard>
+
+                            <toolkit:SettingsCard Header="Logging" Description="Log storage location" >
+                                <toolkit:SettingsCard.HeaderIcon>
+                                    <FontIcon Glyph="&#xE8A5;" />
+                                </toolkit:SettingsCard.HeaderIcon>
+
+
+                                <StackPanel Orientation="Horizontal">
+
+                                    <!-- Cache Folder information-->
+                                    <Button Click="ReporterFolder_Click"
+                                                    ToolTipService.ToolTip="Folder for the report files (folder has been copied to the clipboard)"
+                                                    BorderBrush="{x:Null}"
+                                                    Padding="3"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    Margin="0,0,10,0">
+                                        <FontIcon x:Name="ReporterFolder"
+                                                        Glyph="&#xE946;"                                                    
+                                                        HorizontalAlignment="Center"
+                                                        VerticalAlignment="Center" />
+                                    </Button>
+
+                                    <!-- Copy Reporter Files to Clipboard -->
+                                    <Button Click="ReporterFilesToClipboard_Click" Content="Reporter Files to Clipboard"
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Top"
+                                                            ToolTipService.ToolTip="Click to copy all the reporter files to the clipboard."
+                                                            Margin="0,0,10,0">
+                                    </Button>
+
+                                </StackPanel>
+
+                            </toolkit:SettingsCard>
+                        </toolkit:SettingsExpander.Items>
+                    </toolkit:SettingsExpander>
+
+                    <!-- Experimental Code -->
+                    <toolkit:SettingsCard Header="Experimental Features" Description="Experimental code, should not be used for real surveys" >
+                        <toolkit:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xF196;" ToolTipService.ToolTip="These features are experimental or in test and may produce incorrect results." />
+                        </toolkit:SettingsCard.HeaderIcon>
+
+                        <StackPanel Orientation="Horizontal">
+                            <Button Content="Select Feature Sets" Margin="0,0,10,0">
+                                <Button.Flyout>
+                                    <Flyout>
+                                        <StackPanel>
+                                            <CheckBox x:Name="ExperimentalFeatureSetA" Content="Feature Set A" Click="ExperimentalFeatureSetA_Click"/>
+                                            <CheckBox x:Name="ExperimentalFeatureSetB" Content="Feature Set B" Click="ExperimentalFeatureSetB_Click"/>
+                                            <CheckBox x:Name="ExperimentalFeatureSetC" Content="Feature Set C" Click="ExperimentalFeatureSetC_Click"/>
+                                        </StackPanel>
+                                    </Flyout>
+                                </Button.Flyout>
+                            </Button>
+                            <ToggleSwitch x:Name="Experimental" Toggled="Experimental_Toggled" />
+                        </StackPanel>
+                    </toolkit:SettingsCard>
+
+                    <!-- Internet Queue Viewer -->
+                    <toolkit:SettingsExpander x:Name="InternetQueueExpander" Header="Internet Queue">
+                        <toolkit:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xEBD3;" ToolTipService.ToolTip="Displays the internet download requests and upload requests." />
+                        </toolkit:SettingsExpander.HeaderIcon>
+
+                        <StackPanel Orientation="Horizontal">
+                            <!-- Remove Downloaded / Uploaded Button -->
+                            <Button Click="RemoveInternetQueue_Click" Content="Remove Downloaded/Uploaded"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Top"
+                                        ToolTipService.ToolTip="Remove all completed downloads and uploads."
+                                        Visibility="{Binding IsExpanded, ElementName=InternetQueueExpander, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                        Margin="0,0,10,0">
+                            </Button>
+
+                            <!-- Remove All Button -->
+                            <Button Click="RemoveAllInternetQueue_Click" Content="Remove All"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Top"
+                                        ToolTipService.ToolTip="Remove all records."
+                                        Visibility="{Binding IsExpanded, ElementName=InternetQueueExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
+                            </Button>
+
+                            <!-- Remove Record Button -->
+                            <Button Click="RemoveRecordInternetQueue_Click" Content="Remove"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Top"
+                                        ToolTipService.ToolTip="Remove single record."
+                                        Visibility="{Binding IsExpanded, ElementName=InternetQueueExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
+                            </Button>
+
+                            <!--Item Count-->
+                            <TextBlock x:Name="InternetQueueItemCount" Text="{x:Bind mainWindow.internetQueue.InternetQueueView.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
+
+                            <!-- Internet Queue view Refresh Button -->
+                            <Button Click="RefreshInternetQueueView_Click"
+                                        HorizontalAlignment="Left"
+                                        VerticalAlignment="Top"
+                                        ToolTipService.ToolTip="Refresh Internet Queue View"
+                                        Visibility="{Binding IsExpanded, ElementName=InternetQueueExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <FontIcon Glyph="&#xE72C;" />
+                                    <TextBlock Text="Refresh" Margin="4,0,0,0" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <toolkit:SettingsExpander.Items>
+                            <toolkit:SettingsCard HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" MaxWidth="1200">
+                                <StackPanel>
+
+
+                                    <!-- Column Headers -->
+                                    <Grid Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" MaxWidth="1200">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="200"/>
+                                            <ColumnDefinition Width="150"/>
+                                            <ColumnDefinition Width="300"/>
+                                            <ColumnDefinition Width="150"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Text="Direction" FontWeight="Bold" Grid.Column="0" Padding="2"/>
+                                        <TextBlock Text="Type" FontWeight="Bold" Grid.Column="1" Padding="2"/>
+                                        <TextBlock Text="Status" FontWeight="Bold" Grid.Column="2" Padding="2"/>
+                                        <TextBlock Text="Priority" FontWeight="Bold" Grid.Column="3" Padding="2"/>
+                                        <TextBlock Text="File" FontWeight="Bold" Grid.Column="4" Padding="2"/>
+                                        <TextBlock Text="Date" FontWeight="Bold" Grid.Column="5" Padding="2"/>
+                                        <TextBlock Text="URL" FontWeight="Bold" Grid.Column="6" Padding="2"/>
+                                        <TextBlock Text="Created" FontWeight="Bold" Grid.Column="7" Padding="2"/>
+                                    </Grid>
+
+                                    <!-- Scroll-able + Selectable ListView -->
+                                    <ListView x:Name="InternetQueueListView"
+                                                ItemsSource="{x:Bind mainWindow.internetQueue.InternetQueueView, Mode=OneWay}"
+                                                SelectionMode="Single"
+                                                HorizontalAlignment="Stretch"
+                                                MaxWidth="1200"                                              
+                                                Height="300"
+                                                ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                                ScrollViewer.VerticalScrollBarVisibility="Auto">
+
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate x:DataType="surveyor:InternetQueueViewItem">
+                                                <Grid Padding="0" MinHeight="24">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="100"/>
+                                                        <ColumnDefinition Width="100"/>
+                                                        <ColumnDefinition Width="100"/>
+                                                        <ColumnDefinition Width="100"/>
+                                                        <ColumnDefinition Width="200"/>
+                                                        <ColumnDefinition Width="150"/>
+                                                        <ColumnDefinition Width="300"/>
+                                                        <ColumnDefinition Width="150"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <TextBlock Text="{x:Bind Direction}" Grid.Column="0" Padding="2"/>
+                                                    <TextBlock Text="{x:Bind TransferType}" Grid.Column="1" Padding="2"/>
+                                                    <TextBlock Text="{x:Bind Status}" Grid.Column="2" Padding="2"/>
+                                                    <TextBlock Text="{x:Bind Priority}" Grid.Column="3" Padding="2"/>
+                                                    <TextBlock Text="{x:Bind LocalFileSpec}" Grid.Column="4" Padding="2"/>
+                                                    <TextBlock Text="{x:Bind StatusDate}" Grid.Column="5" Padding="2"/>
+                                                    <TextBlock Text="{x:Bind URL}" Grid.Column="6" Padding="2" TextTrimming="CharacterEllipsis"/>
+                                                    <TextBlock Text="{x:Bind CreatedDate}" Grid.Column="7" Padding="2"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+
+                                </StackPanel>
+                            </toolkit:SettingsCard>
+                        </toolkit:SettingsExpander.Items>
+                    </toolkit:SettingsExpander>
+
+
+                    <!-- Species Image Cache Viewer -->
+                    <toolkit:SettingsExpander x:Name="SpeciesCacheExpander" Header="Species Image Cache">
+                        <toolkit:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xE8B9;" ToolTipService.ToolTip="Display the species fish image cache table." />
+                        </toolkit:SettingsExpander.HeaderIcon>
+
+                        <StackPanel Orientation="Horizontal">
+
+                            <!-- Cache Folder information-->
+                            <Button Click="SpeciesImageCacheFolder_Click"
+                                                    ToolTipService.ToolTip="Folder for the species image and information cache (folder has been copied to the clipboard)"
+                                                    Background="Transparent"
+                                                    BorderBrush="{x:Null}"
+                                                    Padding="3"
+                                                    Margin="0,0,10,0"
+                                                    HorizontalAlignment="Center"
+                                                    VerticalAlignment="Center"
+                                                    Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <FontIcon x:Name="SpeciesImageCacheFolder"
+                                                        Glyph="&#xE946;"                                                    
+                                                        VerticalAlignment="Center"
+                                                        HorizontalAlignment="Center"/>
+                            </Button>
+
+                            <!-- Image count -->
+                            <TextBlock x:Name="SpeciesImageCacheItemImageCount" Margin="0,0,10,0" VerticalAlignment="Center"/>
+
+                            <!-- Remove All Button -->
+                            <Button Click="RemoveAllSpeciesCache_Click" Content="Remove All"
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Top"
+                                                            ToolTipService.ToolTip="Remove all records."
+                                                            Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
+                            </Button>
+
+                            <!-- Remove Record Button -->
+                            <Button Click="RemoveRecordSpeciesCache_Click" Content="Remove"
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Top"
+                                                            ToolTipService.ToolTip="Remove single record."
+                                                            Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
+                            </Button>
+
+                            <!-- SpeciesImageCache Item Count-->
+                            <TextBlock x:Name="SpeciesImageCacheItemCount" Text="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
+
+                            <!-- Species Image Cache Refresh Button -->
+                            <Button Click="RefreshSpeciesStateView_Click"
+                                                        HorizontalAlignment="Left"
+                                                        VerticalAlignment="Top"
+                                                        ToolTipService.ToolTip="Refresh Species Cache View"
+                                                        Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <StackPanel Orientation="Horizontal">
+                                    <FontIcon Glyph="&#xE72C;" />
+                                    <TextBlock Text="Refresh" Margin="4,0,0,0" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <toolkit:SettingsExpander.Items>
+                            <toolkit:SettingsCard HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" MaxWidth="1200">
+                                <StackPanel>
+
+                                    <!-- Scroll-able + Selectable ListView -->
+                                    <ListView x:Name="SpeciesImageCacheListView"
+                                                ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView, Mode=OneWay}"
+                                                SelectionMode="Single"
+                                                HorizontalAlignment="Stretch"
+                                                MaxWidth="1200"                                              
+                                                Height="300"
+                                                ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                                ScrollViewer.VerticalScrollBarVisibility="Auto">
+
+                                        <ListView.ItemTemplate>
+                                            <DataTemplate x:DataType="surveyor:SpeciesCacheViewItem">
+                                                <Grid HorizontalAlignment="Stretch" Margin="0,0,5,0">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="40"/>
+                                                        <ColumnDefinition Width="580"/>
+                                                        <ColumnDefinition Width="160"/>
+                                                        <ColumnDefinition Width="180"/>
+                                                    </Grid.ColumnDefinitions>
+
+
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+
+                                                    <Ellipse x:Name="Ellipse"
+                                                             Grid.RowSpan="2"
+                                                             Width ="32"
+                                                             Height="32"
+                                                             Margin="6"
+                                                             VerticalAlignment="Center"
+                                                             HorizontalAlignment="Center"
+                                                             Fill="{ThemeResource SystemControlBackgroundBaseMediumBrush}"/>
+
+                                                    <TextBlock Grid.Row="0" Grid.Column="1">
+                                                        <TextBlock.Inlines>
+                                                            <Run Text="{x:Bind Family}"/>
+                                                            <Run Text=" > "/>
+                                                            <Run Text="{x:Bind Genus}"/>
+                                                            <Run Text=" "/>
+                                                            <Run Text="{x:Bind Species}"/>
+                                                        </TextBlock.Inlines>
+                                                    </TextBlock>
+                                                    <TextBlock Grid.Column="2" Style="{ThemeResource CaptionTextBlockStyle}">
+                                                        <TextBlock.Inlines>
+                                                            <Run Text="{x:Bind Code}"/>
+                                                        </TextBlock.Inlines>
+                                                    </TextBlock>
+                                                    <TextBlock  Grid.Row="1" Grid.Column="1" Style="{ThemeResource CaptionTextBlockStyle}">
+                                                        <TextBlock.Inlines>
+                                                            <Run Text="Image Status: "/>
+                                                            <Run Text="{x:Bind Status}"/>
+                                                        </TextBlock.Inlines>
+                                                    </TextBlock>
+                                                    <TextBlock  Grid.Row="1" Grid.Column="2" Style="{ThemeResource CaptionTextBlockStyle}">
+                                                        <TextBlock.Inlines>
+                                                            <Run Text="Downloaded: "/>
+                                                            <Run Text="{x:Bind ImageCount}"/>
+                                                            <Run Text="/"/>
+                                                            <Run Text="{x:Bind TotalImages}"/>
+                                                        </TextBlock.Inlines>
+                                                    </TextBlock>
+                                                    <TextBlock Grid.Row="0" Grid.Column="3" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}">
+                                                        <TextBlock.Inlines>
+                                                            <Run Text="Last Action: "/>
+                                                            <Run Text="{x:Bind StatusDate}"/>
+                                                        </TextBlock.Inlines>
+                                                    </TextBlock>
+                                                    <TextBlock Grid.Row="1" Grid.Column="3" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}">
+                                                        <TextBlock.Inlines>
+                                                            <Run Text="Created: "/>
+                                                            <Run Text="{x:Bind CreatedDate}"/>
+                                                        </TextBlock.Inlines>
+                                                    </TextBlock>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ListView.ItemTemplate>
+                                    </ListView>
+
+                                </StackPanel>
+                            </toolkit:SettingsCard>
+
+                        </toolkit:SettingsExpander.Items>
+                    </toolkit:SettingsExpander>
+
+                    <!-- Calibration Test control under Advanced section -->
+                    <surveyorControls:SettingsCalibrationTest x:Name="SettingsCalibrationTest" />
+
+                    <!--  ABOUT  -->
+                    <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="About"  MaxWidth="1200"/>
+
+                    <toolkit:SettingsExpander x:Name="SettingsExpanderAbout" Description="© 2026 All rights reserved." Header="{StaticResource AppTitleName}" MaxWidth="1200">
+                        <toolkit:SettingsExpander.HeaderIcon>
+                            <BitmapIcon x:Name="AboutAppIcon" ShowAsMonochrome="False" UriSource="/Assets/surveyor-dark.png" />
+                        </toolkit:SettingsExpander.HeaderIcon>
                         <TextBlock
                             Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                             IsTextSelectionEnabled="True"
-                            Text="{x:Bind SettingsExpanderInfoText}" 
-                            VerticalAlignment="Center"/>
-                    </StackPanel>
-                            
-                    <toolkit:SettingsExpander.Items>
-                        <!-- Stereo Fish (SVS) -->
-                        <toolkit:SettingsCard x:Name="SettingsCardSurveyStereoInfoAndMedia">
-                            <surveyorControls:SurveyStereoInfoAndMedia x:Name="SurveyStereoInfoAndMedia"/>
-                        </toolkit:SettingsCard>
-                    
-                        <!-- Mono Fish and Benthic -->
-                        <toolkit:SettingsCard x:Name="SettingsCardSurveyMonoInfoAndMedia">
-                            <surveyorControls:SurveyMonoInfoAndMedia x:Name="SurveyMonoInfoAndMedia"/>
-                        </toolkit:SettingsCard>
-                    </toolkit:SettingsExpander.Items>
-                </toolkit:SettingsExpander>
-
-                <!--SURVEY CALIBRATION-->
-                <surveyorControls:SettingsCalibration x:Name="SettingsCalibration"/>
-
-                <!--SURVEY RULES-->
-                <surveyorControls:SettingsSurveyRules x:Name="SettingsSurveyRules"/> 
-
-
-                <!--SYSTEM SETTINGS-->
-                <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="System Settings"  MaxWidth="1200"/>
-
-                <!--GENERAL SETTINGS-->
-                <toolkit:SettingsExpander x:Name="GeneralSettingsExpander" Header="General Settings" MaxWidth="1200">
-                    <toolkit:SettingsExpander.HeaderIcon>
-                        <FontIcon Glyph="&#xE115;" />
-                    </toolkit:SettingsExpander.HeaderIcon>
-
-                    <toolkit:SettingsExpander.Items>
-                        <!-- Auto Save -->
-                        <toolkit:SettingsCard Header="Auto Save" Description="Automatically saves the survey periodically">
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE74E;" ToolTipService.ToolTip="If enabled work is saved automatically every 20 secs."/>
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <ToggleSwitch x:Name="AutoSave" Toggled="AutoSave_Toggled" />
-                            </StackPanel>
-                        </toolkit:SettingsCard>
-
-                        <!-- Theme -->
-                        <toolkit:SettingsCard Description="Select which app theme to display" Header="App theme">
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE790;" />
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <ComboBox x:Name="themeMode" AutomationProperties.AutomationId="themeModeComboBox" SelectionChanged="ThemeMode_SelectionChanged">
-                                <ComboBoxItem Content="Light" Tag="Light" />
-                                <ComboBoxItem Content="Dark" Tag="Dark" />
-                                <ComboBoxItem Content="Use system setting" Tag="Default" />
-                            </ComboBox>
-                        </toolkit:SettingsCard>
-
-                        <!-- Internet -->
-                        <toolkit:SettingsCard Header="Use Internet" Description="Allows the application to use the internet">
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE701;" ToolTipService.ToolTip="When the internet is available the application is allowed to download images and upload data."/>
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <ToggleSwitch x:Name="UseInternet" Toggled="UseInternet_Toggled" />
-                        </toolkit:SettingsCard>
-
-                        <!-- Mouse wheel frame forward/back -->
-                        <toolkit:SettingsCard Header="Mouse wheel Frame Forward/Back" Description="Use the mousewheel or a two fingers swipe to move the frame forward or back">
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE65A;" ToolTipService.ToolTip="You can use either the mousewheel or a two fingers swipe up/down on the trackpad to move the frame forward or back in the video.  The pointer needs to be on the media player and the magnifier window cannot be open."/>
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <ToggleSwitch x:Name="MouseWheelFrameMove" Toggled="MouseWheelFrameMoveEnabled_Toggled" />
-                        </toolkit:SettingsCard>
-
-                        <!-- Allow Survey inheritance -->
-                        <toolkit:SettingsCard Header="Allow Survey Inheritance" Description="Allow calibration and Survey Rules inheritance from the last 'Recent Survey'">
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE71B;" ToolTipService.ToolTip="The New Survey screen displays an option to inherit calibration and Survey Rules from the last Recent Survey provide that survey is not older than two weeks. This is stop out-of-date calibration being inherited."/>
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <ToggleSwitch x:Name="AllowSurveyInheritance" Toggled="AllowSurveyInheritance_Toggled" />
-                        </toolkit:SettingsCard>
-
-                        <!-- Teaching Tips -->
-                        <toolkit:SettingsCard Header="Teaching Tips">
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE7BE;" />
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <Button x:Name="ReshowTeachingTips" Content="Reshow Tips" Click="ReshowTeachingTips_Click" Margin="0,0,10,0"/>
-                                <ToggleSwitch x:Name="TeachingTips" Toggled="TeachingTips_Toggled" />
-                            </StackPanel>
-                        </toolkit:SettingsCard>
-
-                        <!-- Species Image Cache -->
-                        <toolkit:SettingsCard Header="Use Species Images" Description="Downloads fish images to help with fish ID (requires 'Use Internet' enabled)">
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE8B9;" ToolTipService.ToolTip="The species image cache tries to download stock image for each fish species. This is used to help with fish ID."/>
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                <ComboBox x:Name="FishBaseURL"  
-                                          SelectionChanged="FishBaseURL_SelectionChanged" 
-                                          Margin="0,0,10,0">
-                                    <ComboBoxItem Content="Fishbase.se" Tag="https://www.fishbase.se" />
-                                    <ComboBoxItem Content="Fishbase.org" Tag="https://www.fishbase.org" />
-                                    <ComboBoxItem Content="Fishbase.us" Tag="https://www.fishbase.us" />
-                                    <ComboBoxItem Content="Fishbase.au" Tag="https://www.fishbase.au" />
-                                </ComboBox>
-                                <ToggleSwitch x:Name="UseSpeciesImageCache" Toggled="UseSpeciesImageCache_Toggled" />
-                            </StackPanel>
-                        </toolkit:SettingsCard>
-
-                        <!-- Microsoft Insights Telemetry -->
-                        <toolkit:SettingsCard Header="Telemetry" Description="Enable telemetry to be uploaded" >
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE82F;" ToolTipService.ToolTip="Usage, crash and diagnostic information can be automatically uploaded. This is indepentant of the 'Use Internet' setting." />
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <ToggleSwitch x:Name="Telemetry" Toggled="Telemetry_Toggled" />
-                        </toolkit:SettingsCard>
-
-                        
-                    </toolkit:SettingsExpander.Items>
-                </toolkit:SettingsExpander>
-
-
-                <!-- SYSTEM SETTINGS > SPECIES CODE LIST -->
-                <toolkit:SettingsExpander x:Name="SpeciesCodeListExpander" Header="Species List" MaxWidth="1200">
-                    <toolkit:SettingsExpander.HeaderIcon>
-                        <BitmapIcon x:Name="SpeciesCodeListIcon" ShowAsMonochrome="False" UriSource="/Assets/fish-dark.png" />
-                    </toolkit:SettingsExpander.HeaderIcon>
-
-                    <StackPanel Orientation="Horizontal">
-                        
-                        <!-- File location information-->
-                        <Button Click="SpeciesCodeListFileSpec_Click"
-                                ToolTipService.ToolTip="Path to the Species.txt file  (path has been copied to the clipboard)"
-                                Background="Transparent"
-                                BorderBrush="{x:Null}"
-                                Padding="0" MinWidth="0" MinHeight="0"
-                                HorizontalAlignment="Center" VerticalAlignment="Center"
-                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <FontIcon x:Name="SpeciesCodeListFileSpec"
-                                      Glyph="&#xE946;"
-                                      Margin="0,0,10,0"
-                                      VerticalAlignment="Center" />
-                        </Button>
-                        
-                        <!-- SpeciesCodeList Search -->
-                        <AutoSuggestBox x:Name="SpeciesCodeListSearchBox"
-                                                PlaceholderText="Search"
-                                                Width="250"
-                                                QueryIcon="Find"
-                                                TextChanged="SpeciesCodeListSearchBox_TextChanged"
-                                                SuggestionChosen="SpeciesCodeListSearchBox_SuggestionChosen"
-                                                QuerySubmitted="SpeciesCodeListSearchBox_QuerySubmitted" 
-                                                Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" 
-                                                Margin="0,0,10,0" VerticalAlignment="Center"/>
-
-                        <!-- SpeciesCodeList Item Count-->
-                        <TextBlock x:Name="SpeciesCodeListItemCount" Text="{x:Bind mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>  
-
-
-                        <!-- SpeciesCodeList New Button -->
-                        <Button Click="SpeciesCodeListAdd_Click"
-                                        HorizontalAlignment="Left" VerticalAlignment="Top"
-                                        ToolTipService.ToolTip="Add a new species code list item."
-                                        Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
-                            <StackPanel Orientation="Horizontal">
-                                <FontIcon Glyph="&#xE710;" />
-                                <TextBlock Text="Add" Margin="4,0,0,0" />
-                            </StackPanel>
-                        </Button>
-
-                        <!-- SpeciesCodeList Edit Button -->
-                        <Button x:Name="SpeciesCodeListEditButton" Click="SpeciesCodeListEdit_Click"
-                                        HorizontalAlignment="Left" VerticalAlignment="Top"
-                                        ToolTipService.ToolTip="Edit existing species code list item."
-                                        Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
-                            <StackPanel Orientation="Horizontal">
-                                <FontIcon Glyph="&#xE70F;" />
-                                <TextBlock Text="Edit" Margin="4,0,0,0" />
-                            </StackPanel>
-                        </Button>
-
-                        <!-- SpeciesCodeList Delete Button -->
-                        <Button x:Name="SpeciesCodeListDeleteButton" Click="SpeciesCodeListDelete_Click" HorizontalAlignment="Left" VerticalAlignment="Top"
-                                        ToolTipService.ToolTip="Delete species code list item."
-                                        Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <FontIcon Glyph="&#xE738;" />
-                                <TextBlock Text="Delete" Margin="4,0,0,0" />
-                            </StackPanel>
-                        </Button>
-
-                        <TextBlock Text="Scientific Order" Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="10,0,10,0" VerticalAlignment="Center"/>
-                        <ToggleSwitch x:Name="SpeciesCodeListScientificNameOrder" Toggled="SpeciesCodeListSort_Toggled" Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                    </StackPanel>
-
-                    <toolkit:SettingsExpander.Items>
-                        <toolkit:SettingsCard HorizontalContentAlignment="Left" HorizontalAlignment="Left">
-                            <StackPanel Spacing="8">
-                                <!-- ScrollViewer only around the DataGrid -->
-                                <ScrollViewer HorizontalScrollBarVisibility="Auto"
-                                              VerticalScrollBarVisibility="Auto">
-                                    <!-- SpeciesCodeList DataGrid -->
-                                    <dg:DataGrid x:Name="SpeciesCodeListDataGrid" 
-                                                            DoubleTapped="SpeciesCodeListDataGrid_DoubleTapped"
-                                                            SelectionChanged="SpeciesCodeListDataGrid_SelectionChanged"
-                                                            ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems, Mode=OneWay}"
-                                                            AutoGenerateColumns="False"
-                                                            HeadersVisibility="Column"
-                                                            CanUserSortColumns="False"                                               
-                                                            IsReadOnly="True"
-                                                            GridLinesVisibility="Horizontal"
-                                                            SelectionMode="Single"                                                
-                                                            MaxHeight="300">
-                                        <dg:DataGrid.Columns>
-                                            <dg:DataGridTextColumn Header="Family" Binding="{Binding Family}" />
-                                            <dg:DataGridTextColumn Header="Genus" Binding="{Binding Genus}" />
-                                            <dg:DataGridTextColumn Header="Species" Binding="{Binding Species}" />
-                                            <dg:DataGridTextColumn Header="Code" Binding="{Binding Code}" />
-                                        </dg:DataGrid.Columns>
-                                    </dg:DataGrid>
-                                </ScrollViewer>
-                            </StackPanel>
-                        </toolkit:SettingsCard>
-                    </toolkit:SettingsExpander.Items>                        
-                </toolkit:SettingsExpander>
-
-
-                <!-- SYSTEM SETTINGS > STEREO CAMERA -->
-                <toolkit:SettingsExpander x:Name="CameraExpander" Header="Stereo Cameras" Description="GoPro setup instructions" MaxWidth="1200"
-                                          Expanded="CameraExpander_Expanded" Collapsed="CameraExpander_Collapsed">
-                    <toolkit:SettingsExpander.HeaderIcon>
-                        <FontIcon Glyph="&#xE722;" />
-                    </toolkit:SettingsExpander.HeaderIcon>
-                                            
-                    <toolkit:SettingsExpander.Items>
-                        <toolkit:SettingsCard HorizontalContentAlignment="Left" ContentAlignment="Vertical">
-                            <StackPanel Orientation="Vertical" Margin="50,10,50,0">
-                                <TextBlock TextWrapping="WrapWholeWords">
-                                    <TextBlock.Inlines>
-                                        <Run Text="The GoPro survey cameras must have GoPro Labs installed on each camera. Follow the link to " />
-                                        <Hyperlink NavigateUri="https://gopro.github.io/labs/">
-                                            <Run Text="GoPro Labs" />
-                                        </Hyperlink>
-                                        <Run Text=".  Download the correct version for your GoPro." />
-                                    </TextBlock.Inlines>
-                                </TextBlock>
-                                <TextBlock Text="After Labs is installed on each GoPro switch each camera on and point at the QR Code below. It maybe need a bit of moving back and forward and a bright screen for the GoPro to pickup the QR code. After the GoPro has read the QR Code switch the camera off." TextWrapping="WrapWholeWords"/>
-                                <TextBlock Text="The QR Code sets up the following:" TextWrapping="WrapWholeWords"  Margin="0,10,0,0"/>
-                                <TextBlock TextWrapping="WrapWholeWords" Margin="10,0,0,0">
-                                    <Run Text="• Sets the maximum MP4 file size of 64Gb" /><LineBreak/>
-                                    <Run Text="• Set the required resolution and frame rate" /><LineBreak/>
-                                    <Run Text="• Once switched on the GoPros will start recording with a firm shake of the camera rig" />
-                                </TextBlock>
-                                <Grid Margin="0,10,0,0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Orientation="Vertical" VerticalAlignment="Top" HorizontalAlignment="Left">
-                                        <!-- Selection GoPro Script-->
-                                        <DropDownButton x:Name="GoProQRSelection" Grid.Column="0" HorizontalAlignment="Left"  VerticalAlignment="Top" Content="Standard Setup">
-                                            <DropDownButton.Flyout>
-                                                <MenuFlyout x:Name="GoProQRSelectionFlyout"/>
-                                            </DropDownButton.Flyout>
-                                        </DropDownButton>
-
-                                        <!-- DisplayGoPro Script-->
-                                        <TextBlock Text="Script:" Style="{StaticResource CaptionTextBlockStyle}" Margin="0,10,20,0" TextWrapping="WrapWholeWords"/>
-                                        <TextBox x:Name="GoProQRScript"
-                                                 Text="" 
-                                                 IsReadOnly="True"
-                                                 TextWrapping="Wrap"
-                                                 AcceptsReturn="True"
-                                                 FontFamily="Consolas"
-                                                 FontSize="14"
-                                                 Padding="10"
-                                                 BorderThickness="1"
-                                                 BorderBrush="Gray" Margin="0,5,20,0"/>
-
-                                    </StackPanel>
-                                    <CheckBox x:Name="GoProQRSetDateTime" Content="Set Date &amp; Time"
-                                              IsChecked="True" IsEnabled="False"/>
-                                    
-                                    <!-- Display Scrip QR Code-->
-                                    <Image x:Name="GoProQRCode"  HorizontalAlignment="Right" Grid.Column="1" Width="400" Height="400" Margin="10,0,00,0"/>
-                                </Grid>
-                            </StackPanel>
-                        </toolkit:SettingsCard>
-                    </toolkit:SettingsExpander.Items>
-                </toolkit:SettingsExpander>
-
-
-                <!--  ADVANCED  -->
-                <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Advanced"  MaxWidth="1200"/>
-
-                <!-- Diagnostic Info -->
-                <toolkit:SettingsExpander x:Name="DiagnosticsExpander" Header="Diagnostics">
-                    <toolkit:SettingsExpander.HeaderIcon>
-                        <FontIcon Glyph="&#xEBD3;"/>
-                    </toolkit:SettingsExpander.HeaderIcon>
-
-                    <toolkit:SettingsExpander.Items>
-                        <toolkit:SettingsCard Header="Diagnostic Information" Description="Increase the level of information sent to the Output window" >
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xEBE8;" ToolTipService.ToolTip="Enable diagnostic information and features. Some features need the application to be restarted." />
-                            </toolkit:SettingsCard.HeaderIcon>
-                            <ToggleSwitch x:Name="DiagnosticInformation" Toggled="DiagnosticInformation_Toggled" />
-                        </toolkit:SettingsCard>
-
-                        <toolkit:SettingsCard Header="Logging" Description="Log storage location" >
-                            <toolkit:SettingsCard.HeaderIcon>
-                                <FontIcon Glyph="&#xE8A5;" />
-                            </toolkit:SettingsCard.HeaderIcon>
-                            
-
-                            <StackPanel Orientation="Horizontal">
-
-                                <!-- Cache Folder information-->
-                                <Button Click="ReporterFolder_Click"
-                                                ToolTipService.ToolTip="Folder for the report files (folder has been copied to the clipboard)"
-                                                BorderBrush="{x:Null}"
-                                                Padding="3"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                Margin="0,0,10,0">
-                                    <FontIcon x:Name="ReporterFolder"
-                                                    Glyph="&#xE946;"                                                    
-                                                    HorizontalAlignment="Center"
-                                                    VerticalAlignment="Center" />
-                                </Button>
-
-                                <!-- Copy Reporter Files to Clipboard -->
-                                <Button Click="ReporterFilesToClipboard_Click" Content="Reporter Files to Clipboard"
-                                                        HorizontalAlignment="Left"
-                                                        VerticalAlignment="Top"
-                                                        ToolTipService.ToolTip="Click to copy all the reporter files to the clipboard."
-                                                        Margin="0,0,10,0">
-                                </Button>
-
-                            </StackPanel>
-
-                        </toolkit:SettingsCard>
-                    </toolkit:SettingsExpander.Items>
-                </toolkit:SettingsExpander>
-
-                <!-- Experimental Code -->
-                <toolkit:SettingsCard Header="Experimental Features" Description="Experimental code, should not be used for real surveys" >
-                    <toolkit:SettingsCard.HeaderIcon>
-                        <FontIcon Glyph="&#xF196;" ToolTipService.ToolTip="These features are experimental or in test and may produce incorrect results." />
-                    </toolkit:SettingsCard.HeaderIcon>
-
-                    <StackPanel Orientation="Horizontal">
-                        <Button Content="Select Feature Sets" Margin="0,0,10,0">
-                            <Button.Flyout>
-                                <Flyout>
-                                    <StackPanel>
-                                        <CheckBox x:Name="ExperimentalFeatureSetA" Content="Feature Set A" Click="ExperimentalFeatureSetA_Click"/>
-                                        <CheckBox x:Name="ExperimentalFeatureSetB" Content="Feature Set B" Click="ExperimentalFeatureSetB_Click"/>
-                                        <CheckBox x:Name="ExperimentalFeatureSetC" Content="Feature Set C" Click="ExperimentalFeatureSetC_Click"/>
-                                    </StackPanel>
-                                </Flyout>
-                            </Button.Flyout>
-                        </Button>
-                        <ToggleSwitch x:Name="Experimental" Toggled="Experimental_Toggled" />
-                    </StackPanel>
-                </toolkit:SettingsCard>
-
-                <!-- Internet Queue Viewer -->
-                <toolkit:SettingsExpander x:Name="InternetQueueExpander" Header="Internet Queue">
-                    <toolkit:SettingsExpander.HeaderIcon>
-                        <FontIcon Glyph="&#xEBD3;" ToolTipService.ToolTip="Displays the internet download requests and upload requests." />
-                    </toolkit:SettingsExpander.HeaderIcon>
-
-                    <StackPanel Orientation="Horizontal">
-                        <!-- Remove Downloaded / Uploaded Button -->
-                        <Button Click="RemoveInternetQueue_Click" Content="Remove Downloaded/Uploaded"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Top"
-                                    ToolTipService.ToolTip="Remove all completed downloads and uploads."
-                                    Visibility="{Binding IsExpanded, ElementName=InternetQueueExpander, Converter={StaticResource BooleanToVisibilityConverter}}"
-                                    Margin="0,0,10,0">
-                        </Button>
-
-                        <!-- Remove All Button -->
-                        <Button Click="RemoveAllInternetQueue_Click" Content="Remove All"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Top"
-                                    ToolTipService.ToolTip="Remove all records."
-                                    Visibility="{Binding IsExpanded, ElementName=InternetQueueExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
-                        </Button>
-
-                        <!-- Remove Record Button -->
-                        <Button Click="RemoveRecordInternetQueue_Click" Content="Remove"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Top"
-                                    ToolTipService.ToolTip="Remove single record."
-                                    Visibility="{Binding IsExpanded, ElementName=InternetQueueExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
-                        </Button>
-
-                        <!--Item Count-->
-                        <TextBlock x:Name="InternetQueueItemCount" Text="{x:Bind mainWindow.internetQueue.InternetQueueView.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
-
-                        <!-- Internet Queue view Refresh Button -->
-                        <Button Click="RefreshInternetQueueView_Click"
-                                    HorizontalAlignment="Left"
-                                    VerticalAlignment="Top"
-                                    ToolTipService.ToolTip="Refresh Internet Queue View"
-                                    Visibility="{Binding IsExpanded, ElementName=InternetQueueExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <FontIcon Glyph="&#xE72C;" />
-                                <TextBlock Text="Refresh" Margin="4,0,0,0" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-
-                    <toolkit:SettingsExpander.Items>
-                        <toolkit:SettingsCard HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" MaxWidth="1200">
-                            <StackPanel>
-                                
-
-                                <!-- Column Headers -->
-                                <Grid Background="{ThemeResource SystemControlBackgroundBaseLowBrush}" MaxWidth="1200">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="100"/>
-                                        <ColumnDefinition Width="200"/>
-                                        <ColumnDefinition Width="150"/>
-                                        <ColumnDefinition Width="300"/>
-                                        <ColumnDefinition Width="150"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <TextBlock Text="Direction" FontWeight="Bold" Grid.Column="0" Padding="2"/>
-                                    <TextBlock Text="Type" FontWeight="Bold" Grid.Column="1" Padding="2"/>
-                                    <TextBlock Text="Status" FontWeight="Bold" Grid.Column="2" Padding="2"/>
-                                    <TextBlock Text="Priority" FontWeight="Bold" Grid.Column="3" Padding="2"/>
-                                    <TextBlock Text="File" FontWeight="Bold" Grid.Column="4" Padding="2"/>
-                                    <TextBlock Text="Date" FontWeight="Bold" Grid.Column="5" Padding="2"/>
-                                    <TextBlock Text="URL" FontWeight="Bold" Grid.Column="6" Padding="2"/>
-                                    <TextBlock Text="Created" FontWeight="Bold" Grid.Column="7" Padding="2"/>
-                                </Grid>
-
-                                <!-- Scroll-able + Selectable ListView -->
-                                <ListView x:Name="InternetQueueListView"
-                                            ItemsSource="{x:Bind mainWindow.internetQueue.InternetQueueView, Mode=OneWay}"
-                                            SelectionMode="Single"
-                                            HorizontalAlignment="Stretch"
-                                            MaxWidth="1200"                                              
-                                            Height="300"
-                                            ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                                            ScrollViewer.VerticalScrollBarVisibility="Auto">
-
-                                    <ListView.ItemTemplate>
-                                        <DataTemplate x:DataType="surveyor:InternetQueueViewItem">
-                                            <Grid Padding="0" MinHeight="24">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="100"/>
-                                                    <ColumnDefinition Width="200"/>
-                                                    <ColumnDefinition Width="150"/>
-                                                    <ColumnDefinition Width="300"/>
-                                                    <ColumnDefinition Width="150"/>
-                                                </Grid.ColumnDefinitions>
-
-                                                <TextBlock Text="{x:Bind Direction}" Grid.Column="0" Padding="2"/>
-                                                <TextBlock Text="{x:Bind TransferType}" Grid.Column="1" Padding="2"/>
-                                                <TextBlock Text="{x:Bind Status}" Grid.Column="2" Padding="2"/>
-                                                <TextBlock Text="{x:Bind Priority}" Grid.Column="3" Padding="2"/>
-                                                <TextBlock Text="{x:Bind LocalFileSpec}" Grid.Column="4" Padding="2"/>
-                                                <TextBlock Text="{x:Bind StatusDate}" Grid.Column="5" Padding="2"/>
-                                                <TextBlock Text="{x:Bind URL}" Grid.Column="6" Padding="2" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{x:Bind CreatedDate}" Grid.Column="7" Padding="2"/>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ListView.ItemTemplate>
-                                </ListView>
-                                
-                            </StackPanel>
-                        </toolkit:SettingsCard>
-                    </toolkit:SettingsExpander.Items>
-                </toolkit:SettingsExpander>
-                
-                        
-                <!-- Species Image Cache Viewer -->
-                <toolkit:SettingsExpander x:Name="SpeciesCacheExpander" Header="Species Image Cache">
-                    <toolkit:SettingsExpander.HeaderIcon>
-                        <FontIcon Glyph="&#xE8B9;" ToolTipService.ToolTip="Display the species fish image cache table." />
-                    </toolkit:SettingsExpander.HeaderIcon>
-
-                    <StackPanel Orientation="Horizontal">
-
-                        <!-- Cache Folder information-->
-                        <Button Click="SpeciesImageCacheFolder_Click"
-                                                ToolTipService.ToolTip="Folder for the species image and information cache (folder has been copied to the clipboard)"
-                                                Background="Transparent"
-                                                BorderBrush="{x:Null}"
-                                                Padding="3"
-                                                Margin="0,0,10,0"
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <FontIcon x:Name="SpeciesImageCacheFolder"
-                                                    Glyph="&#xE946;"                                                    
-                                                    VerticalAlignment="Center"
-                                                    HorizontalAlignment="Center"/>
-                        </Button>
-
-                        <!-- Image count -->
-                        <TextBlock x:Name="SpeciesImageCacheItemImageCount" Margin="0,0,10,0" VerticalAlignment="Center"/>
-
-                        <!-- Remove All Button -->
-                        <Button Click="RemoveAllSpeciesCache_Click" Content="Remove All"
-                                                        HorizontalAlignment="Left"
-                                                        VerticalAlignment="Top"
-                                                        ToolTipService.ToolTip="Remove all records."
-                                                        Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
-                        </Button>
-
-                        <!-- Remove Record Button -->
-                        <Button Click="RemoveRecordSpeciesCache_Click" Content="Remove"
-                                                        HorizontalAlignment="Left"
-                                                        VerticalAlignment="Top"
-                                                        ToolTipService.ToolTip="Remove single record."
-                                                        Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
-                        </Button>
-
-                        <!-- SpeciesImageCache Item Count-->
-                        <TextBlock x:Name="SpeciesImageCacheItemCount" Text="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
-
-                        <!-- Species Image Cache Refresh Button -->
-                        <Button Click="RefreshSpeciesStateView_Click"
-                                                    HorizontalAlignment="Left"
-                                                    VerticalAlignment="Top"
-                                                    ToolTipService.ToolTip="Refresh Species Cache View"
-                                                    Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
-                            <StackPanel Orientation="Horizontal">
-                                <FontIcon Glyph="&#xE72C;" />
-                                <TextBlock Text="Refresh" Margin="4,0,0,0" />
-                            </StackPanel>
-                        </Button>
-                    </StackPanel>
-
-                    <toolkit:SettingsExpander.Items>
-                        <toolkit:SettingsCard HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" MaxWidth="1200">
-                            <StackPanel>
-                              
-                                <!-- Scroll-able + Selectable ListView -->
-                                <ListView x:Name="SpeciesImageCacheListView"
-                                            ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView, Mode=OneWay}"
-                                            SelectionMode="Single"
-                                            HorizontalAlignment="Stretch"
-                                            MaxWidth="1200"                                              
-                                            Height="300"
-                                            ScrollViewer.HorizontalScrollBarVisibility="Auto"
-                                            ScrollViewer.VerticalScrollBarVisibility="Auto">
-
-                                    <ListView.ItemTemplate>
-                                        <DataTemplate x:DataType="surveyor:SpeciesCacheViewItem">
-                                            <Grid HorizontalAlignment="Stretch" Margin="0,0,5,0">
-                                                <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="50"/>
-                                                    <ColumnDefinition Width="600"/>
-                                                    <ColumnDefinition Width="180"/>
-                                                    <ColumnDefinition Width="200"/>
-                                                </Grid.ColumnDefinitions>
-                                                
-
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
-
-                                                <Ellipse x:Name="Ellipse"
-                                                         Grid.RowSpan="2"
-                                                         Width ="32"
-                                                         Height="32"
-                                                         Margin="6"
-                                                         VerticalAlignment="Center"
-                                                         HorizontalAlignment="Center"
-                                                         Fill="{ThemeResource SystemControlBackgroundBaseMediumBrush}"/>
-
-                                                <TextBlock Grid.Row="0" Grid.Column="1">
-                                                    <TextBlock.Inlines>
-                                                        <Run Text="{x:Bind Family}"/>
-                                                        <Run Text=" > "/>
-                                                        <Run Text="{x:Bind Genus}"/>
-                                                        <Run Text=" "/>
-                                                        <Run Text="{x:Bind Species}"/>
-                                                    </TextBlock.Inlines>
-                                                </TextBlock>
-                                                <TextBlock Grid.Column="2" Style="{ThemeResource CaptionTextBlockStyle}">
-                                                    <TextBlock.Inlines>
-                                                        <Run Text="{x:Bind Code}"/>
-                                                    </TextBlock.Inlines>
-                                                </TextBlock>
-                                                <TextBlock  Grid.Row="1" Grid.Column="1" Style="{ThemeResource CaptionTextBlockStyle}">
-                                                    <TextBlock.Inlines>
-                                                        <Run Text="Image Status: "/>
-                                                        <Run Text="{x:Bind Status}"/>
-                                                    </TextBlock.Inlines>
-                                                </TextBlock>
-                                                <TextBlock  Grid.Row="1" Grid.Column="2" Style="{ThemeResource CaptionTextBlockStyle}">
-                                                    <TextBlock.Inlines>
-                                                        <Run Text="Downloaded: "/>
-                                                        <Run Text="{x:Bind ImageCount}"/>
-                                                        <Run Text="/"/>
-                                                        <Run Text="{x:Bind TotalImages}"/>
-                                                    </TextBlock.Inlines>
-                                                </TextBlock>
-                                                <TextBlock Grid.Row="0" Grid.Column="3" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}">
-                                                    <TextBlock.Inlines>
-                                                        <Run Text="Last Action: "/>
-                                                        <Run Text="{x:Bind StatusDate}"/>
-                                                    </TextBlock.Inlines>
-                                                </TextBlock>
-                                                <TextBlock Grid.Row="1" Grid.Column="3" HorizontalAlignment="Right" Style="{ThemeResource CaptionTextBlockStyle}">
-                                                    <TextBlock.Inlines>
-                                                        <Run Text="Created: "/>
-                                                        <Run Text="{x:Bind CreatedDate}"/>
-                                                    </TextBlock.Inlines>
-                                                </TextBlock>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ListView.ItemTemplate>
-                                </ListView>
-
-                            </StackPanel>
-                        </toolkit:SettingsCard>
-
-                    </toolkit:SettingsExpander.Items>
-                </toolkit:SettingsExpander>
-
-                <!-- Calibration Test control under Advanced section -->
-                <surveyorControls:SettingsCalibrationTest x:Name="SettingsCalibrationTest" />
-
-                <!--  ABOUT  -->
-                <TextBlock Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="About"  MaxWidth="1200"/>
-
-                <toolkit:SettingsExpander x:Name="SettingsExpanderAbout" Description="© 2026 All rights reserved." Header="{StaticResource AppTitleName}" MaxWidth="1200">
-                    <toolkit:SettingsExpander.HeaderIcon>
-                        <BitmapIcon x:Name="AboutAppIcon" ShowAsMonochrome="False" UriSource="/Assets/surveyor-dark.png" />
-                    </toolkit:SettingsExpander.HeaderIcon>
-                    <TextBlock
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                        IsTextSelectionEnabled="True"
-                        Text="{x:Bind Version}" />
-                    <toolkit:SettingsExpander.Items>
-
-                        <toolkit:SettingsCard
-                            HorizontalContentAlignment="Left"
-                            ContentAlignment="Vertical"
-                            Header="Dependencies &amp; references">
-                            <StackPanel Margin="-12,0,0,0" Orientation="Vertical">
-                                <HyperlinkButton Content="{x:Bind WinAppSdkRuntimeDetails}" NavigateUri="https://aka.ms/windowsappsdk" />
-                                <HyperlinkButton Content="Windows UI Library" NavigateUri="https://aka.ms/winui" />
-                                <HyperlinkButton Content="Windows Community Toolkit" NavigateUri="https://aka.ms/toolkit/windows" />
-                                <HyperlinkButton Content="Win2D" NavigateUri="https://github.com/Microsoft/Win2D" />
-                                <HyperlinkButton Content="OpenCV Apache 2.0 License"  NavigateUri="https://www.apache.org/licenses/LICENSE-2.0"/>
-                                <HyperlinkButton Content="Emgu.CV GPL V3" NavigateUri="https://www.nuget.org/packages/Emgu.CV" />
-                                <HyperlinkButton Content="Math.NET Numerics MIT License" NavigateUri="https://numerics.mathdotnet.com" />
-                                <HyperlinkButton Content="Json.NET MIT License" NavigateUri="https://www.newtonsoft.com/json" />
-                                <HyperlinkButton Content="EPPlus Polyform Noncommercial 1.0.0" NavigateUri="https://polyformproject.org/licenses/noncommercial/1.0.0/" />
-                                <HyperlinkButton Content="FishBase Attribution-NonCommercial 4.0 International License" NavigateUri="https://creativecommons.org/licenses/by-nc/4.0/?ref=chooser-v1" />
-                                <HyperlinkButton Content="Snorkeling mask icon from Noun Project CC BY 3.0" NavigateUri="https://thenounproject.com/icon/snorkeling-mask-1541410/" />
-                                <HyperlinkButton Content="Fish icon created by Those Icons - Flaticon" NavigateUri="https://www.flaticon.com/free-icons/fish"/>
-                                <HyperlinkButton Content="Media icon by Thea Graph from Noun Project CC BY 3.0" NavigateUri="https://thenounproject.com/browse/icons/term/media/" />
-                                
-                            </StackPanel>
-                        </toolkit:SettingsCard>
-                       
-                    </toolkit:SettingsExpander.Items>
-                </toolkit:SettingsExpander>
-                
-            </StackPanel>
+                            Text="{x:Bind Version}" />
+                        <toolkit:SettingsExpander.Items>
+
+                            <toolkit:SettingsCard
+                                HorizontalContentAlignment="Left"
+                                ContentAlignment="Vertical"
+                                Header="Dependencies &amp; references">
+                                <StackPanel Margin="-12,0,0,0" Orientation="Vertical">
+                                    <HyperlinkButton Content="{x:Bind WinAppSdkRuntimeDetails}" NavigateUri="https://aka.ms/windowsappsdk" />
+                                    <HyperlinkButton Content="Windows UI Library" NavigateUri="https://aka.ms/winui" />
+                                    <HyperlinkButton Content="Windows Community Toolkit" NavigateUri="https://aka.ms/toolkit/windows" />
+                                    <HyperlinkButton Content="Win2D" NavigateUri="https://github.com/Microsoft/Win2D" />
+                                    <HyperlinkButton Content="OpenCV Apache 2.0 License"  NavigateUri="https://www.apache.org/licenses/LICENSE-2.0"/>
+                                    <HyperlinkButton Content="Emgu.CV GPL V3" NavigateUri="https://www.nuget.org/packages/Emgu.CV" />
+                                    <HyperlinkButton Content="Math.NET Numerics MIT License" NavigateUri="https://numerics.mathdotnet.com" />
+                                    <HyperlinkButton Content="Json.NET MIT License" NavigateUri="https://www.newtonsoft.com/json" />
+                                    <HyperlinkButton Content="EPPlus Polyform Noncommercial 1.0.0" NavigateUri="https://polyformproject.org/licenses/noncommercial/1.0.0/" />
+                                    <HyperlinkButton Content="FishBase Attribution-NonCommercial 4.0 International License" NavigateUri="https://creativecommons.org/licenses/by-nc/4.0/?ref=chooser-v1" />
+                                    <HyperlinkButton Content="Snorkeling mask icon from Noun Project CC BY 3.0" NavigateUri="https://thenounproject.com/icon/snorkeling-mask-1541410/" />
+                                    <HyperlinkButton Content="Fish icon created by Those Icons - Flaticon" NavigateUri="https://www.flaticon.com/free-icons/fish"/>
+                                    <HyperlinkButton Content="Media icon by Thea Graph from Noun Project CC BY 3.0" NavigateUri="https://thenounproject.com/browse/icons/term/media/" />
+
+                                </StackPanel>
+                            </toolkit:SettingsCard>
+
+                        </toolkit:SettingsExpander.Items>
+                    </toolkit:SettingsExpander>
+
+                </StackPanel>
+            </Grid>
         </ScrollViewer>
     </Grid>
 </ex:WindowEx>

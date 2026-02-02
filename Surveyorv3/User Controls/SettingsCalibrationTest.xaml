@@ -8,23 +8,36 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
-	<toolkit:SettingsExpander  x:Name="SettingsExpanderCalibrationTest"
-							   Header="Calibration Test"
-							   Description="Known length calibration test">
-		<toolkit:SettingsExpander.HeaderIcon>
-			<FontIcon Glyph="&#xEB3C;" />
-		</toolkit:SettingsExpander.HeaderIcon>
 
-		<toolkit:SettingsExpander.Items>
-            <toolkit:SettingsCard>
-                <StackPanel Spacing="12" Margin="10,10,10,0">
-                    <TextBlock TextWrapping="WrapWholeWords">
+
+    <toolkit:SettingsExpander Grid.Row="1"  x:Name="SettingsExpanderCalibrationTest"
+							    Header="Calibration Test"
+							    Description="Known length calibration test">
+        <toolkit:SettingsExpander.HeaderIcon>
+            <FontIcon Glyph="&#xEB3C;" />
+        </toolkit:SettingsExpander.HeaderIcon>
+
+        <toolkit:SettingsExpander.Items>
+            <toolkit:SettingsCard  HorizontalAlignment="Stretch">
+                <Grid Margin="10,10,10,0"
+					    RowSpacing="12"
+                        HorizontalAlignment="Stretch"
+                        MaxWidth="1000">
+
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" TextWrapping="WrapWholeWords">
 					This is used to typically test more than one calibration set by creating a survey where an object of known length is displayed to the camera rig at various positions on the frame and at various distances from the camera rig.&#xA0;
 					For example, put the camera rig on some kind of stand. Swim across the top of the frame, left to right, at 2m from the cameras.&#xA0;
 					Repeat this by swimming across the bottom of the frame at 2m from the cameras.  Do this again at 4m and 6m from the camera rig.
                     </TextBlock>
 
-                    <TextBlock TextWrapping="WrapWholeWords">
+                    <TextBlock Grid.Row="1" TextWrapping="WrapWholeWords">
 					Load the survey and mark the known lengths (like you would measure a fish) at one second intervals.&#xA0;
 					Import as many calibration sets as you want to test.&#xA0;
 					Remember if you want to simultaneously test multiple calibration sets you need to go to Settings &gt; Survey &gt; Calibration and set 'Multiple Calibration Sets' to 'On'.&#xA0;
@@ -34,12 +47,13 @@
 					The spreadsheet will contain recalculated measurements for each of the measurements you setup using all the calibration sets and compare each measurement to the known length value.
                     </TextBlock>
 
-                    <TextBlock TextWrapping="WrapWholeWords">
+                    <TextBlock Grid.Row="2" TextWrapping="WrapWholeWords" Margin="0,0,0,10">
 					This allows you to see which calibration set is returning the most accurate results at different positions in the frame and at different distances from the camera rig.&#xA0;
 					You can then use this to select the best calibration set to use for your surveys.
                     </TextBlock>
 
-                    <Grid ColumnSpacing="12" RowSpacing="12">
+                    <!-- Inputs -->
+                    <Grid Grid.Row="3" ColumnSpacing="12" RowSpacing="12">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
@@ -53,16 +67,20 @@
 
                         <!-- Survey file picker -->
                         <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Text="Survey File:"/>
+
                         <Grid Grid.Row="0" Grid.Column="1" Grid.ColumnSpan="2"
-                              ColumnSpacing="8">
+                                ColumnSpacing="8"
+                                MinWidth="0"
+                                HorizontalAlignment="Stretch">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
                             <TextBox x:Name="SurveyFilePathTextBox" Grid.Column="0"
-                                     IsReadOnly="True"                                     
-                                     HorizontalAlignment="Stretch"/>
+                                        IsReadOnly="True"
+                                        MinWidth="0"
+                                        HorizontalAlignment="Stretch"/>
 
                             <Button x:Name="BrowseSurveyFileButton" Grid.Column="1"
                                     Content="Browse..."
@@ -71,56 +89,69 @@
 
                         <!-- Known length -->
                         <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="Known Length:"/>
-                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                            <TextBox Text="{x:Bind KnownLength, Mode=TwoWay}" Width="35" TextChanging="KnownLengthNumberTextBox_TextChanging"/>
-                            <TextBlock VerticalAlignment="Center" Text="mm"/>
-                        </StackPanel>
+
+                        <Grid Grid.Row="1" Grid.Column="1"
+				                    ColumnSpacing="8"
+				                    HorizontalAlignment="Left">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <TextBox Grid.Column="0"
+                                        Text="{x:Bind KnownLength, Mode=TwoWay}" 
+                                        Width="35" 
+                                        TextChanging="KnownLengthNumberTextBox_TextChanging"/>
+
+                            <TextBlock Grid.Column="1"
+                                        VerticalAlignment="Center" 
+                                        Text="mm"/>
+                        </Grid>
 
                         <!-- Run Calculations button -->
                         <Button Grid.Row="1" Grid.Column="2"
 								x:Name="RunCalibrationTestButton"
 								Click="RunCalculations_Button"
-								IsEnabled="True"
-								MinWidth="160">
+								IsEnabled="True">
 
                             <Grid>
                                 <!-- Text shown when idle -->
                                 <TextBlock x:Name="RunCalcsButtonText" 
-										   Text="Run Calculations"
-										   HorizontalAlignment="Center"
-										   VerticalAlignment="Center"
-										   Visibility="Visible" />
+										    Text="Run Calculations"
+										    HorizontalAlignment="Center"
+										    VerticalAlignment="Center"
+										    Visibility="Visible" />
 
                                 <!-- Spinner shown when busy -->
                                 <ProgressRing x:Name="RunCalcsButtonProgressRing" 
-											  IsActive="False"
-											  Width="20" Height="20"
-											  HorizontalAlignment="Center"
-											  VerticalAlignment="Center"
-											  Visibility="Collapsed" />
+											    IsActive="False"
+											    Width="20" Height="20"
+											    HorizontalAlignment="Center"
+											    VerticalAlignment="Center"
+											    Visibility="Collapsed" />
                             </Grid>
                         </Button>
 
                         <!-- Results -->
-                        <StackPanel Grid.Row="2" Grid.ColumnSpan="3" Orientation="Vertical" Margin="10,0,10,0">
+                        <StackPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="3" Orientation="Vertical" Margin="0,10,0,0">
                             <TextBox x:Name="ResultTextBox"
-									 IsReadOnly="True"
-									 AcceptsReturn="True"
-									 TextWrapping="NoWrap"
-									 ScrollViewer.HorizontalScrollBarVisibility="Auto"
-									 ScrollViewer.HorizontalScrollMode="Enabled"
-									 ScrollViewer.VerticalScrollBarVisibility="Auto"
-									 Height="120"
-									 Visibility="Collapsed"/>
+									    IsReadOnly="True"
+									    AcceptsReturn="True"
+									    TextWrapping="NoWrap"
+									    ScrollViewer.HorizontalScrollBarVisibility="Auto"
+									    ScrollViewer.HorizontalScrollMode="Enabled"
+									    ScrollViewer.VerticalScrollBarVisibility="Auto"
+									    Height="120"
+									    Visibility="Collapsed"/>
                             <TextBlock x:Name="ResultTextBoxNote1" Text="* Currently set as 'Preferred Calibration Set'"
 									Visibility="Collapsed"/>
                             <TextBlock x:Name="ResultTextBoxNote2" Text="+ Calibration set that returned the most accurate results"
 									Visibility="Collapsed"/>
                         </StackPanel>
                     </Grid>
-                </StackPanel>
+                </Grid>
             </toolkit:SettingsCard>
         </toolkit:SettingsExpander.Items>
-	</toolkit:SettingsExpander>
+    </toolkit:SettingsExpander>
 
 </UserControl>
