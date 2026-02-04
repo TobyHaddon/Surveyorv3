@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <UserControl
-    x:Class="Surveyor.Controls.CalibrationBoardTimeLineUserControl"
+    x:Class="Surveyor.Controls.MediaTimeLineDisplayUserControl"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Surveyor"
@@ -11,7 +11,7 @@
     <Grid>
         <Viewbox Stretch="Fill" StretchDirection="DownOnly" Height="5" SizeChanged="Viewbox_SizeChanged">
             <Border BorderThickness="2" BorderBrush="Gray">
-                <Canvas x:Name="CalibrationBoardTimeLine" Width="100" Height="5" Background="IndianRed"
+                <Canvas x:Name="MediaTimeLineDisplay" Width="100" Height="8" Background="IndianRed"
                         ToolTipService.ToolTip="Red indicates outside of the zone where a calibration board has been detected. Green means a board has been detected. Black means we are inside the board detection zone but no board detected at this particular point (i.e. camera pointing elsewhere)"
                         PointerPressed="CalibrationBoardTimeLine_PointerPressed"/>
             </Border>

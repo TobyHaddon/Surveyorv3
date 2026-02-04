@@ -42,6 +42,8 @@ namespace Surveyor
         None = 0,
         SensorCoverage = 1 << 0,
         PoseDiversity = 1 << 1,
+        ManuallyIgnored = 1 << 2,
+        ManuallyAdded = 1 << 3,
     }
 
     public sealed record BestFrame(int FrameIndex, BestFrameReason Reason);
@@ -63,7 +65,7 @@ namespace Surveyor
             }
 
             // Version of the class (use for data migrations)
-            private const int version = 7;
+            private const int version = 8;
             // Data Version
             [JsonProperty(nameof(Version))]
             public int Version { get; set; } = -1;
@@ -83,41 +85,8 @@ namespace Surveyor
             [JsonProperty(nameof(BestFrameIndexes))]
             public List<BestFrame> BestFrameIndexes = [];
 
-            // A dictionary of sensor bin totals, where the key is a tuple
-            // this is updated as frames are added or removed from the set.
-            // This dictionary is persisted to JSON 
-            //???[JsonProperty(nameof(AllFramesSensorBinTotalsLeft))]
-            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
-            //???public Dictionary<(int binx, int biny), int> AllFramesSensorBinTotalsLeft = [];
-            //???[JsonProperty(nameof(BestFramesSensorBinTotalsLeft))]
-            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
-            //???public Dictionary<(int binx, int biny), int> BestFramesSensorBinTotalsLeft = [];
-
-            // A dictionary of sensor bin totals, where the key is a tuple
-            // this is updated as frames are added or removed from the set.
-            // This dictionary is persisted to JSON 
-            //???[JsonProperty(nameof(AllFramesSensorBinTotalsRight))]
-            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
-            //???public Dictionary<(int binx, int biny), int> AllFramesSensorBinTotalsRight = [];
-            //???[JsonProperty(nameof(BestFramesSensorBinTotalsRight))]
-            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
-            //???public Dictionary<(int binx, int biny), int> BestFramesSensorBinTotalsRight = [];
-
-            // A dictionary of the left pose bin totals, where the key is a tuple
-            //???[JsonProperty(nameof(AllFramesPoseBinTotalsLeft))]
-            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
-            //???public Dictionary<(int binx, int biny), int> AllFramesPoseBinTotalsLeft { get; set; } = [];
-            //???[JsonProperty(nameof(BestFramesPoseBinTotalsLeft))]
-            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
-            //???public Dictionary<(int binx, int biny), int> BestFramesPoseBinTotalsLeft { get; set; } = [];
-
-            // A dictionary of the right pose bin totals, where the key is a tuple of (binx, biny)
-            //???[JsonProperty(nameof(AllFramesPoseBinTotalsRight))]
-            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
-            //???public Dictionary<(int binx, int biny), int> AllFramesPoseBinTotalsRight { get; set; } = [];
-            //???[JsonProperty(nameof(BestFramesPoseBinTotalsRight))]
-            //???[TypeConverter(typeof(TupleInt2JsonConverter))]
-            //???public Dictionary<(int binx, int biny), int> BestFramesPoseBinTotalsRight { get; set; } = [];
+            [JsonProperty(nameof(ManuallyAddedIgnoreFrameIndexes))]
+            public List<BestFrame> ManuallyAddedIgnoreFrameIndexes = [];
         }
 
         public DataClass Data = new();

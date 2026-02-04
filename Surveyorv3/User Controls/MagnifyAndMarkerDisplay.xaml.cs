@@ -140,7 +140,7 @@ namespace Surveyor.User_Controls
 
         // Default Magnifier Window dimensions
         // ** Important width/height ratio of the Mag Window is always greater then the
-        // ** canvas actual width/actual height.  This is because in a lot of calcs in
+        // ** canvas actual width/actual height.  This is because in a lot of calculates in
         // ** this class the width is only checked.
         // ** i.e. Actual width/height for 4k = 3840/2160 = 1.778
         // and taking the large default below as an example 700 / 3500 = 2
@@ -233,8 +233,8 @@ namespace Surveyor.User_Controls
         // Context Menu status        
         private bool canvasMagContextMenuOpen = false;
 
-        // Display Pointer Coords
-        public bool DisplayPointerCoords { get; set; } = false;
+        // Display Pointer Coordinates
+        public bool DisplayPointerCoordinates { get; set; } = false;
 
         // Hide/show measurements and Points
         private bool hideMeasurementsAndPoints = false;
@@ -258,7 +258,7 @@ namespace Surveyor.User_Controls
         public bool? experimentalFeatureSetBEnabled;
         public bool? experimentalFeatureSetCEnabled;
 
-        // Mousewheel calibration
+        // Mouse wheel calibration
         private int _lowestMouseWheelDeltaSeen = Int32.MaxValue;
 
         // Bookmark management
@@ -282,7 +282,7 @@ namespace Surveyor.User_Controls
 
             // Using the IconTargetA Rectangle and assuming all the target Rectangles
             // on both the CanvasMag and the CanvasFrame are setup to have the same
-            // dimensions then calculate the offset to the centre of the icon and save of later use
+            // dimensions then calculate the offset to the center of the icon and save of later use
             targetIconOriginalWidth = TargetA.Width;
             targetIconOriginalHeight = TargetA.Height;
 
@@ -349,7 +349,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Diags dump of class information
+        /// Diagnostics dump of class information
         /// </summary>
         public void DumpAllProperties()
         {
@@ -376,7 +376,7 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Called initial to setup the Image control we are serving and the camera side
         /// This function must be called for the user control to work
-        /// The imageFrame is only used so we know where to poisition the magnifier window. The
+        /// The imageFrame is only used so we know where to position the magnifier window. The
         /// source of the magnified image comes from the NewImageFrame() function
         /// </summary>
         /// <param name="imageFrame"></param>
@@ -394,7 +394,7 @@ namespace Surveyor.User_Controls
             CameraSide = cameraside;
 
 
-            // Add handler against the Main Window for Activated and Deavtivated events
+            // Add handler against the Main Window for Activated and Deactivated events
             // this is used to hide the Mag Window if the Main Window is deactivated
             // _mainWindow is set in InitializeMediator so made sure that is called first
             Debug.Assert(_mainWindow is not null, "MagnifyAndMarkerControl.InitializeMediator(...) must be called before MagnifyAndMarkerControl.Setup(...)");
@@ -750,7 +750,7 @@ namespace Surveyor.User_Controls
                     bool changeMagWindowSize = false;
                     bool changeMagnification = false;
 
-                    // Calc max width/height
+                    // Calculate max width/height
                     double magWidthMax = magWidthDefaultLarge;
                     double magHeightMax = magHeightDefaultLarge;
                     // Adjust so we don't exceed the size of the Image UIElement
@@ -765,7 +765,7 @@ namespace Surveyor.User_Controls
                     double zoomFactorMax = 9.0;
                     double zoomFactorMin = 1.0;
 
-                    //  Potential new magnifcation
+                    //  Potential new magnification
                     double newCanvasZoomFactor = -1; // = canvasZoomFactor;
 
                     string magWindowSize = MagWindowGetSizeName();
@@ -781,7 +781,7 @@ namespace Surveyor.User_Controls
 
                             Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode Min Mag Window, Zoom Out, Zoom factor: {canvasZoomFactor} > {newCanvasZoomFactor}");
                         }
-                        // Adjust the size of the Mag Window biggrt
+                        // Adjust the size of the Mag Window bigger
                         else if ((magWindowSize == "Large" || magWindowSize == "Medium" || magWindowSize == "Small") && canvasZoomFactor == zoomFactorStandard)
                         {
                             newMagWindowSize = MagWindowCalcNextViableSizeEnlargeOrReduce(magWindowSize, true/*TrueEnargeFalseReduce*/);
@@ -904,7 +904,7 @@ namespace Surveyor.User_Controls
                 RemoveAnyLineHightLights();
 
                 // If required display the pointer coordinates
-                if (DisplayPointerCoords)
+                if (DisplayPointerCoordinates)
                 {
                     // Get the pointer position relative to the canvas
                     var position = e.GetCurrentPoint(CanvasFrame).Position;
@@ -946,7 +946,7 @@ namespace Surveyor.User_Controls
                 {
                     if (sender is Line || sender is TextBlock)
                     {
-                        // Ignore if we are clicking a link or textbox
+                        // Ignore if we are clicking a link or TextBox
                         // These are handled by the Line and TextBlock PointerPressed events
                     }
                     else
@@ -993,7 +993,7 @@ namespace Surveyor.User_Controls
 
                     // Note isDraggingRectangle was setup in CanvasMag_PointerPressed
 
-                    Debug.WriteLine($"CanvasMag_PointerMoved Dragging detected at ImageFrame Screen Coords:({pointerRelativeToCanvasFrame.Position.X}, {pointerRelativeToCanvasFrame.Position.Y})");
+                    Debug.WriteLine($"CanvasMag_PointerMoved Dragging detected at ImageFrame Screen Coordinates:({pointerRelativeToCanvasFrame.Position.X}, {pointerRelativeToCanvasFrame.Position.Y})");
                 }
 
                 // If the Mag Window isn't locked (i.e. between mouse clicked) that pass the position of the
@@ -1004,7 +1004,7 @@ namespace Surveyor.User_Controls
                     await MagWindowAsync(pointerRelativeToCanvasFrame.Position);
                 }
                 // Detect if we are dragging one of the measurement markers                
-                else if (isDragging && isDraggingRectangle is not null /*???&& e.OriginalSource is Rectangle rectangle*/)
+                else if (isDragging && isDraggingRectangle is not null /*???&& e.OriginalSource is Rectangle*/)
                 {
                     // We are dragging but the target can be slow to updated so the 'e.OriginalSource'
                     // may not be the target Rectangle
@@ -1022,7 +1022,7 @@ namespace Surveyor.User_Controls
                         SetTargetOnCanvasMag(isDraggingRectangle, pointerRelativeToCanvasMag.Position.X, pointerRelativeToCanvasMag.Position.Y, TargetIconType.Moved);
 
                         string targetName = isDraggingRectangle == TargetAMag ? "TargetA" : isDraggingRectangle == TargetBMag ? "TargetB" : "TargetUnknown";
-                        Debug.WriteLine($"CanvasMag_PointerMoved Dragging {targetName}...   Image Coords:({pointerRelativeToImageMag.Position.X + rectMagWindowScreen.X:F1}, {pointerRelativeToImageMag.Position.Y + rectMagWindowScreen.Y:F1}),  ImageMag Screen Coords:({pointerRelativeToImageMag.Position.X:F1}, {pointerRelativeToImageMag.Position.Y:F1})");
+                        Debug.WriteLine($"CanvasMag_PointerMoved Dragging {targetName}...   Image Coordinates:({pointerRelativeToImageMag.Position.X + rectMagWindowScreen.X:F1}, {pointerRelativeToImageMag.Position.Y + rectMagWindowScreen.Y:F1}),  ImageMag Screen Coordinates:({pointerRelativeToImageMag.Position.X:F1}, {pointerRelativeToImageMag.Position.Y:F1})");
                     }
                 }
 
@@ -1034,7 +1034,7 @@ namespace Surveyor.User_Controls
                 }
 
                 // If required display the pointer coordinates
-                if (DisplayPointerCoords)
+                if (DisplayPointerCoordinates)
                 {
                     // Get the pointer position relative to the canvas
                     var position = e.GetCurrentPoint(CanvasFrame).Position;
@@ -1084,7 +1084,7 @@ namespace Surveyor.User_Controls
                         // Detect if we maybe starting to drag one of the measurement markers
                         if (e.OriginalSource is Rectangle targetRectangle)
                         {
-                            // Potental start dragging
+                            // Potential start dragging
                             draggingInitialPoint = pointerPoint.Position;
                             draggingInitialPressTime = DateTime.Now;
                             isDragging = false;     // Set this to false and in PointerMoved event
@@ -1092,7 +1092,7 @@ namespace Surveyor.User_Controls
                             isDraggingRectangle = targetRectangle;
 
                             string targetName = isDraggingRectangle == TargetAMag ? "TargetA" : isDraggingRectangle == TargetBMag ? "TargetB" : "TargetUnknown";
-                            Debug.WriteLine($"CanvasMag_PointerMoved Start detect for dragging {targetName} at ImageFrame Screen Coords:({pointerPoint.Position.X:F1}, {pointerPoint.Position.Y:F1})");
+                            Debug.WriteLine($"CanvasMag_PointerMoved Start detect for dragging {targetName} at ImageFrame Screen Coordinates:({pointerPoint.Position.X:F1}, {pointerPoint.Position.Y:F1})");
                         }
                         else
                         {
@@ -1131,7 +1131,7 @@ namespace Surveyor.User_Controls
                 {
                     //???Because can be slow to update the pointer maybe come off the
                     //??? target during dragging
-                    //???if (e.OriginalSource is Rectangle rectangle)
+                    //???if (e.OriginalSource is Rectangle)
                     //???{
                         // Check if we are in bounds of the Mag Window
                         if (rectMagPointerBounds.Contains(pointerRelativeToImageMag.Position))
@@ -1153,7 +1153,7 @@ namespace Surveyor.User_Controls
                     //???}
 
                     string targetName = isDraggingRectangle == TargetAMag ? "TargetA" : isDraggingRectangle == TargetBMag ? "TargetB" : "TargetUnknown";
-                    Debug.WriteLine($"CanvasMag_PointerReleased Stop dragging {targetName} at ImageMag Screen Coords:({pointerRelativeToImageMag.Position.X:F1}, {pointerRelativeToImageMag.Position.Y:F1})");
+                    Debug.WriteLine($"CanvasMag_PointerReleased Stop dragging {targetName} at ImageMag Screen Coordinates:({pointerRelativeToImageMag.Position.X:F1}, {pointerRelativeToImageMag.Position.Y:F1})");
                     isDragging = false;
                     isDraggingRectangle = null;
                 }
@@ -1210,7 +1210,7 @@ namespace Surveyor.User_Controls
                             else if (targetSelectedTrueAFalseB is not null)
                                 SetSelectedTarget(null);
 
-                            Debug.WriteLine($"CanvasMag_PointerReleased Left button click detected ImageMag Screen Coords:({pointerRelativeToImageMag.Position.X:F1}, {pointerRelativeToImageMag.Position.Y:F1})");
+                            Debug.WriteLine($"CanvasMag_PointerReleased Left button click detected ImageMag Screen Coordinates:({pointerRelativeToImageMag.Position.X:F1}, {pointerRelativeToImageMag.Position.Y:F1})");
                         }
                     }
                 }
@@ -1252,7 +1252,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// These are the Click handlers for the Delete (selected target icon), Ok (Accept selections),
+        /// These are the Click handlers for the Delete (selected target icon), OK (Accept selections),
         /// Cancel used in the Mag Window
         /// </summary>
         /// <param name="sender"></param>
@@ -1266,8 +1266,8 @@ namespace Surveyor.User_Controls
                 targetSelected = null;
                 targetSelectedTrueAFalseB = null;
 
-                Debug.WriteLineIf(pointTargetA is not null, $"After Delete   Target A Centre ({pointTargetA!.Value.X:F1},{pointTargetA!.Value.Y:F1})");
-                Debug.WriteLineIf(pointTargetB is not null, $"After Delete   Target B Centre ({pointTargetB!.Value.X:F1},{pointTargetB!.Value.Y:F1})");
+                Debug.WriteLineIf(pointTargetA is not null, $"After Delete   Target A Center ({pointTargetA!.Value.X:F1},{pointTargetA!.Value.Y:F1})");
+                Debug.WriteLineIf(pointTargetB is not null, $"After Delete   Target B Center ({pointTargetB!.Value.X:F1},{pointTargetB!.Value.Y:F1})");
             }
         }
 
@@ -1465,7 +1465,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Canvas Context Menu (Add measurement, add 3D point, edit species etc etc)
+        /// Canvas Context Menu (Add measurement, add 3D point, edit species etc)
         /// Use if any of the Canvas Context Menu items are selected
         /// </summary>
         /// <param name="sender"></param>
@@ -1502,12 +1502,12 @@ namespace Surveyor.User_Controls
                         // Set bookmark at current frame and pointer position on the CanvasFrame
                         bookmark.SetBookmark(CameraSide, (TimeSpan)position, pt);
                         // Draw bookmark immediately
-                        RemoveCanvasShapesByTag(CanvasFrame, "Bookmark");
+                        CanvasDrawingHelper.RemoveCanvasShapesByTag(CanvasFrame, "Bookmark");
                         bookmark.DrawBookmark(CanvasFrame, CanvasFrame_PointerMoved, CanvasFrame_PointerPressed);
                     }
                 }
 
-                // Context menu - Delete the Target on the Canvas Frame we are hoving over
+                // Context menu - Delete the Target on the Canvas Frame we are hovering over
                 else if (item == CanvasFrameMenuDeleteTarget)
                 {
                     bool? TruePointAFalsePointB = null;
@@ -1651,7 +1651,7 @@ namespace Surveyor.User_Controls
                             // Set Target A and if necessary Target B on this instance
                             SetTargets(thisCameraA, thisCameraB);
 
-                            // Lock the mag windows at the centre point of the measurement or 3D point
+                            // Lock the mag windows at the center point of the measurement or 3D point
                             await MagWindowAsync(magWindowCentrePoint);
                             await MagLockInCurrentPositionAsync(magWindowCentrePoint, PointerDeviceType.Mouse);
 
@@ -1705,7 +1705,7 @@ namespace Surveyor.User_Controls
                         hideMeasurementsAndPoints = statusToSet;
                     }
 
-                    // Signal to the slidling control to do the same
+                    // Signal to the sibling control to do the same
                     MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.SetMeasurementsAndPointsVisibility, CameraSide)
                     {
                         hideMeasurementsAndPoints = statusToSet
@@ -1938,8 +1938,8 @@ namespace Surveyor.User_Controls
         private void OnEventsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
         {
             // If the events collection changed we always cancel any
-            // suspression of the measurements and points
-            // Normally you hide measurements and points to declutter the canvas and
+            // suppression of the measurements and points
+            // Normally you hide measurements and points to de-clutter the canvas and
             // allow you to clearly see fish 
             hideMeasurementsAndPoints = false;
             hideMeasurementsAndPointsPosition = null;
@@ -2018,14 +2018,14 @@ namespace Surveyor.User_Controls
             canvasFrameScaleY = -1;
 
             // Remove Events and epipolar lines
-            RemoveCanvasShapesByTag(CanvasFrame, "Event");
-            RemoveCanvasShapesByTag(CanvasFrame, "EpipolarLine");
-            RemoveCanvasShapesByTag(CanvasFrame, "EpipolarCurve");
-            RemoveCanvasShapesByTag(CanvasMag, "EpipolarLine");
-            RemoveCanvasShapesByTag(CanvasMag, "EpipolarCurve");
+            CanvasDrawingHelper.RemoveCanvasShapesByTag(CanvasFrame, "Event");
+            CanvasDrawingHelper.RemoveCanvasShapesByTag(CanvasFrame, "EpipolarLine");
+            CanvasDrawingHelper.RemoveCanvasShapesByTag(CanvasFrame, "EpipolarCurve");
+            CanvasDrawingHelper.RemoveCanvasShapesByTag(CanvasMag, "EpipolarLine");
+            CanvasDrawingHelper.RemoveCanvasShapesByTag(CanvasMag, "EpipolarCurve");
 
             // Remove bookmark
-            RemoveCanvasShapesByTag(CanvasFrame, "Bookmark");
+            CanvasDrawingHelper.RemoveCanvasShapesByTag(CanvasFrame, "Bookmark");
         }
 
 
@@ -2046,14 +2046,14 @@ namespace Surveyor.User_Controls
                 // Set Target A
                 SetTargetOnCanvasMag(TargetAMag, pointA.X, pointA.Y, TargetIconType.Locked);
                 pointTargetA = pointA;
-                Debug.WriteLineIf(pointTargetA is not null, $"After Select Target A   Target A Centre ({pointTargetA!.Value.X:F1},{pointTargetA!.Value.Y:F1})");
+                Debug.WriteLineIf(pointTargetA is not null, $"After Select Target A   Target A Center ({pointTargetA!.Value.X:F1},{pointTargetA!.Value.Y:F1})");
             }
             else
             {
                 // Set Target B
                 SetTargetOnCanvasMag(TargetBMag, pointB.X, pointB.Y, TargetIconType.Locked);
                 pointTargetB = pointB;
-                Debug.WriteLineIf(pointTargetB is not null, $"After Select Target B   Target B Centre ({pointTargetB!.Value.X:F1},{pointTargetB!.Value.Y:F1})");
+                Debug.WriteLineIf(pointTargetB is not null, $"After Select Target B   Target B Center ({pointTargetB!.Value.X:F1},{pointTargetB!.Value.Y:F1})");
             }
         }
 
@@ -2064,7 +2064,7 @@ namespace Surveyor.User_Controls
         /// <param name="hideMeasurementsAndPoints"></param>
         internal void _SetMeasurementsAndPointsVisibility(bool hideMeasurementsAndPoints)
         {
-            // Slibling control requested we set status to match hideMeasurementsAndPoints
+            // Sibling control requested we set status to match hideMeasurementsAndPoints
             this.hideMeasurementsAndPoints = hideMeasurementsAndPoints;
 
             if (hideMeasurementsAndPoints)
@@ -2123,7 +2123,7 @@ namespace Surveyor.User_Controls
             OtherInstanceTargetSet(false, false);
 
             // Do coordinate need to be displayed
-            DisplayPointerCoords = true;   // Force on always not part of SettingsManagerLocal.DiagnosticInformation
+            DisplayPointerCoordinates = true;   // Force on always not part of SettingsManagerLocal.DiagnosticInformation
 
             // Set the image loaded flag
             imageLoaded = true;
@@ -2309,8 +2309,8 @@ namespace Surveyor.User_Controls
                 }
 
                 // Delete Measurement
-                // Reqirement: There is at least one measurement event set on this instance
-                // Check events list for an existing measurement event of type Meassurment
+                // Requirement: There is at least one measurement event set on this instance
+                // Check events list for an existing measurement event of type Measurement
                 int countMeasurements = eventsForThisFrame.Count(e => e.EventDataType == SurveyDataType.SurveyMeasurementPoints);
 
                 if (countMeasurements > 0)
@@ -2336,7 +2336,7 @@ namespace Surveyor.User_Controls
                 }
 
                 // Delete 3D Point
-                // Reqirement: There is at least one 3D Point set on this instance
+                // Requirement: There is at least one 3D Point set on this instance
                 int count3DPoints = eventsForThisFrame.Count(e => e.EventDataType == SurveyDataType.SurveyStereoPoint);
 
                 if (count3DPoints > 0)
@@ -2365,7 +2365,7 @@ namespace Surveyor.User_Controls
                 // Edit Species Info
                 // Requirement: There is at least one Measurement, 3D Point or Single Point set on this instance
                 // i.e. any Event that can have a Species Info
-                if (hoveringOverGuid is not null /*???tobedeleted countMeasurements > 0 || count3DPoints > 0 || countSinglePoints > 0*/)
+                if (hoveringOverGuid is not null)
                 {
                     CanvasFrameMenuEditSpeciesInfo.IsEnabled = true;
                 }
@@ -2401,20 +2401,20 @@ namespace Surveyor.User_Controls
                     if (canvas == CanvasFrame)
                         hoveringOverTargetPoint = point;
                     else if (canvas == CanvasMag)
-                        // Adjust coords because this is the Mag Window
+                        // Adjust coordinates because this is the Mag Window
                         hoveringOverTargetPoint = new Point(point.X + rectMagWindowSource.X, point.Y + rectMagWindowSource.Y);
                 }
             }
             else
             {
-                // Log or handle the case where the flyout is not found or is of incorrect type
+                // Log or handle the case where the fly-out is not found or is of incorrect type
                 Debug.WriteLine("DisplayCanvasContextMenu not found or incorrect type!");
             }
         }
 
 
         /// <summary>
-        /// Check is suitbale targets are setup for a measurment
+        /// Check is suitable targets are setup for a measurement
         /// </summary>
         /// <returns></returns>
         private bool IsMeasurementRequestPossible()
@@ -2615,12 +2615,12 @@ namespace Surveyor.User_Controls
             // Adjust the CanvasFrame size and scaling
             AdjustCanvasSizeAndScaling();
             
-            // Reposition any target and events on the renewly size canvas
+            // Reposition any target and events on the newly size canvas
             TransferExistingEvents();
             TransferTargetsBetweenVariableAndCanvasFrame(true/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
             TransferTargetsBetweenVariableAndCanvasFrame(false/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
 
-            // Hide measurements and points if there are being suspressed for this frame
+            // Hide measurements and points if there are being suppressed for this frame
             if (hideMeasurementsAndPointsPosition == position &&
                 hideMeasurementsAndPoints)
             {
@@ -2639,11 +2639,11 @@ namespace Surveyor.User_Controls
         {
             // Calculate the X & Y scale factor between the Image control and the
             // actual image size.  Store this for translating point on the image 
-            // between screen between corrdinates to image based coordinates
+            // between screen between coordinates to image based coordinates
             if (imageUIElement is not null &&
                 imageUIElement.Parent is Grid gridParentImageFrame /*????&& imageUIElement.ActualWidth != 0*/)
             {
-                // Calulate the scale factor between the actual image and the screen image
+                // Calculate the scale factor between the actual image and the screen image
                 //canvasFrameScaleX = imageUIElement.ActualWidth / imageSourceWidth;
                 //canvasFrameScaleY = imageUIElement.ActualHeight / imageSourceHeight;
                 // NEW CODE START
@@ -2687,7 +2687,7 @@ namespace Surveyor.User_Controls
                 targetIconOffsetToCentre.X = (TargetA.Width - 1) / 2;
                 targetIconOffsetToCentre.Y = (TargetA.Height - 1) / 2;
 
-                // And scale icons for the Mag Window (this is in a separate method bacause
+                // And scale icons for the Mag Window (this is in a separate method because
                 // it is re-used when the zoom factor is adjusted by the user)
                 CalcMagIconSize();
 
@@ -2781,7 +2781,7 @@ namespace Surveyor.User_Controls
                 else
                     ButtonMagDelete.IsEnabled = false;
 
-                // Enable/Disable the 'Ok'/Tick MagButton
+                // Enable/Disable the 'OK'/Tick MagButton
                 if (pointTargetA is not null && pointTargetB is not null && targetSelected is null)
                     ButtonMagAddMeasurement.IsEnabled = true;
                 else
@@ -2870,7 +2870,7 @@ namespace Surveyor.User_Controls
         private int magIntoImageSquare_EntryCounter = 0;
         /// <summary>
         /// Displays a magnified section of _imageFrame from under the pointer (mouse) position passed in.
-        /// The size of the magnifed area is defined by magWidth and magHeight.
+        /// The size of the magnified area is defined by magWidth and magHeight.
         /// The magnification factor is defined by canvasZoomFactor.
         /// </summary>
         /// <param name="pointerPosition">Pointer relative to CanvasFrame</param>
@@ -2893,7 +2893,7 @@ namespace Surveyor.User_Controls
                         report?.Info(CameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: PointerPosition: ({pointerPosition.X:F1},{pointerPosition.Y:F1}), {streamSourceStatus}, {imageUIElement.Parent?.GetType().FullName}");
                     }
 
-                    // Reset rectMagPointerBounds for safty, not strictly necessary
+                    // Reset rectMagPointerBounds for safety, not strictly necessary
                     rectMagPointerBounds = new Rect(0, 0, 0, 0);
 
                     // Check if ImageFrame's source is a BitmapImage and has a valid UriSource.
@@ -2949,12 +2949,12 @@ namespace Surveyor.User_Controls
 
                                             if (imageUIElement.ActualWidth < magWidthScaled || imageUIElement.ActualHeight < magHeightScaled)
                                             {
-                                                report?.Info(CameraSide.ToString(), $"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1} x {CanvasFrame.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), can't display MagWindow, try maximising the main window.");
+                                                report?.Info(CameraSide.ToString(), $"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1} x {CanvasFrame.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), can't display MagWindow, try maximizing the main window.");
                                             }
                                         }
                                     }
 
-                                    // First check that the mag windows will phyiscally fit in the size the CanvasFrame/ImageFrame has
+                                    // First check that the mag windows will physically fit in the size the CanvasFrame/ImageFrame has
                                     double magWindowLeftCheck = Math.Clamp(pointerPosition.X - (magWidthScaled / 2), 0/*min*/, CanvasFrame.ActualWidth - magWidthScaled/*max*/);
                                     double magWindowTopCheck = Math.Clamp(pointerPosition.Y - (magHeightScaled / 2), 0/*min*/, CanvasFrame.ActualHeight - magHeightScaled/*max*/);
                                     double magWindowWidthCheck = Math.Min(magWidthScaled, CanvasFrame.ActualWidth - magWindowLeftCheck);
@@ -2978,7 +2978,7 @@ namespace Surveyor.User_Controls
                                     rectMagWindowScreen = new Rect(magWindowLeft, magWindowTop, magWindowWidth, magWindowHeight);
                                 }
 
-                                // Calcaulte the source rectangle from the ImageFrame that is used to fill
+                                // Calculate the source rectangle from the ImageFrame that is used to fill
                                 // the Mag Window.                         
                                 { // Putting this in braces so that variable go out of scope and not used by mistake
                                     double magWidthZoomed = magWidthScaled / canvasZoomFactor;
@@ -2991,11 +2991,11 @@ namespace Surveyor.User_Controls
                                     rectMagWindowSource = new Rect(magSourceLeft, magSourceTop, magSourceWidth, magSourceHeight);
                                 }
 
-                                // Definate the ImageMag Rect for pointer bounds checking in 
+                                // Definite the ImageMag Rect for pointer bounds checking in 
                                 // PointerMoved events
                                 rectMagPointerBounds = new Rect(0.0, 0.0, rectMagWindowSource.Width, rectMagWindowSource.Height);
                               
-                                // Define the magnified portion of the image to extact from the bitmap
+                                // Define the magnified portion of the image to extract from the bitmap
                                 var transform = new BitmapTransform()
                                 {
                                     ScaledWidth = decoder.PixelWidth,
@@ -3013,8 +3013,7 @@ namespace Surveyor.User_Controls
                                 // Debug reporting
                                 //???Debug.WriteLine($"Pointer ({pointerPosition.X:F1},{pointerPosition.Y:F1}) ImageFrame cx={imageUIElement.ActualWidth:F1}, cy={imageUIElement.ActualHeight:F1}, Source Image cx,cy {imageSourceWidth},{imageSourceHeight}, Mag Zoom:{canvasZoomFactor:F1}");
                                 
-                                //???Debug.WriteLine($"Mag Window Coords left,top=({rectMagWindowScreen.X:F1},{rectMagWindowScreen.Y:F1}), cx,cy {rectMagWindowScreen.Width:F1},{rectMagWindowScreen.Height:F1}");
-                                Debug.WriteLine($"Mag Window Source Coords left,top=({rectMagWindowSource.X:F1},{rectMagWindowSource.Y:F1}), cx,cy {rectMagWindowSource.Width:F1},{rectMagWindowSource.Height:F1}, Zoom={canvasZoomFactor:F2}");
+                                Debug.WriteLine($"Mag Window Source Coordinates left,top=({rectMagWindowSource.X:F1},{rectMagWindowSource.Y:F1}), cx,cy {rectMagWindowSource.Width:F1},{rectMagWindowSource.Height:F1}, Zoom={canvasZoomFactor:F2}");
 
 
                                 // Get the pixel data for the zoomed region.
@@ -3080,12 +3079,12 @@ namespace Surveyor.User_Controls
                                     {
                                         // Place Target A on the Mag Window in the correct position
                                         TransferTargetsBetweenVariableAndCanvasMag(true/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
-                                        //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target A Centre ({pointTargetA.Value.X:F1},{pointTargetA.Value.Y:F1})*");
+                                        //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target A Center ({pointTargetA.Value.X:F1},{pointTargetA.Value.Y:F1})*");
                                     }
                                     else
                                     {
                                         ResetTargetIconOnCanvas(TargetAMag);    // Just hides the MagWindow target icon
-                                        //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target A Centre ({pointTargetA.Value.X:F1},{pointTargetA.Value.Y:F1})");
+                                        //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target A Center ({pointTargetA.Value.X:F1},{pointTargetA.Value.Y:F1})");
                                     }
                                 }
                                 else
@@ -3098,12 +3097,12 @@ namespace Surveyor.User_Controls
                                     {
                                         // Place Target B on the Mag Window in the correct position                              
                                         TransferTargetsBetweenVariableAndCanvasMag(false/*TrueAOnlyFalseBOnly*/, true/*TrueToCanvasFalseFromCanvas*/);
-                                        //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target B Centre ({pointTargetB.Value.X:F1},{pointTargetB.Value.Y:F1})*");
+                                        //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target B Center ({pointTargetB.Value.X:F1},{pointTargetB.Value.Y:F1})*");
                                     }
                                     else
                                     {
                                         ResetTargetIconOnCanvas(TargetBMag);    // Just hides the MagWindow target icon
-                                        //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target B Centre ({pointTargetB.Value.X:F1},{pointTargetB.Value.Y:F1})");
+                                        //???Debug.WriteLine($"{magIntoImageSquare_EntryCounter}:    Target B Center ({pointTargetB.Value.X:F1},{pointTargetB.Value.Y:F1})");
                                     }
                                 }
                                 else
@@ -3112,11 +3111,6 @@ namespace Surveyor.User_Controls
                                 // Check for epipolar line for Target A
                                 if (epipolarLineTargetActiveA)
                                 {
-                                    //???TO BE DELELTED Epipoplar line obselete
-                                    //SetMagWindowEpipolarLine(true/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
-                                    //                         rectMagWindowSource,
-                                    //                         0/*draw line*/);
-
                                     SetMagWindowEpipolarCurve(true/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
                                                                 rectMagWindowSource,
                                                                 0/*draw line*/);
@@ -3124,11 +3118,6 @@ namespace Surveyor.User_Controls
                                 // Check for epipolar line for Target B
                                 if (epipolarLineTargetActiveB)
                                 {
-                                    //???TO BE DELELTED Epipoplar line obselete
-                                    //SetMagWindowEpipolarLine(false/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
-                                    //                         rectMagWindowSource,
-                                    //                         0/*draw line*/);
-
                                     SetMagWindowEpipolarCurve(false/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/,
                                                                 rectMagWindowSource,
                                                                 0/*draw line*/);
@@ -3380,7 +3369,7 @@ namespace Surveyor.User_Controls
         private void TransferExistingEvents()
         {
             // Remove any existing events on the canvas
-            RemoveCanvasShapesByTag(CanvasFrame, "Event");
+            CanvasDrawingHelper.RemoveCanvasShapesByTag(CanvasFrame, "Event");
 
             // Check if the events are to be displayed
             if ((layerTypesDisplayed & LayerType.Events) != 0)
@@ -3667,41 +3656,6 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Remove all the CanvasFrame child shapes with the tag e.g. 'Event' or 'EpipolarLine'
-        /// The tag format used is 'TagName':Guid
-        /// e.g. Event:12345678-1234-1234-1234-1234567890AB
-        /// </summary>
-        /// <param name="tagRemove"></param>
-        private static void RemoveCanvasShapesByTag(Canvas canvas, string tagRemove)
-        {
-            // Clear the canvas of all children tagged as 'Event'
-            for (int i = canvas.Children.Count - 1; i >= 0; i--)
-            {
-                FrameworkElement? element = canvas.Children[i] as FrameworkElement;
-                if (element != null && element.Tag is CanvasTag canvasTag)
-                {
-                    if (canvasTag.IsTagType(tagRemove))
-                        canvas.Children.RemoveAt(i);
-                }
-            }
-        }
-        private static void RemoveCanvasShapesByTag(Canvas canvas, CanvasTag canvasTagRemove)
-        {
-            // Clear the canvas of all children tagged as 'Event'
-            for (int i = canvas.Children.Count - 1; i >= 0; i--)
-            {
-                FrameworkElement? element = canvas.Children[i] as FrameworkElement;
-                if (element != null && element.Tag is CanvasTag canvasTag)
-                {
-                    if (canvasTag.IsTag(canvasTagRemove))
-                        canvas.Children.RemoveAt(i);
-                }
-            }
-        }
-
-
-
-        /// <summary>
         /// Position the target icon on the canvas using the screen coordinate system
         /// </summary>
         /// <param name="rectangle"></param>
@@ -3735,13 +3689,13 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Set the target rectangles icon at it current position and ensure it is visable
+        /// Set the target rectangles icon at it current position and ensure it is visible
         /// </summary>
         /// <param name="rectangle"></param>
         /// <param name="targetIconType"></param>
         private void SetTargetIconOnCanvas(Rectangle rectangle, TargetIconType targetIconType)
         {
-            // Change to the the moving target icon
+            // Change to the moving target icon
             if (rectangle == TargetA || rectangle == TargetAMag)
             {
                 switch (targetIconType)
@@ -3870,7 +3824,7 @@ namespace Surveyor.User_Controls
                     {
                         // Unlock/Hide the Mag Window
                         MagHide();  // This function will unlock and/or hide the Mag Window
-                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Timer_Tick: Mag Window hidden due to inactivity, isPointerOnUs={isPointerOnUs}, mainWindowActivated={mainWindowActivated}, canvasMagContextMenuOpen={canvasMagContextMenuOpen}, inZoomModeProcessing={inZoomModeProcessing}, elasped={elapsed.TotalMilliseconds}ms");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Timer_Tick: Mag Window hidden due to inactivity, isPointerOnUs={isPointerOnUs}, mainWindowActivated={mainWindowActivated}, canvasMagContextMenuOpen={canvasMagContextMenuOpen}, inZoomModeProcessing={inZoomModeProcessing}, elapsed={elapsed.TotalMilliseconds}ms");
                     }
                 }
             }
@@ -3905,7 +3859,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Increase or decrease the size of the mag windiw
+        /// Increase or decrease the size of the mag window
         /// </summary>
         /// <param name="TrueEnargeFalseReduce"></param>
         /// <param name="trueHideIfLocked"></param>
@@ -3938,7 +3892,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Used to caculate the next viable increase or decrease in the size of the mag windiw
+        /// Used to calculate the next viable increase or decrease in the size of the mag window
         /// The Issue: The 'Full' size is the size of the CanvasFrame.  If the canvas is physically
         /// very small on the screen the size down, 'Large', which has fixed dimensions, may not
         /// actually fit.  In which case the next size down is used. And so on
@@ -4050,7 +4004,7 @@ namespace Surveyor.User_Controls
             // Next remove and re-display the mag window at the new size
             if (isMagLocked)
             {
-                // Recalcs icon sizes, hides and re-displays the Mag Window
+                // Recalculates icon sizes, hides and re-displays the Mag Window
                 await ChangeZoomFactorAsync(canvasZoomFactor);
             }
         }
@@ -4058,7 +4012,7 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// Request to change the zoom factor of the current Mag Window.
-        /// This requires re-calculating the target icon zize, hiding the Mag Window
+        /// This requires re-calculating the target icon size, hiding the Mag Window
         /// if necessary and re-displaying at the new zoom factor
         /// </summary>
         /// <param name="newCanvasZoomFactor"></param>
@@ -4066,7 +4020,7 @@ namespace Surveyor.User_Controls
         {
             canvasZoomFactor = newCanvasZoomFactor;
 
-            // Re-calc Mag Window icon size
+            // Re-calculate Mag Window icon size
             CalcMagIconSize();
         
             // Hide Mag Window if necessary
@@ -4078,7 +4032,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Calcs the Mag Window icon sizes based on the canvasScaleFactor and the canvasZoomFactor
+        /// Calculates the Mag Window icon sizes based on the canvasScaleFactor and the canvasZoomFactor
         /// </summary>
         private void CalcMagIconSize()
         {
@@ -4201,7 +4155,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Use at the top of the function if that function is intended for use use only on the 
+        /// Use at the top of the function if that function is intended for use only on the 
         /// UI Thread.  This is to prevent the function being called from a non-UI thread.
         /// </summary>        
         private void CheckIsUIThread()
@@ -4275,7 +4229,7 @@ namespace Surveyor.User_Controls
             EditSpeciesInfoRequest,
             UserReqMagWindowSizeSelect,
             UserReqMagZoomSelect,
-            SelectTargetPoint,                      // Used to inform the sibling MagnifyAndMarkerControl to select a target point (used for re-editting measurments or 3D points)
+            SelectTargetPoint,                      // Used to inform the sibling MagnifyAndMarkerControl to select a target point (used for re-editing measurements or 3D points)
             SetMeasurementsAndPointsVisibility,     // Used to inform the sibling MagnifyAndMarkerControl to set visible/collapse on measurements and points
             Error
         }

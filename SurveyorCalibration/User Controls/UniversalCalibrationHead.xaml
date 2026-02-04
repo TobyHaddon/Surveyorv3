@@ -21,6 +21,7 @@
         <x:String x:Key="FrameMaxErrorToolTipText">The maximum error calculated for this frame</x:String>
         <x:String x:Key="FrameIndexToolTipText">Video frame index number</x:String>
         <x:String x:Key="PositionToolTipText">Time position in video</x:String>
+        <x:String x:Key="CalibrationFrameStatusToolTipText">Indicates if this frame is used in the calibration process or if it was manually excluded. The reason it is included is shown either because of its frame coverage position, the pose of the target or manually added</x:String>
     </UserControl.Resources>
 
     <Grid x:Name="RootGrid">
@@ -60,12 +61,13 @@
                 </Grid.RowDefinitions>
 
                 <!-- Overlay container -->
-                <Grid x:Name="LeftOverlayContainer" Grid.Row="0" Margin="0,2,0,0">
+                <Grid x:Name="LeftOverlayContainer" Grid.Row="0" Margin="0,2,0,0"
+                      SizeChanged="OverlayContainer_SizeChanged">
+
                     <Image x:Name="LeftImage"                           
                            Stretch="Uniform"
-                           HorizontalAlignment="Center" VerticalAlignment="Top"                           
-                           SizeChanged="LeftImage_SizeChanged"/>
-                    
+                           HorizontalAlignment="Center" VerticalAlignment="Top"/>
+
                     <Canvas x:Name="LeftSensorCoverage"
                             IsHitTestVisible="False"
                             Visibility="Collapsed"
@@ -74,7 +76,7 @@
                             Background="#FF323232"/>
                 </Grid>
                 
-                <controls:CalibrationBoardTimeLineUserControl x:Name="CalibrationBoardTimeLineLeft"
+                <controls:MediaTimeLineDisplayUserControl x:Name="MediaTimeLineDisplayLeft"
                                                Grid.Row="1"
                                                HorizontalAlignment="Stretch" Visibility="Collapsed" Margin="0,1,0,0"/>
             </Grid>
@@ -103,6 +105,9 @@
                     </Grid.ColumnDefinitions>
 
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -186,7 +191,8 @@
 
                     <!-- Row 6: Frame RMS -->
                     <RichTextBlock Grid.Row="6" Grid.Column="0" FontFamily="Segoe UI Variable" FontSize="18"
-                                    IsTextSelectionEnabled="False">
+                                    IsTextSelectionEnabled="False"
+                                    ToolTipService.ToolTip="{StaticResource FrameRMSToolTipText}">
                         <Paragraph Margin="0">
                             <Run Text="σ"/>
                             <InlineUIContainer>
@@ -207,7 +213,8 @@
 
                     <!-- Row 7: Frame Max Error -->
                     <RichTextBlock Grid.Row="7" Grid.Column="0" FontFamily="Segoe UI Variable" FontSize="18"
-                                    IsTextSelectionEnabled="False">
+                                    IsTextSelectionEnabled="False"
+                                    ToolTipService.ToolTip="{StaticResource FrameMaxErrorToolTipText}">
                         <Paragraph Margin="0">
                             <Run Text="ε"/>
                             <InlineUIContainer>
@@ -244,6 +251,24 @@
                                     Grid.Row="9" Grid.Column="1" FontSize="12"
                                     Margin="0,2,0,2" VerticalAlignment="Center"
                                     ToolTipService.ToolTip="{StaticResource ScoreToolTipText}"/>
+
+                    <!-- Row 10: Calibration Frame Status (Coverage, Pose, Ignore, Manual Add) -->
+                    <StackPanel Grid.Row="10" Grid.Column="0" Orientation="Horizontal" Margin="0,0,0,0">
+                        <Image Source="ms-appx:///Assets/CalibrationFrameStatus-Dark.png"
+                                   Margin="0,0,0,0"
+                                   VerticalAlignment="Center" HorizontalAlignment="Left"
+                                   Width="16" Height="16"
+                                   Stretch="Uniform"
+                                   ToolTipService.ToolTip="{StaticResource CalibrationFrameStatusToolTipText}"/>
+                    </StackPanel>
+                    <TextBlock x:Name="LeftCalibrationFrameStatus"
+                                    Grid.Row="10"
+                                    Grid.Column="1"
+                                    FontSize="8"
+                                    Margin="0,2,0,2"
+                                    VerticalAlignment="Center"
+                                    TextWrapping="Wrap"
+                                    ToolTipService.ToolTip="{StaticResource CalibrationFrameStatusToolTipText}" />
 
                 </Grid>
             </Border>
@@ -317,11 +342,12 @@
                 </Grid.RowDefinitions>
 
                 <!-- Overlay container -->
-                <Grid x:Name="RightOverlayContainer" Grid.Row="0" Margin="0,2,0,0">
+                <Grid x:Name="RightOverlayContainer" Grid.Row="0" Margin="0,2,0,0"
+                      SizeChanged="OverlayContainer_SizeChanged">
+                    
                     <Image x:Name="RightImage"                           
                            Stretch="Uniform"
-                           HorizontalAlignment="Center" VerticalAlignment="Top"                           
-                           SizeChanged="RightImage_SizeChanged"/>
+                           HorizontalAlignment="Center" VerticalAlignment="Top"/>
 
                     <Canvas x:Name="RightSensorCoverage"
                             IsHitTestVisible="False"
@@ -331,7 +357,7 @@
                             Background="#FF323232"/>
                 </Grid>
                 
-                <controls:CalibrationBoardTimeLineUserControl x:Name="CalibrationBoardTimeLineRight"
+                <controls:MediaTimeLineDisplayUserControl x:Name="MediaTimeLineDisplayRight"
                                                Grid.Row="1"
                                                HorizontalAlignment="Stretch" Visibility="Collapsed" Margin="0,2,0,0"/>
             </Grid>
@@ -347,6 +373,9 @@
                     </Grid.ColumnDefinitions>
 
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -430,7 +459,8 @@
 
                     <!-- Row 6: Frame RMS -->
                     <RichTextBlock Grid.Row="6" Grid.Column="0" FontFamily="Segoe UI Variable" FontSize="18"
-                                    IsTextSelectionEnabled="False">
+                                    IsTextSelectionEnabled="False"
+                                   ToolTipService.ToolTip="{StaticResource FrameRMSToolTipText}">
                         <Paragraph Margin="0">
                             <Run Text="σ"/>
                             <InlineUIContainer>
@@ -451,7 +481,8 @@
 
                     <!-- Row 7: Frame Max Error -->
                     <RichTextBlock Grid.Row="7" Grid.Column="0" FontFamily="Segoe UI Variable" FontSize="18"
-                                    IsTextSelectionEnabled="False">
+                                    IsTextSelectionEnabled="False"
+                                   ToolTipService.ToolTip="{StaticResource FrameMaxErrorToolTipText}">
                         <Paragraph Margin="0">
                             <Run Text="ε"/>
                             <InlineUIContainer>
@@ -488,6 +519,24 @@
                                     Grid.Row="9" Grid.Column="1" FontSize="12"
                                     Margin="0,2,0,2" VerticalAlignment="Center"
                                     ToolTipService.ToolTip="{StaticResource ScoreToolTipText}"/>
+
+                    <!-- Row 10: Calibration Frame Status (Coverage, Pose, Ignore, Manual Add) -->
+                    <StackPanel Grid.Row="10" Grid.Column="0" Orientation="Horizontal" Margin="0,0,0,0">
+                        <Image Source="ms-appx:///Assets/CalibrationFrameStatus-Dark.png"
+                                   Margin="0,0,0,0"
+                                   VerticalAlignment="Center" HorizontalAlignment="Left"
+                                   Width="16" Height="16"
+                                   Stretch="Uniform"
+                                   ToolTipService.ToolTip="{StaticResource CalibrationFrameStatusToolTipText}"/>
+                    </StackPanel>
+                    <TextBlock x:Name="RightCalibrationFrameStatus"
+                                    Grid.Row="10"
+                                    Grid.Column="1"
+                                    FontSize="8"
+                                    Margin="0,2,0,2"
+                                    VerticalAlignment="Center"
+                                    TextWrapping="Wrap"
+                                    ToolTipService.ToolTip="{StaticResource CalibrationFrameStatusToolTipText}" />
                 </Grid>
             </Border>
 

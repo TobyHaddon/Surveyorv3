@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
+//???using Microsoft.UI.Xaml.Shapes;
 using Org.BouncyCastle.Bcpg;
 using Surveyor.Calibration;
 using Surveyor.DesktopWap.Helper;
@@ -18,10 +19,12 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+//???using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
@@ -29,6 +32,7 @@ using Windows.Foundation;
 using Windows.Graphics.Imaging;
 using Windows.Storage;
 using Windows.Storage.Streams;
+using WinUIEx;
 using static Surveyor.Controls.UniversalCalibrationHead;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 
@@ -121,6 +125,9 @@ namespace Surveyor.Controls
 
         // CharUco board definition
         private CalibrationBoardDefinition? calibrationBoardDefinition;
+
+        // Used to de-bounce sensor coverage rendering
+        private bool _sensorCoverageRenderQueued;
 
         // Expose the play/pause button for external binding teaching tip (read-only)
         public Button LeftPlayPauseButtonElement => LeftPlayPauseButton;
@@ -384,8 +391,8 @@ namespace Surveyor.Controls
                 case CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone:
                     // Clear the calibration board zone values and visualization of the timeline
                     calibrationStereoFrameSet.ClearResults(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
-                    CalibrationBoardTimeLineLeft.Clear();
-                    CalibrationBoardTimeLineRight.Clear();
+                    MediaTimeLineDisplayLeft.Clear();
+                    MediaTimeLineDisplayRight.Clear();
                     break;
 
                 case CalibrationStereoFrameSet.ClearRequest.FrameSets:
@@ -395,8 +402,8 @@ namespace Surveyor.Controls
                     CalibrationFrameSetViewerRight.ClearDisplay(ViewModeCurrent);
 
                     // Clear frame UI display data
-                    DecorateClear(true/*trueLeftfalseRight*/);
-                    DecorateClear(false/*trueLeftfalseRight*/);
+                    DecorateClear(leftTrueRightFalse: true);
+                    DecorateClear(leftTrueRightFalse: false);
                     break;
 
                 case CalibrationStereoFrameSet.ClearRequest.BestFrames:
@@ -406,8 +413,8 @@ namespace Surveyor.Controls
                     CalibrationFrameSetViewerRight.ClearDisplay(ViewModeCurrent);
 
                     // Clear frame UI display data
-                    DecorateClear(true/*trueLeftfalseRight*/);
-                    DecorateClear(false/*trueLeftfalseRight*/);
+                    DecorateClear(leftTrueRightFalse: true);
+                    DecorateClear(leftTrueRightFalse: false);
 
                     // Clear sensor canvas
                     LeftSensorCoverage.Children.Clear();
@@ -472,8 +479,8 @@ namespace Surveyor.Controls
 
                         // Setup the timeline ranges indicators that show where calibration
                         // boards have been found
-                        CalibrationBoardTimeLineLeft.Visibility = Visibility.Visible;
-                        CalibrationBoardTimeLineLeft.SetRange(0, _totalFramesLeft);
+                        MediaTimeLineDisplayLeft.Visibility = Visibility.Visible;
+                        MediaTimeLineDisplayLeft.SetRange(0, _totalFramesLeft);
 
                         // Display first frame
                         FrameJump(true/*leftTrueRightFalse*/, 0);
@@ -523,8 +530,8 @@ namespace Surveyor.Controls
 
                             // Setup the timeline ranges indicators that show where calibration
                             // boards have been found
-                            CalibrationBoardTimeLineRight.SetRange(0, _totalFramesRight);
-                            CalibrationBoardTimeLineRight.Visibility = Visibility.Visible;
+                            MediaTimeLineDisplayRight.SetRange(0, _totalFramesRight);
+                            MediaTimeLineDisplayRight.Visibility = Visibility.Visible;
 
                             // Display first frame
                             FrameJump(false/*leftTrueRightFalse*/, 0);
@@ -551,7 +558,7 @@ namespace Surveyor.Controls
 
             await Task.Delay(100); // Allow UI to update
 
-            SetUIControls();
+            //???SetUIControls();
 
             if (leftOpened && (rightOpened is null || rightOpened == true))
             {
@@ -574,8 +581,8 @@ namespace Surveyor.Controls
 
             calibrationStereoFrameSet.ShutDownMedia();
 
-            CalibrationBoardTimeLineLeft.Visibility = Visibility.Collapsed;
-            CalibrationBoardTimeLineRight.Visibility = Visibility.Collapsed;
+            MediaTimeLineDisplayLeft.Visibility = Visibility.Collapsed;
+            MediaTimeLineDisplayRight.Visibility = Visibility.Collapsed;
 
             if (capLeft is not null && capLeft.IsOpened)
             {
@@ -599,8 +606,8 @@ namespace Surveyor.Controls
             RightImage.Source = null;
             
             // Clear frame UI display data
-            DecorateClear(true/*trueLeftfalseRight*/);
-            DecorateClear(false/*trueLeftfalseRight*/);
+            DecorateClear(leftTrueRightFalse: true);
+            DecorateClear(leftTrueRightFalse: false);
 
             // Reset calibration output display
             ClearCalibrationResultsDisplay();
@@ -608,7 +615,7 @@ namespace Surveyor.Controls
             // Clear internals
             Clear();
 
-            SetUIControls();
+            //???SetUIControls();
 
             return ret;
         }
@@ -823,14 +830,14 @@ namespace Surveyor.Controls
             try
             {
                 isFindCalibrationFrameRunning = true;
-                SetUIControls();
+                //???SetUIControls();
 
                 cts = new CancellationTokenSource();
                 cancellationToken = cts.Token;
 
                 // Reset any previous calibration board timeline ranges
-                CalibrationBoardTimeLineLeft.Clear();
-                CalibrationBoardTimeLineRight.Clear();
+                MediaTimeLineDisplayLeft.Clear();
+                MediaTimeLineDisplayRight.Clear();
 
                 // Move both methods to background threads
                 var (startCalibration, stopCalibration) = await Task.Run(() =>
@@ -840,8 +847,8 @@ namespace Surveyor.Controls
                 if (startCalibration != -1 && stopCalibration != -1)
                 {
                     // Update the timeline ranges
-                    CalibrationBoardTimeLineLeft.CalibrationBoardRange(startCalibration, stopCalibration);
-                    CalibrationBoardTimeLineRight.CalibrationBoardRange(startCalibration, stopCalibration);
+                    MediaTimeLineDisplayLeft.CalibrationBoardRange(startCalibration, stopCalibration);
+                    MediaTimeLineDisplayRight.CalibrationBoardRange(startCalibration, stopCalibration);
                 }
             }
             catch (OperationCanceledException)
@@ -853,8 +860,8 @@ namespace Surveyor.Controls
                 {
                     calibrationStereoFrameSet.ClearResults(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
                     calibrationStereoFrameSet.ClearResults(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
-                    CalibrationBoardTimeLineLeft.Clear();
-                    CalibrationBoardTimeLineRight.Clear();
+                    MediaTimeLineDisplayLeft.Clear();
+                    MediaTimeLineDisplayRight.Clear();
 
                     Debug.WriteLine("FindCalibrationBoardZoneAsync: User canceled.");
                 }
@@ -867,7 +874,7 @@ namespace Surveyor.Controls
             finally
             {
                 isFindCalibrationFrameRunning = false;
-                SetUIControls();
+                //???SetUIControls();
             }
 
             return ret;
@@ -886,7 +893,7 @@ namespace Surveyor.Controls
             try
             {
                 isFindCalibrationFrameRunning = true;
-                SetUIControls();
+                //???SetUIControls();
 
                 cts = new CancellationTokenSource();
                 cancellationToken = cts.Token;
@@ -897,8 +904,8 @@ namespace Surveyor.Controls
                 if (startCalibrationBoardZone != -1 && stopCalibrationBoardZone != -1)
                 {
                     // Update the timeline ranges
-                    CalibrationBoardTimeLineLeft.CalibrationBoardRange(startCalibrationBoardZone, stopCalibrationBoardZone);
-                    CalibrationBoardTimeLineRight.CalibrationBoardRange(startCalibrationBoardZone, stopCalibrationBoardZone);
+                    MediaTimeLineDisplayLeft.CalibrationBoardRange(startCalibrationBoardZone, stopCalibrationBoardZone);
+                    MediaTimeLineDisplayRight.CalibrationBoardRange(startCalibrationBoardZone, stopCalibrationBoardZone);
 
                     // Next find the calibration frames with in that range
                     ret = await Task.Run(async () =>
@@ -943,7 +950,7 @@ namespace Surveyor.Controls
             }
             finally
             {
-                SetUIControls();
+                //???SetUIControls();
                 isFindCalibrationFrameRunning = false;
             }
 
@@ -1042,13 +1049,14 @@ namespace Surveyor.Controls
 
                     // Update the UI
                     safeUICall.Call(() => RenderSensorCoverage());
+                    safeUICall.Call(() => RenderMediaTimeLineDisplay());
 
                     // Temp mono calibration to get yaw and pitch for each frame
                     // Calibration using the best frames (calibration using K1,K2,P1,P2)
                     // This is used to calculate the yaw and pitch of each frame and
                     // ISN'T used for the ultimate mono calibration
                     MonoCalibrationCameraData? monoCalib = calibrationStereoFrameSet.MonoCalibrateUsingBestFrames(
-                                                                                            false/*trueStereoFalseMono*/,
+                                                                                            trueStereoFalseMono: false,
                                                                                             trueLeftFalseRight,
                                                                                             frameSize,
                                                                                             monoCornersMinThreshold,
@@ -1077,6 +1085,7 @@ namespace Surveyor.Controls
                         safeUICall.Call(() => CalibrationFrameSetViewerLeft.RefreshSensorBin(_viewMode));
                         safeUICall.Call(() => CalibrationFrameSetViewerLeft.RefreshPoseBin(_viewMode));
                         safeUICall.Call(() => RenderSensorCoverage());
+                        safeUICall.Call(() => RenderMediaTimeLineDisplay());
                     }
                     else
                         ret = -1;
@@ -1093,7 +1102,7 @@ namespace Surveyor.Controls
             }
 
             safeUICall.Call(() => BestFrameJump(0));
-            safeUICall.Call(() => UpdateFrameLabel(true/*trueLeftFalseRight*/));
+            safeUICall.Call(() => UpdateFrameLabel(leftTrueRightFalse: true));
 
             return ret;
         }
@@ -1127,7 +1136,7 @@ namespace Surveyor.Controls
                     {
                         // Calibration using the best frames (pass2 calibration)                    
                         MonoCalibrationCameraData? monoCalib2 = calibrationStereoFrameSet.MonoCalibrateUsingBestFrames(
-                                                                                false/*trueStereoFalseMono*/,
+                                                                                trueStereoFalseMono: false,
                                                                                 trueLeftFalseRight,
                                                                                 frameSize,
                                                                                 monoCornersMinThreshold,
@@ -1168,7 +1177,7 @@ namespace Surveyor.Controls
             }
 
             safeUICall.Call(() => BestFrameJump(0));
-            safeUICall.Call(() => UpdateFrameLabel(true/*trueLeftFalseRight*/));
+            safeUICall.Call(() => UpdateFrameLabel(leftTrueRightFalse: true));
            
 
             return ret;
@@ -1194,7 +1203,7 @@ namespace Surveyor.Controls
         {
             int ret = -1;
 
-            SetUIControls();
+            //???SetUIControls();
 
             if (calibrationStereoFrameSet is not null && headTrueIsStereoFalseIsMode == true)
             {
@@ -1217,6 +1226,7 @@ namespace Surveyor.Controls
 
                     // Update the UI
                     safeUICall.Call(() => RenderSensorCoverage());
+                    safeUICall.Call(() => RenderMediaTimeLineDisplay());
 
                     // Next we are going to use each calibration parameter set to recalculate the pitch and yaw 
                     // and top-up and best frames for each case.  This is probably overkill and just using
@@ -1249,6 +1259,7 @@ namespace Surveyor.Controls
                             safeUICall.Call(() => CalibrationFrameSetViewerLeft.RefreshPoseBin(_viewMode));
                             safeUICall.Call(() => CalibrationFrameSetViewerRight.RefreshPoseBin(_viewMode));
                             safeUICall.Call(() => RenderSensorCoverage());
+                            safeUICall.Call(() => RenderMediaTimeLineDisplay());
                         }
                     }
 
@@ -1262,8 +1273,8 @@ namespace Surveyor.Controls
             }
 
             safeUICall.Call(() => BestFrameJump(0));
-            safeUICall.Call(() => UpdateFrameLabel(true/*trueLeftFalseRight*/));
-            safeUICall.Call(() => UpdateFrameLabel(false/*trueLeftFalseRight*/));
+            safeUICall.Call(() => UpdateFrameLabel(leftTrueRightFalse: true));
+            safeUICall.Call(() => UpdateFrameLabel(leftTrueRightFalse: false));
 
 
             return ret;
@@ -1280,7 +1291,7 @@ namespace Surveyor.Controls
         {
             int ret = -1;
            
-            SetUIControls();
+            //???SetUIControls();
 
             if (calibrationStereoFrameSet is not null && headTrueIsStereoFalseIsMode == true)
             {
@@ -1335,9 +1346,9 @@ namespace Surveyor.Controls
 
             SetAppMode(AppMode.BestFramesView);
             BestFrameJump(0);
-            UpdateFrameLabel(true/*trueLeftFalseRight*/);
-            UpdateFrameLabel(false/*trueLeftFalseRight*/);
-            SetUIControls();
+            UpdateFrameLabel(leftTrueRightFalse: true);
+            UpdateFrameLabel(leftTrueRightFalse: false);
+            //???SetUIControls();
 
             return ret;
 
@@ -1490,10 +1501,10 @@ namespace Surveyor.Controls
                         (FrameData leftTarget, FrameData? rightTarget, _) = calibrationStereoFrameSet.Data.Frames[frameIndex];
 
                         // Force the frame with MoveJump (without the calibration board markup)
-                        _JumpFrame(true/*trueLeftFalseRight*/, leftTarget.FrameIndex, null, -1);
+                        _JumpFrame(leftTrueRightFalse: true, leftTarget.FrameIndex, null, -1);
 
                         if (rightTarget is not null)
-                            _JumpFrame(false/*trueLeftFalseRight*/, rightTarget.FrameIndex, null, -1);
+                            _JumpFrame(leftTrueRightFalse: false, rightTarget.FrameIndex, null, -1);
 
                         await Task.Delay(100);
 
@@ -1549,7 +1560,7 @@ namespace Surveyor.Controls
 
             bool saved = calibrationStereoFrameSet.SaveToFile(cacheFileSpec);
 
-            SetUIControls();
+            //???SetUIControls();
 
             return saved;
         }
@@ -1598,7 +1609,7 @@ namespace Surveyor.Controls
                     CalibrationFrameSetViewerLeft.RefreshSensorBin(ViewModeCurrent);
                     CalibrationFrameSetViewerLeft.RefreshPoseBin(ViewModeCurrent);
                     CalibrationFrameSetViewerLeft.DrawGraphs();
-                    CalibrationBoardTimeLineLeft.CalibrationBoardRange(calibrationStereoFrameSet.GetStartCalibrationBoardZone(), calibrationStereoFrameSet.GetStopCalibrationBoardZone());
+                    MediaTimeLineDisplayLeft.CalibrationBoardRange(calibrationStereoFrameSet.GetStartCalibrationBoardZone(), calibrationStereoFrameSet.GetStopCalibrationBoardZone());
 
                     if (headTrueIsStereoFalseIsMode == true)
                     {
@@ -1607,7 +1618,7 @@ namespace Surveyor.Controls
                         CalibrationFrameSetViewerRight.RefreshSensorBin(ViewModeCurrent);
                         CalibrationFrameSetViewerRight.RefreshPoseBin(ViewModeCurrent);
                         CalibrationFrameSetViewerRight.DrawGraphs();
-                        CalibrationBoardTimeLineRight.CalibrationBoardRange(calibrationStereoFrameSet.GetStartCalibrationBoardZone(), calibrationStereoFrameSet.GetStopCalibrationBoardZone());
+                        MediaTimeLineDisplayRight.CalibrationBoardRange(calibrationStereoFrameSet.GetStartCalibrationBoardZone(), calibrationStereoFrameSet.GetStopCalibrationBoardZone());
                     }
 
                     // Report
@@ -1750,7 +1761,7 @@ namespace Surveyor.Controls
         private void LeftGotoStartButton_Click(object sender, RoutedEventArgs e)
         {
             // Jump to start of left calibration zone
-            JumpToStartOrEnd(true/*trueLeftFalseRight*/,
+            JumpToStartOrEnd(leftTrueRightFalse: true,
                              true/*trueStartFalseEnd*/,
                              false/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
         }
@@ -1773,7 +1784,7 @@ namespace Surveyor.Controls
             if (pt.Properties.IsRightButtonPressed)
             {
                 // Jump to start of left media
-                JumpToStartOrEnd(true/*trueLeftFalseRight*/,
+                JumpToStartOrEnd(leftTrueRightFalse: true,
                                  true/*trueStartFalseEnd*/,
                                  true/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
 
@@ -1790,7 +1801,7 @@ namespace Surveyor.Controls
         private void LeftGotoEndButton_Click(object sender, RoutedEventArgs e)
         {
             // Jump to start of right calibration zone
-            JumpToStartOrEnd(true/*trueLeftFalseRight*/,
+            JumpToStartOrEnd(leftTrueRightFalse: true,
                              false/*trueStartFalseEnd*/,
                              false/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
         }
@@ -1815,7 +1826,7 @@ namespace Surveyor.Controls
             if (pt.Properties.IsRightButtonPressed)
             {
                 // Jump to end of left media
-                JumpToStartOrEnd(true/*trueLeftFalseRight*/, 
+                JumpToStartOrEnd(leftTrueRightFalse: true, 
                                  false/*trueStartFalseEnd*/, 
                                  true/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
             }
@@ -1826,13 +1837,13 @@ namespace Surveyor.Controls
         /// <summary>
         /// Used to jump to the start or end of the media or start or end of the calibration zone
         /// </summary>
-        /// <param name="trueLeftFalseRight"></param>
+        /// <param name="leftTrueRightFalse"></param>
         /// <param name="trueStartFalseEnd"></param>
         /// <param name="trueMediaStartEndFalseCalibrationZoneStartEnd"></param>
-        private void JumpToStartOrEnd(bool trueLeftFalseRight, bool trueStartFalseEnd, bool trueMediaStartEndFalseCalibrationZoneStartEnd)
+        private void JumpToStartOrEnd(bool leftTrueRightFalse, bool trueStartFalseEnd, bool trueMediaStartEndFalseCalibrationZoneStartEnd)
         {
             int frameIndex = -1;
-            string side = trueLeftFalseRight ? "left" : "right";
+            string side = leftTrueRightFalse ? "left" : "right";
             string lockState = isLocked == true ? "(locked)" : "";
 
             switch (ViewModeCurrent)
@@ -1872,11 +1883,11 @@ namespace Surveyor.Controls
                             {
                                 frameIndex = calibrationStereoFrameSet.GetNaturalDuration() - 1;
                             }
-                            else if (trueLeftFalseRight == true)
+                            else if (leftTrueRightFalse == true)
                             {
                                 frameIndex = _totalFramesLeft - 1;
                             }
-                            else if (trueLeftFalseRight == false)
+                            else if (leftTrueRightFalse == false)
                             {
                                 frameIndex = _totalFramesRight - 1;
                             }
@@ -1887,7 +1898,7 @@ namespace Surveyor.Controls
 
                     // Actual jump
                     if (frameIndex != -1)
-                        FrameJump(trueLeftFalseRight, frameIndex);
+                        FrameJump(leftTrueRightFalse, frameIndex);
                     break;
 
                 case ViewMode.BestFrames:
@@ -1975,7 +1986,7 @@ namespace Surveyor.Controls
         private void RightGotoStartButton_Click(object sender, RoutedEventArgs e)
         {
             // Jump to start of right calibration zone
-            JumpToStartOrEnd(false/*trueLeftFalseRight*/,
+            JumpToStartOrEnd(leftTrueRightFalse: false,
                              true/*trueStartFalseEnd*/,
                              false/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
         }
@@ -1998,7 +2009,7 @@ namespace Surveyor.Controls
             if (pt.Properties.IsRightButtonPressed)
             {
                 // Jump to start of right media
-                JumpToStartOrEnd(false/*trueLeftFalseRight*/,
+                JumpToStartOrEnd(leftTrueRightFalse: false,
                                  true/*trueStartFalseEnd*/,
                                  true/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
             }
@@ -2014,7 +2025,7 @@ namespace Surveyor.Controls
         private void RightGotoEndButton_Click(object sender, RoutedEventArgs e)
         {
             // Jump to start of right calibration zone
-            JumpToStartOrEnd(false/*trueLeftFalseRight*/,
+            JumpToStartOrEnd(leftTrueRightFalse: false,
                              false/*trueStartFalseEnd*/,
                              false/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
         }
@@ -2037,7 +2048,7 @@ namespace Surveyor.Controls
             if (pt.Properties.IsRightButtonPressed)
             {
                 // Jump to end of left media
-                JumpToStartOrEnd(false/*trueLeftFalseRight*/,
+                JumpToStartOrEnd(leftTrueRightFalse: false,
                                  false/*trueStartFalseEnd*/,
                                  true/*trueMediaStartEndFalseCalibrationZoneStartEnd*/);
             }
@@ -2128,22 +2139,22 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void LeftImage_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            CalibrationBoardTimeLineLeft.Width = LeftImage.ActualWidth;
-            if (CalibrationBoardTimeLineLeft.Visibility != Visibility.Visible)
-                CalibrationBoardTimeLineLeft.Visibility = Visibility.Visible;
+        //???private void LeftImage_SizeChanged(object sender, SizeChangedEventArgs e)
+        //{
+        //    CalibrationBoardTimeLineLeft.Width = LeftImage.ActualWidth;
+        //    if (CalibrationBoardTimeLineLeft.Visibility != Visibility.Visible)
+        //        CalibrationBoardTimeLineLeft.Visibility = Visibility.Visible;
 
-            if (ViewModeCurrent == ViewMode.SensorCoverage)
-            {
-                // Defer until after layout so SensorCoverage canvas has valid ActualWidth/ActualHeight.
-                dispatcherQueue.TryEnqueue(() =>
-                {
-                    if (ViewModeCurrent == ViewMode.SensorCoverage)
-                        RenderSensorCoverage();
-                });
-            }
-        }
+        //    if (ViewModeCurrent == ViewMode.SensorCoverage)
+        //    {
+        //        // Defer until after layout so SensorCoverage canvas has valid ActualWidth/ActualHeight.
+        //        dispatcherQueue.TryEnqueue(() =>
+        //        {
+        //            if (ViewModeCurrent == ViewMode.SensorCoverage)
+        //                RenderSensorCoverage();
+        //        });
+        //    }
+        //}
 
 
         /// <summary>
@@ -2151,24 +2162,47 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void RightImage_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            CalibrationBoardTimeLineRight.Width = RightImage.ActualWidth;
-            if (CalibrationBoardTimeLineRight.Visibility != Visibility.Visible)
-                CalibrationBoardTimeLineRight.Visibility = Visibility.Visible;
+        //???private void RightImage_SizeChanged(object sender, SizeChangedEventArgs e)
+        //{
+        //    CalibrationBoardTimeLineRight.Width = RightImage.ActualWidth;
+        //    if (CalibrationBoardTimeLineRight.Visibility != Visibility.Visible)
+        //        CalibrationBoardTimeLineRight.Visibility = Visibility.Visible;
 
+        //    if (ViewModeCurrent == ViewMode.SensorCoverage)
+        //    {
+        //        // Defer until after layout so SensorCoverage canvas has valid ActualWidth/ActualHeight.
+        //        dispatcherQueue.TryEnqueue(() =>
+        //        {
+        //            if (ViewModeCurrent == ViewMode.SensorCoverage)
+        //                RenderSensorCoverage();
+        //        });
+        //    }
+        //}
+
+
+        
+        private void OverlayContainer_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // 1) Keep the timelines sized and visible (replaces Left/RightImage_SizeChanged logic)
+            if (ReferenceEquals(sender, LeftOverlayContainer))
+            {
+                MediaTimeLineDisplayLeft.Width = LeftImage.ActualWidth;
+                if (MediaTimeLineDisplayLeft.Visibility != Visibility.Visible)
+                    MediaTimeLineDisplayLeft.Visibility = Visibility.Visible;
+            }
+            else if (ReferenceEquals(sender, RightOverlayContainer))
+            {
+                MediaTimeLineDisplayRight.Width = RightImage.ActualWidth;
+                if (MediaTimeLineDisplayRight.Visibility != Visibility.Visible)
+                    MediaTimeLineDisplayRight.Visibility = Visibility.Visible;
+            }
+
+            // 2) De-bounced re-render for sensor coverage
             if (ViewModeCurrent == ViewMode.SensorCoverage)
             {
-                // Defer until after layout so SensorCoverage canvas has valid ActualWidth/ActualHeight.
-                dispatcherQueue.TryEnqueue(() =>
-                {
-                    if (ViewModeCurrent == ViewMode.SensorCoverage)
-                        RenderSensorCoverage();
-                });
+                QueueRenderSensorCoverage();
             }
         }
-
-
 
         ///
         /// PRIVATE
@@ -2244,7 +2278,7 @@ namespace Surveyor.Controls
                 }
 
                 trueFoundFalseNotFound = leftFrameCalibrationTarget is not null;
-                CalibrationBoardTimeLineLeft.CalibrationBoardFoundAt(leftFrameIndex, trueFoundFalseNotFound);
+                MediaTimeLineDisplayLeft.CalibrationBoardFoundAt(leftFrameIndex, trueFoundFalseNotFound);
 
 
                 if (rightMat is not null && !rightMat.IsEmpty && wbRight is not null)
@@ -2255,7 +2289,7 @@ namespace Surveyor.Controls
                 }
 
                 trueFoundFalseNotFound = rightFrameCalibrationTarget is not null;
-                CalibrationBoardTimeLineRight.CalibrationBoardFoundAt(rightFrameIndex, trueFoundFalseNotFound);
+                MediaTimeLineDisplayRight.CalibrationBoardFoundAt(rightFrameIndex, trueFoundFalseNotFound);
 
             });
         }
@@ -2298,7 +2332,7 @@ namespace Surveyor.Controls
                 }
 
                 trueFoundFalseNotFound = leftFrameCalibrationTarget is not null;
-                CalibrationBoardTimeLineLeft.CalibrationBoardFoundAt(leftFrameIndex, trueFoundFalseNotFound);
+                MediaTimeLineDisplayLeft.CalibrationBoardFoundAt(leftFrameIndex, trueFoundFalseNotFound);
 
 
                 if (rightMat is not null && !rightMat.IsEmpty && wbRight is not null)
@@ -2309,7 +2343,7 @@ namespace Surveyor.Controls
                 }
 
                 trueFoundFalseNotFound = rightFrameCalibrationTarget is not null;
-                CalibrationBoardTimeLineRight.CalibrationBoardFoundAt(rightFrameIndex, trueFoundFalseNotFound);
+                MediaTimeLineDisplayRight.CalibrationBoardFoundAt(rightFrameIndex, trueFoundFalseNotFound);
 
 
                 try
@@ -2337,7 +2371,7 @@ namespace Surveyor.Controls
                     {
                         (movementFromPrevious, movementFactor, movementToNext) = GetMovementFactors(leftFrameCalibrationTarget);
 
-                        UpdateFrameMetaData(true/*trueLeftfalseRight*/,
+                        UpdateFrameMetaData(leftTrueRightFalse: true,
                                             movementFactor, movementFromPrevious, movementToNext,
                                             leftFrameCalibrationTarget.BlurFactor,
                                             leftFrameCalibrationTarget.ChArUcoCorners.Length /*Size*/,
@@ -2348,18 +2382,19 @@ namespace Surveyor.Controls
                                             0, /*leftFrameCalibrationTarget.monoFrameMaxError[0],//K1K2P1P2*/
                                             leftFrameCalibrationTarget.FrameIndex,
                                             null, /*position*/
+                                            BestFrameReason.None,
                                             correspondingCount);
                     }
                     else
                     {
-                        ClearFrameMetaData(true/*trueLeftfalseRight*/);
+                        ClearFrameMetaData(leftTrueRightFalse: true);
                     }
 
                     if (rightFrameCalibrationTarget is not null)
                     {
                         (movementFromPrevious, movementFactor, movementToNext) = GetMovementFactors(rightFrameCalibrationTarget);
 
-                        UpdateFrameMetaData(false/*trueLeftfalseRight*/,
+                        UpdateFrameMetaData(leftTrueRightFalse: false,
                                             movementFactor, movementFromPrevious, movementToNext,
                                             rightFrameCalibrationTarget.BlurFactor,
                                             rightFrameCalibrationTarget.ChArUcoCorners.Length /*Size*/,
@@ -2370,12 +2405,13 @@ namespace Surveyor.Controls
                                             0, /*rightFrameCalibrationTarget.monoFrameMaxError[0],//K1K2P1P2*/
                                             rightFrameCalibrationTarget.FrameIndex,
                                             null, /*position*/
+                                            BestFrameReason.None,
                                             correspondingCount);
 
                     }
                     else
                     {
-                        ClearFrameMetaData(false/*trueLeftfalseRight*/);
+                        ClearFrameMetaData(leftTrueRightFalse: false);
                     }
                 }
                 catch (Exception ex)
@@ -2422,12 +2458,13 @@ namespace Surveyor.Controls
         /// <param name="blurFactor"></param>
         /// <param name="featureCount"></param>
         /// <param name="score"></param>
-        private void UpdateFrameMetaData(bool trueLeftfalseRight,
+        private void UpdateFrameMetaData(bool leftTrueRightFalse,
             double movementFactor, double movementFromPrevious, double movementToNext,
             double blurFactor, int featureCount, double score,
             double yaw, double pitch,
             double frameRMS, double frameMaxError,
             int frameIndex, double? position,
+            BestFrameReason reason,
             int correspondingCount)
         {
             TextBlock MovementFactor;
@@ -2440,8 +2477,9 @@ namespace Surveyor.Controls
             TextBlock FrameMaxError;
             TextBlock FrameIndex;
             TextBlock Position;
+            TextBlock Reason;
 
-            if (trueLeftfalseRight)
+            if (leftTrueRightFalse)
             {                
                 MovementFactor = LeftMoveText;
                 BlurFactor = LeftBlurText;
@@ -2453,6 +2491,7 @@ namespace Surveyor.Controls
                 FrameMaxError = LeftFrameMaxErrorText;
                 FrameIndex = LeftFrameIndex;
                 Position = LeftPosition;
+                Reason = LeftCalibrationFrameStatus;
             }
             else
             {
@@ -2466,6 +2505,7 @@ namespace Surveyor.Controls
                 FrameMaxError = RightFrameMaxErrorText;
                 FrameIndex = RightFrameIndex;
                 Position = RightPosition;
+                Reason = RightCalibrationFrameStatus;
             }
 
             // Display movement and blur factor
@@ -2534,14 +2574,39 @@ namespace Surveyor.Controls
                 Position.Text = $"{position:F2}";
             else
                 Position.Text = string.Empty;
+
+            // Reason
+            if (reason != BestFrameReason.None)
+            {
+                StringBuilder sb = new();
+                if ((reason & BestFrameReason.SensorCoverage) != 0)
+                {
+                    sb.AppendLine("Coverage");
+                }
+                else if ((reason & BestFrameReason.PoseDiversity) != 0)
+                {
+                    sb.AppendLine("Coverage");
+                }
+                else if ((reason & BestFrameReason.ManuallyIgnored) != 0)
+                {
+                    sb.AppendLine("Ignored");
+                }
+                else if ((reason & BestFrameReason.ManuallyAdded) != 0)
+                {
+                    sb.AppendLine("Added");
+                }
+                Reason.Text = sb.ToString();
+            }
+            else
+                Reason.Text = string.Empty;
         }
 
         /// <summary>
         /// Clear the frame metadata on screen fields
         /// </summary>
-        private void ClearFrameMetaData(bool trueLeftfalseRight)
+        private void ClearFrameMetaData(bool leftTrueRightFalse)
         {
-            if (trueLeftfalseRight)
+            if (leftTrueRightFalse)
             {
                 LeftMoveText.Text = string.Empty;
                 LeftBlurText.Text = string.Empty;
@@ -2974,10 +3039,10 @@ namespace Surveyor.Controls
             if (frameData is not null)
             {
                 double frameRMS;
-                double frameMaxError
-                    ;
+                double frameMaxError;
+
                 // Check if mono or stereo head
-                if (headTrueIsStereoFalseIsMode == true)
+                if (headTrueIsStereoFalseIsMode == false)
                 {
                     // Mono
                     frameRMS = frameData.monoFrameRms[0]/*K1K2P1P2*/;
@@ -2990,22 +3055,43 @@ namespace Surveyor.Controls
                     frameMaxError = frameData.stereoFrameMaxError[0]/*K1K2P1P2*/;
                 }
 
+                // Get the BestFrameReason if any
+                // To do this search for the frameIndex in the BestFrameIndexes list and in 
+                // the ManuallyAddedIgnoreFrameIndexes list
+                BestFrameReason reason = BestFrameReason.None;
+
+                BestFrame? bestFrame = calibrationStereoFrameSet.Data.BestFrameIndexes
+                                                                .FirstOrDefault(bf => bf.FrameIndex == frameIndex);
+
+                if (bestFrame is null) 
+                {
+                    bestFrame = calibrationStereoFrameSet.Data.ManuallyAddedIgnoreFrameIndexes
+                                                                .FirstOrDefault(bf => bf.FrameIndex == frameIndex);
+                    if (bestFrame is not null)
+                        reason = bestFrame.Reason;                
+                }
+                else 
+                {
+                    reason = bestFrame.Reason;
+                }
+
                 // The frame metadata (movement, blur, yaw, pitch, features, score,
                 // frame RMS, frame max error, frame index & position)
                 UpdateFrameMetaData(leftTrueRightFalse,
-                            frameData.MovementFactor,
-                            frameData.MovementFromPrevious,
-                            frameData.MovementToNext,
-                            frameData.BlurFactor,
-                            frameData.ChArUcoCorners.Length /*Size*/,
-                            frameData.Score,
-                            frameData.YawDeg,
-                            frameData.PitchDeg,
-                            frameRMS,
-                            frameMaxError,
-                            frameIndex, /* Don't used frameData.FrameIndex */
-                            time,
-                            correpondingCount);
+                                frameData.MovementFactor,
+                                frameData.MovementFromPrevious,
+                                frameData.MovementToNext,
+                                frameData.BlurFactor,
+                                frameData.ChArUcoCorners.Length /*Size*/,
+                                frameData.Score,
+                                frameData.YawDeg,
+                                frameData.PitchDeg,
+                                frameRMS,
+                                frameMaxError,
+                                frameIndex, /* Don't used frameData.FrameIndex */
+                                time,
+                                reason,
+                                correpondingCount);
 
                 // Indicate which of the bin this frame is found in
                 if (leftTrueRightFalse)
@@ -3513,19 +3599,72 @@ namespace Surveyor.Controls
         }
 
 
+        /// <summary>
+        /// This renders the position of the best frames on the 
+        /// media timeline in the form of colored dots on the 
+        /// timeline rectangle for both the left and right (if stereo) 
+        /// media windows
+        /// </summary>
+        private void RenderMediaTimeLineDisplay()
+        {
+            if (calibrationStereoFrameSet is null)
+                return;
+
+            if (frameSize.Width <= 0 || frameSize.Height <= 0)
+                return;
+
+            RenderMediaTimeLineDisplaySide(trueLeftFalseRight: true);
+
+            if (headTrueIsStereoFalseIsMode == true)
+            {
+                RenderMediaTimeLineDisplaySide(trueLeftFalseRight: false);
+            }
+        }
+
 
         /// <summary>
-        /// Set the UI controls based on the current application mode and media state.
+        /// Make a single List<BestFrame> for the indicated side 
+        /// i.e. for the mono head this is really the same as the full BestFrameIndexes list, 
+        /// for the stereo head this is the list of BestFrame instance where frame index is
+        /// actual frame index not the virtual one
         /// </summary>
-        private void SetUIControls()
+        /// <param name="trueLeftFalseRight"></param>
+        private void RenderMediaTimeLineDisplaySide(bool trueLeftFalseRight)
         {
-            //SetUISubControls(true/*trueLeftfalseRight*/);
-            //SetUISubControls(false/*trueLeftfalseRight*/);
+            List<BestFrame> bestFramesToRender = [];
 
+            // Draw each best frame hull with low alpha (overlaps visualize coverage density)
+            foreach (BestFrame bestFrame in calibrationStereoFrameSet.Data.BestFrameIndexes)
+            {
+                int frameSetIndex = bestFrame.FrameIndex;
+
+                if (!calibrationStereoFrameSet.Data.Frames.TryGetValue(frameSetIndex, out var tuple))
+                    continue;
+
+                FrameData? fd = trueLeftFalseRight ? tuple.frameCalibrationTargetLeft : tuple.frameCalibrationTargetRight;
+                if (fd is null || fd.ChArUcoCorners is null || fd.ChArUcoCorners.Length < 3)
+                    continue;
+
+                // Make BestFrame with an absolute frame index (often the same value)
+                BestFrame bestFrameToRender = new(fd.FrameIndex, bestFrame.Reason);
+                bestFramesToRender.Add(bestFrameToRender);
+            }
+
+            // Do the actual render
+            if (trueLeftFalseRight)
+                MediaTimeLineDisplayLeft.RenderBestFramesOnTimeline(bestFramesToRender);
+            else
+                MediaTimeLineDisplayRight.RenderBestFramesOnTimeline(bestFramesToRender);
         }
 
 
 
+        /// <summary>
+        /// Change the operational mode of the Head
+        /// This means the workflow has passed particular
+        /// points
+        /// </summary>
+        /// <param name="newAppMode"></param>
         public void SetAppMode(AppMode newAppMode)
         {
             // Check is AppMode has not changed
@@ -3540,10 +3679,9 @@ namespace Surveyor.Controls
             {
                 // No view mode really but set to All Frames
                 SetViewMode(ViewMode.AllFrames);
-                //???ViewModeCurrent = ViewMode.AllFrames;
 
-                SetMediaControls(true/*trueLeftFalseRight*/, null);
-                SetMediaControls(false/*trueLeftFalseRight*/, null);
+                SetMediaControls(leftTrueRightFalse: true, null);
+                SetMediaControls(leftTrueRightFalse: false, null);
             }
             if (AppModeCurrent == AppMode.Open)
             {
@@ -3552,32 +3690,32 @@ namespace Surveyor.Controls
                 // Set view mode
                 SetViewMode(ViewMode.AllFrames);
 
-                FrameJump(true/*trueLeftFalseRight*/, 0);
-                FrameJump(false/*trueLeftFalseRight*/, 0);
+                FrameJump(leftTrueRightFalse: true, 0);
+                FrameJump(leftTrueRightFalse: false, 0);
             }
             else if (AppModeCurrent == AppMode.FindCalibrationsFrames)
             {
-                SetMediaControls(true/*trueLeftFalseRight*/, null);
-                SetMediaControls(false/*trueLeftFalseRight*/, null);
+                SetMediaControls(leftTrueRightFalse: true, null);
+                SetMediaControls(leftTrueRightFalse: false, null);
 
                 // Clear frame UI display data
-                DecorateClear(true/*trueLeftfalseRight*/);
-                DecorateClear(false/*trueLeftfalseRight*/);
+                DecorateClear(leftTrueRightFalse: true);
+                DecorateClear(leftTrueRightFalse: false);
                 
                 // Don't change the view mode
             }
             else if (AppModeCurrent == AppMode.BestFramesCalc)
             {
                 // Clear frame UI display data
-                DecorateClear(true/*trueLeftfalseRight*/);
-                DecorateClear(false/*trueLeftfalseRight*/);
+                DecorateClear(leftTrueRightFalse: true);
+                DecorateClear(leftTrueRightFalse: false);
 
                 // Change the view mode so we can see the frame count build in the UI
                 SetViewMode(ViewMode.SensorCoverage);
 
                 // Because we are process disable the media controls
-                SetMediaControls(true/*trueLeftFalseRight*/, null);
-                SetMediaControls(false/*trueLeftFalseRight*/, null);
+                SetMediaControls(leftTrueRightFalse: true, null);
+                SetMediaControls(leftTrueRightFalse: false, null);
             }
             else if (AppModeCurrent == AppMode.BestFramesView)
             {
@@ -3608,20 +3746,20 @@ namespace Surveyor.Controls
                     LeftSensorCoverage.Visibility = Visibility.Collapsed;
                     RightSensorCoverage.Visibility = Visibility.Collapsed;
 
-                    SetMediaControls(true/*trueLeftFalseRight*/, ViewMode.AllFrames);
-                    SetMediaControls(false/*trueLeftFalseRight*/, ViewMode.AllFrames);
+                    SetMediaControls(leftTrueRightFalse: true, ViewMode.AllFrames);
+                    SetMediaControls(leftTrueRightFalse: false, ViewMode.AllFrames);
                     
                     // Display last shown 'AllFrames' frame
-                    FrameJump(true/*trueLeftFalseRight*/, null);
-                    FrameJump(false/*trueLeftFalseRight*/, null);
+                    FrameJump(leftTrueRightFalse: true, null);
+                    FrameJump(leftTrueRightFalse: false, null);
                     break;
 
                 case ViewMode.BestFrames:
                     LeftSensorCoverage.Visibility = Visibility.Collapsed;
                     RightSensorCoverage.Visibility = Visibility.Collapsed;
 
-                    SetMediaControls(true/*trueLeftFalseRight*/, ViewMode.BestFrames);
-                    SetMediaControls(false/*trueLeftFalseRight*/, ViewMode.BestFrames);
+                    SetMediaControls(leftTrueRightFalse: true, ViewMode.BestFrames);
+                    SetMediaControls(leftTrueRightFalse: false, ViewMode.BestFrames);
 
                     // Display last shown 'AllFrames' frame
                     BestFrameJump(null);
@@ -3631,11 +3769,8 @@ namespace Surveyor.Controls
                     throw new Exception("Not implemented");
 
                 case ViewMode.SensorCoverage:
-                    SetMediaControls(true/*trueLeftFalseRight*/, ViewMode.SensorCoverage);
-                    SetMediaControls(false/*trueLeftFalseRight*/, ViewMode.SensorCoverage);
-
-                    //???LeftSensorCoverage.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x66, 0, 0, 0));
-                    //???RightSensorCoverage.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(0x66, 0, 0, 0));
+                    SetMediaControls(leftTrueRightFalse: true, ViewMode.SensorCoverage);
+                    SetMediaControls(leftTrueRightFalse: false, ViewMode.SensorCoverage);
 
                     LeftSensorCoverage.Visibility = Visibility.Visible;
                     RightSensorCoverage.Visibility = Visibility.Visible;
@@ -3657,7 +3792,7 @@ namespace Surveyor.Controls
 
 
             // Change the view mode
-            SetUIControls();
+            //???SetUIControls();
         }
 
 
@@ -3703,7 +3838,7 @@ namespace Surveyor.Controls
         ///     null state       (all controls disabled)
         /// </summary>
         /// <exception cref="Exception"></exception>
-        private void SetMediaControls(bool trueLeftFalseRight, ViewMode? viewMode)
+        private void SetMediaControls(bool leftTrueRightFalse, ViewMode? viewMode)
         {
             Button gotoStartButton;
             Button frameBackButton;
@@ -3712,7 +3847,7 @@ namespace Surveyor.Controls
             Button gotoEndButton;
             TextBox goToFrameTextBox;
 
-            if (trueLeftFalseRight)
+            if (leftTrueRightFalse)
             {
                 gotoStartButton = LeftGotoStartButton;
                 frameBackButton = LeftFrameBackButton;
@@ -3810,6 +3945,7 @@ namespace Surveyor.Controls
                 frameEditText.Text = string.Empty;   
             }
         }
+
 
     }
 }

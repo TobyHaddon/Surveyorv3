@@ -172,6 +172,9 @@
     <PRIResource Remove="NewFolder\**" />
   </ItemGroup>
   <ItemGroup>
+    <Content Update="Assets\CalibrationFrameStatus-Dark.png">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
     <Content Update="Assets\rptdbg.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

@@ -18,6 +18,32 @@ namespace Surveyor.Controls
 {
     public sealed partial class UniversalCalibrationHead : UserControl
     {
+        private readonly Brush hullFillColour = new SolidColorBrush(Windows.UI.Color.FromArgb(12, 0, 120, 255));
+        private readonly Brush coverageStrokeColour = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 0, 120, 255)); // Blue 
+        private readonly Brush poseStrokeColour = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 255, 165, 0)); // Orange
+        private readonly Brush borderStrokeColour = new SolidColorBrush(Colors.White);
+
+
+        /// <summary>
+        /// React to a change in the size of the sensor coverage canvas
+        /// </summary>
+        private void QueueRenderSensorCoverage()
+        {
+            if (_sensorCoverageRenderQueued)
+                return;
+
+            _sensorCoverageRenderQueued = true;
+
+            // Run once at the end of the layout pass
+            dispatcherQueue.TryEnqueue(() =>
+            {
+                _sensorCoverageRenderQueued = false;
+
+                if (ViewModeCurrent == ViewMode.SensorCoverage)
+                    RenderSensorCoverage();
+            });
+        }
+
         /// <summary>
         /// Render the best frame sensor coverage convex hulls
         /// </summary>
@@ -73,10 +99,10 @@ namespace Surveyor.Controls
                 return;
 
             // Compute how the video frame maps into the Image control (Stretch=Uniform)
-            (double scale, double offsetX, double offsetY) = ComputeUniformImageMapping(frameSize.Width,
-                                                                                        frameSize.Height,
-                                                                                        overlayContainer.ActualWidth,
-                                                                                        overlayContainer.ActualHeight);
+            (double scale, _, _) = ComputeUniformImageMapping(frameSize.Width,
+                                                              frameSize.Height,
+                                                              overlayContainer.ActualWidth,
+                                                              overlayContainer.ActualHeight);
 
             // Draw each best frame hull with low alpha (overlaps visualize coverage density)
             foreach (BestFrame bestFrame in calibrationStereoFrameSet.Data.BestFrameIndexes)
@@ -115,7 +141,7 @@ namespace Surveyor.Controls
                 }
 
                 // Base fill (keep existing)
-                Brush fillBrush = new SolidColorBrush(Windows.UI.Color.FromArgb(12, 0, 120, 255));
+                Brush fillBrush = hullFillColour;
 
                 bool isCoverage = (bestFrame.Reason & BestFrameReason.SensorCoverage) != 0;
                 bool isPose = (bestFrame.Reason & BestFrameReason.PoseDiversity) != 0;
@@ -132,13 +158,13 @@ namespace Surveyor.Controls
                         {
                             Points = pointsCoverage,
                             Fill = fillBrush,
-                            Stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 0, 120, 255)), // Blue outer
+                            Stroke = coverageStrokeColour,
                             StrokeThickness = 2
                         });
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Polyline outer coverage border before drawing pose border, {ex.Message}");
+                        Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line outer coverage border before drawing pose border, {ex.Message}");
                     }
 
                     try
@@ -147,13 +173,13 @@ namespace Surveyor.Controls
                         {
                             Points = pointsPose,
                             Fill = null,
-                            Stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(200, 255, 165, 0)), // Orange inner
+                            Stroke = poseStrokeColour,
                             StrokeThickness = 1
                         });
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Polyline outer pose border after drawing coverage border, {ex.Message}");
+                        Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line outer pose border after drawing coverage border, {ex.Message}");
                     }
                 }
                 else if (isPose)
@@ -164,13 +190,13 @@ namespace Surveyor.Controls
                         {
                             Points = points,
                             Fill = fillBrush,
-                            Stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 255, 165, 0)), // Orange
+                            Stroke = poseStrokeColour,
                             StrokeThickness = 1
                         });
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Polyline pose border, {ex.Message}");
+                        Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line pose border, {ex.Message}");
                     }
                 }
                 else
@@ -182,13 +208,13 @@ namespace Surveyor.Controls
                         {
                             Points = points,
                             Fill = fillBrush,
-                            Stroke = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 0, 120, 255)), // Blue
+                            Stroke = coverageStrokeColour,
                             StrokeThickness = 1
                         });
                     }
                     catch (Exception ex)
                     {
-                        Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Polyline coverage border, {ex.Message}");
+                        Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line coverage border, {ex.Message}");
                     }
                 }
             }
@@ -235,7 +261,10 @@ namespace Surveyor.Controls
             // Image is centered horizontally and aligned top vertically in XAML,
             // but in practice it’s inside a Grid; handle both by computing offsets.
             double offsetX = (controlWidth - displayedWidth) / 2.0;
-            double offsetY = (controlHeight - displayedHeight) / 2.0;
+
+            // Image is VerticalAlignment="Top" in XAML
+            double offsetY = 0.0;
+            //???double offsetY = (controlHeight - displayedHeight) / 2.0;
 
             return (scale, offsetX, offsetY);
         }
@@ -291,11 +320,13 @@ namespace Surveyor.Controls
         /// Draw a border on the edge of the Canvas
         /// </summary>
         /// <param name="canvas"></param>
-        private static void DrawCanvasBorder(Canvas canvas)
+        private void DrawCanvasBorder(Canvas canvas)
         {
-            // Width/Height are set by AlignCoverageCanvasToImage; ActualWidth may be 0 until after layout.
-            double w = canvas.ActualWidth > 1 ? canvas.ActualWidth : canvas.Width;
-            double h = canvas.ActualHeight > 1 ? canvas.ActualHeight : canvas.Height;
+            //??? Width/Height are set by AlignCoverageCanvasToImage; ActualWidth may be 0 until after layout.
+            //???double w = canvas.ActualWidth > 1 ? canvas.ActualWidth : canvas.Width;
+            //???double h = canvas.ActualHeight > 1 ? canvas.ActualHeight : canvas.Height;
+            double w = canvas.Width;
+            double h = canvas.Height;
 
             if (w <= 1 || h <= 1)
                 return;
@@ -307,7 +338,7 @@ namespace Surveyor.Controls
 
             var border = new Polyline
             {
-                Stroke = new SolidColorBrush(Colors.White),
+                Stroke = borderStrokeColour,
                 StrokeThickness = 1,
                 Points =
                 [
@@ -368,7 +399,7 @@ namespace Surveyor.Controls
 
             Debug.WriteLine(
                 $"[{label}] " +
-                $"Vis={canvas.Visibility}, " +
+                $"Visibility={canvas.Visibility}, " +
                 $"Opacity={canvas.Opacity:F2}, " +
                 $"IsHitTestVisible={canvas.IsHitTestVisible}, " +
                 $"W={canvas.Width}, H={canvas.Height}, " +

@@ -375,7 +375,7 @@ namespace Surveyor.User_Controls
         /// 3. Undistorted the input sample point (identity placeholder if calibration not available).
         /// 4. Solve line in undistorted space for the missing coordinate.
         /// 5. Distort the resulting undistorted point (identity placeholder if calibration not available).
-        /// 6. Collect distorted output points and render as a polyline.
+        /// 6. Collect distorted output points and render as a PolyLine.
         /// </summary>
         private void DrawEpipolarCurve(bool trueEpipolarLinePointAFalseEpipolarLinePointB,
                                        Rect clippingWindow,
@@ -388,7 +388,7 @@ namespace Surveyor.User_Controls
             Canvas targetCanvas = trueCanvasFrameFalseMagWindow ? CanvasFrame : CanvasMag;
 
             // Remove any existing curve for this target
-            RemoveCanvasShapesByTag(targetCanvas, new CanvasTag("EpipolarLine", "Curve", tagValue));
+            CanvasDrawingHelper.RemoveCanvasShapesByTag(targetCanvas, new CanvasTag("EpipolarLine", "Curve", tagValue));
 
             if (epipolarCurveDistortedPoints is not null)
             {
