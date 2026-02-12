@@ -1,3 +1,13 @@
+// Display a timeline of the media that indicates the range the calibration board
+// has detected in and can display a dot for each of the 'best frame' these are
+// frames used in the calibration calculation
+// The user control also allows for a delegate to set to be called is the user
+// double clicks on any of the frame dots
+//
+// Version 1.0
+// Version 1.1 BestFrameFoundAt and RenderBestFramesOnTimeline added
+// Version 1.2 04 Feb 2026  Tidied up
+
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -23,24 +33,43 @@ namespace Surveyor.Controls
 {
     public sealed partial class MediaTimeLineDisplayUserControl : UserControl
     {
+        private const int timeLineHeight = 9;  // Should be same as the Height of the Canvas in XAML
         private const int timeLineMargin = 2;
-        private const int timeLineHeight = 4;
+        
         private const int boardFoundAtWidth = 1;
-        private const double dotRadius = 4;
+        private const double dotRadius = timeLineHeight / 2.0;
 
-        private int startMediaFrameIndex = -1;
-        private int endMediaFrameIndex = -1;
+        // Media range
+        private int _startMediaFrameIndex = -1;
+        private int _endMediaFrameIndex = -1;
+
+        // Calibration Board observed at range
+        private int _calibrationBoardStartFrameIndex = -1;
+        private int _calibrationBoardEndFrameIndex = -1;
+
+        // Calibration Board found at
+        public sealed record BoardFoundAt(int FrameIndex, bool trueFoundFalseNotFound);
+        private List<BoardFoundAt> _CalibrationBoardFoundAt = [];
+
+        // Best frames
+        private List<BestFrame> _bestFrames = [];
 
         // Colors
+        private readonly Brush timeLimeBackgroundStrokeColour = new SolidColorBrush(Microsoft.UI.Colors.Gray);
+        private readonly Brush timeLimeBackgroundFillColour = new SolidColorBrush(Microsoft.UI.Colors.IndianRed);
         private readonly Brush timeLimeBackground = new SolidColorBrush(Microsoft.UI.Colors.IndianRed);
         private readonly Brush manuallyAddedDotColour = new SolidColorBrush(Microsoft.UI.Colors.Green);
         private readonly Brush manuallyIgnoredDotColour = new SolidColorBrush(Microsoft.UI.Colors.Red);
-        private readonly Brush coverageDotColour = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 0, 120, 255)); // Blue 
-        private readonly Brush poseDotColour = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 255, 165, 0)); // Orange
-        private readonly Brush coverageAndPoseCircleStrokeColour = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 0, 120, 255)); // Blue 
-        private readonly Brush coverageAndPoseCircelFillColour = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 255, 165, 0)); // Orange
+        private readonly Brush coverageDotColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 71, 163)); // solid darker blue  // 140, 0, 71, 163)); // darker blue  // 140, 0, 120, 255)); // Blue 
+        private readonly Brush poseDotColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 106, 0)); // darker orange  // 180, 199, 106, 0)); // darker orange  // 180, 255, 165, 0)); // Orange
+        private readonly Brush coverageAndPoseCircleStrokeColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 71, 163)); // solid darker blue  // 140, 0, 71, 163)); // darker blue  // 140, 0, 120, 255)); // Blue 
+        private readonly Brush coverageAndPoseCircelFillColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 106, 0)); // darker orange  // 180, 199, 106, 0)); // darker orange  // 180, 255, 165, 0)); // Orange
 
+        // Expose a callback for requesting a jump to a specific frame index.
+        // Return true if the request was handled.
+        public delegate bool JumpToFrameRequestedHandler(int frameIndex);
 
+        public event JumpToFrameRequestedHandler? JumpToFrameRequested;
 
         public MediaTimeLineDisplayUserControl()
         {
@@ -49,57 +78,59 @@ namespace Surveyor.Controls
 
         public void Clear()
         {
+            _startMediaFrameIndex = -1;
+            _endMediaFrameIndex = -1;
+        
+            _calibrationBoardStartFrameIndex = -1;
+            _calibrationBoardEndFrameIndex = -1;
+
+            _CalibrationBoardFoundAt = [];
+
+            _bestFrames = [];
+
             MediaTimeLineDisplay.Children.Clear();
             DrawTimeLineBackground();
         }
 
-        public void SetRange(int _startMediaFrameIndex, int _endMediaFrameIndex)
-        {
-            startMediaFrameIndex = _startMediaFrameIndex;
-            endMediaFrameIndex = _endMediaFrameIndex;
 
-            // Setup the canvas width
-            double width = (endMediaFrameIndex - startMediaFrameIndex + 1); // Assuming each frame is represented by 100 pixels
-            if (width < 0)
-            {
-                width = 0;
-            }
-            MediaTimeLineDisplay.Width = width;
-            Clear();
+        /// <summary>
+        /// Set the media frame range for the timeline. This will clear any existing timeline 
+        /// and set up a new one with the specified range. The range is defined by the start 
+        /// and end media frame indexes. The timeline will be drawn to represent this range, 
+        /// and any subsequent calls to indicate calibration board detection or best frames 
+        /// should be within this range.
+        /// The range is the first and last frame index i.e. the first is normally zero
+        /// </summary>
+        /// <param name="_startMediaFrameIndex"></param>
+        /// <param name="_endMediaFrameIndex"></param>
+        public void SetRange(int startMediaFrameIndex, int endMediaFrameIndex, bool clearData)
+        {
+            if (clearData)
+                Clear();
+
+            _startMediaFrameIndex = startMediaFrameIndex;
+            _endMediaFrameIndex = endMediaFrameIndex;            
         }
 
 
         /// <summary>
         /// This method is used to show that a calibration boards was detected 
-        /// in the indicate frame and is drawn on the timeline is in green
+        /// in the indicate frame and is drawn on the timeline is in green.
+        /// This is used in the process that is discovering the calibration board 
+        /// real-time to display progress.
+        /// This is normal before the calibration board range is fully known and 
+        /// typically overlays the CalibrationBoardRange() when it is known.
         /// </summary>
         /// <param name="frameIndex"></param>
         public void CalibrationBoardFoundAt(int frameIndex, bool trueFoundFalseNotFound)
         {
-            if (frameIndex < startMediaFrameIndex || frameIndex > endMediaFrameIndex)
+            if (frameIndex < _startMediaFrameIndex || frameIndex > _endMediaFrameIndex)
                 return; // Ignore out-of-range
 
-            double x = frameIndex - startMediaFrameIndex;
+            // Remember in-case of a resizing/redraw
+            _CalibrationBoardFoundAt.Add(new BoardFoundAt(frameIndex, trueFoundFalseNotFound));
 
-            Windows.UI.Color color;
-
-            if (trueFoundFalseNotFound)
-                color = Microsoft.UI.Colors.LightGreen;
-            else
-                color = Microsoft.UI.Colors.Black;
-
-            var line = new Microsoft.UI.Xaml.Shapes.Rectangle
-            {
-                Width = boardFoundAtWidth,
-                Height = timeLineHeight,
-                Fill = new SolidColorBrush(color), // or use Colors.Green
-            };
-
-            // Position it on the Canvas
-            Canvas.SetLeft(line, x);
-            Canvas.SetTop(line, timeLineMargin);
-
-            MediaTimeLineDisplay.Children.Add(line);
+            DrawBoardFoundAt(frameIndex, trueFoundFalseNotFound);
         }
 
 
@@ -110,45 +141,86 @@ namespace Surveyor.Controls
         /// <param name="calilbrationBoardEndframeIndex"></param>
         public void CalibrationBoardRange(int calibrationBoardStartFrameIndex, int calibrationBoardEndFrameIndex)
         {
-            MediaTimeLineDisplay.Children.Clear();
-
-            if (calibrationBoardStartFrameIndex < startMediaFrameIndex || calibrationBoardEndFrameIndex > endMediaFrameIndex)
-                return; // Ignore out-of-range
-
-            double startX = calibrationBoardStartFrameIndex - startMediaFrameIndex;
-            double endX = calibrationBoardEndFrameIndex - startMediaFrameIndex;
-            double width = endX - startX;
-            if (width < 0)
+            if (calibrationBoardStartFrameIndex < _startMediaFrameIndex || calibrationBoardEndFrameIndex > _endMediaFrameIndex)
             {
-                width = 0;
-            }         
+                return; // Ignore out-of-range
+            }
+
+            // Clear all and setup the background again
+            SetRange(_startMediaFrameIndex, _endMediaFrameIndex, clearData: false);
+
+            // Remember the range
+            _calibrationBoardStartFrameIndex = calibrationBoardStartFrameIndex;
+            _calibrationBoardEndFrameIndex = calibrationBoardEndFrameIndex;
+
+            double startX = MapFrameIndexToTimelineX(calibrationBoardStartFrameIndex);
+            double endX = MapFrameIndexToTimelineX(calibrationBoardEndFrameIndex);
+
+            double w = Math.Max(0, endX - startX);
+            if (w <= 0)
+            {
+                return;
+            }
+
+            // Inset inside the background rectangle stroke.
+            // Background stroke is 1px and drawn inside the canvas; the red fill spans y=3..5.
+            // Use an inset of 1px from the interior edges.
+            const double inset = 1.0;
+
+            double top = timeLineMargin + inset; // 2 + 1 = 3
+            double height = (timeLineHeight - (timeLineMargin * 2)) - (inset * 2); // 5 - 2 = 3
+            if (height <= 0)
+            {
+                return;
+            }
+
+            // Also inset horizontally by 1px so it stays off the left/right stroke.
+            double left = startX + inset;
+            double width = Math.Max(0, w - (inset * 2));
+            if (width <= 0)
+            {
+                return;
+            }
 
             var rectangle = new Microsoft.UI.Xaml.Shapes.Rectangle
             {
                 Width = width,
-                Height = timeLineHeight,
-                Fill = new SolidColorBrush(Microsoft.UI.Colors.LightBlue), // or use Colors.Blue
+                Height = height,
+                Fill = new SolidColorBrush(Microsoft.UI.Colors.LightGray),
             };
 
-            // Position it on the Canvas
-            Canvas.SetLeft(rectangle, startX);
-            Canvas.SetTop(rectangle, timeLineMargin);
+            Canvas.SetLeft(rectangle, left);
+            Canvas.SetTop(rectangle, top);
             MediaTimeLineDisplay.Children.Add(rectangle);
         }
 
+
         /// <summary>
         /// This method is called to indicate a best calibration board frame (it is called once
-        /// for each best frame). It typically overlays the CalibrationBoardRange()
+        /// for each best frame). It typically overlays the CalibrationBoardRange().
+        /// This method will safely remove any existing BestFrame instance for the
+        /// same FrameIndex
         /// </summary>
         /// <param name="frameIndex"></param>
-        public void BestFrameFoundAt(BestFrame bestFrame)
+        public void RenderBestFrameFoundAtOnTimeline(BestFrame bestFrame)
         {
-            if (bestFrame.FrameIndex < startMediaFrameIndex || bestFrame.FrameIndex > endMediaFrameIndex)
+            // Guard
+            if (bestFrame.FrameIndex < _startMediaFrameIndex || bestFrame.FrameIndex > _endMediaFrameIndex)
                 return; // Ignore out-of-range
 
-            double x = bestFrame.FrameIndex - startMediaFrameIndex;
+            // Remove any instance of bestFrame.FrameIndex from the
+            // media timeline display
+            RemoveBestFrameFoundAt(bestFrame.FrameIndex);
 
-            DrawBestFrameDot(x, bestFrame.FrameIndex, bestFrame.Reason);            
+            // Remove any instance of bestFrame.FrameIndex from the
+            // _bestFrame List<>
+            _bestFrames.RemoveAll(bf => bf.FrameIndex == bestFrame.FrameIndex);
+
+            // Add the new BestFrame to the master list
+            _bestFrames.Add(new (bestFrame.FrameIndex, bestFrame.Reason));
+
+            // Update the UI
+            DrawBestFrameDot(bestFrame.FrameIndex, bestFrame.Reason);            
         }
 
 
@@ -158,39 +230,68 @@ namespace Surveyor.Controls
         /// <param name="BestFrameIndexes"></param>
         public void RenderBestFramesOnTimeline(List<BestFrame> BestFrameIndexes)
         {
-            // Remove any existing indicator dots
-            RemoveAllBestFrames();
+            Debug.WriteLine($"RenderBestFramesOnTimeline");
 
-            // Iterate over BestFrameIndexes
+            // Remember the best frame in case of resize/redraw
             foreach (BestFrame bestFrame in BestFrameIndexes)
             {
-                BestFrameFoundAt(bestFrame);
+                _bestFrames.Add(new(bestFrame.FrameIndex, bestFrame.Reason));
             }
+
+            DrawBestFrames();
         }
 
+
+        /// <summary>
+        /// Remove (if found) the BestFrame instance for the
+        /// passed FrameIndex from the media timeline display
+        /// Note. Any record in the _bestFrame List<> needs to 
+        /// be removed separately
+        /// </summary>
+        /// <param name="FrameIndex"></param>
+        public void RemoveBestFrameFoundAt(int frameIndex)
+        {
+            bool exists = _bestFrames.Any(bf => bf.FrameIndex == frameIndex);
+            if (exists)
+            {
+                CanvasTag canvasTag = new("Best", $"F:{frameIndex}", "");
+
+                CanvasDrawingHelper.RemoveCanvasShapesByTag(MediaTimeLineDisplay, canvasTag);
+            }
+        }
 
         /// <summary>
         /// Remove all the best frame indicator dots from the timeline
         /// </summary>
         public void RemoveAllBestFrames()
         {
+            Debug.WriteLine($"RemoveAllBestFrames");
             CanvasDrawingHelper.RemoveCanvasShapesByTag(MediaTimeLineDisplay, "Best");
         }
+
+
+        /// <summary>
+        /// Set the tool tip help for a new empty project
+        /// </summary>
+        public void SetToolTipNewProject()
+        {
+            ToolTipService.SetToolTip(MediaTimeLineDisplay, (string)Resources["MediaTimeLineToolTipNewProject"]);
+        }
+
+
+        /// <summary>
+        /// Set the tool tip help for a project where the best frames have already been found
+        /// </summary>
+        public void SetToolTipLoadedProject()
+        {
+            ToolTipService.SetToolTip(MediaTimeLineDisplay, (string)Resources["MediaTimeLineToolTipLoadedProject"]);
+        }
+
 
 
         ///
         /// Events
         ///
-
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void Viewbox_SizeChanged(object sender, SizeChangedEventArgs e)
-        {
-
-        }
 
         /// <summary>
         /// 
@@ -204,6 +305,45 @@ namespace Surveyor.Controls
 
 
         /// <summary>
+        /// Size of the MediaTimeLineDisplay has change. We need to completely redraw
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MediaTimeLineDisplay_SizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            Debug.WriteLine($"MediaTimeLineDisplay_SizeChanged");
+            if (e.PreviousSize.Width == e.NewSize.Width)
+            {
+                return;
+            }
+
+            if (_startMediaFrameIndex < 0 || _endMediaFrameIndex < _startMediaFrameIndex)
+            {
+                return;
+            }
+
+            MediaTimeLineDisplay.Children.Clear();
+            DrawTimeLineBackground();
+
+            if (_calibrationBoardStartFrameIndex >= 0 && _calibrationBoardEndFrameIndex >= _calibrationBoardStartFrameIndex)
+            {
+                CalibrationBoardRange(_calibrationBoardStartFrameIndex, _calibrationBoardEndFrameIndex);
+            }
+
+            if (_CalibrationBoardFoundAt.Count > 0)
+            {
+                foreach (BoardFoundAt boardFoundAt in _CalibrationBoardFoundAt)
+                    DrawBoardFoundAt(boardFoundAt.FrameIndex, boardFoundAt.trueFoundFalseNotFound);
+            }
+
+            if (_bestFrames.Count > 0)
+            {
+                DrawBestFrames();
+            }
+        }
+
+
+        /// <summary>
         /// User clicked on a dot on the timeline
         /// </summary>
         /// <param name="sender"></param>
@@ -211,9 +351,6 @@ namespace Surveyor.Controls
         private DateTime lastClickTime = DateTime.MinValue;
         private void CalibrationBoardTimeLineDot_PointerPressed(object sender, PointerRoutedEventArgs e)
         {
-            // Temp
-            Debug.WriteLine($"CalibrationBoardTimeLineDot_PointerPressed button click press detected");
-
             if (sender is FrameworkElement element)
             {
                 PointerPoint? pointerPoint = e.GetCurrentPoint(element);
@@ -231,9 +368,16 @@ namespace Surveyor.Controls
                             // It's a double-click
                             // Your double-click handling logic goes here
                             // Get the tag
-                            if (canvasTag.IsTagType("Best"))
+                            if (canvasTag.IsTagType("Best") && canvasTag.ValueString is not null)
                             {
-                                Debug.WriteLine($"CalibrationBoardTimeLineDot press implement code to go to frame:{canvasTag.ValueString}");
+                                // Safely extract the frame index from the tag  format is "F:n"
+                                if (int.TryParse(canvasTag.TagSubType.AsSpan(2), out int frameIndex))
+                                {
+                                    Debug.WriteLine($"CalibrationBoardTimeLineDot press implement code to go to frame:{frameIndex}");
+
+                                    // Is setup request jump to the frame
+                                    bool handled = JumpToFrameRequested?.Invoke(frameIndex) == true;
+                                }
                             }
 
                             // Handle the event
@@ -253,27 +397,77 @@ namespace Surveyor.Controls
         }
 
 
-
         ///
         /// Private
         ///
+
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="frameIndex"></param>
-        /// <param name="reason"></param>
-        private void DrawBestFrameDot(double x, int frameIndex, BestFrameReason reason)
+        /// <param name="trueFoundFalseNotFound"></param>
+        private void DrawBoardFoundAt(int frameIndex, bool trueFoundFalseNotFound)
         {
-            Point center = new(x, 3);
+            double x = MapFrameIndexToTimelineX(frameIndex);
 
-            CanvasTag canvasTag = new("Best", "", $"F:{frameIndex}");
+            Windows.UI.Color color;
+
+            if (trueFoundFalseNotFound)
+                color = Microsoft.UI.Colors.LightGreen;
+            else
+                color = Microsoft.UI.Colors.Black;
+
+            var line = new Microsoft.UI.Xaml.Shapes.Rectangle
+            {
+                Width = boardFoundAtWidth,
+                Height = timeLineHeight - (timeLineMargin * 2),
+                Fill = new SolidColorBrush(color), // or use Colors.Green
+            };
+
+            // Position it on the Canvas
+            Canvas.SetLeft(line, x);
+            Canvas.SetTop(line, timeLineMargin);
+
+            MediaTimeLineDisplay.Children.Add(line);
+        }
 
 
+        /// <summary>
+        /// Draw the best frames dots on the timeline from the cached
+        /// best frames list
+        /// </summary>
+        private void DrawBestFrames()
+        {
+            // Remove any existing indicator dots
+            RemoveAllBestFrames();
+
+            // Iterate over BestFrameIndexes
+            foreach (BestFrame bestFrame in _bestFrames)
+            {
+                DrawBestFrameDot(bestFrame.FrameIndex, bestFrame.Reason);
+            }
+        }
+
+        /// <summary>
+        /// Draw a best frame dot on the timeline
+        /// </summary>
+        /// <param name="frameIndex"></param>
+        /// <param name="reason"></param>
+        private void DrawBestFrameDot(int frameIndex, BestFrameReason reason)
+        {
+            string toolTip;
+            double x = MapFrameIndexToTimelineX(frameIndex);
+            
+            Point center = new(x, timeLineMargin + ((timeLineHeight - (timeLineMargin * 2)) / 2.0));
+            
+            CanvasTag canvasTag = new("Best", $"F:{frameIndex}", "");
+         
             // Check for SensorCoverage and PoseDiversity bits set
             if ((reason & BestFrameReason.SensorCoverage) != 0 && 
                 (reason & BestFrameReason.PoseDiversity) != 0)
             {
+                toolTip = $"Frame added for calibration due to the calibration board position in the image and it's pose. \nThe frame index is {frameIndex}. Double click to go to this frame.";
                 CanvasDrawingHelper.DrawCircle(MediaTimeLineDisplay,
                                             center,
                                             dotRadius,
@@ -282,44 +476,55 @@ namespace Surveyor.Controls
                                             coverageAndPoseCircelFillColour,
                                             canvasTag,
                                             null/*pointerMoved*/,
-                                            CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/);
+                                            CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/,
+                                            toolTip);
             }
             else
             {
                 // Check for SensorCoverage bit set
                 if ((reason & BestFrameReason.SensorCoverage) != 0)
                 {
+                    toolTip = $"Frame added for calibration due to the calibration board position in the image. \nThe frame index is {frameIndex}. Double click to go to this frame.";
                     CanvasDrawingHelper.DrawDot(MediaTimeLineDisplay,
                                                 center, dotRadius * 2, coverageDotColour, canvasTag,
                                                 null/*pointerMoved*/,
-                                                CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/);
+                                                CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/,
+                                                toolTip);
                 }
                 // Check for PoseDiversity bit set
-                if ((reason & BestFrameReason.PoseDiversity) != 0)
+                else if ((reason & BestFrameReason.PoseDiversity) != 0)
                 {
+                    toolTip = $"Frame added for calibration due to the calibration board pose in the image. \nThe frame index is {frameIndex}. Double click to go to this frame.";
                     CanvasDrawingHelper.DrawDot(MediaTimeLineDisplay,
                                                 center, dotRadius * 2, poseDotColour, canvasTag,
                                                 null/*pointerMoved*/,
-                                                CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/);
+                                                CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/,
+                                                toolTip);
                 }
             }
+
             // Check for Ignore frame bit set
             if ((reason & BestFrameReason.ManuallyIgnored) != 0)
             {
-                CanvasDrawingHelper.DrawDot(MediaTimeLineDisplay,
-                                            center, dotRadius * 2, manuallyIgnoredDotColour, canvasTag,
-                                            null/*pointerMoved*/,
-                                            CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/);
+                toolTip = $"Frame manually ignored. \nThe frame index is {frameIndex}. Double click to go to this frame.";
+
+                CanvasDrawingHelper.DrawDiamond(MediaTimeLineDisplay,
+                                               center, dotRadius * 2, manuallyIgnoredDotColour, canvasTag,
+                                               null/*pointerMoved*/,
+                                               CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/, toolTip);
             }
             // Check for Added frame bit set
-            if ((reason & BestFrameReason.ManuallyAdded) != 0)
+            else if ((reason & BestFrameReason.ManuallyAdded) != 0)
             {
-                CanvasDrawingHelper.DrawDot(MediaTimeLineDisplay,
-                                            center, dotRadius * 2, manuallyAddedDotColour, canvasTag,
-                                            null/*pointerMoved*/,
-                                            CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/);
+                toolTip = $"Frame manually added. \nThe frame index is {frameIndex}. Double click to go to this frame.";
+
+                CanvasDrawingHelper.DrawDiamond(MediaTimeLineDisplay,
+                                                center, dotRadius * 2, manuallyAddedDotColour, canvasTag,
+                                                null/*pointerMoved*/,
+                                                CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/, toolTip);
             }
         }
+
 
         /// <summary>
         /// Draw a filled rectangle 
@@ -327,33 +532,78 @@ namespace Surveyor.Controls
         /// <param name="canvas"></param>
         private void DrawTimeLineBackground()
         {
-            double w = MediaTimeLineDisplay.Width;
-            double h = MediaTimeLineDisplay.Height;
+            double w = double.IsNaN(MediaTimeLineDisplay.Width) ? MediaTimeLineDisplay.ActualWidth : MediaTimeLineDisplay.Width;
+            double h = double.IsNaN(MediaTimeLineDisplay.Height) ? MediaTimeLineDisplay.ActualHeight : MediaTimeLineDisplay.Height;
 
             if (w <= 1 || h <= 1)
-                return;
-
-            double x0 = 0;
-            double y0 = timeLineMargin;
-            double x1 = w - 1;
-            double y1 = h - timeLineMargin - 1;
-
-            var border = new Polyline
             {
-                Stroke = timeLimeBackground,
-                Fill = timeLimeBackground,
-                StrokeThickness = 1,
-                Points =
-                [
-                    new Windows.Foundation.Point(x0, y0),
-                    new Windows.Foundation.Point(x1, y0),
-                    new Windows.Foundation.Point(x1, y1),
-                    new Windows.Foundation.Point(x0, y1),
-                    new Windows.Foundation.Point(x0, y0),
-                ]
+                return;
+            }
+
+            // Draw a 1px stroke fully inside the canvas using half-pixel alignment.
+            const double strokeThickness = 1.0;
+
+            double left = 0.5;
+            double top = timeLineMargin + 0.5;
+            double width = Math.Max(0, w - strokeThickness);
+            double height = Math.Max(0, h - (2 * timeLineMargin) - strokeThickness);
+
+            var rect = new Microsoft.UI.Xaml.Shapes.Rectangle
+            {
+                Width = width,
+                Height = height,
+                Stroke = timeLimeBackgroundStrokeColour,
+                Fill = timeLimeBackgroundFillColour,
+                StrokeThickness = strokeThickness,
             };
 
-            MediaTimeLineDisplay.Children.Add(border);
+            Canvas.SetLeft(rect, left);
+            Canvas.SetTop(rect, top);
+
+            MediaTimeLineDisplay.Children.Add(rect);
+        }
+
+
+        /// <summary>
+        /// Maps a media frame index to its corresponding X coordinate on the timeline display.
+        /// </summary>
+        /// <remarks>The returned X coordinate corresponds to the left-most pixel of the timeline's
+        /// background fill area. If the timeline width is less than or equal to 2, or if the media frame range is
+        /// invalid, the method returns 0.0.</remarks>
+        /// <param name="frameIndex">The index of the media frame to map. Values outside the valid media frame range are clamped to the nearest
+        /// boundary.</param>
+        /// <returns>The X coordinate, in device-independent pixels, representing the position of the specified frame on the
+        /// timeline. Returns 0.0 if the timeline or frame range is invalid.</returns>
+        private double MapFrameIndexToTimelineX(int frameIndex)
+        {
+            if (_startMediaFrameIndex < 0 || _endMediaFrameIndex < _startMediaFrameIndex)
+            {
+                return 0.0;
+            }
+
+            // Clamp to the known media range.
+            int clampedFrameIndex = Math.Clamp(frameIndex, _startMediaFrameIndex, _endMediaFrameIndex);
+
+            // X coordinate of the red background fill's left-most pixel.
+            // Background rectangle is positioned at x=0.5 with width=(w - 1) and StrokeThickness=1,
+            // so the fill starts at x=1 and ends at x=(w - 2) inclusive.
+            double w = double.IsNaN(MediaTimeLineDisplay.Width) ? MediaTimeLineDisplay.ActualWidth : MediaTimeLineDisplay.Width;
+            if (w <= 2)
+            {
+                return 0.0;
+            }
+
+            double xLeftPixel = 1.0;
+            double xRightPixel = w - 2.0;
+
+            int range = _endMediaFrameIndex - _startMediaFrameIndex;
+            if (range == 0)
+            {
+                return xLeftPixel;
+            }
+
+            double t = (double)(clampedFrameIndex - _startMediaFrameIndex) / range;
+            return xLeftPixel + (t * (xRightPixel - xLeftPixel));
         }
     }
 }

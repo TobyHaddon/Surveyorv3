@@ -36,19 +36,6 @@ namespace Surveyor
     }
 
 
-    [Flags]
-    public enum BestFrameReason
-    {
-        None = 0,
-        SensorCoverage = 1 << 0,
-        PoseDiversity = 1 << 1,
-        ManuallyIgnored = 1 << 2,
-        ManuallyAdded = 1 << 3,
-    }
-
-    public sealed record BestFrame(int FrameIndex, BestFrameReason Reason);
-
-
     /// <summary>
     /// A CalibrationStereoFrameSet instance holds all the extracted calibration frames metadata (FrameCalibrationTarget)
     /// in a sorted directory called 'Frames'.
@@ -85,8 +72,8 @@ namespace Surveyor
             [JsonProperty(nameof(BestFrameIndexes))]
             public List<BestFrame> BestFrameIndexes = [];
 
-            [JsonProperty(nameof(ManuallyAddedIgnoreFrameIndexes))]
-            public List<BestFrame> ManuallyAddedIgnoreFrameIndexes = [];
+            //???[JsonProperty(nameof(ManuallyAddedIgnoreFrameIndexes))]
+            //???public List<BestFrame> ManuallyAddedIgnoreFrameIndexes = [];
         }
 
         public DataClass Data = new();
@@ -169,21 +156,11 @@ namespace Surveyor
             if (clearRequest == ClearRequest.All || clearRequest == ClearRequest.FrameSets)
             {
                 Data.Frames = [];
-
-                //???Data.AllFramesSensorBinTotalsLeft = [];
-                //???Data.AllFramesSensorBinTotalsRight = [];
-                //???Data.AllFramesPoseBinTotalsLeft = [];
-                //???Data.AllFramesPoseBinTotalsRight = [];
             }
 
             if (clearRequest == ClearRequest.All || clearRequest == ClearRequest.BestFrames)
             {
                 Data.BestFrameIndexes = [];
-
-                //???Data.BestFramesSensorBinTotalsLeft = [];
-                //???Data.BestFramesSensorBinTotalsRight = [];
-                //???Data.BestFramesPoseBinTotalsLeft = [];
-                //???Data.BestFramesPoseBinTotalsRight = [];
             }
         }
 
@@ -1170,7 +1147,7 @@ namespace Surveyor
                                            rangeStart, rangeEnd,
                                            startStep,
                                            calibrationTargetSearch,
-                                           false/*trueRecursive*/,
+                                           trueRecursive: false,
                                            null,/*Used if recursive is true*/
                                            callbackDisplay,
                                            null,
@@ -1215,8 +1192,8 @@ namespace Surveyor
                             await FindCalibrationAsync(trueStereoFalseSoloLeft,
                                                         (int)beforeFirstKey + 1, (int)firstTrueKey - 1, frameStep2,
                                                         calibrationTargetSearch,
-                                                        true/*trueRecursive*/,
-                                                        true/*trueWorkOnStartFalseWorkOnEnd*/,
+                                                        trueRecursive: true,
+                                                        trueWorkOnStartFalseWorkOnEnd: true,
                                                         callbackDisplay,
                                                         null,
                                                         cancellationToken);
@@ -1241,8 +1218,8 @@ namespace Surveyor
                             await FindCalibrationAsync(trueStereoFalseSoloLeft,
                                                         newStartFrame, newEndFrame, frameStep2,
                                                         calibrationTargetSearch,
-                                                        true/*trueRecursive*/,
-                                                        false/*trueWorkOnStartFalseWorkOnEnd*/,
+                                                        trueRecursive: true,
+                                                        trueWorkOnStartFalseWorkOnEnd: false,
                                                         callbackDisplay,
                                                         null,
                                                         cancellationToken);
@@ -1339,11 +1316,11 @@ namespace Surveyor
                 // If step size is one then use FrameForward instead of FrameJump (quicker)
                 if (frameStep != 1 || frameIndex == startFrame)
                 {
-                    matLeft = FrameJump(true/*leftTrueRightFalse*/, leftFrameIndex);
+                    matLeft = FrameJump(trueLeftFalseRight: true, leftFrameIndex);
                 }
                 else
                 {
-                    matLeft = FrameForward(true/*leftTrueRightFalse*/);
+                    matLeft = FrameForward(trueLeftFalseRight: true);
                 }
 
 
@@ -1351,11 +1328,11 @@ namespace Surveyor
                 {
                     if (frameStep != 1 || frameIndex == startFrame)
                     {
-                        matRight = FrameJump(false/*leftTrueRightFalse*/, rightFrameIndex);
+                        matRight = FrameJump(trueLeftFalseRight: false, rightFrameIndex);
                     }
                     else
                     {
-                        matRight = FrameForward(false/*leftTrueRightFalse*/);
+                        matRight = FrameForward(trueLeftFalseRight: false);
                     }
                 }
 
@@ -1365,19 +1342,19 @@ namespace Surveyor
 
                 if (matLeft is not null && !matLeft.IsEmpty)
                 {
-                    targetLeft = DetectAndCreateFrameCalibrationTarget(true/*leftTrueRightFalse*/,
+                    targetLeft = DetectAndCreateFrameCalibrationTarget(trueLeftFalseRight: true,
                                                                        leftFrameIndex, matLeft);
                     if (targetLeft is not null)
-                        DrawMarkersToMat(targetLeft, matLeft, true/*trueMonoHeadfalseStereoHead*/);
+                        DrawMarkersToMat(targetLeft, matLeft, headTrueIsStereoFalseIsMode: true);
                 }
 
                 if (trueStereoFalseMonoLeft && matRight is not null && !matRight.IsEmpty)
                 {
-                    targetRight = DetectAndCreateFrameCalibrationTarget(false/*leftTrueRightFalse*/,
+                    targetRight = DetectAndCreateFrameCalibrationTarget(trueLeftFalseRight: false,
                                                                        rightFrameIndex, matRight);
 
                     if (targetRight is not null)
-                        DrawMarkersToMat(targetRight, matRight, true/*trueMonoHeadfalseStereoHead*/);
+                        DrawMarkersToMat(targetRight, matRight, headTrueIsStereoFalseIsMode: true);
                 }
 
                 // Process result
@@ -1463,7 +1440,7 @@ namespace Surveyor
                                                 newEndFrame, 
                                                 frameStep2,
                                                 calibrationTargetSearch,
-                                                true/*trueRecursive*/,
+                                                trueRecursive: true,
                                                 trueWorkOnStartFalseWorkOnEnd,
                                                 callback, userData, 
                                                 cancellationToken);
@@ -1611,11 +1588,11 @@ namespace Surveyor
                 // If step size is one then use FrameForward instead of FrameJump (quicker)
                 if (frameIndex == startCalibrationFrameIndex)
                 {
-                    matLeft = FrameJump(true/*leftTrueRightFalse*/, leftFrameIndex);
+                    matLeft = FrameJump(trueLeftFalseRight: true, leftFrameIndex);
                 }
                 else
                 {
-                    matLeft = FrameForward(true/*leftTrueRightFalse*/);
+                    matLeft = FrameForward(trueLeftFalseRight: true);
                 }
 
 
@@ -1623,11 +1600,11 @@ namespace Surveyor
                 {
                     if (frameIndex == startCalibrationFrameIndex)
                     {
-                        matRight = FrameJump(false/*leftTrueRightFalse*/, rightFrameIndex);
+                        matRight = FrameJump(trueLeftFalseRight: false, rightFrameIndex);
                     }
                     else
                     {
-                        matRight = FrameForward(false/*leftTrueRightFalse*/);
+                        matRight = FrameForward(trueLeftFalseRight: false);
                     }
                 }
 
@@ -1637,18 +1614,18 @@ namespace Surveyor
 
                 if (matLeft is not null && !matLeft.IsEmpty)
                 {
-                    targetLeft = DetectAndCreateFrameCalibrationTarget(true/*leftTrueRightFalse*/, leftFrameIndex, matLeft);
+                    targetLeft = DetectAndCreateFrameCalibrationTarget(trueLeftFalseRight: true, leftFrameIndex, matLeft);
 
                     if (targetLeft is not null)
-                        DrawMarkersToMat(targetLeft, matLeft, true/*trueMonoHeadfalseStereoHead*/);
+                        DrawMarkersToMat(targetLeft, matLeft, headTrueIsStereoFalseIsMode: true);
                 }
 
                 if (trueStereoFalseSoloLeft && matRight is not null && !matRight.IsEmpty)
                 {
-                    targetRight = DetectAndCreateFrameCalibrationTarget(false/*leftTrueRightFalse*/, rightFrameIndex, matRight);
+                    targetRight = DetectAndCreateFrameCalibrationTarget(trueLeftFalseRight: false, rightFrameIndex, matRight);
                     if (targetRight is not null)
                     {
-                        DrawMarkersToMat(targetRight, matRight, true/*trueMonoHeadfalseStereoHead*/);
+                        DrawMarkersToMat(targetRight, matRight, headTrueIsStereoFalseIsMode: true);
                     }
                 }
 
@@ -1829,14 +1806,14 @@ namespace Surveyor
         /// <summary>
         /// Read the next frame
         /// </summary>
-        /// <param name="leftTrueRightFalse"></param>
-        private Mat? FrameForward(bool leftTrueRightFalse)
+        /// <param name="trueLeftFalseRight"></param>
+        private Mat? FrameForward(bool trueLeftFalseRight)
         {
             Mat? mat = null;
             VideoCapture? cap;
 
 
-            if (leftTrueRightFalse)
+            if (trueLeftFalseRight)
             {
                 cap = leftCapture;
             }
@@ -1859,15 +1836,15 @@ namespace Surveyor
         /// <summary>
         /// Read a particular frame
         /// </summary>
-        /// <param name="leftTrueRightFalse"></param>
+        /// <param name="trueLeftFalseRight"></param>
         /// <param name="targetIndex"></param>
-        private Mat? FrameJump(bool leftTrueRightFalse, int frameIndex)
+        private Mat? FrameJump(bool trueLeftFalseRight, int frameIndex)
         {
             Mat? mat = null;
             VideoCapture? cap;
             int totalFrames;
 
-            if (leftTrueRightFalse)
+            if (trueLeftFalseRight)
             {
                 cap = leftCapture;
                 totalFrames = totalFramesLeft;
@@ -1896,11 +1873,11 @@ namespace Surveyor
         /// <summary>
         /// Detect the ChArUco calibration board in the passed image
         /// </summary>
-        /// <param name="trueLeftfalseRight"></param>
+        /// <param name="trueLeftFalseRight"></param>
         /// <param name="frameIndex"></param>
         /// <param name="frame"></param>
         /// <returns></returns>
-        private FrameData? DetectAndCreateFrameCalibrationTarget(bool trueLeftfalseRight, int frameIndex, Mat frame)
+        private FrameData? DetectAndCreateFrameCalibrationTarget(bool trueLeftFalseRight, int frameIndex, Mat frame)
         {
             FrameData? ret = null;
 
@@ -2099,8 +2076,8 @@ namespace Surveyor
 
             if (chArUcoBoardDefinition is not null)
             {
-                monoCalibLeft = MonoCalibrateUsingBestFrames(true/*trueStereoFalseMonoLeft*/, 
-                                                             true/*trueLeftFalseRight*/, 
+                monoCalibLeft = MonoCalibrateUsingBestFrames(trueStereoFalseMono: true,
+                                                             trueLeftFalseRight: true, 
                                                              frameSize, 
                                                              monoCornersMinThreshold, 
                                                              calibrationParameters);
@@ -2110,8 +2087,8 @@ namespace Surveyor
                     // Check if right side is active
                     if (rightCapture is not null)
                     {
-                        monoCalibRight = MonoCalibrateUsingBestFrames(true/*trueStereoFalseMonoLeft*/,
-                                                                      false/*trueLeftFalseRight*/, 
+                        monoCalibRight = MonoCalibrateUsingBestFrames(trueStereoFalseMono: true,
+                                                                      trueLeftFalseRight: false, 
                                                                       frameSize, 
                                                                       monoCornersMinThreshold, 
                                                                       calibrationParameters);
@@ -2158,7 +2135,6 @@ namespace Surveyor
         // the calibration’s re-projection RMS (as returned by CalibrateCameraCharuco), and
         // the calculated ProjectionRMS and MaxError.This gives the calling code access to
         // both the camera parameters and the error metrics for further analysis or display.
-
         public MonoCalibrationCameraData? MonoCalibrateUsingBestFrames(
                                                     bool trueStereoFalseMono,
                                                     bool trueLeftFalseRight,
@@ -2209,7 +2185,14 @@ namespace Surveyor
                 {
                     int frameIndex = bestFrame.FrameIndex;
 
-                    
+                    // Check for the frame ignore attribute
+                    if (bestFrame is not null &&
+                        (bestFrame.Reason & BestFrameReason.ManuallyIgnored) != 0)
+                    {
+                        Debug.WriteLine($"{calibrationParameters} {side} Pass:{pass} Skipping frame set index {frameIndex}");
+                        continue;
+                    }
+
                     if (!Data.Frames.TryGetValue(frameIndex, out var framePair))
                         continue;
 
@@ -3055,11 +3038,23 @@ namespace Surveyor
                         frameCalibrationData.PoseBinX = -1;
                         frameCalibrationData.PoseBinY = -1;
                     }
-
                 }
             }
         }
 
+
+        /// <summary>
+        /// Remove frame that are too close to each other
+        /// </summary>
+        /// <param name=""></param>
+        /// <returns></returns>
+        public int CullNearbyFrames(int minFrameGap)
+        {
+            int removed = 0;
+
+
+            return removed;
+        }
 
         /// <summary>
         /// Increments the total count for the pose bin corresponding to the specified frame data within the provided

@@ -118,7 +118,7 @@ namespace Surveyor.User_Controls
             // Check if the angle is 0 - 180
             bool TrueIfTextBestAboveFalseIfBelow = (angleRadians >= 0) && (angleRadians <= Math.PI);
 
-            // Caculate the offset for the dimension line either above or below
+            // Calculate the offset for the dimension line either above or below
             double offset = (20 * canvasScaleFactor) * (TrueIfTextBestAboveFalseIfBelow ? -1 : 1);
 
             // Parallel line 1
@@ -184,7 +184,7 @@ namespace Surveyor.User_Controls
             // Draw species text
             string speciesText = MakeSpeciesText(speciesInfo);
 
-            // Caculate the offset for the dimension line either above or below
+            // Calculate the offset for the dimension line either above or below
             double offset = (5 * canvasScaleFactor);
 
 
@@ -493,7 +493,7 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// Check all the Event shapes (lines/TextBlock) drawn on the CanvasFrame and 
-        /// unhighlight any that are highlighted
+        /// un-highlight any that are highlighted
         /// </summary>
         internal void RemoveAnyLineHightLights()
         {
@@ -569,7 +569,7 @@ namespace Surveyor.User_Controls
                     else if (canvasTag.IsTagType("Event", "Details"))
                         hoveringOverDetails = true;
 
-                    // Hightlight the shape
+                    // Highlight the shape
                     if (sender is Line line)
                     {
                         line.Stroke = eventDimensionHighLightLineColor;

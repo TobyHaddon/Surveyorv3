@@ -4,6 +4,7 @@
 //
 // Version 1.0  03 Mar 2025
 // Version 1.1  02 Feb 2026  Canvas shape removal moved from MagnifyAndMarkerDisplay class
+// Version 1.2  04 Feb 2026  Added Tool-tips parameters and added DrawDiamond function
 
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
@@ -70,7 +71,7 @@ namespace Surveyor.Helper
         /// <param name="brush"></param>
         /// <param name="canvasTag"></param>
         /// <param name="canvas"></param>
-        public static void DrawDot(Canvas canvas, Point center, double diameter, Brush brush, CanvasTag canvasTag, PointerEventHandler? pointerMoved, PointerEventHandler? pointerPressed)
+        public static void DrawDot(Canvas canvas, Point center, double diameter, Brush brush, CanvasTag canvasTag, PointerEventHandler? pointerMoved, PointerEventHandler? pointerPressed, string? toolTip = null)
         {
             try
             { 
@@ -84,6 +85,16 @@ namespace Surveyor.Helper
                     StrokeThickness = 1, // Set the thickness of the outline
                     Tag = canvasTag
                 };
+
+                // Add tool tip 
+                if (toolTip is not null)
+                {
+                    ToolTip tt = new()
+                    {
+                        Content = toolTip
+                    };
+                    ToolTipService.SetToolTip(ellipse, tt);
+                }
 
                 // Set event handlers if necessary
                 if (pointerMoved is not null)
@@ -115,7 +126,8 @@ namespace Surveyor.Helper
                                       Brush? fillBrush,
                                       CanvasTag canvasTag,
                                       PointerEventHandler? pointerMoved,
-                                      PointerEventHandler? pointerPressed)
+                                      PointerEventHandler? pointerPressed,
+                                      string? toolTip = null)
         {
             try
             {
@@ -130,6 +142,17 @@ namespace Surveyor.Helper
                     Tag = canvasTag
                 };
 
+                // Add tool tip 
+                if (toolTip is not null)
+                {
+                    ToolTip tt = new()
+                    {
+                        Content = toolTip
+                    };
+                    ToolTipService.SetToolTip(ellipse, tt);
+                }
+
+                // Set event handlers if necessary
                 if (pointerMoved is not null)
                     ellipse.PointerMoved += pointerMoved;
                 if (pointerPressed is not null)
@@ -307,6 +330,67 @@ namespace Surveyor.Helper
                     if (canvasTag.IsTag(canvasTagRemove))
                         canvas.Children.RemoveAt(i);
                 }
+            }
+        }
+
+
+        /// <summary>
+        /// Draw a diamond shape on the canvas
+        /// </summary>
+        /// <param name="center"></param>
+        /// <param name="diameter"></param>
+        /// <param name="brush"></param>
+        /// <param name="canvasTag"></param>
+        /// <param name="pointerMoved"></param>
+        /// <param name="pointerPressed"></param>
+        /// <param name="toolTip"></param>
+        public static void DrawDiamond(Canvas canvas, Point center, double diameter, Brush brush, CanvasTag canvasTag, PointerEventHandler? pointerMoved, PointerEventHandler? pointerPressed, string? toolTip = null)
+        {
+            try
+            {
+                double half = diameter / 2.0;
+
+                Polygon diamond = new()
+                {
+                    Points =
+                    [
+                        new Point(center.X, center.Y - half), // Top
+                        new Point(center.X + half, center.Y), // Right
+                        new Point(center.X, center.Y + half), // Bottom
+                        new Point(center.X - half, center.Y), // Left
+                    ],
+                    Fill = brush,
+                    Stroke = brush,
+                    StrokeThickness = 1,
+                    Tag = canvasTag,
+                };
+
+                // Add tool tip
+                if (toolTip is not null)
+                {
+                    ToolTip tt = new()
+                    {
+                        Content = toolTip
+                    };
+                    ToolTipService.SetToolTip(diamond, tt);
+                }
+
+                // Set event handlers if necessary
+                if (pointerMoved is not null)
+                {
+                    diamond.PointerMoved += pointerMoved;
+                }
+
+                if (pointerPressed is not null)
+                {
+                    diamond.PointerPressed += pointerPressed;
+                }
+
+                canvas.Children.Add(diamond);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"CanvasDrawingHelper.DrawDiamond: Exception raised, center ({center.X},{center.Y}), diameter={diameter}, {canvasTag.TagType}/{canvasTag.TagSubType}, {ex.Message}");
             }
         }
     }

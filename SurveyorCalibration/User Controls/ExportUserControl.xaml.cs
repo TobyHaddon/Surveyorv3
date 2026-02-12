@@ -1067,10 +1067,10 @@ namespace Surveyor.User_Controls
                     calibParams = calibProject.ReturnBestStereoCalibrationCameraData();
                     break;
                 case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-                    calibParams = calibProject.ReturnBestMonoCalibrationCameraData(null/*best considering left and right*/);
+                    calibParams = calibProject.ReturnBestMonoCalibrationCameraData(trueLeftRightFalseNullBoth: null/*best considering left and right*/);
                     break;
                 case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-                    calibParams = calibProject.ReturnBestMonoCalibrationCameraData(true/*trueLeftRightFalse*/);
+                    calibParams = calibProject.ReturnBestMonoCalibrationCameraData(trueLeftRightFalseNullBoth: true);
                     break;
             }
 

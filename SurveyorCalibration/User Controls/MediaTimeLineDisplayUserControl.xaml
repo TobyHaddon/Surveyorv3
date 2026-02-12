@@ -8,13 +8,21 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
+    <UserControl.Resources>
+        <x:String x:Key="MediaTimeLineToolTipNewProject">
+            Red indicates outside of the zone where a calibration board has been detected. Green means a board has been detected. Black means we are inside the board detection zone but no board detected at this particular point (i.e. camera pointing elsewhere)
+        </x:String>
+
+        <x:String x:Key="MediaTimeLineToolTipLoadedProject">
+            Red indicates outside of the calibration board zone. Blue dot means a frame was added for calibration based on the board's position within the frame (coverage). Orange dot means the frame added based on the pose. Blue/orange is both coverage and pose. Red diamond means the frame will be excluded from calibration calculation. Green diamond means the frame is always included in the calibration calculation 
+        </x:String>
+    </UserControl.Resources>
+
     <Grid>
-        <Viewbox Stretch="Fill" StretchDirection="DownOnly" Height="5" SizeChanged="Viewbox_SizeChanged">
-            <Border BorderThickness="2" BorderBrush="Gray">
-                <Canvas x:Name="MediaTimeLineDisplay" Width="100" Height="8" Background="IndianRed"
-                        ToolTipService.ToolTip="Red indicates outside of the zone where a calibration board has been detected. Green means a board has been detected. Black means we are inside the board detection zone but no board detected at this particular point (i.e. camera pointing elsewhere)"
-                        PointerPressed="CalibrationBoardTimeLine_PointerPressed"/>
-            </Border>
-        </Viewbox>
+        <Canvas x:Name="MediaTimeLineDisplay" Height="9" 
+                    HorizontalAlignment="Stretch"
+                    ToolTipService.ToolTip="{StaticResource MediaTimeLineToolTipNewProject}"
+                    SizeChanged="MediaTimeLineDisplay_SizeChanged"
+                    PointerPressed="CalibrationBoardTimeLine_PointerPressed"/>
     </Grid>
 </UserControl>

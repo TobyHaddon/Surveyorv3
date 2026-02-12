@@ -5,6 +5,7 @@ using Newtonsoft.Json.Converters;
 using Surveyor.User_Controls;
 using SurveyorCalibrationData;
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
@@ -25,6 +26,19 @@ namespace Surveyor
         MonoSingleOnlyMediaSet,  // A single mono file only
         None
     };
+
+    [Flags]
+    public enum BestFrameReason
+    {
+        None = 0,
+        SensorCoverage = 1 << 0,
+        PoseDiversity = 1 << 1,
+        ManuallyIgnored = 1 << 2,
+        ManuallyAdded = 1 << 3,
+    }
+
+    public sealed record BestFrame(int FrameIndex, BestFrameReason Reason);
+
 
     public partial class CalibProject : INotifyPropertyChanged
     {
@@ -185,12 +199,15 @@ namespace Surveyor
                     _rightCameraID = string.Empty;
                     _frameWidth = 0;
                     _frameHeight = 0;
+                    _leftMonoBestFrames = new ListTrackDirty<BestFrame>(() => MarkDirtyAndRaise(nameof(LeftMonoBestFrames)));
+                    _rightMonoBestFrames = new ListTrackDirty<BestFrame>(() => MarkDirtyAndRaise(nameof(RightMonoBestFrames)));
+                    _stereoBestFrames = new ListTrackDirty<BestFrame>(() => MarkDirtyAndRaise(nameof(StereoBestFrames)));
 
                     _isDirty = false;
                 }
 
                 // Media class version
-                public float Version { get; set; } = 1.0f;
+                public float Version { get; set; } = 2.0f;
 
                 // Values
                 private StereoMonoMediaSetMode _stereoMonoMediaSetMode = StereoMonoMediaSetMode.None;
@@ -201,6 +218,9 @@ namespace Surveyor
                 private string _rightStereoMP4FileName = string.Empty;
                 private int _frameWidth = 0;
                 private int _frameHeight = 0;
+                private ListTrackDirty<BestFrame> _leftMonoBestFrames = new(() => { });
+                private ListTrackDirty<BestFrame> _rightMonoBestFrames = new(() => { });
+                private ListTrackDirty<BestFrame> _stereoBestFrames = new(() => { });
 
                 // Setters and getters
                 // Calibration mode mono+stereo, mono only, stereo only
@@ -354,6 +374,48 @@ namespace Surveyor
                     }
                 }
 
+                public List<BestFrame> LeftMonoBestFrames
+                {
+                    get => _leftMonoBestFrames;
+                    set
+                    {
+                        if (!ReferenceEquals(_leftMonoBestFrames, value))
+                        {
+                            _leftMonoBestFrames = Wrap(value, nameof(LeftMonoBestFrames));
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public List<BestFrame> RightMonoBestFrames
+                {
+                    get => _rightMonoBestFrames;
+                    set
+                    {
+                        if (!ReferenceEquals(_rightMonoBestFrames, value))
+                        {
+                            _rightMonoBestFrames = Wrap(value, nameof(RightMonoBestFrames));
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public List<BestFrame> StereoBestFrames
+                {
+                    get => _stereoBestFrames;
+                    set
+                    {
+                        if (!ReferenceEquals(_stereoBestFrames, value))
+                        {
+                            _stereoBestFrames = Wrap(value, nameof(StereoBestFrames));
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
 
                 // Helpers
                 [JsonIgnore]
@@ -375,6 +437,58 @@ namespace Surveyor
                 public string RightStereoMP4Path
                 {
                     get => Path.Combine(MediaPath, RightStereoMP4FileName);
+                }
+
+                private ListTrackDirty<BestFrame> Wrap(List<BestFrame>? value, string propertyName)
+                {
+                    var list = new ListTrackDirty<BestFrame>(() => MarkDirtyAndRaise(propertyName));
+                    if (value is not null && value.Count > 0)
+                        list.AddRange(value); // will trigger dirty; we immediately neutralize it below
+
+                    // When setting from deserialization / assignment, you usually don't want this to mark dirty.
+                    // So reset IsDirty after populating.
+                    _isDirty = false;
+                    return list;
+                }
+
+                private void MarkDirtyAndRaise(string propertyName)
+                {
+                    IsDirty = true;
+                    OnPropertyChanged(propertyName);
+                }
+
+                // Derived list<> to enable a dirty flag to be set
+                private sealed class ListTrackDirty<T>(Action changed) : List<T>
+                {
+                    private readonly Action _changed = changed ?? throw new ArgumentNullException(nameof(changed));
+
+                    public new void Add(T item)
+                    {
+                        base.Add(item);
+                        _changed();
+                    }
+
+                    public new bool Remove(T item)
+                    {
+                        bool removed = base.Remove(item);
+                        if (removed)
+                            _changed();
+                        return removed;
+                    }
+
+                    public new void RemoveAt(int index)
+                    {
+                        base.RemoveAt(index);
+                        _changed();
+                    }
+
+                    public new int RemoveAll(Predicate<T> match)
+                    {
+                        int removed = base.RemoveAll(match);
+                        if (removed > 0)
+                            _changed();
+                        return removed;
+                    }
                 }
 
 

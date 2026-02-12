@@ -328,14 +328,14 @@
             <!-- Left Mono Head -->
             <controls:UniversalCalibrationHead x:Name="LeftMonoCalibrationHead" 
                                                           HeadTitle="Left Mono Calibration Video"
-                                                          Head="Mono" 
+                                                          Head="MonoLeft" 
                                                           Grid.Row="0" 
                                                           Grid.Column="0" 
-                                                          Margin="2,5,2,5"/>
+                                                          Margin="2,3,2,3"/>
             
             <!-- Mono Left/Right Vertical splitter -->
             <toolkit:GridSplitter x:Name="LeftRightMonoSplitter" Grid.Column="1"
-                          Width="8"
+                          Width="6"
                           HorizontalAlignment="Center"
                           VerticalAlignment="Stretch"
                           Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
@@ -345,10 +345,10 @@
             <!-- Right Mono Head -->
             <controls:UniversalCalibrationHead x:Name="RightMonoCalibrationHead" 
                                                           HeadTitle="Right Mono Calibration Video"
-                                                          Head="Mono" 
+                                                          Head="MonoRight" 
                                                           Grid.Row="0" 
                                                           Grid.Column="2"
-                                                          Margin="2,5,2,5"/>
+                                                          Margin="2,3,2,3"/>
 
 
         
@@ -356,7 +356,7 @@
 
         <!-- Horizontal sizer -->        
         <toolkit:GridSplitter x:Name="MonoStereoSplitter" Grid.Row="3"
-                          Height="8"
+                          Height="6"
                           HorizontalAlignment="Stretch"
                           VerticalAlignment="Top"
                           Background="{ThemeResource SystemControlBackgroundBaseLowBrush}"
@@ -369,7 +369,7 @@
                                                       HeadTitle="Stereo Calibration Video" 
                                                       Head="Stereo" 
                                                       Grid.Row="4"                                                      
-                                                      Margin="2,5,2,5"/>
+                                                      Margin="2,3,2,3"/>
 
         <!-- Horizontal sizer -->
         <toolkit:GridSplitter x:Name="OutputSplitter" Grid.Row="5"

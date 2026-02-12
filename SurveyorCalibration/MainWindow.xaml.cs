@@ -74,6 +74,7 @@ namespace Surveyor
         public int StereoCornersFilterValue { get; set; } = CalibrationStereoFrameSet.STEREO_CORNER_COUNT_THRESHOLD;
         public int MaxFramesFromEachSensorBin { get; set; } = 2;  // Take top 2 frames from each sensor bin
         public int MaxFramesFromEachPoseBin { get; set; } = 4;    // Take top 4 frames from each pose bin
+        public int MinFrameGap { get; set; } = 5; // Minimum allow gap between frames
         // Action FLags
         public bool FindCalibrationBoardZone { get; set; } = true;
         public bool BuildTheFrameSets { get; set; } = true;
@@ -909,7 +910,7 @@ namespace Surveyor
         [RequiresUnreferencedCode("Calls Surveyor.MainWindow.FileProjectSaveOrSaveAsAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task FileProjectSaveClickAsync()
         {
-            await FileProjectSaveOrSaveAsAsync(false /*trueForceSaveAs*/);
+            await FileProjectSaveOrSaveAsAsync(trueForceSaveAs: false);
         }
 
 
@@ -924,7 +925,7 @@ namespace Surveyor
         [RequiresUnreferencedCode("Calls Surveyor.MainWindow.FileProjectSaveOrSaveAsAsync() which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
         private async Task FileProjectSaveAsClickAsync()
         {
-            await FileProjectSaveOrSaveAsAsync(true/*force SaveAs*/);
+            await FileProjectSaveOrSaveAsAsync(trueForceSaveAs: true);
         }
 
 
@@ -2118,7 +2119,7 @@ namespace Surveyor
                         if (result == ContentDialogResult.Primary)
                         {
                             // "Yes" button clicked
-                            await FileProjectSaveOrSaveAsAsync(false /*trueForceSaveAs*/);
+                            await FileProjectSaveOrSaveAsAsync(trueForceSaveAs: false);
                             closeSurvey = true;
 
                         }
@@ -2370,18 +2371,18 @@ namespace Surveyor
                     {
                         case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
                             StereoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, null);
-                            LeftMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, true/*trueLeftFalseRightNullStereo*/);
-                            RightMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, false/*trueLeftFalseRightNullStereo*/);
+                            LeftMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, trueLeftFalseRightNullStereo: true);
+                            RightMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, trueLeftFalseRightNullStereo: false);
                             break;
                         case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                             StereoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, null);
                             break;
                         case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
-                            LeftMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, true/*trueLeftFalseRightNullStereo*/);
-                            RightMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, false/*trueLeftFalseRightNullStereo*/);
+                            LeftMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, trueLeftFalseRightNullStereo: true);
+                            RightMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, trueLeftFalseRightNullStereo: false);
                             break;
                         case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
-                            LeftMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, true/*trueLeftFalseRightNullStereo*/);
+                            LeftMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, trueLeftFalseRightNullStereo: true);
                             break;
                     }
 
@@ -2952,12 +2953,13 @@ namespace Surveyor
             {
                 monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.FindBestMonoFramesSafeUIAsync(
                                                                 calibProject,
-                                                                true/*trueLeftFalseRight*/,
+                                                                trueLeftFalseRight: true,
                                                                 runParams.MovementFilterValue,
                                                                 runParams.BlurFilterValue,
                                                                 runParams.MonoCornersFilterValue,
                                                                 runParams.MaxFramesFromEachSensorBin,
-                                                                runParams.MaxFramesFromEachPoseBin)));
+                                                                runParams.MaxFramesFromEachPoseBin,
+                                                                runParams.MinFrameGap)));
                 taskLeftMonoIndex = taskIndex++;
             }
 
@@ -2965,12 +2967,13 @@ namespace Surveyor
             {
                 monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.FindBestMonoFramesSafeUIAsync(
                                                                 calibProject,
-                                                                false/*trueLeftFalseRight*/,
+                                                                trueLeftFalseRight: false,
                                                                 runParams.MovementFilterValue,
                                                                 runParams.BlurFilterValue,
                                                                 runParams.MonoCornersFilterValue,
                                                                 runParams.MaxFramesFromEachSensorBin,
-                                                                runParams.MaxFramesFromEachPoseBin)));
+                                                                runParams.MaxFramesFromEachPoseBin,
+                                                                runParams.MinFrameGap)));
                 taskRightMonoIndex = taskIndex++;
             }
 
@@ -3113,7 +3116,7 @@ namespace Surveyor
                 {
                     monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.DoMonoCalibrationCalculationSafeUI(
                                                                  calibProject,
-                                                                 true/*trueLeftFalseRight*/,
+                                                                 trueLeftFalseRight: true,
                                                                  runParams.MonoCornersFilterValue)));
                     taskLeftMonoIndex = taskIndex++;
                 }
@@ -3122,7 +3125,7 @@ namespace Surveyor
                 {
                     monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.DoMonoCalibrationCalculationSafeUI(
                                                                  calibProject,
-                                                                 false/*trueLeftFalseRight*/,
+                                                                 trueLeftFalseRight:false,
                                                                  runParams.MonoCornersFilterValue)));
                     taskRightMonoIndex = taskIndex++;
                 }
@@ -3237,7 +3240,8 @@ namespace Surveyor
                                                                             runParams.BlurFilterValue,
                                                                             runParams.MonoCornersFilterValue,
                                                                             runParams.MaxFramesFromEachSensorBin,
-                                                                            runParams.MaxFramesFromEachPoseBin);
+                                                                            runParams.MaxFramesFromEachPoseBin,
+                                                                            runParams.MinFrameGap);
             }
 
 

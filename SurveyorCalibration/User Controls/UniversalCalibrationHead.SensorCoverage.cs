@@ -73,7 +73,7 @@ namespace Surveyor.Controls
                                      LeftOverlayContainer,
                                      trueLeftFalseRight: true);
 
-            if (headTrueIsStereoFalseIsMode == true)
+            if (IsHeadStereo())
             {
                 RenderSensorCoverageSide(RightSensorCoverage,
                                          RightOverlayContainer,
@@ -322,9 +322,6 @@ namespace Surveyor.Controls
         /// <param name="canvas"></param>
         private void DrawCanvasBorder(Canvas canvas)
         {
-            //??? Width/Height are set by AlignCoverageCanvasToImage; ActualWidth may be 0 until after layout.
-            //???double w = canvas.ActualWidth > 1 ? canvas.ActualWidth : canvas.Width;
-            //???double h = canvas.ActualHeight > 1 ? canvas.ActualHeight : canvas.Height;
             double w = canvas.Width;
             double h = canvas.Height;
 

@@ -56,7 +56,7 @@
                                                     VerticalAlignment="Bottom" HorizontalAlignment="Left"
                                                     FontFamily="Segoe UI Variable"
                                                     FontSize="10"                        
-                                                    Margin="5,0,0,0"/>
+                                                    Margin="0,0,0,0"/>
 
                 <Border x:Name="SensorBinBorder" Grid.Row="1" Grid.Column="1"
                                                     BorderBrush="Gray"
@@ -74,7 +74,7 @@
                                                     VerticalAlignment="Bottom" HorizontalAlignment="Left"
                                                     FontFamily="Segoe UI Variable"
                                                     FontSize="10"                                   
-                                                    Margin="5,0,0,0"/>
+                                                    Margin="0,0,0,0"/>
 
                 <Border x:Name="PoseBinBorder" Grid.Row="1" Grid.Column="2"
                                                     BorderBrush="Gray"
