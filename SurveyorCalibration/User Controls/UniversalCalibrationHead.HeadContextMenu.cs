@@ -1,5 +1,6 @@
 ﻿// Contains the high level calibration workflow method
 // 
+using ColorCode.Common;
 using Microsoft.UI.Input;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -21,6 +22,18 @@ namespace Surveyor.Controls
         // Context menu status
         private bool headContextMenuOpen = false;
         private bool? headContextMenuOpenLeftOrRight = null;
+
+        // Callback up to MainWindow to allow the manual bits
+        // inside BestFrame.BestFrameReason can be set
+        public delegate BestFrame? ToggleManualReasonCallbackDelegate(HeadType headType, int frameSetIndex, BestFrameReason reasonBit);
+
+        public event ToggleManualReasonCallbackDelegate? ToggleManualReasonCallback;
+
+        // Callback up to MainWindow to allow removal of all
+        // manually added or manually ignored bits in the best frame.
+        public delegate void RemoveAllCallbackDelegate(HeadType headType, BestFrameReason reasonBit);
+
+        public event RemoveAllCallbackDelegate? RemoveAllCallback;
 
 
         ///
@@ -79,6 +92,7 @@ namespace Surveyor.Controls
         private void HeadContextMenu_Closing(Microsoft.UI.Xaml.Controls.Primitives.FlyoutBase sender, Microsoft.UI.Xaml.Controls.Primitives.FlyoutBaseClosingEventArgs args)
         {
             headContextMenuOpen = false;
+            headContextMenuOpenLeftOrRight = null;
         }
 
 
@@ -105,26 +119,26 @@ namespace Surveyor.Controls
 
 
         /// <summary>
-        /// withRemove all the 'Added' entries in the ManuallyAddedIgnoreFrameIndexes 
+        /// Remove all the 'Added' entries in the ManuallyAddedIgnoreFrameIndexes 
         /// List<>
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private void HeadContextMenuRemoveAllIncludedFrames_Click(object sender, RoutedEventArgs e)
         {
-            RemoveAllReasonBitFromManuallyAddedIgnoreFrameIndexes(BestFrameReason.ManuallyAdded);
+            RemoveAllReasonBitFromBestFrameIndexes(BestFrameReason.ManuallyAdded);
         }
 
 
         /// <summary>
-        /// withRemove all the 'Ignored' entries in the ManuallyAddedIgnoreFrameIndexes 
+        /// Remove all the 'Ignored' entries in the ManuallyAddedIgnoreFrameIndexes 
         /// List<>
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private void HeadContextMenuRemoveAllExcludedFrames_Click(object sender, RoutedEventArgs e)
         {
-            RemoveAllReasonBitFromManuallyAddedIgnoreFrameIndexes(BestFrameReason.ManuallyIgnored);
+            RemoveAllReasonBitFromBestFrameIndexes(BestFrameReason.ManuallyIgnored);
         }
 
 
@@ -140,73 +154,71 @@ namespace Surveyor.Controls
         /// <param name="e"></param>
         private void DisplayHeadContextMenu(object sender, PointerRoutedEventArgs e)
         {
-            headContextMenuOpenLeftOrRight = null;
+            // Guard
+            if (headType is null)
+                return;
 
             // If stereo are we left or right
-            bool? trueLeftFalseRightContextMenu = null;
+            //???bool? trueLeftFalseRightContextMenu = null;
             if (IsHeadStereo())
             {
                 if (sender is Grid grid)
                 {
                     if (grid == LeftOverlayContainer)
-                        trueLeftFalseRightContextMenu = true;
+                        headContextMenuOpenLeftOrRight = true;
                     else if (grid == RightOverlayContainer)
-                        trueLeftFalseRightContextMenu = false;
+                        headContextMenuOpenLeftOrRight = false;
                 }
                 if (sender is Border border)
                 {
                     if (border == LeftFrameMetadataBorder)
-                        trueLeftFalseRightContextMenu = true;
+                        headContextMenuOpenLeftOrRight = true;
                     else if (border == RightFrameMetadataBorder)
-                        trueLeftFalseRightContextMenu = false;
+                        headContextMenuOpenLeftOrRight = false;
                 }
             }
             else
             {
                 // Mono is left by definition (even if it's right mono)
-                trueLeftFalseRightContextMenu = true;
+                headContextMenuOpenLeftOrRight = true;
             }
 
             // Get the current frame data
-            if (trueLeftFalseRightContextMenu is not null)
+            if (headContextMenuOpenLeftOrRight is not null)
             {
-                headContextMenuOpenLeftOrRight = trueLeftFalseRightContextMenu;
+                int frameSetIndex = GetCurrentFrameSetIndex((bool)headContextMenuOpenLeftOrRight);
 
-                int frameSetIndex = GetCurrentFrameSetIndex(trueLeftFalseRightContextMenu.Value);
+                // Get the best frame list for the current head type using the callback
+                List<BestFrame>? bestFramesList = GetBestFrameListCallback?.Invoke((HeadType)headType);
 
-                // See if this is in the ManuallyAddedIgnoreFrameIndexes list
-                BestFrame? manualEntry = calibrationStereoFrameSet.Data.BestFrameIndexes
-                                            .FirstOrDefault(bf => bf.FrameIndex == frameSetIndex);
-
-                // Proceed if there is a manual entry for this frame index set
-                // (if not the menu will just show with both Include and Exclude options un-checked)
-                if (manualEntry is not null)
+                if (bestFramesList is not null)
                 {
-                    if (trueLeftFalseRightContextMenu == true)
-                    {
-                        headContextMenuOpenLeftOrRight = true;
-                    }
-                    else if (trueLeftFalseRightContextMenu == false)
-                    {
-                        headContextMenuOpenLeftOrRight = false;
-                    }
+                    // See if there are any manual attributes for this frame
+                    BestFrame? manualEntry = bestFramesList
+                                                .FirstOrDefault(bf => bf.FrameIndex == frameSetIndex);
 
-                    // Is manually included flag set
-                    if ((manualEntry.Reason & BestFrameReason.ManuallyAdded) != 0)
-                        HeadContextMenuIncludeFrame.IsChecked = true;
+                    if (manualEntry is not null)
+                    {
+//???                        if ((manualEntry.Reason & (BestFrameReason.ManuallyAdded | BestFrameReason.ManuallyAdded)) != 0)
+//???                        {
+                            // Is manually included flag set
+                            if ((manualEntry.Reason & BestFrameReason.ManuallyAdded) != 0)
+                                HeadContextMenuIncludeFrame.IsChecked = true;
+                            else
+                                HeadContextMenuIncludeFrame.IsChecked = false;
+
+                            // Is manually excluded flag set
+                            if ((manualEntry.Reason & BestFrameReason.ManuallyIgnored) != 0)
+                                HeadContextMenuExcludeFrame.IsChecked = true;
+                            else
+                                HeadContextMenuExcludeFrame.IsChecked = false;
+                        //???                        }
+                    }
                     else
+                    {
                         HeadContextMenuIncludeFrame.IsChecked = false;
-
-                    // Is manually excluded flag set
-                    if ((manualEntry.Reason & BestFrameReason.ManuallyIgnored) != 0)
-                        HeadContextMenuExcludeFrame.IsChecked = true;
-                    else
                         HeadContextMenuExcludeFrame.IsChecked = false;
-                }
-                else
-                {
-                    HeadContextMenuIncludeFrame.IsChecked = false;
-                    HeadContextMenuExcludeFrame.IsChecked = false;
+                    }
                 }
 
                 // Show the context menu
@@ -239,10 +251,9 @@ namespace Surveyor.Controls
                 // Update the meta data panel
                 if (updatedReason is not null)
                 {
-                    UpdateFrameMetaDataReason((bool)headContextMenuOpenLeftOrRight,
-                                          null/*bestReason*/,
-                                          updatedReason.Reason,
-                                          updateOnly: true);
+                    UpdateFrameMetaDataReason(
+                                    (bool)headContextMenuOpenLeftOrRight,
+                                    updatedReason.Reason);
 
                     // Update the media timeline display
                     if ((bool)headContextMenuOpenLeftOrRight)
@@ -294,84 +305,97 @@ namespace Surveyor.Controls
         /// <returns>Updated BestFrame</returns>
         private BestFrame? ToggleManuallyReasonBit(bool trueLeftFalseRight, BestFrameReason reasonBit)
         {
-            BestFrame? manualFrame = null;
+            BestFrame? updatedBestFrame = null;
+
+            // Guard
+            if (headType is null)
+                return null;
 
             int frameSetIndex = GetCurrentFrameSetIndex(trueLeftFalseRight);
 
             if (frameSetIndex != -1)
             {
-                // Search ManuallyAddedIgnoreFrameIndexes for a instance where
-                // BestFrame.FrameIndex == frameSetIndex. If found, update the Reason bit according to add or remove.
-                int? index = calibrationStereoFrameSet.Data.BestFrameIndexes
-                    .Select((bf, i) => (bf, i))
-                    .Where(x => x.bf.FrameIndex == frameSetIndex)
-                    .Select(x => (int?)x.i)
-                    .FirstOrDefault();
-
-                // Update existing entry
-                if (index is not null)
+                if (ToggleManualReasonCallback is not null && headType is not null)
                 {
-
-                    BestFrameReason newBestFrameReason = calibrationStereoFrameSet.Data.BestFrameIndexes[(int)index].Reason;
-                    if ((newBestFrameReason & reasonBit) == 0)
-                        // Set the bit (and remove all others)
-                        newBestFrameReason = reasonBit;
-                    else
-                        // Reset the bit
-                        newBestFrameReason &= ~reasonBit;
-
-                    manualFrame = new(frameSetIndex, newBestFrameReason);
-                    calibrationStereoFrameSet.Data.BestFrameIndexes[(int)index] = manualFrame;
-                }
-                else
-                // Create new entry (if necessary)
-                {
-                    // No record found so must be an add
-                    BestFrameReason newBestFrameReason = reasonBit;
-                    manualFrame = new(frameSetIndex, newBestFrameReason);
-                    calibrationStereoFrameSet.Data.BestFrameIndexes.Add(manualFrame);
+                    // Call the callback which can be used to add/modify/remove the
+                    // manual best frame reason bit
+                    updatedBestFrame = ToggleManualReasonCallback?.Invoke((HeadType)headType, frameSetIndex, reasonBit);
                 }
             }
 
-            return manualFrame;
+            return updatedBestFrame;
         }
 
         /// <summary>
-        /// Reverse loop through the ManuallyAddedIgnoreFrameIndexes list
+        /// Reverse loop through the Best frame  list
         /// and remove any entries with the indicate reason bit set in the
         /// Reason field. Then update the metadata panel and media timeline
         /// display for any removed entries.
         /// </summary>
         /// <param name="reasonBit"></param>
-        private void RemoveAllReasonBitFromManuallyAddedIgnoreFrameIndexes(BestFrameReason reasonBit)
+        private void RemoveAllReasonBitFromBestFrameIndexes(BestFrameReason reasonBit)
         {
-            List<BestFrame> ManualList = calibrationStereoFrameSet.Data.ManuallyAddedIgnoreFrameIndexes;
-
-            for (int i = ManualList.Count - 1;
-                 i >= 0;
-                 i--)
+            if (headContextMenuOpenLeftOrRight is not null)
             {
-                if ((ManualList[i].Reason & reasonBit) != 0)
+                if (RemoveAllCallback is not null && headType is not null)
                 {
-                    if (headContextMenuOpenLeftOrRight is not null)
-                    {
-                        BestFrame updatedReason = new(ManualList[i].FrameIndex, BestFrameReason.None);
-
-                        UpdateFrameMetaDataReason((bool)headContextMenuOpenLeftOrRight,
-                                                  null/*bestReason*/,
-                                                  updatedReason.Reason,
-                                                  updateOnly: true);
-
-                        // Update the media timeline display
-                        if ((bool)headContextMenuOpenLeftOrRight)
-                            MediaTimeLineDisplayLeft.RenderBestFrameFoundAtOnTimeline(updatedReason);
-                        else
-                            MediaTimeLineDisplayRight.RenderBestFrameFoundAtOnTimeline(updatedReason);
-                    }
-
-                    // Remove front the master list
-                    ManualList.Remove(ManualList[i]);
+                    // Call the callback which can be used to remove all either
+                    // manually added or manually ignored best frame reason bit
+                    RemoveAllCallback.Invoke((HeadType)headType, reasonBit);
                 }
+
+                // If the current frame was affected then update the frame meta
+                // data
+                // Nasty workaround. Read the existing textual value in the 
+                // LeftCalibrationFrameStatusManual/RightCalibrationFrameStatusManual
+                // TextBlock to determine if the current displayed frame has the manually
+                // added or manually ignored bit set. If we cleared all bits of that
+                // type then we need to update the metadata panel to reflect that for
+                // the current frame you give the user the correct feedback
+                TextBlock calibrationFrameStatusManual;
+                
+                if ((bool)headContextMenuOpenLeftOrRight)
+                    calibrationFrameStatusManual = LeftCalibrationFrameStatusManual;
+                else
+                    calibrationFrameStatusManual = RightCalibrationFrameStatusManual;
+
+                string currentManualText = calibrationFrameStatusManual.Text;
+
+                if (currentManualText == ManuallyIgnoredText && reasonBit == BestFrameReason.ManuallyIgnored)
+                {
+                    calibrationFrameStatusManual.Text = string.Empty;
+                    calibrationFrameStatusManual.Visibility = Visibility.Collapsed;
+                }
+                else if (currentManualText == ManuallyAddedText && reasonBit == BestFrameReason.ManuallyAdded)
+                {
+                    calibrationFrameStatusManual.Text = string.Empty;
+                    calibrationFrameStatusManual.Visibility = Visibility.Collapsed;
+                }
+
+                // Get the updated best frame list
+                List<BestFrame>? bestFrameList = null;
+                if (GetBestFrameListCallback is not null && headType is not null)
+                {
+                    bestFrameList = GetBestFrameListCallback?.Invoke((HeadType)headType);
+
+                    if (bestFrameList is not null)
+                    {
+                        // Redraw the media timeline display 
+                        if ((bool)headContextMenuOpenLeftOrRight)
+                        {
+                            MediaTimeLineDisplayLeft.RenderBestFramesOnTimeline(bestFrameList);
+                            //???MediaTimeLineDisplayLeft.DrawBestFrames();
+                        }
+                        else
+                        {
+                            MediaTimeLineDisplayRight.RenderBestFramesOnTimeline(bestFrameList);
+                            //???MediaTimeLineDisplayRight.DrawBestFrames();
+                        }
+                    }
+                }
+
+                // Remove from the sensor coverage window
+                RenderSensorCoverage();
             }
         }
     }

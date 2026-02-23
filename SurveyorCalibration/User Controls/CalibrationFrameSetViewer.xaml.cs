@@ -90,7 +90,7 @@ namespace Surveyor.Controls
 
                 double xStep = widthMovementCanvas / (double)((int)Math.Ceiling((double)frames.Count / 100.0) * 100);
 
-                double maxMovement = Math.Clamp(Data.calibrationStereoFrameSet.MaxMovementFactor, 0.0, CalibrationStereoFrameSet.MOVEMENT_LARGE_VALUE);
+                double maxMovement = Math.Clamp(Data.calibrationStereoFrameSet.MaxMovementFactor, 0.0, CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE);
                 if (maxMovement <= 0) maxMovement = 1.0; // prevent divide-by-zero
 
                 double maxBlur = Data.calibrationStereoFrameSet.MaxBlurFactor * 1.1;
@@ -108,7 +108,7 @@ namespace Surveyor.Controls
                     {                        
                         if (frame is not null && frame.MovementFactor != -1)
                         {
-                            double movementFactor = Math.Clamp(frame.MovementFactor, 0.0, CalibrationStereoFrameSet.MOVEMENT_LARGE_VALUE);
+                            double movementFactor = Math.Clamp(frame.MovementFactor, 0.0, CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE);
                             double yMovement = heightMovementCanvas * (1 - movementFactor / maxMovement);
                             yMovement = Math.Clamp(yMovement, 0.0, heightMovementCanvas);
                             movementPoints.Add(new Point(x, yMovement));
@@ -399,42 +399,26 @@ namespace Surveyor.Controls
         /// <summary>
         /// Refresh the sensor bin layers with the current data.
         /// </summary>
-        public void RefreshSensorBin(UniversalCalibrationHead.ViewMode viewMode)
+        public void RefreshSensorBin(Dictionary<(int binx, int biny), int> counts)
         {
-            if (Data is null)
-                return;
-
-            // If the viewMode is SensorCoverage then still display the best frames in the sSensor bin
-            UniversalCalibrationHead.ViewMode viewModeToUse = viewMode;
-            if (viewMode == UniversalCalibrationHead.ViewMode.SensorCoverage)
-                viewModeToUse = UniversalCalibrationHead.ViewMode.BestFrames;
-
-            if (Data.calibrationStereoFrameSet is not null)
+            foreach (var child in SensorBinGridItemsControl.Children)
             {
-                // Get the size of the sensor bin grid
-                var (gx, gy) = sensorBinGrid;
-
-                var counts = Data.calibrationStereoFrameSet.GetSensorBinCounts(viewModeToUse, Data.trueLeftFalseRight);
-
-                foreach (var child in SensorBinGridItemsControl.Children)
+                if (child is Border border && border.Child is TextBlock textBlock)
                 {
-                    if (child is Border border && border.Child is TextBlock textBlock)
+                    int column = Grid.GetColumn(border);
+                    int row = Grid.GetRow(border);
+
+                    if (counts.TryGetValue((column, row), out int count))
                     {
-                        int column = Grid.GetColumn(border);
-                        int row = Grid.GetRow(border);
+                        textBlock.Text = count != 0 ? count.ToString() : "";
 
-                        if (counts.TryGetValue((column, row), out int count))
-                        {
-                            textBlock.Text = count != 0 ? count.ToString() : "";
-
-                            byte b = (byte)Math.Min(count, 255);
-                            border.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 0, b));
-                        }
-                        else
-                        {
-                            textBlock.Text = "";
-                            border.Background = null;
-                        }
+                        byte b = (byte)Math.Min(count, 255);
+                        border.Background = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 0, b));
+                    }
+                    else
+                    {
+                        textBlock.Text = "";
+                        border.Background = null;
                     }
                 }
             }
@@ -444,18 +428,8 @@ namespace Surveyor.Controls
         /// <summary>
         /// Refresh the sensor bin layers with the current data.
         /// </summary>
-        public void RefreshPoseBin(UniversalCalibrationHead.ViewMode viewMode)
+        public void RefreshPoseBin(Dictionary<(int binx, int biny), int> counts)
         {
-            if (Data is null || Data.calibrationStereoFrameSet is null)
-                return;
-
-            // If the viewMode is SensorCoverage then still display the best frames in the sSensor bin
-            UniversalCalibrationHead.ViewMode viewModeToUse = viewMode;
-            if (viewMode == UniversalCalibrationHead.ViewMode.SensorCoverage)
-                viewModeToUse = UniversalCalibrationHead.ViewMode.BestFrames;
-
-            var counts = Data.calibrationStereoFrameSet.GetPoseBinCounts(viewModeToUse, Data.trueLeftFalseRight);
-
             int maxCount = counts.Count > 0 ? counts.Values.Max() : 0;
 
             foreach (var child in PoseBinGridItemsControl.Children)
@@ -520,38 +494,36 @@ namespace Surveyor.Controls
                 // Get the size of the sensor bin grid
                 var (gx, gy) = sensorBinGrid;
 
+                if (frameCalibrationData is null)
                 {
-                    if (frameCalibrationData is null)
+                    // Clear color of the bins
+                    foreach (var child in SensorBinGridItemsControl.Children)
                     {
-                        // Clear color of the bins
-                        foreach (var child in SensorBinGridItemsControl.Children)
+                        if (child is Border border &&
+                            border.Child is TextBlock textBlock)
                         {
-                            if (child is Border border &&
-                                border.Child is TextBlock textBlock)
-                            {
-                                border.BorderBrush = BorderBrushNormal;
-                            }
+                            border.BorderBrush = BorderBrushNormal;
                         }
                     }
-                    else
+                }
+                else
+                {
+                    foreach (var child in SensorBinGridItemsControl.Children)
                     {
-                        foreach (var child in SensorBinGridItemsControl.Children)
+                        if (child is Border border &&
+                            border.Child is TextBlock textBlock)
                         {
-                            if (child is Border border &&
-                                border.Child is TextBlock textBlock)
-                            {
-                                int row = Grid.GetRow(border);
-                                int column = Grid.GetColumn(border);
+                            int row = Grid.GetRow(border);
+                            int column = Grid.GetColumn(border);
 
 
-                                bool colorCell = frameCalibrationData.SensorBinsOccupied
-                                                            .Any(entry => entry.binx == column && entry.biny == row);
+                            bool colorCell = frameCalibrationData.SensorBinsOccupied
+                                                        .Any(entry => entry.binx == column && entry.biny == row);
 
-                                if (colorCell)
-                                    border.BorderBrush = BorderBrushHighlighted;
-                                else
-                                    border.BorderBrush = BorderBrushNormal;
-                            }
+                            if (colorCell)
+                                border.BorderBrush = BorderBrushHighlighted;
+                            else
+                                border.BorderBrush = BorderBrushNormal;
                         }
                     }
                 }
@@ -577,8 +549,7 @@ namespace Surveyor.Controls
                     // Clear color of the bins
                     foreach (var child in PoseBinGridItemsControl.Children)
                     {
-                        if (child is Border border /*???&&
-                            border.Child is TextBlock textBlock*/)
+                        if (child is Border border)
                         {
                             border.BorderBrush = BorderBrushNormal;
                         }
@@ -590,8 +561,7 @@ namespace Surveyor.Controls
                     // the current frame occupies it
                     foreach (var child in PoseBinGridItemsControl.Children)
                     {
-                        if (child is Border border /*&&
-                            border.Child is TextBlock textBlock*/)
+                        if (child is Border border)
                         {
                             int row = Grid.GetRow(border);
                             int column = Grid.GetColumn(border);
@@ -613,14 +583,14 @@ namespace Surveyor.Controls
         /// is required for the graph to be cleared
         /// </summary>
         /// <param name="viewMode"></param>
-        public void ClearDisplay(UniversalCalibrationHead.ViewMode viewMode)
-        {
-            HighLightActiveSensorBin(null);
-            RefreshSensorBin(viewMode);
-            HighLightActivePoseBin(null);
-            RefreshPoseBin(viewMode);
-            DrawGraphs();
-        }
+        //???public void ClearDisplay(UniversalCalibrationHead.ViewMode viewMode)
+        //???{
+        //???    HighLightActiveSensorBin(null);
+        //???    RefreshSensorBin(viewMode);
+        //???    HighLightActivePoseBin(null);
+        //???    RefreshPoseBin(viewMode);
+        //???    DrawGraphs();
+        //???}
 
 
         /// <summary>

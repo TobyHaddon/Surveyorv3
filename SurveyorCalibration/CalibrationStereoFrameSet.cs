@@ -23,6 +23,8 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static iText.Layout.Borders.Border;
+using static Surveyor.Controls.UniversalCalibrationHead;
 
 namespace Surveyor
 {
@@ -52,7 +54,7 @@ namespace Surveyor
             }
 
             // Version of the class (use for data migrations)
-            private const int version = 8;
+            private const int version = 9;
             // Data Version
             [JsonProperty(nameof(Version))]
             public int Version { get; set; } = -1;
@@ -69,20 +71,10 @@ namespace Surveyor
             [JsonProperty(nameof(Frames))]
             public SortedDictionary<int, (FrameData frameCalibrationTargetLeft, FrameData? frameCalibrationTargetRight, int correspondingCount)> Frames { get; set; } = [];
 
-            [JsonProperty(nameof(BestFrameIndexes))]
-            public List<BestFrame> BestFrameIndexes = [];
-
-            //???[JsonProperty(nameof(ManuallyAddedIgnoreFrameIndexes))]
-            //???public List<BestFrame> ManuallyAddedIgnoreFrameIndexes = [];
         }
 
         public DataClass Data = new();
 
-        public const double BLUR_LARGE_VALUE = 10.0;
-        public const double MOVEMENT_LARGE_VALUE = 400.0;
-
-        public const int MONO_CORNER_COUNT_THRESHOLD = 80;
-        public const int STEREO_CORNER_COUNT_THRESHOLD = 50;
 
         /// 
         /// DYNAMIC variables (If you add any more private/JsonIgnore 
@@ -91,7 +83,7 @@ namespace Surveyor
 
         // Indicate if used in stereo or mono mode
         [JsonIgnore]
-        private bool? headTrueIsStereoFalseIsMode = null;
+        private bool? headTrueIsStereoFalseIsMono = null;
 
         // Reporter
         [JsonIgnore]
@@ -141,7 +133,8 @@ namespace Surveyor
             All,
             StartStopCalibrationBoardZone,
             FrameSets,
-            BestFrames
+            BestFrames_All,
+            BestFrames_AutoOnly
         }
         public void ClearResults(ClearRequest clearRequest)
         {
@@ -158,9 +151,11 @@ namespace Surveyor
                 Data.Frames = [];
             }
 
-            if (clearRequest == ClearRequest.All || clearRequest == ClearRequest.BestFrames)
+            if (clearRequest == ClearRequest.BestFrames_All ||
+                clearRequest == ClearRequest.BestFrames_AutoOnly)
             {
-                Data.BestFrameIndexes = [];
+                //???Data.BestFrameIndexes = [];
+                throw new Exception("ClibrationStereoFrameSet.ClearResults called with BestFrames_All or BestFrames_AutoOnly");
             }
         }
 
@@ -176,7 +171,7 @@ namespace Surveyor
             bool ret = false;
             bool leftOpenAndReady = false;
 
-            headTrueIsStereoFalseIsMode = false;
+            headTrueIsStereoFalseIsMono = false;
             leftCapture = _leftCapture;
             rightCapture = null;
             totalFramesLeft = 0;
@@ -225,7 +220,7 @@ namespace Surveyor
             bool leftOpenAndReady = false;
             bool rightOpenAndReady = false;
 
-            headTrueIsStereoFalseIsMode = true;
+            headTrueIsStereoFalseIsMono = true;
             leftCapture = _leftCapture;
             rightCapture = _rightCapture;
             totalFramesLeft = 0;
@@ -567,8 +562,8 @@ namespace Surveyor
         /// <summary>
         /// 
         /// </summary>
-        public double MaxBestMovementFactor => Data.BestFrameIndexes
-                            .SelectMany(bestFrame =>
+        public double MaxBestMovementFactor(List<BestFrame> bestFramesIndexes) =>
+            bestFramesIndexes.SelectMany(bestFrame =>
                             {
                                 if (!Data.Frames.TryGetValue(bestFrame.FrameIndex, out var pair))
                                     return Enumerable.Empty<FrameData>();
@@ -579,8 +574,8 @@ namespace Surveyor
                             .Select(f => f!.MovementFactor)
                             .DefaultIfEmpty(0)
                             .Max();
-        public double MinBestMovementFactor => Data.BestFrameIndexes
-                    .SelectMany(bestFrame =>
+        public double MinBestMovementFactor(List<BestFrame> bestFramesIndexes) => 
+            bestFramesIndexes.SelectMany(bestFrame =>
                     {
                         if (!Data.Frames.TryGetValue(bestFrame.FrameIndex, out var pair))
                             return Enumerable.Empty<FrameData>();
@@ -591,7 +586,31 @@ namespace Surveyor
                     .Select(f => f!.MovementFactor)
                     .DefaultIfEmpty(0)
                     .Min();
-        
+        public double MaxBestBlurFactor(List<BestFrame> bestFramesIndexes) =>
+            bestFramesIndexes.SelectMany(bestFrame =>
+            {
+                if (!Data.Frames.TryGetValue(bestFrame.FrameIndex, out var pair))
+                    return Enumerable.Empty<FrameData?>();
+
+                return new[] { pair.frameCalibrationTargetLeft, pair.frameCalibrationTargetRight };
+            })
+                    .Where(f => f is not null && f.BlurFactor != double.MaxValue)
+                    .Select(f => f!.BlurFactor)
+                    .DefaultIfEmpty(0)
+                    .Max();
+
+        public double MinBestBlurFactor(List<BestFrame> bestFramesIndexes) =>
+            bestFramesIndexes.SelectMany(bestFrame =>
+            {
+                if (!Data.Frames.TryGetValue(bestFrame.FrameIndex, out var pair))
+                    return Enumerable.Empty<FrameData?>();
+
+                return new[] { pair.frameCalibrationTargetLeft, pair.frameCalibrationTargetRight };
+            })
+                    .Where(f => f is not null && f.BlurFactor != double.MaxValue)
+                    .Select(f => f!.BlurFactor)
+                    .DefaultIfEmpty(0)
+                    .Min();
 
         /// <summary>
         /// Add a stereo pair of FrameCalibrationTarget to the set.
@@ -626,11 +645,6 @@ namespace Surveyor
             // maybe updated
             CalculateCornerMovement(stereoFrameIndex);
 
-            // Update the sensor bin totals
-            //???AddToTheSensorBinTotals(frameLeft, Data.AllFramesSensorBinTotalsLeft);
-            //???if (frameRight is not null)
-            //???    AddToTheSensorBinTotals(frameRight, Data.AllFramesSensorBinTotalsRight);
-
             return correspondingCount;
         }
 
@@ -647,24 +661,6 @@ namespace Surveyor
             if (Data.Frames.ContainsKey(stereoFrameIndex))
             {
                 (FrameData leftTarget, FrameData? rightTarget, _) = Data.Frames[stereoFrameIndex];
-
-                // Remove the bins from the bin totals
-                //???RemoveFromTheBinTotals(leftTarget, Data.AllFramesSensorBinTotalsLeft);
-                //???if (rightTarget is not null)
-                //???    RemoveFromTheBinTotals(rightTarget, Data.AllFramesSensorBinTotalsRight);
-
-                // Helper
-                //???static void RemoveFromTheBinTotals(FrameData target, Dictionary<(int binx, int biny), int> BinTotals)
-                //{
-                //    foreach (var bin in target.SensorBinsOccupied)
-                //    {
-                //        BinTotals[bin] = BinTotals.GetValueOrDefault(bin) - 1;
-                //        if (BinTotals[bin] == 0)
-                //        {
-                //            BinTotals.Remove(bin);
-                //        }
-                //    }
-                //}
 
                 // Remove the frame from the dictionary 
                 ret = Data.Frames.Remove(stereoFrameIndex);
@@ -703,71 +699,6 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Adds the best frame indexes from the specified list the best frame list.  
-        /// This method ensures no duplicate frames are add to the best frame list. 
-        /// If the frame index already exists it's reason can be updated
-        /// </summary>
-        /// <param name="frameIndexes">A list of frame indexes to consider for addition. Cannot be <c>null</c>.</param>
-        /// <returns>The number of frames successfully added from the provided list.</returns>
-        private (int added, int updated) AddBestFrames(List<int> frameIndexes, BestFrameReason reason)
-        {
-            if (frameIndexes == null || frameIndexes.Count == 0)
-                return (0,0);
-
-            int addedCount = 0;
-            int updatedCount = 0;
-
-            foreach (int frameIndex in frameIndexes)
-            {
-                try
-                {
-                    // Ensure frame exists in the Frames dictionary
-                    if (!Data.Frames.ContainsKey(frameIndex))
-                        continue;
-
-                    // Locate existing BestFrame (if any)
-                    int existingIndex = Data.BestFrameIndexes.FindIndex(f => f.FrameIndex == frameIndex);
-
-                    if (existingIndex >= 0)
-                    {
-                        // Update 
-
-                        // Merge reason flags
-                        BestFrame existing = Data.BestFrameIndexes[existingIndex];
-                        BestFrameReason mergedReason = existing.Reason | reason;
-
-                        if (mergedReason != existing.Reason)
-                        {
-                            Data.BestFrameIndexes[existingIndex] = existing with { Reason = mergedReason };
-                            updatedCount++;
-                        }
-                    }
-                    else
-                    {
-                        // New
-
-                        // Add new entry
-                        Data.BestFrameIndexes.Add(new BestFrame(frameIndex, reason));
-                        addedCount++;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"AddBestFrames: Failed to add frame:{frameIndex} to the best frames list, {ex.Message}");
-                }
-            }
-
-            // Keep BestFrameIndexes sorted by FrameIndex for deterministic traversal
-            if (addedCount > 0)
-            {
-                Data.BestFrameIndexes.Sort(static (a, b) => a.FrameIndex.CompareTo(b.FrameIndex));
-            }
-
-            return (addedCount, updatedCount);
-        }
-
-
-        /// <summary>
         /// Find and report on very large movement values in the set.
         /// </summary>
         /// <param name="trueLeftFalseRight"></param>
@@ -776,8 +707,8 @@ namespace Surveyor
         {
             // Return a list of frame indexes where the movement factor is large
             List<int> largeMovementList = [.. Data.Frames.Where(f =>
-                                                           f.Value.frameCalibrationTargetLeft.MovementFactor > MOVEMENT_LARGE_VALUE ||
-                                                           (f.Value.frameCalibrationTargetRight?.MovementFactor ?? -1) > MOVEMENT_LARGE_VALUE)
+                                                           f.Value.frameCalibrationTargetLeft.MovementFactor > CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE ||
+                                                           (f.Value.frameCalibrationTargetRight?.MovementFactor ?? -1) > CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE)
                                                     .Select(f => f.Key)];
 
             if (largeMovementList.Count > 0)
@@ -792,9 +723,9 @@ namespace Surveyor
         /// Extract a list of the best frames for calibration based on the movement and blur factors.
         /// </summary>
         /// <returns></returns>
-        public bool SelectBestStereoFramesUsingSensorBinOnly(double maxMovementFactor, double maxBlurFactor, int chArUcoCornersThreshold, int maxFramePerBin)
+        public List<int>? SelectBestStereoFramesUsingSensorBinOnly(double maxMovementFactor, double maxBlurFactor, int chArUcoCornersThreshold, int maxFramePerBin)
         {
-            List<int> frameIndexes;
+            List<int>? frameIndexes = [];
 
             // Get the sensor grid size
             var (gx, gy) = FrameData.SensorBinGrid;
@@ -805,10 +736,10 @@ namespace Surveyor
                 {
                     var targetBin = (binx, biny);
 
-                    if (headTrueIsStereoFalseIsMode == false)
+                    if (headTrueIsStereoFalseIsMono == false)
                     {
 
-                        frameIndexes = [.. Data.Frames.Select(kvp => (kvp.Key, Left: kvp.Value.Item1)) // pull out only what we sort/filter on
+                        List<int> frameIndexesBin = [.. Data.Frames.Select(kvp => (kvp.Key, Left: kvp.Value.Item1)) // pull out only what we sort/filter on
                                                 .Where(x =>
                                                     x.Left.ChArUcoCorners != null &&
                                                     x.Left.ChArUcoCorners.Length > chArUcoCornersThreshold &&
@@ -822,10 +753,16 @@ namespace Surveyor
                                                 .ThenBy(x => x.Key)                                   // stable tiebreaker (optional)
                                                 .Take(maxFramePerBin)
                                                 .Select(x => x.Key)];
+
+                        // Add to the mono best frames list only allowing unique to be
+                        // indexes added
+                        frameIndexes = [.. frameIndexes.Concat(frameIndexesBin)
+                                                   .Distinct()
+                                                   .OrderBy(x => x)];
                     }
                     else
                     {
-                        frameIndexes = [.. Data.Frames.Select(kvp => new {
+                        List<int> frameIndexesBin = [.. Data.Frames.Select(kvp => new {
                                                     kvp.Key,
                                                     Left = kvp.Value.Item1,
                                                     Right = kvp.Value.Item2,
@@ -846,144 +783,18 @@ namespace Surveyor
                                                 .ThenBy(x => x.Key) // optional: deterministic tiebreaker
                                                 .Take(maxFramePerBin)
                                                 .Select(x => x.Key)];
-                    }
 
+                        // Add to the stereo best frames list only allowing unique to be
+                        // indexes added
+                        frameIndexes = [.. frameIndexes.Concat(frameIndexesBin)
+                                                   .Distinct()
+                                                   .OrderBy(x => x)];
 
-                    // Add to the best frames list only allowing unique indexes
-                    AddBestFrames(frameIndexes, BestFrameReason.SensorCoverage);
-
-                }
-            }
-
-
-            return true;
-        }
-
-
-        /// <summary>
-        /// Get the sensor bin counts 
-        /// </summary>
-        /// <param name="trueLeftFalseRight"></param>
-        /// <returns></returns>
-        public Dictionary<(int binx, int biny), int> GetSensorBinCounts(UniversalCalibrationHead.ViewMode viewModel, bool trueLeftFalseRight)
-        {
-            var counts = new Dictionary<(int binx, int biny), int>();
-
-
-            if (viewModel == UniversalCalibrationHead.ViewMode.AllFrames)
-            {
-                FrameData? target;
-
-                foreach ((FrameData leftTarget, FrameData? rightTarget, _) in Data.Frames.Values)
-                {              
-                    if (trueLeftFalseRight)
-                        target = leftTarget;
-                    else
-                        target = rightTarget;
-
-                    if (target is not null)
-                        ProcessFrameData(target, counts);
-                }
-            }
-            else if (viewModel == UniversalCalibrationHead.ViewMode.BestFrames)
-            {
-                FrameData leftTarget;
-                FrameData? rightTarget;
-                FrameData? target;
-
-                foreach (BestFrame bestFrame in Data.BestFrameIndexes)
-                {
-                    int frameIndex = bestFrame.FrameIndex;
-
-                    if (Data.Frames.TryGetValue(frameIndex, out var tuple))
-                    {
-                        (leftTarget, rightTarget, _) = tuple;
-                        
-                        if (trueLeftFalseRight)
-                            target = leftTarget;
-                        else
-                            target = rightTarget;
-
-                        if (target is not null)
-                            ProcessFrameData(target, counts);
                     }
                 }
             }
 
-            // Helper
-            static void ProcessFrameData(FrameData target, Dictionary<(int binx, int biny), int> counts)
-                {
-                    foreach (var bin in target.SensorBinsOccupied)
-                    {
-                        // Find the this bin in the counts list, if not found create an new entry in counts
-                        counts[bin] = counts.GetValueOrDefault(bin) + 1;
-                    }
-                }
-
-            return counts;
-        }
-
-
-        /// <summary>
-        /// Get the pose bin counts.
-        /// </summary>
-        /// <param name="trueLeftFalseRight"></param>
-        /// <returns></returns>
-        public Dictionary<(int binx, int biny), int> GetPoseBinCounts(UniversalCalibrationHead.ViewMode viewModel, bool trueLeftFalseRight)
-        {
-            var counts = new Dictionary<(int binx, int biny), int>();
-            if (viewModel == UniversalCalibrationHead.ViewMode.AllFrames)
-            {
-                FrameData? target;
-
-                foreach ((FrameData leftTarget, FrameData? rightTarget, _) in Data.Frames.Values)
-                {
-                    if (trueLeftFalseRight)
-                        target = leftTarget;
-                    else
-                        target = rightTarget;
-
-                    if (target is not null)
-                        ProcessFrameData(target, counts);
-                }
-            }
-            else if (viewModel == UniversalCalibrationHead.ViewMode.BestFrames)
-            {
-                FrameData leftTarget;
-                FrameData? rightTarget;
-                FrameData? target;
-
-                foreach (BestFrame bestFrame in Data.BestFrameIndexes)
-                {
-                    int frameIndex = bestFrame.FrameIndex;
-
-                    if (Data.Frames.TryGetValue(frameIndex, out var tuple))
-                    {
-                        (leftTarget, rightTarget, _) = tuple;
-
-                        if (trueLeftFalseRight)
-                            target = leftTarget;
-                        else
-                            target = rightTarget;
-
-                        if (target is not null)
-                            ProcessFrameData(target, counts);
-                    }
-                }
-            }
-
-            // Helper
-            static void ProcessFrameData(FrameData target, Dictionary<(int binx, int biny), int> counts)
-            {
-                if (target.PoseBinX != -1 &&
-                    target.PoseBinY != -1)
-                {
-                    // Increase the count for this pose bin   
-                    counts[(target.PoseBinX, target.PoseBinY)] = counts.GetValueOrDefault((target.PoseBinX, target.PoseBinY)) + 1;
-                }
-            }
-
-            return counts;
+            return frameIndexes;
         }
 
 
@@ -1389,7 +1200,7 @@ namespace Surveyor
                 }
 
                 // Simulate work
-                await Task.Delay(10, cancellationToken);
+                //???await Task.Delay(10, cancellationToken);
             }
 
             if (trueRecursive && trueWorkOnStartFalseWorkOnEnd is not null)
@@ -2063,43 +1874,6 @@ namespace Surveyor
             return ret;
         }
 
-
-        /// <summary>
-        /// Performs a mono calibration on a stereo head using the best frames found in the Frames dictionary 
-        /// on both the left and right side
-        /// </summary>
-        /// <returns></returns>
-        public (MonoCalibrationCameraData? left, MonoCalibrationCameraData? right) MonoCalibrateLeftAndRightUsingBestFrames(Windows.Foundation.Size frameSize, int monoCornersMinThreshold, CalibrationParameters calibrationParameters)
-        {
-            MonoCalibrationCameraData? monoCalibLeft = null;
-            MonoCalibrationCameraData? monoCalibRight = null;
-
-            if (chArUcoBoardDefinition is not null)
-            {
-                monoCalibLeft = MonoCalibrateUsingBestFrames(trueStereoFalseMono: true,
-                                                             trueLeftFalseRight: true, 
-                                                             frameSize, 
-                                                             monoCornersMinThreshold, 
-                                                             calibrationParameters);
-
-                if (monoCalibLeft is not null)
-                {
-                    // Check if right side is active
-                    if (rightCapture is not null)
-                    {
-                        monoCalibRight = MonoCalibrateUsingBestFrames(trueStereoFalseMono: true,
-                                                                      trueLeftFalseRight: false, 
-                                                                      frameSize, 
-                                                                      monoCornersMinThreshold, 
-                                                                      calibrationParameters);
-                    }
-                }
-            }
-            return (monoCalibLeft, monoCalibRight);
-        }
-
-
-
         // Updated MonoCalibrateUsingBestFrames function
 
         // Collecting Corner Data: We iterate over each index in BestFrameIndexes and gather
@@ -2140,7 +1914,8 @@ namespace Surveyor
                                                     bool trueLeftFalseRight,
                                                     Windows.Foundation.Size frameSize,
                                                     int monoCornerCountThreshold,
-                                                    CalibrationParameters calibrationParameters)
+                                                    CalibrationParameters calibrationParameters,
+                                                    List<BestFrame> bestFrameIndexes)
         {
             MonoCalibrationCameraData? monoCalibrationCameraData = null;
             double reprojectionRMS = -1;
@@ -2181,7 +1956,7 @@ namespace Surveyor
 
                 // Collect ChArUco corner detections from the best frames
                 int frameRemovedFromRMSOrMaxError = 0;
-                foreach (BestFrame bestFrame in Data.BestFrameIndexes)
+                foreach (BestFrame bestFrame in bestFrameIndexes)
                 {
                     int frameIndex = bestFrame.FrameIndex;
 
@@ -2318,7 +2093,7 @@ namespace Surveyor
                 monoCalibrationCameraData = new MonoCalibrationCameraData
                 {
                     CalibrationParameters = calibrationParameters,
-                    ImageTotal = Data.BestFrameIndexes.Count,
+                    ImageTotal = bestFrameIndexes.Count,
                     ImagesUsed = imageUsable,
                     IntrinsicMatrix = intrinsicMatrix,
                     DistortionCoeffs = distortionCoeffs,
@@ -2331,7 +2106,7 @@ namespace Surveyor
 
                 // Check if frames can be improved and if so re-run the calibration
                 // Select relevant FrameCalibrationData from BestFrameIndexes
-                var selectedFrames = Data.BestFrameIndexes
+                var selectedFrames = bestFrameIndexes
                     .Select(bestFrame => Data.Frames.TryGetValue(bestFrame.FrameIndex, out var tuple)
                         ? (success: true, data: trueTargetLeftFalseUseTargetRight ? tuple.frameCalibrationTargetLeft : tuple.frameCalibrationTargetRight)
                         : (success: false, data: null))
@@ -2676,7 +2451,8 @@ namespace Surveyor
                                                     int stereoCornerCountThreshold,
                                                     MonoCalibrationCameraData leftMonoCalibrationCameraData,
                                                     MonoCalibrationCameraData rightMonoCalibrationCameraData,
-                                                    CalibrationParameters calibrationParameters)
+                                                    CalibrationParameters calibrationParameters,
+                                                    List<BestFrame> bestFrameIndexes)
         {
             CalibrationStereoCameraData? calibrationStereoCameraData = null;
             int imageUseable = 0;
@@ -2696,9 +2472,17 @@ namespace Surveyor
 
             Dictionary<int, MCvPoint3D32f> charucoCorner3DMap = GetCharucoCorner3DPoints(chArUcoBoardDefinition);
 
-            foreach (BestFrame bestFrame in Data.BestFrameIndexes)
-            {
+            foreach (BestFrame bestFrame in bestFrameIndexes)
+            {               
                 int frameIndex = bestFrame.FrameIndex;
+
+                // Check for the frame ignore attribute
+                if (bestFrame is not null &&
+                    (bestFrame.Reason & BestFrameReason.ManuallyIgnored) != 0)
+                {
+                    Debug.WriteLine($"{calibrationParameters} Stereo: Skipping frame set index {frameIndex}");
+                    continue;
+                }
 
                 if (!Data.Frames.TryGetValue(frameIndex, out var framePair))
                     continue;
@@ -2819,7 +2603,7 @@ namespace Surveyor
             var allErrors = new List<double>(capacity: 4096);
 
             // Re-projection test               
-            foreach (BestFrame bestFrame in Data.BestFrameIndexes)
+            foreach (BestFrame bestFrame in bestFrameIndexes)
             {
                 int frameIndex = bestFrame.FrameIndex;
 
@@ -2960,14 +2744,10 @@ namespace Surveyor
                         if (left is not null)
                         {
                             CalcYawAndPitcAndWhichPoseBin(left, monoCalibrationLeft);
-
-                            //???AddToThePoseBinTotals(left, Data.AllFramesPoseBinTotalsLeft);
                         }
                         if (right is not null && monoCalibrationRight is not null)
                         {
                             CalcYawAndPitcAndWhichPoseBin(right, monoCalibrationRight);
-
-                            //???AddToThePoseBinTotals(right, Data.AllFramesPoseBinTotalsRight);
                         }
                     }
                 });
@@ -3048,13 +2828,122 @@ namespace Surveyor
         /// </summary>
         /// <param name=""></param>
         /// <returns></returns>
-        public int CullNearbyFrames(int minFrameGap)
+        public int CullNearbyFrames(CalibProject calibProject, HeadType headType, int minFrameGap)
         {
+            // Guard: must have frames to compare against
+            if (Data.Frames is null || Data.Frames.Count == 0)
+                return 0;
+             
             int removed = 0;
+            
+            List<BestFrame> bestFramesList = calibProject.Data.CalibrationInputs.GetBestFramesList(ConvertHeadType(headType));
 
+            if (minFrameGap <= 0 || bestFramesList.Count <= 1)
+                return 0;
+
+
+            // Track indexes (into bestFramesIndexes) to remove; remove at end to avoid shifting.
+            HashSet<int> removeIndexes = [];
+
+            // Helper: is a particular BestFrame usable for a given side?
+            bool TryGetSideFrameIndexAndScore(int bestIndex, bool trueLeftFalseRight, out int frameIndex, out double score)
+            {
+                frameIndex = -1;
+                score = double.MinValue;
+
+                BestFrame bestFrame = bestFramesList[bestIndex];
+                if (!Data.Frames.TryGetValue(bestFrame.FrameIndex, out var pair))
+                    return false;
+
+                FrameData? frameData = trueLeftFalseRight ? pair.frameCalibrationTargetLeft : pair.frameCalibrationTargetRight;
+                if (frameData is null)
+                    return false;
+
+                frameIndex = frameData.FrameIndex;
+                score = frameData.Score;
+
+                return frameIndex >= 0;
+            }
+
+            static bool IsWithinGap(int a, int b, int gap) => Math.Abs(a - b) <= gap;
+
+            void EvaluateSide(bool trueLeftFalseRight)
+            {
+                // We assume bestFramesIndexes is already in ascending order by BestFrame.FrameIndex (frame set index),
+                // but each side's actual frame index can be offset; so we must compare using side-specific FrameIndex.
+                int? prevKeptBestIndex = null;
+
+                for (int i = 0; i < bestFramesList.Count; i++)
+                {
+                    if (removeIndexes.Contains(i))
+                        continue;
+
+                    if (!TryGetSideFrameIndexAndScore(i, trueLeftFalseRight, out int curFrameIndex, out double curScore))
+                        continue;
+
+                    if (prevKeptBestIndex is null)
+                    {
+                        prevKeptBestIndex = i;
+                        continue;
+                    }
+
+                    if (!TryGetSideFrameIndexAndScore(prevKeptBestIndex.Value, trueLeftFalseRight, out int prevFrameIndex, out double prevScore))
+                    {
+                        // If previous isn't usable for this side, replace it with current.
+                        prevKeptBestIndex = i;
+                        continue;
+                    }
+
+                    if (!IsWithinGap(prevFrameIndex, curFrameIndex, minFrameGap))
+                    {
+                        prevKeptBestIndex = i;
+                        continue;
+                    }
+
+                    // Conflict: too close. Discard the one with LOWER Score.
+                    // If equal score, discard the newer one to preserve earlier ordering.
+                    if (curScore > prevScore)
+                    {
+                        removeIndexes.Add(prevKeptBestIndex.Value);
+                        prevKeptBestIndex = i;
+                    }
+                    else
+                    {
+                        removeIndexes.Add(i);
+                        // Keep prevKeptBestIndex as-is
+                    }
+                }
+            }
+
+            if (headType == HeadType.MonoLeft || headType == HeadType.MonoRight)
+            {
+                // Mono: always use left only even for MonoRight
+                EvaluateSide(trueLeftFalseRight: true);
+            }
+            else if (headType == HeadType.Stereo)
+            {
+                // Stereo: apply culling constraints independently for left and right sides.
+                // A frame can be removed by either side's constraint.
+                EvaluateSide(trueLeftFalseRight: true);
+                EvaluateSide(trueLeftFalseRight: false);
+            }
+
+            if (removeIndexes.Count == 0)
+                return 0;
+
+            // Remove from end to start to keep indices valid.
+            foreach (int idx in removeIndexes.OrderByDescending(x => x))
+            {
+                report?.Info("", $"CullNearbyFrames {headType} best frame index:{idx} remove frame index:{bestFramesList[idx].FrameIndex}");
+                
+                calibProject.Data.CalibrationInputs.RemoveBestFrame(ConvertHeadType(headType), idx);
+
+                removed++;
+            }
 
             return removed;
         }
+
 
         /// <summary>
         /// Increments the total count for the pose bin corresponding to the specified frame data within the provided
@@ -3116,31 +3005,34 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Add to the existing best frame array 2 frames from each of the 
-        /// pose bins to ensure pose diversity
+        /// Return a best frame index array by taking maxFramePerBin frames from 
+        /// each of the pose bins to ensure pose diversity
         /// </summary>
-        public (int added, int updated) AddBestFramesUsingPoseBins(double maxMovementFactor, double maxBlurFactor, int cornersMinThreshold, int maxFramePerBin)
+        /// <param name="maxMovementFactor"></param>
+        /// <param name="maxBlurFactor"></param>
+        /// <param name="cornersMinThreshold"></param>
+        /// <param name="maxFramePerBin"></param>
+        /// <returns></returns>
+        public List<int>? AddBestFramesUsingPoseBins(double maxMovementFactor, double maxBlurFactor, int cornersMinThreshold, int maxFramePerBin)
         {
-            int totalAdded = 0;
-            int totalUpdated = 0;
-
+            List<int> frameIndexes = [];
 
             // Layer dimensions
             var (px, py) = FrameData.PoseBinGrid;
-            
-            List<int>? frameIndexes = null;
+             
 
             for (int biny = 0; biny < py; biny++)
             {
                 for (int binx = 0; binx < px; binx++)
                 {
-                    if (headTrueIsStereoFalseIsMode == false)
+                    if (headTrueIsStereoFalseIsMono == false)
                     {
-                        frameIndexes = [.. Data.Frames
+                        // Mono pose bin harvest best frames
+                        List<int> frameIndexesBin = [.. Data.Frames
                                          .Where(kvp =>
                                          {
                                              var (left, _, _) = kvp.Value;
-                                             return /*left.ChArUcoCorners.Length >= cornersMinThreshold &&*/
+                                             return left.ChArUcoCorners.Length >= cornersMinThreshold &&
                                                     left.PoseBinX == binx &&
                                                     left.PoseBinY == biny &&
                                                     left.MovementFactor <= maxMovementFactor &&
@@ -3161,19 +3053,15 @@ namespace Surveyor
                                          .Select(kvp => kvp.Key)];
 
                         // Add to the mono best frames list only allowing unique to be
-                        // indexes added and updating the reason in existing entries if
-                        // needed
-                        (int added, int updated) = AddBestFrames(frameIndexes, BestFrameReason.PoseDiversity);
-                        totalAdded += added;
-                        totalUpdated += updated;
+                        // indexes added
+                        frameIndexes = [.. frameIndexes.Concat(frameIndexesBin)
+                                                   .Distinct()
+                                                   .OrderBy(x => x)];
                     }
                     else
                     {
-                        int added;
-                        int updated;
-
-                        // Find diverse poses based on the left frame
-                        frameIndexes = [.. Data.Frames
+                        // Stereo left pose bin harvest best frames
+                        List<int> frameIndexesBin = [.. Data.Frames
                                         .Where(kvp =>
                                         {
                                             var (left, right, correspondingCount) = kvp.Value;
@@ -3203,15 +3091,14 @@ namespace Surveyor
                                         .Select(kvp => kvp.Key)];
 
                         // Add to the left stereo best frames list only allowing unique to be
-                        // indexes added and updating the reason in existing entries if
-                        // needed
-                        (added, updated) = AddBestFrames(frameIndexes, BestFrameReason.PoseDiversity);
-                        totalAdded += added;
-                        totalUpdated += updated;
+                        // indexes added 
+                        frameIndexes = [.. frameIndexes.Concat(frameIndexesBin)
+                                                   .Distinct()
+                                                   .OrderBy(x => x)];
 
 
-                        // Find diverse poses based on the right frame
-                        frameIndexes = [.. Data.Frames
+                        // Stereo right pose bin harvest best frames
+                        frameIndexesBin = [.. Data.Frames
                                             .Where(kvp =>
                                             {
                                                 var (left, right, correspondingCount) = kvp.Value;
@@ -3241,16 +3128,15 @@ namespace Surveyor
                                             .Select(kvp => kvp.Key)];
 
                         // Add to the right stereo best frames list only allowing unique to be
-                        // indexes added and updating the reason in existing entries if
-                        // needed
-                        (added, updated) = AddBestFrames(frameIndexes, BestFrameReason.PoseDiversity);
-                        totalAdded += added;
-                        totalUpdated += updated;
+                        // indexes added
+                        frameIndexes = [.. frameIndexes.Concat(frameIndexesBin)
+                                                   .Distinct()
+                                                   .OrderBy(x => x)];
                     }
                 }
             }
                     
-            return (totalAdded, totalUpdated);
+            return frameIndexes.Count == 0 ? null : frameIndexes;
         }
 
 

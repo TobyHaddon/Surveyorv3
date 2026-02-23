@@ -15,6 +15,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Storage;
+using WinUIEx;
 
 namespace Surveyor
 {
@@ -26,6 +27,13 @@ namespace Surveyor
         MonoSingleOnlyMediaSet,  // A single mono file only
         None
     };
+
+    public enum BestFramesHeadType
+    {
+        MonoLeft,
+        MonoRight,
+        Stereo
+    }
 
     [Flags]
     public enum BestFrameReason
@@ -199,10 +207,6 @@ namespace Surveyor
                     _rightCameraID = string.Empty;
                     _frameWidth = 0;
                     _frameHeight = 0;
-                    _leftMonoBestFrames = new ListTrackDirty<BestFrame>(() => MarkDirtyAndRaise(nameof(LeftMonoBestFrames)));
-                    _rightMonoBestFrames = new ListTrackDirty<BestFrame>(() => MarkDirtyAndRaise(nameof(RightMonoBestFrames)));
-                    _stereoBestFrames = new ListTrackDirty<BestFrame>(() => MarkDirtyAndRaise(nameof(StereoBestFrames)));
-
                     _isDirty = false;
                 }
 
@@ -218,9 +222,6 @@ namespace Surveyor
                 private string _rightStereoMP4FileName = string.Empty;
                 private int _frameWidth = 0;
                 private int _frameHeight = 0;
-                private ListTrackDirty<BestFrame> _leftMonoBestFrames = new(() => { });
-                private ListTrackDirty<BestFrame> _rightMonoBestFrames = new(() => { });
-                private ListTrackDirty<BestFrame> _stereoBestFrames = new(() => { });
 
                 // Setters and getters
                 // Calibration mode mono+stereo, mono only, stereo only
@@ -374,49 +375,6 @@ namespace Surveyor
                     }
                 }
 
-                public List<BestFrame> LeftMonoBestFrames
-                {
-                    get => _leftMonoBestFrames;
-                    set
-                    {
-                        if (!ReferenceEquals(_leftMonoBestFrames, value))
-                        {
-                            _leftMonoBestFrames = Wrap(value, nameof(LeftMonoBestFrames));
-                            IsDirty = true;
-                            OnPropertyChanged();
-                        }
-                    }
-                }
-
-                public List<BestFrame> RightMonoBestFrames
-                {
-                    get => _rightMonoBestFrames;
-                    set
-                    {
-                        if (!ReferenceEquals(_rightMonoBestFrames, value))
-                        {
-                            _rightMonoBestFrames = Wrap(value, nameof(RightMonoBestFrames));
-                            IsDirty = true;
-                            OnPropertyChanged();
-                        }
-                    }
-                }
-
-                public List<BestFrame> StereoBestFrames
-                {
-                    get => _stereoBestFrames;
-                    set
-                    {
-                        if (!ReferenceEquals(_stereoBestFrames, value))
-                        {
-                            _stereoBestFrames = Wrap(value, nameof(StereoBestFrames));
-                            IsDirty = true;
-                            OnPropertyChanged();
-                        }
-                    }
-                }
-
-
                 // Helpers
                 [JsonIgnore]
                 public string LeftMonoMP4Path
@@ -438,59 +396,6 @@ namespace Surveyor
                 {
                     get => Path.Combine(MediaPath, RightStereoMP4FileName);
                 }
-
-                private ListTrackDirty<BestFrame> Wrap(List<BestFrame>? value, string propertyName)
-                {
-                    var list = new ListTrackDirty<BestFrame>(() => MarkDirtyAndRaise(propertyName));
-                    if (value is not null && value.Count > 0)
-                        list.AddRange(value); // will trigger dirty; we immediately neutralize it below
-
-                    // When setting from deserialization / assignment, you usually don't want this to mark dirty.
-                    // So reset IsDirty after populating.
-                    _isDirty = false;
-                    return list;
-                }
-
-                private void MarkDirtyAndRaise(string propertyName)
-                {
-                    IsDirty = true;
-                    OnPropertyChanged(propertyName);
-                }
-
-                // Derived list<> to enable a dirty flag to be set
-                private sealed class ListTrackDirty<T>(Action changed) : List<T>
-                {
-                    private readonly Action _changed = changed ?? throw new ArgumentNullException(nameof(changed));
-
-                    public new void Add(T item)
-                    {
-                        base.Add(item);
-                        _changed();
-                    }
-
-                    public new bool Remove(T item)
-                    {
-                        bool removed = base.Remove(item);
-                        if (removed)
-                            _changed();
-                        return removed;
-                    }
-
-                    public new void RemoveAt(int index)
-                    {
-                        base.RemoveAt(index);
-                        _changed();
-                    }
-
-                    public new int RemoveAll(Predicate<T> match)
-                    {
-                        int removed = base.RemoveAll(match);
-                        if (removed > 0)
-                            _changed();
-                        return removed;
-                    }
-                }
-
 
                 // Dirty flag
                 private bool _isDirty;
@@ -627,6 +532,400 @@ namespace Surveyor
                 }
             }
 
+            public partial class CalibrationInputsClass : INotifyPropertyChanged
+            {
+                public event PropertyChangedEventHandler? PropertyChanged;
+
+                public const double BLUR_LARGE_VALUE = 15.0;
+                public const double MOVEMENT_LARGE_VALUE = 150.0;
+
+                public const int MONO_CORNER_COUNT_THRESHOLD = 80;
+                public const int STEREO_CORNER_COUNT_THRESHOLD = 50;
+
+                public CalibrationInputsClass()
+                {
+                    Clear();
+                }
+
+                public void Clear()
+                {
+
+                    IsDirty = false;
+                }
+
+                // CalibrationBestFrames class version
+                public float Version { get; set; } = 1.0f;
+
+                // Values
+                private List<BestFrame> _leftMonoBestFrames = [];
+                private List<BestFrame> _rightMonoBestFrames = [];
+                private List<BestFrame> _stereoBestFrames = [];
+                public double _movementFilterValue = MOVEMENT_LARGE_VALUE;
+                public double _blurFilterValue = BLUR_LARGE_VALUE;
+                public int _monoCornersFilterValue = MONO_CORNER_COUNT_THRESHOLD;
+                public int _stereoCornersFilterValue = STEREO_CORNER_COUNT_THRESHOLD;
+
+
+                public List<BestFrame> LeftMonoBestFrames
+                {
+                    get => _leftMonoBestFrames;
+                    set
+                    {
+                        if (_leftMonoBestFrames != value)
+                        {
+                            _leftMonoBestFrames = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public List<BestFrame> RightMonoBestFrames
+                {
+                    get => _rightMonoBestFrames;
+                    set
+                    {
+                        if (_rightMonoBestFrames != value)
+                        {
+                            _rightMonoBestFrames = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public List<BestFrame> StereoBestFrames
+                {
+                    get => _stereoBestFrames;
+                    set
+                    {
+                        if (_stereoBestFrames != value)
+                        {
+                            _stereoBestFrames = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public double MovementFilterValue 
+                { 
+                    get => _movementFilterValue; 
+                    set
+                    {
+                        if (_movementFilterValue != value)
+                        {
+                            _movementFilterValue = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public double BlurFilterValue 
+                { 
+                    get => _blurFilterValue;
+                    set
+                    {
+                        if (_blurFilterValue != value)
+                        {
+                            _blurFilterValue = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public int MonoCornersFilterValue 
+                {
+                    get => _monoCornersFilterValue;
+                    set
+                    {
+                        if (_monoCornersFilterValue != value)
+                        {
+                            _monoCornersFilterValue = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                public int StereoCornersFilterValue 
+                { 
+                    get => _stereoCornersFilterValue; 
+                    set
+                    {
+                        if (_stereoCornersFilterValue != value)
+                        {
+                            _stereoCornersFilterValue = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+
+                /// <summary>
+                /// Get the best frames list for the specified head type. 
+                /// </summary>
+                /// <param name="headType"></param>
+                /// <returns></returns>
+                /// <exception cref="ArgumentException"></exception>
+                public List<BestFrame> GetBestFramesList(BestFramesHeadType headType)
+                {
+                    return headType switch
+                    {
+                        BestFramesHeadType.MonoLeft => LeftMonoBestFrames,
+                        BestFramesHeadType.MonoRight => RightMonoBestFrames,
+                        BestFramesHeadType.Stereo => StereoBestFrames,
+                        _ => throw new ArgumentException($"Invalid head type: {headType}")
+                    };
+                }
+
+
+                /// <summary>
+                /// Add or update the supplied BestFrame into the appropriate best frame 
+                /// list best on the HeadType. If the frame index already exists in the 
+                /// list then the existing entry will be updated with the new reason, 
+                /// otherwise a new entry will be added to the list.
+                /// </summary>
+                /// <param name="bestFrame"></param>
+                /// <returns>True if the frame was added or false if updated or null if fails</returns>
+                public bool? AddBestFrame(BestFramesHeadType headType, BestFrame bestFrame)
+                {
+                    bool? trueAddedFalseUpdatedNullFailed = null;
+
+                    // Get the appropriate best frame list based on the head type
+                    List<BestFrame> bestFramesList = GetBestFramesList(headType);
+
+                    // Locate existing BestFrame (if any)
+                    int existingIndex = bestFramesList.FindIndex(f => f.FrameIndex == bestFrame.FrameIndex);
+
+                    if (existingIndex >= 0)
+                    {
+                        // Update 
+
+                        BestFrame existing = bestFramesList[existingIndex];
+
+                        if (bestFrame.Reason != existing.Reason)
+                        {
+                            bestFramesList[existingIndex] = existing with { Reason = bestFrame.Reason };
+                            trueAddedFalseUpdatedNullFailed = false;                            
+                        }
+                    }
+                    else
+                    {
+                        // New
+
+                        // Add new entry
+                        bestFramesList.Add(new BestFrame(bestFrame.FrameIndex, bestFrame.Reason));
+                        trueAddedFalseUpdatedNullFailed = true;
+                    }
+
+                    // Something changed
+                    if (trueAddedFalseUpdatedNullFailed is not null)
+                    {
+                        IsDirty = true;
+                        OnPropertyChanged();
+                    }
+
+                    return trueAddedFalseUpdatedNullFailed;
+                }
+
+                /// <summary>
+                /// Remove the BestFrame with the specified frame index from the appropriate best frame list based on the HeadType.
+                /// </summary>
+                /// <param name="frameSetIndex"></param>
+                /// <returns></returns>
+                public bool RemoveBestFrame(BestFramesHeadType headType, int frameSetIndex)
+                {
+                    bool removed = false;
+
+                    // Get the appropriate best frame list based on the head type
+                    List<BestFrame> bestFramesList = GetBestFramesList(headType);
+
+                    // Locate existing BestFrame (if any)
+                    int existingIndex = bestFramesList.FindIndex(f => f.FrameIndex == frameSetIndex);
+                    
+                    if (existingIndex >= 0)
+                    {
+                        bestFramesList.RemoveAt(existingIndex);
+
+                        IsDirty = true;
+                        OnPropertyChanged();
+                        removed = true;
+                    }
+
+                    return removed;
+                }
+
+                /// <summary>
+                /// Remove all BestFrames from the appropriate best frame list based on the HeadType.
+                /// Optionally all items can be removed bar the manual added/ignored items
+                /// </summary>
+                /// <param name="trueAllFalsePreserveManual"></param>
+                /// <returns>true if all removed else failed</returns>
+                public bool RemoveAllBestFrames(BestFramesHeadType headType, bool trueAllFalsePreserveManual)
+                {
+                    bool removed = false;
+
+                    // Get the appropriate best frame list based on the head type
+                    List<BestFrame> bestFramesList = GetBestFramesList(headType);
+
+                    if (trueAllFalsePreserveManual)
+                    {
+                        // Remove all items
+                        bestFramesList.RemoveAll(_ => true);
+                        removed = true;
+                    }
+                    else
+                    {
+                        // Preserve the manual added/Ignored items
+                        for (int i = bestFramesList.Count - 1;
+                             i >= 0;
+                             i--)
+                        {
+                            // Turn off all bits other then added/ignored
+                            BestFrameReason updatedReason = bestFramesList[i].Reason & (BestFrameReason.ManuallyAdded | BestFrameReason.ManuallyIgnored);
+                            
+                            if (updatedReason != 0)
+                            {
+                                BestFrame updatedBestFrame = new(bestFramesList[i].FrameIndex, updatedReason);
+                                bestFramesList[i] = updatedBestFrame;
+                            }
+                            else
+                            {
+                                bestFramesList.RemoveAt(i);
+                            }
+                        }                  
+                    }
+
+                    // Something changed
+                    if (removed)
+                    {
+                        IsDirty = true;
+                        OnPropertyChanged();
+                    }
+
+                    return removed;
+                }
+
+
+                /// <summary>
+                /// Remove all matching BestFrames from the appropriate best frame list based 
+                /// on the HeadType and reason bit. If only the reason bit is set the item is
+                /// removed from the best frames list. If other bits are also set then the reason 
+                /// bit is turned off and the item is updated in the list. 
+                /// </summary>
+                /// <param name="headType"></param>
+                /// <param name="reasonBit"></param>
+                /// <returns></returns>
+                /// <exception cref="ArgumentException"></exception>
+                public bool RemoveAllBestFrames(BestFramesHeadType headType, BestFrameReason reasonBit)
+                {
+                    bool updatedOrRemoved = false;
+
+                    // Get the appropriate best frame list based on the head type
+                    List<BestFrame> bestFramesList = GetBestFramesList(headType);
+
+                    // Preserve the manual added/Ignored items
+                    for (int i = bestFramesList.Count - 1;
+                            i >= 0;
+                            i--)
+                    {
+                        // Turn off all bits other then added/ignored
+                        BestFrameReason updatedReason = bestFramesList[i].Reason & ~reasonBit;
+
+                        if (updatedReason != 0)
+                        {
+                            BestFrame updatedBestFrame = new(bestFramesList[i].FrameIndex, updatedReason);
+                            bestFramesList[i] = updatedBestFrame;
+                            updatedOrRemoved = true;
+                        }
+                        else
+                        {
+                            bestFramesList.RemoveAt(i);
+                            updatedOrRemoved = true;
+                        }
+                    }
+
+                    // Something changed
+                    if (updatedOrRemoved)
+                    {
+                        IsDirty = true;
+                        OnPropertyChanged();
+                    }
+
+                    return updatedOrRemoved;
+                }
+
+
+                /// <summary>
+                /// Sort the appropriate best frame list in frame set index order
+                /// </summary>
+                /// <returns></returns>
+                public bool Sort(BestFramesHeadType headType)
+                {
+                    // Get the appropriate best frame list based on the head type
+                    List<BestFrame> bestFramesList = GetBestFramesList(headType);
+
+                    // There is only one element - no sorting needed
+                    if (bestFramesList.Count < 2)
+                        return false;
+
+                    //  Check if a sort is actually needed by looking for any out of order
+                    //  frame set indexes, if there are none then we can skip the sort and
+                    //  avoid marking the data as dirty
+                    bool alreadySorted = true;
+                    for (int i = 1; i < bestFramesList.Count; i++)
+                    {
+                        if (bestFramesList[i - 1].FrameIndex > bestFramesList[i].FrameIndex)
+                        {
+                            alreadySorted = false;
+                            break;
+                        }
+                    }
+
+                    if (alreadySorted)
+                        return false;
+
+                    // Sort the list
+                    bestFramesList.Sort((a, b) => a.FrameIndex.CompareTo(b.FrameIndex));
+
+                    // Signed the data as dirty and raise the changed event
+                    IsDirty = true;
+                    OnPropertyChanged();
+
+                    return true;
+                }
+
+
+                private bool _isDirty;
+                [JsonIgnore]
+                public bool IsDirty
+                {
+                    get => _isDirty;
+                    set
+                    {
+                        if (_isDirty != value)
+                        {
+                            _isDirty = value;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+                
+
+                ///
+                /// EVENTS
+                /// 
+                private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+                {
+                    PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+                }
+            }
+
+
             public partial class CalibrationResultClass : INotifyPropertyChanged
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
@@ -655,6 +954,10 @@ namespace Surveyor
 
                 // Setters and getters
                 // Left & right mono calibration result sets (different results for different calibration flags)
+                // NOTE changing a value in the array won't trigger the dirty flag, this therefore needs to be
+                // set manually if when calibration results are updated after a calibration run.  If the arrays
+                // themselves are replaced this will trigger the dirty flag, but if you update the values in
+                // place then you need to set the dirty flag manually by setting the property to itself
                 public MonoCalibrationCameraData?[] LeftMonoCalibrationCameraDataArray 
                 { 
                     get => _leftMonoCalibrationCameraDataArray;
@@ -887,6 +1190,8 @@ namespace Surveyor
 
             public SyncClass Sync { get; set; } = new();
 
+            public CalibrationInputsClass CalibrationInputs { get; set; } = new();
+
             public CalibrationResultClass CalibrationResults { get; set; } = new();
 
             public CacheClass Cache { get; set; } = new();
@@ -902,6 +1207,7 @@ namespace Surveyor
                     Data.Media.IsDirty || 
                     Data.ChArUcoBoardDefinition.IsDirty ||
                     Data.Sync.IsDirty ||
+                    Data.CalibrationInputs.IsDirty ||
                     Data.CalibrationResults.IsDirty ||
                     Data.Cache.IsDirty)
                 {
@@ -915,6 +1221,7 @@ namespace Surveyor
                 Data.Media.IsDirty = value;
                 Data.ChArUcoBoardDefinition.IsDirty = value;
                 Data.Sync.IsDirty = value;
+                Data.CalibrationInputs.IsDirty = value;
                 Data.CalibrationResults.IsDirty = value;
                 Data.Cache.IsDirty = value;
                 OnPropertyChanged();

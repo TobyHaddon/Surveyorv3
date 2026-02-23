@@ -20,7 +20,7 @@
                 <CommandBar.Content>
                     <StackPanel Orientation="Horizontal">
                         <!-- Play or Pause Media Control Button, F5B0 or F8AE -->
-                        <!-- Tooltip and Glyph are dymanically set in the code behind but the initial tooltip is also set here -->
+                        <!-- Tool tip and Glyph are dynamically set in the code behind but the initial tool tip is also set here -->
                         <AppBarButton x:Name="ControlPlayPause" MinWidth="20" Width="30" Click="ControlPlayPause_Click"  ToolTipService.ToolTip="Play (Spacebar)">
                             <AppBarButton.Icon>
                                 <FontIcon Glyph="&#xF5B0;"/>
@@ -152,19 +152,19 @@
                         </AppBarButton>
      
                         <!-- Enlarge Screen Player Window Media Control Button E92D   -->
-                        <!-- Tooltip and Glyph are dymanically set in the code behind -->
+                        <!-- Tool tip and Glyph are dynamically set in the code behind -->
                         <AppBarButton x:Name="ControlFullScreen" MinWidth="20" Width="30" Click="ControlFullScreen_Click">
                             <AppBarButton.Icon>
                                 <FontIcon Glyph="&#xE740;"/>
                             </AppBarButton.Icon>
                         </AppBarButton>
                         <!-- Enlarge alternate Screen Player Window Media Control Button E92D 
-                             Tooltip and Glyph are dymanically set in the code behind         
+                             Tool tip and Glyph are dynamically set in the code behind         
                              This second enlarge screen icon has two purposes:                
                                -For unsynchronized media mode the second button allows the user 
                                 to switch between enlarged players without restoring first to      
                                 the stereo player view (saves a couple of clicks)          
-                               -In Synchronized media mode there is only only media control and 
+                               -In Synchronized media mode there is only media control and 
                                 a second button allows the user to enlarge either player      -->                        
                         <AppBarButton x:Name="ControlFullScreenAlternative" MinWidth="20" Width="30" Visibility="Collapsed" Click="ControlFullScreenAlternative_Click">
                             <AppBarButton.Icon>
@@ -252,13 +252,13 @@
                             <FontIcon Glyph="&#xE722;"/>
                         </AppBarButton.Icon>
                         <AppBarButton.KeyboardAccelerators>
-                            <!-- Ctrl + S key combination -->
+                            <!-- Control + S key combination -->
                             <KeyboardAccelerator Key="S" Modifiers="Control" />
                         </AppBarButton.KeyboardAccelerators>
                     </AppBarButton>
 
                     <!-- Mute/Unmute, E198(Mute) E15D(Unmute) -->
-                    <!-- Glyph is dymanically set in the code behind -->
+                    <!-- Glyph is dynamically set in the code behind -->
                     <AppBarButton x:Name="ControlMuteUnmute" Label="Volume On/Off" Click="ControlMuteUnmute_Click">
                         <AppBarButton.Icon>
                             <FontIcon Glyph="&#xE198;"/>

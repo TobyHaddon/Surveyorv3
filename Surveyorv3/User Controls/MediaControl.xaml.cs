@@ -845,7 +845,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// The user toggled the automatical opening of the Mag Window on or off
+        /// The user toggled the automatically opening of the Mag Window on or off
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -858,12 +858,12 @@ namespace Surveyor.User_Controls
         //        // Remember the original button color so a) we can restore it, b) we can make a greyer version
         //        appButtonAutoMagnifyOn = ControlAutoMagIcon.Foreground as Microsoft.UI.Xaml.Media.SolidColorBrush;
 
-        //        // Rememmber the original tooltip. 
+        //        // Remember the original tool tip. 
         //        appButtonAutoMagnifyTooltip = ToolTipService.GetToolTip(ControlAutoMag) as string;
 
         //        // Make a greyer version of the original button color
         //        Windows.UI.Color originalColor = appButtonAutoMagnifyOn!.Color;
-        //        byte grey = (byte)((originalColor.R + originalColor.G + originalColor.B) / 3);
+        //        byte gray = (byte)((originalColor.R + originalColor.G + originalColor.B) / 3);
         //        Windows.UI.Color greyColor = Windows.UI.Color.FromArgb(originalColor.A, grey, grey, grey);
         //        appButtonAutoMagnifyOff = new Microsoft.UI.Xaml.Media.SolidColorBrush(greyColor);
         //    }
@@ -948,7 +948,7 @@ namespace Surveyor.User_Controls
                 selectedFlyoutItem.IsChecked = true;
 
                 // Now figure which speed was clicked on
-                // Convert the selected Flyout Item text to a float
+                // Convert the selected Fly out Item text to a float
                 double _canvasZoomFactor = double.Parse(selectedFlyoutItem.Text.TrimEnd('x'));
                 if (canvasZoomFactor != _canvasZoomFactor)
                 {
@@ -1110,7 +1110,7 @@ namespace Surveyor.User_Controls
                 selectedFlyoutItem.IsChecked = true;
 
                 // Now figure which speed was clicked on
-                // Convert the selected Flyout Item text to a float
+                // Convert the selected Fly out Item text to a float
                 string magWindowSize = selectedFlyoutItem.Text;
                 if (magWindowSize != this.magWindowSize)
                 {
@@ -1190,7 +1190,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private async void ControlFrameEdit_LostFocus(object sender, RoutedEventArgs e)
         {
-            // Check if the focus was lost progammically or by the user clicking away
+            // Check if the focus was lost programmatically or by the user clicking away
             if (ControlFrameText.Visibility == Visibility.Collapsed)
             {
                 // Get the new frame number from the TextBox and request a jump to that frame
@@ -1593,7 +1593,7 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// Called to collapsed the ControlFrameEdit TextBox and return the focus to
-        /// whereever it was before
+        /// wherever it was before
         /// </summary>
         private async Task ControlFrameEditCollapsedAndReturnFocus()
         {
@@ -1645,9 +1645,6 @@ namespace Surveyor.User_Controls
 
         // Used only for eMediaControlAction.FrameIndex to inform MediaControls of a change to the Frame Index (i.e. we have moved position in the media)
         public Int64 frameIndex;
-
-//???        // Used only for eMediaControlAction.Duration to inform MediaControls of the natural diuration of the media
-//???        public TimeSpan duration;*/
 
         // Used only for eMediaControlAction.Position to indicate what position of media with the playback
         public TimeSpan position;
@@ -1704,7 +1701,7 @@ namespace Surveyor.User_Controls
         // Used for UserReqMagWindowSizeSelect mag window size change
         public string? magWindowSize;
 
-        // Used for UserReqMagZoomSelect to chage the mag window zoom factor
+        // Used for UserReqMagZoomSelect to change the mag window zoom factor
         public double? canvasZoomFactor;
 
         // Used for UserReqAutoMagOnOff to turn on or off the automatic magnify

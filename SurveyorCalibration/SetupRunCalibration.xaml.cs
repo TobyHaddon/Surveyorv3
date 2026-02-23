@@ -47,10 +47,10 @@ namespace Surveyor
                 return false;
         }
 
-        public bool IsMovementFilterChanged() => MovementFilterWorkingValue != runParams.MovementFilterValue;
-        public bool IsBlurFilterChanged() => BlurFilterWorkingValue != runParams.BlurFilterValue;
-        public bool IsMonoCornersFilterChanged() => MonoCornersFilterWorkingValue != runParams.MonoCornersFilterValue;
-        public bool IsStereoCornersFilterChanged() => StereoCornersFilterWorkingValue != runParams.StereoCornersFilterValue;
+        public bool IsMovementFilterChanged() => MovementFilterWorkingValue != calibProject.Data.CalibrationInputs.MovementFilterValue;
+        public bool IsBlurFilterChanged() => BlurFilterWorkingValue != calibProject.Data.CalibrationInputs.BlurFilterValue;
+        public bool IsMonoCornersFilterChanged() => MonoCornersFilterWorkingValue != calibProject.Data.CalibrationInputs.MonoCornersFilterValue;
+        public bool IsStereoCornersFilterChanged() => StereoCornersFilterWorkingValue != calibProject.Data.CalibrationInputs.StereoCornersFilterValue;
 
     }
 
@@ -75,10 +75,10 @@ namespace Surveyor
                 FindBestStereoFramesWorkingValue = _runCalibrationParams.FindBestStereoFrames,
                 DoCalibrationStereoCalculationsWorkingValue = _runCalibrationParams.DoCalibrationStereoCalculations,
 
-                MovementFilterWorkingValue = _runCalibrationParams.MovementFilterValue,
-                BlurFilterWorkingValue = _runCalibrationParams.BlurFilterValue,
-                MonoCornersFilterWorkingValue = _runCalibrationParams.MonoCornersFilterValue,
-                StereoCornersFilterWorkingValue = _runCalibrationParams.StereoCornersFilterValue
+                MovementFilterWorkingValue = _calibProject.Data.CalibrationInputs.MovementFilterValue,
+                BlurFilterWorkingValue = _calibProject.Data.CalibrationInputs.BlurFilterValue,
+                MonoCornersFilterWorkingValue = _calibProject.Data.CalibrationInputs.MonoCornersFilterValue,
+                StereoCornersFilterWorkingValue = _calibProject.Data.CalibrationInputs.StereoCornersFilterValue
             };
 
 

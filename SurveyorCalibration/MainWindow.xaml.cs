@@ -1,3 +1,4 @@
+using Emgu.CV.Flann;
 using iText.Layout;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
@@ -9,6 +10,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Surveyor;
+using Surveyor.Controls;
 using Surveyor.DesktopWap.Helper;
 using Surveyor.Helper;
 using Surveyor.User_Controls;
@@ -54,10 +56,10 @@ namespace Surveyor
     public class RunCalibrationParams
     {
         // Defaults
-        public static double MovementFilterDefaultValue { get; set; } = 400.0;   // Set so high that these values are effectively ignored
-        public static double BlurMaxFilterDefaultValue { get; set; } = 50;       // Set so high that these values are effectively ignored
-        public static double MovementFilterMaxDefault { get; set; } = 400.0;   // Set so high that these values are effectively ignored
-        public static double BlurMaxFilterMaxDefault { get; set; } = 50;       // Set so high that these values are effectively ignored
+        public static double MovementFilterDefaultValue { get; set; } = 20.0;   
+        public static double BlurMaxFilterDefaultValue { get; set; } = 10.0;       // Set so high that these values are effectively ignored
+        public static double MovementFilterMaxDefault { get; set; } = 30.0;   // Slider max
+        public static double BlurMaxFilterMaxDefault { get; set; } = 10.0;       // Slider max
 
 
         // Limits 
@@ -68,13 +70,11 @@ namespace Surveyor
         public double? BlurFilterMax { get; set; } = null;    
 
         // Used by the RunCalibration process        
-        public double MovementFilterValue { get; set; } = MovementFilterDefaultValue;
-        public double BlurFilterValue { get; set; } = BlurMaxFilterDefaultValue;
-        public int MonoCornersFilterValue { get; set; } = CalibrationStereoFrameSet.MONO_CORNER_COUNT_THRESHOLD;
-        public int StereoCornersFilterValue { get; set; } = CalibrationStereoFrameSet.STEREO_CORNER_COUNT_THRESHOLD;
         public int MaxFramesFromEachSensorBin { get; set; } = 2;  // Take top 2 frames from each sensor bin
         public int MaxFramesFromEachPoseBin { get; set; } = 4;    // Take top 4 frames from each pose bin
         public int MinFrameGap { get; set; } = 5; // Minimum allow gap between frames
+        public int MinFramesAllowedForMonoCalibration { get; set; } = 12;
+        public int MinFramesAllowedForStereoCalibration { get; set; } = 12;
         // Action FLags
         public bool FindCalibrationBoardZone { get; set; } = true;
         public bool BuildTheFrameSets { get; set; } = true;
@@ -157,6 +157,22 @@ namespace Surveyor
 
             // Wire up to the ProcessingInfoBar the external TextBlock and ProgressRing controls in the title bar
             InfoBarProcessing.WireUpElapsedTimeUIControl(ElapsedProcessingTime, TitleProgressRing);
+
+            // Wire up the callback to handle user UI request to toggle manual
+            // add/ignore best frames
+            LeftMonoCalibrationHead.ToggleManualReasonCallback += UICallBackForIncludingExcludingBestFrames;
+            RightMonoCalibrationHead.ToggleManualReasonCallback += UICallBackForIncludingExcludingBestFrames;
+            StereoCalibrationHead.ToggleManualReasonCallback += UICallBackForIncludingExcludingBestFrames;
+
+            // Wire up the callback to handle user UI request to remove all manual add/ignore best frames   
+            LeftMonoCalibrationHead.RemoveAllCallback += UICallBackForRemovingAllBestFrames;
+            RightMonoCalibrationHead.RemoveAllCallback += UICallBackForRemovingAllBestFrames;
+            StereoCalibrationHead.RemoveAllCallback += UICallBackForRemovingAllBestFrames;
+
+            // Write up the callback to get the appropriate best frame list reference into the UniversalCalibrationHead
+            LeftMonoCalibrationHead.GetBestFrameListCallback += GetBestFrameListForHead;
+            RightMonoCalibrationHead.GetBestFrameListCallback += GetBestFrameListForHead;
+            StereoCalibrationHead.GetBestFrameListCallback += GetBestFrameListForHead;
 
             // Update the Recent open surveys sub menu
             UpdateRecentProjectsMenu();
@@ -404,7 +420,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="cachedResultCheckType"></param>
         /// <returns></returns>
-        private bool CheckIfCacheResultAvailable(CachedResultCheckType cachedResultCheckType)
+        private bool CheckIfCacheResultAvailable(CalibProject calibProject, CachedResultCheckType cachedResultCheckType)
         {
             bool ret = false;
 
@@ -478,9 +494,9 @@ namespace Surveyor
                         break;
                     case CachedResultCheckType.BestMonoFrames:
                         ret = true;
-                        if (doLeftMono && !LeftMonoCalibrationHead.IsBestFramesSetup())
+                        if (doLeftMono && !LeftMonoCalibrationHead.IsBestFramesSetup(calibProject))
                             ret = false;
-                        if (doRightMono && !RightMonoCalibrationHead.IsBestFramesSetup())
+                        if (doRightMono && !RightMonoCalibrationHead.IsBestFramesSetup(calibProject))
                             ret = false;
                         break;
                     case CachedResultCheckType.MonoCalibrationCalcs:
@@ -492,7 +508,7 @@ namespace Surveyor
                         break;
                     case CachedResultCheckType.BestStereoFrames:
                         ret = true;
-                        if (doStereo && !StereoCalibrationHead.IsBestFramesSetup())
+                        if (doStereo && !StereoCalibrationHead.IsBestFramesSetup(calibProject))
                             ret = false;
                         break;
                     case CachedResultCheckType.StereoCalibrationCalcs:
@@ -2240,17 +2256,17 @@ namespace Surveyor
 
                     if (stereoFramesLoad)
                     {
-                        tasks.Add(StereoCalibrationHead.LoadCachedResultsAsync(cache.StereoFrameSetCacheFileSpec));
+                        tasks.Add(StereoCalibrationHead.LoadCachedResultsAsync(calibProject, cache.StereoFrameSetCacheFileSpec));
                         taskStereoIndex = taskIndex++;
                     }
                     if (leftMonoFramesLoad)
                     {
-                        tasks.Add(LeftMonoCalibrationHead.LoadCachedResultsAsync(cache.LeftMonoFrameSetCacheFileSpec));
+                        tasks.Add(LeftMonoCalibrationHead.LoadCachedResultsAsync(calibProject, cache.LeftMonoFrameSetCacheFileSpec));
                         taskLeftMonoIndex = taskIndex++;
                     }
                     if (rightMonoFramesLoad)
                     {
-                        tasks.Add(RightMonoCalibrationHead.LoadCachedResultsAsync(cache.RightMonoFrameSetCacheFileSpec));
+                        tasks.Add(RightMonoCalibrationHead.LoadCachedResultsAsync(calibProject, cache.RightMonoFrameSetCacheFileSpec));
                         taskRightMonoIndex = taskIndex++;
                     }
 
@@ -2674,15 +2690,15 @@ namespace Surveyor
                 {
                     if (doLeftMono)
                     {
-                        await LeftMonoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
+                        await LeftMonoCalibrationHead.ClearResultsSafeUIAsync(calibProject, CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
                     }
                     if (doRightMono)
                     {
-                        await RightMonoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
+                        await RightMonoCalibrationHead.ClearResultsSafeUIAsync(calibProject, CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
                     }
                     if (doStereo)
                     {
-                        await StereoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
+                        await StereoCalibrationHead.ClearResultsSafeUIAsync(calibProject, CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
                     }
                 }
 
@@ -2785,17 +2801,17 @@ namespace Surveyor
 
                     if (doLeftMono)
                     {
-                        tasks.Add(LeftMonoCalibrationHead.BuildFrameSetsAsync());
+                        tasks.Add(LeftMonoCalibrationHead.BuildFrameSetsAsync(calibProject));
                         taskLeftMonoIndex = taskIndex++;
                     }
                     if (doRightMono)
                     {
-                        tasks.Add(RightMonoCalibrationHead.BuildFrameSetsAsync());
+                        tasks.Add(RightMonoCalibrationHead.BuildFrameSetsAsync(calibProject));
                         taskRightMonoIndex = taskIndex++;
                     }
                     if (doStereo)
                     {
-                        tasks.Add(StereoCalibrationHead.BuildFrameSetsAsync());
+                        tasks.Add(StereoCalibrationHead.BuildFrameSetsAsync(calibProject));
                         taskStereoIndex = taskIndex++;
                     }
 
@@ -2853,15 +2869,15 @@ namespace Surveyor
                 {
                     if (doLeftMono)
                     {
-                        await LeftMonoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.FrameSets);
+                        await LeftMonoCalibrationHead.ClearResultsSafeUIAsync(calibProject, CalibrationStereoFrameSet.ClearRequest.FrameSets);
                     }
                     if (doRightMono)
                     {
-                        await RightMonoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.FrameSets);
+                        await RightMonoCalibrationHead.ClearResultsSafeUIAsync(calibProject, CalibrationStereoFrameSet.ClearRequest.FrameSets);
                     }
                     if (doStereo)
                     {
-                        await StereoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.FrameSets);
+                        await StereoCalibrationHead.ClearResultsSafeUIAsync(calibProject, CalibrationStereoFrameSet.ClearRequest.FrameSets);
                     }
                 }
 
@@ -2952,11 +2968,12 @@ namespace Surveyor
             if (doLeftMono)
             {
                 monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.FindBestMonoFramesSafeUIAsync(
+                                                                Report,
                                                                 calibProject,
                                                                 trueLeftFalseRight: true,
-                                                                runParams.MovementFilterValue,
-                                                                runParams.BlurFilterValue,
-                                                                runParams.MonoCornersFilterValue,
+                                                                calibProject.Data.CalibrationInputs.MovementFilterValue,
+                                                                calibProject.Data.CalibrationInputs.BlurFilterValue,
+                                                                calibProject.Data.CalibrationInputs.MonoCornersFilterValue,
                                                                 runParams.MaxFramesFromEachSensorBin,
                                                                 runParams.MaxFramesFromEachPoseBin,
                                                                 runParams.MinFrameGap)));
@@ -2966,11 +2983,12 @@ namespace Surveyor
             if (doRightMono)
             {
                 monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.FindBestMonoFramesSafeUIAsync(
+                                                                Report,
                                                                 calibProject,
                                                                 trueLeftFalseRight: false,
-                                                                runParams.MovementFilterValue,
-                                                                runParams.BlurFilterValue,
-                                                                runParams.MonoCornersFilterValue,
+                                                                calibProject.Data.CalibrationInputs.MovementFilterValue,
+                                                                calibProject.Data.CalibrationInputs.BlurFilterValue,
+                                                                calibProject.Data.CalibrationInputs.MonoCornersFilterValue,
                                                                 runParams.MaxFramesFromEachSensorBin,
                                                                 runParams.MaxFramesFromEachPoseBin,
                                                                 runParams.MinFrameGap)));
@@ -3014,11 +3032,11 @@ namespace Surveyor
                 {
                     if (doLeftMono)
                     {
-                        await LeftMonoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.BestFrames);
+                        await LeftMonoCalibrationHead.ClearResultsSafeUIAsync(calibProject, CalibrationStereoFrameSet.ClearRequest.BestFrames_AutoOnly);
                     }
                     if (doRightMono)
                     {
-                        await RightMonoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.BestFrames);
+                        await RightMonoCalibrationHead.ClearResultsSafeUIAsync(calibProject, CalibrationStereoFrameSet.ClearRequest.BestFrames_AutoOnly);
                     }
                 }
 
@@ -3117,7 +3135,7 @@ namespace Surveyor
                     monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.DoMonoCalibrationCalculationSafeUI(
                                                                  calibProject,
                                                                  trueLeftFalseRight: true,
-                                                                 runParams.MonoCornersFilterValue)));
+                                                                 calibProject.Data.CalibrationInputs.MonoCornersFilterValue)));
                     taskLeftMonoIndex = taskIndex++;
                 }
 
@@ -3126,7 +3144,7 @@ namespace Surveyor
                     monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.DoMonoCalibrationCalculationSafeUI(
                                                                  calibProject,
                                                                  trueLeftFalseRight:false,
-                                                                 runParams.MonoCornersFilterValue)));
+                                                                 calibProject.Data.CalibrationInputs.MonoCornersFilterValue)));
                     taskRightMonoIndex = taskIndex++;
                 }
 
@@ -3235,10 +3253,12 @@ namespace Surveyor
 
             if (doStereo)
             {
-                ret = await StereoCalibrationHead.FindBestStereoFramesSafeUIAsync(calibProject, 
-                                                                            runParams.MovementFilterValue,
-                                                                            runParams.BlurFilterValue,
-                                                                            runParams.MonoCornersFilterValue,
+                ret = await StereoCalibrationHead.FindBestStereoFramesSafeUIAsync(
+                                                                            Report,     
+                                                                            calibProject,
+                                                                            calibProject.Data.CalibrationInputs.MovementFilterValue,
+                                                                            calibProject.Data.CalibrationInputs.BlurFilterValue,
+                                                                            calibProject.Data.CalibrationInputs.MonoCornersFilterValue,
                                                                             runParams.MaxFramesFromEachSensorBin,
                                                                             runParams.MaxFramesFromEachPoseBin,
                                                                             runParams.MinFrameGap);
@@ -3251,7 +3271,7 @@ namespace Surveyor
             {
                 if (doStereo)
                 {
-                    await StereoCalibrationHead.ClearResultsSafeUIAsync(CalibrationStereoFrameSet.ClearRequest.BestFrames);
+                    await StereoCalibrationHead.ClearResultsSafeUIAsync(calibProject, CalibrationStereoFrameSet.ClearRequest.BestFrames_AutoOnly);
                 }
             }
 
@@ -3314,7 +3334,9 @@ namespace Surveyor
 
             if (doStereo)
             {
-                ret = StereoCalibrationHead.DoCalibrationStereoCalculations(calibProject, runParams.StereoCornersFilterValue);
+                ret = StereoCalibrationHead.DoCalibrationStereoCalculations(
+                                                calibProject, 
+                                                calibProject.Data.CalibrationInputs.StereoCornersFilterValue);
             }
 
             if (ret != 0)
@@ -3469,7 +3491,7 @@ namespace Surveyor
 #else
                 if (doLeftMono)
                 {
-                    ret = await LeftMonoCalibrationHead.SaveBestFramesAsync();
+                    ret = await LeftMonoCalibrationHead.SaveBestFramesAsync(calibProject);
                     if (ret != 0)
                     {
                         Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error from SaveBestFramesAsync: Left Mono Result={ret}");
@@ -3477,7 +3499,7 @@ namespace Surveyor
                 }
                 if (doRightMono)
                 {
-                    ret = await RightMonoCalibrationHead.SaveBestFramesAsync();
+                    ret = await RightMonoCalibrationHead.SaveBestFramesAsync(calibProject);
                     if (ret != 0)
                     {
                         Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error from SaveBestFramesAsync: Right Mono Result={ret}");
@@ -3485,7 +3507,7 @@ namespace Surveyor
                 }
                 if (doStereo)
                 {
-                    ret = await StereoCalibrationHead.SaveBestFramesAsync();
+                    ret = await StereoCalibrationHead.SaveBestFramesAsync(calibProject);
                     if (ret != 0)
                     {
                         Debug.WriteLine($"SaveBestFramesAllHeadsAsync: Error from SaveBestFramesAsync: Stereo Result={ret}");
@@ -4029,12 +4051,12 @@ namespace Surveyor
                 // This can happen if the project and movies are loaded and the user clicks the settings a few times.
                 if (entryCount == 1)
                 {
-                    bool calibrationBoardZoneAvailable = CheckIfCacheResultAvailable(CachedResultCheckType.CalibrationBoardZone);
-                    bool frameSetsAvailable = calibrationBoardZoneAvailable && CheckIfCacheResultAvailable(CachedResultCheckType.FrameSets);
-                    bool bestMonoFramesAvailable = frameSetsAvailable && CheckIfCacheResultAvailable(CachedResultCheckType.BestMonoFrames);
-                    bool calibrationMonoCalculationsAvailable = bestMonoFramesAvailable && CheckIfCacheResultAvailable(CachedResultCheckType.MonoCalibrationCalcs);
-                    bool bestStereoFramesAvailable = calibrationMonoCalculationsAvailable && CheckIfCacheResultAvailable(CachedResultCheckType.BestStereoFrames);
-                    bool calibrationStereoCalculationsAvailable = bestStereoFramesAvailable && CheckIfCacheResultAvailable(CachedResultCheckType.StereoCalibrationCalcs);
+                    bool calibrationBoardZoneAvailable = CheckIfCacheResultAvailable(calibProject, CachedResultCheckType.CalibrationBoardZone);
+                    bool frameSetsAvailable = calibrationBoardZoneAvailable && CheckIfCacheResultAvailable(calibProject, CachedResultCheckType.FrameSets);
+                    bool bestMonoFramesAvailable = frameSetsAvailable && CheckIfCacheResultAvailable(calibProject, CachedResultCheckType.BestMonoFrames);
+                    bool calibrationMonoCalculationsAvailable = bestMonoFramesAvailable && CheckIfCacheResultAvailable(calibProject, CachedResultCheckType.MonoCalibrationCalcs);
+                    bool bestStereoFramesAvailable = calibrationMonoCalculationsAvailable && CheckIfCacheResultAvailable(calibProject, CachedResultCheckType.BestStereoFrames);
+                    bool calibrationStereoCalculationsAvailable = bestStereoFramesAvailable && CheckIfCacheResultAvailable(calibProject, CachedResultCheckType.StereoCalibrationCalcs);
 
 
                     // These are the parameters setup in the SetupRunCalibration window
@@ -4051,12 +4073,12 @@ namespace Surveyor
                         DoCalibrationStereoCalculations = !calibrationStereoCalculationsAvailable,
 
                         // If a cache is available that get the min movement/blur values (used by the sliders)
-                        MovementFilterMin = GetMinMovementFromCachedResults(true/*from all frames*/),
-                        BlurFilterMin = GetMinBlurFromCachedResults(true/*from all frames*/),
+                        MovementFilterMin = GetMinMovementFromCachedResults(calibProject, true/*from all frames*/),
+                        BlurFilterMin = GetMinBlurFromCachedResults(calibProject, true/*from all frames*/),
 
                         // If a cache is available that get the max movement/blur values (used by the sliders)
-                        MovementFilterMax = GetMaxMovementFromCachedResults(true/*from all frames*/),
-                        BlurFilterMax = GetMaxBlurFromCachedResults(true /*from all frames*/)
+                        MovementFilterMax = Math.Min((double)GetMaxMovementFromCachedResults(calibProject, true/*from all frames*/)!, CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE),
+                        BlurFilterMax = Math.Min((double)GetMaxBlurFromCachedResults(calibProject, true /*from all frames*/)!, CalibProject.DataClass.CalibrationInputsClass.BLUR_LARGE_VALUE),
                     };
 
 
@@ -4110,7 +4132,7 @@ namespace Surveyor
         /// Find the largest movement value from the cached results
         /// </summary>
         /// <returns></returns>
-        private double? GetMaxMovementFromCachedResults(bool trueNormalFalseBestFrames)
+        private double? GetMaxMovementFromCachedResults(CalibProject calibProject, bool trueNormalFalseBestFrames)
         {
             double? ret = null;
 
@@ -4119,13 +4141,13 @@ namespace Surveyor
             double stereoMax = 0;
 
             if (LeftMonoCalibrationHead.IsOpen())
-                leftMonoMax = LeftMonoCalibrationHead.GetMaxMovement(trueNormalFalseBestFrames);
+                leftMonoMax = LeftMonoCalibrationHead.GetMaxMovement(calibProject, trueNormalFalseBestFrames);
 
             if (RightMonoCalibrationHead.IsOpen())
-                rightMonoMax = RightMonoCalibrationHead.GetMaxMovement(trueNormalFalseBestFrames);
+                rightMonoMax = RightMonoCalibrationHead.GetMaxMovement(calibProject, trueNormalFalseBestFrames);
 
             if (StereoCalibrationHead.IsOpen())
-                stereoMax = StereoCalibrationHead.GetMaxMovement(trueNormalFalseBestFrames);
+                stereoMax = StereoCalibrationHead.GetMaxMovement(calibProject, trueNormalFalseBestFrames);
 
             switch (calibProject?.Data.Media.StereoMonoMediaSetMode)
             {
@@ -4157,7 +4179,7 @@ namespace Surveyor
         /// Find the smallest value from the cached results
         /// </summary>
         /// <returns></returns>
-        private double? GetMinMovementFromCachedResults(bool trueNormalFalseBestFrames)
+        private double? GetMinMovementFromCachedResults(CalibProject calibProject, bool trueNormalFalseBestFrames)
         {
             double? ret = null;
 
@@ -4166,13 +4188,13 @@ namespace Surveyor
             double stereoMin = double.MaxValue;
 
             if (LeftMonoCalibrationHead.IsOpen())
-                leftMonoMin = LeftMonoCalibrationHead.GetMinMovement(trueNormalFalseBestFrames);
+                leftMonoMin = LeftMonoCalibrationHead.GetMinMovement(calibProject, trueNormalFalseBestFrames);
 
             if (RightMonoCalibrationHead.IsOpen())
-                rightMonoMin = RightMonoCalibrationHead.GetMinMovement(true/*from all frames*/);
+                rightMonoMin = RightMonoCalibrationHead.GetMinMovement(calibProject, trueNormalFalseBestFrames);
 
             if (StereoCalibrationHead.IsOpen())
-                stereoMin = StereoCalibrationHead.GetMinMovement(true/*from all frames*/);
+                stereoMin = StereoCalibrationHead.GetMinMovement(calibProject, trueNormalFalseBestFrames);
 
             switch (calibProject?.Data.Media.StereoMonoMediaSetMode)
             {
@@ -4204,7 +4226,7 @@ namespace Surveyor
         /// Find the largest blur value from the cached results
         /// </summary>
         /// <returns></returns>
-        private double? GetMaxBlurFromCachedResults(bool trueNormalFalseBestFrames)
+        private double? GetMaxBlurFromCachedResults(CalibProject calibProject, bool trueNormalFalseBestFrames)
         {
             double? ret = null;
 
@@ -4213,13 +4235,13 @@ namespace Surveyor
             double stereoMax = 0;
 
             if (LeftMonoCalibrationHead.IsOpen())
-                leftMonoMax = LeftMonoCalibrationHead.GetMaxBlur(trueNormalFalseBestFrames);
+                leftMonoMax = LeftMonoCalibrationHead.GetMaxBlur(calibProject, trueNormalFalseBestFrames);
 
             if (RightMonoCalibrationHead.IsOpen())
-                rightMonoMax = RightMonoCalibrationHead.GetMaxBlur(trueNormalFalseBestFrames);
+                rightMonoMax = RightMonoCalibrationHead.GetMaxBlur(calibProject, trueNormalFalseBestFrames);
 
             if (StereoCalibrationHead.IsOpen())
-                stereoMax = StereoCalibrationHead.GetMaxBlur(trueNormalFalseBestFrames);
+                stereoMax = StereoCalibrationHead.GetMaxBlur(calibProject, trueNormalFalseBestFrames);
 
             switch (calibProject?.Data.Media.StereoMonoMediaSetMode)
             {
@@ -4251,7 +4273,7 @@ namespace Surveyor
         /// Find the smallest blur value from the cached results
         /// </summary>
         /// <returns></returns>
-        private double? GetMinBlurFromCachedResults(bool trueNormalFalseBestFrames)
+        private double? GetMinBlurFromCachedResults(CalibProject calibProject, bool trueNormalFalseBestFrames)
         {
             double? ret = null;
 
@@ -4260,13 +4282,13 @@ namespace Surveyor
             double stereoMin = double.MaxValue;
 
             if (LeftMonoCalibrationHead.IsOpen())
-                leftMonoMin = LeftMonoCalibrationHead.GetMinBlur(trueNormalFalseBestFrames);
+                leftMonoMin = LeftMonoCalibrationHead.GetMinBlur(calibProject, trueNormalFalseBestFrames);
 
             if (RightMonoCalibrationHead.IsOpen())
-                rightMonoMin = RightMonoCalibrationHead.GetMinBlur(trueNormalFalseBestFrames);
+                rightMonoMin = RightMonoCalibrationHead.GetMinBlur(calibProject, trueNormalFalseBestFrames);
 
             if (StereoCalibrationHead.IsOpen())
-                stereoMin = StereoCalibrationHead.GetMinBlur(trueNormalFalseBestFrames);
+                stereoMin = StereoCalibrationHead.GetMinBlur(calibProject, trueNormalFalseBestFrames);
 
             switch (calibProject?.Data.Media.StereoMonoMediaSetMode)
             {
@@ -4955,6 +4977,122 @@ namespace Surveyor
                 RightMonoCalibrationHead.Visibility = Visibility.Collapsed;
                 RightMonoHeadColumn.Width = new GridLength(0);
             }
+        }
+
+
+        /// <summary>
+        /// Callback setup for use by the UniversalCalibrationHead. The head
+        /// calls this method is the user uses the UI to toggle the manual
+        /// reason (add or ignore frame)
+        /// </summary>
+        /// <param name="headType"></param>
+        /// <param name="frameSetIndex"></param>
+        /// <param name="reasonBit"></param>
+        /// <returns></returns>
+        private BestFrame? UICallBackForIncludingExcludingBestFrames(HeadType headType, int frameSetIndex, BestFrameReason reasonBit)
+        {
+            BestFrame? bestFrame = null;
+
+            // Guard
+            if (calibProject is null)
+                return bestFrame;
+
+            // Get the appropriate best frames list for this head
+            List<BestFrame>? bestFramesList = GetBestFrameListForHead(headType);
+
+            // Convert the head type
+            BestFramesHeadType bestFrameHeadType = UniversalCalibrationHead.ConvertHeadType(headType);
+
+            if (bestFramesList is not null)
+            {
+                // Search best frames list for a instance where
+                // BestFrame.FrameIndex == frameSetIndex. If found,
+                // update the Reason bit according to add or remove.
+                int? index = bestFramesList
+                    .Select((bf, i) => (bf, i))
+                    .Where(x => x.bf.FrameIndex == frameSetIndex)
+                    .Select(x => (int?)x.i)
+                    .FirstOrDefault();
+
+                // Update existing entry
+                if (index is not null)
+                {
+                    BestFrameReason newBestFrameReason = bestFramesList[(int)index].Reason;
+
+                    if ((newBestFrameReason & reasonBit) == 0)
+                    {
+                        // Remove all existing manual bits
+                        newBestFrameReason &= ~(BestFrameReason.ManuallyAdded | BestFrameReason.ManuallyIgnored);
+
+                        // Set the bit 
+                        newBestFrameReason |= reasonBit;
+                    }
+                    else
+                    {
+                        // Remove all existing manual bits
+                        newBestFrameReason &= ~(BestFrameReason.ManuallyAdded | BestFrameReason.ManuallyIgnored);
+
+                        // Reset the bit
+                        newBestFrameReason &= ~reasonBit;
+                    }
+
+                    bestFrame = new(frameSetIndex, newBestFrameReason);
+                    calibProject.Data.CalibrationInputs.AddBestFrame(bestFrameHeadType, bestFrame);
+                }
+                else
+                // Create new entry (if necessary)
+                {
+                    // No record found so must be an add
+                    BestFrameReason newBestFrameReason = reasonBit;
+                    bestFrame = new(frameSetIndex, newBestFrameReason);
+                    calibProject.Data.CalibrationInputs.AddBestFrame(bestFrameHeadType, bestFrame);
+                }
+            }
+
+            return bestFrame;
+        }
+
+
+        /// <summary>
+        /// Callback setup for use by the UniversalCalibrationHead. The head
+        /// calls this method is the user uses the UI to remove all the 
+        /// instances manual reason (add or ignore frame)
+        /// </summary>
+        /// <param name="headType"></param>
+        /// <param name="reasonBit"></param>
+        private void UICallBackForRemovingAllBestFrames(HeadType headType, BestFrameReason reasonBit)
+        {
+            // Guard
+            if (calibProject is null)
+                return;
+
+            // Get the appropriate best frames list for this head
+            List<BestFrame>? bestFramesList = GetBestFrameListForHead(headType);
+
+            if (bestFramesList is not null)
+            {
+                // Convert the head type
+                BestFramesHeadType bestFrameHeadType = ConvertHeadType(headType);
+
+                calibProject.Data.CalibrationInputs.RemoveAllBestFrames(bestFrameHeadType, reasonBit);
+            }
+        }
+
+
+        /// <summary>
+        /// Return the appropriate best frames list for this head. This is used by the UniversalCalibrationHead
+        /// </summary>
+        /// <param name="headType"></param>
+        /// <returns></returns>
+        private List<BestFrame> GetBestFrameListForHead(HeadType headType)
+        {
+            // Guard
+            if (calibProject is null)
+                return [];
+
+            List<BestFrame> bestFramesList = calibProject.Data.CalibrationInputs.GetBestFramesList(ConvertHeadType(headType));
+
+            return bestFramesList;
         }
 
 

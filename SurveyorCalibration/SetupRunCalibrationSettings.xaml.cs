@@ -1,7 +1,11 @@
 //???using iText.Forms.Form.Element;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
+using System;
+using System.Diagnostics;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 
 namespace Surveyor
@@ -14,6 +18,10 @@ namespace Surveyor
         private bool? blurDragging;
         private bool? monoCornerDragging;
         private bool? stereoCornerDragging;
+
+        // Used to remember the previous focus control when the ControlFrameEdit is in use
+        private object? controlPreviousFocus = null;
+
 
         public SetupRunCalibrationSettings()
         {
@@ -45,10 +53,10 @@ namespace Surveyor
             }
 
             // Apply the slider values
-            runParams.MovementFilterValue = navParams.MovementFilterWorkingValue;
-            runParams.BlurFilterValue = navParams.BlurFilterWorkingValue;
-            runParams.MonoCornersFilterValue = navParams.MonoCornersFilterWorkingValue;
-            runParams.StereoCornersFilterValue = navParams.StereoCornersFilterWorkingValue;
+            navParams.calibProject.Data.CalibrationInputs.MovementFilterValue = navParams.MovementFilterWorkingValue;
+            navParams.calibProject.Data.CalibrationInputs.BlurFilterValue = navParams.BlurFilterWorkingValue;
+            navParams.calibProject.Data.CalibrationInputs.MonoCornersFilterValue = navParams.MonoCornersFilterWorkingValue;
+            navParams.calibProject.Data.CalibrationInputs.StereoCornersFilterValue = navParams.StereoCornersFilterWorkingValue;
         }
 
         /// <summary>
@@ -287,28 +295,28 @@ namespace Surveyor
                 switch (slider)
                 {
                     case Slider s when s == MovementFilterSlider:
-                        ProcessValueChanged(MovementFilterValue, ref movementDragging, e.NewValue);
+                        ProcessTextBlockValueChanged(MovementFilterValue, ref movementDragging, e.NewValue, true1DPFalseWholeNumber: true);
                         if (navParams.IsMovementFilterChanged())
                             // If the movement filter has changed then set all the
                             // actions after the BestFrameSets checkbox
                             SetActionsDownstreamOf(BuildFrameSetsCheckBox, true/*To checked on*/);
                         break;
                     case Slider s when s == BlurFilterSlider:
-                        ProcessValueChanged(BlurFilterValue, ref blurDragging, e.NewValue);
+                        ProcessTextBlockValueChanged(BlurFilterValue, ref blurDragging, e.NewValue, true1DPFalseWholeNumber: true);
                         if (navParams.IsBlurFilterChanged())
                             // If the blur filter has changed then set all the
                             // actions after the BestFrameSets checkbox
                             SetActionsDownstreamOf(BuildFrameSetsCheckBox, true/*To checked on*/);
                         break;
                     case Slider s when s == MonoCornerFilterSlider:
-                        ProcessValueChanged(MonoCornerFilterValue, ref monoCornerDragging, e.NewValue);
+                        ProcessTextBlockValueChanged(MonoCornerFilterValue, ref monoCornerDragging, e.NewValue, true1DPFalseWholeNumber: false);
                         if (navParams.IsMonoCornersFilterChanged())
                             // If the mono corner filter has changed then set all the
                             // actions after the BestFrameSets checkbox
                             SetActionsDownstreamOf(BuildFrameSetsCheckBox, true/*To checked on*/);
                         break;
                     case Slider s when s == StereoCornerFilterSlider:
-                        ProcessValueChanged(StereoCornerFilterValue, ref stereoCornerDragging, e.NewValue);
+                        ProcessTextBlockValueChanged(StereoCornerFilterValue, ref stereoCornerDragging, e.NewValue, true1DPFalseWholeNumber: false);
                         if (navParams.IsStereoCornersFilterChanged())
                             // If the stereo corner filter has changed then set all the
                             // actions after do mono calibration calculations checkbox
@@ -317,7 +325,7 @@ namespace Surveyor
                 }
             }
 
-            static void ProcessValueChanged(TextBlock valueTextBlock, ref bool? dragging, double newValue)
+            static void ProcessTextBlockValueChanged(TextBlock valueTextBlock, ref bool? dragging, double newValue, bool true1DPFalseWholeNumber)
             {
                 if (dragging is null)
                     dragging = false;
@@ -326,7 +334,10 @@ namespace Surveyor
                 else
                     valueTextBlock.Visibility = Visibility.Collapsed;
 
-                valueTextBlock.Text = newValue.ToString("F1");
+                if (true1DPFalseWholeNumber)
+                    valueTextBlock.Text = newValue.ToString("F1");
+                else
+                    valueTextBlock.Text = newValue.ToString("F0");
             }
         }
 
@@ -410,6 +421,159 @@ namespace Surveyor
                 }
             }
         }
+
+
+        /// <summary>
+        /// This used to allow the user to manual go to a frame
+        /// This method ensure only numbers are entered into the frame edit box
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void TextBox_AllowPositiveTo1DP(TextBox sender, TextBoxBeforeTextChangingEventArgs args)
+        {
+            string input = args.NewText;
+
+            // Define the valid patterns:
+            // Matches: 10 10.1 0.9 .9
+            // Doesn’t match: -1 10. 10.12.abc
+
+            var validPattern = @"^(?:\d+(?:\.\d)?|\.\d)$";
+
+            args.Cancel = !Regex.IsMatch(input, validPattern, RegexOptions.IgnoreCase);
+        }
+
+
+        /// <summary>
+        /// This used to allow the user to manual go to a frame
+        /// This method ensure only numbers are entered into the frame edit box
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void TextBox_AllowPositiveWholeNumber(TextBox sender, TextBoxBeforeTextChangingEventArgs args)
+        {
+            string input = args.NewText;
+
+            // Define the valid patterns:
+            var validPattern = @"^(?:0|[1-9]\d*)$";
+
+            args.Cancel = !Regex.IsMatch(input, validPattern, RegexOptions.IgnoreCase);
+        }
+
+
+        /// <summary>
+        /// Used to allow Movement Filter value to be edited
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MovementFilterValue_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            SliderTextBlockEditTapped(MovementFilterValue, MovementFilterValueEdit);
+        }
+
+
+        /// <summary>
+        /// Used to allow Movement Filter value to be edited
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>        
+        private void MovementFilterValueEdit_KeyDown(object sender, KeyRoutedEventArgs e) => _ = SliderTextBox_KeyDownAsync(e, MovementFilterSlider, MovementFilterValue, MovementFilterValueEdit, controlPreviousFocus);
+
+
+        /// <summary>
+        /// Used to allow Movement Filter value to be edited
+        /// If the user clicks away from the text box control then the new slider value is accepted 
+        /// (like pressing ENTER)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MovementFilterValueEdit_LostFocus(object sender, RoutedEventArgs e) => _ = SliderTextBox_LostFocusAsync(MovementFilterSlider, MovementFilterValue, MovementFilterValueEdit, controlPreviousFocus);
+
+        /// <summary>
+        /// Used to allow Blur Filter value to be edited
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void BlurFilterValue_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            SliderTextBlockEditTapped(BlurFilterValue, BlurFilterValueEdit);
+        }
+
+
+        /// <summary>
+        /// Used to allow Blur Filter value to be edited
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>        
+        private void BlurFilterValueEdit_KeyDown(object sender, KeyRoutedEventArgs e) => _ = SliderTextBox_KeyDownAsync(e, BlurFilterSlider, BlurFilterValue, BlurFilterValueEdit, controlPreviousFocus);
+
+
+        /// <summary>
+        /// Used to allow Blur Filter value to be edited
+        /// If the user clicks away from the text box control then the new slider value is accepted 
+        /// (like pressing ENTER)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void BlurFilterValueEdit_LostFocus(object sender, RoutedEventArgs e) => _ = SliderTextBox_LostFocusAsync(BlurFilterSlider, BlurFilterValue, BlurFilterValueEdit, controlPreviousFocus);
+
+
+        /// <summary>
+        /// Used to allow Mono Corner Filter value to be edited
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MonoCornerFilterValue_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            SliderTextBlockEditTapped(MonoCornerFilterValue, MonoCornerFilterValueEdit);
+        }
+
+
+        /// <summary>
+        /// Used to allow Mono Corner Filter value to be edited
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>        
+        private void MonoCornerFilterValueEdit_KeyDown(object sender, KeyRoutedEventArgs e) => _ = SliderTextBox_KeyDownAsync(e, MonoCornerFilterSlider, MonoCornerFilterValue, MonoCornerFilterValueEdit, controlPreviousFocus);
+
+
+        /// <summary>
+        /// Used to allow Mono Corner Filter value to be edited
+        /// If the user clicks away from the text box control then the new slider value is accepted 
+        /// (like pressing ENTER)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MonoCornerFilterValueEdit_LostFocus(object sender, RoutedEventArgs e) => _ = SliderTextBox_LostFocusAsync(MonoCornerFilterSlider, MonoCornerFilterValue, MonoCornerFilterValueEdit, controlPreviousFocus);
+
+
+        /// <summary>
+        /// Used to allow Stereo Corner Filter value to be edited
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void StereoCornerFilterValue_Tapped(object sender, Microsoft.UI.Xaml.Input.TappedRoutedEventArgs e)
+        {
+            SliderTextBlockEditTapped(StereoCornerFilterValue, StereoCornerFilterValueEdit);
+        }
+
+
+        /// <summary>
+        /// Used to allow Stereo Corner Filter value to be edited
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>        
+        private void StereoCornerFilterValueEdit_KeyDown(object sender, KeyRoutedEventArgs e) => _ = SliderTextBox_KeyDownAsync(e, StereoCornerFilterSlider, StereoCornerFilterValue, StereoCornerFilterValueEdit, controlPreviousFocus);
+
+
+        /// <summary>
+        /// Used to allow Stereo Corner Filter value to be edited
+        /// If the user clicks away from the text box control then the new slider value is accepted 
+        /// (like pressing ENTER)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void StereoCornerFilterValueEdit_LostFocus(object sender, RoutedEventArgs e) => _ = SliderTextBox_LostFocusAsync(StereoCornerFilterSlider, StereoCornerFilterValue, StereoCornerFilterValueEdit, controlPreviousFocus);
+
 
         /// <summary>
         /// Check other dependent settings
@@ -547,5 +711,142 @@ namespace Surveyor
                 DoCalibrationStereoCalculationsCheckBox.IsChecked = doCalibrationStereoCalculationsCheckBoxValue;
             }
         }
+
+
+        /// <summary>
+        /// A text block paired with a Slider control has been tapped (clicked)
+        /// Which indicates the user wants to edit the slide value directly
+        /// (instead of via sliding the slider)
+        /// </summary>
+        private void SliderTextBlockEditTapped(TextBlock controlText, TextBox controlEdit)
+        {
+            // Get and remember where the current focus is
+            controlPreviousFocus = FocusManager.GetFocusedElement(this.Content.XamlRoot);
+
+            // Make the frame edit box visible and the frame text box invisible
+            controlText.Visibility = Visibility.Collapsed;
+            controlEdit.Visibility = Visibility.Visible;
+
+
+            // Load the edit box with the same frame number as the text block
+            controlEdit.Text = controlText.Text;
+
+            // Set focus to the edit box and select all the text
+            controlEdit.Focus(FocusState.Programmatic);
+            controlEdit.SelectAll();
+        }
+
+
+        /// <summary>
+        /// This used to allow the user to manual go to a frame
+        /// The method detect ESC to cancel the operation and ENTER to accept the new frame number
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>        
+        private async Task SliderTextBox_KeyDownAsync(KeyRoutedEventArgs e, Slider slider, TextBlock controlText, TextBox controlEdit, Object? controlPreviousFocus)
+        {
+            if (e.Key == Windows.System.VirtualKey.Escape)
+            {
+                // Handle ESC key press
+                controlEdit.Visibility = Visibility.Collapsed;
+                e.Handled = true;
+
+                await ControlEditCollapsedAndReturnFocusAsync(controlText, controlEdit, controlPreviousFocus);
+            }
+            else if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                // Handle ENTER key press
+                e.Handled = true;
+
+                // Set the slider value
+                ProcessSliderTextBoxEdit(controlEdit, slider);
+
+                // Hide the ControlFrameEdit control and restore the original focus
+                await ControlEditCollapsedAndReturnFocusAsync(controlText, controlEdit, controlPreviousFocus);
+            }
+        }
+
+
+        /// <summary>
+        /// This used to allow the user to directly manually edit a slider value
+        /// If the user clicks away from the text box control then the new slider value is accepted 
+        /// (like pressing ENTER)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async Task SliderTextBox_LostFocusAsync(Slider slider, TextBlock controlText, TextBox controlEdit, Object? controlPreviousFocus)
+        {
+            // Check if the focus was lost programmatically or by the user clicking away
+            if (controlText.Visibility == Visibility.Collapsed)
+            {
+                // Get the new frame number from the TextBox and request a jump to that frame
+                ProcessSliderTextBoxEdit(controlEdit, slider);
+
+                // Hide the text box control and restore the original focus
+                await ControlEditCollapsedAndReturnFocusAsync(controlText, controlEdit, controlPreviousFocus);
+            }
+        }
+
+
+        /// <summary>
+        /// Used to get any value TextBox and set the slider value
+        /// </summary>
+        private void ProcessSliderTextBoxEdit(TextBox ControlEdit, Slider slider)
+        {
+            if (double.TryParse(ControlEdit.Text, out double value) == true)
+            {
+                slider.Value = value;
+
+                // Guard
+                if (navParams is null) return;  
+
+                switch (ControlEdit)
+                {
+                    case TextBox tb when tb == MovementFilterValueEdit:
+                        if (navParams.IsMovementFilterChanged())
+                            // If the movement filter has changed then set all the
+                            // actions after the BestFrameSets checkbox
+                            SetActionsDownstreamOf(BuildFrameSetsCheckBox, true/*To checked on*/);
+                        break;
+                    case TextBox tb when tb == BlurFilterValueEdit:
+                        if (navParams.IsBlurFilterChanged())
+                            // If the blur filter has changed then set all the
+                            // actions after the BestFrameSets checkbox
+                            SetActionsDownstreamOf(BuildFrameSetsCheckBox, true/*To checked on*/);
+                        break;
+                    case TextBox tb when tb == MonoCornerFilterValueEdit:
+                        if (navParams.IsMonoCornersFilterChanged())
+                            // If the mono corner filter has changed then set all the
+                            // actions after the BestFrameSets checkbox
+                            SetActionsDownstreamOf(BuildFrameSetsCheckBox, true/*To checked on*/);
+                        break;
+                    case TextBox tb when tb == StereoCornerFilterValueEdit:
+                        if (navParams.IsStereoCornersFilterChanged())
+                            // If the stereo corner filter has changed then set all the
+                            // actions after do mono calibration calculations checkbox
+                            SetActionsDownstreamOf(DoCalibrationMonoCalculationsCheckBox, true/*To checked on*/);
+                        break;
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Called to collapsed the TextBox and return the focus to
+        /// wherever it was before
+        /// </summary>
+        private async static Task ControlEditCollapsedAndReturnFocusAsync(TextBlock ControlText, TextBox ControlEdit, Object? controlPreviousFocus)
+        {
+            ControlText.Visibility = Visibility.Visible;
+            ControlEdit.Visibility = Visibility.Collapsed;
+
+            if (controlPreviousFocus is not null)
+            {
+                await FocusManager.TryFocusAsync((DependencyObject)controlPreviousFocus, FocusState.Programmatic);
+            }
+        }
+
+
+
     }
 }

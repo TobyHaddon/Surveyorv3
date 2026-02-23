@@ -39,6 +39,9 @@ namespace Surveyor.Controls
         private const int boardFoundAtWidth = 1;
         private const double dotRadius = timeLineHeight / 2.0;
 
+        // Head type (used to help make the debug messages make sense
+        private UniversalCalibrationHead.HeadType? headType = null;
+
         // Media range
         private int _startMediaFrameIndex = -1;
         private int _endMediaFrameIndex = -1;
@@ -76,8 +79,20 @@ namespace Surveyor.Controls
             this.InitializeComponent();
         }
 
+
+        /// <summary>
+        /// Set the head type that owns this control
+        /// Used to help give clarity to the debug messages
+        /// </summary>
+        /// <param name="_headType"></param>
+        public void SetHeadType(UniversalCalibrationHead.HeadType _headType)
+        {
+            headType = _headType;
+        }
+
         public void Clear()
         {
+            Debug.WriteLine($"{headType} MediaTimeLineDisplayUserControl.Clear");
             _startMediaFrameIndex = -1;
             _endMediaFrameIndex = -1;
         
@@ -105,6 +120,7 @@ namespace Surveyor.Controls
         /// <param name="_endMediaFrameIndex"></param>
         public void SetRange(int startMediaFrameIndex, int endMediaFrameIndex, bool clearData)
         {
+            Debug.WriteLine($"{headType} MediaTimeLineDisplayUserControl.SetRange({startMediaFrameIndex}, {endMediaFrameIndex}, clearData={clearData})");
             if (clearData)
                 Clear();
 
@@ -125,7 +141,10 @@ namespace Surveyor.Controls
         public void CalibrationBoardFoundAt(int frameIndex, bool trueFoundFalseNotFound)
         {
             if (frameIndex < _startMediaFrameIndex || frameIndex > _endMediaFrameIndex)
+            {
+                Debug.WriteLine($"{headType} MediaTimeLineDisplayUserControl.CalibrationBoardFoundAt({frameIndex}, trueFoundFalseNotFound={trueFoundFalseNotFound}), out of range, media Start={_startMediaFrameIndex}, end={_endMediaFrameIndex}");
                 return; // Ignore out-of-range
+            }
 
             // Remember in-case of a resizing/redraw
             _CalibrationBoardFoundAt.Add(new BoardFoundAt(frameIndex, trueFoundFalseNotFound));
@@ -141,10 +160,9 @@ namespace Surveyor.Controls
         /// <param name="calilbrationBoardEndframeIndex"></param>
         public void CalibrationBoardRange(int calibrationBoardStartFrameIndex, int calibrationBoardEndFrameIndex)
         {
+            // Guard
             if (calibrationBoardStartFrameIndex < _startMediaFrameIndex || calibrationBoardEndFrameIndex > _endMediaFrameIndex)
-            {
                 return; // Ignore out-of-range
-            }
 
             // Clear all and setup the background again
             SetRange(_startMediaFrameIndex, _endMediaFrameIndex, clearData: false);
@@ -230,7 +248,7 @@ namespace Surveyor.Controls
         /// <param name="BestFrameIndexes"></param>
         public void RenderBestFramesOnTimeline(List<BestFrame> BestFrameIndexes)
         {
-            Debug.WriteLine($"RenderBestFramesOnTimeline");
+            Debug.WriteLine($"{headType} RenderBestFramesOnTimeline, count={BestFrameIndexes.Count}");
 
             // Remember the best frame in case of resize/redraw
             foreach (BestFrame bestFrame in BestFrameIndexes)
@@ -265,7 +283,7 @@ namespace Surveyor.Controls
         /// </summary>
         public void RemoveAllBestFrames()
         {
-            Debug.WriteLine($"RemoveAllBestFrames");
+            Debug.WriteLine($"{headType} RemoveAllBestFrames");
             CanvasDrawingHelper.RemoveCanvasShapesByTag(MediaTimeLineDisplay, "Best");
         }
 
@@ -322,23 +340,26 @@ namespace Surveyor.Controls
                 return;
             }
 
-            MediaTimeLineDisplay.Children.Clear();
-            DrawTimeLineBackground();
-
-            if (_calibrationBoardStartFrameIndex >= 0 && _calibrationBoardEndFrameIndex >= _calibrationBoardStartFrameIndex)
+            if (this.Visibility == Visibility.Visible)
             {
-                CalibrationBoardRange(_calibrationBoardStartFrameIndex, _calibrationBoardEndFrameIndex);
-            }
+                MediaTimeLineDisplay.Children.Clear();
+                DrawTimeLineBackground();
 
-            if (_CalibrationBoardFoundAt.Count > 0)
-            {
-                foreach (BoardFoundAt boardFoundAt in _CalibrationBoardFoundAt)
-                    DrawBoardFoundAt(boardFoundAt.FrameIndex, boardFoundAt.trueFoundFalseNotFound);
-            }
+                if (_calibrationBoardStartFrameIndex >= 0 && _calibrationBoardEndFrameIndex >= _calibrationBoardStartFrameIndex)
+                {
+                    CalibrationBoardRange(_calibrationBoardStartFrameIndex, _calibrationBoardEndFrameIndex);
+                }
 
-            if (_bestFrames.Count > 0)
-            {
-                DrawBestFrames();
+                if (_CalibrationBoardFoundAt.Count > 0)
+                {
+                    foreach (BoardFoundAt boardFoundAt in _CalibrationBoardFoundAt)
+                        DrawBoardFoundAt(boardFoundAt.FrameIndex, boardFoundAt.trueFoundFalseNotFound);
+                }
+
+                if (_bestFrames.Count > 0)
+                {
+                    DrawBestFrames();
+                }
             }
         }
 
@@ -373,7 +394,7 @@ namespace Surveyor.Controls
                                 // Safely extract the frame index from the tag  format is "F:n"
                                 if (int.TryParse(canvasTag.TagSubType.AsSpan(2), out int frameIndex))
                                 {
-                                    Debug.WriteLine($"CalibrationBoardTimeLineDot press implement code to go to frame:{frameIndex}");
+                                    Debug.WriteLine($"{headType} CalibrationBoardTimeLineDot press implement code to go to frame:{frameIndex}");
 
                                     // Is setup request jump to the frame
                                     bool handled = JumpToFrameRequested?.Invoke(frameIndex) == true;
@@ -437,7 +458,7 @@ namespace Surveyor.Controls
         /// Draw the best frames dots on the timeline from the cached
         /// best frames list
         /// </summary>
-        private void DrawBestFrames()
+        public void DrawBestFrames()
         {
             // Remove any existing indicator dots
             RemoveAllBestFrames();

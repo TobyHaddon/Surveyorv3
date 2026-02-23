@@ -86,7 +86,16 @@
                         PointerReleased="OnSliderPointerReleased"
                         PointerCaptureLost="OnSliderPointerCaptureLost"/>
                 <TextBlock x:Name="MovementFilterMax" Grid.Row="0" Grid.Column="3" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                <TextBlock x:Name="MovementFilterValue" Grid.Row="1" Grid.Column="2" FontSize="10" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,-6,0,0"/>
+                <TextBlock x:Name="MovementFilterValue" Grid.Row="1" Grid.Column="2" FontSize="10" Foreground="{ThemeResource TextFillColorPrimary}" 
+                                           Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,-10,0,0"
+                                           Tapped="MovementFilterValue_Tapped"/>
+                <TextBox x:Name="MovementFilterValueEdit" Grid.Row="1" Grid.Column="2" Visibility="Collapsed" FontSize="10"  Height="18"
+                                         VerticalAlignment="Center" HorizontalAlignment="Center"
+                                         Foreground="{ThemeResource TextFillColorPrimary}" 
+                                         MinWidth="30" MinHeight="0" Padding="0,0,0,0" Margin="0,-10,0,0"
+                                         BeforeTextChanging="TextBox_AllowPositiveTo1DP"
+                                         KeyDown="MovementFilterValueEdit_KeyDown"
+                                         LostFocus="MovementFilterValueEdit_LostFocus"/>
                 <TextBlock Grid.Row="0" Grid.Column="4" Text="The amount of movement that is allowed between frames" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
 
                 <!-- Row 2 Blur -->
@@ -100,7 +109,16 @@
                         PointerReleased="OnSliderPointerReleased"
                         PointerCaptureLost="OnSliderPointerCaptureLost"/>
                 <TextBlock x:Name="BlurFilterMax" Grid.Row="2" Grid.Column="3" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                <TextBlock x:Name="BlurFilterValue" Grid.Row="3" Grid.Column="2" FontSize="10" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,-6,0,0"/>
+                <TextBlock x:Name="BlurFilterValue" Grid.Row="3" Grid.Column="2" FontSize="10" Foreground="{ThemeResource TextFillColorPrimary}" 
+                                           Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,-10,0,0"
+                                           Tapped="BlurFilterValue_Tapped"/>
+                <TextBox x:Name="BlurFilterValueEdit" Grid.Row="3" Grid.Column="2" Visibility="Collapsed" FontSize="10"  Height="18"
+                                         VerticalAlignment="Center" HorizontalAlignment="Center"
+                                         Foreground="{ThemeResource TextFillColorPrimary}" 
+                                         MinWidth="30" MinHeight="0" Padding="0,0,0,0" Margin="0,-10,0,0"
+                                         BeforeTextChanging="TextBox_AllowPositiveTo1DP"
+                                         KeyDown="BlurFilterValueEdit_KeyDown"
+                                         LostFocus="BlurFilterValueEdit_LostFocus"/>
                 <TextBlock Grid.Row="2" Grid.Column="4" Text="The amount of blur that is allowed in the frame" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
 
                 <!-- Row 4 Mono Corner -->
@@ -114,8 +132,17 @@
                         PointerReleased="OnSliderPointerReleased"
                         PointerCaptureLost="OnSliderPointerCaptureLost"/>
                 <TextBlock x:Name="MonoCornerFilterMax" Grid.Row="4" Grid.Column="3" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                <TextBlock x:Name="MonoCornerFilterValue" Grid.Row="5" Grid.Column="2" FontSize="10" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,-6,0,0"/>
-                <TextBlock Grid.Row="4" Grid.Column="4" Text="The minimum number of calibration squares that need to be detected to be considered for mono calibration" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <TextBlock x:Name="MonoCornerFilterValue" Grid.Row="5" Grid.Column="2" FontSize="10" Foreground="{ThemeResource TextFillColorPrimary}" 
+                                           Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,-10,0,0"
+                                           Tapped="MonoCornerFilterValue_Tapped"/>
+                <TextBox x:Name="MonoCornerFilterValueEdit" Grid.Row="5" Grid.Column="2" Visibility="Collapsed" FontSize="10"  Height="18"
+                                         VerticalAlignment="Center" HorizontalAlignment="Center"
+                                         Foreground="{ThemeResource TextFillColorPrimary}" 
+                                         MinWidth="30" MinHeight="0" Padding="0,0,0,0" Margin="0,-10,0,0"
+                                         BeforeTextChanging="TextBox_AllowPositiveWholeNumber"
+                                         KeyDown="MonoCornerFilterValueEdit_KeyDown"
+                                         LostFocus="MonoCornerFilterValueEdit_LostFocus"/>
+                <TextBlock Grid.Row="4" Grid.Column="4" Text="The minimum number of calibration corners that need to be detected to be considered for mono calibration" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
                 
                 <!-- Row 6 Stereo Corner -->
                 <TextBlock x:Name="StereoCornerFilterLabel" Grid.Row="6" Grid.Column="0" Text="Stereo Corner Filter:" VerticalAlignment="Center"/>
@@ -128,8 +155,17 @@
                         PointerReleased="OnSliderPointerReleased"
                         PointerCaptureLost="OnSliderPointerCaptureLost"/>
                 <TextBlock x:Name="StereoCornerFilterMax" Grid.Row="6" Grid.Column="3" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                <TextBlock x:Name="StereoCornerFilterValue" Grid.Row="7" Grid.Column="2" FontSize="10" VerticalAlignment="Top" HorizontalAlignment="Center" Margin="0,-6,0,0"/>
-                <TextBlock x:Name ="StereoCornerFilterHelp" Grid.Row="6" Grid.Column="4" Text="The minimum number of calibration squares that need to be detected to be considered for stereo calibration" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <TextBlock x:Name="StereoCornerFilterValue" Grid.Row="7" Grid.Column="2" FontSize="10" Foreground="{ThemeResource TextFillColorPrimary}" 
+                                           Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,-10,0,0"
+                                           Tapped="StereoCornerFilterValue_Tapped"/>
+                <TextBox x:Name="StereoCornerFilterValueEdit" Grid.Row="7" Grid.Column="2" Visibility="Collapsed" FontSize="10"  Height="18"
+                                         VerticalAlignment="Center" HorizontalAlignment="Center"
+                                         Foreground="{ThemeResource TextFillColorPrimary}" 
+                                         MinWidth="30" MinHeight="0" Padding="0,0,0,0" Margin="0,-10,0,0"
+                                         BeforeTextChanging="TextBox_AllowPositiveWholeNumber"
+                                         KeyDown="StereoCornerFilterValueEdit_KeyDown"
+                                         LostFocus="StereoCornerFilterValueEdit_LostFocus"/>
+                <TextBlock x:Name ="StereoCornerFilterHelp" Grid.Row="6" Grid.Column="4" Text="The minimum number of calibration corners that need to be detected to be considered for stereo calibration" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
             </Grid>
 
         </StackPanel>

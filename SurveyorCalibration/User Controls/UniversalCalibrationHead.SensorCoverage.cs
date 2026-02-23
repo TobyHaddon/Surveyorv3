@@ -49,35 +49,41 @@ namespace Surveyor.Controls
         /// </summary>
         private void RenderSensorCoverage()
         {
-            if (calibrationStereoFrameSet is null)
+            // Guard
+            if (headType is null)
                 return;
-
             if (frameSize.Width <= 0 || frameSize.Height <= 0)
                 return;
 
-            LeftSensorCoverage.Children.Clear();
-            RightSensorCoverage.Children.Clear();
+            // Get the best frame list for the current head type using the callback
+            List<BestFrame>? bestFramesList = GetBestFrameListCallback?.Invoke((HeadType)headType);
 
-            
-            AlignCoverageCanvasToImage(LeftSensorCoverage, LeftOverlayContainer, LeftImage);
-            DrawCanvasBorder(LeftSensorCoverage);
-
-            AlignCoverageCanvasToImage(RightSensorCoverage, RightOverlayContainer, RightImage);
-            DrawCanvasBorder(RightSensorCoverage);
-
-            // Nothing to render without best frames
-            if (calibrationStereoFrameSet.Data.BestFrameIndexes.Count == 0)
-                return;
-
-            RenderSensorCoverageSide(LeftSensorCoverage,
-                                     LeftOverlayContainer,
-                                     trueLeftFalseRight: true);
-
-            if (IsHeadStereo())
+            if (bestFramesList is not null)
             {
-                RenderSensorCoverageSide(RightSensorCoverage,
-                                         RightOverlayContainer,
-                                         trueLeftFalseRight: false);
+                LeftSensorCoverage.Children.Clear();
+                RightSensorCoverage.Children.Clear();
+
+
+                AlignCoverageCanvasToImage(LeftSensorCoverage, LeftOverlayContainer, LeftImage);
+                DrawCanvasBorder(LeftSensorCoverage);
+
+                AlignCoverageCanvasToImage(RightSensorCoverage, RightOverlayContainer, RightImage);
+                DrawCanvasBorder(RightSensorCoverage);
+
+                // Nothing to render without best frames
+                if (bestFramesList.Count == 0)
+                    return;
+
+                RenderSensorCoverageSide(LeftSensorCoverage,
+                                         LeftOverlayContainer,
+                                         trueLeftFalseRight: true);
+
+                if (IsHeadStereo())
+                {
+                    RenderSensorCoverageSide(RightSensorCoverage,
+                                             RightOverlayContainer,
+                                             trueLeftFalseRight: false);
+                }
             }
         }
 
@@ -95,6 +101,9 @@ namespace Surveyor.Controls
         /// sensor.</param>
         private void RenderSensorCoverageSide(Canvas canvas, FrameworkElement overlayContainer, bool trueLeftFalseRight)
         {
+            // Guard
+            if (headType is null)
+                return;
             if (overlayContainer.ActualWidth <= 0 || overlayContainer.ActualHeight <= 0)
                 return;
 
@@ -104,117 +113,123 @@ namespace Surveyor.Controls
                                                               overlayContainer.ActualWidth,
                                                               overlayContainer.ActualHeight);
 
-            // Draw each best frame hull with low alpha (overlaps visualize coverage density)
-            foreach (BestFrame bestFrame in calibrationStereoFrameSet.Data.BestFrameIndexes)
+            // Get the best frame list for the current head type using the callback
+            List<BestFrame>? bestFramesList = GetBestFrameListCallback?.Invoke((HeadType)headType);
+
+            if (bestFramesList is not null)
             {
-                int frameSetIndex = bestFrame.FrameIndex;
-
-                if (!calibrationStereoFrameSet.Data.Frames.TryGetValue(frameSetIndex, out var tuple))
-                    continue;
-
-                FrameData? fd = trueLeftFalseRight ? tuple.frameCalibrationTargetLeft : tuple.frameCalibrationTargetRight;
-                if (fd is null || fd.ChArUcoCorners is null || fd.ChArUcoCorners.Length < 3)
-                    continue;
-
-                List<PointF> hull = ComputeConvexHull(fd.ChArUcoCorners);
-                if (hull.Count < 3)
-                    continue;
-
-                PointCollection points = [];
-                foreach (PointF p in hull)
+                // Draw each best frame hull with low alpha (overlaps visualize coverage density)
+                foreach (BestFrame bestFrame in bestFramesList)
                 {
-                    double x = -1;
-                    double y = -1;
+                    int frameSetIndex = bestFrame.FrameIndex;
 
-                    try
+                    if (!calibrationStereoFrameSet.Data.Frames.TryGetValue(frameSetIndex, out var tuple))
+                        continue;
+
+                    FrameData? fd = trueLeftFalseRight ? tuple.frameCalibrationTargetLeft : tuple.frameCalibrationTargetRight;
+                    if (fd is null || fd.ChArUcoCorners is null || fd.ChArUcoCorners.Length < 3)
+                        continue;
+
+                    List<PointF> hull = ComputeConvexHull(fd.ChArUcoCorners);
+                    if (hull.Count < 3)
+                        continue;
+
+                    PointCollection points = [];
+                    foreach (PointF p in hull)
                     {
+                        double x = -1;
+                        double y = -1;
 
-                        // Map from frame pixels -> Image control coordinates
-                        x = p.X * scale;
-                        y = p.Y * scale;
-                        points.Add(new Windows.Foundation.Point(x, y));
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"RenderSensorCoverageSide: Failed to add Point:({p.X},{p.Y}) scaled to:({x},{y}), {ex.Message}");
-                    }
-                }
-
-                // Base fill (keep existing)
-                Brush fillBrush = hullFillColour;
-
-                bool isCoverage = (bestFrame.Reason & BestFrameReason.SensorCoverage) != 0;
-                bool isPose = (bestFrame.Reason & BestFrameReason.PoseDiversity) != 0;
-
-                if (isCoverage && isPose)
-                {
-                    PointCollection pointsCoverage = points;
-                    PointCollection pointsPose = Clone(points);
-
-                    try 
-                    { 
-                        // Both: draw two outlines for a clear combined meaning.
-                        canvas.Children.Add(new Polygon
+                        try
                         {
-                            Points = pointsCoverage,
-                            Fill = fillBrush,
-                            Stroke = coverageStrokeColour,
-                            StrokeThickness = 2
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line outer coverage border before drawing pose border, {ex.Message}");
+
+                            // Map from frame pixels -> Image control coordinates
+                            x = p.X * scale;
+                            y = p.Y * scale;
+                            points.Add(new Windows.Foundation.Point(x, y));
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"RenderSensorCoverageSide: Failed to add Point:({p.X},{p.Y}) scaled to:({x},{y}), {ex.Message}");
+                        }
                     }
 
-                    try
-                    { 
-                        canvas.Children.Add(new Polygon
-                        {
-                            Points = pointsPose,
-                            Fill = null,
-                            Stroke = poseStrokeColour,
-                            StrokeThickness = 1
-                        });
-                    }
-                    catch (Exception ex)
+                    // Base fill (keep existing)
+                    Brush fillBrush = hullFillColour;
+
+                    bool isCoverage = (bestFrame.Reason & BestFrameReason.SensorCoverage) != 0;
+                    bool isPose = (bestFrame.Reason & BestFrameReason.PoseDiversity) != 0;
+
+                    if (isCoverage && isPose)
                     {
-                        Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line outer pose border after drawing coverage border, {ex.Message}");
-                    }
-                }
-                else if (isPose)
-                {
-                    try
-                    { 
-                        canvas.Children.Add(new Polygon
+                        PointCollection pointsCoverage = points;
+                        PointCollection pointsPose = Clone(points);
+
+                        try
                         {
-                            Points = points,
-                            Fill = fillBrush,
-                            Stroke = poseStrokeColour,
-                            StrokeThickness = 1
-                        });
-                    }
-                    catch (Exception ex)
-                    {
-                        Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line pose border, {ex.Message}");
-                    }
-                }
-                else
-                {
-                    try
-                    { 
-                        // Default to SensorCoverage styling (also covers Reason=None)
-                        canvas.Children.Add(new Polygon
+                            // Both: draw two outlines for a clear combined meaning.
+                            canvas.Children.Add(new Polygon
+                            {
+                                Points = pointsCoverage,
+                                Fill = fillBrush,
+                                Stroke = coverageStrokeColour,
+                                StrokeThickness = 2
+                            });
+                        }
+                        catch (Exception ex)
                         {
-                            Points = points,
-                            Fill = fillBrush,
-                            Stroke = coverageStrokeColour,
-                            StrokeThickness = 1
-                        });
+                            Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line outer coverage border before drawing pose border, {ex.Message}");
+                        }
+
+                        try
+                        {
+                            canvas.Children.Add(new Polygon
+                            {
+                                Points = pointsPose,
+                                Fill = null,
+                                Stroke = poseStrokeColour,
+                                StrokeThickness = 1
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line outer pose border after drawing coverage border, {ex.Message}");
+                        }
                     }
-                    catch (Exception ex)
+                    else if (isPose)
                     {
-                        Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line coverage border, {ex.Message}");
+                        try
+                        {
+                            canvas.Children.Add(new Polygon
+                            {
+                                Points = points,
+                                Fill = fillBrush,
+                                Stroke = poseStrokeColour,
+                                StrokeThickness = 1
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line pose border, {ex.Message}");
+                        }
+                    }
+                    else
+                    {
+                        try
+                        {
+                            // Default to SensorCoverage styling (also covers Reason=None)
+                            canvas.Children.Add(new Polygon
+                            {
+                                Points = points,
+                                Fill = fillBrush,
+                                Stroke = coverageStrokeColour,
+                                StrokeThickness = 1
+                            });
+                        }
+                        catch (Exception ex)
+                        {
+                            Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line coverage border, {ex.Message}");
+                        }
                     }
                 }
             }
