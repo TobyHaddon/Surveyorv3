@@ -537,7 +537,7 @@ namespace Surveyor
                 public event PropertyChangedEventHandler? PropertyChanged;
 
                 public const double BLUR_LARGE_VALUE = 15.0;
-                public const double MOVEMENT_LARGE_VALUE = 150.0;
+                public const double MOVEMENT_LARGE_VALUE = 100.0;
 
                 public const int MONO_CORNER_COUNT_THRESHOLD = 80;
                 public const int STEREO_CORNER_COUNT_THRESHOLD = 50;
@@ -560,10 +560,10 @@ namespace Surveyor
                 private List<BestFrame> _leftMonoBestFrames = [];
                 private List<BestFrame> _rightMonoBestFrames = [];
                 private List<BestFrame> _stereoBestFrames = [];
-                public double _movementFilterValue = MOVEMENT_LARGE_VALUE;
-                public double _blurFilterValue = BLUR_LARGE_VALUE;
-                public int _monoCornersFilterValue = MONO_CORNER_COUNT_THRESHOLD;
-                public int _stereoCornersFilterValue = STEREO_CORNER_COUNT_THRESHOLD;
+                private double _movementFilterValue = MOVEMENT_LARGE_VALUE;
+                private double _blurFilterValue = BLUR_LARGE_VALUE;
+                private int _monoCornersFilterValue = MONO_CORNER_COUNT_THRESHOLD;
+                private int _stereoCornersFilterValue = STEREO_CORNER_COUNT_THRESHOLD;
 
 
                 public List<BestFrame> LeftMonoBestFrames
@@ -900,6 +900,30 @@ namespace Surveyor
                 }
 
 
+                /// <summary>
+                /// Calculates a hash value for the best frames list for the indicated 
+                /// head type
+                /// </summary>
+                /// <param name="headType"></param>
+                /// <returns></returns>
+                public int GetBestFramesListHash(BestFramesHeadType headType)
+                {
+                    List<BestFrame> bestFramesList = GetBestFramesList(headType);
+
+                    var hash = new HashCode();
+
+                    hash.Add(bestFramesList.Count);
+
+                    foreach (BestFrame bestFrame in bestFramesList)
+                    {
+                        hash.Add(bestFrame.FrameIndex);
+                        hash.Add((int)bestFrame.Reason);
+                    }
+
+                    return hash.ToHashCode();
+                }
+
+
                 private bool _isDirty;
                 [JsonIgnore]
                 public bool IsDirty
@@ -929,6 +953,216 @@ namespace Surveyor
             public partial class CalibrationResultClass : INotifyPropertyChanged
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
+
+                public enum MonoCalibrationQuality
+                {
+                    Excellent,
+                    VeryGood,
+                    Acceptable,
+                    Poor,
+                    VeryPoor,
+                    Terrible,
+                    Unknown,
+                }
+
+                public static class MonoCalibrationQualityClassifier
+                {
+                    public const double RMSExcellentMax = 0.2;
+                    public const double RMSVeryGoodMax = 0.5;
+                    public const double RMSAcceptableMax = 1.0;
+                    public const double RMSPoorMax = 1.5;
+                    public const double RMSVeryPoorMax = 2.0;
+
+                    public const double P95ExcellentMax = 0.5;
+                    public const double P95VeryGoodMax = 1.0;
+                    public const double P95AcceptableMax = 2.0;
+                    public const double P95PoorMax = 3.0;
+                    public const double P95VeryPoorMax = 4.0;
+
+                    public static MonoCalibrationQuality ClassifyByReprojectionRMS(double rpeRmsPx)
+                    {
+                        if (double.IsNaN(rpeRmsPx) || double.IsInfinity(rpeRmsPx) || rpeRmsPx < 0)
+                            return MonoCalibrationQuality.Unknown;
+
+                        if (rpeRmsPx <= RMSExcellentMax)
+                            return MonoCalibrationQuality.Excellent;
+
+                        if (rpeRmsPx <= RMSVeryGoodMax)
+                            return MonoCalibrationQuality.VeryGood;
+
+                        if (rpeRmsPx <= RMSAcceptableMax)
+                            return MonoCalibrationQuality.Acceptable;
+
+                        if (rpeRmsPx <= RMSPoorMax)
+                            return MonoCalibrationQuality.Poor;
+
+                        if (rpeRmsPx <= RMSVeryPoorMax)
+                            return MonoCalibrationQuality.VeryPoor;
+
+                        return MonoCalibrationQuality.Terrible;
+                    }
+
+                    public static MonoCalibrationQuality ClassifyByP95(double p95ErrorPx)
+                    {
+                        if (double.IsNaN(p95ErrorPx) || double.IsInfinity(p95ErrorPx) || p95ErrorPx < 0)
+                            return MonoCalibrationQuality.Unknown;
+
+                        if (p95ErrorPx <= P95ExcellentMax)
+                            return MonoCalibrationQuality.Excellent;
+
+                        if (p95ErrorPx <= P95VeryGoodMax)
+                            return MonoCalibrationQuality.VeryGood;
+
+                        if (p95ErrorPx <= P95AcceptableMax)
+                            return MonoCalibrationQuality.Acceptable;
+
+                        if (p95ErrorPx <= P95PoorMax)
+                            return MonoCalibrationQuality.Poor;
+
+                        if (p95ErrorPx <= P95VeryPoorMax)
+                            return MonoCalibrationQuality.VeryPoor;
+
+                        return MonoCalibrationQuality.Terrible;
+                    }
+
+                    /// <summary>
+                    /// Use from reprojectionRMS and P95Error to classify the calibration
+                    /// quality. The worse classification or either value is used
+                    /// </summary>
+                    /// <param name="rpeRmsPx"></param>
+                    /// <param name="p95ErrorPx"></param>
+                    /// <returns></returns>
+                    public static MonoCalibrationQuality Classify(double rpeRmsPx, double p95ErrorPx)
+                    {
+                        MonoCalibrationQuality rmsBucket = ClassifyByReprojectionRMS(rpeRmsPx);
+                        MonoCalibrationQuality p95Bucket = ClassifyByP95(p95ErrorPx);
+
+                        if (rmsBucket == MonoCalibrationQuality.Unknown || p95Bucket == MonoCalibrationQuality.Unknown)
+                            return MonoCalibrationQuality.Unknown;
+
+                        return (MonoCalibrationQuality)Math.Max((int)rmsBucket, (int)p95Bucket);
+                    }
+
+
+                    /// <summary>
+                    /// Return a string for the classification value
+                    /// </summary>
+                    /// <param name="bucket"></param>
+                    /// <returns></returns>
+                    public static string ToDisplayString(MonoCalibrationQuality bucket) => bucket switch
+                    {
+                        MonoCalibrationQuality.Excellent => "excellent",
+                        MonoCalibrationQuality.VeryGood => "very good",
+                        MonoCalibrationQuality.Acceptable => "acceptable",
+                        MonoCalibrationQuality.Poor => "poor",
+                        MonoCalibrationQuality.VeryPoor => "very poor",
+                        MonoCalibrationQuality.Terrible => "terrible",
+                        _ => "unknown",
+                    };
+                }
+
+                public enum StereoCalibrationQuality
+                {
+                    Excellent,
+                    VeryGood,
+                    Acceptable,
+                    Poor,
+                    VeryPoor,
+                    Terrible,
+                    Unknown,
+                }
+
+                public static class StereoCalibrationQualityClassifier
+                {
+                    public const double RMSExcellentMax = 0.5;
+                    public const double RMSVeryGoodMax = 1.0;
+                    public const double RMSAcceptableMax = 1.8;
+                    public const double RMSPoorMax = 2.5;
+                    public const double RMSVeryPoorMax = 3.5;
+
+                    public const double P95ExcellentMax = 0.75;
+                    public const double P95VeryGoodMax = 1.5;
+                    public const double P95AcceptableMax = 3.0;
+                    public const double P95PoorMax = 4.5;
+                    public const double P95VeryPoorMax = 6.0;
+
+                    public static StereoCalibrationQuality ClassifyByReprojectionRMS(double rpeRmsPx)
+                    {
+                        if (double.IsNaN(rpeRmsPx) || double.IsInfinity(rpeRmsPx) || rpeRmsPx < 0)
+                            return StereoCalibrationQuality.Unknown;
+
+                        if (rpeRmsPx <= RMSExcellentMax)
+                            return StereoCalibrationQuality.Excellent;
+
+                        if (rpeRmsPx <= RMSVeryGoodMax)
+                            return StereoCalibrationQuality.VeryGood;
+
+                        if (rpeRmsPx <= RMSAcceptableMax)
+                            return StereoCalibrationQuality.Acceptable;
+
+                        if (rpeRmsPx <= RMSPoorMax)
+                            return StereoCalibrationQuality.Poor;
+
+                        if (rpeRmsPx <= RMSVeryPoorMax)
+                            return StereoCalibrationQuality.VeryPoor;
+
+                        return StereoCalibrationQuality.Terrible;
+                    }
+
+                    public static StereoCalibrationQuality ClassifyByP95(double p95ErrorPx)
+                    {
+                        if (double.IsNaN(p95ErrorPx) || double.IsInfinity(p95ErrorPx) || p95ErrorPx < 0)
+                            return StereoCalibrationQuality.Unknown;
+
+                        if (p95ErrorPx <= P95ExcellentMax)
+                            return StereoCalibrationQuality.Excellent;
+
+                        if (p95ErrorPx <= P95VeryGoodMax)
+                            return StereoCalibrationQuality.VeryGood;
+
+                        if (p95ErrorPx <= P95AcceptableMax)
+                            return StereoCalibrationQuality.Acceptable;
+
+                        if (p95ErrorPx <= P95PoorMax)
+                            return StereoCalibrationQuality.Poor;
+
+                        if (p95ErrorPx <= P95VeryPoorMax)
+                            return StereoCalibrationQuality.VeryPoor;
+
+                        return StereoCalibrationQuality.Terrible;
+                    }
+
+
+                    /// <summary>
+                    /// Use from reprojectionRMS and P95Error to classify the calibration
+                    /// quality. The worse classification or either value is used
+                    /// </summary>
+                    /// <param name="rpeRmsPx"></param>
+                    /// <param name="p95ErrorPx"></param>
+                    /// <returns></returns>
+                    public static StereoCalibrationQuality Classify(double rpeRmsPx, double p95ErrorPx)
+                    {
+                        StereoCalibrationQuality rmsBucket = ClassifyByReprojectionRMS(rpeRmsPx);
+                        StereoCalibrationQuality p95Bucket = ClassifyByP95(p95ErrorPx);
+
+                        if (rmsBucket == StereoCalibrationQuality.Unknown || p95Bucket == StereoCalibrationQuality.Unknown)
+                            return StereoCalibrationQuality.Unknown;
+
+                        return (StereoCalibrationQuality)Math.Max((int)rmsBucket, (int)p95Bucket);
+                    }
+
+
+                    public static string ToDisplayString(StereoCalibrationQuality bucket) => bucket switch
+                    {
+                        StereoCalibrationQuality.Excellent => "excellent",
+                        StereoCalibrationQuality.VeryGood => "very good",
+                        StereoCalibrationQuality.Acceptable => "acceptable",
+                        StereoCalibrationQuality.Poor => "poor",
+                        StereoCalibrationQuality.VeryPoor => "very poor",
+                        StereoCalibrationQuality.Terrible => "terrible",
+                        _ => "unknown",
+                    };
+                }
 
                 public CalibrationResultClass()
                 {
@@ -1269,7 +1503,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="projectFileSpec"></param>
         /// <param name="autoSave"></param>
-        /// <returns></returns>
+        /// <returns>-2 file not found, -3 permission denied, -4 path not found, -5 path too long, -6 I/O error, -7 unexpected error, -8 file not found but .bak exists</returns>
         [RequiresUnreferencedCode("ProjectLoadAsync uses Json.NET serialization which may not be compatible with trimming.")]
         public async Task<int> ProjectLoadAsync(string projectFileSpec, bool autoSave = true)
         {
@@ -1282,8 +1516,18 @@ namespace Surveyor
             }
             catch (FileNotFoundException e)
             {
-                ret = -2;
-                Report?.Warning("", $"Load project failed because the file couldn't be found, file:{projectFileSpec}. {e.Message}");
+                // Check if .bak file exists
+                string bakFileSpec = Path.ChangeExtension(projectFileSpec, ".bak");
+                if (File.Exists(bakFileSpec))
+                {
+                    ret = -8;
+                    Report?.Warning("", $"Load project failed because the file couldn't be found but a .bak does exist, file:{projectFileSpec}. {e.Message}");
+                }
+                else
+                {
+                    ret = -2;
+                    Report?.Warning("", $"Load project failed because the file couldn't be found, file:{projectFileSpec}. {e.Message}");
+                }
             }
             catch (UnauthorizedAccessException e)
             {
@@ -1354,6 +1598,34 @@ namespace Surveyor
             return ret;
         }
 
+
+        /// <summary>
+        /// Request to restore a backup version of a project file.
+        /// For this is work the project file must not exist and 
+        /// the backup file obviously must exist
+        /// </summary>
+        /// <param name="projectFileSpec"></param>
+        /// <returns></returns>
+        public static int ProjectRestoreBackup(string projectFileSpec)
+        {
+            int ret = -2;
+
+            string bakFileSpec = Path.ChangeExtension(projectFileSpec, ".bak");
+            if (File.Exists(bakFileSpec))
+            {
+                try
+                {
+                    File.Move(bakFileSpec, projectFileSpec);
+                    ret = 0;
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"Error renaming file {bakFileSpec} to backup {projectFileSpec}: {ex.Message}");
+                }
+            }
+
+            return ret;
+        }
 
         /// <summary>
         /// Save the calibration project data to a file as JSON.

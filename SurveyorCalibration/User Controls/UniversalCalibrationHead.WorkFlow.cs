@@ -1,6 +1,10 @@
 ﻿// Contains the high level calibration workflow methods
 // 
+using Emgu.CV.Aruco;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Surveyor;
+using Surveyor.Helper;
 using Surveyor.User_Controls;
 using SurveyorCalibrationData;
 using System;
@@ -10,6 +14,8 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static Surveyor.CalibProject.DataClass.CalibrationResultClass;
+using static Surveyor.Controls.CalibrationIterationViewer;
 using static Surveyor.Controls.UniversalCalibrationHead;
 
 namespace Surveyor.Controls
@@ -177,6 +183,327 @@ namespace Surveyor.Controls
         }
 
 
+        /// <summary>
+        /// The purpose of the method is to iterate through movement and corners count thresholds 
+        /// to find the best frames for mono calibration. We start with movementMinThreshold and
+        /// monoCornersMinThreshold find the best frames and do a mono calibration. We record the
+        /// reprojection RMS and the max error and iterate by increasing the movementMinThreshold 
+        /// and decreasing the monoCornersMinThreshold. The initial low movement threshold and high
+        /// corners threshold will mean fewer frames are selected but they will be of higher quality 
+        /// and give a better mono calibration. However there is a minimum number of frames required 
+        /// for a mono calibration to work and if the thresholds are too strict then we won't have 
+        /// enough frames to do the calibration. By iterating we can find the best frames for mono 
+        /// calibration.
+        /// </summary>
+        /// <param name="report"></param>
+        /// <param name="calibProject"></param>
+        /// <param name="trueLeftFalseRight"></param>
+        /// <param name="movementMinThreshold"></param>
+        /// <param name="blurMinThreshold"></param>
+        /// <param name="monoCornersMinThreshold"></param>
+        /// <param name="maxFramesFromEachSensorBin"></param>
+        /// <param name="maxFramesFromEachPoseBin"></param>
+        /// <param name="minFrameGap"></param>
+        /// <param name="minFramesAllowedForMonoCalibration"></param>
+        /// <returns></returns>
+
+        private enum IterationElement
+        {
+            movementAdjustment,
+            cornerAdjustment
+        }
+
+
+
+        public async Task<int> DoIterationBestFramesAndCalibrationMonoCalcsAsync(Reporter report,
+                                                             CalibProject calibProject,
+                                                             ProcessingInfoBar infoBarProcessing,
+                                                             bool trueLeftFalseRight,
+                                                             double movementMinThresholdStart,
+                                                             double movementThresholdStepUp,
+                                                             double blurMinThreshold,
+                                                             int monoCornersMinThresholdEnd,
+                                                             int monoCornersThresholdStepDown,
+                                                             int maxFramesFromEachSensorBin,
+                                                             int maxFramesFromEachPoseBin,
+                                                             int minFrameGap,
+                                                             int minFramesAllowedForMonoCalibration,
+                                                             int maxFramesAllowedForMonoCalibration)
+        {
+            int ret = -1;
+
+            // Guard
+            if (calibrationBoardDefinition is null) return -1;
+            if (headType is null) return -1;
+
+            bool stopIterating = false;
+            bool resultFound = false;
+           
+            // Create a list to hold the results for each iteration so we can compare
+            // the results and find the best result at the end. We will
+            // need to record the thresholds used for each iteration along with the
+            // reprojection RMS and max error so we can compare the results and find
+            // the best result at the end.
+            IterationResultList iterationResultList = new();
+
+            // Display the Calibration Iteration Viewer (in place of the Calibration Frame Set Viewer)
+            safeUICall.Call(() =>
+            {
+                CalibrationFrameSetViewerLeft.Visibility = Visibility.Collapsed;
+                CalibrationFrameSetViewerRight.Visibility = Visibility.Collapsed;
+                CalibrationIterationViewerLeft.Visibility = Visibility.Visible;
+            });
+
+            // Get the appropriate best frame list
+            List<BestFrame> bestFramesList = calibProject.Data.CalibrationInputs.GetBestFramesList(ConvertHeadType((HeadType)headType));
+
+            // Set the data for the Calibration Iteration Viewer
+            CalibrationIterationViewerData dataLeft = new((HeadType)headType, iterationResultList);
+            CalibrationIterationViewerLeft.Data = dataLeft;
+
+
+            isFindCalibrationFrameRunning = true;
+
+            cts = new CancellationTokenSource();
+            cancellationToken = cts.Token;
+
+
+            // Track how many iterations
+            int iterationNumber = 0;
+
+            try
+            {
+                // Loop up between the movement iteration range
+                for (double movementMinThreshold = movementMinThresholdStart;
+                     movementMinThreshold < CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE;
+                     movementMinThreshold += movementThresholdStepUp)
+                {
+                    // Iteration settings control loop
+                    // manages alternating between adjusting movement and corner thresholds
+                    // and the stopping conditions for the iteration
+
+                    // Loop down between the corners range
+                    for (int monoCornersMinThreshold = calibrationBoardDefinition.GetTotalSquareCount();
+                         monoCornersMinThreshold >= monoCornersMinThresholdEnd;
+                         monoCornersMinThreshold -= monoCornersThresholdStepDown)
+                    {
+                        iterationNumber++;
+
+                        // Report inputs
+                        safeUICall.Call(() => CalibrationIterationViewerLeft.RefreshInputsAndCounts(
+                                                    movementMinThreshold, movementMinThresholdStart, CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE - 0.1,
+                                                    monoCornersMinThreshold, calibrationBoardDefinition.GetTotalSquareCount(), monoCornersMinThresholdEnd,
+                                                    blurMinThreshold,
+                                                    bestFrameCount: 0, iterationNumber));
+                        await Task.Yield();
+
+                        // Find the best frame for this iteration's thresholds 
+                        ret = await FindBestMonoFramesSafeUIAsync(report!,
+                                                                  calibProject,
+                                                                  trueLeftFalseRight,
+                                                                  movementMinThreshold,
+                                                                  blurMinThreshold,
+                                                                  monoCornersMinThreshold,
+                                                                  maxFramesAllowedForMonoCalibration,
+                                                                  maxFramesFromEachSensorBin,
+                                                                  maxFramesFromEachPoseBin,
+                                                                  minFrameGap,
+                                                                  limitUIUpdates: true);
+
+                        if (ret == 0)
+                        {
+                            // Report inputs and best frames count
+                            safeUICall.Call(() => CalibrationIterationViewerLeft.RefreshInputsAndCounts(
+                                                        movementMinThreshold, movementMinThresholdStart, CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE,
+                                                        monoCornersMinThreshold, calibrationBoardDefinition.GetTotalSquareCount(), monoCornersMinThresholdEnd,
+                                                        blurMinThreshold,
+                                                        bestFramesList.Count, iterationNumber));
+                            await Task.Yield();
+
+                            // Did we meet the minimum best frame threshold
+                            if (bestFramesList.Count >= minFramesAllowedForMonoCalibration &&
+                                bestFramesList.Count <= maxFramesAllowedForMonoCalibration)
+                            {
+                                // Get a hash value for the generated best frames list
+                                int bestFramesListHash = calibProject.Data.CalibrationInputs.GetBestFramesListHash(ConvertHeadType((HeadType)headType));
+
+                                // Check if the last best frames list had the same hash value and if so skip doing the calibration calculation
+                                if (iterationResultList.Results.Count > 0 && iterationResultList.Results[^1].BestFramesListHash == bestFramesListHash)
+                                {
+                                    // We have already done the mono calibration calculation for this best frames list
+                                    // so we can skip doing the calculation again 
+                                    report?.Debug(ChannelConvert((HeadType)headType), $"{(HeadType)headType} Movement Threshold:{movementMinThreshold}, " +
+                                                        $"Corners:{monoCornersMinThreshold} didn't create a different best frames list, skip doing calibration");
+                                }
+                                else
+                                {
+                                    // Do the mono calibration using the best frames found with this iteration's thresholds
+                                    // for each calibration parameter set and record the reprojection RMS and max error
+                                    ret = DoMonoCalibrationCalculationSafeUI(calibProject, trueLeftFalseRight, monoCornersMinThreshold);
+
+                                    if (ret == 0)
+                                    {
+                                        // Harvest the results
+                                        foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
+                                        {
+                                            // Mono always used the left side MonoCalibrationCameraData
+                                            // array to store the results even for a right mono head
+                                            MonoCalibrationCameraData? monoCalib = calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
+                                            if (monoCalib is not null)
+                                            {
+                                                await Task.Yield();
+
+                                                iterationResultList.Results.Add(new IterationResult(movementMinThreshold,
+                                                                                            blurMinThreshold,
+                                                                                            monoCornersMinThreshold,
+                                                                                            bestFramesList.Count,
+                                                                                            calibrationParameters,
+                                                                                            monoCalib.ReprojectionRMS,
+                                                                                            monoCalib.MaxError,
+                                                                                            monoCalib.P95Error,
+                                                                                            MonoCalibrationQualityClassifier.Classify(monoCalib.ReprojectionRMS, monoCalib.MaxError),
+                                                                                            StereoCalibrationQuality: null,
+                                                                                            bestFramesListHash));
+
+                                                safeUICall.Call(() => CalibrationIterationViewerLeft.DrawGraphs());
+                                                await Task.Yield();
+                                            }
+                                        }
+
+                                        // Find best result so far
+                                        IterationResult bestResult = iterationResultList.GetBestResult();
+
+                                        if (IsExcellentResult(bestResult))
+                                        {
+                                            report?.Info(ChannelConvert((HeadType)headType), $"{(HeadType)headType} Excellent result found, Reprojection RMS:{bestResult.ReprojectionRMS}, " +
+                                                                $"Max Error:{bestResult.MaxError}, Movement Threshold:{movementMinThreshold}, " +
+                                                                $"Corners:{monoCornersMinThreshold}, Calibration Parameters:{bestResult.CalibrationParameters} ");
+                                            stopIterating = true;
+                                            resultFound = true;
+                                            ret = 0; // OK
+                                        }
+                                        else
+                                        {
+                                            // Check if results are trending worst and we should stop iterating
+                                            if (!stopIterating)
+                                            {
+                                                stopIterating = iterationResultList.AreResultingTrendingWorse();
+
+                                                if (stopIterating)
+                                                {
+                                                    report?.Info(ChannelConvert((HeadType)headType), $"{(HeadType)headType} Stop iterating as results are trending is a worse direction");
+                                                    ret = 0; // OK
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            else if (bestFramesList.Count < minFramesAllowedForMonoCalibration)
+                            {
+                                report?.Debug(ChannelConvert((HeadType)headType), $"{(HeadType)headType} Too few frames found, {bestFramesList.Count} found and {minFramesAllowedForMonoCalibration} required. Movement Threshold:{movementMinThreshold}, " +
+                                                 $"Corners:{monoCornersMinThreshold}");
+                            }
+                            else if (bestFramesList.Count > maxFramesAllowedForMonoCalibration)
+                            {
+                                report?.Debug(ChannelConvert((HeadType)headType), $"{(HeadType)headType} Too many frames found, {bestFramesList.Count} found and {maxFramesAllowedForMonoCalibration} is the limit. Movement Threshold:{movementMinThreshold}, " +
+                                                 $"Corners:{monoCornersMinThreshold}");
+
+                                // Break from the decreasing corners loop because the number
+                                // of best will only keep increasing
+                                break;
+                            }
+                        }
+
+                        if (stopIterating)
+                            break;
+                    }
+                    if (stopIterating)
+                        break;
+                }
+            }
+            catch (OperationCanceledException )
+            {
+                Debug.WriteLine($"{ToString()} Mono calibration iteration search canceled.");
+                ret = -1;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"{ToString()} Error during mono calibration iteration search: {ex.Message}");
+            }
+            finally
+            {
+                isFindCalibrationFrameRunning = false;
+            }
+
+
+            // If the iteration don't stop early due to a excellent result being found
+            // then we can look at the results and find the best result. We will need to
+            // repeat the best frames and mono calibration to get the best mono calibration
+            // data into the CalibProject instance
+            if (!resultFound && iterationResultList.Results.Count > 0)
+            {
+                // Get the best result
+                IterationResult bestResult = iterationResultList.GetBestResult();
+
+                // Find the best frame for this iteration's thresholds 
+                ret = await FindBestMonoFramesSafeUIAsync(report!,
+                                                          calibProject,
+                                                          trueLeftFalseRight,
+                                                          bestResult.MovementMinThreshold,
+                                                          bestResult.BlurMinThreshold,
+                                                          bestResult.MonoCornersMinThreshold,
+                                                          maxFramesAllowedForMonoCalibration,
+                                                          maxFramesFromEachSensorBin,
+                                                          maxFramesFromEachPoseBin,
+                                                          minFrameGap,
+                                                          limitUIUpdates: false);
+
+                if (ret == 0)
+                {
+                    await Task.Yield();
+
+                    // Do the mono calibration calculation on the best frames
+                    ret = DoMonoCalibrationCalculationSafeUI(calibProject,
+                                                             trueLeftFalseRight,
+                                                             bestResult.MonoCornersMinThreshold);
+                    if (ret == 0)
+                    {
+                        await Task.Yield();
+                        string monoRPEQuality = MonoCalibrationQualityClassifier.ToDisplayString(MonoCalibrationQualityClassifier.ClassifyByReprojectionRMS(bestResult.ReprojectionRMS));
+                        report?.Info(ChannelConvert((HeadType)headType), $"{(HeadType)headType} {monoRPEQuality} result found, Reprojection RMS:{bestResult.ReprojectionRMS}, " +
+                                         $"Max Error:{bestResult.MaxError}, Movement Threshold:{bestResult.MovementMinThreshold}, " +
+                                         $"Corners:{bestResult.MonoCornersMinThreshold}, Calibration Parameters:{bestResult.CalibrationParameters} ");
+                        ret = 0; // OK
+                    }
+                }
+            }
+
+            // Display the Calibration Iteration Viewer (in place of the Calibration Frame Set Viewer)
+            safeUICall.Call(() =>
+            {
+                CalibrationIterationViewerLeft.Visibility = Visibility.Collapsed;
+                CalibrationFrameSetViewerLeft.Visibility = Visibility.Visible;
+                CalibrationFrameSetViewerRight.Visibility = Visibility.Visible;
+            });
+
+            return ret;
+
+
+
+            // Determine if the result is excellent based on the reprojection RMS and max error. 
+            static bool IsExcellentResult(IterationResult iterationResult)
+            {
+                bool ret = false;
+
+                if (MonoCalibrationQualityClassifier.Classify(iterationResult.ReprojectionRMS, iterationResult.P95Error) == MonoCalibrationQuality.Excellent)
+                    return true;
+
+                return ret;
+            }
+        }
+
+
         /// ** Safe to call from a background thread **
         /// ** All UI via SafeUICall **
         /// Extract the best frames and do a mono calibration.
@@ -195,11 +522,13 @@ namespace Surveyor.Controls
                                                              CalibProject calibProject,
                                                              bool trueLeftFalseRight,
                                                              double movementMinThreshold,
-                                                             double blurMinThreshold,
+                                                             double blurMinThreshold,                                                             
                                                              int monoCornersMinThreshold,
+                                                             int maxFramesAllowedForMonoCalibration,
                                                              int maxFramesFromEachSensorBin,
                                                              int maxFramesFromEachPoseBin,
-                                                             int minFrameGap)
+                                                             int minFrameGap,
+                                                             bool limitUIUpdates)
         {
             int ret = 0;
             bool doMonoBestFrames = false;
@@ -230,11 +559,11 @@ namespace Surveyor.Controls
                     await ClearResultsSafeUIAsync(calibProject, CalibrationStereoFrameSet.ClearRequest.BestFrames_AutoOnly);
 
                     if (trueLeftFalseRight)
-                        report?.Info("Left", $"Mono Left find best frames," +
+                        report?.Debug("Left", $"Mono Left find best frames," +
                                         $" Min move={movementMinThreshold}, Min blur={blurMinThreshold}," +
                                         $" Corners threshold={monoCornersMinThreshold}");
                     else
-                        report?.Info("Right", $"Mono Right find best frames," +
+                        report?.Debug("Right", $"Mono Right find best frames," +
                                         $"Min move={movementMinThreshold}, Min blur={blurMinThreshold}, " +
                                         $"Corners threshold={monoCornersMinThreshold}");
 
@@ -252,74 +581,99 @@ namespace Surveyor.Controls
                                                             maxFramesFromEachSensorBin);
                     if (foundIndexes is not null)
                     {
-                        // Add to the best frames list only allowing unique indexes
-                        (addedUsingSensorBins, _) = AddBestFrames(calibProject, foundIndexes, BestFrameReason.SensorCoverage);
-                    }
-
-                    // Update the UI
-                    safeUICall.Call(() => RenderSensorCoverage());
-                    safeUICall.Call(() => RenderMediaTimeLineDisplay());
-
-                    // Get the appropriate best frame list
-                    List<BestFrame> bestFramesList = calibProject.Data.CalibrationInputs.GetBestFramesList(ConvertHeadType((HeadType)headType));
-
-                    // Temp mono calibration to get yaw and pitch for each frame
-                    // Calibration using the best frames (calibration using K1,K2,P1,P2)
-                    // This is used to calculate the yaw and pitch of each frame and
-                    // ISN'T used for the ultimate mono calibration
-                    MonoCalibrationCameraData? monoCalib = calibrationStereoFrameSet.MonoCalibrateUsingBestFrames(
-                                                                                            trueStereoFalseMono: false,
-                                                                                            trueLeftFalseRight,
-                                                                                            frameSize,
-                                                                                            monoCornersMinThreshold,
-                                                                                            CalibrationParameters.K1K2P1P2,
-                                                                                            bestFramesList);
-
-                    // Check we have suitable calibration data to proceed
-                    if (monoCalib is not null)
-                    {
-                        // Parse the Frames and calculate the yaw and pitch for each frame using the pass1 calibration
-                        await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBinAsync(monoCalib!, null/*monoCalibRight*/, frameSize);
-
-                        // Next top-up with pose diverse frames
-                        foundIndexes = calibrationStereoFrameSet.AddBestFramesUsingPoseBins(
-                                                                             movementMinThreshold,
-                                                                             blurMinThreshold,
-                                                                             monoCornersMinThreshold,
-                                                                             maxFramesFromEachPoseBin);
-
-                        if (foundIndexes is not null)
+                        // Exit if too few best frames
+                        if (foundIndexes.Count <= maxFramesAllowedForMonoCalibration)
                         {
                             // Add to the best frames list only allowing unique indexes
-                            (addedUsingPoseBins, updatedUsingPoseBins) = AddBestFrames(calibProject, foundIndexes, BestFrameReason.PoseDiversity);
+                            (addedUsingSensorBins, _) = AddBestFrames(calibProject, foundIndexes, BestFrameReason.SensorCoverage);
                         }
-
-
-                        // Remove frames that are too close to each other
-                        removedNearlyFrames = calibrationStereoFrameSet.CullNearbyFrames(calibProject, (HeadType)headType, minFrameGap);
-
-                        // Report the counts of added and updated best frames
-                        if (trueLeftFalseRight)
-                            report?.Info("", $"FindBestMonoFrames Left: Added {addedUsingSensorBins} from sensor coverage, added {addedUsingPoseBins} from pose diversity and update {updatedUsingPoseBins}, removed nearly frames {removedNearlyFrames}");
                         else
-                            report?.Info("", $"FindBestMonoFrames Right: Added {addedUsingSensorBins} from sensor coverage, added {addedUsingPoseBins} from pose diversity and update {updatedUsingPoseBins}, removed nearly frames {removedNearlyFrames}");
-
-                        // Update the UI
-                        safeUICall.Call(() => RefreshSensorBin(_viewMode, trueLeftFalseRight: true));
-                        safeUICall.Call(() => RefreshPoseBin(_viewMode, trueLeftFalseRight: true));
-                        safeUICall.Call(() => RenderSensorCoverage());
-                        safeUICall.Call(() => RenderMediaTimeLineDisplay());
+                        {
+                            report?.Debug(ChannelConvert((HeadType)headType), $"FindBestMonoFramesSafeUIAsync: Too many best frames found, {foundIndexes.Count} max frames is {maxFramesAllowedForMonoCalibration}");
+                            ret = -1;
+                        }
                     }
-                    else
-                        ret = -1;
 
-                    // If best frames have been collected then change the
-                    // MediaTimeLineDisplay tool tip to explain the dots
-                    // on the timeline display
-                    if (IsBestFramesSetup(calibProject))
+                    if (ret == 0)
                     {
-                        // Mono so left side only
-                        MediaTimeLineDisplayLeft.SetToolTipLoadedProject();
+                        // Update the UI
+                        safeUICall.Call(() =>
+                        {
+                            RenderSensorCoverage();
+                            if (!limitUIUpdates)
+                                RenderMediaTimeLineDisplay();
+                        });
+
+                        // Get the appropriate best frame list
+                        List<BestFrame> bestFramesList = calibProject.Data.CalibrationInputs.GetBestFramesList(ConvertHeadType((HeadType)headType));
+
+                        // Temp mono calibration to get yaw and pitch for each frame
+                        // Calibration using the best frames (calibration using K1,K2,P1,P2)
+                        // This is used to calculate the yaw and pitch of each frame and
+                        // ISN'T used for the ultimate mono calibration
+                        MonoCalibrationCameraData? monoCalib = calibrationStereoFrameSet.MonoCalibrateUsingBestFrames(
+                                                                                                trueStereoFalseMono: false,
+                                                                                                trueLeftFalseRight,
+                                                                                                frameSize,
+                                                                                                monoCornersMinThreshold,
+                                                                                                CalibrationParameters.K1K2P1P2,
+                                                                                                bestFramesList);
+
+                        // Check we have suitable calibration data to proceed
+                        if (monoCalib is not null)
+                        {
+                            // Parse the Frames and calculate the yaw and pitch for each frame using the pass1 calibration
+                            await calibrationStereoFrameSet.CalculateFramesYawPitchAndPopulatePoseBinAsync(monoCalib!, null/*monoCalibRight*/, frameSize);
+
+                            // Next top-up with pose diverse frames
+                            foundIndexes = calibrationStereoFrameSet.AddBestFramesUsingPoseBins(
+                                                                                 movementMinThreshold,
+                                                                                 blurMinThreshold,
+                                                                                 monoCornersMinThreshold,
+                                                                                 maxFramesFromEachPoseBin);
+
+                            if (foundIndexes is not null)
+                            {
+                                // Add to the best frames list only allowing unique indexes
+                                (addedUsingPoseBins, updatedUsingPoseBins) = AddBestFrames(calibProject, foundIndexes, BestFrameReason.PoseDiversity);
+                            }
+
+
+                            // Remove frames that are too close to each other
+                            removedNearlyFrames = calibrationStereoFrameSet.CullNearbyFrames(calibProject, (HeadType)headType, minFrameGap);
+
+                            if (bestFramesList.Count <= maxFramesAllowedForMonoCalibration)
+                            {
+                                // Report the counts of added and updated best frames
+                                report?.Debug(ChannelConvert((HeadType)headType), $"FindBestMonoFramesSafeUIAsync: Added {addedUsingSensorBins} from sensor coverage, added {addedUsingPoseBins} from pose diversity and update {updatedUsingPoseBins}, removed nearly frames {removedNearlyFrames}");
+
+                                // Update the UI
+                                safeUICall.Call(() =>
+                                {
+                                    RenderSensorCoverage();
+                                    if (!limitUIUpdates)
+                                    {
+                                        RefreshSensorBin(_viewMode, trueLeftFalseRight: true);
+                                        RefreshPoseBin(_viewMode, trueLeftFalseRight: true);
+
+                                        RenderMediaTimeLineDisplay();
+                                        // If best frames have been collected then change the
+                                        // MediaTimeLineDisplay tool tip to explain the dots
+                                        // on the timeline display
+                                        // Mono so left side only
+                                        MediaTimeLineDisplayLeft.SetToolTipLoadedProject();
+                                    }
+                                });
+                            }
+                            else
+                            {
+                                report?.Debug(ChannelConvert((HeadType)headType), $"FindBestMonoFramesSafeUIAsync: Too many best frames found, {foundIndexes.Count} max frames is {maxFramesAllowedForMonoCalibration}");
+                                ret = -1;
+                            }
+                        }
+                        else
+                            ret = -1;
+
                     }
                 }
                 catch (Exception ex)
@@ -490,7 +844,7 @@ namespace Surveyor.Controls
                     // the base K1K2P1P2 set would probably do the job
                     foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
                     {
-                        Debug.WriteLine($"{ToString()} FindBestStereoFramesAsync: {calibrationParameters}");
+                        //???Debug.WriteLine($"{ToString()} FindBestStereoFramesAsync: {calibrationParameters}");
                         MonoCalibrationCameraData? leftMonoCalibrationCameraData = calibProject.Data.CalibrationResults.LeftMonoCalibrationCameraDataArray[(int)calibrationParameters];
                         MonoCalibrationCameraData? rightMonoCalibrationCameraData = calibProject.Data.CalibrationResults.RightMonoCalibrationCameraDataArray[(int)calibrationParameters];
 
@@ -537,7 +891,7 @@ namespace Surveyor.Controls
                     }
 
                     // Report the counts of added and updated best frames                            
-                    report?.Info("", $"{ToString()} FindBestStereoFrames Added {addedUsingSensorBins} from sensor coverage, added {addedUsingPoseBins} from pose diversity and update {updatedUsingPoseBins}, removed nearly frames {removedNearlyFrames}");
+                    report?.Info(ChannelConvert((HeadType)headType), $"{ToString()} FindBestStereoFrames Added {addedUsingSensorBins} from sensor coverage, added {addedUsingPoseBins} from pose diversity and update {updatedUsingPoseBins}, removed nearly frames {removedNearlyFrames}");
                 }
                 finally
                 {

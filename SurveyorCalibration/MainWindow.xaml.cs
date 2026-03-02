@@ -75,6 +75,9 @@ namespace Surveyor
         public int MinFrameGap { get; set; } = 5; // Minimum allow gap between frames
         public int MinFramesAllowedForMonoCalibration { get; set; } = 12;
         public int MinFramesAllowedForStereoCalibration { get; set; } = 12;
+        public int MaxFramesAllowedForMonoCalibration { get; set; } = 80;
+        public int MaxFramesAllowedForStereoCalibration { get; set; } = 80;
+
         // Action FLags
         public bool FindCalibrationBoardZone { get; set; } = true;
         public bool BuildTheFrameSets { get; set; } = true;
@@ -583,19 +586,40 @@ namespace Surveyor
                 }
 
                 // Identify the best mono frames from the frame sets 
-                if (ret == 0 && runCalibrationParams.FindBestMonoFrames)
-                {
-                    SetAppModeOnAllHeads(AppMode.BestFramesCalc);
+                //???if (ret == 0 && runCalibrationParams.FindBestMonoFrames)
+                //{
+                //    SetAppModeOnAllHeads(AppMode.BestFramesCalc);
 
-                    ret = await FindBestMonoFramesAllHeadsAsync(runCalibrationParams);
-                }
+                //    ret = await FindBestMonoFramesAllHeadsAsync(runCalibrationParams);
+                //}
 
                 // Do the calibration mono calculations
+                //???if (ret == 0 && runCalibrationParams.DoCalibrationMonoCalculations)
+                //{
+                //    SetAppModeOnAllHeads(AppMode.BestFramesCalc);
+
+                //    ret = await DoCalibrationMonoCalcsAllHeadsAsync(runCalibrationParams);
+
+                //    if (ret == 0)
+                //    {
+                //        if (calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoPairOnlyMediaSet ||
+                //            calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoSingleOnlyMediaSet)
+                //        {
+                //            // Mono calibration only so swap to best frames view 
+                //            SetAppModeOnAllHeads(AppMode.BestFramesView);
+                //        }
+                //    }
+                //    else
+                //        SetAppModeOnAllHeads(AppMode.Open); // Problem
+                //}
+
+
+                // Iterate through the best frames identification and calibration mono calculations
                 if (ret == 0 && runCalibrationParams.DoCalibrationMonoCalculations)
                 {
                     SetAppModeOnAllHeads(AppMode.BestFramesCalc);
 
-                    ret = await DoCalibrationMonoCalcsAllHeadsAsync(runCalibrationParams);
+                    ret = await DoIterationBestFramesAndCalibrationMonoCalcsAllHeadsAsync(runCalibrationParams);
 
                     if (ret == 0)
                     {
@@ -609,6 +633,7 @@ namespace Surveyor
                     else
                         SetAppModeOnAllHeads(AppMode.Open); // Problem
                 }
+
 
                 // Identify the best stereo frames from the frame sets 
                 if (ret == 0 && runCalibrationParams.FindBestStereoFrames)
@@ -981,64 +1006,99 @@ namespace Surveyor
                     // First check if an existing project is already open
                     if (await CheckForOpenProjectAndCloseAsync() == true)
                     {
-                        // Open project in the regular way
-                        InfoBarProcessing.ShowProcessing("Opening calibration project...", true/*show elapsed time*/);
-
-                        int ret = await OpenProjectAsync(filePath);
-
-                        InfoBarProcessing.HideProcessing();
-
-                        if (ret == 0)
+                        bool tryOpen = true;
+                        while (tryOpen)
                         {
-                            // Setup display for selected StereoMonoMediaSetMode
-                            if (calibProject is not null)
-                                SetupMainWindowForStereoMonoMediaSetMode(calibProject.Data.Media.StereoMonoMediaSetMode);
+                            tryOpen = false;
 
-                            // Force to the top of the recent projects list
-                            // Note this project is definitely in the recent project list
-                            // but may be the top item. As the new last opened project it
-                            // should be top
-                            AddToRecentProjects(filePath);
-                            UpdateRecentProjectsMenu();
-                        }
-                        else if (ret != -999/*User aborted*/)
-                        {
-                            // Report the missing survey file
-                            // Survey needs to be saved before a frame can be saved
-                            var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
+                            // Open project in the regular way
+                            InfoBarProcessing.ShowProcessing("Opening calibration project...", true/*show elapsed time*/);
 
-                            // Create the ContentDialog instance
-                            var dialog = new ContentDialog
+                            int ret = await OpenProjectAsync(filePath);
+
+                            InfoBarProcessing.HideProcessing();
+
+                            if (ret == 0)
+                            {                               
+                                // Setup display for selected StereoMonoMediaSetMode
+                                if (calibProject is not null)
+                                    SetupMainWindowForStereoMonoMediaSetMode(calibProject.Data.Media.StereoMonoMediaSetMode);
+
+                                // Force to the top of the recent projects list
+                                // Note this project is definitely in the recent project list
+                                // but may be the top item. As the new last opened project it
+                                // should be top
+                                AddToRecentProjects(filePath);
+                                UpdateRecentProjectsMenu();
+                            }
+                            else if (ret != -999/*User aborted*/)
                             {
-                                Title = $"Project file missing",
-                                Content = new StackPanel
+                                // Make a suitable message
+                                string message;
+                                string? primaryButtonText = null;
+                                if (ret != -2)
                                 {
-                                    Orientation = Orientation.Horizontal,
-                                    Spacing = 10,
-                                    Children =
+                                    message = $"{filePath}";
+                                }
+                                else
+                                {
+                                    primaryButtonText = "OK";
+                                    message = $"{filePath} is missing but a backup version of the file exists. Do you want to use the backup version (some information may have been lost)?";
+                                }
+
+                                // Report the missing survey file
+                                // Survey needs to be saved before a frame can be saved
+                                var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
+
+                                // Create the ContentDialog instance
+                                var dialog = new ContentDialog
+                                {
+                                    Title = $"Project file missing",
+                                    Content = new StackPanel
+                                    {
+                                        Orientation = Orientation.Horizontal,
+                                        Spacing = 10,
+                                        Children =
                                     {
                                         warningIcon, // Add the exclamation icon to the dialog content
                                         new TextBlock
                                         {
-                                            Text = $"{filePath}",
+                                            Text = message,
                                             TextWrapping = TextWrapping.Wrap,
                                             MaxWidth = 400 // Adjust based on your app's layout
                                         }
                                     }
-                                },
+                                    },
 
-                                CloseButtonText = "Cancel",
-                                DefaultButton = ContentDialogButton.Close, // Set "Cancel" as the default button
+                                    CloseButtonText = "Cancel",
+                                    PrimaryButtonText = primaryButtonText,
+                                    DefaultButton = ContentDialogButton.Close, // Set "Cancel" as the default button
 
-                                // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
-                                XamlRoot = this.Content.XamlRoot
-                            };
+                                    // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
+                                    XamlRoot = this.Content.XamlRoot
+                                };
 
-                            // Show the dialog and await the result
-                            await dialog.ShowAsync();
+                                // Show the dialog and await the result
+                                var result = await dialog.ShowAsync();
 
-                            // Recent survey file is missing, remove from the recent file list
-                            RemoveToRecentSurveys(filePath);
+                                // If the use pressed the 'Cancel' button just remove the missing project
+                                // file from the recent file list
+                                if (result == ContentDialogResult.None)
+                                {
+                                    // Recent survey file is missing, remove from the recent file list
+                                    RemoveToRecentSurveys(filePath);
+                                }
+                                // Otherwise the user was offer the restore backup project file option
+                                // and they pressed it.
+                                else
+                                {
+                                    if (CalibProject.ProjectRestoreBackup(filePath) == 0)
+                                    {
+                                        // Retry the project open
+                                        tryOpen = true;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -2974,9 +3034,11 @@ namespace Surveyor
                                                                 calibProject.Data.CalibrationInputs.MovementFilterValue,
                                                                 calibProject.Data.CalibrationInputs.BlurFilterValue,
                                                                 calibProject.Data.CalibrationInputs.MonoCornersFilterValue,
+                                                                runParams.MaxFramesAllowedForMonoCalibration,
                                                                 runParams.MaxFramesFromEachSensorBin,
                                                                 runParams.MaxFramesFromEachPoseBin,
-                                                                runParams.MinFrameGap)));
+                                                                runParams.MinFrameGap,
+                                                                limitUIUpdates: false)));
                 taskLeftMonoIndex = taskIndex++;
             }
 
@@ -2989,9 +3051,11 @@ namespace Surveyor
                                                                 calibProject.Data.CalibrationInputs.MovementFilterValue,
                                                                 calibProject.Data.CalibrationInputs.BlurFilterValue,
                                                                 calibProject.Data.CalibrationInputs.MonoCornersFilterValue,
+                                                                runParams.MaxFramesAllowedForMonoCalibration,
                                                                 runParams.MaxFramesFromEachSensorBin,
                                                                 runParams.MaxFramesFromEachPoseBin,
-                                                                runParams.MinFrameGap)));
+                                                                runParams.MinFrameGap,
+                                                                limitUIUpdates: false)));
                 taskRightMonoIndex = taskIndex++;
             }
 
@@ -3041,7 +3105,7 @@ namespace Surveyor
                 }
 
                 // Save the frames dataset
-                InfoBarProcessing.UpdateMessage("Saving after stereo phase...");
+                InfoBarProcessing.UpdateMessage("Saving after find best mono frames phase...");
                 await SaveFrameDataCachesAsync(false/*no prompts*/);
             }
 
@@ -3206,6 +3270,174 @@ namespace Surveyor
             SetUIControls();
 
             Debug.WriteLine($"DoCalibrationMonoCalcsAllHeadsAsync Run Status  Left:{LeftMonoCalibrationHead.IsFindRunning()}  Right:{RightMonoCalibrationHead.IsFindRunning()}");
+
+            return ret;
+        }
+
+        
+        /// <summary>
+        /// This method iterates through different movement factors and corner count requirements
+        /// to find best frames.  It feeds each best frames sets into the mono calibration 
+        /// calculation It finds the best frames combinations that creates the best mono calibration
+        /// results. It is performed on all mono heads
+        /// </summary>
+        /// <param name="runParams"></param>
+        /// <returns></returns>
+        [RequiresUnreferencedCode("Calls Surveyor.MainWindow.SaveFrameDataCachesAsync(Boolean) which ultimately uses Json.NET serialization which may not be compatible with trimming.")]
+        private async Task<int> DoIterationBestFramesAndCalibrationMonoCalcsAllHeadsAsync(RunCalibrationParams runParams)
+        {
+            int ret = 0;
+
+            if (calibProject is null)
+                return -1;
+
+            InfoBarProcessing.ShowProcessing("Do best frame and mono calibration calculations...");
+
+            bool doLeftMono = false;
+            bool doRightMono = false;
+
+            switch (calibProject.Data.Media.StereoMonoMediaSetMode)
+            {
+
+                case StereoMonoMediaSetMode.MonoAndStereoMediaSet:
+                    if (StereoCalibrationHead.IsOpen() &&
+                        (bool)StereoCalibrationHead.IsStereoLocked()! &&
+                        LeftMonoCalibrationHead.IsOpen() &&
+                        RightMonoCalibrationHead.IsOpen())
+                    {
+                        doLeftMono = true;
+                        doRightMono = true;
+                    }
+                    break;
+                case StereoMonoMediaSetMode.StereoOnlyMediaSet:
+                    if (StereoCalibrationHead.IsOpen() &&
+                        (bool)StereoCalibrationHead.IsStereoLocked()!)
+                    {
+                        doLeftMono = true;
+                        doRightMono = true;
+                    }
+                    break;
+                case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
+                    if (LeftMonoCalibrationHead.IsOpen() &&
+                        RightMonoCalibrationHead.IsOpen())
+                    {
+                        doLeftMono = true;
+                        doRightMono = true;
+                    }
+                    break;
+                case StereoMonoMediaSetMode.MonoSingleOnlyMediaSet:
+                    if (LeftMonoCalibrationHead.IsOpen())
+                    {
+                        doLeftMono = true;
+                    }
+                    break;
+
+            }
+
+            var monoPhaseTasks = new List<Task<int>>();
+            int taskIndex = 0;
+            int taskLeftMonoIndex = -1;
+            int taskRightMonoIndex = -1;
+
+            // Iterate through the best frames set and do mono calibration to find the best combo of frames and calibration results
+            if (doLeftMono)
+            {
+                monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.DoIterationBestFramesAndCalibrationMonoCalcsAsync(
+                                                                Report,
+                                                                calibProject,
+                                                                InfoBarProcessing,
+                                                                trueLeftFalseRight: true,
+                                                                calibProject.Data.CalibrationInputs.MovementFilterValue,
+                                                                movementThresholdStepUp: 0.5,
+                                                                calibProject.Data.CalibrationInputs.BlurFilterValue,
+                                                                calibProject.Data.CalibrationInputs.MonoCornersFilterValue,
+                                                                monoCornersThresholdStepDown: 2,
+                                                                runParams.MaxFramesFromEachSensorBin,
+                                                                runParams.MaxFramesFromEachPoseBin,
+                                                                runParams.MinFrameGap,
+                                                                runParams.MinFramesAllowedForMonoCalibration,
+                                                                runParams.MaxFramesAllowedForMonoCalibration)));
+                taskLeftMonoIndex = taskIndex++;
+            }
+
+            if (doRightMono)
+            {                
+                monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.DoIterationBestFramesAndCalibrationMonoCalcsAsync(
+                                                                Report,                                                                
+                                                                calibProject,
+                                                                InfoBarProcessing,
+                                                                trueLeftFalseRight: false,
+                                                                calibProject.Data.CalibrationInputs.MovementFilterValue,
+                                                                movementThresholdStepUp: 0.5,  
+                                                                calibProject.Data.CalibrationInputs.BlurFilterValue,
+                                                                calibProject.Data.CalibrationInputs.MonoCornersFilterValue,
+                                                                monoCornersThresholdStepDown: 2,
+                                                                runParams.MaxFramesFromEachSensorBin,
+                                                                runParams.MaxFramesFromEachPoseBin,
+                                                                runParams.MinFrameGap,
+                                                                runParams.MinFramesAllowedForMonoCalibration,
+                                                                runParams.MaxFramesAllowedForMonoCalibration)));
+                taskRightMonoIndex = taskIndex++;
+            }
+
+            // Find the best frames in parallel
+            if (monoPhaseTasks.Count > 0)
+            {
+                try
+                {
+                    int[] results = await Task.WhenAll(monoPhaseTasks);
+
+                    if (doLeftMono)
+                    {
+                        if (results[taskLeftMonoIndex] != 0)
+                        {
+                            ret = results[taskLeftMonoIndex];
+                            Debug.WriteLine($"DoIterationBestFramesAndCalibrationMonoCalcsAllHeadsAsync: Error from DoIterationBestFramesAndCalibrationMonoCalcsAsync: Left Mono Result={ret}");
+                        }
+                    }
+                    if (doRightMono)
+                    {
+                        if (results[taskRightMonoIndex] != 0)
+                        {
+                            ret = results[taskRightMonoIndex];
+                            Debug.WriteLine($"DoIterationBestFramesAndCalibrationMonoCalcsAllHeadsAsync: Error from DoIterationBestFramesAndCalibrationMonoCalcsAsync: Right Mono Result={ret}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"DoIterationBestFramesAndCalibrationMonoCalcsAllHeadsAsync: Error running DoIterationBestFramesAndCalibrationMonoCalcsAsync tasks, {ex}");
+                    ret = -2;
+                }
+
+
+                // If there is an error then clear any collected
+                // values and reset the display
+                if (ret != 0)
+                {
+                    calibProject.Data.CalibrationResults.Clear();  // This actually clears all calibration results left, right and stereo
+
+                    if (doLeftMono)
+                    {
+                        await LeftMonoCalibrationHead.ClearResultsSafeUIAsync(calibProject, CalibrationStereoFrameSet.ClearRequest.BestFrames_AutoOnly);
+                    }
+                    if (doRightMono)
+                    {
+                        await RightMonoCalibrationHead.ClearResultsSafeUIAsync(calibProject, CalibrationStereoFrameSet.ClearRequest.BestFrames_AutoOnly);
+                    }
+                }
+
+
+                // Save the frames dataset
+                InfoBarProcessing.UpdateMessage("Saving after mono calibration phase...");
+                await SaveFrameDataCachesAsync(false/*no prompts*/);
+            }
+
+            InfoBarProcessing.HideProcessing();
+
+            SetUIControls();
+
+            Debug.WriteLine($"DoIterationBestFramesAndCalibrationMonoCalcsAllHeadsAsync Run Status  Left:{LeftMonoCalibrationHead.IsFindRunning()}  Right:{RightMonoCalibrationHead.IsFindRunning()}");
 
             return ret;
         }

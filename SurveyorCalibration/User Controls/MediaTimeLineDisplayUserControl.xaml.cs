@@ -92,7 +92,7 @@ namespace Surveyor.Controls
 
         public void Clear()
         {
-            Debug.WriteLine($"{headType} MediaTimeLineDisplayUserControl.Clear");
+            //???Debug.WriteLine($"{headType} MediaTimeLineDisplayUserControl.Clear");
             _startMediaFrameIndex = -1;
             _endMediaFrameIndex = -1;
         
@@ -120,7 +120,7 @@ namespace Surveyor.Controls
         /// <param name="_endMediaFrameIndex"></param>
         public void SetRange(int startMediaFrameIndex, int endMediaFrameIndex, bool clearData)
         {
-            Debug.WriteLine($"{headType} MediaTimeLineDisplayUserControl.SetRange({startMediaFrameIndex}, {endMediaFrameIndex}, clearData={clearData})");
+            //???Debug.WriteLine($"{headType} MediaTimeLineDisplayUserControl.SetRange({startMediaFrameIndex}, {endMediaFrameIndex}, clearData={clearData})");
             if (clearData)
                 Clear();
 
@@ -248,7 +248,7 @@ namespace Surveyor.Controls
         /// <param name="BestFrameIndexes"></param>
         public void RenderBestFramesOnTimeline(List<BestFrame> BestFrameIndexes)
         {
-            Debug.WriteLine($"{headType} RenderBestFramesOnTimeline, count={BestFrameIndexes.Count}");
+            //???Debug.WriteLine($"{headType} RenderBestFramesOnTimeline, count={BestFrameIndexes.Count}");
 
             // Remember the best frame in case of resize/redraw
             foreach (BestFrame bestFrame in BestFrameIndexes)
@@ -283,7 +283,7 @@ namespace Surveyor.Controls
         /// </summary>
         public void RemoveAllBestFrames()
         {
-            Debug.WriteLine($"{headType} RemoveAllBestFrames");
+            //???Debug.WriteLine($"{headType} RemoveAllBestFrames");
             CanvasDrawingHelper.RemoveCanvasShapesByTag(MediaTimeLineDisplay, "Best");
         }
 
@@ -329,7 +329,7 @@ namespace Surveyor.Controls
         /// <param name="e"></param>
         private void MediaTimeLineDisplay_SizeChanged(object sender, SizeChangedEventArgs e)
         {
-            Debug.WriteLine($"MediaTimeLineDisplay_SizeChanged");
+            //???Debug.WriteLine($"MediaTimeLineDisplay_SizeChanged");
             if (e.PreviousSize.Width == e.NewSize.Width)
             {
                 return;
@@ -462,6 +462,9 @@ namespace Surveyor.Controls
         {
             // Remove any existing indicator dots
             RemoveAllBestFrames();
+
+            if (_bestFrames.Count > 100)
+                Debug.WriteLine(">100");
 
             // Iterate over BestFrameIndexes
             foreach (BestFrame bestFrame in _bestFrames)

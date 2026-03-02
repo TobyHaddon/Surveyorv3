@@ -195,6 +195,26 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// Return the total number of squares for this board
+        /// </summary>
+        /// <returns></returns>
+        public int GetTotalSquareCount()
+        {
+            return (SquaresX - 1) * (SquaresY - 1);
+        }
+
+
+        /// <summary>
+        /// Return the total number of markers for this board
+        /// </summary>
+        /// <returns></returns>
+        public int GetTotalMarkersCount()
+        {
+            return (SquaresX * SquaresY) / 2;
+        }
+
+
         ///
         /// EVENTS
         /// 

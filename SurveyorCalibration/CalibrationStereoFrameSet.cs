@@ -6,6 +6,7 @@ using Emgu.CV.CvEnum;
 using Emgu.CV.Face;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
+using Microsoft.Extensions.Primitives;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using Surveyor.Calibration;
@@ -24,6 +25,8 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using static iText.Layout.Borders.Border;
+using static iText.StyledXmlParser.Jsoup.Select.Evaluator;
+using static Surveyor.CalibProject.DataClass.CalibrationResultClass;
 using static Surveyor.Controls.UniversalCalibrationHead;
 
 namespace Surveyor
@@ -2078,7 +2081,7 @@ namespace Surveyor
 
                 // Compute projection error
                 var charucoCorner3DMap = GetCharucoCorner3DPoints(chArUcoBoardDefinition);
-                (double projectionRms, double maxError) = MonoComputeProjectionErrors(
+                (double projectionRms, double maxError, double p95Error) = MonoComputeProjectionErrors(
                                                     allCharucoCorners,
                                                     allCharucoIds,
                                                     allFrameData,
@@ -2099,7 +2102,8 @@ namespace Surveyor
                     DistortionCoeffs = distortionCoeffs,
                     ReprojectionRMS = reprojectionRMS,  // return from ArucoInvoke.CalibrateCameraCharuco
                     ProjectionRMS = projectionRms,
-                    MaxError = maxError
+                    MaxError = maxError,
+                    P95Error = p95Error
                 };
 
                 Debug.WriteLine($"{side} mono calibration first pass (pass 0) complete. Re-projection RMS: {reprojectionRMS:F4}, Projection RMS: {projectionRms:F4}, Max Error: {maxError:F4}");
@@ -2146,16 +2150,16 @@ namespace Surveyor
         /// <param name="charucoCorner3DMap"></param>
         /// <param name="calibrationParameters"></param>
         /// <returns></returns>
-        private static (double ProjectionRms, double MaxError) MonoComputeProjectionErrors(
-                                                    VectorOfVectorOfPointF allCharucoCorners,
-                                                    VectorOfVectorOfInt allCharucoIds,
-                                                    List<FrameData> allFrameData,
-                                                    VectorOfMat rvecs,
-                                                    VectorOfMat tvecs,
-                                                    Matrix<double> intrinsicMatrix,
-                                                    Matrix<double> distortionCoeffs,
-                                                    Dictionary<int, MCvPoint3D32f> charucoCorner3DMap,
-                                                    CalibrationParameters calibrationParameters)
+        private static (double ProjectionRms, double MaxError, double P95Error) MonoComputeProjectionErrors(
+                                            VectorOfVectorOfPointF allCharucoCorners,
+                                            VectorOfVectorOfInt allCharucoIds,
+                                            List<FrameData> allFrameData,
+                                            VectorOfMat rvecs,
+                                            VectorOfMat tvecs,
+                                            Matrix<double> intrinsicMatrix,
+                                            Matrix<double> distortionCoeffs,
+                                            Dictionary<int, MCvPoint3D32f> charucoCorner3DMap,
+                                            CalibrationParameters calibrationParameters)
         {
             var allObserved = new List<PointF>();
             var allProjected = new List<PointF>();
@@ -2193,7 +2197,7 @@ namespace Surveyor
                     tvecs[i],
                     intrinsicMatrix,
                     distortionCoeffs);
-                
+
                 allObserved.AddRange(observedCorners);
                 allProjected.AddRange(projectedPoints);
 
@@ -2208,12 +2212,13 @@ namespace Surveyor
                 allFrameData[i].monoProjectedPoints[(int)calibrationParameters] = projectedPoints;
                 allFrameData[i].monoFrameRms[(int)calibrationParameters] = frameRms;
                 allFrameData[i].monoFrameMaxError[(int)calibrationParameters] = frameMaxError;
-                
-                //???Debug.WriteLine($"{i}: Frame {allFrameData[i].FrameIndex}: RMS = {frameRms:F2}, Max = {frameMaxError:F2}");
             }
 
             // Compute overall errors
-            double projectionRms = 0.0, maxError = 0.0;
+            double projectionRms = 0.0;
+            double maxError = 0.0;
+            double p95Error = 0.0;
+
             if (allObserved.Count > 0)
             {
                 var allErrors = allObserved.Zip(allProjected, (obs, proj) =>
@@ -2221,12 +2226,99 @@ namespace Surveyor
 
                 projectionRms = Math.Sqrt(allErrors.Sum(e => e * e) / allErrors.Count);
                 maxError = allErrors.Max();
+
+                allErrors.Sort();
+
+                int p95Index = (int)Math.Ceiling(allErrors.Count * 0.95) - 1;
+                p95Index = Math.Clamp(p95Index, 0, allErrors.Count - 1);
+                p95Error = allErrors[p95Index];
             }
 
-            Debug.WriteLine($"{calibrationParameters}: Overall Projection RMS: {projectionRms:F2}, Max Error: {maxError:F2}");
+            Debug.WriteLine($"{calibrationParameters}: Overall Projection RMS: {projectionRms:F2}, Max Error: {maxError:F2}, P95 Error: {p95Error:F2}");
 
-            return (projectionRms, maxError);
+            return (projectionRms, maxError, p95Error);
         }
+        //???private static (double ProjectionRms, double MaxError) MonoComputeProjectionErrors(
+        //                                            VectorOfVectorOfPointF allCharucoCorners,
+        //                                            VectorOfVectorOfInt allCharucoIds,
+        //                                            List<FrameData> allFrameData,
+        //                                            VectorOfMat rvecs,
+        //                                            VectorOfMat tvecs,
+        //                                            Matrix<double> intrinsicMatrix,
+        //                                            Matrix<double> distortionCoeffs,
+        //                                            Dictionary<int, MCvPoint3D32f> charucoCorner3DMap,
+        //                                            CalibrationParameters calibrationParameters)
+        //{
+        //    var allObserved = new List<PointF>();
+        //    var allProjected = new List<PointF>();
+
+        //    for (int i = 0; i < allCharucoIds.Size; i++)
+        //    {
+        //        var ids = allCharucoIds[i].ToArray();
+        //        var corners = allCharucoCorners[i].ToArray();
+
+        //        if (ids.Length == 0 || corners.Length == 0)
+        //            continue;
+
+        //        var objectPoints = new List<MCvPoint3D32f>();
+        //        var observedCorners = new List<PointF>();
+
+        //        for (int j = 0; j < ids.Length; j++)
+        //        {
+        //            if (charucoCorner3DMap.TryGetValue(ids[j], out var point3D))
+        //            {
+        //                objectPoints.Add(point3D);
+        //                observedCorners.Add(corners[j]);
+        //            }
+        //            else
+        //            {
+        //                Debug.WriteLine($"Missing 3D point for ChArUco ID {ids[j]}");
+        //            }
+        //        }
+
+        //        if (objectPoints.Count == 0)
+        //            continue;
+
+        //        var projectedPoints = CvInvoke.ProjectPoints(
+        //            [.. objectPoints],
+        //            rvecs[i],
+        //            tvecs[i],
+        //            intrinsicMatrix,
+        //            distortionCoeffs);
+
+        //        allObserved.AddRange(observedCorners);
+        //        allProjected.AddRange(projectedPoints);
+
+        //        // Compute per-frame errors
+        //        var errors = observedCorners.Zip(projectedPoints, (obs, proj) =>
+        //            Math.Sqrt(Math.Pow(obs.X - proj.X, 2) + Math.Pow(obs.Y - proj.Y, 2))).ToList();
+
+        //        double frameRms = errors.Count > 0 ? Math.Sqrt(errors.Sum(e => e * e) / errors.Count) : 0.0;
+        //        double frameMaxError = errors.Count > 0 ? errors.Max() : 0.0;
+
+        //        // Save the frame quality tests
+        //        allFrameData[i].monoProjectedPoints[(int)calibrationParameters] = projectedPoints;
+        //        allFrameData[i].monoFrameRms[(int)calibrationParameters] = frameRms;
+        //        allFrameData[i].monoFrameMaxError[(int)calibrationParameters] = frameMaxError;
+
+        //        //???Debug.WriteLine($"{i}: Frame {allFrameData[i].FrameIndex}: RMS = {frameRms:F2}, Max = {frameMaxError:F2}");
+        //    }
+
+        //    // Compute overall errors
+        //    double projectionRms = 0.0, maxError = 0.0;
+        //    if (allObserved.Count > 0)
+        //    {
+        //        var allErrors = allObserved.Zip(allProjected, (obs, proj) =>
+        //            Math.Sqrt(Math.Pow(obs.X - proj.X, 2) + Math.Pow(obs.Y - proj.Y, 2))).ToList();
+
+        //        projectionRms = Math.Sqrt(allErrors.Sum(e => e * e) / allErrors.Count);
+        //        maxError = allErrors.Max();
+        //    }
+
+        //    Debug.WriteLine($"{calibrationParameters}: Overall Projection RMS: {projectionRms:F2}, Max Error: {maxError:F2}");
+
+        //    return (projectionRms, maxError);
+        //}
 
 
         /// <summary>
@@ -2291,21 +2383,9 @@ namespace Surveyor
                         sb.AppendLine($"tx:{monoCalibration.DistortionCoeffs[0, 12],7:F3}  ty:{monoCalibration.DistortionCoeffs[0, 13],7:F3}");
                     }
 
-
                     // RPE RMS
-                    string rpeQuanlity = string.Empty;
-                    if (monoCalibration.ReprojectionRMS <= 0.2)
-                        rpeQuanlity = "(excellent)";
-                    else if (monoCalibration.ReprojectionRMS <= 0.5)
-                        rpeQuanlity = "(very good)";
-                    else if (monoCalibration.ReprojectionRMS <= 1.0)
-                        rpeQuanlity = "(acceptable)";
-                    else if (monoCalibration.ReprojectionRMS <= 1.5)
-                        rpeQuanlity = "(poor)";
-                    else if (monoCalibration.ReprojectionRMS <= 2.0)
-                        rpeQuanlity = "(very poor)";
-                    else
-                        rpeQuanlity = "(terrible)";
+                    string rpeQuanlity = MonoCalibrationQualityClassifier.ToDisplayString(MonoCalibrationQualityClassifier.ClassifyByReprojectionRMS(monoCalibration.ReprojectionRMS));
+                    // These values are defined in CalibProject.DataClass.CalibrationResultClass.MonoRPE and CalibProject.MonoRPEQuality
                     // < 0.2    Excellent(usually only in studio/lab with perfect lighting and corner visibility)
                     // 0.2–0.5  Very good; suitable for accurate 3D reconstructions and pose estimates
                     // 0.5–1.0  Acceptable for many real-world use cases, especially underwater, drone, etc.
@@ -2364,19 +2444,8 @@ namespace Surveyor
 
 
                     // RPE RMS
-                    string rpeQuanlity = string.Empty;
-                    if (stereoCalibration.RMS <= 0.5)
-                        rpeQuanlity = "(excellent)";
-                    else if (stereoCalibration.RMS <= 1.0)
-                        rpeQuanlity = "(very good)";
-                    else if (stereoCalibration.RMS <= 1.8)
-                        rpeQuanlity = "(acceptable)";
-                    else if (stereoCalibration.RMS <= 2.5)
-                        rpeQuanlity = "(poor)";
-                    else if (stereoCalibration.RMS <= 3.5)
-                        rpeQuanlity = "(very poor)";
-                    else
-                        rpeQuanlity = "(terrible)";
+                    string rpeQuanlity = StereoCalibrationQualityClassifier.ToDisplayString(StereoCalibrationQualityClassifier.ClassifyByReprojectionRMS(stereoCalibration.RMS));
+                    // These are defined in CalibProject.DataClass.CalibrationResultClass.StereoRPE and CalibProject.StereoRPEQuality
                     // Stereo re-projection RMS (px)
                     // Stereo RMS includes inter-camera geometry and is naturally higher than mono RMS.
                     //<= 0.5   excellent
@@ -2932,13 +3001,28 @@ namespace Surveyor
                 return 0;
 
             // Remove from end to start to keep indices valid.
+            StringBuilder sb = new();
             foreach (int idx in removeIndexes.OrderByDescending(x => x))
             {
-                report?.Info("", $"CullNearbyFrames {headType} best frame index:{idx} remove frame index:{bestFramesList[idx].FrameIndex}");
-                
+                if (sb.Length > 0)
+                    sb.Append(", ");
+                sb.Append($"{bestFramesList[idx].FrameIndex}");
+
                 calibProject.Data.CalibrationInputs.RemoveBestFrame(ConvertHeadType(headType), idx);
 
                 removed++;
+            }
+
+            // Report removals
+            if (sb.Length > 0)
+            {
+                string message = $"CullNearbyFrames {headType} removed {removed} best frames that were to close to each other, {sb}";
+                if (headType == HeadType.Stereo)
+                    report?.Debug("Stereo", message);
+                else if (headType == HeadType.MonoLeft)
+                    report?.Debug("Left", message);
+                else if (headType == HeadType.MonoRight)
+                    report?.Debug("Left", message);
             }
 
             return removed;
@@ -3378,6 +3462,7 @@ namespace Surveyor
                                                         //    - Angle coverage of the calibration board
                                                         //    - Board detection quality(false or partial matches)
                                                         // It’s common to filter out worst frames(e.g., >2 px error) after an initial calibration round to improve a second pass.
+        public double P95Error { get; set; }            // 95th percentile of per-corner errors
     }
 }
 

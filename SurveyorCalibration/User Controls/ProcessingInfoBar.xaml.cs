@@ -3,6 +3,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using WinUIEx.Messaging;
 
 namespace Surveyor.User_Controls
@@ -94,22 +95,79 @@ namespace Surveyor.User_Controls
         // Update the Message while the InfoBar is already open (thread-safe). Does not affect saved original message.
         public void UpdateMessage(string message)
         {
+            //???Debug.WriteLine($"---->ProcessingInfoBar: UpdateMessage to '{message}'");
+
+            void Apply()
+            {
 #if DEBUG
-            if (!IsOpen)
-                throw new InvalidOperationException("ProcessingInfoBar.UpdateMessage called while InfoBar is closed (IsOpen == false).");
+                if (!InfoBar.IsOpen)
+                    throw new InvalidOperationException("ProcessingInfoBar.UpdateMessage called while InfoBar is closed (IsOpen == false).");
 #endif
-            Debug.WriteLine($"---->ProcessingInfoBar: UpdateMessage to '{message}'");
-            void Apply() => Message = message ?? string.Empty;
+                Message = message ?? string.Empty;
+            }
 
             if (DispatcherQueue?.HasThreadAccess == true)
             {
                 Apply();
+                return;
             }
-            else
+
+            _ = DispatcherQueue?.TryEnqueue(() =>
             {
-                _ = DispatcherQueue?.TryEnqueue(Apply);
-            }
+                try
+                {
+                    Apply();
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"---->ProcessingInfoBar: UpdateMessage failed: {ex.Message}");
+#if DEBUG
+                    throw;
+#endif
+                }
+            });
         }
+
+        // Get the Message while the InfoBar is already open (thread-safe). 
+        public Task<string> GetMessageAsync()
+        {
+            var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            if (DispatcherQueue?.HasThreadAccess == true)
+            {
+#if DEBUG
+                if (!InfoBar.IsOpen)
+                    throw new InvalidOperationException("ProcessingInfoBar.GetMessageAsync called while InfoBar is closed (IsOpen == false).");
+#endif
+                return Task.FromResult(Message ?? string.Empty);
+            }
+
+            bool enqueued = DispatcherQueue?.TryEnqueue(() =>
+            {
+                try
+                {
+#if DEBUG
+                    if (!InfoBar.IsOpen)
+                        throw new InvalidOperationException("ProcessingInfoBar.GetMessageAsync called while InfoBar is closed (IsOpen == false).");
+#endif
+                    tcs.TrySetResult(Message ?? string.Empty);
+                }
+                catch (Exception ex)
+                {
+                    tcs.TrySetException(ex);
+                }
+            }) == true;
+
+            if (!enqueued)
+            {
+                // If we can't get to the UI thread, avoid touching dependency properties here.
+                // Returning empty is safer than throwing a COM threading exception.
+                tcs.TrySetResult(string.Empty);
+            }
+
+            return tcs.Task;
+        }
+
 
         // Hide and restore
         public void HideProcessing()
@@ -136,7 +194,7 @@ namespace Surveyor.User_Controls
             }
 
             InfoBar.IsOpen = false;
-            Debug.WriteLine($"---->ProcessingInfoBar: HideProcessing");
+            //???Debug.WriteLine($"---->ProcessingInfoBar: HideProcessing");
         }
 
 
@@ -151,7 +209,7 @@ namespace Surveyor.User_Controls
 
         private void StartProcessing(bool keepMessage, bool? elapsedOverride, string? messageOverride)
         {
-            Debug.WriteLine($"---->ProcessingInfoBar: StartProcessing: keepMessage={keepMessage}, elapsedOverride={elapsedOverride}, messageOverride='{messageOverride}'");
+            //???Debug.WriteLine($"---->ProcessingInfoBar: StartProcessing: keepMessage={keepMessage}, elapsedOverride={elapsedOverride}, messageOverride='{messageOverride}'");
             if (!keepMessage && messageOverride is not null)
             {
                 _savedMessage ??= Message;

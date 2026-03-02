@@ -240,8 +240,8 @@ public sealed partial class CalibrationTargetTest : UserControl
 
     private void UpdateUI(bool found)
     {
-        int totalMaxCorners = (boardDefinition.SquaresX - 1) * (boardDefinition.SquaresY - 1);
-        int totalMaxMarkers = (boardDefinition.SquaresX * boardDefinition.SquaresY) / 2;
+        int totalMaxCorners = boardDefinition.GetTotalSquareCount();
+        int totalMaxMarkers = boardDefinition.GetTotalMarkersCount();
 
         // Show the maximum number of corners we have seen so far
         if (maxCornersDetected == 0)

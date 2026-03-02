@@ -117,7 +117,7 @@ namespace Surveyor.Controls
                     catch (Exception ex)
                     {
                         // Handle the exception as needed
-                        System.Diagnostics.Debug.WriteLine($"Movement Error processing frame {i}: {ex.Message}");
+                        Debug.WriteLine($"Movement Error processing frame {i}: {ex.Message}");
                     }
 
                     try
@@ -132,7 +132,7 @@ namespace Surveyor.Controls
                     catch (Exception ex)
                     {
                         // Handle the exception as needed
-                        System.Diagnostics.Debug.WriteLine($"Blur Error processing frame {i}: {ex.Message}");
+                        Debug.WriteLine($"Blur Error processing frame {i}: {ex.Message}");
                     }
 
                     i++;
@@ -163,9 +163,9 @@ namespace Surveyor.Controls
                 FontFamily = new FontFamily("Segoe UI Variable"),
                 Foreground = new SolidColorBrush(Microsoft.UI.Colors.Orange),
                 FontSize = 10,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                UseLayoutRounding = true
             };
-            blurLabel.UseLayoutRounding = true;
             Canvas.SetLeft(blurLabel, 2);
             Canvas.SetTop(blurLabel, heightBlurCanvas - 14); // 14 for padding from bottom
             BlurCanvas.Children.Add(blurLabel);
@@ -376,9 +376,6 @@ namespace Surveyor.Controls
                 Debug.WriteLine("");
             }
 
-            // Immediately populate counts + tool tips if data is present
-            //???RefreshPoseBin();
-
             // Exaggerate the pose angle so it displays clearer by averaging thresholds
             static double ExaggerateTheDisplayAngle(int index, IReadOnlyList<double> PoseBinThreshold)
             {
@@ -576,21 +573,6 @@ namespace Surveyor.Controls
                 }
             }
         }
-
-
-        /// <summary>
-        /// Note for this to be effective a call to CalibrationStereoFrameSet.ClearResults
-        /// is required for the graph to be cleared
-        /// </summary>
-        /// <param name="viewMode"></param>
-        //???public void ClearDisplay(UniversalCalibrationHead.ViewMode viewMode)
-        //???{
-        //???    HighLightActiveSensorBin(null);
-        //???    RefreshSensorBin(viewMode);
-        //???    HighLightActivePoseBin(null);
-        //???    RefreshPoseBin(viewMode);
-        //???    DrawGraphs();
-        //???}
 
 
         /// <summary>

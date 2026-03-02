@@ -11,6 +11,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Org.BouncyCastle.Bcpg;
 using Surveyor.Calibration;
@@ -293,8 +294,8 @@ namespace Surveyor.Controls
             _playBothTimer.Tick += (s, e) => PlayBoth();
 
 
-            CalibrationFrameSetViewerData dataLeft = new(true/*trueLeftFalseRight*/, calibrationStereoFrameSet);
-            CalibrationFrameSetViewerData dataRight = new(false/*trueLeftFalseRight*/, calibrationStereoFrameSet);
+            CalibrationFrameSetViewerData dataLeft = new(_trueLeftFalseRight: true, calibrationStereoFrameSet);
+            CalibrationFrameSetViewerData dataRight = new(_trueLeftFalseRight: false, calibrationStereoFrameSet);
 
             CalibrationFrameSetViewerLeft.Data = dataLeft;
             CalibrationFrameSetViewerRight.Data = dataRight;
@@ -508,7 +509,8 @@ namespace Surveyor.Controls
                          clearRequest == CalibrationStereoFrameSet.ClearRequest.BestFrames_All ||
                          clearRequest == CalibrationStereoFrameSet.ClearRequest.BestFrames_AutoOnly) && headType is null)
                     {
-                        report?.Error("", $"'{nameof(headType)}' is required for ClearResultsSafeUIAsync with a ClearRequest of {clearRequest}.");
+                        if (headType is not null)
+                            report?.Error(ChannelConvert((HeadType)headType), $"'{nameof(headType)}' is required for ClearResultsSafeUIAsync with a ClearRequest of {clearRequest}.");
                         return;
                     }
 
@@ -992,8 +994,11 @@ namespace Surveyor.Controls
         public void DisplayCalibrationInfoSafeUI(CalibProject calibProject, bool? trueLeftFalseRightNullStereo)
         {
             // Reset left calibration output display if left mono, right mono (which used the left side) or stereo
-            safeUICall.Call(() => LeftCalibDataText.Text = string.Empty);
-            safeUICall.Call(() => LeftCalibDataBorder.Visibility = Visibility.Collapsed);
+            safeUICall.Call(() =>
+            {
+                LeftCalibDataText.Text = string.Empty;
+                LeftCalibDataBorder.Visibility = Visibility.Collapsed;
+            });
 
 
             if (calibrationStereoFrameSet is not null)
@@ -1021,8 +1026,12 @@ namespace Surveyor.Controls
                                 leftCalibationText += CalibrationStereoFrameSet.CalibrationCameraDataText(leftMonoCalibrationCameraData);
 
                                 // Set calibration output display 
-                                safeUICall.Call(() => LeftCalibDataText.Text = leftCalibationText);
-                                safeUICall.Call(() => LeftCalibDataBorder.Visibility = Visibility.Visible);
+                                safeUICall.Call(() =>
+                                {
+                                    LeftCalibDataText.Text = leftCalibationText;
+                                    LeftCalibDataBorder.Visibility = Visibility.Visible;
+                                    AnimateCalibrationTextUpdated();
+                                });
                             }
                         }
                         else
@@ -1037,8 +1046,12 @@ namespace Surveyor.Controls
 
                                 // Note. We used the left side display control only for a right mono head
                                 // even if 'trueLeftFalseRight == false'
-                                safeUICall.Call(() => LeftCalibDataText.Text = rightCalibationText);
-                                safeUICall.Call(() => LeftCalibDataBorder.Visibility = Visibility.Visible);
+                                safeUICall.Call(() =>
+                                {
+                                    LeftCalibDataText.Text = rightCalibationText;
+                                    LeftCalibDataBorder.Visibility = Visibility.Visible;
+                                    AnimateCalibrationTextUpdated();
+                                });
                             }
                         }
                     }
@@ -1054,12 +1067,77 @@ namespace Surveyor.Controls
                             leftCalibationText += CalibrationStereoFrameSet.CalibrationCameraDataText(calibrationStereoCameraData);
 
                             // Set calibration output display 
-                            safeUICall.Call(() => LeftCalibDataText.Text = leftCalibationText);
-                            safeUICall.Call(() => LeftCalibDataBorder.Visibility = Visibility.Visible);
+                            safeUICall.Call(() =>
+                            {
+                                LeftCalibDataText.Text = leftCalibationText;
+                                LeftCalibDataBorder.Visibility = Visibility.Visible;
+                                AnimateCalibrationTextUpdated();
+                            });
                         }
-                    }
+                    }                   
                 }
             }
+        }
+
+
+        /// <summary>
+        /// Briefly highlight the calibration text area to draw the user's attention
+        /// when new calibration results are written.
+        /// </summary>
+        private void AnimateCalibrationTextUpdated()
+        {
+            // Guard – border might not be loaded yet
+            if (LeftCalibDataBorder is null)
+                return;
+
+            // Reset any previous animation state
+            LeftCalibDataBorder.RenderTransformOrigin = new Point(0.5, 0.0);
+
+            if (LeftCalibDataBorder.RenderTransform is not ScaleTransform scaleTransform)
+            {
+                scaleTransform = new ScaleTransform
+                {
+                    ScaleX = 1.0,
+                    ScaleY = 1.0
+                };
+                LeftCalibDataBorder.RenderTransform = scaleTransform;
+            }
+
+            const double scaleFrom = 1.0;
+            const double scaleTo = 1.05;
+            const double durationMs = 150.0;
+
+            var scaleUpX = new DoubleAnimation
+            {
+                From = scaleFrom,
+                To = scaleTo,
+                Duration = TimeSpan.FromMilliseconds(durationMs),
+                AutoReverse = true,
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
+                EnableDependentAnimation = true
+            };
+
+            var scaleUpY = new DoubleAnimation
+            {
+                From = scaleFrom,
+                To = scaleTo,
+                Duration = TimeSpan.FromMilliseconds(durationMs),
+                AutoReverse = true,
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut },
+                EnableDependentAnimation = true
+            };
+
+            Storyboard.SetTarget(scaleUpX, scaleTransform);
+            Storyboard.SetTargetProperty(scaleUpX, "ScaleX");
+
+            Storyboard.SetTarget(scaleUpY, scaleTransform);
+            Storyboard.SetTargetProperty(scaleUpY, "ScaleY");
+
+            var storyboard = new Storyboard();
+            storyboard.Children.Add(scaleUpX);
+            storyboard.Children.Add(scaleUpY);
+
+            storyboard.Begin();
         }
 
 
@@ -1232,6 +1310,9 @@ namespace Surveyor.Controls
             int ret = 0;
             string messageText;
 
+            // Guard
+            if (headType is null) return -1;
+
             // Check if the file exists (remove any zero byte file)
             DeleteIfZeroByteFile(cacheFileSpec);
 
@@ -1276,11 +1357,11 @@ namespace Surveyor.Controls
                     // Report
                     if (IsHeadStereo())
                     {
-                        report?.Info("", $"{ToString()} Stereo calibration zone {calibrationStereoFrameSet.GetStartCalibrationBoardZone()}-{calibrationStereoFrameSet.GetStopCalibrationBoardZone()}");
+                        report?.Info("Stereo", $"{ToString()} Stereo calibration zone {calibrationStereoFrameSet.GetStartCalibrationBoardZone()}-{calibrationStereoFrameSet.GetStopCalibrationBoardZone()}");
                     }
                     else
-                    {
-                        report?.Info("", $"{ToString()} calibration zone {calibrationStereoFrameSet.GetStartCalibrationBoardZone()}-{calibrationStereoFrameSet.GetStopCalibrationBoardZone()}");
+                    {                           
+                        report?.Info(ChannelConvert((HeadType)headType), $"{ToString()} calibration zone {calibrationStereoFrameSet.GetStartCalibrationBoardZone()}-{calibrationStereoFrameSet.GetStopCalibrationBoardZone()}");
                     }
 
                     ret = calibrationStereoFrameSet.Data.Frames.Count;
@@ -1810,7 +1891,7 @@ namespace Surveyor.Controls
             {
                 MediaTimeLineDisplayLeft.Width = LeftImage.ActualWidth;
 
-                if (AppModeCurrent != AppMode.Close)
+                if (AppModeCurrent != AppMode.Close && ViewModeCurrent != ViewMode.SensorCoverage)
                 {
                     if (MediaTimeLineDisplayLeft.Visibility != Visibility.Visible)
                         MediaTimeLineDisplayLeft.Visibility = Visibility.Visible;
@@ -1820,7 +1901,7 @@ namespace Surveyor.Controls
             {
                 MediaTimeLineDisplayRight.Width = RightImage.ActualWidth;
 
-                if (AppModeCurrent != AppMode.Close)
+                if (AppModeCurrent != AppMode.Close && ViewModeCurrent != ViewMode.SensorCoverage)
                 {
                     if (MediaTimeLineDisplayRight.Visibility != Visibility.Visible)
                         MediaTimeLineDisplayRight.Visibility = Visibility.Visible;
@@ -3503,9 +3584,12 @@ namespace Surveyor.Controls
                 case ViewMode.AllFrames:
                     LeftSensorCoverage.Visibility = Visibility.Collapsed;
                     RightSensorCoverage.Visibility = Visibility.Collapsed;
+                    MediaTimeLineDisplayLeft.Visibility = Visibility.Visible;
+                    MediaTimeLineDisplayRight.Visibility = Visibility.Visible;
 
                     SetMediaControls(trueLeftFalseRight: true, ViewMode.AllFrames);
                     SetMediaControls(trueLeftFalseRight: false, ViewMode.AllFrames);
+
 
                     FrameJump(trueLeftFalseRight: true, null);
 
@@ -3519,6 +3603,8 @@ namespace Surveyor.Controls
                 case ViewMode.BestFrames:
                     LeftSensorCoverage.Visibility = Visibility.Collapsed;
                     RightSensorCoverage.Visibility = Visibility.Collapsed;
+                    MediaTimeLineDisplayLeft.Visibility = Visibility.Visible;
+                    MediaTimeLineDisplayRight.Visibility = Visibility.Visible;
 
                     SetMediaControls(trueLeftFalseRight: true, ViewMode.BestFrames);
                     SetMediaControls(trueLeftFalseRight: false, ViewMode.BestFrames);
@@ -3536,6 +3622,8 @@ namespace Surveyor.Controls
 
                     LeftSensorCoverage.Visibility = Visibility.Visible;
                     RightSensorCoverage.Visibility = Visibility.Visible;
+                    MediaTimeLineDisplayLeft.Visibility = Visibility.Collapsed;
+                    MediaTimeLineDisplayRight.Visibility = Visibility.Collapsed;
 
                     // Defer until after layout so the Canvas has non-zero ActualWidth/ActualHeight
                     dispatcherQueue.TryEnqueue(() =>
@@ -4022,6 +4110,24 @@ namespace Surveyor.Controls
                 HeadType.MonoLeft => BestFramesHeadType.MonoLeft,
                 HeadType.MonoRight => BestFramesHeadType.MonoRight,
                 HeadType.Stereo => BestFramesHeadType.Stereo,
+                _ => throw new Exception($"Unexpected head type {headType}")
+            };
+        }
+
+
+        /// <summary>
+        /// Convert a HeadType instance value to a Reporter
+        /// channel string 
+        /// </summary>
+        /// <param name="headType"></param>
+        /// <returns></returns>
+        private static string ChannelConvert(HeadType headType)
+        {
+            return headType switch
+            {
+                HeadType.MonoLeft => "Left",
+                HeadType.MonoRight => "Right",
+                HeadType.Stereo => "Stereo",
                 _ => throw new Exception($"Unexpected head type {headType}")
             };
         }
