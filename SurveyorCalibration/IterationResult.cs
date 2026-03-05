@@ -86,8 +86,9 @@ namespace Surveyor
         public bool AreResultingTrendingWorse()
         {
             // Guard – need a reasonable history before we start applying this heuristic
-            const int minHistory = 12;
-            const int windowSize = 10;
+            const int minHistory = 24;   // require more history before we trust trend
+            const int windowSize = 15;   // look at the last 12 results
+            const int minWorseCount = 10; // at least 10 of those must be worse
 
             if (Results.Count < minHistory)
                 return false;
@@ -95,16 +96,28 @@ namespace Surveyor
             // Find the best result so far using the same ordering as GetBestResult
             IterationResult bestSoFar = GetBestResult();
 
-            // Take the last N results (or fewer if not enough)
             int count = Results.Count;
             int take = Math.Min(windowSize, count);
             IReadOnlyList<IterationResult> recent = [.. Results
                 .Skip(count - take)
                 .Take(take)];
 
+            int worseCount = 0;
+            int betterCount = 0;
 
-            // If *all* recent results are worse than the best-so-far, we consider it trending worse
-            return recent.All(r => IsWorseThan(r, bestSoFar));
+            foreach (var r in recent)
+            {
+                if (IsWorseThan(r, bestSoFar))
+                    worseCount++;
+                else if (IsWorseThan(bestSoFar, r))
+                    betterCount++;
+                // else treated as "equal" – neither worse nor better
+            }
+
+            // Trending worse if:
+            //  - we have no improvements in the recent window
+            //  - AND the majority of recent results are worse than the best-so-far
+            return betterCount == 0 && worseCount >= minWorseCount;
         }
     }
 }

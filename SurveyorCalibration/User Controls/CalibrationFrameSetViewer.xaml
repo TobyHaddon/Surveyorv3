@@ -17,6 +17,7 @@
                     <ColumnDefinition Width="*"/>                       <!-- Movement and Blur -->
                     <ColumnDefinition Width="Auto"/>                    <!-- Sensor Coverage -->
                     <ColumnDefinition Width="Auto"/>                    <!-- Pose -->
+                    <ColumnDefinition Width="Auto"/>                    <!-- Depth -->
                 </Grid.ColumnDefinitions>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>                      <!-- Titles -->
@@ -56,17 +57,16 @@
                                                     VerticalAlignment="Bottom" HorizontalAlignment="Left"
                                                     FontFamily="Segoe UI Variable"
                                                     FontSize="10"                        
-                                                    Margin="0,0,0,0"/>
+                                                    Margin="3,0,0,0"/>
 
                 <Border x:Name="SensorBinBorder" Grid.Row="1" Grid.Column="1"
                                                     BorderBrush="Gray"
-                                                    BorderThickness="1" Margin="5,0,0,0">
+                                                    BorderThickness="1" Margin="3,0,0,0">
                     <Grid x:Name="SensorBinGridItemsControl"
                                                     Width="200"                          
                                                     VerticalAlignment="Stretch" HorizontalAlignment="Left"                                            
                                                     Padding="0"/>
                 </Border>
-
 
                 <!-- Column 2: Pose diversity -->
                 <TextBlock x:Name="PoseBinTitle" Grid.Row="0" Grid.Column="2"
@@ -74,13 +74,30 @@
                                                     VerticalAlignment="Bottom" HorizontalAlignment="Left"
                                                     FontFamily="Segoe UI Variable"
                                                     FontSize="10"                                   
-                                                    Margin="0,0,0,0"/>
+                                                    Margin="3,0,0,0"/>
 
                 <Border x:Name="PoseBinBorder" Grid.Row="1" Grid.Column="2"
                                                     BorderBrush="Gray"
-                                                    BorderThickness="1" Margin="5,0,0,0">
+                                                    BorderThickness="1" Margin="3,0,0,0">
                     <Grid x:Name="PoseBinGridItemsControl"
                                                     Width="150"
+                                                    VerticalAlignment="Stretch" HorizontalAlignment="Left"
+                                                    Padding="0"/>
+                </Border>
+
+                <!-- Column 3: Depth diversity -->
+                <TextBlock x:Name="DepthBinTitle" Grid.Row="0" Grid.Column="3"
+                                                    Text="Depth"                                   
+                                                    VerticalAlignment="Bottom" HorizontalAlignment="Left"
+                                                    FontFamily="Segoe UI Variable"
+                                                    FontSize="10"                                   
+                                                    Margin="3,0,0,0"/>
+
+                <Border x:Name="DepthBinBorder" Grid.Row="1" Grid.Column="3"
+                                                    BorderBrush="Gray"
+                                                    BorderThickness="1" Margin="3,0,0,0">
+                    <Grid x:Name="DepthBinGridItemsControl"
+                                                    Width="50"
                                                     VerticalAlignment="Stretch" HorizontalAlignment="Left"
                                                     Padding="0"/>
                 </Border>

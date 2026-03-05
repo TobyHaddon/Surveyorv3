@@ -257,10 +257,14 @@ namespace Surveyor.Controls
             {
                 CalibrationFrameSetViewerLeft?.SetTitle("Left " + suffix);
                 CalibrationFrameSetViewerRight?.SetTitle("Right " + suffix);
+                // Only is one left side iteration viewer
+                CalibrationIterationViewerLeft?.SetTitle("Left " + suffix);
+
             }
             else
             {
                 CalibrationFrameSetViewerLeft?.SetTitle(suffix);
+                CalibrationIterationViewerLeft?.SetTitle("Left " + suffix);
             }
         }
 
@@ -1007,6 +1011,9 @@ namespace Surveyor.Controls
                 string leftCalibationText = $"Image Size {frameSize.Width} x {frameSize.Height}\n";
                 string rightCalibationText = $"Image Size {frameSize.Width} x {frameSize.Height}\n";
 
+                bool leftNumberOfImagedUsed = false;
+                bool rightNumberOfImagedUsed = false;
+
                 // Proceed to do the stereo calibration using each calibration parameter 
                 foreach (CalibrationParameters calibrationParameters in Enum.GetValues(typeof(CalibrationParameters)))
                 {
@@ -1022,6 +1029,13 @@ namespace Surveyor.Controls
 
                             if (leftMonoCalibrationCameraData is not null)
                             {
+                                // Indicate the number of images used in the calibration calculation
+                                if (!leftNumberOfImagedUsed)
+                                {
+                                    leftCalibationText += $"Images Used: {leftMonoCalibrationCameraData.ImagesUsed}\n";
+                                    leftNumberOfImagedUsed = true;
+                                }
+
                                 leftCalibationText += "\n" + calibrationParameters.ToString() + ":\n";
                                 leftCalibationText += CalibrationStereoFrameSet.CalibrationCameraDataText(leftMonoCalibrationCameraData);
 
@@ -1041,6 +1055,13 @@ namespace Surveyor.Controls
 
                             if (rightMonoCalibrationCameraData is not null)
                             {
+                                // Indicate the number of images used in the calibration calculation
+                                if (!rightNumberOfImagedUsed)
+                                {
+                                    rightCalibationText += $"Images Used: {rightMonoCalibrationCameraData.ImagesUsed}\n";
+                                    rightNumberOfImagedUsed = true;
+                                }
+
                                 rightCalibationText += "\n" + calibrationParameters.ToString() + ":\n";
                                 rightCalibationText += CalibrationStereoFrameSet.CalibrationCameraDataText(rightMonoCalibrationCameraData);
 
@@ -1326,6 +1347,7 @@ namespace Surveyor.Controls
                     CalibrationFrameSetViewerLeft.Data = dataLeft;
                     RefreshSensorBin(ViewModeCurrent, trueLeftFalseRight: true);
                     RefreshPoseBin(ViewModeCurrent, trueLeftFalseRight: true);
+                    RefreshDepthBin(ViewModeCurrent, trueLeftFalseRight: true);
                     CalibrationFrameSetViewerLeft.DrawGraphs();
 
                     if (IsHeadStereo())
@@ -1336,6 +1358,7 @@ namespace Surveyor.Controls
                         CalibrationFrameSetViewerRight.Data = dataRight;
                         RefreshSensorBin(ViewModeCurrent, trueLeftFalseRight: false);
                         RefreshPoseBin(ViewModeCurrent, trueLeftFalseRight: false);
+                        RefreshDepthBin(ViewModeCurrent, trueLeftFalseRight: false);
                         CalibrationFrameSetViewerRight.DrawGraphs();
                     }
 
@@ -2115,7 +2138,7 @@ namespace Surveyor.Controls
             safeUICall.Call(() =>
             {
 
-                bool trueFoundFalseNotFound;
+                //???bool trueFoundFalseNotFound;
 
                 if (leftMat is not null && !leftMat.IsEmpty && wbLeft is not null)
                 {
@@ -2123,9 +2146,6 @@ namespace Surveyor.Controls
                     LeftFrameInfoLabel.Text = $"{stereoFrameIndex} / {stereoFrameTotal}";
                     LeftTimeInfoLabel.Text = string.Empty;
                 }
-
-                trueFoundFalseNotFound = leftFrameCalibrationTarget is not null;
-                MediaTimeLineDisplayLeft.CalibrationBoardFoundAt(leftFrameIndex, trueFoundFalseNotFound);
 
 
                 if (rightMat is not null && !rightMat.IsEmpty && wbRight is not null)
@@ -2135,8 +2155,11 @@ namespace Surveyor.Controls
                     RightTimeInfoLabel.Text = string.Empty;
                 }
 
-                trueFoundFalseNotFound = rightFrameCalibrationTarget is not null;
-                MediaTimeLineDisplayRight.CalibrationBoardFoundAt(rightFrameIndex, trueFoundFalseNotFound);
+                // Add a found board to the media timeline if the FrameData is not null
+                if (leftFrameCalibrationTarget is not null)
+                    MediaTimeLineDisplayLeft.CalibrationBoardFoundAt(leftFrameIndex, trueFoundFalseNotFound:true );
+                if (rightFrameCalibrationTarget is not null)                
+                    MediaTimeLineDisplayRight.CalibrationBoardFoundAt(rightFrameIndex, trueFoundFalseNotFound: false);
 
 
                 try
@@ -2145,12 +2168,16 @@ namespace Surveyor.Controls
                     // Note these are fully recreated from the full list to date
                     if (leftFrameCalibrationTarget is not null)
                     {
+                        // Note the Pose bin is setup during finding best frames so no need to refresh here
                         RefreshSensorBin(ViewModeCurrent, trueLeftFalseRight: true);
+                        RefreshDepthBin(ViewModeCurrent, trueLeftFalseRight: true);
                         CalibrationFrameSetViewerLeft.DrawGraphs();
                     }
                     if (rightFrameCalibrationTarget is not null)
                     {
+                        // Note the Pose bin is setup during finding best frames so no need to refresh here
                         RefreshSensorBin(ViewModeCurrent, trueLeftFalseRight: false);
+                        RefreshDepthBin(ViewModeCurrent, trueLeftFalseRight: false);
                         CalibrationFrameSetViewerRight.DrawGraphs();
                     }
 
@@ -2167,6 +2194,7 @@ namespace Surveyor.Controls
                         UpdateFrameMetaData(trueLeftFalseRight: true,
                                             movementFactor, movementFromPrevious, movementToNext,
                                             leftFrameCalibrationTarget.BlurFactor,
+                                            leftFrameCalibrationTarget.DepthBinZ,
                                             leftFrameCalibrationTarget.ChArUcoCorners.Length /*Size*/,
                                             leftFrameCalibrationTarget.Score,
                                             leftFrameCalibrationTarget.YawDeg,
@@ -2190,6 +2218,7 @@ namespace Surveyor.Controls
                         UpdateFrameMetaData(trueLeftFalseRight: false,
                                             movementFactor, movementFromPrevious, movementToNext,
                                             rightFrameCalibrationTarget.BlurFactor,
+                                            rightFrameCalibrationTarget.DepthBinZ,
                                             rightFrameCalibrationTarget.ChArUcoCorners.Length /*Size*/,
                                             rightFrameCalibrationTarget.Score,
                                             rightFrameCalibrationTarget.YawDeg,
@@ -2253,7 +2282,7 @@ namespace Surveyor.Controls
         /// <param name="score"></param>
         private void UpdateFrameMetaData(bool trueLeftFalseRight,
                         double movementFactor, double movementFromPrevious, double movementToNext,
-                        double blurFactor, int featureCount, double score,
+                        double blurFactor, int depthIndex, int featureCount, double score,
                         double yaw, double pitch,
                         double frameRMS, double frameMaxError,
                         int frameIndex, double? position,
@@ -2262,6 +2291,7 @@ namespace Surveyor.Controls
         {
             TextBlock MovementFactor;
             TextBlock BlurFactor;
+            TextBlock Depth;
             TextBlock FeatureCount;
             TextBlock Score;
             TextBlock Yaw;
@@ -2275,6 +2305,7 @@ namespace Surveyor.Controls
             {
                 MovementFactor = LeftMoveText;
                 BlurFactor = LeftBlurText;
+                Depth = LeftDepthText;
                 Yaw = LeftYawText;
                 Pitch = LeftPitchText;
                 FeatureCount = LeftFeatureCountText;
@@ -2288,10 +2319,11 @@ namespace Surveyor.Controls
             {
                 MovementFactor = RightMoveText;
                 BlurFactor = RightBlurText;
-                FeatureCount = RightFeatureCountText;
-                Score = RightScoreText;
+                Depth = RightDepthText;
                 Yaw = RightYawText;
                 Pitch = RightPitchText;
+                FeatureCount = RightFeatureCountText;
+                Score = RightScoreText;
                 FrameRMS = RightFrameRMSText;
                 FrameMaxError = RightFrameMaxErrorText;
                 FrameIndex = RightFrameIndex;
@@ -2314,6 +2346,21 @@ namespace Surveyor.Controls
 
             // Blur
             BlurFactor.Text = $"{blurFactor:F1}";
+
+            // Depth
+            if (depthIndex != -1)
+            {
+                Depth.Text = depthIndex switch
+                {
+                    0 => "Near",
+                    1 => "Mid",
+                    2 => "Far",
+                    3 => "Deep",
+                    _ => string.Empty
+                };
+            } 
+            else
+               Depth.Text = string.Empty;
 
             // Yaw
             if (yaw != 0.0)
@@ -2415,7 +2462,8 @@ namespace Surveyor.Controls
                 ReasonBestTextBlock.Text = string.Join(Environment.NewLine, new[]
                 {
                     (_reasonBest & BestFrameReason.SensorCoverage) != 0 ? "Cover" : null,
-                    (_reasonBest & BestFrameReason.PoseDiversity) != 0 ? "Pose" : null
+                    (_reasonBest & BestFrameReason.PoseDiversity) != 0 ? "Pose" : null,
+                    (_reasonBest & BestFrameReason.DepthDiversity) != 0 ? "Depth" : null
                 }.Where(s => s is not null));
                 ReasonBestTextBlock.Visibility = Visibility.Visible;
             }
@@ -2452,6 +2500,7 @@ namespace Surveyor.Controls
             {
                 LeftMoveText.Text = string.Empty;
                 LeftBlurText.Text = string.Empty;
+                LeftDepthText.Text = string.Empty;
                 LeftFeatureCountText.Text = string.Empty;
                 LeftScoreText.Text = string.Empty;
                 LeftYawText.Text = string.Empty;
@@ -2460,11 +2509,16 @@ namespace Surveyor.Controls
                 LeftFrameMaxErrorText.Text = string.Empty;
                 LeftFrameIndex.Text = string.Empty;
                 LeftPosition.Text = string.Empty;
+                LeftCalibrationFrameStatusBest.Text = string.Empty;
+                LeftCalibrationFrameStatusBest.Visibility = Visibility.Collapsed;
+                LeftCalibrationFrameStatusManual.Text = string.Empty;
+                LeftCalibrationFrameStatusManual.Visibility = Visibility.Collapsed;
             }
             else
             {
                 RightMoveText.Text = string.Empty;
                 RightBlurText.Text = string.Empty;
+                RightDepthText.Text = string.Empty;
                 RightFeatureCountText.Text = string.Empty;
                 RightScoreText.Text = string.Empty;
                 RightYawText.Text = string.Empty;
@@ -2473,6 +2527,10 @@ namespace Surveyor.Controls
                 RightFrameMaxErrorText.Text = string.Empty;
                 RightFrameIndex.Text = string.Empty;
                 RightPosition.Text = string.Empty;
+                RightCalibrationFrameStatusBest.Text = string.Empty;
+                RightCalibrationFrameStatusBest.Visibility = Visibility.Collapsed;
+                RightCalibrationFrameStatusManual.Text = string.Empty;
+                RightCalibrationFrameStatusManual.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -2856,6 +2914,7 @@ namespace Surveyor.Controls
                                     frameData.MovementFromPrevious,
                                     frameData.MovementToNext,
                                     frameData.BlurFactor,
+                                    frameData.DepthBinZ,
                                     frameData.ChArUcoCorners.Length /*Size*/,
                                     frameData.Score,
                                     frameData.YawDeg,
@@ -2872,11 +2931,13 @@ namespace Surveyor.Controls
                     {
                         CalibrationFrameSetViewerLeft.HighLightActiveSensorBin(frameData);
                         CalibrationFrameSetViewerLeft.HighLightActivePoseBin(frameData);
+                        CalibrationFrameSetViewerLeft.HighLightActiveDepthBin(frameData);
                     }
                     else
                     {
                         CalibrationFrameSetViewerRight.HighLightActiveSensorBin(frameData);
                         CalibrationFrameSetViewerRight.HighLightActivePoseBin(frameData);
+                        CalibrationFrameSetViewerRight.HighLightActiveDepthBin(frameData);
                     }
                 }
             }
@@ -2894,6 +2955,8 @@ namespace Surveyor.Controls
                 CalibrationFrameSetViewerRight.HighLightActiveSensorBin(null);
                 CalibrationFrameSetViewerLeft.HighLightActivePoseBin(null);
                 CalibrationFrameSetViewerRight.HighLightActivePoseBin(null);
+                CalibrationFrameSetViewerLeft.HighLightActiveDepthBin(null);
+                CalibrationFrameSetViewerRight.HighLightActiveDepthBin(null);
 
                 // All we have to display is the frame index and time position
                 TextBlock FrameIndex;
@@ -3489,10 +3552,12 @@ namespace Surveyor.Controls
             (int leftIndexStop, int rightIndexStop) = calibrationStereoFrameSet.GetIndexes(stopCalibrationBoardZone);
 
             MediaTimeLineDisplayLeft.CalibrationBoardRange(leftIndexStart, leftIndexStop);
+            MediaTimeLineDisplayLeft.RemoveAllBestFrames();
 
             if (IsHeadStereo())
             {
                 MediaTimeLineDisplayRight.CalibrationBoardRange(rightIndexStart, rightIndexStop);
+                MediaTimeLineDisplayRight.RemoveAllBestFrames();
             }
         }
 
@@ -3637,8 +3702,10 @@ namespace Surveyor.Controls
             // Update the totals in the sensor and pose bin displays
             RefreshSensorBin(ViewModeCurrent, trueLeftFalseRight: true);
             RefreshPoseBin(ViewModeCurrent, trueLeftFalseRight: true);
+            RefreshDepthBin(ViewModeCurrent, trueLeftFalseRight: true);
             RefreshSensorBin(ViewModeCurrent, trueLeftFalseRight: false);
             RefreshPoseBin(ViewModeCurrent, trueLeftFalseRight: false);
+            RefreshDepthBin(ViewModeCurrent, trueLeftFalseRight: false);
         }
 
 
@@ -4021,6 +4088,79 @@ namespace Surveyor.Controls
 
 
         /// <summary>
+        /// Get the depth bin counts.
+        /// </summary>
+        /// <param name="trueLeftFalseRight"></param>
+        /// <returns></returns>
+        public Dictionary<(int binx, int biny), int> GetDepthBinCounts(UniversalCalibrationHead.ViewMode viewModel, bool trueLeftFalseRight)
+        {
+            // Guard
+            if (headType is null)
+                throw new Exception($"{ToString()} GetPoseBinCounts: headType is null");
+
+            var counts = new Dictionary<(int binx, int biny), int>();
+            if (viewModel == UniversalCalibrationHead.ViewMode.AllFrames)
+            {
+                FrameData? target;
+
+                foreach ((FrameData leftTarget, FrameData? rightTarget, _) in calibrationStereoFrameSet.Data.Frames.Values)
+                {
+                    if (trueLeftFalseRight)
+                        target = leftTarget;
+                    else
+                        target = rightTarget;
+
+                    if (target is not null)
+                        ProcessFrameData(target, counts);
+                }
+            }
+            else if (viewModel == UniversalCalibrationHead.ViewMode.BestFrames)
+            {
+                FrameData leftTarget;
+                FrameData? rightTarget;
+                FrameData? target;
+
+                // Get the best frame list for the current head type using the callback
+                List<BestFrame>? bestFramesList = GetBestFrameListCallback?.Invoke((HeadType)headType);
+
+                if (bestFramesList is not null)
+                {
+
+                    foreach (BestFrame bestFrame in bestFramesList!)
+                    {
+                        int frameIndex = bestFrame.FrameIndex;
+
+                        if (calibrationStereoFrameSet.Data.Frames.TryGetValue(frameIndex, out var tuple))
+                        {
+                            (leftTarget, rightTarget, _) = tuple;
+
+                            if (trueLeftFalseRight)
+                                target = leftTarget;
+                            else
+                                target = rightTarget;
+
+                            if (target is not null)
+                                ProcessFrameData(target, counts);
+                        }
+                    }
+                }
+            }
+
+            // Helper
+            static void ProcessFrameData(FrameData target, Dictionary<(int binx, int biny), int> counts)
+            {
+                if (target.DepthBinZ != -1)
+                {
+                    // Increase the count for this pose bin   
+                    counts[(0, target.DepthBinZ)] = counts.GetValueOrDefault((0, target.DepthBinZ)) + 1;
+                }
+            }
+
+            return counts;
+        }
+
+
+        /// <summary>
         /// Called to refresh the Sensor Bin UI element
         /// This method acts as a bridge between access to calibrationStereoFrameSet
         /// which GetSensorBinCounts uses and CalibrationFrameSetViewer.RefreshSensorBin
@@ -4046,7 +4186,7 @@ namespace Surveyor.Controls
         /// <summary>
         /// Called to refresh the Pose Bin UI element
         /// This method acts as a bridge between access to calibrationStereoFrameSet
-        /// which GetPoseBinCounts uses and CalibrationFrameSetViewer.RefreshSensorBin
+        /// which GetPoseBinCounts uses and CalibrationFrameSetViewer.RefreshPoseBin
         /// </summary>
         /// <param name="viewMode"></param>
         /// <param name="trueLeftFalseRight"></param>
@@ -4069,25 +4209,77 @@ namespace Surveyor.Controls
 
 
         /// <summary>
+        /// Called to refresh the Depth Bin UI element
+        /// This method acts as a bridge between access to calibrationStereoFrameSet
+        /// which GetDepthBinCounts uses and CalibrationFrameSetViewer.RefreshDepthBin
+        /// </summary>
+        /// <param name="viewMode"></param>
+        /// <param name="trueLeftFalseRight"></param>
+        public void RefreshDepthBin(UniversalCalibrationHead.ViewMode viewMode, bool trueLeftFalseRight)
+        {
+            // If the viewMode is SensorCoverage then still display the best frames in the sSensor bin
+            UniversalCalibrationHead.ViewMode viewModeToUse = viewMode;
+            if (viewMode == UniversalCalibrationHead.ViewMode.SensorCoverage)
+                viewModeToUse = UniversalCalibrationHead.ViewMode.BestFrames;
+
+            var counts = GetDepthBinCounts(viewModeToUse, trueLeftFalseRight);
+
+
+            if (trueLeftFalseRight)
+                CalibrationFrameSetViewerLeft.RefreshDepthBin(counts);
+            else
+                CalibrationFrameSetViewerRight.RefreshDepthBin(counts);
+
+        }
+
+
+        /// <summary>
         /// Note for this to be effective a call to CalibrationStereoFrameSet.ClearResults
         /// is required for the graph to be cleared
         /// </summary>
         /// <param name="viewMode"></param>
         public void ClearDisplay(UniversalCalibrationHead.ViewMode viewMode)
         {
-
             CalibrationFrameSetViewerLeft.HighLightActiveSensorBin(null);
-            CalibrationFrameSetViewerRight.HighLightActiveSensorBin(null);
             RefreshSensorBin(viewMode, trueLeftFalseRight: true);
-            RefreshSensorBin(viewMode, trueLeftFalseRight: false);
             CalibrationFrameSetViewerLeft.HighLightActivePoseBin(null);
-            CalibrationFrameSetViewerRight.HighLightActivePoseBin(null);
             RefreshPoseBin(viewMode, trueLeftFalseRight: true);
-            RefreshPoseBin(viewMode, trueLeftFalseRight: false);
+            CalibrationFrameSetViewerLeft.HighLightActiveDepthBin(null);
+            RefreshDepthBin(viewMode, trueLeftFalseRight: true);
 
-            // Clear the graphs
+            // The stereo right side
             CalibrationFrameSetViewerLeft.DrawGraphs();
-            CalibrationFrameSetViewerRight.DrawGraphs();
+            if (IsHeadStereo())
+            {
+                CalibrationFrameSetViewerRight.HighLightActiveSensorBin(null);
+                RefreshSensorBin(viewMode, trueLeftFalseRight: false);
+                CalibrationFrameSetViewerRight.HighLightActivePoseBin(null);
+                RefreshPoseBin(viewMode, trueLeftFalseRight: false);
+                CalibrationFrameSetViewerRight.HighLightActiveDepthBin(null);
+                RefreshDepthBin(viewMode, trueLeftFalseRight: false);
+                CalibrationFrameSetViewerRight.DrawGraphs();
+            }
+        }
+
+
+        /// <summary>
+        /// Display either the frame set viewer or the iteration viewer
+        /// </summary>
+        /// <param name="trueFrameSetFalseIteration"></param>
+        public void DisplayFrameSetOrIterationViewer(bool trueFrameSetFalseIteration)
+        {
+            if (trueFrameSetFalseIteration)
+            {
+                CalibrationFrameSetViewerLeft.Visibility = Visibility.Visible;
+                CalibrationFrameSetViewerRight.Visibility = Visibility.Visible;
+                CalibrationIterationViewerLeft.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                CalibrationFrameSetViewerLeft.Visibility = Visibility.Collapsed;
+                CalibrationFrameSetViewerRight.Visibility = Visibility.Collapsed;
+                CalibrationIterationViewerLeft.Visibility = Visibility.Visible;
+            }
         }
 
 

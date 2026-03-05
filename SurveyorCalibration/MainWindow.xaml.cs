@@ -72,6 +72,7 @@ namespace Surveyor
         // Used by the RunCalibration process        
         public int MaxFramesFromEachSensorBin { get; set; } = 2;  // Take top 2 frames from each sensor bin
         public int MaxFramesFromEachPoseBin { get; set; } = 4;    // Take top 4 frames from each pose bin
+        public int MaxFramesFromEachDepthBin { get; set; } = 3;    // Take top 3 frames from each depth bin
         public int MinFrameGap { get; set; } = 5; // Minimum allow gap between frames
         public int MinFramesAllowedForMonoCalibration { get; set; } = 12;
         public int MinFramesAllowedForStereoCalibration { get; set; } = 12;
@@ -179,6 +180,9 @@ namespace Surveyor
 
             // Update the Recent open surveys sub menu
             UpdateRecentProjectsMenu();
+
+            // Set the message display level based on the settings
+            Report.DisplayDebugMessages(SettingsManagerLocal.DiagnosticInformation);
 
             /////////////////////////////////////
             ///May want this code
@@ -574,6 +578,7 @@ namespace Surveyor
                 // Find where in the .MP4 the calibration board starts and stops
                 if (runCalibrationParams.FindCalibrationBoardZone)
                 {
+                    SetViewModeOnAllHeads(ViewMode.AllFrames);
                     ret = await FindCalibrationBoardZoneAllHeadsAsync();
                 }
 
@@ -581,6 +586,7 @@ namespace Surveyor
                 if (ret == 0 && runCalibrationParams.BuildTheFrameSets)
                 {
                     SetAppModeOnAllHeads(AppMode.FindCalibrationsFrames);
+                    SetViewModeOnAllHeads(ViewMode.AllFrames);
 
                     ret = await BuildFrameSetsAllHeadsAsync();
                 }
@@ -2878,9 +2884,6 @@ namespace Surveyor
                     if (tasks.Count == 0)
                         return 0;
 
-                    // Your existing flags + timer
-                    //???StartFindCheckTimer();
-
                     try
                     {
                         // Run all finds in parallel, but still observe completion and exceptions
@@ -3037,6 +3040,7 @@ namespace Surveyor
                                                                 runParams.MaxFramesAllowedForMonoCalibration,
                                                                 runParams.MaxFramesFromEachSensorBin,
                                                                 runParams.MaxFramesFromEachPoseBin,
+                                                                runParams.MaxFramesFromEachDepthBin,
                                                                 runParams.MinFrameGap,
                                                                 limitUIUpdates: false)));
                 taskLeftMonoIndex = taskIndex++;
@@ -3054,6 +3058,7 @@ namespace Surveyor
                                                                 runParams.MaxFramesAllowedForMonoCalibration,
                                                                 runParams.MaxFramesFromEachSensorBin,
                                                                 runParams.MaxFramesFromEachPoseBin,
+                                                                runParams.MaxFramesFromEachDepthBin,
                                                                 runParams.MinFrameGap,
                                                                 limitUIUpdates: false)));
                 taskRightMonoIndex = taskIndex++;
@@ -3334,7 +3339,7 @@ namespace Surveyor
 
             }
 
-            var monoPhaseTasks = new List<Task<int>>();
+            var monoPhaseTasks = new List<Task<(int, IterationResultList)>>();
             int taskIndex = 0;
             int taskLeftMonoIndex = -1;
             int taskRightMonoIndex = -1;
@@ -3342,6 +3347,9 @@ namespace Surveyor
             // Iterate through the best frames set and do mono calibration to find the best combo of frames and calibration results
             if (doLeftMono)
             {
+                // Display the Calibration Iteration Viewer (in place of the Calibration Frame Set Viewer)
+                LeftMonoCalibrationHead.DisplayFrameSetOrIterationViewer(trueFrameSetFalseIteration: false);
+
                 monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.DoIterationBestFramesAndCalibrationMonoCalcsAsync(
                                                                 Report,
                                                                 calibProject,
@@ -3354,6 +3362,7 @@ namespace Surveyor
                                                                 monoCornersThresholdStepDown: 2,
                                                                 runParams.MaxFramesFromEachSensorBin,
                                                                 runParams.MaxFramesFromEachPoseBin,
+                                                                runParams.MaxFramesFromEachDepthBin,
                                                                 runParams.MinFrameGap,
                                                                 runParams.MinFramesAllowedForMonoCalibration,
                                                                 runParams.MaxFramesAllowedForMonoCalibration)));
@@ -3361,7 +3370,10 @@ namespace Surveyor
             }
 
             if (doRightMono)
-            {                
+            {
+                // Display the Calibration Iteration Viewer (in place of the Calibration Frame Set Viewer)
+                RightMonoCalibrationHead.DisplayFrameSetOrIterationViewer(trueFrameSetFalseIteration: false);
+
                 monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.DoIterationBestFramesAndCalibrationMonoCalcsAsync(
                                                                 Report,                                                                
                                                                 calibProject,
@@ -3374,6 +3386,7 @@ namespace Surveyor
                                                                 monoCornersThresholdStepDown: 2,
                                                                 runParams.MaxFramesFromEachSensorBin,
                                                                 runParams.MaxFramesFromEachPoseBin,
+                                                                runParams.MaxFramesFromEachDepthBin,
                                                                 runParams.MinFrameGap,
                                                                 runParams.MinFramesAllowedForMonoCalibration,
                                                                 runParams.MaxFramesAllowedForMonoCalibration)));
@@ -3385,21 +3398,21 @@ namespace Surveyor
             {
                 try
                 {
-                    int[] results = await Task.WhenAll(monoPhaseTasks);
+                    (int, IterationResultList)[] results = await Task.WhenAll(monoPhaseTasks);
 
                     if (doLeftMono)
                     {
-                        if (results[taskLeftMonoIndex] != 0)
+                        if (results[taskLeftMonoIndex].Item1 != 0)
                         {
-                            ret = results[taskLeftMonoIndex];
+                            ret = results[taskLeftMonoIndex].Item1;
                             Debug.WriteLine($"DoIterationBestFramesAndCalibrationMonoCalcsAllHeadsAsync: Error from DoIterationBestFramesAndCalibrationMonoCalcsAsync: Left Mono Result={ret}");
                         }
                     }
                     if (doRightMono)
                     {
-                        if (results[taskRightMonoIndex] != 0)
+                        if (results[taskRightMonoIndex].Item1 != 0)
                         {
-                            ret = results[taskRightMonoIndex];
+                            ret = results[taskRightMonoIndex].Item1;
                             Debug.WriteLine($"DoIterationBestFramesAndCalibrationMonoCalcsAllHeadsAsync: Error from DoIterationBestFramesAndCalibrationMonoCalcsAsync: Right Mono Result={ret}");
                         }
                     }
@@ -3431,6 +3444,10 @@ namespace Surveyor
                 // Save the frames dataset
                 InfoBarProcessing.UpdateMessage("Saving after mono calibration phase...");
                 await SaveFrameDataCachesAsync(false/*no prompts*/);
+
+                // Display the Calibration Iteration Viewer (in place of the Calibration Frame Set Viewer)
+                LeftMonoCalibrationHead.DisplayFrameSetOrIterationViewer(trueFrameSetFalseIteration: true);
+                RightMonoCalibrationHead.DisplayFrameSetOrIterationViewer(trueFrameSetFalseIteration: true);
             }
 
             InfoBarProcessing.HideProcessing();
@@ -3493,6 +3510,7 @@ namespace Surveyor
                                                                             calibProject.Data.CalibrationInputs.MonoCornersFilterValue,
                                                                             runParams.MaxFramesFromEachSensorBin,
                                                                             runParams.MaxFramesFromEachPoseBin,
+                                                                            runParams.MaxFramesFromEachDepthBin,
                                                                             runParams.MinFrameGap);
             }
 
@@ -4254,6 +4272,9 @@ namespace Surveyor
                     // Re-enable the main window after closing settings
                     SetWindowEnabled(mainWindowHandle, true);
 
+                    // Set the message display level based on the settings
+                    Report.DisplayDebugMessages(SettingsManagerLocal.DiagnosticInformation);
+
                 }
             }
             catch (Exception ex)
@@ -4305,12 +4326,12 @@ namespace Surveyor
                         DoCalibrationStereoCalculations = !calibrationStereoCalculationsAvailable,
 
                         // If a cache is available that get the min movement/blur values (used by the sliders)
-                        MovementFilterMin = GetMinMovementFromCachedResults(calibProject, true/*from all frames*/),
-                        BlurFilterMin = GetMinBlurFromCachedResults(calibProject, true/*from all frames*/),
+                        MovementFilterMin = GetMinMovementFromCachedResults(calibProject, true/*from all frames*/) ?? 0,
+                        BlurFilterMin = GetMinBlurFromCachedResults(calibProject, true/*from all frames*/) ?? 0,
 
                         // If a cache is available that get the max movement/blur values (used by the sliders)
-                        MovementFilterMax = Math.Min((double)GetMaxMovementFromCachedResults(calibProject, true/*from all frames*/)!, CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE),
-                        BlurFilterMax = Math.Min((double)GetMaxBlurFromCachedResults(calibProject, true /*from all frames*/)!, CalibProject.DataClass.CalibrationInputsClass.BLUR_LARGE_VALUE),
+                        MovementFilterMax = Math.Min((double)(GetMaxMovementFromCachedResults(calibProject, true/*from all frames*/)! ?? double.MaxValue), CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE),
+                        BlurFilterMax = Math.Min((double)(GetMaxBlurFromCachedResults(calibProject, true /*from all frames*/)! ?? double.MaxValue), CalibProject.DataClass.CalibrationInputsClass.BLUR_LARGE_VALUE),
                     };
 
 

@@ -27,6 +27,7 @@ using System.Threading.Tasks;
 using static iText.Layout.Borders.Border;
 using static iText.StyledXmlParser.Jsoup.Select.Evaluator;
 using static Surveyor.CalibProject.DataClass.CalibrationResultClass;
+using static Surveyor.CalibrationStereoFrameSet;
 using static Surveyor.Controls.UniversalCalibrationHead;
 
 namespace Surveyor
@@ -157,7 +158,6 @@ namespace Surveyor
             if (clearRequest == ClearRequest.BestFrames_All ||
                 clearRequest == ClearRequest.BestFrames_AutoOnly)
             {
-                //???Data.BestFrameIndexes = [];
                 throw new Exception("ClibrationStereoFrameSet.ClearResults called with BestFrames_All or BestFrames_AutoOnly");
             }
         }
@@ -571,7 +571,7 @@ namespace Surveyor
                                 if (!Data.Frames.TryGetValue(bestFrame.FrameIndex, out var pair))
                                     return Enumerable.Empty<FrameData>();
 
-                                return new[] { pair.frameCalibrationTargetLeft!, pair.frameCalibrationTargetRight! };
+                                return [pair.frameCalibrationTargetLeft!, pair.frameCalibrationTargetRight!];
                             })
                             .Where(f => f is not null && f.MovementFactor >= 0)
                             .Select(f => f!.MovementFactor)
@@ -583,7 +583,7 @@ namespace Surveyor
                         if (!Data.Frames.TryGetValue(bestFrame.FrameIndex, out var pair))
                             return Enumerable.Empty<FrameData>();
 
-                        return new[] { pair.frameCalibrationTargetLeft!, pair.frameCalibrationTargetRight! };
+                        return [pair.frameCalibrationTargetLeft!, pair.frameCalibrationTargetRight!];
                     })
                     .Where(f => f is not null && f.MovementFactor >= 0)
                     .Select(f => f!.MovementFactor)
@@ -595,7 +595,7 @@ namespace Surveyor
                 if (!Data.Frames.TryGetValue(bestFrame.FrameIndex, out var pair))
                     return Enumerable.Empty<FrameData?>();
 
-                return new[] { pair.frameCalibrationTargetLeft, pair.frameCalibrationTargetRight };
+                return [pair.frameCalibrationTargetLeft, pair.frameCalibrationTargetRight];
             })
                     .Where(f => f is not null && f.BlurFactor != double.MaxValue)
                     .Select(f => f!.BlurFactor)
@@ -608,7 +608,7 @@ namespace Surveyor
                 if (!Data.Frames.TryGetValue(bestFrame.FrameIndex, out var pair))
                     return Enumerable.Empty<FrameData?>();
 
-                return new[] { pair.frameCalibrationTargetLeft, pair.frameCalibrationTargetRight };
+                return [pair.frameCalibrationTargetLeft, pair.frameCalibrationTargetRight];
             })
                     .Where(f => f is not null && f.BlurFactor != double.MaxValue)
                     .Select(f => f!.BlurFactor)
@@ -1382,6 +1382,9 @@ namespace Surveyor
                 trueStereoFalseSoloLeft = false;
             }
 
+            // Reset Frame set
+            ClearResults(ClearRequest.FrameSets);
+            
            
             // Loop through the frames in the target range
             for (int frameIndex = startCalibrationFrameIndex; frameIndex <= stopCalibrationFrameIndex; frameIndex++)
@@ -1749,10 +1752,10 @@ namespace Surveyor
                         charucoCorners.CopyTo(managedCorners);
                         var managedIds = charucoIds.ToArray();
 
-                        // Draw corners on the color frame
+                        // Create an populate a FrameData instance
                         if (charucoIds.Size > 0)
                         {
-                            ret = new(frameIndex, gray, managedCorners, managedIds, frame.Width, frame.Height);
+                            ret = new(chArUcoBoardDefinition, frameIndex, gray, managedCorners, managedIds, frame.Width, frame.Height);
                         }
                     }
                     else
@@ -2893,6 +2896,151 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Estimate depth for each frame in the set,
+        /// </summary>
+        /// <returns></returns>
+        //???public async Task CalculateFrameDepthAndPopulateDepthBinAsync()
+        //{
+        //    // Guard
+        //    if (chArUcoBoardDefinition is null)
+        //        return;
+
+        //    await Task.Run(() =>
+        //    {
+        //        // Parse the Frames
+        //        foreach (var (frameIndex, (left, right, _)) in Data.Frames)
+        //        {
+        //            if (left is not null)
+        //            {
+        //                CalcDepthAndWhichDepthBin(left);
+        //            }
+        //            if (right is not null)
+        //            {
+        //                CalcDepthAndWhichDepthBin(right);
+        //            }
+        //        }
+        //    });
+
+        //    void CalcDepthAndWhichDepthBin(FrameData frameCalibrationData)
+        //    {
+        //        // Guard – need sensor coverage and corner/id data
+        //        if (frameCalibrationData.SensorBinsOccupied is null ||
+        //            frameCalibrationData.SensorBinsOccupied.Count == 0 ||
+        //            frameCalibrationData.ChArUcoIds is null ||
+        //            frameCalibrationData.ChArUcoIds.Length == 0)
+        //        {
+        //            frameCalibrationData.DepthBinZ = -1;
+        //            return;
+        //        }
+
+        //        // 1. Sensor coverage (0..1) from occupied sensor bins
+        //        var (gx, gy) = FrameData.SensorBinGrid;
+        //        int totalSensorBins = gx * gy;
+        //        if (totalSensorBins <= 0)
+        //        {
+        //            frameCalibrationData.DepthBinZ = -1;
+        //            return;
+        //        }
+
+        //        double sensorCoveragePercent =
+        //            (double)frameCalibrationData.SensorBinsOccupied.Count / totalSensorBins; // 0..1
+
+        //        // 2. Estimate visible board fraction from IDs
+        //        int squaresX = chArUcoBoardDefinition.SquaresX;
+        //        int squaresY = chArUcoBoardDefinition.SquaresY;
+
+        //        int totalCorners = Math.Max((squaresX - 1) * (squaresY - 1), 1);
+
+        //        int minIx = int.MaxValue;
+        //        int maxIx = int.MinValue;
+        //        int minIy = int.MaxValue;
+        //        int maxIy = int.MinValue;
+
+        //        // Assume Charuco IDs are laid out row-major over inner corners:
+        //        // ix = id % (squaresX - 1), iy = id / (squaresX - 1)
+        //        int innerWidth = squaresX - 1;
+        //        int innerHeight = squaresY - 1;
+
+        //        if (innerWidth <= 0 || innerHeight <= 0)
+        //        {
+        //            frameCalibrationData.DepthBinZ = -1;
+        //            return;
+        //        }
+
+        //        foreach (int id in frameCalibrationData.ChArUcoIds)
+        //        {
+        //            int ix = id % innerWidth;
+        //            int iy = id / innerWidth;
+
+        //            if (ix < 0 || iy < 0 || ix >= innerWidth || iy >= innerHeight)
+        //                continue;
+
+        //            if (ix < minIx) minIx = ix;
+        //            if (ix > maxIx) maxIx = ix;
+        //            if (iy < minIy) minIy = iy;
+        //            if (iy > maxIy) maxIy = iy;
+        //        }
+
+        //        double boardFraction = 1.0;
+
+        //        if (minIx != int.MaxValue && minIy != int.MaxValue)
+        //        {
+        //            int widthCorners = maxIx - minIx + 1;
+        //            int heightCorners = maxIy - minIy + 1;
+
+        //            widthCorners = Math.Clamp(widthCorners, 1, innerWidth);
+        //            heightCorners = Math.Clamp(heightCorners, 1, innerHeight);
+
+        //            int visibleCorners = widthCorners * heightCorners;
+        //            if (visibleCorners > 0)
+        //            {
+        //                boardFraction = Math.Clamp(
+        //                    (double)visibleCorners / totalCorners,
+        //                    0.05,  // avoid blowing up coverage when only a tiny patch is seen
+        //                    1.0);
+        //            }
+        //        }
+
+        //        // 3. Adjust sensor coverage to "full-board equivalent"
+        //        double adjustedSensorCoveragePercent = sensorCoveragePercent / boardFraction;
+        //        adjustedSensorCoveragePercent = Math.Clamp(adjustedSensorCoveragePercent, 0.0, 1.0);
+
+        //        // 4. Map adjusted coverage into depth bin index, using DepthBinThreshold / DepthBinGrid
+        //        int depthBins = FrameData.DepthBinGrid;
+        //        if (depthBins <= 0)
+        //        {
+        //            frameCalibrationData.DepthBinZ = -1;
+        //            return;
+        //        }
+
+        //        // Single bin: everything maps to 0
+        //        if (depthBins == 1)
+        //        {
+        //            frameCalibrationData.DepthBinZ = 0;
+        //            return;
+        //        }
+
+        //        double value = adjustedSensorCoveragePercent;
+        //        int binIndex = depthBins - 1; // default to last bin
+
+        //        var thresholds = FrameData.DepthBinThreshold;
+        //        int maxThresholdsUsed = Math.Min(thresholds.Count, depthBins - 1);
+
+        //        for (int i = 0; i < maxThresholdsUsed; i++)
+        //        {
+        //            if (value <= thresholds[i])
+        //            {
+        //                binIndex = i;
+        //                break;
+        //            }
+        //        }
+
+        //        frameCalibrationData.DepthBinZ = binIndex;
+        //    }
+        //}
+
+
+        /// <summary>
         /// Remove frame that are too close to each other
         /// </summary>
         /// <param name=""></param>
@@ -3029,38 +3177,6 @@ namespace Surveyor
         }
 
 
-        /// <summary>
-        /// Increments the total count for the pose bin corresponding to the specified frame data within the provided
-        /// bin totals dictionary.
-        /// </summary>
-        /// <param name="target">The frame data whose pose bin coordinates are used to identify the bin to increment.</param>
-        /// <param name="BinTotals">A dictionary mapping pose bin coordinates to their current totals. The count for the bin specified by
-        /// <paramref name="target"/> is incremented by one.</param>
-        private static void AddToThePoseBinTotals(FrameData target, Dictionary<(int binx, int biny), int> BinTotals)
-        {
-            BinTotals[(target.PoseBinX, target.PoseBinY)] = BinTotals.GetValueOrDefault((target.PoseBinX, target.PoseBinY)) + 1;
-        }
-
-
-        /// <summary>
-        /// Increments the count for each sensor bin occupied in the specified frame within the provided bin totals
-        /// dictionary.
-        /// </summary>
-        /// <remarks>If a bin from <paramref name="target"/> is not present in <paramref
-        /// name="BinTotals"/>, it is added with a count of 1. This method modifies the <paramref name="BinTotals"/>
-        /// dictionary in place.</remarks>
-        /// <param name="target">The frame data containing the collection of sensor bins that are occupied.</param>
-        /// <param name="BinTotals">A dictionary mapping sensor bin coordinates to their current totals. The method updates this dictionary by
-        /// incrementing the count for each bin found in <paramref name="target"/>.</param>
-        private static void AddToTheSensorBinTotals(FrameData target, Dictionary<(int binx, int biny), int> BinTotals)
-        {
-            foreach (var bin in target.SensorBinsOccupied)
-            {
-                BinTotals[bin] = BinTotals.GetValueOrDefault(bin) + 1;
-            }
-        }
-
-
         // Helper for binning an angle
         private static int BinYawFromAngle(double angle)
         {
@@ -3089,15 +3205,15 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Return a best frame index array by taking maxFramePerBin frames from 
-        /// each of the pose bins to ensure pose diversity
+        /// Return a best frame index array by taking maxFramesPerBin frames from 
+        /// each of the pose bin to ensure pose diversity
         /// </summary>
         /// <param name="maxMovementFactor"></param>
         /// <param name="maxBlurFactor"></param>
         /// <param name="cornersMinThreshold"></param>
-        /// <param name="maxFramePerBin"></param>
+        /// <param name="maxFramesPerBin"></param>
         /// <returns></returns>
-        public List<int>? AddBestFramesUsingPoseBins(double maxMovementFactor, double maxBlurFactor, int cornersMinThreshold, int maxFramePerBin)
+        public List<int>? AddBestFramesUsingPoseBins(double maxMovementFactor, double maxBlurFactor, int cornersMinThreshold, int maxFramesPerBin)
         {
             List<int> frameIndexes = [];
 
@@ -3133,7 +3249,7 @@ namespace Surveyor
                                              var (left, _, _) = kvp.Value;
                                              return left.BlurFactor;
                                          })
-                                         .Take(maxFramePerBin)
+                                         .Take(maxFramesPerBin)
                                          .Select(kvp => kvp.Key)];
 
                         // Add to the mono best frames list only allowing unique to be
@@ -3171,7 +3287,7 @@ namespace Surveyor
                                             return right is null ? left.BlurFactor
                                                                  : Math.MaxMagnitude(left.BlurFactor, right.BlurFactor);
                                         })
-                                        .Take(maxFramePerBin / 2) /* Divide by 2 because each stereo pair adds 2 frames */
+                                        .Take(maxFramesPerBin / 2) /* Divide by 2 because each stereo pair adds 2 frames */
                                         .Select(kvp => kvp.Key)];
 
                         // Add to the left stereo best frames list only allowing unique to be
@@ -3208,7 +3324,7 @@ namespace Surveyor
                                                 return right is null ? left.BlurFactor
                                                                      : Math.MaxMagnitude(left.BlurFactor, right.BlurFactor);
                                             })
-                                            .Take(maxFramePerBin / 2) /* Divide by 2 because each stereo pair adds 2 frames */
+                                            .Take(maxFramesPerBin / 2) /* Divide by 2 because each stereo pair adds 2 frames */
                                             .Select(kvp => kvp.Key)];
 
                         // Add to the right stereo best frames list only allowing unique to be
@@ -3224,6 +3340,143 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// Return a best frame index array by taking maxFramesPerBin frames from 
+        /// each of the depth bin to ensure pose diversity
+        /// </summary>
+        /// <param name="maxMovementFactor"></param>
+        /// <param name="maxBlurFactor"></param>
+        /// <param name="cornersMinThreshold"></param>
+        /// <param name="maxFramesPerBin"></param>
+        /// <returns></returns>
+        public List<int>? AddBestFramesUsingDepthBins(double maxMovementFactor, double maxBlurFactor, int cornersMinThreshold, int maxFramesPerBin)
+        {
+            List<int> frameIndexes = [];
+
+            // Layer dimensions
+            var pz = FrameData.DepthBinGrid;
+
+
+            for (int binz = 0; binz < pz; binz++)
+            {
+                if (headTrueIsStereoFalseIsMono == false)
+                {
+                    // Mono pose bin harvest best frames
+                    List<int> frameIndexesBin = [.. Data.Frames
+                                        .Where(kvp =>
+                                        {
+                                            var (left, _, _) = kvp.Value;
+                                            return left.ChArUcoCorners.Length >= cornersMinThreshold &&
+                                                left.DepthBinZ == binz &&
+                                                left.MovementFactor <= maxMovementFactor &&
+                                                left.BlurFactor <= maxBlurFactor;
+                                        })
+                                        .OrderByDescending(kvp => kvp.Value.Item1.ChArUcoCorners.Length) // correspondingCount descending
+                                        .ThenBy(kvp =>
+                                        {
+                                            var (left, _, _) = kvp.Value;
+                                            return left.MovementFactor;
+                                        })
+                                        .ThenBy(kvp =>
+                                        {
+                                            var (left, _, _) = kvp.Value;
+                                            return left.BlurFactor;
+                                        })
+                                        .Take(maxFramesPerBin)
+                                        .Select(kvp => kvp.Key)];
+
+                    // Add to the mono best frames list only allowing unique to be
+                    // indexes added
+                    frameIndexes = [.. frameIndexes.Concat(frameIndexesBin)
+                                                .Distinct()
+                                                .OrderBy(x => x)];
+                }
+                else
+                {
+                    // Stereo left pose bin harvest best frames
+                    List<int> frameIndexesBin = [.. Data.Frames
+                                    .Where(kvp =>
+                                    {
+                                        var (left, right, correspondingCount) = kvp.Value;
+                                        return correspondingCount >= cornersMinThreshold &&
+                                                left.DepthBinZ == binz &&
+                                                left.MovementFactor <= maxMovementFactor &&
+                                                left.BlurFactor <= maxBlurFactor &&
+                                                right != null &&
+                                                right.MovementFactor <= maxMovementFactor &&
+                                                right.BlurFactor <= maxBlurFactor;
+                                    })
+                                    .OrderByDescending(kvp => kvp.Value.Item3) // correspondingCount descending
+                                    .ThenBy(kvp =>
+                                    {
+                                        var (left, right, _) = kvp.Value;
+                                        return right is null ? left.MovementFactor
+                                                                : Math.MaxMagnitude(left.MovementFactor, right.MovementFactor);
+                                    })
+                                    .ThenBy(kvp =>
+                                    {
+                                        var (left, right, _) = kvp.Value;
+                                        return right is null ? left.BlurFactor
+                                                                : Math.MaxMagnitude(left.BlurFactor, right.BlurFactor);
+                                    })
+                                    .Take(maxFramesPerBin / 2) /* Divide by 2 because each stereo pair adds 2 frames */
+                                    .Select(kvp => kvp.Key)];
+
+                    // Add to the left stereo best frames list only allowing unique to be
+                    // indexes added 
+                    frameIndexes = [.. frameIndexes.Concat(frameIndexesBin)
+                                                .Distinct()
+                                                .OrderBy(x => x)];
+
+
+                    // Stereo right pose bin harvest best frames
+                    frameIndexesBin = [.. Data.Frames
+                                        .Where(kvp =>
+                                        {
+                                            var (left, right, correspondingCount) = kvp.Value;
+                                            return correspondingCount >= cornersMinThreshold &&
+                                                    left.MovementFactor <= maxMovementFactor &&
+                                                    left.BlurFactor <= maxBlurFactor &&
+                                                    right != null &&
+                                                    right.DepthBinZ == binz &&
+                                                    right.MovementFactor <= maxMovementFactor &&
+                                                    right.BlurFactor <= maxBlurFactor;
+                                        })
+                                        .OrderByDescending(kvp => kvp.Value.Item3) // correspondingCount descending
+                                        .ThenBy(kvp =>
+                                        {
+                                            var (left, right, _) = kvp.Value;
+                                            return right is null ? left.MovementFactor
+                                                                    : Math.MaxMagnitude(left.MovementFactor, right.MovementFactor);
+                                        })
+                                        .ThenBy(kvp =>
+                                        {
+                                            var (left, right, _) = kvp.Value;
+                                            return right is null ? left.BlurFactor
+                                                                    : Math.MaxMagnitude(left.BlurFactor, right.BlurFactor);
+                                        })
+                                        .Take(maxFramesPerBin / 2) /* Divide by 2 because each stereo pair adds 2 frames */
+                                        .Select(kvp => kvp.Key)];
+
+                    // Add to the right stereo best frames list only allowing unique to be
+                    // indexes added
+                    frameIndexes = [.. frameIndexes.Concat(frameIndexesBin)
+                                                .Distinct()
+                                                .OrderBy(x => x)];
+                }
+            }
+
+            return frameIndexes.Count == 0 ? null : frameIndexes;
+        }
+
+            
+        /// <summary>
+        /// Convert the CalibrationParameters enum to an OpenCV CalibType 
+        /// and the number of distortion parameters that CalibType expects
+        /// </summary>
+        /// <param name="calibrationParameters"></param>
+        /// <returns></returns>
+        /// <exception cref="NotSupportedException"></exception>
         private static (CalibType, int distRowCount) GetCalibrationFlags(CalibrationParameters calibrationParameters)
         {
             CalibType flags = CalibType.Default;
@@ -3257,7 +3510,7 @@ namespace Surveyor
 
             return (flags, distRowCount);
         }
-        private (PointF[] leftProjected, PointF[] rightProjected) ValidateStereoProjectionReprojectionError(
+        private static (PointF[] leftProjected, PointF[] rightProjected) ValidateStereoProjectionReprojectionError(
                         int frameIndex,
                         MCvPoint3D32f[] objPts,
                         PointF[] imgPtsLeft,

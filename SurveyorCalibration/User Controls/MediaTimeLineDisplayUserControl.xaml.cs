@@ -63,10 +63,12 @@ namespace Surveyor.Controls
         private readonly Brush timeLimeBackground = new SolidColorBrush(Microsoft.UI.Colors.IndianRed);
         private readonly Brush manuallyAddedDotColour = new SolidColorBrush(Microsoft.UI.Colors.Green);
         private readonly Brush manuallyIgnoredDotColour = new SolidColorBrush(Microsoft.UI.Colors.Red);
-        private readonly Brush coverageDotColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 71, 163)); // solid darker blue  // 140, 0, 71, 163)); // darker blue  // 140, 0, 120, 255)); // Blue 
-        private readonly Brush poseDotColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 106, 0)); // darker orange  // 180, 199, 106, 0)); // darker orange  // 180, 255, 165, 0)); // Orange
-        private readonly Brush coverageAndPoseCircleStrokeColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 71, 163)); // solid darker blue  // 140, 0, 71, 163)); // darker blue  // 140, 0, 120, 255)); // Blue 
-        private readonly Brush coverageAndPoseCircelFillColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 106, 0)); // darker orange  // 180, 199, 106, 0)); // darker orange  // 180, 255, 165, 0)); // Orange
+        private readonly Brush coverageDotColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 71, 163)); // solid darker blue
+        private readonly Brush poseDotColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 106, 0)); // darker orange
+        private readonly Brush depthDotColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 0, 128)); // purple
+        private readonly Brush blackDotColour = new SolidColorBrush(Windows.UI.Color.FromArgb(0, 0, 0, 0)); // black
+        //???private readonly Brush coverageAndPoseCircleStrokeColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 71, 163)); // solid darker blue 
+        private readonly Brush coverageAndPoseCircelFillColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 199, 106, 0)); // darker orange
 
         // Expose a callback for requesting a jump to a specific frame index.
         // Return true if the request was handled.
@@ -92,7 +94,7 @@ namespace Surveyor.Controls
 
         public void Clear()
         {
-            //???Debug.WriteLine($"{headType} MediaTimeLineDisplayUserControl.Clear");
+            Debug.WriteLine($"{headType} MediaTimeLineDisplayUserControl.Clear");
             _startMediaFrameIndex = -1;
             _endMediaFrameIndex = -1;
         
@@ -120,7 +122,7 @@ namespace Surveyor.Controls
         /// <param name="_endMediaFrameIndex"></param>
         public void SetRange(int startMediaFrameIndex, int endMediaFrameIndex, bool clearData)
         {
-            //???Debug.WriteLine($"{headType} MediaTimeLineDisplayUserControl.SetRange({startMediaFrameIndex}, {endMediaFrameIndex}, clearData={clearData})");
+            Debug.WriteLine($"{headType} MediaTimeLineDisplayUserControl.SetRange({startMediaFrameIndex}, {endMediaFrameIndex}, clearData={clearData})");
             if (clearData)
                 Clear();
 
@@ -486,18 +488,67 @@ namespace Surveyor.Controls
             Point center = new(x, timeLineMargin + ((timeLineHeight - (timeLineMargin * 2)) / 2.0));
             
             CanvasTag canvasTag = new("Best", $"F:{frameIndex}", "");
-         
-            // Check for SensorCoverage and PoseDiversity bits set
-            if ((reason & BestFrameReason.SensorCoverage) != 0 && 
-                (reason & BestFrameReason.PoseDiversity) != 0)
+
+            // Check for SensorCoverage, PoseDiversity & DepthDiversity bits set
+            if ((reason & BestFrameReason.SensorCoverage) != 0 &&
+                (reason & BestFrameReason.PoseDiversity) != 0 &&
+                (reason & BestFrameReason.DepthDiversity) != 0)
             {
-                toolTip = $"Frame added for calibration due to the calibration board position in the image and it's pose. \nThe frame index is {frameIndex}. Double click to go to this frame.";
+                toolTip = $"Frame added for calibration due to the calibration board's position in the image, it's pose an depth. \nThe frame index is {frameIndex}. Double click to go to this frame.";
                 CanvasDrawingHelper.DrawCircle(MediaTimeLineDisplay,
                                             center,
                                             dotRadius,
-                                            coverageAndPoseCircleStrokeColour,
+                                            coverageDotColour,  // Used as the outline color
                                             2.0/*strokeThickness*/,
-                                            coverageAndPoseCircelFillColour,
+                                            blackDotColour,      // Used as the fill color
+                                            canvasTag,
+                                            null/*pointerMoved*/,
+                                            CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/,
+                                            toolTip);
+            }
+            // Check for SensorCoverage and PoseDiversity bits set
+            else if ((reason & BestFrameReason.SensorCoverage) != 0 && 
+                (reason & BestFrameReason.PoseDiversity) != 0)
+            {
+                toolTip = $"Frame added for calibration due to the calibration board's position in the image and it's pose. \nThe frame index is {frameIndex}. Double click to go to this frame.";
+                CanvasDrawingHelper.DrawCircle(MediaTimeLineDisplay,
+                                            center,
+                                            dotRadius,
+                                            coverageDotColour,  // Used as the outline color
+                                            2.0/*strokeThickness*/,
+                                            poseDotColour,      // Used as the fill color
+                                            canvasTag,
+                                            null/*pointerMoved*/,
+                                            CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/,
+                                            toolTip);
+            }
+            // Check for SensorCoverage and DepthDiversity bits set
+            else if ((reason & BestFrameReason.SensorCoverage) != 0 &&
+                     (reason & BestFrameReason.DepthDiversity) != 0)
+            {
+                toolTip = $"Frame added for calibration due to the calibration board's position in the image and it's depth. \nThe frame index is {frameIndex}. Double click to go to this frame.";
+                CanvasDrawingHelper.DrawCircle(MediaTimeLineDisplay,
+                                            center,
+                                            dotRadius,
+                                            coverageDotColour,  // Used as the outline color
+                                            2.0/*strokeThickness*/,
+                                            depthDotColour,     // Used as the fill color
+                                            canvasTag,
+                                            null/*pointerMoved*/,
+                                            CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/,
+                                            toolTip);
+            }
+            // Check for PoseDiversity and DepthDiversity bits set
+            else if ((reason & BestFrameReason.PoseDiversity) != 0 &&
+                     (reason & BestFrameReason.DepthDiversity) != 0)
+            {
+                toolTip = $"Frame added for calibration due to the calibration board's pose in the image and it's depth. \nThe frame index is {frameIndex}. Double click to go to this frame.";
+                CanvasDrawingHelper.DrawCircle(MediaTimeLineDisplay,
+                                            center,
+                                            dotRadius,
+                                            poseDotColour,  // Used as the outline color
+                                            2.0/*strokeThickness*/,
+                                            depthDotColour,     // Used as the fill color
                                             canvasTag,
                                             null/*pointerMoved*/,
                                             CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/,
@@ -521,6 +572,16 @@ namespace Surveyor.Controls
                     toolTip = $"Frame added for calibration due to the calibration board pose in the image. \nThe frame index is {frameIndex}. Double click to go to this frame.";
                     CanvasDrawingHelper.DrawDot(MediaTimeLineDisplay,
                                                 center, dotRadius * 2, poseDotColour, canvasTag,
+                                                null/*pointerMoved*/,
+                                                CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/,
+                                                toolTip);
+                }
+                // Check for DepthDiversity bit set
+                else if ((reason & BestFrameReason.DepthDiversity) != 0)
+                {
+                    toolTip = $"Frame added for calibration due to the calibration board depth in the image. \nThe frame index is {frameIndex}. Double click to go to this frame.";
+                    CanvasDrawingHelper.DrawDot(MediaTimeLineDisplay,
+                                                center, dotRadius * 2, depthDotColour, canvasTag,
                                                 null/*pointerMoved*/,
                                                 CalibrationBoardTimeLineDot_PointerPressed /*pointerPressed*/,
                                                 toolTip);

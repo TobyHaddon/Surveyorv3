@@ -49,12 +49,19 @@
                                                     VerticalAlignment="Bottom" HorizontalAlignment="Left"
                                                     FontFamily="Segoe UI Variable"
                                                     FontSize="10"                        
-                                                    Margin="0,0,0,0"/>
+                                                    Margin="3,0,0,0"/>
 
             <Border x:Name="InputsAndCountsBorder" Grid.Row="1" Grid.Column="1"
                                                     BorderBrush="Gray"
-                                                    BorderThickness="2" Margin="5,0,0,0">
-                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">                    <TextBlock x:Name="InputsAndCountsText"                               FontFamily="Consolas"                               FontSize="10"                               TextWrapping="Wrap"                               TextTrimming="None"                               xml:space="preserve" />                </ScrollViewer>
+                                                    BorderThickness="2" Margin="3,0,0,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <TextBlock x:Name="InputsAndCountsText"
+                               FontFamily="Consolas"
+                               FontSize="10"
+                               TextWrapping="Wrap"
+                               TextTrimming="None"
+                               xml:space="preserve" />
+                </ScrollViewer>
             </Border>
         </Grid>
 

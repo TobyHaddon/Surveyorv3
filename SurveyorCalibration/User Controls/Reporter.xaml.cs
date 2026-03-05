@@ -99,6 +99,7 @@ namespace Surveyor.User_Controls
         private int errorCount;
         private ReporterListViewItem? itemLastStatus;
         private DispatcherQueue? dispatcherQueue;
+        private bool displayDebugMessages = false;
 
         public Reporter()
         {
@@ -261,6 +262,18 @@ namespace Surveyor.User_Controls
             SetDirty(false);
         }
 
+
+        /// <summary>
+        /// Method used to enable or disable the display of debug messages in the reporter list view. 
+        /// This allows for filtering out less critical information when not needed, while still 
+        /// providing the option to view detailed debug messages for troubleshooting purposes.
+        /// </summary>
+        /// <param name="enabled"></param>
+        public void DisplayDebugMessages(bool enabled)
+        {
+            displayDebugMessages = enabled;
+        }
+
         public void Out(WarningLevel warningLevel, string channel, string message)
         {
             if (ListViewReporter != null && dispatcherQueue != null)
@@ -291,6 +304,12 @@ namespace Surveyor.User_Controls
             };
 
             bool bAddToListView = warningLevel != WarningLevel.None && warningLevel != WarningLevel.Status || !string.IsNullOrEmpty(message);
+
+            // Filter out debug message if necessary
+            if (displayDebugMessages == false && warningLevel == WarningLevel.Debug)
+            {
+                bAddToListView = false;
+            }
 
             if (bAddToListView)
             {

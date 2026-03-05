@@ -8,6 +8,7 @@ using Surveyor.Calibration;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.Linq;
 using Windows.Foundation;
 
@@ -45,6 +46,7 @@ namespace Surveyor.Controls
         {
             SetupSensorBin();
             SetupPoseBin();
+            SetupDepthBin();
         }
 
 
@@ -57,6 +59,28 @@ namespace Surveyor.Controls
             TitleText.Text = title;
         }
 
+
+        /// <summary>
+        /// Clear the IO
+        /// </summary>
+        public void Clear()
+        {
+            // Clear graph
+            MovementCanvas.Children.Clear();
+            BlurCanvas.Children.Clear();
+
+            // Empty counts
+            Dictionary<(int binx, int biny), int> counts = [];
+
+            // Clear sensor bin values and highlight            
+            RefreshSensorBin(counts);
+
+            // Clear pose bin values and highlight
+            RefreshPoseBin(counts);
+
+            // Clear Depth bin  values and highlight
+            RefreshDepthBin(counts);
+        }
 
         /// <summary>
         /// Draw the movement and blur graphs based on the current data.
@@ -245,7 +269,7 @@ namespace Surveyor.Controls
         /// <summary>
         /// Setup the pose bin grid
         /// </summary>
-        void SetupPoseBin()
+        private void SetupPoseBin()
         {
             if (Data is null)
                 return;
@@ -372,8 +396,7 @@ namespace Surveyor.Controls
                     Grid.SetColumn(cellBorder, c);
 
                     PoseBinGridItemsControl.Children.Add(cellBorder);
-                }
-                Debug.WriteLine("");
+                }               
             }
 
             // Exaggerate the pose angle so it displays clearer by averaging thresholds
@@ -392,7 +415,93 @@ namespace Surveyor.Controls
             }
         }
 
-     
+
+        /// <summary>
+        /// Setup the depth bin grid
+        /// </summary>
+        private void SetupDepthBin()
+        {
+            if (Data is null)
+                return;
+
+            // Reset the rows, columns and children
+            DepthBinGridItemsControl.Children.Clear();
+            DepthBinGridItemsControl.RowDefinitions.Clear();
+            DepthBinGridItemsControl.ColumnDefinitions.Clear();
+
+            // 1×3, but uses whatever FrameCalibrationData says
+            int gz = FrameData.DepthBinGrid;
+
+            for (int r = 0; r < gz; r++)
+                DepthBinGridItemsControl.RowDefinitions.Add(
+                    new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+
+            // Display front facing boards on reducing size
+            const int widthFillSize = 20;
+            const int heightFillSize = 14;
+            double step = 0.5 / (gz - 1);
+
+            // Build each cell: border → inner Grid → [board icon + count label]
+            for (int r = 0; r < gz; r++)          
+            {
+                double width = widthFillSize - (widthFillSize * (r * step));   // 50%..100% width based on depth index
+                double height = heightFillSize - (heightFillSize * (r * step)); // 50%..100% height based on depth index
+
+
+                var cellBorder = new Border
+                {
+                    BorderBrush = BorderBrushNormal,
+                    BorderThickness = new Thickness(1),
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Stretch
+                };
+
+                var innerGrid = new Grid
+                {
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Stretch
+                };
+
+                // --- Depth icon (“board” rectangle) ---
+                var boardRect = new Rectangle
+                {
+                    Width = width,   
+                    Height = height,
+                    Fill = new SolidColorBrush(Microsoft.UI.Colors.DarkSlateGray),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    RenderTransformOrigin = new Point(0.5, 0.5)
+                };
+
+                innerGrid.Children.Add(boardRect);
+
+                // --- Count label (bottom-right) ---
+                var countLabel = new TextBlock
+                {
+                    Text = "",
+                    FontFamily = new FontFamily("Segoe UI Variable"),
+                    FontSize = 10,
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                    HorizontalAlignment = HorizontalAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Bottom,
+                    Margin = new Thickness(1),
+                    Padding = new Thickness(0),
+                    UseLayoutRounding = true
+                };
+
+                innerGrid.Children.Add(countLabel);
+
+                cellBorder.Child = innerGrid;
+
+                Grid.SetRow(cellBorder, r);
+                Grid.SetColumn(cellBorder, 0);
+
+                DepthBinGridItemsControl.Children.Add(cellBorder);
+            }
+
+        }
+
+
         /// <summary>
         /// Refresh the sensor bin layers with the current data.
         /// </summary>
@@ -423,7 +532,7 @@ namespace Surveyor.Controls
 
 
         /// <summary>
-        /// Refresh the sensor bin layers with the current data.
+        /// Refresh the pose bin layers with the current data.
         /// </summary>
         public void RefreshPoseBin(Dictionary<(int binx, int biny), int> counts)
         {
@@ -473,6 +582,61 @@ namespace Surveyor.Controls
                 };
                 ToolTipService.SetToolTip(border, tooltip);
             }
+        }
+
+
+        /// <summary>
+        /// Refresh the depth bin layers with the current data.
+        /// </summary>
+        public void RefreshDepthBin(Dictionary<(int binx, int biny), int> counts)
+        {
+            int maxCount = counts.Count > 0 ? counts.Values.Max() : 0;
+
+            foreach (var child in DepthBinGridItemsControl.Children)
+            {
+                if (child is not Border border)
+                    continue;
+
+                int column = Grid.GetColumn(border); // yaw index
+                int row = Grid.GetRow(border);    // pitch index
+
+                counts.TryGetValue((column, row), out int count);
+
+                // Background shading based on occupancy
+                if (maxCount > 0 && count > 0)
+                {
+                    double t = (double)count / maxCount; // 0..1
+                    t = 0.15 + 0.75 * t;                 // avoid totally transparent bins
+                    byte a = (byte)(t * 255);
+                    border.Background = new SolidColorBrush(
+                        Windows.UI.Color.FromArgb(a, 0, 120, 255));
+                }
+                else
+                {
+                    border.Background = null;
+                }
+
+                // Update the text label inside the cell
+                if (border.Child is Grid innerGrid)
+                {
+                    foreach (var inner in innerGrid.Children)
+                    {
+                        if (inner is TextBlock tb)
+                        {
+                            tb.Text = count > 0 ? count.ToString() : "";
+                            break;
+                        }
+                    }
+                }
+
+                // Tool tip with yaw/pitch ranges + count
+                var tooltip = new ToolTip
+                {
+                    Content = GetDepthBinTooltipText(row, count)
+                };
+                ToolTipService.SetToolTip(border, tooltip);
+            }
+
         }
 
 
@@ -576,6 +740,52 @@ namespace Surveyor.Controls
 
 
         /// <summary>
+        /// Highlight on the screen the used depth bins for this frame
+        /// Clear the highlight using frameCalibrationData = null
+        /// </summary>
+        /// <param name="frameCalibrationData"></param>
+        public void HighLightActiveDepthBin(FrameData? frameCalibrationData)
+        {
+            if (Data is null)
+                return;
+
+
+            if (Data.calibrationStereoFrameSet is not null)
+            {
+                if (frameCalibrationData is null)
+                {
+                    // Clear color of the bins
+                    foreach (var child in DepthBinGridItemsControl.Children)
+                    {
+                        if (child is Border border)
+                        {
+                            border.BorderBrush = BorderBrushNormal;
+                        }
+                    }
+                }
+                else
+                {
+                    // Parse each pose bin cell and highlight it if
+                    // the current frame occupies it
+                    foreach (var child in DepthBinGridItemsControl.Children)
+                    {
+                        if (child is Border border)
+                        {
+                            int row = Grid.GetRow(border);
+                            int column = Grid.GetColumn(border);
+
+                            if (frameCalibrationData.DepthBinZ == row)
+                                border.BorderBrush = BorderBrushHighlighted;
+                            else
+                                border.BorderBrush = BorderBrushNormal;
+                        }
+                    }
+                }
+            }
+        }
+
+
+        /// <summary>
         /// Used to create the tool tip text for a pose bin cell
         /// </summary>
         /// <param name="yawIndex"></param>
@@ -639,5 +849,46 @@ namespace Surveyor.Controls
 
             return $"{yawText}\n{pitchText}\nFrames: {count}";
         }
+
+
+        /// <summary>
+        /// Used to create the tool tip text for a depth bin cell
+        /// </summary>
+        /// <param name="yawIndex"></param>
+        /// <param name="pitchIndex"></param>
+        /// <param name="count"></param>
+        /// <returns></returns>
+        private static string GetDepthBinTooltipText(int depthIndex, int count)
+        {
+            string depthText;
+
+            try
+            {
+                if (depthIndex == 0)
+                {
+                    depthText = $"Depth ≤ {FrameData.DepthBinThreshold[0]:F1}% of the sensor area";
+                }
+                else if (depthIndex < FrameData.DepthBinThreshold.Count)
+                {
+                    depthText = $"{FrameData.DepthBinThreshold[depthIndex - 1]:F1}% ≤ Depth ≤ {FrameData.DepthBinThreshold[depthIndex]:F1}% of the sensor area";
+                }
+                else if (depthIndex == FrameData.DepthBinThreshold.Count)
+                {
+                    depthText = $"{FrameData.DepthBinThreshold[FrameData.DepthBinThreshold.Count - 1]:F1}% ≤ Depth of the sensor area";
+                }
+                else
+                {
+                    depthText = $"GetDepthBinTooltipText: Depth Index {depthIndex} out of range";
+                }
+            }
+            catch (Exception ex)
+            {
+                // Defensive coding in case of index error
+                depthText = $"GetDepthBinTooltipText: {ex.Message}";
+            }
+
+            return $"{depthText}\nFrames: {count}";
+        }
+
     }
 }

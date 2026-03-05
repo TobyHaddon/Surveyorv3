@@ -6,8 +6,10 @@ using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
 using Newtonsoft.Json;
+using Org.BouncyCastle.Tsp;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 
@@ -22,7 +24,7 @@ namespace Surveyor.Calibration
     public class FrameData
     {
         // Version of the class (use for data migrations)
-        private const int version = 5;
+        private const int version = 6;
 
         // Data Version
         [JsonProperty("Ver")]
@@ -86,6 +88,17 @@ namespace Surveyor.Calibration
         [JsonIgnore]
         public static IReadOnlyList<double> PoseBinThresholdPitch => [-10, 10];
 
+        // The grid layers depth bin 
+        public static int DepthBinGrid { get; } = (4);
+
+        // A frame can only occupy a single pose bin
+        [JsonProperty(nameof(DepthBinZ))]
+        public int DepthBinZ { get; set; } = -1;
+
+        [JsonIgnore]
+        public static IReadOnlyList<double> DepthBinThreshold => [0.55, 0.25, 0.125];  // Near >= 55% > Mid >= 25% > Far >= 12.5% > Deep
+
+
         // Calibration Parameter Count
         [JsonIgnore]
         private static readonly int calibParamCount = Enum.GetValues<CalibrationParameters>().Length;
@@ -120,7 +133,7 @@ namespace Surveyor.Calibration
             // Version will remain -1 if not in the JSON
         }
 
-        public FrameData(int frameIndex, Mat grayFrame, PointF[] chArUcoCorners, int[] ChArUcoIds, int frameWidth, int frameHeight)
+        public FrameData(CalibrationBoardDefinition chArUcoBoardDefinition, int frameIndex, Mat grayFrame, PointF[] chArUcoCorners, int[] ChArUcoIds, int frameWidth, int frameHeight)
         {
             // Set the Version
             Version = version;
@@ -137,21 +150,147 @@ namespace Surveyor.Calibration
             // One off dynamic data (because we don't store the source static data)
             BlurFactor = CalculateBlur(grayFrame);
 
-            // Calculate dynamic data
-            CalculateDynamicFrameData(frameWidth, frameHeight);
+            // Calculate Sensor bin coverage and center
+            Center = CalculateCenter(ChArUcoCorners);
+            SensorBinsOccupied = GetBinsForCharucoCorners(ChArUcoCorners, frameWidth, frameHeight);
+            if ((frameIndex == 509 && chArUcoCorners.Length == 104) ||
+                (frameIndex == 839 && chArUcoCorners.Length == 91) ||
+                (frameIndex == 2717 && chArUcoCorners.Length == 100))
+                Debug.WriteLine("break");
+            // Calculate depth index
+            DepthBinZ = CalculateDepthIndex(chArUcoBoardDefinition);
         }
 
+
+        /// <summary>
+        /// Calculate the depth index (near,med, far)
+        /// by using the sensor coverage and scaling up for the 
+        /// amount of the board that is detected
+        /// </summary>
+        /// <returns></returns>
+        private int CalculateDepthIndex(CalibrationBoardDefinition chArUcoBoardDefinition)
+        {
+            // Guard – need sensor coverage and corner/id data
+            if (SensorBinsOccupied is null ||
+                SensorBinsOccupied.Count == 0 ||
+                ChArUcoIds is null ||
+                ChArUcoIds.Length == 0)
+            {
+                
+                return -1;
+            }
+
+            // 1. Sensor coverage (0..1) from occupied sensor bins
+            var (gx, gy) = FrameData.SensorBinGrid;
+            int totalSensorBins = gx * gy;
+            if (totalSensorBins <= 0)
+            {
+                return -1;
+            }
+
+            double sensorCoveragePercent =
+                (double)SensorBinsOccupied.Count / totalSensorBins; // 0..1
+
+            // 2. Estimate visible board fraction from IDs
+            int squaresX = chArUcoBoardDefinition.SquaresX;
+            int squaresY = chArUcoBoardDefinition.SquaresY;
+
+            int totalCorners = Math.Max((squaresX - 1) * (squaresY - 1), 1);
+
+            int minIx = int.MaxValue;
+            int maxIx = int.MinValue;
+            int minIy = int.MaxValue;
+            int maxIy = int.MinValue;
+
+            // Assume CharUcO IDs are laid out row-major over inner corners:
+            // ix = id % (squaresX - 1), iy = id / (squaresX - 1)
+            int innerWidth = squaresX - 1;
+            int innerHeight = squaresY - 1;
+
+            if (innerWidth <= 0 || innerHeight <= 0)
+            {
+                return -1;
+            }
+
+            foreach (int id in ChArUcoIds)
+            {
+                int ix = id % innerWidth;
+                int iy = id / innerWidth;
+
+                if (ix < 0 || iy < 0 || ix >= innerWidth || iy >= innerHeight)
+                    continue;
+
+                if (ix < minIx) minIx = ix;
+                if (ix > maxIx) maxIx = ix;
+                if (iy < minIy) minIy = iy;
+                if (iy > maxIy) maxIy = iy;
+            }
+
+            double boardFraction = 1.0;
+
+            if (minIx != int.MaxValue && minIy != int.MaxValue)
+            {
+                int widthCorners = maxIx - minIx + 1;
+                int heightCorners = maxIy - minIy + 1;
+
+                widthCorners = Math.Clamp(widthCorners, 1, innerWidth);
+                heightCorners = Math.Clamp(heightCorners, 1, innerHeight);
+
+                int visibleCorners = widthCorners * heightCorners;
+                if (visibleCorners > 0)
+                {
+                    boardFraction = Math.Clamp(
+                        (double)visibleCorners / totalCorners,
+                        0.05,  // avoid blowing up coverage when only a tiny patch is seen
+                        1.0);
+                }
+            }
+
+            // 3. Adjust sensor coverage to "full-board equivalent"
+            double adjustedSensorCoveragePercent = sensorCoveragePercent / boardFraction;
+            adjustedSensorCoveragePercent = Math.Clamp(adjustedSensorCoveragePercent, 0.0, 1.0);
+
+            // 4. Map adjusted coverage into depth bin index, using DepthBinThreshold / DepthBinGrid
+            int depthBins = FrameData.DepthBinGrid;
+            if (depthBins <= 0)
+            {
+                return -1;
+            }
+
+            // Single bin: everything maps to 0
+            if (depthBins == 1)
+            {
+                return 0;
+            }
+
+            double value = adjustedSensorCoveragePercent;
+            int binIndex = depthBins - 1; // default to last bin
+
+            var thresholds = FrameData.DepthBinThreshold;
+            int maxThresholdsUsed = Math.Min(thresholds.Count, depthBins - 1);
+
+            for (int i = 0; i < maxThresholdsUsed; i++)
+            {
+                if (value >= thresholds[i])
+                {
+                    binIndex = i;
+                    break;
+                }
+            }
+
+            return binIndex;
+        }
 
         /// <summary>
         /// Used to calculates or recalculate the dynamic fields
         /// </summary>
         /// <param name="resolutionX"></param>
         /// <param name="resolutionY"></param>
-        public void CalculateDynamicFrameData(int resolutionX, int resolutionY)
-        {
-            Center = CalculateCenter(ChArUcoCorners);            
-            SensorBinsOccupied = GetBinsForCharucoCorners(ChArUcoCorners, resolutionX, resolutionY);
-        }
+        //???public void CalculateDynamicFrameData(int resolutionX, int resolutionY)
+        //{
+        //    Center = CalculateCenter(ChArUcoCorners);            
+        //    SensorBinsOccupied = GetBinsForCharucoCorners(ChArUcoCorners, resolutionX, resolutionY);
+        //}
 
 
         /// Calculates the average movement (Euclidean distance) between matching ChArUco corners

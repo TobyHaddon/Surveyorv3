@@ -1,4 +1,5 @@
-﻿using Microsoft.UI;
+﻿using iText.Bouncycastle.Crypto;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -21,6 +22,7 @@ namespace Surveyor.Controls
         private readonly Brush hullFillColour = new SolidColorBrush(Windows.UI.Color.FromArgb(12, 0, 120, 255));
         private readonly Brush coverageStrokeColour = new SolidColorBrush(Windows.UI.Color.FromArgb(140, 0, 120, 255)); // Blue 
         private readonly Brush poseStrokeColour = new SolidColorBrush(Windows.UI.Color.FromArgb(180, 255, 165, 0)); // Orange
+        private readonly Brush depthStrokeColour = new SolidColorBrush(Windows.UI.Color.FromArgb(255, 128, 0, 128)); // Purple
         private readonly Brush borderStrokeColour = new SolidColorBrush(Colors.White);
 
 
@@ -159,78 +161,145 @@ namespace Surveyor.Controls
 
                     bool isCoverage = (bestFrame.Reason & BestFrameReason.SensorCoverage) != 0;
                     bool isPose = (bestFrame.Reason & BestFrameReason.PoseDiversity) != 0;
+                    bool isDepth = (bestFrame.Reason & BestFrameReason.DepthDiversity) != 0;
 
+                    PointCollection pointsInner = points;
+                    PointCollection pointsVeryInner = Clone(points);
+                    PointCollection pointsOuter = Clone(points);
+
+                    if (isCoverage && isPose && isDepth)
+                    { 
+                        TripleBorder(pointsOuter, pointsInner, pointsVeryInner, fillBrush, strokeOuterColour: poseStrokeColour, strokeInnerColour: coverageStrokeColour, strokeVeryInnerColour: depthStrokeColour);
+                    }
                     if (isCoverage && isPose)
                     {
-                        PointCollection pointsCoverage = points;
-                        PointCollection pointsPose = Clone(points);
-
-                        try
-                        {
-                            // Both: draw two outlines for a clear combined meaning.
-                            canvas.Children.Add(new Polygon
-                            {
-                                Points = pointsCoverage,
-                                Fill = fillBrush,
-                                Stroke = coverageStrokeColour,
-                                StrokeThickness = 2
-                            });
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line outer coverage border before drawing pose border, {ex.Message}");
-                        }
-
-                        try
-                        {
-                            canvas.Children.Add(new Polygon
-                            {
-                                Points = pointsPose,
-                                Fill = null,
-                                Stroke = poseStrokeColour,
-                                StrokeThickness = 1
-                            });
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line outer pose border after drawing coverage border, {ex.Message}");
-                        }
+                        DoubleBorder(pointsOuter, pointsInner, fillBrush, strokeOuterColour: poseStrokeColour, strokeInnerColour: coverageStrokeColour);
+                    }
+                    else if (isCoverage && isDepth)
+                    {
+                        DoubleBorder(pointsOuter, pointsInner, fillBrush, strokeOuterColour: depthStrokeColour, strokeInnerColour: coverageStrokeColour);
+                    }
+                    else if (isPose && isDepth)
+                    {
+                        DoubleBorder(pointsOuter, pointsInner, fillBrush, strokeOuterColour: depthStrokeColour, strokeInnerColour: poseStrokeColour);
                     }
                     else if (isPose)
                     {
-                        try
-                        {
-                            canvas.Children.Add(new Polygon
-                            {
-                                Points = points,
-                                Fill = fillBrush,
-                                Stroke = poseStrokeColour,
-                                StrokeThickness = 1
-                            });
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line pose border, {ex.Message}");
-                        }
+                        SingleBorder(pointsOuter, fillBrush, strokeOuterColour: poseStrokeColour);
                     }
-                    else
+                    else if (isCoverage)
                     {
-                        try
-                        {
-                            // Default to SensorCoverage styling (also covers Reason=None)
-                            canvas.Children.Add(new Polygon
-                            {
-                                Points = points,
-                                Fill = fillBrush,
-                                Stroke = coverageStrokeColour,
-                                StrokeThickness = 1
-                            });
-                        }
-                        catch (Exception ex)
-                        {
-                            Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line coverage border, {ex.Message}");
-                        }
+                        SingleBorder(pointsOuter, fillBrush, strokeOuterColour: coverageStrokeColour);
                     }
+                    else if (isDepth)
+                    {
+                        SingleBorder(pointsOuter, fillBrush, strokeOuterColour: depthStrokeColour);
+                    }
+                }
+            }
+
+            // Draw a triple border hull
+            void TripleBorder(PointCollection pointsOuter, PointCollection pointsInner, PointCollection pointsVeryInner, Brush fillBrush, Brush strokeOuterColour, Brush strokeInnerColour, Brush strokeVeryInnerColour)
+            {
+                try
+                {
+                    // Both: draw three outlines for a clear combined meaning.
+                    canvas.Children.Add(new Polygon
+                    {
+                        Points = pointsVeryInner,
+                        Fill = fillBrush,
+                        Stroke = strokeVeryInnerColour,
+                        StrokeThickness = 3
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line inner border before drawing outer border, {ex.Message}");
+                }
+
+                try
+                {
+                    // Both: draw two outlines for a clear combined meaning.
+                    canvas.Children.Add(new Polygon
+                    {
+                        Points = pointsInner,
+                        Fill = null,
+                        Stroke = strokeInnerColour,
+                        StrokeThickness = 2
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line inner border before drawing outer border, {ex.Message}");
+                }
+
+                try
+                {
+                    canvas.Children.Add(new Polygon
+                    {
+                        Points = pointsOuter,
+                        Fill = null,
+                        Stroke = strokeOuterColour,
+                        StrokeThickness = 1
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line outer border after drawing inner border, {ex.Message}");
+                }
+            }
+
+            // Draw a double border hull
+            void DoubleBorder(PointCollection pointsOuter, PointCollection pointsInner, Brush fillBrush, Brush strokeOuterColour, Brush strokeInnerColour)
+            {
+                try
+                {
+                    // Both: draw two outlines for a clear combined meaning.
+                    canvas.Children.Add(new Polygon
+                    {
+                        Points = pointsInner,
+                        Fill = fillBrush,
+                        Stroke = strokeInnerColour,
+                        StrokeThickness = 2
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line inner border before drawing outer border, {ex.Message}");
+                }
+
+                try
+                {
+                    canvas.Children.Add(new Polygon
+                    {
+                        Points = pointsOuter,
+                        Fill = null,
+                        Stroke = strokeOuterColour,
+                        StrokeThickness = 1
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line outer border after drawing inner border, {ex.Message}");
+                }
+            }
+
+            // Draw a single border hull
+            void SingleBorder(PointCollection pointsOuter, Brush fillBrush, Brush strokeOuterColour)
+            {
+                try
+                {
+                    canvas.Children.Add(new Polygon
+                    {
+                        Points = pointsOuter,
+                        Fill = fillBrush,
+                        Stroke = strokeOuterColour,
+                        StrokeThickness = 1
+                    });
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"RenderSensorCoverageSide: Failed draw Poly-line single border, {ex.Message}");
                 }
             }
         }

@@ -41,8 +41,9 @@ namespace Surveyor
         None = 0,
         SensorCoverage = 1 << 0,
         PoseDiversity = 1 << 1,
-        ManuallyIgnored = 1 << 2,
-        ManuallyAdded = 1 << 3,
+        DepthDiversity = 1 << 2,
+        ManuallyIgnored = 1 << 3,
+        ManuallyAdded = 1 << 4,
     }
 
     public sealed record BestFrame(int FrameIndex, BestFrameReason Reason);
@@ -553,8 +554,8 @@ namespace Surveyor
                     IsDirty = false;
                 }
 
-                // CalibrationBestFrames class version
-                public float Version { get; set; } = 1.0f;
+                // CalibrationInputsClass class version
+                public float Version { get; set; } = 2.0f;
 
                 // Values
                 private List<BestFrame> _leftMonoBestFrames = [];

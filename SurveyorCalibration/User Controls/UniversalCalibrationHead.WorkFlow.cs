@@ -32,6 +32,11 @@ namespace Surveyor.Controls
         {
             int ret = 0;
 
+            CalibrationFrameSetViewerLeft.Clear();
+            CalibrationFrameSetViewerRight.Clear();
+            MediaTimeLineDisplayLeft.Clear();
+            MediaTimeLineDisplayRight.Clear();
+
             try
             {
                 isFindCalibrationFrameRunning = true;
@@ -66,8 +71,9 @@ namespace Surveyor.Controls
                 {
                     calibrationStereoFrameSet.ClearResults(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
                     calibrationStereoFrameSet.ClearResults(CalibrationStereoFrameSet.ClearRequest.StartStopCalibrationBoardZone);
-                    MediaTimeLineDisplayLeft.Clear();
-                    MediaTimeLineDisplayRight.Clear();
+                    MediaTimeLineDisplayLeft.SetRange(0, _totalFramesLeft - 1, clearData: true);
+                    if (IsHeadStereo())
+                        MediaTimeLineDisplayRight.SetRange(0, _totalFramesRight - 1, clearData: true);
 
                     Debug.WriteLine($"{ToString()} FindCalibrationBoardZoneAsync: User canceled.");
                 }
@@ -107,8 +113,11 @@ namespace Surveyor.Controls
 
                 if (startCalibrationBoardZone != -1 && stopCalibrationBoardZone != -1)
                 {
-                    // Update the timeline ranges
+                    // Update the timeline ranges                    
+                    ClearDisplay(ViewModeCurrent);
                     SetupMediaTimeLineDisplay();
+
+                    await Task.Yield();
 
                     // Next find the calibration frames with in that range
                     ret = await Task.Run(async () =>
@@ -215,7 +224,7 @@ namespace Surveyor.Controls
 
 
 
-        public async Task<int> DoIterationBestFramesAndCalibrationMonoCalcsAsync(Reporter report,
+        public async Task<(int, IterationResultList)> DoIterationBestFramesAndCalibrationMonoCalcsAsync(Reporter report,
                                                              CalibProject calibProject,
                                                              ProcessingInfoBar infoBarProcessing,
                                                              bool trueLeftFalseRight,
@@ -226,19 +235,13 @@ namespace Surveyor.Controls
                                                              int monoCornersThresholdStepDown,
                                                              int maxFramesFromEachSensorBin,
                                                              int maxFramesFromEachPoseBin,
+                                                             int maxFramesFromEachDepthBin,
                                                              int minFrameGap,
                                                              int minFramesAllowedForMonoCalibration,
                                                              int maxFramesAllowedForMonoCalibration)
         {
             int ret = -1;
 
-            // Guard
-            if (calibrationBoardDefinition is null) return -1;
-            if (headType is null) return -1;
-
-            bool stopIterating = false;
-            bool resultFound = false;
-           
             // Create a list to hold the results for each iteration so we can compare
             // the results and find the best result at the end. We will
             // need to record the thresholds used for each iteration along with the
@@ -246,14 +249,13 @@ namespace Surveyor.Controls
             // the best result at the end.
             IterationResultList iterationResultList = new();
 
-            // Display the Calibration Iteration Viewer (in place of the Calibration Frame Set Viewer)
-            safeUICall.Call(() =>
-            {
-                CalibrationFrameSetViewerLeft.Visibility = Visibility.Collapsed;
-                CalibrationFrameSetViewerRight.Visibility = Visibility.Collapsed;
-                CalibrationIterationViewerLeft.Visibility = Visibility.Visible;
-            });
+            // Guard
+            if (calibrationBoardDefinition is null) return (-1, iterationResultList);
+            if (headType is null) return (-1, iterationResultList);
 
+            bool stopIterating = false;
+            bool resultFound = false;
+           
             // Get the appropriate best frame list
             List<BestFrame> bestFramesList = calibProject.Data.CalibrationInputs.GetBestFramesList(ConvertHeadType((HeadType)headType));
 
@@ -307,6 +309,7 @@ namespace Surveyor.Controls
                                                                   maxFramesAllowedForMonoCalibration,
                                                                   maxFramesFromEachSensorBin,
                                                                   maxFramesFromEachPoseBin,
+                                                                  maxFramesFromEachDepthBin,
                                                                   minFrameGap,
                                                                   limitUIUpdates: true);
 
@@ -375,8 +378,8 @@ namespace Surveyor.Controls
 
                                         if (IsExcellentResult(bestResult))
                                         {
-                                            report?.Info(ChannelConvert((HeadType)headType), $"{(HeadType)headType} Excellent result found, Reprojection RMS:{bestResult.ReprojectionRMS}, " +
-                                                                $"Max Error:{bestResult.MaxError}, Movement Threshold:{movementMinThreshold}, " +
+                                            report?.Info(ChannelConvert((HeadType)headType), $"{(HeadType)headType} Excellent result found, Reprojection RMS:{bestResult.ReprojectionRMS:F2}, " +
+                                                                $"Max Error:{bestResult.MaxError:F2}, Movement Threshold:{movementMinThreshold}, " +
                                                                 $"Corners:{monoCornersMinThreshold}, Calibration Parameters:{bestResult.CalibrationParameters} ");
                                             stopIterating = true;
                                             resultFound = true;
@@ -456,6 +459,7 @@ namespace Surveyor.Controls
                                                           maxFramesAllowedForMonoCalibration,
                                                           maxFramesFromEachSensorBin,
                                                           maxFramesFromEachPoseBin,
+                                                          maxFramesFromEachDepthBin,
                                                           minFrameGap,
                                                           limitUIUpdates: false);
 
@@ -471,23 +475,15 @@ namespace Surveyor.Controls
                     {
                         await Task.Yield();
                         string monoRPEQuality = MonoCalibrationQualityClassifier.ToDisplayString(MonoCalibrationQualityClassifier.ClassifyByReprojectionRMS(bestResult.ReprojectionRMS));
-                        report?.Info(ChannelConvert((HeadType)headType), $"{(HeadType)headType} {monoRPEQuality} result found, Reprojection RMS:{bestResult.ReprojectionRMS}, " +
-                                         $"Max Error:{bestResult.MaxError}, Movement Threshold:{bestResult.MovementMinThreshold}, " +
+                        report?.Info(ChannelConvert((HeadType)headType), $"{(HeadType)headType} {monoRPEQuality} result found, Reprojection RMS:{bestResult.ReprojectionRMS:F2}, " +
+                                         $"Max Error:{bestResult.MaxError:F2}, Movement Threshold:{bestResult.MovementMinThreshold}, " +
                                          $"Corners:{bestResult.MonoCornersMinThreshold}, Calibration Parameters:{bestResult.CalibrationParameters} ");
                         ret = 0; // OK
                     }
                 }
             }
 
-            // Display the Calibration Iteration Viewer (in place of the Calibration Frame Set Viewer)
-            safeUICall.Call(() =>
-            {
-                CalibrationIterationViewerLeft.Visibility = Visibility.Collapsed;
-                CalibrationFrameSetViewerLeft.Visibility = Visibility.Visible;
-                CalibrationFrameSetViewerRight.Visibility = Visibility.Visible;
-            });
-
-            return ret;
+            return (ret, iterationResultList);
 
 
 
@@ -527,6 +523,7 @@ namespace Surveyor.Controls
                                                              int maxFramesAllowedForMonoCalibration,
                                                              int maxFramesFromEachSensorBin,
                                                              int maxFramesFromEachPoseBin,
+                                                             int maxFramesFromEachDepthBin,
                                                              int minFrameGap,
                                                              bool limitUIUpdates)
         {
@@ -571,6 +568,8 @@ namespace Surveyor.Controls
                     int addedUsingSensorBins = 0;
                     int addedUsingPoseBins = 0;
                     int updatedUsingPoseBins = 0;
+                    int addedUsingDepthBins = 0;
+                    int updatedUsingDepthBins = 0;
                     int removedNearlyFrames = 0;
 
                     // Create a list of the best calibration frames best on the sensor bin only
@@ -638,6 +637,18 @@ namespace Surveyor.Controls
                                 (addedUsingPoseBins, updatedUsingPoseBins) = AddBestFrames(calibProject, foundIndexes, BestFrameReason.PoseDiversity);
                             }
 
+                            // Next top-up with depth diverse frames
+                            foundIndexes = calibrationStereoFrameSet.AddBestFramesUsingDepthBins(
+                                                     movementMinThreshold,
+                                                     blurMinThreshold,
+                                                     monoCornersMinThreshold,
+                                                     maxFramesFromEachDepthBin);
+
+                            if (foundIndexes is not null)
+                            {
+                                // Add to the best frames list only allowing unique indexes
+                                (addedUsingDepthBins, updatedUsingDepthBins) = AddBestFrames(calibProject, foundIndexes, BestFrameReason.DepthDiversity);
+                            }
 
                             // Remove frames that are too close to each other
                             removedNearlyFrames = calibrationStereoFrameSet.CullNearbyFrames(calibProject, (HeadType)headType, minFrameGap);
@@ -645,7 +656,7 @@ namespace Surveyor.Controls
                             if (bestFramesList.Count <= maxFramesAllowedForMonoCalibration)
                             {
                                 // Report the counts of added and updated best frames
-                                report?.Debug(ChannelConvert((HeadType)headType), $"FindBestMonoFramesSafeUIAsync: Added {addedUsingSensorBins} from sensor coverage, added {addedUsingPoseBins} from pose diversity and update {updatedUsingPoseBins}, removed nearly frames {removedNearlyFrames}");
+                                report?.Debug(ChannelConvert((HeadType)headType), $"FindBestMonoFramesSafeUIAsync: Added {addedUsingSensorBins} from sensor coverage, added {addedUsingPoseBins} from pose diversity and update {updatedUsingPoseBins}, added {addedUsingDepthBins} from depth diversity and update {updatedUsingDepthBins}, removed nearly frames {removedNearlyFrames}");
 
                                 // Update the UI
                                 safeUICall.Call(() =>
@@ -655,6 +666,7 @@ namespace Surveyor.Controls
                                     {
                                         RefreshSensorBin(_viewMode, trueLeftFalseRight: true);
                                         RefreshPoseBin(_viewMode, trueLeftFalseRight: true);
+                                        RefreshDepthBin(_viewMode, trueLeftFalseRight: true);
 
                                         RenderMediaTimeLineDisplay();
                                         // If best frames have been collected then change the
@@ -792,6 +804,7 @@ namespace Surveyor.Controls
                                                                int stereoCornersMinThreshold,
                                                                int maxFramesFromEachSensorBin,
                                                                int maxFramesFromEachPoseBin,
+                                                               int maxFramesFromEachDepthBin,
                                                                int minFrameGap)
         {
             int ret = -1;
@@ -820,6 +833,8 @@ namespace Surveyor.Controls
                     int addedUsingSensorBins = 0;
                     int addedUsingPoseBins = 0;
                     int updatedUsingPoseBins = 0;
+                    int addedUsingDepthBins = 0;
+                    int updatedUsingDepthBins = 0;
                     int removedNearlyFrames = 0;
 
                     // Create a list of the best calibration frames best on the sensor bin only
@@ -836,8 +851,11 @@ namespace Surveyor.Controls
                     }
 
                     // Update the UI
-                    safeUICall.Call(() => RenderSensorCoverage());
-                    safeUICall.Call(() => RenderMediaTimeLineDisplay());
+                    safeUICall.Call(() =>
+                    {
+                        RenderSensorCoverage();
+                        RenderMediaTimeLineDisplay();
+                    });
 
                     // Next we are going to use each calibration parameter set to recalculate the pitch and yaw 
                     // and top-up and best frames for each case.  This is probably overkill and just using
@@ -869,14 +887,34 @@ namespace Surveyor.Controls
                                 updatedUsingPoseBins += updated;
                             }
 
+                            // Next top-up with depth diverse frames
+                            foundIndexes = calibrationStereoFrameSet.AddBestFramesUsingDepthBins(
+                                                     movementMinThreshold,
+                                                     blurMinThreshold,
+                                                     stereoCornersMinThreshold,
+                                                     maxFramesFromEachDepthBin);
+
+                            if (foundIndexes is not null)
+                            {
+                                // Add to the best frames list only allowing unique indexes
+                                (addedUsingDepthBins, updatedUsingDepthBins) = AddBestFrames(calibProject, foundIndexes, BestFrameReason.DepthDiversity);
+                            }
+
                             // Remove frames that are too close to each other
                             int removed = calibrationStereoFrameSet.CullNearbyFrames(calibProject, (HeadType)headType, minFrameGap);
                             removedNearlyFrames += removed;
 
-                            safeUICall.Call(() => RefreshPoseBin(_viewMode, trueLeftFalseRight: true));
-                            safeUICall.Call(() => RefreshPoseBin(_viewMode, trueLeftFalseRight: false));
-                            safeUICall.Call(() => RenderSensorCoverage());
-                            safeUICall.Call(() => RenderMediaTimeLineDisplay());
+                            safeUICall.Call(() =>
+                            {
+                                RefreshSensorBin(_viewMode, trueLeftFalseRight: true);
+                                RefreshSensorBin(_viewMode, trueLeftFalseRight: false);
+                                RefreshPoseBin(_viewMode, trueLeftFalseRight: true);
+                                RefreshPoseBin(_viewMode, trueLeftFalseRight: false);
+                                RefreshDepthBin(_viewMode, trueLeftFalseRight: true);
+                                RefreshDepthBin(_viewMode, trueLeftFalseRight: false);
+                                RenderSensorCoverage();
+                                RenderMediaTimeLineDisplay();
+                            });
                         }
                     }
 
