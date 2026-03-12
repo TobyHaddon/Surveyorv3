@@ -215,7 +215,7 @@ namespace Surveyor
             if (calibrationClass is not null)
             {
                 // Compute the essential matrix
-                CalibrationData? cdp = calibrationClass.GetPreferredCalibationData(frameWidth, frameHeight);
+                CalibrationData? cdp = calibrationClass.GetPreferredCalibrationData(frameWidth, frameHeight);
 
                 if (cdp is not null)
                 {
@@ -858,7 +858,7 @@ namespace Surveyor
             {
                 // We assume arrays were already built for this key+frame size
                 // but still ensure preferred exists for current size.
-                var preferred = calibrationClass.GetPreferredCalibationData(frameWidth, frameHeight);
+                var preferred = calibrationClass.GetPreferredCalibrationData(frameWidth, frameHeight);
                 return preferred is not null;
             }
 
@@ -945,7 +945,7 @@ namespace Surveyor
             }
 
             // Validate preferred
-            var preferredCdp = calibrationClass.GetPreferredCalibationData(frameWidth, frameHeight);
+            var preferredCdp = calibrationClass.GetPreferredCalibrationData(frameWidth, frameHeight);
             if (preferredCdp is null) return false;
 
             calibationDataUniqueString = newKey;

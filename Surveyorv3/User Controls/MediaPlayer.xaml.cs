@@ -1,4 +1,5 @@
 // SurveyorMediaPlayer  Media Player User Control
+// SurveyorMediaPlayer  Media Player User Control
 // This is a user control that is used to play media files and view frame by frame
 // 
 // Useful resource for MediaPlayerElement which is the XAML wrapper for MediaPlayer
@@ -162,7 +163,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Diags dump of class information
+        /// Diagnostic dump of class information
         /// </summary>
         public void DumpAllProperties()
         {
@@ -246,7 +247,7 @@ namespace Surveyor.User_Controls
                         // Create a corresponding MediaPlayer for the MediaPlayerElement
                         MediaPlayerElement.SetMediaPlayer(new MediaPlayer());
 
-                        // Setup the Magnifier and Marker Diaplay instance
+                        // Setup the Magnifier and Marker Display instance
                         MagnifyAndMarkerDisplay.Setup(report!, surveyType, ImageFrame, CameraSide);
 
                         // Event subscriptions MediaPlayer 
@@ -319,7 +320,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Unscribe from the media player events and close the media and set the media open flag to false
+        /// Unsubscribe from the media player events and close the media and set the media open flag to false
         /// </summary>
         internal async Task CloseAsync()
         {
@@ -430,7 +431,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Used to sync or unsync media players. Called from the MediaStereoController
+        /// Used to sync or unlock media players. Called from the MediaStereoController
         /// </summary>
         /// <param name="mediaTimelineController">Either pass a MediaTimelineController instance or null to disable</param>
         internal void SetTimelineController(MediaTimelineController? mediaTimelineController, TimeSpan offset)
@@ -451,7 +452,7 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Test of if the MediaTimelineController is exchanged and the media is synchronized
         /// </summary>
-        /// <returns>true if synchonized</returns>
+        /// <returns>true if synchronized</returns>
         internal bool IsMediaSynchronized()
         {
             return MediaPlayerElement.MediaPlayer.TimelineController is not null ? true : false;
@@ -733,7 +734,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Move the media forward(positive) or back(negative) by the timespan duration
+        /// Move the media forward(positive) or back(negative) by the time span duration
         /// The function will move both players if they are locked together. If they are not locked together
         /// it will use cameraSide to determine which player to move
         /// </summary>        
@@ -1018,7 +1019,7 @@ namespace Surveyor.User_Controls
             // Check if the players if loaded and paused
             if (IsOpen() && MediaPlayerElement.MediaPlayer.PlaybackSession.PlaybackState == MediaPlaybackState.Paused)
             {
-                // Create the file name using the media name and the current timespan offset
+                // Create the file name using the media name and the current time span offset
                 string formattedTime = "0000" + TimePositionHelper.Format((TimeSpan)timeStamp, 2);
                 string paired = syncdPair ? "_Pair" : "";
                 string fileName = Path.GetFileNameWithoutExtension(mediaUri) + paired + $"_{formattedTime.Substring(Math.Max(0, formattedTime.Length - 12))}.png";
@@ -1042,7 +1043,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Used by MediaStereoController to copy the current paused frame to the the ImageFrame
+        /// Used by MediaStereoController to copy the current paused frame to the ImageFrame
         /// </summary>
         internal void GrabAndDisplayFrame()
         {
@@ -1136,11 +1137,11 @@ namespace Surveyor.User_Controls
 
 
         ///
-        /// PUBLIC Passthroughs To MagnifyAndMarkerDisplay
+        /// PUBLIC Pass through To MagnifyAndMarkerDisplay
         ///
 
         /// <summary>
-        /// Set any existing events. This is just a passthrough to the
+        /// Set any existing events. This is just a pass through to the
         /// MagnifyAndMarkerDisplay instance
         /// </summary>
         /// <param name="existingEvents"></param>
@@ -1151,7 +1152,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// User requested a change to the size of the mag window passthrough
+        /// User requested a change to the size of the mag window pass through
         /// </summary>
         /// <param name="magWindowSize"></param>
         public void MagWindowSizeSelect(string magWindowSize)
@@ -1161,7 +1162,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Set the zoom factor of the Mag window where 1 is the full resolution of the image passthrough
+        /// Set the zoom factor of the Mag window where 1 is the full resolution of the image pass through
         /// </summary>
         /// <param name="zoomFactor"></param>
         public void MagWindowZoomFactor(double zoomFactor)
@@ -1171,7 +1172,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Used to set the layer type for display (i.e set absolutely the layer) passthrough
+        /// Used to set the layer type for display (i.e set absolutely the layer) pass through
         /// </summary>
         /// <param name="layeType"></param>
         public void SetLayerType(LayerType layerType)
@@ -1192,7 +1193,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Set any existing targets. This function must be called after NewIamgeFrame(). Passthrough
+        /// Set any existing targets. This function must be called after NewIamgeFrame(). Pass through
         /// </summary>
         /// <param name="existingTargetA"></param>
         /// <param name="existingTargetB"></param>
@@ -1270,7 +1271,7 @@ namespace Surveyor.User_Controls
                         break;
 
                     case MediaPlaybackState.Paused:
-                        // Rememmber the position in paused mode
+                        // Remember the position in paused mode
                         positionPausedMode = playbackSession.Position;
                         Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} PlaybackSession_PlaybackStateChanged: PositionOffset: {positionPausedMode:hh\\:mm\\:ss\\.ff}");
                             
@@ -1357,7 +1358,7 @@ namespace Surveyor.User_Controls
 
                 //// Signal the frame size
                 //??? Because we need the frame size to setup the video frame manager buffers we wait in the MediaOpened
-                // event for the frame size to become available.  Therefore receiving it here is uneccessary
+                // event for the frame size to become available.  Therefore receiving it here is unnecessary
                 //mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.FrameSize, CameraSide, mode)
                 //{
                 //    frameWidth = (int?)frameWidth,
@@ -1369,7 +1370,7 @@ namespace Surveyor.User_Controls
         }
 
         /// <summary>
-        /// Something the durection is not know at MediaOpened event time.
+        /// Something the direction is not know at MediaOpened event time.
         /// If the duration is not known at MediaOpened event time then use this event 
         /// to get the duration and signal it via mediator
         /// </summary>
@@ -1384,7 +1385,7 @@ namespace Surveyor.User_Controls
 
                     MediaPlaybackSession playbackSession = sender as MediaPlaybackSession;
 
-                    // Signel the media duration event via mediator if known
+                    // Signal the media duration event via mediator if known
                     if (playbackSession.NaturalDuration != TimeSpan.Zero)
                     {
                         // Get the frame rate if not already known
@@ -1414,8 +1415,8 @@ namespace Surveyor.User_Controls
             {
                 if (!IsMediaSynchronized())
                 {
-                    // If the media isn't syncronised signal the position of the MediaPlayer
-                    // (If sync'd the timeline controller sends the position message)
+                    // If the media isn't synchronized signal the position of the MediaPlayer
+                    // (If synchronized the timeline controller sends the position message)
                     MediaPlayerEventData data = new(MediaPlayerEventData.eMediaPlayerEvent.Position, CameraSide, mode)
                     {
                         position = playbackSession.Position                       
@@ -1452,7 +1453,7 @@ namespace Surveyor.User_Controls
         private void MediaPlayer_MediaPlayerRateChanged(MediaPlayer sender, MediaPlayerRateChangedEventArgs args)
         {
             MediaPlayer mediaPlayer = sender as MediaPlayer;
-            Debug.WriteLine($"{CameraSide}: Info MediaPlayer_MediaPlayerRateChanged: being depricated instead, use the MediaPlayer.PlaybackSession property to get a MediaPlaybackSession");
+            Debug.WriteLine($"{CameraSide}: Info MediaPlayer_MediaPlayerRateChanged: being deprecated instead, use the MediaPlayer.PlaybackSession property to get a MediaPlaybackSession");
         }
 
 
@@ -1534,7 +1535,7 @@ namespace Surveyor.User_Controls
                     };
                     mediaPlayerHandler?.Send(data);
 
-                    // Signel the media duration and frame rate via mediator if known (used by the MediaStereoController and MediaControl)
+                    // Signal the media duration and frame rate via mediator if known (used by the MediaStereoController and MediaControl)
                     if (naturalDuration != TimeSpan.Zero)
                     {
                         // Get the frame rate if not already known
@@ -1595,7 +1596,7 @@ namespace Surveyor.User_Controls
             private eCameraSide cameraSide { get; set; } = eCameraSide.None;
             private Image? imageFrame = null;
 
-            // Bitmaps and Soruces  
+            // Bitmaps and Sources  
             private SoftwareBitmap? frameServerDest = null;
             private CanvasImageSource? canvasImageSource = null;
             private CanvasBitmap? inputBitmap = null;
@@ -2051,7 +2052,7 @@ namespace Surveyor.User_Controls
 
                             // In Debug mode, draw a camera symbol on the frame for differentiation
                             // between the media player video surface and the image frame
-//??? Susprended for now
+//??? Suspended for now
 ///#if DEBUG
                             // Define the position for the glyph
                             Vector2 glyphPosition = new(10, 10); // Top-left position of the glyph
@@ -2139,7 +2140,7 @@ namespace Surveyor.User_Controls
                 catch (Exception ex)
                 {
                     Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {cameraSide}: CopyFrameToMemoryStreamAsync Failed to save frame to memory stream: {ex.Message}");
-                    throw; // Rethrow the exception so caller can handle it
+                    throw; // Re-throw the exception so caller can handle it
                 }
             }
 
@@ -2250,7 +2251,7 @@ namespace Surveyor.User_Controls
             // Work only want one frame
             mp.IsVideoFrameServerEnabled = false;
 
-            // Flag to indicate the buffers need reseting (used if we get an exception)
+            // Flag to indicate the buffers need resetting (used if we get an exception)
             bool reset = false;
 
             // Check if media is being closed
@@ -2276,7 +2277,7 @@ namespace Surveyor.User_Controls
             }
 
             // Copy the frame from the media player to the inputBitmap
-            // This call must be done otherwise MediaPlayer_VideoFrameAvailable will be called repeatly
+            // This call must be done otherwise MediaPlayer_VideoFrameAvailable will be called repeatedly
             // With the same frame
             Stopwatch watch = new();
             watch.Start();
@@ -2388,7 +2389,7 @@ namespace Surveyor.User_Controls
                 }/*, DispatcherQueuePriority.Normal*/);
             }
 
-            // Failure - try to reset the the buffer before the next event
+            // Failure - try to reset the buffer before the next event
             if (reset)
             {
                 vidFrameMgr.IsSetup = false;  // Do this quickly to avoid reentry
@@ -2457,8 +2458,8 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Function calulates the frame rate of the media and stores it in the private variable '_frameRate'.
-        /// This fnction is called from the event 'MediaPlayer_MediaOpened'
+        /// Function calculates the frame rate of the media and stores it in the private variable '_frameRate'.
+        /// This function is called from the event 'MediaPlayer_MediaOpened'
         /// </summary>
         /// <param name="mediaPlayer"></param>
         private double GetCurrentFrameRate(MediaPlayer mediaPlayer)
@@ -2517,7 +2518,7 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// *Thread-Safe*
-        /// Call with 'True' to allow the the display (computer screen) to naturally timeout and 
+        /// Call with 'True' to allow the display (computer screen) to naturally timeout and 
         /// switch off or with 'False' to prevent the display from timing out and switching off.
         /// If we are watching a video and not interacting with the computer we don't want the
         /// display to switch off.

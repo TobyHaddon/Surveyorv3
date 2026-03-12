@@ -757,10 +757,11 @@ namespace Surveyor
 
 
                 /// <summary>
-                /// Returns the preferred calibration data
+                /// Returns the preferred calibration data for the given frame width/height.
+                /// If frame size is not provided, returns preferred calibration if valid, otherwise first available.
+                /// If frame size is provided, returns preferred calibration only if it matches
                 /// </summary>
-                /// <returns></returns>
-                public CalibrationData? GetPreferredCalibationData(int? frameWidth, int? frameHeight)
+                public CalibrationData? GetPreferredCalibrationData(int? frameWidth, int? frameHeight)
                 {
                     CalibrationData? ret;
 
@@ -775,6 +776,8 @@ namespace Surveyor
                                 if (ret.FrameSizeCompare((int)frameWidth, (int)frameHeight))
                                     return ret;
                             }
+                            else if (frameWidth is null && frameHeight is null)
+                                return ret;
                         }
                     }
                     return null;

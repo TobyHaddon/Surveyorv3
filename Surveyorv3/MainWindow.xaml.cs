@@ -1,4 +1,5 @@
 ﻿using CommunityToolkit.WinUI;
+using CommunityToolkit.WinUI.UI.Controls;
 using Microsoft.UI;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Input;
@@ -552,7 +553,7 @@ namespace Surveyor
                 int frameHeight = MediaPlayerLeft.FrameHeight;
 
                 // Get the preferred calibration data ensuring it is for this frame size
-                CalibrationData? calibrationDataPreferred = calibrationClass.GetPreferredCalibationData(frameWidth, frameHeight);
+                CalibrationData? calibrationDataPreferred = calibrationClass.GetPreferredCalibrationData(frameWidth, frameHeight);
                 if (calibrationDataPreferred is null)
                     showMissingCalibrationInfoBar = true;
             }
@@ -1830,10 +1831,18 @@ namespace Surveyor
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FileExport_Click(object sender, RoutedEventArgs e) => _ = FileExportAsync();
+        private void ExportExcel_Click(object sender, RoutedEventArgs e)
+        {
+            _ = FileExportAsync(BulkSurveyExportDialog.ExportType.Excel);
+        }
+
+        private void ExportCOCO_Click(object sender, RoutedEventArgs e)
+        {
+            _ = FileExportAsync(BulkSurveyExportDialog.ExportType.COCO);
+        }
         
         private int exportWindowEntryCount = 0;
-        private async Task FileExportAsync()
+        private async Task FileExportAsync(BulkSurveyExportDialog.ExportType exportType)
         {
 
             try
@@ -1844,7 +1853,7 @@ namespace Surveyor
                 if (entryCount == 1)
                 {
                     // Initialize if necessary
-                    var dialog = new BulkSurveyExportDialog(report, mediaStereoController.speciesSelector.speciesCodeList);
+                    var dialog = new BulkSurveyExportDialog(exportType, report, mediaStereoController.speciesSelector.speciesCodeList);
 
                     // Get the HWND (window handle) for both windows
                     IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
@@ -1911,7 +1920,7 @@ namespace Surveyor
                     int frameHeight = MediaPlayerLeft.FrameHeight;
 
                     // Get the preferred calibration data ensuring it is for this frame size
-                    CalibrationData? calibrationDataPreferred = calibrationClass.GetPreferredCalibationData(frameWidth, frameHeight);
+                    CalibrationData? calibrationDataPreferred = calibrationClass.GetPreferredCalibrationData(frameWidth, frameHeight);
                     if (calibrationDataPreferred is not null)
                         ready = true;
 
@@ -3372,7 +3381,7 @@ namespace Surveyor
             calibratedIndictorText ??= CalibratedIndicator.Text;
 
             CalibrationClass? calibrationClass = surveyClass?.Data?.Calibration;
-            CalibrationData? calibrationDataPreferred = calibrationClass?.GetPreferredCalibationData(frameWidth, frameHeight);
+            CalibrationData? calibrationDataPreferred = calibrationClass?.GetPreferredCalibrationData(frameWidth, frameHeight);
 
             if (calibrationClass is not null && 
                 calibrationClass.CalibrationDataList.Count > 0 && 

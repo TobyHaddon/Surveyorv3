@@ -1,9 +1,14 @@
-﻿using CommunityToolkit.WinUI.UI.Controls;
+﻿// Version 1.1
+// Added support for COCO JSON
+
+
 using ActionCameraMP4MetadataExtraction;
+using CommunityToolkit.WinUI.UI.Controls;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
+using Newtonsoft.Json;
 using OfficeOpenXml;
 using Surveyor.Events;
 using Surveyor.Helper;
@@ -13,6 +18,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+//using System.Drawing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -35,6 +41,10 @@ namespace Surveyor.User_Controls
     /// </summary>
     public sealed partial class BulkSurveyExportDialog : WindowEx
     {
+        // Export Types
+        public enum ExportType { Excel, COCO };
+        private ExportType exportType; 
+
         public ObservableCollection<SurveyFileEntry> SurveyFiles { get; set; } = [];
 
         private bool noSaveOptionSelected_ExportMetadataOnly = false;
@@ -55,7 +65,7 @@ namespace Surveyor.User_Controls
         private string? totalsAveLengthSummary = string.Empty;
 
         // Export Excel columns
-        public enum ExportExcelColmns { SurveyName = 1,
+        public enum ExportExcelColumns { SurveyName = 1,
                                         Depth,
                                         Transect,
                                         Analyst,
@@ -84,20 +94,37 @@ namespace Surveyor.User_Controls
                                         DerivedLength
         };
 
-        public BulkSurveyExportDialog(Reporter? _report, SpeciesCodeList _speciesCodeList)
+        // COCO categoryId
+        private enum CategoryId
+        {
+            Family, Genus, Species
+        }
+
+        public BulkSurveyExportDialog(ExportType _exportType, Reporter? _report, SpeciesCodeList _speciesCodeList)
         {
             // Remember the reporter & species code list
+            exportType = _exportType;
             report = _report;
             speciesCodeList = _speciesCodeList;
 
 
-        // Remove the separate title bar from the window
-        ExtendsContentIntoTitleBar = true;
+            // Remove the separate title bar from the window
+            ExtendsContentIntoTitleBar = true;
 
             this.InitializeComponent();
+
+            // Set the title based on the export type
+            SurveyExportTitle.Text = exportType switch
+            {
+                ExportType.Excel => "Bulk Survey Excel Export",
+                ExportType.COCO => "Bulk Survey COCO Export",
+                _ => throw new ArgumentOutOfRangeException(nameof(exportType), exportType, "Unsupported export type")
+            };
+
+            // Grid items source
             SurveyGrid.ItemsSource = SurveyFiles;
 
-            // Subscribe to datagrid changes and keep the selected count at the bottom up-to-date
+            // Subscribe to data grid changes and keep the selected count at the bottom up-to-date
             SurveyFiles.CollectionChanged += (s, e) =>
             {
                 if (e.NewItems != null)
@@ -124,6 +151,10 @@ namespace Surveyor.User_Controls
         }
 
 
+        /// 
+        /// EVENTS
+        /// 
+
         private void SelectFolder_Click(object sender, RoutedEventArgs e) => _ = SelectFolderClickAsync();
 
         private int selectFolderEntryCount = 0;
@@ -145,7 +176,7 @@ namespace Surveyor.User_Controls
                         FolderPathTextBox.Text = folder.Path;
                         await ProcessSurveyFilesAsync(folder.Path, 
                                                       IncludeSubfoldersCheckBox.IsChecked == true, 
-                                                      false/*recalce*/, 
+                                                      false/*recalculate*/, 
                                                       false/*Save back to survey files*/);
                         UpdateButtons();
                     }
@@ -218,7 +249,7 @@ namespace Surveyor.User_Controls
                                 }
                             }
 
-                            // Force a recalc?
+                            // Force a recalculate?
                             if (recalc == true)
                             {
                                 // Set the calibration data for stereo projection
@@ -294,7 +325,7 @@ namespace Surveyor.User_Controls
                                 }
                             }
 
-                            // After any recalc/save, aggregate measurements and distinct species for point events
+                            // After any recalculate/save, aggregate measurements and distinct species for point events
                             allMeasurements.Add(survey.Data.Events.EventList);
                             // Aggregate all events for species derivation (needs site/depth/year)
                             allEvents.Add(
@@ -308,7 +339,7 @@ namespace Surveyor.User_Controls
 
                             string fileName = Path.GetFileName(fileSpec);
 
-                            // Check if the Survey File Name and the Survey Code are conistent
+                            // Check if the Survey File Name and the Survey Code are consistent
                             string surveyNameAndCodeCheck = CheckSurveyFileNameSurveyFileNameAndSurveyCodeAreConsistent(fileName, survey.Data.Info.SurveyFileName ?? "", survey.Data.Info.SurveyCode ?? "");
 
                             string surveyCode = survey.Data.Info.SurveyCode ?? "";
@@ -341,7 +372,7 @@ namespace Surveyor.User_Controls
                                 .Select(e => e.EventData as SurveyStereoPoint)
                                 .Count(data => data?.SurveyRulesCalc?.SurveyRules == null);
 
-                            // Total SurveyMeasurementPoints and SurveyStereoPoint with blank rules calcs
+                            // Total SurveyMeasurementPoints and SurveyStereoPoint with blank rules calculations
                             int totalCountWithNullRules = countSurveyMeasurementPointsWithNullRules + countSurveyStereoPointsWithNullRules;
 
                             // Count SurveyMeasurementPoints with failed SurveyRules
@@ -356,7 +387,7 @@ namespace Surveyor.User_Controls
                                 .Select(e => e.EventData as SurveyStereoPoint)
                                 .Count(data => data?.SurveyRulesCalc?.SurveyRules == false);
 
-                            // Total SurveyMeasurementPoints and SurveyStereoPoint with failed rules calcs
+                            // Total SurveyMeasurementPoints and SurveyStereoPoint with failed rules calculations
                             int totalCountWithFailedRules = countSurveyMeasurementPointsWithFailedRules + countSurveyStereoPointsWithFailedRules;
 
                             int countSpeciesNull = survey.Data.Events.EventList.Count(e =>
@@ -436,7 +467,7 @@ namespace Surveyor.User_Controls
                                 rulesCalcFailed = "All passed";
                             }
 
-                            // Total the cumlative RMSWorst
+                            // Total the cumulative RMSWorst
                             double totalRMS = 0.0;
 
                             // Sum SurveyMeasurementPoints RMS
@@ -475,7 +506,7 @@ namespace Surveyor.User_Controls
                                 }
                                 else
                                 {
-                                    horizontalRule = "No hortizontal";
+                                    horizontalRule = "No horizontal";
                                 }
                             }
                             else
@@ -498,13 +529,13 @@ namespace Surveyor.User_Controls
                                 verticalRule = "No rules";
 
 
-                            // Get the rules hash so consistancy of rules can be checked across surveys
+                            // Get the rules hash so consistency of rules can be checked across surveys
                             int rulesHash = survey.Data.SurveyRules.GetHashCode();
 
 
                             // Check for calibration
                             string calibration = string.Empty;
-                            SurveyorCalibrationData.CalibrationData? calibrationDataPreferred = survey.Data.Calibration.GetPreferredCalibationData(frameWidth, frameHeight);
+                            SurveyorCalibrationData.CalibrationData? calibrationDataPreferred = survey.Data.Calibration.GetPreferredCalibrationData(frameWidth, frameHeight);
                             if (calibrationDataPreferred is not null)
                             {
                                 if (calibrationDataPreferred.StereoCameraCalibration.RMS != 0)
@@ -660,7 +691,7 @@ namespace Surveyor.User_Controls
             // Check for non-matching calibration data
             if (!CheckThatAllCalibrationDataMatch(fileEntries))
             {
-                SetValidationText(false/*invalid*/, CalibrationDataMismatchPanel, CalibrationDataMismatchGlyph, CalibrationDataMismatchValidationText, "Not every survey is using the same calibration data", "This can happen if the camera rig needed to be recalibrated at some stage.");
+                SetValidationText(false/*invalid*/, CalibrationDataMismatchPanel, CalibrationDataMismatchGlyph, CalibrationDataMismatchValidationText, "Not every survey is using the same calibration data", "This can happen if the camera rig needed to be re-calibrated at some stage.");
             }
             else
             {
@@ -777,80 +808,23 @@ namespace Surveyor.User_Controls
             this.Close();
         }
 
-
-        private void Export_Click(object sender, RoutedEventArgs e) => _ = ExportClickAsync();
-        private async Task ExportClickAsync()
+        private void SurveyGrid_LoadingRow(object sender, DataGridRowEventArgs e)
         {
-            // If you use EPPlus in a noncommercial context
-            // according to the Polyform Noncommercial license:
-            ExcelPackage.License.SetNonCommercialPersonal("TobySolo");
-
-
-            LoadingRing.Visibility = Visibility.Visible;
-            LoadingRing.IsActive = true;
-
-            // Get the default export file name
-            List<SurveyFileEntry> SurveyFilesIncluded = [.. SurveyFiles.Where(f => f.Include)];
-            string suggestedFileName = $"ExportedSurveys ({SurveyFilesIncluded.Count} surveys) {DateTime.Now:yyyy-MM-dd}";
-            if (SurveyFilesIncluded.Count == 1)
-                suggestedFileName = Path.GetFileNameWithoutExtension(SurveyFilesIncluded[0].FileName);
-
-            // Get the export excel file spec
-            var savePicker = new Windows.Storage.Pickers.FileSavePicker();
-            WinRT.Interop.InitializeWithWindow.Initialize(savePicker, WinRT.Interop.WindowNative.GetWindowHandle(this));
-
-            savePicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
-            savePicker.FileTypeChoices.Add("Excel Workbook", [".xlsx"]);
-            savePicker.SuggestedFileName = suggestedFileName;
-
-            StorageFile file = await savePicker.PickSaveFileAsync();
-            if (file != null)
+            if (e.Row.DataContext is SurveyFileEntry sfe && sfe.IsTotalRow)
             {
-                try
-                {
-                    // Tell Windows we're about to write
-                    CachedFileManager.DeferUpdates(file);
-
-                    using var stream = await file.OpenStreamForWriteAsync();
-                    using var package = new OfficeOpenXml.ExcelPackage();
-
-                    // start fresh in case file existed
-                    stream.SetLength(0);
-
-                    if (!noSaveOptionSelected_ExportMetadataOnly)
-                    {
-                        // Write the fish by fish data
-                        var worksheetData = package.Workbook.Worksheets.Add("Data");
-                        await ExportDatatSheetAsync(package, worksheetData, file.Path);
-                    }
-
-                    // Write the survey by survey metadata
-                    var worksheetMetadata = package.Workbook.Worksheets.Add("Metadata");
-                    ExportMetadatatSheet(worksheetMetadata);
-
-                    // write to the file
-                    package.SaveAs(stream);
-                    await stream.FlushAsync();
-
-                    // Commit the updates
-                    var status = await CachedFileManager.CompleteUpdatesAsync(file);
-                    if (status != FileUpdateStatus.Complete)
-                    {
-                        report?.Warning("", $"Export completed with status: {status}");
-                    }
-                }
-                catch(Exception ex)
-                {
-                    report?.Error("", $"Export failed, {ex.Message}");
-                }
+                e.Row.Background = (Brush)Application.Current.Resources["SystemFillColorAttentionBackgroundBrush"];
+                // Font weight customization omitted due to namespace limitations
             }
-
-            LoadingRing.IsActive = false;
-            LoadingRing.Visibility = Visibility.Collapsed;
-
-            // Close the dialog
-            this.Close();
         }
+
+        private void Export_Click(object sender, RoutedEventArgs e)
+        {
+            if (exportType == ExportType.Excel)
+                _ = ExportExcelClickAsync();
+            else if (exportType == ExportType.COCO)
+                _ = ExportCOCOClickAsync();
+        }
+        
 
         private void HeaderSelectAllCheckBox_Checked(object sender, RoutedEventArgs e)
         {
@@ -990,7 +964,7 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// Prompt the use for a new calibration file. Then use that
-        /// calibrition data to recalculate all the measurements and rules
+        /// calibration data to recalculate all the measurements and rules
         /// </summary>
         /// <param name="save"></param>
         private async Task RecalcAsync(bool trueSaveFalseNoSave)
@@ -1000,7 +974,7 @@ namespace Surveyor.User_Controls
                 string fileSpec = FolderPathTextBox.Text;
                 await ProcessSurveyFilesAsync(fileSpec,
                                               IncludeSubfoldersCheckBox.IsChecked == true,
-                                              true/*recalc*/,
+                                              true/*recalculation*/,
                                               trueSaveFalseNoSave/*Save back to survey files*/);
                 UpdateButtons();
             }
@@ -1031,7 +1005,7 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// Prompt the use for a new calibration file. Then use that
-        /// calibrition data to recalculate all the measurements and rules
+        /// calibration data to recalculate all the measurements and rules
         /// </summary>
         /// <param name="save"></param>
         private async Task NewCalibRecalcAsync(bool trueSaveFalseNoSave)
@@ -1044,7 +1018,7 @@ namespace Surveyor.User_Controls
                 string fileSpec = FolderPathTextBox.Text;
                 await ProcessSurveyFilesAsync(fileSpec, 
                                               IncludeSubfoldersCheckBox.IsChecked == true,
-                                              true/*recalc*/,
+                                              true/*recalculate*/,
                                               trueSaveFalseNoSave/*Save back to survey files*/,
                                               calibrationData);
                 UpdateButtons();
@@ -1101,12 +1075,90 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Excel Export
+        /// </summary>
+        /// <returns></returns>
+        private async Task ExportExcelClickAsync()
+        {
+            // If you use EPPlus in a noncommercial context
+            // according to the Polyform Noncommercial license:
+            ExcelPackage.License.SetNonCommercialPersonal("TobySolo");
+
+
+            LoadingRing.Visibility = Visibility.Visible;
+            LoadingRing.IsActive = true;
+
+            // Get the default export file name
+            List<SurveyFileEntry> SurveyFilesIncluded = [.. SurveyFiles.Where(f => f.Include)];
+            string suggestedFileName = $"ExportedSurveys ({SurveyFilesIncluded.Count} surveys) {DateTime.Now:yyyy-MM-dd}";
+            if (SurveyFilesIncluded.Count == 1)
+                suggestedFileName = Path.GetFileNameWithoutExtension(SurveyFilesIncluded[0].FileName);
+
+            // Get the export excel file spec
+            var savePicker = new Windows.Storage.Pickers.FileSavePicker();
+            WinRT.Interop.InitializeWithWindow.Initialize(savePicker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+
+            savePicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            savePicker.FileTypeChoices.Add("Excel Workbook", [".xlsx"]);
+            savePicker.SuggestedFileName = suggestedFileName;
+
+            StorageFile file = await savePicker.PickSaveFileAsync();
+            if (file != null)
+            {
+                try
+                {
+                    // Tell Windows we're about to write
+                    CachedFileManager.DeferUpdates(file);
+
+                    using var stream = await file.OpenStreamForWriteAsync();
+                    using var package = new OfficeOpenXml.ExcelPackage();
+
+                    // start fresh in case file existed
+                    stream.SetLength(0);
+
+                    if (!noSaveOptionSelected_ExportMetadataOnly)
+                    {
+                        // Write the fish by fish data
+                        var worksheetData = package.Workbook.Worksheets.Add("Data");
+                        await ExportExcelDatatSheetAsync(package, worksheetData, file.Path);
+                    }
+
+                    // Write the survey by survey metadata
+                    var worksheetMetadata = package.Workbook.Worksheets.Add("Metadata");
+                    ExportExcelMetadatatSheet(worksheetMetadata);
+
+                    // write to the file
+                    package.SaveAs(stream);
+                    await stream.FlushAsync();
+
+                    // Commit the updates
+                    var status = await CachedFileManager.CompleteUpdatesAsync(file);
+                    if (status != FileUpdateStatus.Complete)
+                    {
+                        report?.Warning("", $"Export completed with status: {status}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    report?.Error("", $"Export failed, {ex.Message}");
+                }
+            }
+
+            LoadingRing.IsActive = false;
+            LoadingRing.Visibility = Visibility.Collapsed;
+
+            // Close the dialog
+            this.Close();
+        }
+
+
+        /// <summary>
         /// Export all the data from each selected survey to an excel spreadsheet
         /// </summary>
         /// <param name="package"></param>
         /// <param name="worksheet"></param>
         /// <returns></returns>
-        private async Task ExportDatatSheetAsync(ExcelPackage package, ExcelWorksheet worksheet, string exportFile)
+        private async Task ExportExcelDatatSheetAsync(ExcelPackage package, ExcelWorksheet worksheet, string exportFile)
         {
             int rowIndex = 1;
             bool failed = false;
@@ -1152,36 +1204,36 @@ namespace Surveyor.User_Controls
             if (IncludePartialIdentification.IsChecked == true)
                 includePartialIdentification = true;
 
-                // Write headers
-                worksheet.Cells[rowIndex, (int)ExportExcelColmns.SurveyName].Value = "Survey Name";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Depth].Value = "Depth";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Transect].Value = "Transect";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Analyst].Value = "Operator";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Time].Value = "Position Time";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.TimeSecs].Value = "Position Secs";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Type].Value = "Type";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.FishCount].Value = "Fish Count";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementm].Value = "Measurement(m)";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementmm].Value = "Measurement(mm)";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Range].Value = "Distance (m)";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.HorizontalOffset].Value = "Horiontal Offset(m)";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.VerticalOffset].Value = "Vertical Offset(m)";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.RMS].Value = "RMS(m)";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.RMSWorst].Value = "RMSWorst(m)";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.RulesPassed].Value = "Rules Passed";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesScientific].Value = "Species Scientific";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesCommon].Value = "Species Common";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Genus].Value = "Genus";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.GenusSpeciesScientific].Value = "Genus Species Scientific";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.FamilyScientific].Value = "Family Scientific";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.FamilyCommon].Value = "Family Common";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesCode].Value = "Species Code";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.NoSpeciesCode].Value = "Species Not Coded";
-            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Comment].Value = "Comment";
+            // Write headers
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.SurveyName].Value = "Survey Name";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.Depth].Value = "Depth";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.Transect].Value = "Transect";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.Analyst].Value = "Operator";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.Time].Value = "Position Time";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.TimeSecs].Value = "Position Secs";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.Type].Value = "Type";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.FishCount].Value = "Fish Count";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.Measurementm].Value = "Measurement(m)";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.Measurementmm].Value = "Measurement(mm)";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.Range].Value = "Distance (m)";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.HorizontalOffset].Value = "Horizontal Offset(m)";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.VerticalOffset].Value = "Vertical Offset(m)";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.RMS].Value = "RMS(m)";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.RMSWorst].Value = "RMSWorst(m)";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.RulesPassed].Value = "Rules Passed";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.SpeciesScientific].Value = "Species Scientific";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.SpeciesCommon].Value = "Species Common";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.Genus].Value = "Genus";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.GenusSpeciesScientific].Value = "Genus Species Scientific";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.FamilyScientific].Value = "Family Scientific";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.FamilyCommon].Value = "Family Common";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.SpeciesCode].Value = "Species Code";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.NoSpeciesCode].Value = "Species Not Coded";
+            worksheet.Cells[rowIndex, (int)ExportExcelColumns.Comment].Value = "Comment";
             if (applyAverageLengths || deriveMissingSpecies)
             {
-                worksheet.Cells[rowIndex, (int)ExportExcelColmns.DerivedSpecies].Value = "Derived Species";
-                worksheet.Cells[rowIndex, (int)ExportExcelColmns.DerivedLength].Value = "Derived Length";
+                worksheet.Cells[rowIndex, (int)ExportExcelColumns.DerivedSpecies].Value = "Derived Species";
+                worksheet.Cells[rowIndex, (int)ExportExcelColumns.DerivedLength].Value = "Derived Length";
             }
             // Freeze panes at D2 (freeze row 1 and columns A-C)
             worksheet.View.FreezePanes(2, 4);
@@ -1238,7 +1290,7 @@ namespace Surveyor.User_Controls
                                 switch (evt.EventDataType)
                                 {
                                     case Events.SurveyDataType.SurveyMeasurementPoints:
-                                        worksheet.Cells[rowIndex, (int)ExportExcelColmns.Type].Value = "Measurement";
+                                        worksheet.Cells[rowIndex, (int)ExportExcelColumns.Type].Value = "Measurement";
                                         if (evt.EventData is SurveyMeasurement surveyMeasurement)
                                         {
                                             speciesInfo = surveyMeasurement.SpeciesInfo;
@@ -1253,13 +1305,13 @@ namespace Surveyor.User_Controls
                                     case Events.SurveyDataType.SurveyPoint:
                                         if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
                                         {
-                                            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Type].Value = "3D";
+                                            worksheet.Cells[rowIndex, (int)ExportExcelColumns.Type].Value = "3D";
                                             speciesInfo = surveyStereoPoint.SpeciesInfo;
                                             surveyRulesCalc = surveyStereoPoint.SurveyRulesCalc;
                                         }
                                         else if (evt.EventData is SurveyPoint surveyPoint)
                                         {
-                                            worksheet.Cells[rowIndex, (int)ExportExcelColmns.Type].Value = "Point";
+                                            worksheet.Cells[rowIndex, (int)ExportExcelColumns.Type].Value = "Point";
                                             speciesInfo = surveyPoint.SpeciesInfo;
                                         }
                                         // Check the fish count
@@ -1306,15 +1358,15 @@ namespace Surveyor.User_Controls
                                 {
 
                                     // Common data
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.SurveyName].Value = survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName;
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Depth].Value = survey.Data.Info.SurveyDepth;
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Analyst].Value = survey.Data.Info.SurveyAnalystName;
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Time].Value = evt.TimeSpanTimelineController;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColumns.SurveyName].Value = survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColumns.Depth].Value = survey.Data.Info.SurveyDepth;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColumns.Analyst].Value = survey.Data.Info.SurveyAnalystName;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColumns.Time].Value = evt.TimeSpanTimelineController;
 
                                     // Hyperlink column
                                     var encodedPath = Uri.EscapeDataString(fileEntry.FilePath);
                                     var secs = evt.TimeSpanTimelineController.TotalSeconds.ToString(CultureInfo.InvariantCulture);
-                                    var cellTimeSecs = worksheet.Cells[rowIndex, (int)ExportExcelColmns.TimeSecs];
+                                    var cellTimeSecs = worksheet.Cells[rowIndex, (int)ExportExcelColumns.TimeSecs];
                                     cellTimeSecs.Value = $"{evt.TimeSpanTimelineController.TotalSeconds:F2}";
                                     cellTimeSecs.Hyperlink = new ExcelHyperLink($"underwatersurveyor://open?file={encodedPath}&start={secs}");
                                     // Apply the built-in Hyperlink style so it looks like Excel's default (blue underline)
@@ -1322,13 +1374,13 @@ namespace Surveyor.User_Controls
 
                                     // Frame time
                                     var timeValue = evt.TimeSpanTimelineController;
-                                    var cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.Time];
+                                    var cell = worksheet.Cells[rowIndex, (int)ExportExcelColumns.Time];
                                     cell.Value = timeValue;
                                     cell.Style.Numberformat.Format = "hh:mm:ss";
 
 
                                     // Calculated transect
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Transect].Value = transectNumber;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColumns.Transect].Value = transectNumber;
 
 
                                     // Extract the species scientific name and common name
@@ -1357,7 +1409,7 @@ namespace Surveyor.User_Controls
                                             else
                                                 speciesScientificName = speciesInfo.Species.Trim();
 
-                                            // Name the Genus+Species scentific full name
+                                            // Name the Genus+Species scientific full name
                                             if (!string.IsNullOrEmpty(speciesInfo.Genus))
                                                 genusSpeciesScientific = $"{speciesInfo.Genus} {speciesScientificName}";
                                             else
@@ -1397,7 +1449,7 @@ namespace Surveyor.User_Controls
                                     }
 
                                     // If the species is missing and we have a genus and the user request
-                                    // we dervice missing species and try to derive the species
+                                    // we derive missing species and try to derive the species
                                     if (deriveMissingSpecies &&
                                         speciesInfo is not null &&
                                         string.IsNullOrEmpty(speciesScientificName) &&
@@ -1443,27 +1495,27 @@ namespace Surveyor.User_Controls
                                     }
 
                                     // Load the fish count                               
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.FishCount].Value = fishCount;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColumns.FishCount].Value = fishCount;
 
                                     // Load measurement
                                     if (measurement is not null)
                                     {
-                                        cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementm];
+                                        cell = worksheet.Cells[rowIndex, (int)ExportExcelColumns.Measurementm];
                                         cell.Value = measurement;
                                         cell.Style.Numberformat.Format = "0.000";
 
-                                        cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementmm];
+                                        cell = worksheet.Cells[rowIndex, (int)ExportExcelColumns.Measurementmm];
                                         cell.Value = measurement * 1000;
                                         cell.Style.Numberformat.Format = "0";
                                     }
                                     else
                                     {
-                                        worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementm].Value = "";
-                                        worksheet.Cells[rowIndex, (int)ExportExcelColmns.Measurementmm].Value = "";
+                                        worksheet.Cells[rowIndex, (int)ExportExcelColumns.Measurementm].Value = "";
+                                        worksheet.Cells[rowIndex, (int)ExportExcelColumns.Measurementmm].Value = "";
                                     }
 
                                     // Range value (mark in red text if rule not passed)
-                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.Range];
+                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColumns.Range];
                                     cell.Value = surveyRulesCalc?.Range ?? 0;
                                     cell.Style.Numberformat.Format = "0.000";
                                     if (surveyRulesCalc?.SurveyRuleRange == false)
@@ -1471,47 +1523,47 @@ namespace Surveyor.User_Controls
 
                                     // Range Horizontal and vertical offsets and RMS
                                     // Horizontal value (mark in red text if rule not passed)
-                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.HorizontalOffset];
+                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColumns.HorizontalOffset];
                                     cell.Value = surveyRulesCalc?.XOffset ?? 0;
                                     cell.Style.Numberformat.Format = "0.000";
                                     if (surveyRulesCalc?.SurveyRuleHoriz == false)
                                         cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
 
                                     // Vertical value (mark in red text if rule not passed)
-                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.VerticalOffset];
+                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColumns.VerticalOffset];
                                     cell.Value = surveyRulesCalc?.YOffset ?? 0;
                                     cell.Style.Numberformat.Format = "0.000";
                                     if (surveyRulesCalc?.SurveyRuleVert == false)
                                         cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
 
                                     // RMS values (mark RMSWorst in red text if rule not passed)
-                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.RMS];
+                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColumns.RMS];
                                     cell.Value = surveyRulesCalc?.RMSMean ?? 0;
                                     cell.Style.Numberformat.Format = "0.000";
 
-                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.RMSWorst];
+                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColumns.RMSWorst];
                                     cell.Value = surveyRulesCalc?.RMSWorst ?? 0;
                                     cell.Style.Numberformat.Format = "0.000";
                                     if (surveyRulesCalc?.SurveyRuleRMS == false)
                                         cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
 
                                     // Rules passed summary
-                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColmns.RulesPassed];
+                                    cell = worksheet.Cells[rowIndex, (int)ExportExcelColumns.RulesPassed];
                                     cell.Value = surveyRulesCalc?.SurveyRules;
                                     if (surveyRulesCalc?.SurveyRules == false)
                                         cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
 
                                     // Species, Genus, Family, Code
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesScientific].Value = speciesScientificName;
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesCommon].Value = speciesCommonName;
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Genus].Value = speciesInfo?.Genus ?? "";
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.GenusSpeciesScientific].Value = genusSpeciesScientific;
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.FamilyScientific].Value = familyScientificName;
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.FamilyCommon].Value = familyCommonName;
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.SpeciesCode].Value = speciesCode;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColumns.SpeciesScientific].Value = speciesScientificName;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColumns.SpeciesCommon].Value = speciesCommonName;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColumns.Genus].Value = speciesInfo?.Genus ?? "";
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColumns.GenusSpeciesScientific].Value = genusSpeciesScientific;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColumns.FamilyScientific].Value = familyScientificName;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColumns.FamilyCommon].Value = familyCommonName;
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColumns.SpeciesCode].Value = speciesCode;
 
                                     // Comment (if any)
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.Comment].Value = speciesInfo?.Comment ?? "";
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColumns.Comment].Value = speciesInfo?.Comment ?? "";
 
                                     // Check if a species code was actually used or was it plan text or the species code is blank
                                     bool validSpeciesCode = true;
@@ -1522,13 +1574,13 @@ namespace Surveyor.User_Controls
                                     {
                                         validSpeciesCode = false;
                                     }
-                                    worksheet.Cells[rowIndex, (int)ExportExcelColmns.NoSpeciesCode].Value = !validSpeciesCode ? true : "";
+                                    worksheet.Cells[rowIndex, (int)ExportExcelColumns.NoSpeciesCode].Value = !validSpeciesCode ? true : "";
 
                                     // Derived Species and Derived Length flags
                                     if (applyAverageLengths || deriveMissingSpecies)
                                     {
-                                        worksheet.Cells[rowIndex, (int)ExportExcelColmns.DerivedSpecies].Value = derivedSpecies ? true : null;
-                                        worksheet.Cells[rowIndex, (int)ExportExcelColmns.DerivedLength].Value = derivedLength ? true : null;
+                                        worksheet.Cells[rowIndex, (int)ExportExcelColumns.DerivedSpecies].Value = derivedSpecies ? true : null;
+                                        worksheet.Cells[rowIndex, (int)ExportExcelColumns.DerivedLength].Value = derivedLength ? true : null;
                                     }
 
                                     // Debug
@@ -1556,8 +1608,8 @@ namespace Surveyor.User_Controls
 
             // Apply an AutoFilter on the header row across the used data range
             int lastCol = (applyAverageLengths || deriveMissingSpecies)
-                ? (int)ExportExcelColmns.DerivedLength
-                : (int)ExportExcelColmns.Comment;
+                ? (int)ExportExcelColumns.DerivedLength
+                : (int)ExportExcelColumns.Comment;
             int headerRow = noSaveOptionSelected_ExportMetadataOnly ? 3 : 1; // header shifts down when warning row is present
             int lastRow = Math.Max(headerRow, rowIndex - 1);
             worksheet.Cells[headerRow, 1, lastRow, lastCol].AutoFilter = true;
@@ -1572,7 +1624,7 @@ namespace Surveyor.User_Controls
             }
             else if (problemCount > 0)
             {
-                report?.Warning("", $"Export Completed, file:{exportFile}, problemed lines:{problemCount}, partial export lines:{exportLineCount}");
+                report?.Warning("", $"Export Completed, file:{exportFile}, problem lines:{problemCount}, partial export lines:{exportLineCount}");
             }
             else
             {
@@ -1585,7 +1637,7 @@ namespace Surveyor.User_Controls
         /// Write the export metadata to an Excel sheet
         /// </summary>
         /// <param name="worksheet"></param>
-        private void ExportMetadatatSheet(ExcelWorksheet worksheet)
+        private void ExportExcelMetadatatSheet(ExcelWorksheet worksheet)
         {
             int rowIndex = 1;
 
@@ -1661,14 +1713,6 @@ namespace Surveyor.User_Controls
             cell.Style.Font.Color.SetColor(System.Drawing.Color.Red);
         }
 
-        private void SurveyGrid_LoadingRow(object sender, DataGridRowEventArgs e)
-        {
-            if (e.Row.DataContext is SurveyFileEntry sfe && sfe.IsTotalRow)
-            {
-                e.Row.Background = (Brush)Application.Current.Resources["SystemFillColorAttentionBackgroundBrush"];
-                // Font weight customization omitted due to namespace limitations
-            }
-        }
 
         /// <summary>
         /// Check if the survey file name, survey code and actual file name are consistent.
@@ -1767,7 +1811,7 @@ namespace Surveyor.User_Controls
                 validationText.Text = text;
             }
 
-            // Retrieve the tooltip programmatically
+            // Retrieve the tool tip programmatically
             bool applyTooltip = false;
 
             if (ToolTipService.GetToolTip(validationText) is not ToolTip existingToolTip)
@@ -1776,15 +1820,460 @@ namespace Surveyor.User_Controls
             }
             else if ((string)existingToolTip.Content != tooltip)
             {
-                // Update tooltip
+                // Update tool tip
                 existingToolTip.Content = tooltip;
             }
 
-            // Change the tooltip
+            // Change the tool tip
             if (applyTooltip)
             {
                 ToolTip toolTip = new() { Content = tooltip };
                 ToolTipService.SetToolTip(validationText, toolTip);
+            }
+        }
+
+
+        /// <summary>
+        /// Excel Export
+        /// </summary>
+        /// <returns></returns>
+        private async Task ExportCOCOClickAsync()
+        {
+            LoadingRing.Visibility = Visibility.Visible;
+            LoadingRing.IsActive = true;
+
+            // Get the default export file name
+            List<SurveyFileEntry> SurveyFilesIncluded = [.. SurveyFiles.Where(f => f.Include)];
+            string suggestedFileName = $"ExportedSurveys ({SurveyFilesIncluded.Count} surveys) {DateTime.Now:yyyy-MM-dd}";
+            if (SurveyFilesIncluded.Count == 1)
+                suggestedFileName = Path.GetFileNameWithoutExtension(SurveyFilesIncluded[0].FileName) + "-COCO";
+
+            // Get the export excel file spec
+            var savePicker = new Windows.Storage.Pickers.FileSavePicker();
+            WinRT.Interop.InitializeWithWindow.Initialize(savePicker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+
+            savePicker.SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary;
+            savePicker.FileTypeChoices.Add("COCO JSON", [".json"]);
+            savePicker.SuggestedFileName = suggestedFileName;
+
+            StorageFile file = await savePicker.PickSaveFileAsync();
+            if (file != null)
+            {
+                try
+                {
+                    // Tell Windows we're about to write
+                    CachedFileManager.DeferUpdates(file);
+
+                    using var stream = await file.OpenStreamForWriteAsync();
+
+                    // start fresh in case file existed
+                    stream.SetLength(0);
+
+                    // Write the fish by fish data
+                    await ExportCOCODatatSheetAsync(stream, file.Path);
+
+                    // write to the file
+                    await stream.FlushAsync();
+
+                    // Commit the updates
+                    var status = await CachedFileManager.CompleteUpdatesAsync(file);
+                    if (status != FileUpdateStatus.Complete)
+                    {
+                        report?.Warning("", $"Export completed with status: {status}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    report?.Error("", $"Export failed, {ex.Message}");
+                }
+            }
+
+            LoadingRing.IsActive = false;
+            LoadingRing.Visibility = Visibility.Collapsed;
+
+            // Close the dialog
+            this.Close();
+        }
+
+
+        /// <summary>
+        /// COCO Export
+        /// https://roboflow.com/formats/coco-json#format-description
+        /// </summary>
+        /// <returns></returns>
+        private async Task ExportCOCODatatSheetAsync(Stream stream, string exportFile)
+        {
+            bool failed = false;
+            int problemCount = 0;
+            int exportLineCount = 0;
+
+            bool deriveMissingSpecies = DeriveMissingSpecies.IsChecked == true;
+            bool includeFailedRMS = IncludeFailedRMS.IsChecked == true;
+            bool includeOtherFailedRules = IncludeOtherFailedRules.IsChecked == true;
+            bool includePartialIdentification = IncludePartialIdentification.IsChecked == true;
+
+            int nextImageId = 1;
+            int nextAnnotationId = 1;
+
+            var images = new List<object>();
+            var annotations = new List<object>();
+            var categories = new List<object>();
+
+            static string ExtractScientificName(string? speciesField)
+            {
+                if (string.IsNullOrWhiteSpace(speciesField))
+                    return string.Empty;
+
+                int slash = speciesField.IndexOf('/');
+                if (slash > 0 && slash < speciesField.Length - 1)
+                    return speciesField[..slash].Trim();
+                if (slash > 0)
+                    return speciesField[..^1].Trim();
+
+                return speciesField.Trim();
+            }
+
+            static double[] BuildBbox(double xa, double ya, double xb, double yb)
+            {
+                double x = Math.Min(xa, xb);
+                double y = Math.Min(ya, yb);
+                double w = Math.Abs(xb - xa);
+                double h = Math.Abs(yb - ya);
+
+                // Keep box valid for COCO
+                if (w <= 0) w = 1;
+                if (h <= 0) h = 1;
+
+                // Round to nearest int, with midpoint away from zero (0.5 -> 1)
+                x = Math.Round(x, 0, MidpointRounding.AwayFromZero);
+                y = Math.Round(y, 0, MidpointRounding.AwayFromZero);
+                w = Math.Round(w, 0, MidpointRounding.AwayFromZero);
+                h = Math.Round(h, 0, MidpointRounding.AwayFromZero);
+
+                return [x, y, w, h];
+            }
+
+
+            // Setup categories
+            // Category Family
+            categories.Add(new
+            {
+                id = CategoryId.Family,
+                name = CategoryId.Family.ToString(),
+                supercategory = "none"
+            });
+            // Category Genus
+            categories.Add(new
+            {
+                id = CategoryId.Genus,
+                name = CategoryId.Genus.ToString(),
+                supercategory = CategoryId.Family.ToString()
+            });
+            // Category Species
+            categories.Add(new
+            {
+                id = CategoryId.Species,
+                name = CategoryId.Species.ToString(),
+                supercategory = CategoryId.Genus.ToString()
+            });
+
+
+            // Data year earliest and latest
+            int? yearEarliest = null;
+            int? yearLatest = null;
+
+            
+
+            // Loop through each survey in the batch
+            foreach (var fileEntry in SurveyFiles.Where(f => f.Include && !f.IsTotalRow))
+            {
+                // Open the survey with no auto save
+                var survey = new Survey(null!);
+                if (await survey.SurveyLoadAsync(fileEntry.FilePath, false/*autoSave*/) != 0)
+                    continue;
+
+                // Media file names
+                string leftMediaFile = survey.Data.Media.LeftMediaFileNames.Count > 0
+                    ? (survey.Data.Media.LeftMediaFileNames[0] ?? "Missing")
+                    : "Missing";
+                string rightMediaFile = survey.Data.Media.RightMediaFileNames.Count > 0
+                    ? (survey.Data.Media.RightMediaFileNames[0] ?? "Missing")
+                    : "Missing";
+
+                CalibrationData? calibrationData = survey.Data.Calibration.GetPreferredCalibrationData(null, null);
+
+                if (calibrationData is null)
+                    continue;
+
+                // Try to get frame sizes
+                int leftWidth = 0, leftHeight = 0, rightWidth = 0, rightHeight = 0;
+
+                if (calibrationData.LeftCameraCalibration.ImageSize is not null)
+                    leftWidth = calibrationData.LeftCameraCalibration.ImageSize[0, 0];
+                if (calibrationData.LeftCameraCalibration.ImageSize is not null)
+                    leftHeight = calibrationData.LeftCameraCalibration.ImageSize[0, 1];
+
+                if (calibrationData.RightCameraCalibration.ImageSize is not null)
+                    rightWidth = calibrationData.RightCameraCalibration.ImageSize[0, 0];
+                if (calibrationData.RightCameraCalibration.ImageSize is not null)
+                    rightHeight = calibrationData.RightCameraCalibration.ImageSize[0, 1];
+
+
+                string transectNumber = string.Empty;
+
+
+                foreach (var evt in survey.Data.Events.EventList)
+                {
+                    try
+                    {
+                        if (evt.EventDataType == Events.SurveyDataType.SurveyStart)
+                        {
+                            if (evt.EventData is TransectMarker marker)
+                                transectNumber = marker.MarkerName ?? string.Empty;
+                            else
+                                transectNumber = string.Empty;
+
+                            continue;
+                        }
+
+                        if (evt.EventDataType == Events.SurveyDataType.SurveyEnd)
+                        {
+                            transectNumber = string.Empty;
+                            continue;
+                        }
+
+                        // ONLY export SurveyMeasurementPoints
+                        if (evt.EventDataType != Events.SurveyDataType.SurveyMeasurementPoints)
+                            continue;
+
+                        if (evt.EventData is not SurveyMeasurement m)
+                            continue;
+
+                        SpeciesInfo? speciesInfo = m.SpeciesInfo;
+                        SurveyRulesCalc? surveyRulesCalc = m.SurveyRulesCalc;
+
+                        // Filtering rules
+                        if (!includeFailedRMS && surveyRulesCalc is not null &&
+                            surveyRulesCalc.SurveyRuleRMS.HasValue && surveyRulesCalc.SurveyRuleRMS == false)
+                        {
+                            continue;
+                        }
+
+                        if (!includeOtherFailedRules && surveyRulesCalc is not null)
+                        {
+                            if ((surveyRulesCalc.SurveyRuleRange.HasValue && surveyRulesCalc.SurveyRuleRange == false) ||
+                                (surveyRulesCalc.SurveyRuleHoriz.HasValue && surveyRulesCalc.SurveyRuleHoriz == false) ||
+                                (surveyRulesCalc.SurveyRuleVert.HasValue && surveyRulesCalc.SurveyRuleVert == false))
+                            {
+                                continue;
+                            }
+                        }
+
+                        if (!includePartialIdentification &&
+                            (speciesInfo is null || string.IsNullOrWhiteSpace(speciesInfo.Genus)))
+                        {
+                            continue;
+                        }
+
+                        string genus = speciesInfo?.Genus?.Trim() ?? string.Empty;
+                        string speciesScientificName = ExtractScientificName(speciesInfo?.Species);
+                        string familyScientificName = ExtractScientificName(speciesInfo?.Family);
+
+                        if (deriveMissingSpecies &&
+                            !string.IsNullOrWhiteSpace(genus) &&
+                            string.IsNullOrWhiteSpace(speciesScientificName))
+                        {
+                            string surveyNameForSite = survey.Data.Info.SurveyFileName ?? string.Empty;
+                            string? depthForScope = survey.Data.Info.SurveyDepth;
+                            string? derived = allEvents.DeriveSpeciesScientific(surveyNameForSite, depthForScope, transectNumber, genus);
+                            if (!string.IsNullOrWhiteSpace(derived))
+                                speciesScientificName = derived!;
+                        }
+
+                        // Is the event type the min or max year?  If so update
+                        if (yearEarliest is null || yearEarliest > evt.DateTimeCreate.Year)
+                            yearEarliest = evt.DateTimeCreate.Year;
+                        if (yearLatest is null || yearLatest < evt.DateTimeCreate.Year)
+                            yearLatest = evt.DateTimeCreate.Year;
+
+
+                        // Build left/right boxes from SurveyMeasurement points
+                        double[] leftBbox = BuildBbox(m.LeftXA, m.LeftYA, m.LeftXB, m.LeftYB);
+                        double[] rightBbox = BuildBbox(m.RightXA, m.RightYA, m.RightXB, m.RightYB);
+
+                        // Create TWO images per measurement event (left + right)
+                        int leftImageId = nextImageId++;
+                        int rightImageId = nextImageId++;
+
+
+
+                        images.Add(new
+                        {
+                            id = leftImageId,
+                            file_name = $"{leftMediaFile}|t={evt.TimeSpanLeftFrame.TotalSeconds:F3}",
+                            width = leftWidth,
+                            height = leftHeight
+                        });
+
+                        images.Add(new
+                        {
+                            id = rightImageId,
+                            file_name = $"{rightMediaFile}|t={evt.TimeSpanRightFrame.TotalSeconds:F3}",
+                            width = rightWidth,
+                            height = rightHeight
+                        });
+
+                        // Detect category id based on available taxonomic information (family/genus/species)
+                        CategoryId? category_id = null;
+                        if (!string.IsNullOrWhiteSpace(speciesScientificName))
+                        {
+                            // Species level annotation
+                            category_id = CategoryId.Species;
+                        }
+                        else if (!string.IsNullOrWhiteSpace(genus))
+                        {
+                            // Genus level annotation
+                            category_id = CategoryId.Genus;
+                        }
+                        else if (!string.IsNullOrWhiteSpace(speciesInfo?.Family))
+                        {
+                            // Family level annotation
+                            category_id = CategoryId.Family;
+                        }
+
+                        // Left annotation
+                        annotations.Add(new
+                        {
+                            id = nextAnnotationId++,
+                            image_id = leftImageId,
+                            category_id,
+                            bbox = leftBbox,
+                            area = leftBbox[2] * leftBbox[3],
+                            iscrowd = 0,
+                            segmentation = Array.Empty<object>(),
+                            Xfamily = familyScientificName,
+                            XGenus = genus,
+                            XSpecies = speciesScientificName,
+                        });
+
+                        // Right annotation
+                        annotations.Add(new
+                        {
+                            id = nextAnnotationId++,
+                            image_id = rightImageId,
+                            category_id,
+                            bbox = rightBbox,
+                            area = rightBbox[2] * rightBbox[3],
+                            iscrowd = 0,
+                            segmentation = Array.Empty<object>(),
+                            Xfamily = familyScientificName,
+                            XGenus = genus,
+                            XSpecies = speciesScientificName,
+                        });
+                        
+                        exportLineCount += 2;
+                    }
+                    catch (Exception ex) when (ex is ObjectDisposedException)
+                    {
+                        report?.Error("", $"Export COCO failed, {ex}");
+                        failed = true;
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        report?.Warning("", $"Export COCO warning, {ex}");
+                        problemCount++;
+                    }
+                }
+
+                if (failed)
+                    break;
+            }
+
+
+            // Make the year string for the info section
+            string yearText = string.Empty; 
+            if (yearEarliest is not null && yearLatest is not null)
+            {
+                if (yearEarliest == yearLatest)
+                    yearText = $"{yearEarliest}";
+                else
+                    yearText = $"{yearEarliest}-{yearLatest}";
+            }
+
+            // Example info section
+            //     "info": {
+            //     "year": "2020",
+            //     "version": "1",
+            //     "description": "Exported from roboflow.ai",
+            //     "contributor": "Roboflow",
+            //     "url": "https://app.roboflow.ai/datasets/hard-hat-sample/1",
+            //     "date_created": "2000-01-01T00:00:00+00:00"
+            //     },
+            // Example images section
+            //    "images": [
+            //        {
+            //          "id": 0,
+            //          "license": 1,
+            //          "file_name": "0001.jpg",
+            //          "height": 275,
+            //          "width": 490,
+            //          "date_captured": "2020-07-20T19:39:26+00:00"
+            //        }
+            //    ],
+            // Example annotations section
+            //    "annotations": [
+            //        {
+            //          "id": 0,
+            //          "image_id": 0,
+            //          "category_id": 2,
+            //          "bbox": [45,2,85,85],
+            //          "area": 7225,
+            //          "segmentation": [],
+            //          "iscrowd": 0
+            //        }
+            //    ],
+            var coco = new
+            {
+                info = new
+                {
+                    year = yearText,
+                    version = "1.0",
+                    description = "Underwater Surveyor COCO export",
+                    /*contributor = contributorText,*/
+                    date_created = DateTime.UtcNow.ToString("o")
+                },
+                licenses = Array.Empty<object>(),
+                categories,
+                images,
+                annotations
+                
+            };
+
+            using var streamWriter = new StreamWriter(stream, new UTF8Encoding(false), 4096, leaveOpen: true);
+            using var jsonWriter = new JsonTextWriter(streamWriter)
+            {
+                Formatting = Formatting.Indented,
+                CloseOutput = false
+            };
+
+            var serializer = JsonSerializer.CreateDefault();
+            serializer.Serialize(jsonWriter, coco);
+
+            await jsonWriter.FlushAsync();
+            await streamWriter.FlushAsync();
+
+            if (failed)
+            {
+                report?.Error("", $"Export Failed, file:{exportFile}, partial export lines:{exportLineCount}");
+            }
+            else if (problemCount > 0)
+            {
+                report?.Warning("", $"Export Completed, file:{exportFile}, problem lines:{problemCount}, partial export lines:{exportLineCount}");
+            }
+            else
+            {
+                report?.Info("", $"Export Completed, file:{exportFile}, export lines:{exportLineCount}");
             }
         }
 
@@ -1881,7 +2370,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Parses the events and extract all the measurement events.  Those thoses are added
+        /// Parses the events and extract all the measurement events.  Those are added
         /// to a list so that a genus length for this genus and an average length for the 
         /// species can both be access later
         /// </summary>
@@ -2123,7 +2612,7 @@ namespace Surveyor.User_Controls
         /// 
         /// 
         /// </summary>
-        /// <remarks>This method processes the provided events to extract species measurementinformation from survey
+        /// <remarks>This method processes the provided events to extract species measurement information from survey
         /// points and associates the resulting data with the specified survey file name. Only events of type <see
         /// cref="SurveyDataType.SurveyPoint"/> or <see cref="SurveyDataType.SurveyStereoPoint"/> are considered. If no
         /// qualifying points are found, the survey file name is removed from the collection to indicate the absence of

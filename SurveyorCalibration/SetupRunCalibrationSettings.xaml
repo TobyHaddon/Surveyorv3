@@ -4,6 +4,7 @@
 	xmlns:local="using:Surveyor"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:toolkit="using:CommunityToolkit.WinUI.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     d:DataContext="{d:DesignInstance Type=local:CalibProject}"
@@ -56,8 +57,14 @@
                           ToolTipService.ToolTip="Useful if you need to inspect the frames actually being inputting into the calibration calculation process. Or if you need to feed the best frames into a separate calibration process"/>
             </Border>
             
-            <Grid x:Name="FilterGrid" Margin="0,8,0,0">
+            <Grid x:Name="FilterGrid" Margin="0,4,0,0">
                 <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="14"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="14"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="14"/>
                     <RowDefinition Height="Auto"/>
                     <RowDefinition Height="14"/>
                     <RowDefinition Height="Auto"/>
@@ -166,6 +173,59 @@
                                          KeyDown="StereoCornerFilterValueEdit_KeyDown"
                                          LostFocus="StereoCornerFilterValueEdit_LostFocus"/>
                 <TextBlock x:Name ="StereoCornerFilterHelp" Grid.Row="6" Grid.Column="4" Text="The minimum number of calibration corners that need to be detected to be considered for stereo calibration" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                
+                <!-- Row 8 Minimum Gap Between Frames -->
+                <TextBlock x:Name="MinFrameGapLabel" Grid.Row="8" Grid.Column="0" Text="Min Best Frame Gap:" VerticalAlignment="Center"/>
+                <TextBlock x:Name="MinFrameGapMin" Grid.Row="8" Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="8,0,8,0"/>
+                <Slider x:Name="MinFrameGapSlider" Grid.Row="8" Grid.Column="2" 
+                        Value="{x:Bind navParams.MinFrameGapWorkingValue, Mode=TwoWay}"
+                        StepFrequency="1" Width="200" 
+                        VerticalAlignment="Center" ValueChanged="OnSliderValueChanged"
+                        PointerPressed="OnSliderPointerPressed"
+                        PointerReleased="OnSliderPointerReleased"
+                        PointerCaptureLost="OnSliderPointerCaptureLost"/>
+                <TextBlock x:Name="MinFrameGapMax" Grid.Row="8" Grid.Column="3" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <TextBlock x:Name="MinFrameGapValue" Grid.Row="9" Grid.Column="2" FontSize="10" Foreground="{ThemeResource TextFillColorPrimary}" 
+                                           Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,-10,0,0"
+                                           Tapped="MinFrameGap_Tapped"/>
+                <TextBox x:Name="MinFrameGapValueEdit" Grid.Row="9" Grid.Column="2" Visibility="Collapsed" FontSize="10"  Height="18"
+                                         VerticalAlignment="Center" HorizontalAlignment="Center"
+                                         Foreground="{ThemeResource TextFillColorPrimary}" 
+                                         MinWidth="30" MinHeight="0" Padding="0,0,0,0" Margin="0,-10,0,0"
+                                         BeforeTextChanging="TextBox_AllowPositiveWholeNumber"
+                                         KeyDown="MinFrameGapEdit_KeyDown"
+                                         LostFocus="MinFrameGapEdit_LostFocus"/>
+                <TextBlock x:Name ="MinFrameGapHelp" Grid.Row="8" Grid.Column="4" Text="The minimum gap between best frames. This is to help frame diversity" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
+
+                <!-- Row 10 Minimum/Maximum Allowed For Mono Best Frame -->
+                <TextBlock x:Name="MinMaxFramesAllowedForMonoCalibrationLabel" Grid.Row="10" Grid.Column="0" Text="Min/Max Mono Best Frames:" VerticalAlignment="Center"/>
+                <TextBlock x:Name="MinMaxFramesAllowedForMonoCalibrationMin" Grid.Row="10" Grid.Column="1" FontSize="10" VerticalAlignment="Center" Margin="8,0,8,0"/>
+
+                <toolkit:RangeSelector x:Name="MinMaxFramesAllowedForMonoCalibrationSlider" Grid.Row="10" Grid.Column="2"
+                                StepFrequency="1" Width="200" 
+                                VerticalAlignment="Center"
+                                Maximum="{x:Bind navParams.MaxFramesAllowedForMonoCalibrationWorkingValue, Mode=TwoWay}"
+                                Minimum="{x:Bind navParams.MinFramesAllowedForMonoCalibrationWorkingValue, Mode=TwoWay}"
+                                RangeEnd="100"
+                                RangeStart="0"                                
+                                ValueChanged="OnRangeSelectorValueChanged"
+                                PointerPressed="OnRangeSelectorPointerPressed"
+                                PointerReleased="OnRangeSelectorPointerReleased"
+                                PointerCaptureLost="OnRangeSelectorPointerCaptureLost"/>
+
+                <TextBlock x:Name="MinMaxFramesAllowedForMonoCalibrationMax" Grid.Row="10" Grid.Column="3" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                <TextBlock x:Name="MinMaxFramesAllowedForMonoCalibrationValue" Grid.Row="11" Grid.Column="2" FontSize="10" Foreground="{ThemeResource TextFillColorPrimary}" 
+                                           Padding="0,0,0,0" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,-10,0,0"
+                                           Tapped="MinMaxFramesAllowedForMonoCalibration_Tapped"/>
+                <!--<TextBox x:Name="MinMaxFramesAllowedForMonoCalibrationEdit" Grid.Row="11" Grid.Column="2" Visibility="Collapsed" FontSize="10"  Height="18"
+                                         VerticalAlignment="Center" HorizontalAlignment="Center"
+                                         Foreground="{ThemeResource TextFillColorPrimary}" 
+                                         MinWidth="30" MinHeight="0" Padding="0,0,0,0" Margin="0,-10,0,0"
+                                         BeforeTextChanging="TextBox_AllowPositiveWholeNumber"
+                                         KeyDown="MinMaxFramesAllowedForMonoCalibrationEdit_KeyDown"
+                                         LostFocus="MinMaxFramesAllowedForMonoCalibrationEdit_LostFocus"/>-->
+                <TextBlock x:Name ="MinMaxFramesAllowedForMonoCalibrationHelp" Grid.Row="10" Grid.Column="4" Text="The minimum and maximum best frames required for mono calibration" FontSize="10" VerticalAlignment="Center" Margin="8,0,0,0"/>
+
             </Grid>
 
         </StackPanel>

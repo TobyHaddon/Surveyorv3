@@ -121,11 +121,13 @@
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8B5;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem Name="MenuExport" Text="Export..." IsEnabled="True" Click="FileExport_Click">
-                        <MenuFlyoutItem.Icon>
+                    <MenuFlyoutSubItem Name="MenuExport" Text="Export..." IsEnabled="True">
+                        <MenuFlyoutSubItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEDE1;" />
-                        </MenuFlyoutItem.Icon>
-                    </MenuFlyoutItem>
+                        </MenuFlyoutSubItem.Icon>
+                        <MenuFlyoutItem Name="MenuExportExcel" Text="Excel" Click="ExportExcel_Click" />
+                        <MenuFlyoutItem Name="MenuExportCOCO" Text="COCO Json" Click="ExportCOCO_Click" />
+                    </MenuFlyoutSubItem>
                     <MenuFlyoutSeparator/>
                     <MenuFlyoutItem Name="MenuSettings" Text="Settings..." IsEnabled="True" Click="FileSettings_Click">
                         <MenuFlyoutItem.Icon>

@@ -31,6 +31,12 @@ namespace Surveyor
         public double BlurFilterWorkingValue { get; set; } = -1;
         public int MonoCornersFilterWorkingValue { get; set; } = -1;
         public int StereoCornersFilterWorkingValue { get; set; } = -1;
+        public int MinFrameGapWorkingValue { get; set; } = -1;
+        public int MinFramesAllowedForMonoCalibrationWorkingValue { get; set; } = -1;
+        public int MaxFramesAllowedForMonoCalibrationWorkingValue { get; set; } = -1;
+        public int MinFramesAllowedForStereoCalibrationWorkingValue { get; set; } = -1;
+        public int MaxFramesAllowedForStereoCalibrationWorkingValue { get; set; } = -1;
+
 
         // Helper
         public bool AnyActions()
@@ -51,7 +57,11 @@ namespace Surveyor
         public bool IsBlurFilterChanged() => BlurFilterWorkingValue != calibProject.Data.CalibrationInputs.BlurFilterValue;
         public bool IsMonoCornersFilterChanged() => MonoCornersFilterWorkingValue != calibProject.Data.CalibrationInputs.MonoCornersFilterValue;
         public bool IsStereoCornersFilterChanged() => StereoCornersFilterWorkingValue != calibProject.Data.CalibrationInputs.StereoCornersFilterValue;
-
+        public bool IsMinFrameGapWorkingChanged() => MinFrameGapWorkingValue != calibProject.Data.CalibrationInputs.MinFrameGapValue;
+        public bool IsMinFramesAllowedForMonoCalibrationWorkingChanged() => MinFramesAllowedForMonoCalibrationWorkingValue != calibProject.Data.CalibrationInputs.MinFramesAllowedForMonoCalibrationValue;
+        public bool IsMaxFramesAllowedForMonoCalibrationWorkingChanged() => MaxFramesAllowedForMonoCalibrationWorkingValue != calibProject.Data.CalibrationInputs.MaxFramesAllowedForMonoCalibrationValue;
+        public bool IsMinFramesAllowedForStereoCalibrationWorkingChanged() => MinFramesAllowedForStereoCalibrationWorkingValue != calibProject.Data.CalibrationInputs.MinFramesAllowedForStereoCalibrationValue;
+        public bool IsMaxFramesAllowedForStereoCalibrationWorkingChanged() => MaxFramesAllowedForStereoCalibrationWorkingValue != calibProject.Data.CalibrationInputs.MaxFramesAllowedForStereoCalibrationValue;
     }
 
     public sealed partial class SetupRunCalibration : WindowEx
@@ -78,7 +88,12 @@ namespace Surveyor
                 MovementFilterWorkingValue = _calibProject.Data.CalibrationInputs.MovementFilterValue,
                 BlurFilterWorkingValue = _calibProject.Data.CalibrationInputs.BlurFilterValue,
                 MonoCornersFilterWorkingValue = _calibProject.Data.CalibrationInputs.MonoCornersFilterValue,
-                StereoCornersFilterWorkingValue = _calibProject.Data.CalibrationInputs.StereoCornersFilterValue
+                StereoCornersFilterWorkingValue = _calibProject.Data.CalibrationInputs.StereoCornersFilterValue,
+                MinFrameGapWorkingValue = _calibProject.Data.CalibrationInputs.MinFrameGapValue,
+                MinFramesAllowedForMonoCalibrationWorkingValue = _calibProject.Data.CalibrationInputs.MinFramesAllowedForMonoCalibrationValue,
+                MaxFramesAllowedForMonoCalibrationWorkingValue = _calibProject.Data.CalibrationInputs.MaxFramesAllowedForMonoCalibrationValue,
+                MinFramesAllowedForStereoCalibrationWorkingValue = _calibProject.Data.CalibrationInputs.MinFramesAllowedForStereoCalibrationValue,
+                MaxFramesAllowedForStereoCalibrationWorkingValue = _calibProject.Data.CalibrationInputs.MaxFramesAllowedForStereoCalibrationValue,
             };
 
 

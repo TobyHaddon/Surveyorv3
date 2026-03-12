@@ -2923,7 +2923,7 @@ namespace Surveyor.Controls
                                     frameMaxError,
                                     frameIndex, /* Don't used frameData.FrameIndex */
                                     time,
-                                    bestFrame is not null ? bestFrame.Reason : null,
+                                    bestFrame?.Reason,
                                     correpondingCount);
 
                     // Indicate which of the bin this frame is found in

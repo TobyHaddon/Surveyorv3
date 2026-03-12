@@ -3339,7 +3339,7 @@ namespace Surveyor
 
             }
 
-            var monoPhaseTasks = new List<Task<(int, IterationResultList)>>();
+            var monoPhaseTasks = new List<Task<int>>();
             int taskIndex = 0;
             int taskLeftMonoIndex = -1;
             int taskRightMonoIndex = -1;
@@ -3350,22 +3350,7 @@ namespace Surveyor
                 // Display the Calibration Iteration Viewer (in place of the Calibration Frame Set Viewer)
                 LeftMonoCalibrationHead.DisplayFrameSetOrIterationViewer(trueFrameSetFalseIteration: false);
 
-                monoPhaseTasks.Add(Task.Run(() => LeftMonoCalibrationHead.DoIterationBestFramesAndCalibrationMonoCalcsAsync(
-                                                                Report,
-                                                                calibProject,
-                                                                InfoBarProcessing,
-                                                                trueLeftFalseRight: true,
-                                                                calibProject.Data.CalibrationInputs.MovementFilterValue,
-                                                                movementThresholdStepUp: 0.5,
-                                                                calibProject.Data.CalibrationInputs.BlurFilterValue,
-                                                                calibProject.Data.CalibrationInputs.MonoCornersFilterValue,
-                                                                monoCornersThresholdStepDown: 2,
-                                                                runParams.MaxFramesFromEachSensorBin,
-                                                                runParams.MaxFramesFromEachPoseBin,
-                                                                runParams.MaxFramesFromEachDepthBin,
-                                                                runParams.MinFrameGap,
-                                                                runParams.MinFramesAllowedForMonoCalibration,
-                                                                runParams.MaxFramesAllowedForMonoCalibration)));
+                monoPhaseTasks.Add(Task.Run(() => DoCoarseAndFineIterationBestFramesAndCalibrationMonoCalcsAsync(trueLeftFalseRight: true)));
                 taskLeftMonoIndex = taskIndex++;
             }
 
@@ -3374,22 +3359,7 @@ namespace Surveyor
                 // Display the Calibration Iteration Viewer (in place of the Calibration Frame Set Viewer)
                 RightMonoCalibrationHead.DisplayFrameSetOrIterationViewer(trueFrameSetFalseIteration: false);
 
-                monoPhaseTasks.Add(Task.Run(() => RightMonoCalibrationHead.DoIterationBestFramesAndCalibrationMonoCalcsAsync(
-                                                                Report,                                                                
-                                                                calibProject,
-                                                                InfoBarProcessing,
-                                                                trueLeftFalseRight: false,
-                                                                calibProject.Data.CalibrationInputs.MovementFilterValue,
-                                                                movementThresholdStepUp: 0.5,  
-                                                                calibProject.Data.CalibrationInputs.BlurFilterValue,
-                                                                calibProject.Data.CalibrationInputs.MonoCornersFilterValue,
-                                                                monoCornersThresholdStepDown: 2,
-                                                                runParams.MaxFramesFromEachSensorBin,
-                                                                runParams.MaxFramesFromEachPoseBin,
-                                                                runParams.MaxFramesFromEachDepthBin,
-                                                                runParams.MinFrameGap,
-                                                                runParams.MinFramesAllowedForMonoCalibration,
-                                                                runParams.MaxFramesAllowedForMonoCalibration)));
+                monoPhaseTasks.Add(Task.Run(() => DoCoarseAndFineIterationBestFramesAndCalibrationMonoCalcsAsync(trueLeftFalseRight: false)));
                 taskRightMonoIndex = taskIndex++;
             }
 
@@ -3398,21 +3368,21 @@ namespace Surveyor
             {
                 try
                 {
-                    (int, IterationResultList)[] results = await Task.WhenAll(monoPhaseTasks);
+                    int[] results = await Task.WhenAll(monoPhaseTasks);
 
                     if (doLeftMono)
                     {
-                        if (results[taskLeftMonoIndex].Item1 != 0)
+                        if (results[taskLeftMonoIndex] != 0)
                         {
-                            ret = results[taskLeftMonoIndex].Item1;
+                            ret = results[taskLeftMonoIndex];
                             Debug.WriteLine($"DoIterationBestFramesAndCalibrationMonoCalcsAllHeadsAsync: Error from DoIterationBestFramesAndCalibrationMonoCalcsAsync: Left Mono Result={ret}");
                         }
                     }
                     if (doRightMono)
                     {
-                        if (results[taskRightMonoIndex].Item1 != 0)
+                        if (results[taskRightMonoIndex] != 0)
                         {
-                            ret = results[taskRightMonoIndex].Item1;
+                            ret = results[taskRightMonoIndex];
                             Debug.WriteLine($"DoIterationBestFramesAndCalibrationMonoCalcsAllHeadsAsync: Error from DoIterationBestFramesAndCalibrationMonoCalcsAsync: Right Mono Result={ret}");
                         }
                     }
@@ -3457,6 +3427,90 @@ namespace Surveyor
             Debug.WriteLine($"DoIterationBestFramesAndCalibrationMonoCalcsAllHeadsAsync Run Status  Left:{LeftMonoCalibrationHead.IsFindRunning()}  Right:{RightMonoCalibrationHead.IsFindRunning()}");
 
             return ret;
+
+            // Helper function to do a coarse and then a fine iteration 
+            async Task<int> DoCoarseAndFineIterationBestFramesAndCalibrationMonoCalcsAsync(bool trueLeftFalseRight)
+            {
+                int ret = -1;
+                IterationResultList iterationResultList;
+                UniversalCalibrationHead MonoCalibrationHead;
+
+                // Guard
+                if (calibProject is null) 
+                    return ret;
+
+                if (trueLeftFalseRight)
+                    MonoCalibrationHead = LeftMonoCalibrationHead;
+                else
+                    MonoCalibrationHead = RightMonoCalibrationHead;
+
+                // Set the coarse iteration parameters to be more lenient to find a good starting point for the fine iteration
+                double movementThresholdStepUp = 0.5;
+                int monoCornersThresholdStepDown = 2;
+
+                // Do the coarse iteration path
+                (ret, iterationResultList) = await MonoCalibrationHead.DoIterationBestFramesAndCalibrationMonoCalcsAsync(
+                                                Report,
+                                                calibProject,
+                                                InfoBarProcessing,
+                                                trueLeftFalseRight,
+                                                calibProject.Data.CalibrationInputs.MovementFilterValue,            // Movement iteration start
+                                                CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE, // Movement iteration end
+                                                movementThresholdStepUp,                                            // Movement coarse step up
+                                                calibProject.Data.CalibrationInputs.BlurFilterValue,
+                                                calibProject.Data.ChArUcoBoardDefinition.GetTotalSquareCount(),     // Corner iteration start 
+                                                calibProject.Data.CalibrationInputs.MonoCornersFilterValue,         // Corner iteration end
+                                                monoCornersThresholdStepDown,                                       // Corner coarse step down
+                                                runParams.MaxFramesFromEachSensorBin,
+                                                runParams.MaxFramesFromEachPoseBin,
+                                                runParams.MaxFramesFromEachDepthBin,
+                                                runParams.MinFrameGap,
+                                                runParams.MinFramesAllowedForMonoCalibration,
+                                                runParams.MaxFramesAllowedForMonoCalibration);
+
+                if (ret == 0)
+                {
+                    if (iterationResultList.Results.Count > 0)
+                    {
+                        // Get the best coarse iteration result
+                        IterationResult bestResult = iterationResultList.GetBestResult();
+
+                        // Get the fine iteration start and end
+                        double movementThresholdStart = bestResult.MovementMinThreshold - movementThresholdStepUp;
+                        double movementThresholdEnd = bestResult.MovementMinThreshold + movementThresholdStepUp;
+                        int monoCornersMinThresholdStart = bestResult.MonoCornersMinThreshold + monoCornersThresholdStepDown;
+                        int monoCornersMinThresholdEnd = bestResult.MonoCornersMinThreshold - monoCornersThresholdStepDown;
+                        
+                        // Set the fine iteration parameters 
+                        movementThresholdStepUp = 0.2;
+                        monoCornersThresholdStepDown = 1;
+
+                        // Do the fine iteration path
+                        (ret, iterationResultList) = await MonoCalibrationHead.DoIterationBestFramesAndCalibrationMonoCalcsAsync(
+                                                        Report,
+                                                        calibProject,
+                                                        InfoBarProcessing,
+                                                        trueLeftFalseRight,
+                                                        movementThresholdStart,             // Movement iteration start
+                                                        movementThresholdEnd,               // Movement iteration end
+                                                        movementThresholdStepUp,            // Movement coarse step up
+                                                        calibProject.Data.CalibrationInputs.BlurFilterValue,
+                                                        monoCornersMinThresholdStart,       // Corner iteration start 
+                                                        monoCornersMinThresholdEnd,         // Corner iteration end
+                                                        monoCornersThresholdStepDown,       // Corner coarse step down
+                                                        runParams.MaxFramesFromEachSensorBin,
+                                                        runParams.MaxFramesFromEachPoseBin,
+                                                        runParams.MaxFramesFromEachDepthBin,
+                                                        runParams.MinFrameGap,
+                                                        runParams.MinFramesAllowedForMonoCalibration,
+                                                        runParams.MaxFramesAllowedForMonoCalibration);
+                    }
+                    else
+                        ret = -1;
+                }
+
+                return ret;
+            }
         }
 
 

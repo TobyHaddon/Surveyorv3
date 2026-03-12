@@ -206,14 +206,21 @@ namespace Surveyor.Controls
         /// </summary>
         /// <param name="report"></param>
         /// <param name="calibProject"></param>
+        /// <param name="infoBarProcessing"></param>
         /// <param name="trueLeftFalseRight"></param>
-        /// <param name="movementMinThreshold"></param>
+        /// <param name="movementThresholdStart"></param>
+        /// <param name="movementThresholdEnd"></param>
+        /// <param name="movementThresholdStepUp"></param>
         /// <param name="blurMinThreshold"></param>
-        /// <param name="monoCornersMinThreshold"></param>
+        /// <param name="monoCornersMinThresholdStart">Start is typically a larger number then End</param>
+        /// <param name="monoCornersMinThresholdEnd">End is typically a smaller number than Start</param>
+        /// <param name="monoCornersThresholdStepDown"></param>
         /// <param name="maxFramesFromEachSensorBin"></param>
         /// <param name="maxFramesFromEachPoseBin"></param>
+        /// <param name="maxFramesFromEachDepthBin"></param>
         /// <param name="minFrameGap"></param>
         /// <param name="minFramesAllowedForMonoCalibration"></param>
+        /// <param name="maxFramesAllowedForMonoCalibration"></param>
         /// <returns></returns>
 
         private enum IterationElement
@@ -222,15 +229,15 @@ namespace Surveyor.Controls
             cornerAdjustment
         }
 
-
-
         public async Task<(int, IterationResultList)> DoIterationBestFramesAndCalibrationMonoCalcsAsync(Reporter report,
                                                              CalibProject calibProject,
                                                              ProcessingInfoBar infoBarProcessing,
                                                              bool trueLeftFalseRight,
-                                                             double movementMinThresholdStart,
+                                                             double movementThresholdStart,
+                                                             double movementThresholdEnd,
                                                              double movementThresholdStepUp,
                                                              double blurMinThreshold,
+                                                             int monoCornersMinThresholdStart,
                                                              int monoCornersMinThresholdEnd,
                                                              int monoCornersThresholdStepDown,
                                                              int maxFramesFromEachSensorBin,
@@ -276,24 +283,30 @@ namespace Surveyor.Controls
             try
             {
                 // Loop up between the movement iteration range
-                for (double movementMinThreshold = movementMinThresholdStart;
-                     movementMinThreshold < CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE;
+                for (double movementMinThreshold = movementThresholdStart ;
+                     movementMinThreshold < movementThresholdEnd;
                      movementMinThreshold += movementThresholdStepUp)
                 {
+                    // Check for cancellation at the start of outer loop
+                    cancellationToken.ThrowIfCancellationRequested();
+
                     // Iteration settings control loop
                     // manages alternating between adjusting movement and corner thresholds
                     // and the stopping conditions for the iteration
 
                     // Loop down between the corners range
-                    for (int monoCornersMinThreshold = calibrationBoardDefinition.GetTotalSquareCount();
+                    for (int monoCornersMinThreshold = monoCornersMinThresholdStart;
                          monoCornersMinThreshold >= monoCornersMinThresholdEnd;
                          monoCornersMinThreshold -= monoCornersThresholdStepDown)
                     {
+                        // Check for cancellation at the start of inner loop
+                        cancellationToken.ThrowIfCancellationRequested();
+
                         iterationNumber++;
 
                         // Report inputs
                         safeUICall.Call(() => CalibrationIterationViewerLeft.RefreshInputsAndCounts(
-                                                    movementMinThreshold, movementMinThresholdStart, CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE - 0.1,
+                                                    movementMinThreshold, movementThresholdStart , CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE - 0.1,
                                                     monoCornersMinThreshold, calibrationBoardDefinition.GetTotalSquareCount(), monoCornersMinThresholdEnd,
                                                     blurMinThreshold,
                                                     bestFrameCount: 0, iterationNumber));
@@ -317,7 +330,7 @@ namespace Surveyor.Controls
                         {
                             // Report inputs and best frames count
                             safeUICall.Call(() => CalibrationIterationViewerLeft.RefreshInputsAndCounts(
-                                                        movementMinThreshold, movementMinThresholdStart, CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE,
+                                                        movementMinThreshold, movementThresholdStart , CalibProject.DataClass.CalibrationInputsClass.MOVEMENT_LARGE_VALUE,
                                                         monoCornersMinThreshold, calibrationBoardDefinition.GetTotalSquareCount(), monoCornersMinThresholdEnd,
                                                         blurMinThreshold,
                                                         bestFramesList.Count, iterationNumber));

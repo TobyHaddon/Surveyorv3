@@ -33,7 +33,7 @@ namespace Surveyor.Helper
             // Get the Calibration ID from the preferred calibration data
             if (survey is not null)
             {
-                CalibrationData? calibrationData = survey!.Data.Calibration.GetPreferredCalibationData(frameWidth, frameHeight);
+                CalibrationData? calibrationData = survey!.Data.Calibration.GetPreferredCalibrationData(frameWidth, frameHeight);
 
                 if (calibrationData is not null)
                 {

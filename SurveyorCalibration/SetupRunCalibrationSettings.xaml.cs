@@ -1,4 +1,5 @@
 //???using iText.Forms.Form.Element;
+using CommunityToolkit.WinUI.Controls;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -57,6 +58,12 @@ namespace Surveyor
             navParams.calibProject.Data.CalibrationInputs.BlurFilterValue = navParams.BlurFilterWorkingValue;
             navParams.calibProject.Data.CalibrationInputs.MonoCornersFilterValue = navParams.MonoCornersFilterWorkingValue;
             navParams.calibProject.Data.CalibrationInputs.StereoCornersFilterValue = navParams.StereoCornersFilterWorkingValue;
+            navParams.calibProject.Data.CalibrationInputs.MinFrameGapValue = navParams.MinFrameGapWorkingValue;
+            navParams.calibProject.Data.CalibrationInputs.MinFramesAllowedForMonoCalibrationValue = navParams.MinFramesAllowedForMonoCalibrationWorkingValue;
+            navParams.calibProject.Data.CalibrationInputs.MaxFramesAllowedForMonoCalibrationValue = navParams.MaxFramesAllowedForMonoCalibrationWorkingValue;
+            navParams.calibProject.Data.CalibrationInputs.MinFramesAllowedForStereoCalibrationValue = navParams.MinFramesAllowedForStereoCalibrationWorkingValue;
+            navParams.calibProject.Data.CalibrationInputs.MaxFramesAllowedForStereoCalibrationValue = navParams.MaxFramesAllowedForStereoCalibrationWorkingValue;
+
         }
 
         /// <summary>
@@ -423,6 +430,34 @@ namespace Surveyor
         }
 
 
+        private void OnRangeSelectorValueChanged(object sender, RangeChangedEventArgs e)
+        {
+            if (sender is RangeSelector rangeSelector)
+            {
+                double min = rangeSelector.Minimum;
+                double max = rangeSelector.Maximum;
+
+                // Example: update text
+                MinMaxFramesAllowedForMonoCalibrationValue.Text =
+                    $"{(int)min}–{(int)max}";
+            }
+        }
+
+        private void OnRangeSelectorPointerPressed(object sender, PointerRoutedEventArgs e)
+        {
+
+        }
+
+        private void OnRangeSelectorPointerReleased(object sender, PointerRoutedEventArgs e)
+        {
+
+        }
+
+        private void OnRangeSelectorPointerCaptureLost(object sender, PointerRoutedEventArgs e)
+        {
+
+        }
+
         /// <summary>
         /// This used to allow the user to manual go to a frame
         /// This method ensure only numbers are entered into the frame edit box
@@ -431,15 +466,52 @@ namespace Surveyor
         /// <param name="args"></param>
         private void TextBox_AllowPositiveTo1DP(TextBox sender, TextBoxBeforeTextChangingEventArgs args)
         {
-            string input = args.NewText;
+            string text = args.NewText;
 
-            // Define the valid patterns:
-            // Matches: 10 10.1 0.9 .9
-            // Doesn’t match: -1 10. 10.12.abc
+            // Allow empty while editing
+            if (string.IsNullOrEmpty(text))
+            {
+                args.Cancel = false;
+                return;
+            }
 
-            var validPattern = @"^(?:\d+(?:\.\d)?|\.\d)$";
+            int dotCount = 0;
+            int dotIndex = -1;
 
-            args.Cancel = !Regex.IsMatch(input, validPattern, RegexOptions.IgnoreCase);
+            for (int i = 0; i < text.Length; i++)
+            {
+                char c = text[i];
+
+                if (c == '.')
+                {
+                    dotCount++;
+                    if (dotCount > 1)
+                    {
+                        args.Cancel = true;
+                        return;
+                    }
+
+                    dotIndex = i;
+                }
+                else if (!char.IsDigit(c))
+                {
+                    args.Cancel = true;
+                    return;
+                }
+            }
+
+            // Enforce max 1 decimal place
+            if (dotIndex >= 0)
+            {
+                int decimals = text.Length - dotIndex - 1;
+                if (decimals > 1)
+                {
+                    args.Cancel = true;
+                    return;
+                }
+            }
+
+            args.Cancel = false;
         }
 
 
@@ -573,6 +645,64 @@ namespace Surveyor
         /// <param name="sender"></param>
         /// <param name="e"></param>
         private void StereoCornerFilterValueEdit_LostFocus(object sender, RoutedEventArgs e) => _ = SliderTextBox_LostFocusAsync(StereoCornerFilterSlider, StereoCornerFilterValue, StereoCornerFilterValueEdit, controlPreviousFocus);
+
+
+        /// <summary>
+        /// Used to allow Min Frame Gap value to be edited
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MinFrameGap_Tapped(object sender, TappedRoutedEventArgs e)
+        {
+            SliderTextBlockEditTapped(MinFrameGapValue, MinFrameGapValueEdit);
+        }
+
+
+        /// <summary>
+        /// Used to allow Min Frame Gap value to be edited
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>        
+        private void MinFrameGapEdit_KeyDown(object sender, KeyRoutedEventArgs e) => _ = SliderTextBox_KeyDownAsync(e, MinFrameGapSlider, MinFrameGapValue, MinFrameGapValueEdit, controlPreviousFocus);
+
+
+        /// <summary>
+        /// Used to allow Min Frame Gap value to be edited
+        /// If the user clicks away from the text box control then the new slider value is accepted 
+        /// (like pressing ENTER)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MinFrameGapEdit_LostFocus(object sender, RoutedEventArgs e) => _ = SliderTextBox_LostFocusAsync(MinFrameGapSlider, MinFrameGapValue, MinFrameGapValueEdit, controlPreviousFocus);
+
+
+        /// <summary>
+        /// Used to allow Min Max Frames Allowed For Mono Calibration value to be edited
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void MinMaxFramesAllowedForMonoCalibration_Tapped(object sender, TappedRoutedEventArgs e)
+        {
+            //???SliderTextBlockEditTapped(MinMaxFramesAllowedForMonoCalibrationValue, MinMaxFramesAllowedForMonoCalibrationEdit);
+        }
+
+
+        /// <summary>
+        /// Used to allow Min Max Frames Allowed For Mono Calibration value to be edited
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>        
+        //???private void MinMaxFramesAllowedForMonoCalibrationEdit_KeyDown(object sender, KeyRoutedEventArgs e) => _ = RangeSelectorTextBox_KeyDownAsync(e, MinMaxFramesAllowedForMonoCalibrationSlider, MinMaxFramesAllowedForMonoCalibrationValue, MinMaxFramesAllowedForMonoCalibrationEdit, controlPreviousFocus);
+
+
+        /// <summary>
+        /// Used to allow Min Max Frames Allowed For Mono Calibration value to be edited
+        /// If the user clicks away from the text box control then the new slider value is accepted 
+        /// (like pressing ENTER)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        //???private void MinMaxFramesAllowedForMonoCalibrationEdit_LostFocus(object sender, RoutedEventArgs e) => _ = RangeSelectorTextBox_LostFocusAsync(MinMaxFramesAllowedForMonoCalibrationSlider, MinMaxFramesAllowedForMonoCalibrationValue, MinMaxFramesAllowedForMonoCalibrationEdit, controlPreviousFocus);
 
 
         /// <summary>
@@ -738,7 +868,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// This used to allow the user to manual go to a frame
+        /// This used to allow the user to manual edit the slider value
         /// The method detect ESC to cancel the operation and ENTER to accept the new frame number
         /// </summary>
         /// <param name="sender"></param>
@@ -826,6 +956,12 @@ namespace Surveyor
                             // actions after do mono calibration calculations checkbox
                             SetActionsDownstreamOf(DoCalibrationMonoCalculationsCheckBox, true/*To checked on*/);
                         break;
+                    case TextBox tb when tb == MinFrameGapValueEdit:
+                        if (navParams.IsMinFrameGapWorkingChanged())
+                            // If the min frame gap working value has changed then set all the
+                            // actions after the BestFrameSets checkbox
+                            SetActionsDownstreamOf(BuildFrameSetsCheckBox, true/*To checked on*/);
+                        break;
                 }
             }
         }
@@ -847,6 +983,99 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// This used to allow the user to manual go to a frame
+        /// The method detect ESC to cancel the operation and ENTER to accept the new frame number
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>        
+        private async Task RangeSelectorTextBox_KeyDownAsync(KeyRoutedEventArgs e, RangeSelector slider, TextBlock controlText, TextBox controlEdit, Object? controlPreviousFocus)
+        {
+            if (e.Key == Windows.System.VirtualKey.Escape)
+            {
+                // Handle ESC key press
+                controlEdit.Visibility = Visibility.Collapsed;
+                e.Handled = true;
 
+                await ControlEditCollapsedAndReturnFocusAsync(controlText, controlEdit, controlPreviousFocus);
+            }
+            else if (e.Key == Windows.System.VirtualKey.Enter)
+            {
+                // Handle ENTER key press
+                e.Handled = true;
+
+                // Set the slider value
+                ProcessRangeSelectorTextBoxEdit(controlEdit, slider);
+
+                // Hide the ControlFrameEdit control and restore the original focus
+                await ControlEditCollapsedAndReturnFocusAsync(controlText, controlEdit, controlPreviousFocus);
+            }
+        }
+
+
+        /// <summary>
+        /// This used to allow the user to directly manually edit a slider value
+        /// If the user clicks away from the text box control then the new slider value is accepted 
+        /// (like pressing ENTER)
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private async Task RangeSelectorTextBox_LostFocusAsync(RangeSelector slider, TextBlock controlText, TextBox controlEdit, Object? controlPreviousFocus)
+        {
+            // Check if the focus was lost programmatically or by the user clicking away
+            if (controlText.Visibility == Visibility.Collapsed)
+            {
+                // Get the new frame number from the TextBox and request a jump to that frame
+                ProcessRangeSelectorTextBoxEdit(controlEdit, slider);
+
+                // Hide the text box control and restore the original focus
+                await ControlEditCollapsedAndReturnFocusAsync(controlText, controlEdit, controlPreviousFocus);
+            }
+        }
+
+
+        /// <summary>
+        /// Used to get any value TextBox and set the range selector value
+        /// </summary>
+        private void ProcessRangeSelectorTextBoxEdit(TextBox ControlEdit, RangeSelector slider)
+        {
+            //if (double.TryParse(ControlEdit.Text, out double value) == true)
+            //{
+            //    slider.Value = value;
+
+            //    // Guard
+            //    if (navParams is null) return;
+
+            //    switch (ControlEdit)
+            //    {
+            //        case TextBox tb when tb == MovementFilterValueEdit:
+            //            if (navParams.IsMovementFilterChanged())
+            //                // If the movement filter has changed then set all the
+            //                // actions after the BestFrameSets checkbox
+            //                SetActionsDownstreamOf(BuildFrameSetsCheckBox, true/*To checked on*/);
+            //            break;
+            //        case TextBox tb when tb == BlurFilterValueEdit:
+            //            if (navParams.IsBlurFilterChanged())
+            //                // If the blur filter has changed then set all the
+            //                // actions after the BestFrameSets checkbox
+            //                SetActionsDownstreamOf(BuildFrameSetsCheckBox, true/*To checked on*/);
+            //            break;
+            //        case TextBox tb when tb == MonoCornerFilterValueEdit:
+            //            if (navParams.IsMonoCornersFilterChanged())
+            //                // If the mono corner filter has changed then set all the
+            //                // actions after the BestFrameSets checkbox
+            //                SetActionsDownstreamOf(BuildFrameSetsCheckBox, true/*To checked on*/);
+            //            break;
+            //        case TextBox tb when tb == StereoCornerFilterValueEdit:
+            //            if (navParams.IsStereoCornersFilterChanged())
+            //                // If the stereo corner filter has changed then set all the
+            //                // actions after do mono calibration calculations checkbox
+            //                SetActionsDownstreamOf(DoCalibrationMonoCalculationsCheckBox, true/*To checked on*/);
+            //            break;
+                    
+       
+            //    }
+            //}
+        }
     }
 }
