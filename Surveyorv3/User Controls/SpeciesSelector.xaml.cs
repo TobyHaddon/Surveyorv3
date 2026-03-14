@@ -49,7 +49,7 @@ namespace Surveyor.User_Controls
         private IPointData? _pointContext;
         private Surveyor.Survey.DataClass.SurveyRulesClass? _rulesContext;
 
-        // Updatable image list to hold the fish images. Dynamically bound to the GridView
+        // Image list to hold the fish images. Dynamically bound to the GridView
         public ObservableCollection<ImageDataObject> ImageList { get; set; } = [];
 
 

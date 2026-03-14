@@ -1,5 +1,5 @@
 ﻿// StereoProjection
-// Stereo projection maths support
+// Stereo projection math support
 // 
 // Previous:
 // Version 1.1  02 Feb 2025
@@ -33,7 +33,7 @@ namespace Surveyor
     /// StereoProjection Version 1.3
     /// This class is used to calculate the distance between a pair of corresponding 2D points in the left and right images
     /// It intentionally uses a mixture of Emgu.CV and MathNET.Numerics types and also System.Drawing (where the System.Windows.Point and System.Drawing.Point types are not compatible)
-    /// Modifed for WinUI3
+    /// Modified for WinUI3
     /// </summary>
 
     public class StereoProjection
@@ -45,7 +45,7 @@ namespace Surveyor
         // This string is used to check if calibrationClass has changed 
         private string calibationDataUniqueString = "";
 
-        // Calulated variables.  These calulcated values at declared to be in parallel with the  
+        // Calculated variables.  These calculated values at declared to be in parallel with the  
         // calibrationClass.CalibrationDataList. 
         private Matrix<double>?[]? essentialMatrixArray = null; /*Matrix<double>(3, 3);*/
         private Matrix<double>?[]? fundamentalMatrixArray = null;
@@ -102,7 +102,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Diags dump of class information
+        /// Diagnostics dump of class information
         /// </summary>
         public void DumpAllProperties(Reporter? report)
         {
@@ -122,13 +122,13 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Load the calilbration data.
+        /// Load the calibration data.
         /// Can't to called and re-called multiple times.
         /// </summary>
         /// <param name="_calibrationClass"></param>
         public void SetCalibrationData(Survey.DataClass.CalibrationClass _calibrationClass)
         {
-            // Remember the calibrtation data instance
+            // Remember the calibration data instance
             calibrationClass = _calibrationClass;
 
             // Reset            
@@ -300,7 +300,7 @@ namespace Surveyor
             RPointA = null;
             RPointB = null;
 
-            // Reset calulated variables
+            // Reset calculated variables
             vecAUndistortedArray = null;
             vecBUndistortedArray = null;
             vecABMidArray = null;
@@ -312,7 +312,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Calulate the distane between the two measurement points
+        /// Calculate the distance between the two measurement points
         /// </summary>
         /// <returns></returns>
         public double? Measurement(int calibrationDataIndex = -1)
@@ -334,7 +334,7 @@ namespace Surveyor
                     if (vecA is not null && vecB is not null)
                     {
                         ret = DistanceBetween3DPoints((MCvPoint3D64f)vecA, (MCvPoint3D64f)vecB);
-                        report?.Out(Reporter.WarningLevel.Info, "", $"---Length using {(idx == calibrationClass.PreferredCalibrationDataIndex ? "preferred" : "selected")} Calibration Data[{calibrationClass!.CalibrationDataList[idx].Description}] Measurement = {Math.Round((double)ret * 1000,1)}mm, RMS A:{(RMSErrorAArray![idx] * 1000) ?? -1:F0}mm B:{(RMSErrorBArray![idx] * 1000) ?? -1:F0}mm");
+                        report?.Out(Reporter.WarningLevel.Debug, "", $"---Length using {(idx == calibrationClass.PreferredCalibrationDataIndex ? "preferred" : "selected")} Calibration Data[{calibrationClass!.CalibrationDataList[idx].Description}] Measurement = {Math.Round((double)ret * 1000,1)}mm, RMS A:{(RMSErrorAArray![idx] * 1000) ?? -1:F0}mm B:{(RMSErrorBArray![idx] * 1000) ?? -1:F0}mm");
                     }
 
                     // If default was used (preferred) and no explicit index provided, also log other available calibrations for info
@@ -352,7 +352,7 @@ namespace Surveyor
                                     if (vecA is not null && vecB is not null)
                                     {
                                         double measurementAlt = DistanceBetween3DPoints((MCvPoint3D64f)vecA, (MCvPoint3D64f)vecB);
-                                        report?.Out(Reporter.WarningLevel.Info, "", $"---Length using non-preferred Calibration Data[{calibrationClass!.CalibrationDataList[i].Description}] Measurement = {Math.Round(measurementAlt * 1000,1)}mm, RMS A:{(RMSErrorAArray![i] * 1000) ?? -1:F0}mm B:{(RMSErrorBArray![i] * 1000) ?? -1:F0}mm");
+                                        report?.Out(Reporter.WarningLevel.Debug, "", $"---Length using non-preferred Calibration Data:[{calibrationClass!.CalibrationDataList[i].Description}] Measurement = {Math.Round(measurementAlt * 1000,1)}mm, RMS A:{(RMSErrorAArray![i] * 1000) ?? -1:F0}mm B:{(RMSErrorBArray![i] * 1000) ?? -1:F0}mm");
                                     }
                                 }
                             }
@@ -366,7 +366,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Calcualte the reproject error either for:
+        /// Calculate the re-project error either for:
         /// LPointA & RPointA if TRUEPointAFALSEPointBNullBoth is True
         /// LPointB & RPointB if TRUEPointAFALSEPointBNullBoth is False
         /// or the mean of LPointA & RPointA and LPointB & RPointB if TRUEPointAFALSEPointBNullBoth is null
@@ -447,7 +447,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Calulcate the distance from the centre point of the camera system to the centre point 
+        /// Calculate the distance from the center point of the camera system to the center point 
         /// of the measurement points
         /// </summary>
         /// <returns></returns>
@@ -470,6 +470,9 @@ namespace Surveyor
                 }
             }
 
+            // Round range to nearest mm
+            if (ret is not null)
+                ret = Math.Round((double)ret, 3, MidpointRounding.AwayFromZero);
 
             return ret;
         }
@@ -477,10 +480,10 @@ namespace Surveyor
 
         /// <summary>
         /// Calculate the distance in the X direction between the camera system centre and the 
-        /// centre of the measurement points
+        /// center of the measurement points
         /// </summary>
         /// <returns></returns>
-        public double? XOffsetFromCameraSystemCentrePointToMeasurementCentrePoint(int calibrationDataIndex = -1)
+        public double? XOffsetFromCameraSystemCenterPointToMeasurementCentrePoint(int calibrationDataIndex = -1)
         {
             double? ret = null;
 
@@ -499,16 +502,20 @@ namespace Surveyor
                 }
             }
 
+            // Round range to nearest mm
+            if (ret is not null)
+                ret = Math.Round((double)ret, 3, MidpointRounding.AwayFromZero);
+
             return ret;
         }
 
 
         /// <summary>
-        /// Calculate the distance in the Y direction between the camera system centre and the 
-        /// centre of the measurement points
+        /// Calculate the distance in the Y direction between the camera system center and the 
+        /// center of the measurement points
         /// </summary>
         /// <returns></returns>
-        public double? YOffsetFromCameraSystemCentrePointToMeasurementCentrePoint(int calibrationDataIndex = -1)
+        public double? YOffsetFromCameraSystemCenterPointToMeasurementCentrePoint(int calibrationDataIndex = -1)
         {
             double? ret = null;
 
@@ -526,6 +533,10 @@ namespace Surveyor
                     ret = ((MCvPoint3D64f)vecABMid).Y - ((MCvPoint3D64f)cameraSystemCentre).Y;
                 }
             }
+
+            // Round range to nearest mm
+            if (ret is not null)
+                ret = Math.Round((double)ret, 3, MidpointRounding.AwayFromZero);
 
             return ret;
         }
@@ -547,6 +558,8 @@ namespace Surveyor
         }
         public double? RMS(RMSMode mode, int calibrationDataIndex = -1)
         {
+            double? ret = null;
+
             double? a, b;
             if (calibrationDataIndex == -1)
             {
@@ -564,26 +577,43 @@ namespace Surveyor
             switch (mode)
             {
                 case RMSMode.AOnly:
-                    return a;
+                    ret = a;
+                    break;
                 case RMSMode.BOnly:
-                    return b;
-
+                    ret = b;
+                    break;
                 case RMSMode.Mean:
-                    if (a is null) return b;
-                    if (b is null) return a;
-                    return 0.5 * (a.Value + b.Value);
-
+                    if (a is null) 
+                        ret = b;
+                    else if (b is null) 
+                        ret = a;
+                    else
+                        ret = 0.5 * (a.Value + b.Value);
+                    break;
                 case RMSMode.Quadrature:
-                    if (a is null) return b;
-                    if (b is null) return a;
-                    return Math.Sqrt(0.5 * (a.Value * a.Value + b.Value * b.Value));
-
+                    if (a is null) 
+                        ret = b;
+                    else if (b is null) 
+                        ret = a;
+                    else
+                        ret = Math.Sqrt(0.5 * (a.Value * a.Value + b.Value * b.Value));
+                    break;
                 case RMSMode.Worst:
                 default:
-                    if (a is null) return b;
-                    if (b is null) return a;
-                    return Math.Max(a.Value, b.Value);
+                    if (a is null) 
+                        ret = b;
+                    else if (b is null) 
+                        ret = a;
+                    else
+                        ret = Math.Max(a.Value, b.Value);
+                    break;
             }
+
+            // Round range to nearest mm
+            if (ret is not null)
+                ret = Math.Round((double)ret, 3, MidpointRounding.AwayFromZero);
+
+            return ret;
         }
 
 
@@ -606,7 +636,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Calulcate the epipolar line for a given point (distorted point) in the left or right image
+        /// Calculate the epipolar line for a given point (distorted point) in the left or right image
         /// </summary>
         /// <param name="TrueLeftFalseRight"></param>
         /// <param name="point"></param>
@@ -1155,7 +1185,7 @@ namespace Surveyor
                 // Calculate the rays from each camera so the RMS error can be calculated
                 if (cd.StereoCameraCalibration.Translation is not null)
                 {
-                    // Get Camera Centres                    
+                    // Get Camera Centers                    
                     var leftCameraCentre = MathNet.Numerics.LinearAlgebra.Vector<double>.Build.DenseOfArray([0.0, 0.0, 0.0]);
 
                     var R = cd.StereoCameraCalibration.Rotation!;
@@ -1269,9 +1299,9 @@ namespace Surveyor
         /// <summary>
         /// Compute the minimum distance between two rays in 3D space
         /// </summary>
-        /// <param name="C1">Camera one centre 3D coordinate</param>
+        /// <param name="C1">Camera one center 3D coordinate</param>
         /// <param name="d1">Camera one ray direction vector</param>
-        /// <param name="C2">Camera two centre 3D coordinate</param>
+        /// <param name="C2">Camera two center 3D coordinate</param>
         /// <param name="d2">Camera two ray direction vector</param>
         /// <returns></returns>
         public static double ComputeMinimumDistance(MathNet.Numerics.LinearAlgebra.Vector<double> C1,

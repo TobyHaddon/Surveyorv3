@@ -8,6 +8,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
+//???using Microsoft.UI.Xaml.Shapes;
 using Newtonsoft.Json;
 using OfficeOpenXml;
 using Surveyor.Events;
@@ -18,6 +19,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+//using System.Drawing;
 //using System.Drawing;
 using System.Globalization;
 using System.IO;
@@ -31,11 +33,19 @@ using Windows.Storage.Provider;
 using WinRT.Interop;
 using WinUIEx;
 using static Surveyor.Survey.DataClass;
+using static Surveyor.User_Controls.BulkSurveyExportDialog;
 
 
 
 namespace Surveyor.User_Controls
 {
+    // COCO Image
+    public class COCOImageDataObject
+    {
+        public string Title { get; set; } = string.Empty;
+        public string ImageFileSpec { get; set; } = string.Empty;
+    }
+
     /// <summary>
     /// An empty window that can be used on its own or navigated to within a Frame.
     /// </summary>
@@ -43,8 +53,9 @@ namespace Surveyor.User_Controls
     {
         // Export Types
         public enum ExportType { Excel, COCO };
-        private ExportType exportType; 
+        private ExportType exportType;
 
+        // The list of survey files to export with their associated metadata
         public ObservableCollection<SurveyFileEntry> SurveyFiles { get; set; } = [];
 
         private bool noSaveOptionSelected_ExportMetadataOnly = false;
@@ -100,6 +111,9 @@ namespace Surveyor.User_Controls
             Family, Genus, Species
         }
 
+        // COCO Image list
+        public ObservableCollection<COCOImageDataObject> COCODatasetImages { get; set; } = [];
+
         public BulkSurveyExportDialog(ExportType _exportType, Reporter? _report, SpeciesCodeList _speciesCodeList)
         {
             // Remember the reporter & species code list
@@ -108,10 +122,11 @@ namespace Surveyor.User_Controls
             speciesCodeList = _speciesCodeList;
 
 
-            // Remove the separate title bar from the window
-            ExtendsContentIntoTitleBar = true;
-
             this.InitializeComponent();
+
+            // Use custom title bar area
+            ExtendsContentIntoTitleBar = true;                        
+            SetTitleBar(CustomTitleBar);
 
             // Set the title based on the export type
             SurveyExportTitle.Text = exportType switch
@@ -125,24 +140,38 @@ namespace Surveyor.User_Controls
             SurveyGrid.ItemsSource = SurveyFiles;
 
             // Subscribe to data grid changes and keep the selected count at the bottom up-to-date
-            SurveyFiles.CollectionChanged += (s, e) =>
+            SurveyFiles.CollectionChanged += SurveyFiles_CollectionChanged;
+
+            // Hide/hide control based on export type
+            switch (exportType)
             {
-                if (e.NewItems != null)
-                {
-                    foreach (SurveyFileEntry item in e.NewItems)
-                    {
-                        item.PropertyChanged += (s2, e2) =>
-                        {
-                            if (e2.PropertyName == nameof(SurveyFileEntry.Include))
-                            {
-                                UpdateItemCountText();
-                                UpdateButtons();
-                                UpdateSelectAllCheckBoxState();
-                            }
-                        };
-                    }
-                }               
-            };
+                case ExportType.Excel:
+                    // Controls that are visible for Excel export
+                    InstructionsExcel.Visibility = Visibility.Visible;
+                    InstructionsCOCO.Visibility = Visibility.Collapsed;
+                    IncludePartialIdentification.Visibility = Visibility.Visible;
+                    DeriveMissingSpecies.Visibility = Visibility.Visible;
+                    ApplyAverageLengths.Visibility = Visibility.Visible;
+                    ExtractRawFrame.Visibility = Visibility.Collapsed;
+                    ExtractCroppedImage.Visibility = Visibility.Collapsed;
+                    BoxRawFrame.Visibility = Visibility.Collapsed;
+                    MarkRawFrame.Visibility = Visibility.Collapsed;
+                    MoreActionsButton.Visibility = Visibility.Visible;
+                    break;
+                case ExportType.COCO:
+                    // Controls that are visible for COCO JSON export
+                    InstructionsExcel.Visibility = Visibility.Collapsed;
+                    InstructionsCOCO.Visibility = Visibility.Visible;
+                    IncludePartialIdentification.Visibility = Visibility.Collapsed;
+                    DeriveMissingSpecies.Visibility = Visibility.Collapsed;
+                    ApplyAverageLengths.Visibility = Visibility.Collapsed;
+                    ExtractRawFrame.Visibility = Visibility.Visible;
+                    ExtractCroppedImage.Visibility = Visibility.Visible;
+                    BoxRawFrame.Visibility = Visibility.Visible;
+                    MarkRawFrame.Visibility = Visibility.Visible;
+                    MoreActionsButton.Visibility = Visibility.Collapsed;
+                    break;
+            }
 
             // Initial update
             UpdateSelectAllCheckBoxState();
@@ -155,11 +184,45 @@ namespace Surveyor.User_Controls
         /// EVENTS
         /// 
 
+
+        private void SurveyFiles_CollectionChanged(object? sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            if (e.OldItems is not null)
+            {
+                foreach (SurveyFileEntry item in e.OldItems)
+                    item.PropertyChanged -= SurveyFileEntry_PropertyChanged;
+            }
+
+            if (e.NewItems is not null)
+            {
+                foreach (SurveyFileEntry item in e.NewItems)
+                    item.PropertyChanged += SurveyFileEntry_PropertyChanged;
+            }
+        }
+
+
+        private void SurveyFileEntry_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(SurveyFileEntry.Include))
+            {
+                UpdateItemCountText();
+                UpdateButtons();
+                UpdateSelectAllCheckBoxState();
+            }
+        }
+
         private void SelectFolder_Click(object sender, RoutedEventArgs e) => _ = SelectFolderClickAsync();
 
+        /// <summary>
+        /// Get the user to select the folder to export survey files from
+        /// and build a list of those files and call ProcessSurveyFilesAsync
+        /// to export them
+        /// </summary>
         private int selectFolderEntryCount = 0;
         private async Task SelectFolderClickAsync()
         {
+            SelectDropDownButton.Content = "Select Folder";
+
             try
             {
                 int entryCount = Interlocked.Increment(ref selectFolderEntryCount);
@@ -174,7 +237,10 @@ namespace Surveyor.User_Controls
                     if (folder != null)
                     {
                         FolderPathTextBox.Text = folder.Path;
-                        await ProcessSurveyFilesAsync(folder.Path, 
+
+                        List<string> files = [.. SafeEnumerateFiles(folder.Path, "*.survey", IncludeSubfoldersCheckBox.IsChecked == true)];
+                        
+                        await ProcessSurveyFilesAsync(files, 
                                                       IncludeSubfoldersCheckBox.IsChecked == true, 
                                                       false/*recalculate*/, 
                                                       false/*Save back to survey files*/);
@@ -185,16 +251,85 @@ namespace Surveyor.User_Controls
             catch (Exception ex)
             {
                 // Handle any exceptions that occur during the process
-                Debug.WriteLine($"BulkSurveyExportDialog.SelectFolder_Click Error {ex.Message}");
+                Debug.WriteLine($"BulkSurveyExportDialog.SelectFolderClickAsync Error {ex.Message}");
             }
             finally
             {
                 Interlocked.Decrement(ref selectFolderEntryCount);
             }
-
         }
 
-        private async Task ProcessSurveyFilesAsync(string path, bool includeSubfolders, bool recalc, bool save, CalibrationData? calibrationData = null)
+        private void SelectFiles_Click(object sender, RoutedEventArgs e) => _ = SelectFilesClickAsync();
+
+
+        /// <summary>
+        /// Get the user to select the survey files to export from
+        /// and call ProcessSurveyFilesAsync to export them
+        /// </summary>
+        private int selectFilesEntryCount = 0;
+        private async Task SelectFilesClickAsync()
+        {
+            SelectDropDownButton.Content = "Select Files";
+
+            try
+            {
+                int entryCount = Interlocked.Increment(ref selectFilesEntryCount);
+                // Make sure we only open the settings window once.
+                // This can happen if the survey and movies are loaded and the user clicks the settings a few times.
+                if (entryCount == 1)
+                {
+                    FileOpenPicker openPicker = new()
+                    {
+                        ViewMode = PickerViewMode.List,
+                        SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+                    };
+
+                    // Filter: Surveys (*.survey)
+                    openPicker.FileTypeFilter.Add(".survey");
+
+                    // Associate picker with this window
+                    IntPtr hWnd = WindowNative.GetWindowHandle(this);
+                    InitializeWithWindow.Initialize(openPicker, hWnd);
+
+                    IReadOnlyList<StorageFile> pickedFiles = await openPicker.PickMultipleFilesAsync();
+
+                    if (pickedFiles is not null && pickedFiles.Count > 0)
+                    {
+                        List<string> files = [.. pickedFiles
+                            .Select(f => f.Path)
+                            .Where(p => !string.IsNullOrWhiteSpace(p))];
+
+                        if (files.Count > 0)
+                        {
+                            FolderPathTextBox.Text = files.Count == 1
+                                ? files[0]
+                                : $"{files.Count} survey files selected";
+
+                            await ProcessSurveyFilesAsync(
+                                files,
+                                false/*includeSubfolders not used for explicit file selection*/,
+                                false/*recalculate*/,
+                                false/*save*/);
+
+                            UpdateButtons();
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // Handle any exceptions that occur during the process
+                Debug.WriteLine($"BulkSurveyExportDialog.SelectFilesClickAsync Error {ex.Message}");
+            }
+            finally
+            {
+                Interlocked.Decrement(ref selectFilesEntryCount);
+            }
+        }
+
+
+
+        private async Task ProcessSurveyFilesAsync(List<string> files, bool includeSubfolders, bool recalc, bool save, CalibrationData? calibrationData = null)
         {
             SurveyFiles.Clear();
             ItemCountTextBlock.Text = "";
@@ -214,11 +349,10 @@ namespace Surveyor.User_Controls
             {
                 var entries = new List<SurveyFileEntry>();
                 int totalTransects = 0;
-                var files = SafeEnumerateFiles(path, "*.survey", includeSubfolders).ToList();
 
                 var distinctSpeciesPointsBySurvey = new DistinctSpeciesListForPointEventsPerSurvey();
 
-                foreach (var fileSpec in files)
+                foreach (string fileSpec in files)
                 {
                     try
                     {
@@ -234,20 +368,13 @@ namespace Surveyor.User_Controls
                             string mediaFileLeft = survey.GetLeftMediaFileSpec(0);
 
                             // Get the frame size and frame rate
-                            Dictionary<string, string> fileProperties = await GetMP4FileProperities.ExtractProperties(mediaFileLeft);
-                            if (fileProperties.TryGetValue("Video.Width", out string? width) &&
-                                fileProperties.TryGetValue("Video.Height", out string? height))
-                            {
-                                try
-                                {
-                                    frameWidth = Int32.Parse(width);
-                                    frameHeight = Int32.Parse(height);
-                                }
-                                catch (Exception ex)
-                                {
-                                    report?.Error("", $"Failed to parse video frame size from {mediaFileLeft}: {ex.Message}");
-                                }
-                            }
+                            CalibrationData? calibrationData = survey.Data.Calibration.GetPreferredCalibrationData(null, null);
+
+                            if (calibrationData is null)
+                                continue;
+
+                            // Try to get frame sizes
+                            (frameWidth, frameHeight) = calibrationData.LeftCameraCalibration.GetFrameSize();
 
                             // Force a recalculate?
                             if (recalc == true)
@@ -971,8 +1098,12 @@ namespace Surveyor.User_Controls
         {        
             if (!string.IsNullOrEmpty(FolderPathTextBox.Text))
             {
-                string fileSpec = FolderPathTextBox.Text;
-                await ProcessSurveyFilesAsync(fileSpec,
+                // Make file list from the 
+                List<string> files = [.. SurveyFiles
+                                        .Where(sf => !sf.IsTotalRow && !string.IsNullOrWhiteSpace(sf.FilePath))
+                                        .Select(sf => sf.FilePath)];
+                
+                await ProcessSurveyFilesAsync(files,
                                               IncludeSubfoldersCheckBox.IsChecked == true,
                                               true/*recalculation*/,
                                               trueSaveFalseNoSave/*Save back to survey files*/);
@@ -1015,8 +1146,12 @@ namespace Surveyor.User_Controls
 
             if (calibrationData is not null && !string.IsNullOrEmpty(FolderPathTextBox.Text))
             {
-                string fileSpec = FolderPathTextBox.Text;
-                await ProcessSurveyFilesAsync(fileSpec, 
+                // Make file list from the 
+                List<string> files = [.. SurveyFiles
+                                        .Where(sf => !sf.IsTotalRow && !string.IsNullOrWhiteSpace(sf.FilePath))
+                                        .Select(sf => sf.FilePath)];
+
+                await ProcessSurveyFilesAsync(files, 
                                               IncludeSubfoldersCheckBox.IsChecked == true,
                                               true/*recalculate*/,
                                               trueSaveFalseNoSave/*Save back to survey files*/,
@@ -1917,7 +2052,6 @@ namespace Surveyor.User_Controls
 
             var images = new List<object>();
             var annotations = new List<object>();
-            var categories = new List<object>();
 
             static string ExtractScientificName(string? speciesField)
             {
@@ -1953,29 +2087,8 @@ namespace Surveyor.User_Controls
                 return [x, y, w, h];
             }
 
-
-            // Setup categories
-            // Category Family
-            categories.Add(new
-            {
-                id = CategoryId.Family,
-                name = CategoryId.Family.ToString(),
-                supercategory = "none"
-            });
-            // Category Genus
-            categories.Add(new
-            {
-                id = CategoryId.Genus,
-                name = CategoryId.Genus.ToString(),
-                supercategory = CategoryId.Family.ToString()
-            });
-            // Category Species
-            categories.Add(new
-            {
-                id = CategoryId.Species,
-                name = CategoryId.Species.ToString(),
-                supercategory = CategoryId.Genus.ToString()
-            });
+            // Setup the species/genus/family dictionaries
+            COCOCategory cocoCategory = new();
 
 
             // Data year earliest and latest
@@ -1983,7 +2096,6 @@ namespace Surveyor.User_Controls
             int? yearLatest = null;
 
             
-
             // Loop through each survey in the batch
             foreach (var fileEntry in SurveyFiles.Where(f => f.Include && !f.IsTotalRow))
             {
@@ -2007,16 +2119,8 @@ namespace Surveyor.User_Controls
 
                 // Try to get frame sizes
                 int leftWidth = 0, leftHeight = 0, rightWidth = 0, rightHeight = 0;
-
-                if (calibrationData.LeftCameraCalibration.ImageSize is not null)
-                    leftWidth = calibrationData.LeftCameraCalibration.ImageSize[0, 0];
-                if (calibrationData.LeftCameraCalibration.ImageSize is not null)
-                    leftHeight = calibrationData.LeftCameraCalibration.ImageSize[0, 1];
-
-                if (calibrationData.RightCameraCalibration.ImageSize is not null)
-                    rightWidth = calibrationData.RightCameraCalibration.ImageSize[0, 0];
-                if (calibrationData.RightCameraCalibration.ImageSize is not null)
-                    rightHeight = calibrationData.RightCameraCalibration.ImageSize[0, 1];
+                (leftWidth, leftHeight) = calibrationData.LeftCameraCalibration.GetFrameSize();
+                (rightWidth, rightHeight) = calibrationData.RightCameraCalibration.GetFrameSize();
 
 
                 string transectNumber = string.Empty;
@@ -2123,22 +2227,32 @@ namespace Surveyor.User_Controls
                             height = rightHeight
                         });
 
+
+                        // Add Species/Genus/Family to the category_id code list
+                        cocoCategory.Add(speciesScientificName, genus, familyScientificName);
+
+                        // Get the category IDs
+                        int category_idSpecies = cocoCategory.GetSpeciesID(speciesScientificName);
+                        int category_idGenus = cocoCategory.GetGenusID(genus);
+                        int category_idFamily = cocoCategory.GetFamilyID(familyScientificName);
+
+
                         // Detect category id based on available taxonomic information (family/genus/species)
                         CategoryId? category_id = null;
-                        if (!string.IsNullOrWhiteSpace(speciesScientificName))
+                        if (category_idSpecies != -1)
                         {
                             // Species level annotation
-                            category_id = CategoryId.Species;
+                            category_id = (CategoryId?)category_idSpecies;
                         }
-                        else if (!string.IsNullOrWhiteSpace(genus))
+                        else if (category_idGenus != -1)
                         {
                             // Genus level annotation
-                            category_id = CategoryId.Genus;
+                            category_id = (CategoryId?)category_idGenus;
                         }
-                        else if (!string.IsNullOrWhiteSpace(speciesInfo?.Family))
+                        else if (category_idFamily != -1)
                         {
                             // Family level annotation
-                            category_id = CategoryId.Family;
+                            category_id = (CategoryId?)category_idFamily;
                         }
 
                         // Left annotation
@@ -2201,6 +2315,7 @@ namespace Surveyor.User_Controls
                     yearText = $"{yearEarliest}-{yearLatest}";
             }
 
+
             // Example info section
             //     "info": {
             //     "year": "2020",
@@ -2244,7 +2359,7 @@ namespace Surveyor.User_Controls
                     date_created = DateTime.UtcNow.ToString("o")
                 },
                 licenses = Array.Empty<object>(),
-                categories,
+                categories = cocoCategory.ToList(),
                 images,
                 annotations
                 
@@ -2277,6 +2392,134 @@ namespace Surveyor.User_Controls
             }
         }
 
+    }
+
+    /// <summary>
+    /// Hold a COCO category item
+    /// </summary>
+    /// <param name="Id"></param>
+    /// <param name="Parent"></param>
+    public record COCOCategoryItem(int Id, string Parent)
+    {
+        public static explicit operator COCOCategoryItem(KeyValuePair<string, COCOCategoryItem> v)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
+
+    /// <summary>
+    /// COCO Categories class
+    /// Used to compile the category code list and generate a
+    /// JSON output
+    /// </summary>
+    public class COCOCategory
+    {
+        private readonly Dictionary<string, COCOCategoryItem> familyDict = [];
+        private readonly Dictionary<string, COCOCategoryItem> genusDict = [];
+        private readonly Dictionary<string, COCOCategoryItem> speciesDict = [];
+        private int categoryIdNext = 0;
+        
+        /// <summary>
+        /// Add to the categories list
+        /// </summary>
+        /// <param name="family"></param>
+        /// <param name="genus"></param>
+        /// <param name="species"></param>
+        public void Add(string family, string genus, string species)
+        {
+            if (!string.IsNullOrWhiteSpace(species))
+            {
+                if (!speciesDict.ContainsKey(species))
+                {
+                    // Key not found. Add the next species 
+                    speciesDict.TryAdd(species, new COCOCategoryItem(categoryIdNext++, genus));
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(genus))
+            {
+                if (!genusDict.ContainsKey(genus))
+                {
+                    // Key not found. Add the next genus 
+                    genusDict.TryAdd(genus, new COCOCategoryItem(categoryIdNext++, family));
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(family))
+            {
+                if (!familyDict.ContainsKey(family))
+                {
+                    // Key not found. Add the next family 
+                    familyDict.TryAdd(family, new COCOCategoryItem(categoryIdNext++, "none"));
+                }
+            }
+        }
+
+        public int GetFamilyID(string family)
+        {
+            if (familyDict.TryGetValue(family, out var item))
+                return item.Id;
+            return -1;
+        }
+
+        public int GetGenusID(string genus)
+        {
+            if (genusDict.TryGetValue(genus, out var item))
+                return item.Id;
+            return -1;
+        }
+
+        public int GetSpeciesID(string species)
+        {
+            if (speciesDict.TryGetValue(species, out var item))
+                return item.Id;
+            return -1;
+        }
+        
+
+        /// <summary>
+        /// Output the categories 
+        /// </summary>
+        /// <returns></returns>
+        public List<object> ToList()
+        {
+            var categories = new List<object>();
+
+            // Make the categories
+            // Category Family
+            foreach (var kvpFamily in familyDict)
+            {
+                categories.Add(new
+                {
+                    id = ((COCOCategoryItem)kvpFamily).Id,
+                    name = kvpFamily.Key,
+                    supercategory = ((COCOCategoryItem)kvpFamily).Parent,
+                });
+            }
+            // Category Genus
+            foreach (var kvpGenus in familyDict)
+            {
+                categories.Add(new
+                {
+                    id = ((COCOCategoryItem)kvpGenus).Id,
+                    name = kvpGenus.Key,
+                    supercategory = ((COCOCategoryItem)kvpGenus).Parent,
+                });
+            }
+            // Category Species
+            foreach (var kvpSpecies in familyDict)
+            {
+                categories.Add(new
+                {
+                    id = ((COCOCategoryItem)kvpSpecies).Id,
+                    name = kvpSpecies.Key,
+                    supercategory = ((COCOCategoryItem)kvpSpecies).Parent,
+                });
+            }
+
+            return categories;
+        }
     }
 
 
@@ -2623,7 +2866,7 @@ namespace Surveyor.User_Controls
 
             if (!bySurvey.TryGetValue(surveyFileName, out var set))
             {
-                set = new();
+                set = [];
                 bySurvey[surveyFileName] = set;
             }
 

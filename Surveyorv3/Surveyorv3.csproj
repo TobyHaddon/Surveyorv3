@@ -202,11 +202,21 @@
   </ItemGroup>
 
 	<ItemGroup>
-		<Reference Include="EMObsReaderCLR">
-			<HintPath>$(SolutionDir)x64\Release\EMObsReaderCLR.dll</HintPath>
+		<ProjectReference Include="..\EMObsReaderCLR\EMObsReaderCLR.vcxproj">
+			<ReferenceOutputAssembly>true</ReferenceOutputAssembly>
 			<Private>true</Private>
-		</Reference>
+		</ProjectReference>
 	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="$(SolutionDir)$(Platform)\$(Configuration)\ijwhost.dll"
+				 Condition="Exists('$(SolutionDir)$(Platform)\$(Configuration)\ijwhost.dll')">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+			<CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+			<Link>ijwhost.dll</Link>
+		</Content>
+	</ItemGroup>
+	
   <!--
     Defining the "HasPackageAndPublishMenuAddedByProject" property here allows the Solution
     Explorer "Package and Publish" context menu entry to be enabled for this project even if

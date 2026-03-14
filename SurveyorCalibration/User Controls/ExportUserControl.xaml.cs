@@ -69,7 +69,8 @@ namespace Surveyor.User_Controls
             if (DataContext is CalibProject calibProject)
             {
                 // Native is only for a stereo calibration result
-                if (calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoAndStereoMediaSet)
+                if (calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.MonoAndStereoMediaSet ||
+                    calibProject.Data.Media.StereoMonoMediaSetMode == StereoMonoMediaSetMode.StereoOnlyMediaSet)
                 {
                     FormatNative.IsEnabled = true;
                 }

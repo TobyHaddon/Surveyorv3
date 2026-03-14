@@ -121,7 +121,8 @@
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8B5;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutSubItem Name="MenuExport" Text="Export..." IsEnabled="True">
+                    <MenuFlyoutSubItem Name="MenuExport" Text="Export..." IsEnabled="True"
+                        ToolTipService.ToolTip="Export data from one or many existing surveys. This option is only available when there is no survey open.">
                         <MenuFlyoutSubItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEDE1;" />
                         </MenuFlyoutSubItem.Icon>

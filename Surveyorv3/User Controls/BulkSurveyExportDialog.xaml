@@ -16,13 +16,24 @@
     mc:Ignorable="d"
     Title="Bulk survey export">
 
-    <Grid Padding="20">
+    <Grid>
         <Grid.Resources>
             <converters:EmptyStringToVisibilityConverter x:Key="EmptyStringToVisibilityConverter"/>
             <local:BoolHideWhenTrueConverter x:Key="BoolHideWhenTrueConverter"/>
+
+            <!-- ImageTemplate: -->
+            <DataTemplate x:Key="ImageTemplate" x:DataType="local:COCOImageDataObject">
+                <Image Stretch = "UniformToFill" 
+                       Source = "{x:Bind ImageFileSpec, Mode=OneTime}"
+                       AutomationProperties.Name = "{x:Bind Title, Mode=OneTime}"
+                       Width = "190" 
+                       Height = "130"
+                       AutomationProperties.AccessibilityView = "Raw"/>
+            </DataTemplate>
         </Grid.Resources>
+        
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="32"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
@@ -34,122 +45,181 @@
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         
-        <!--TITLE-->
-        <TextBlock x:Name="SurveyExportTitle" Grid.Row="0" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Bulk Survey Export"/>
-
-        <!--INSTRUCTIONS-->
-        <TextBlock Text="Select a folder and indicate if you want to include sub-folders. The surveys are found and displayed below. De-select any you do not want included in the export. On pressing the 'Export Data' button the measurements, 3D points and Single points are exported to an Excel spreadsheet."
-                   Grid.Row="1"
-                   TextWrapping="Wrap" Margin="0,10,0,20"/>
-
-        <!--SELECT FOLDER ROW-->
-        <Grid Grid.Row="2" Margin="0,0,0,10">
+        <!--TITLE BAR HOST-->
+        <Grid x:Name="CustomTitleBar" Grid.Row="0" Height="32" Background="Transparent">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>   <!-- Spacer pushes actions right -->
-                <ColumnDefinition Width="Auto"/>
+                <!-- 0 Column -->
+                <ColumnDefinition x:Name="LeftPaddingColumn" Width="16"/>
+                <!-- 1 Column -->
+                <ColumnDefinition x:Name="TitleColumn" Width="Auto"/>
+                <!-- 2 Column -->
+                <ColumnDefinition x:Name="LeftDragColumn" Width="*"/>
+                <!-- 3 Column -->
+                <ColumnDefinition x:Name="Progress" Width="Auto"/>
+                <!-- 4 Column -->
+                <ColumnDefinition x:Name="RightPaddingColumn" Width="130"/>
             </Grid.ColumnDefinitions>
-            <TextBox x:Name="FolderPathTextBox" Grid.Column="0" Width="500" Margin="0,0,10,0" IsReadOnly="True" VerticalAlignment="Top"/>
-            <Button Grid.Column="1" Content="Select Folder" Click="SelectFolder_Click"  VerticalAlignment="Top" Margin="0,0,10,0"/>
-            <StackPanel Grid.Column="2" Orientation="Vertical" Margin="0,0,10,0">
-                <CheckBox x:Name="IncludeSubfoldersCheckBox" Content="Include Subfolders" IsChecked="True" HorizontalAlignment="Left"/>
-                <ProgressRing x:Name="LoadingRing"
-                  IsActive="False"
-                  Width="24"
-                  Height="24"
-                  Visibility="Collapsed"
+
+            <TextBlock x:Name="SurveyExportTitle" Grid.Column="1"
+                   Style="{StaticResource CaptionTextBlockStyle}"
+                   Text="Bulk Survey Export"
+                   HorizontalAlignment="Left" VerticalAlignment="Center"/>
+
+            <ProgressRing x:Name="LoadingRing"  Grid.Column="3"
+                  IsActive="false"
+                  Width="16"
+                  Height="16"
+                  Visibility="Visible"
                   VerticalAlignment="Center"
-                  Margin="-40,0,80,0"/>
-            </StackPanel>
-            <!-- Spacer column 3 -->
-            <DropDownButton Grid.Column="4" Content="More actions" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,0,0,0">
-                <DropDownButton.Flyout>
-                    <MenuFlyout>
-                        <MenuFlyoutItem Text="Recalc/No Save" Click="RecalcNoSave_Click">
-                            <ToolTipService.ToolTip>
-                                <TextBlock TextWrapping="Wrap" MaxWidth="420">
-                                Recalculate measurements but don't save anything back to the survey file
-                                <LineBreak/><LineBreak/>
-                                This is used so you can see any changes in the totals in the listbox below before deciding whether to save them.&#xA0;
-                                Only the metadata (totals in the listbox below) can be exported because the data export comes from the survey files&#xA0;
-                                and because nothing is saved that data would be inconsistant with the metadata.
-                                </TextBlock>
-                            </ToolTipService.ToolTip>
-                        </MenuFlyoutItem>
-                        <MenuFlyoutItem Text="Recalc/Save" Click="RecalcSave_Click">
-                            <ToolTipService.ToolTip>
-                                <TextBlock TextWrapping="Wrap" MaxWidth="420">
-                                Recalculate measurements and saves them back to the survey file
-                                </TextBlock>
-                            </ToolTipService.ToolTip>
-                        </MenuFlyoutItem>
-                        <MenuFlyoutItem Text="New Calib/Recalc/No Save" Click="NewCalibRecalcNoSave_Click">
-                            <ToolTipService.ToolTip>
-                                <TextBlock TextWrapping="Wrap" MaxWidth="420">
-                                Recalculate measurements with new calibration set but don't save anything back to the survey file
-                                <LineBreak/><LineBreak/>
-                                Propers you to import a new calibration set and use it to recalculate the measurements.&#xA0;
-                                This is used so you can see any changes in the totals in the listbox below before deciding whether to save them.&#xA0;
-                                Only the metadata (totals in the listbox below) can be exported because the data export comes from the survey files&#xA0;
-                                and because nothing is saved that data would be inconsistant with the metadata.
-                                </TextBlock>
-                            </ToolTipService.ToolTip>
-                        </MenuFlyoutItem>
-                        <MenuFlyoutItem Text="New Calib/Recalc/Save" Click="NewCalibRecalcSave_Click">
-                            <ToolTipService.ToolTip>
-                                <TextBlock TextWrapping="Wrap" MaxWidth="420">
-                                Recalculate measurements with new calibration set and saves those measurements back to the survey file
-                                <LineBreak/><LineBreak/>
-                                Propers you to import a new calibration set and use it to recalculate the measurements.&#xA0;
-                                The new calibration set also saved back to the survey file.&#xA0;
-                                The old calibration set is retained in the survey file but the new calibration set becomes the preferred calibrate set
-                                </TextBlock>                
-                            </ToolTipService.ToolTip>
-                        </MenuFlyoutItem>
-                    </MenuFlyout>
-                </DropDownButton.Flyout>
-            </DropDownButton>
+                  Margin="0,0,16,0"/>
         </Grid>
 
-        <StackPanel Orientation="Horizontal" Grid.Row="3" Margin="0,0,0,10">
-            <CheckBox x:Name="HeaderSelectAllCheckBox"            
+        <Grid x:Name="UpperControlArea" Grid.Row="1"  Margin="16,0,16,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Upper Control Area -->
+            <Grid Grid.Row="0" Grid.Column="0" Margin="0,10,0,0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>            <!-- spacer -->
+                    <RowDefinition Height="Auto"/>         <!-- Select All/status -->
+                </Grid.RowDefinitions>
+
+                <!-- Instructions -->
+                <TextBlock x:Name="InstructionsExcel" Text="Select either a folder (first indicating if you want to include sub-folders) or select just the survey files you want to export. The surveys will then be found and displayed below. De-select any you don't want included in the export. On pressing the 'Export' button the measurements, 3D points and Single points are exported to an Excel spreadsheet."
+                   Grid.Row="0" Grid.Column="0" Visibility="Visible"
+                   TextWrapping="Wrap" Margin="0,0,10,0"/>
+
+                <TextBlock x:Name="InstructionsCOCO" Text="Select either a folder (first indicating if you want to include sub-folders) or select just the survey files you want to export. The surveys will then be found and displayed below. De-select any you don't want included in the export. On pressing the 'Export' a COCO JSON format file will be created and images extracted."
+                   Grid.Row="0" Grid.Column="0" Visibility="Collapsed"
+                   TextWrapping="Wrap" Margin="0,0,10,0"/>
+
+                <!-- Select Folder or Files -->
+                <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal"  Margin="0,10,0,0">
+                    <TextBox x:Name="FolderPathTextBox" Width="500" Margin="0,0,10,0" IsReadOnly="True" VerticalAlignment="Top"/>
+
+                    <CheckBox x:Name="IncludeSubfoldersCheckBox" Margin="0,0,10,0" Content="Subfolders" IsChecked="True" HorizontalAlignment="Left"/>
+                    
+                    <DropDownButton x:Name="SelectDropDownButton" Content="Select Folder" VerticalAlignment="Top" HorizontalAlignment="Left"  Margin="0,0,10,0">
+                        <DropDownButton.Flyout>
+                            <MenuFlyout>
+                                <MenuFlyoutItem Text="Select Folder" Click="SelectFolder_Click" ToolTipService.ToolTip="Select the folder with all the survey files to export from."/>
+                                <MenuFlyoutItem Text="Select Files" Click="SelectFiles_Click" ToolTipService.ToolTip="Select the survey files to export from."/>
+                            </MenuFlyout>
+                        </DropDownButton.Flyout>
+                    </DropDownButton>
+                </StackPanel>
+                
+                <!-- Select All and status messages -->
+                <StackPanel Orientation="Horizontal" Grid.Row="3" Grid.Column="0" VerticalAlignment="Bottom" Margin="0,0,0,0">
+                    <CheckBox x:Name="HeaderSelectAllCheckBox"            
                           Content="Select All"
                           IsThreeState="True"
                           Checked="HeaderSelectAllCheckBox_Checked"
                           Unchecked="HeaderSelectAllCheckBox_Unchecked"
                           Indeterminate="HeaderSelectAllCheckBox_Indeterminate"
                           ToolTipService.ToolTip="Toggle all rows on or off"
-                          VerticalAlignment="Top"
-                          Margin="0,0,0,10"/>
-            <StackPanel Orientation="Vertical" Grid.Row="3" Margin="0,0,0,0">
-                <!--Rules Mismatch-->
-                <StackPanel x:Name="RulesMismatchPanel" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Left" 
+                          VerticalAlignment="Bottom"
+                          Margin="0,0,0,0"/>
+                    <StackPanel Orientation="Vertical" Grid.Row="3" Margin="0,0,0,6">
+                        <!--Rules Mismatch-->
+                        <StackPanel x:Name="RulesMismatchPanel" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Left" 
                             Margin="0,0,0,4"
                             Visibility="{Binding ElementName=RulesMismatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
-                    <FontIcon x:Name="RulesMismatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
-                    <TextBlock x:Name="RulesMismatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                </StackPanel>
-                <!--Calibration Data Mismatch-->
-                <StackPanel x:Name="CalibrationDataMismatchPanel" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Left"  
+                            <FontIcon x:Name="RulesMismatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
+                            <TextBlock x:Name="RulesMismatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        </StackPanel>
+                        <!--Calibration Data Mismatch-->
+                        <StackPanel x:Name="CalibrationDataMismatchPanel" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Left"  
                             Margin="0,0,0,0"
                             Visibility="{Binding ElementName=CalibrationDataMismatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
-                    <FontIcon x:Name="CalibrationDataMismatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
-                    <TextBlock x:Name="CalibrationDataMismatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                            <FontIcon x:Name="CalibrationDataMismatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
+                            <TextBlock x:Name="CalibrationDataMismatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
+                        </StackPanel>
+                    </StackPanel>
                 </StackPanel>
+            </Grid>
+            
+            <!-- Right Upper Control Area - Settings -->
+            <StackPanel Grid.Row ="0" Grid.Column="1" Orientation="Vertical" Margin="0,0,0,0">
+                <CheckBox x:Name="IncludeFailedRMS" Content="Include Failed RMS" IsChecked="True" Margin="0,0,0,0">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="Include in the export any measurements or 3D Points that failed their RMS rule. This is useful if you want to see which measurements failed and possibly re-measure so the fish are included in the final survey data."/>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
+
+                <CheckBox x:Name="IncludeOtherFailedRules" Content="Include Other Failed Rules" IsChecked="True" Margin="0,0,0,0">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="Include in the export any measurements of 3D Points that failed the range, horizontal or vertical rules. i.e. include in the export measurements or 3D Points that are outside of the survey area. This is useful if you want to see which fish will not be included in the final survey data. It maybe that the fish swims into the survey zone at a different point in the survey video and can be re-measured at that point."/>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
+
+                <CheckBox x:Name="IncludePartialIdentification" Content="Include Partial Identification" IsChecked="True" Margin="0,0,0,0">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="Include in the export any fish that have either not been identified or have only been identified to family level. This is useful if you want to see which fish may been further identification to be included in the final survey data."/>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
+
+                <CheckBox x:Name="DeriveMissingSpecies" Content="Derive Missing Species" IsChecked="True" Margin="0,0,0,0">
+                    <ToolTipService.ToolTip>
+                        <TextBlock TextWrapping="Wrap" MaxWidth="420">
+                                If the fish has only been identified to the genus level then derive the species based on the following method. As soon as one of the steps find a species the method stops:
+                                <LineBreak/><LineBreak/>
+                                1. Find the most common species for that genus in the same survey<LineBreak/>
+                                2. Find the most common species for that genus from the same site at the same depth<LineBreak/>
+                                3. Find the most common species for that genus from same site<LineBreak/>
+                                4. Find the most common species for that genus from any survey that year
+                        </TextBlock>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
+
+                <CheckBox x:Name="ApplyAverageLengths" Content="Apply Average Lengths" IsChecked="True" Margin="0,0,0,0">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="Apply the average measurement length for any given species to Single Point and 3D Point of the same species.  All the surveys in this particular export will be used to create an average length per species from all the measurements. This can then be applied to all the Single Point and 3D Point values."/>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
+
+                <CheckBox x:Name="ExtractRawFrame" Content="Extract Raw Frames" IsChecked="False" Margin="0,0,0,0">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="."/>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
+
+                <CheckBox x:Name="ExtractCroppedImage" Content="Extract Cropped Image" IsChecked="True" Margin="0,0,0,0">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="."/>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
+
+                <CheckBox x:Name="BoxRawFrame" Content="Apply Boxes To Raw Frame" IsChecked="False" Margin="0,0,0,0">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="."/>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
+
+                <CheckBox x:Name="MarkRawFrame" Content="Apply Markers To Raw Frame" IsChecked="False" Margin="0,0,0,0">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="."/>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
+
             </StackPanel>
-        </StackPanel>
+        </Grid>
         
-        <!--SURVEY DATAGRID-->
+        
+        <!-- Survey Metadata DataGrid -->
         <dg:DataGrid x:Name="SurveyGrid" Grid.Row="4" AutoGenerateColumns="False"
                     MinColumnWidth="20"
                     HeadersVisibility="Column"
                     Padding="0"
-                    ColumnHeaderHeight="40"
+                    ColumnHeaderHeight="35"
                     HorizontalScrollBarVisibility="Visible"
                     VerticalScrollBarVisibility="Visible"
-                    LoadingRow="SurveyGrid_LoadingRow">
+                    LoadingRow="SurveyGrid_LoadingRow" Margin="16,0,16,0">
             <dg:DataGrid.Columns>
                 <dg:DataGridTemplateColumn Width="35">
                     <dg:DataGridTemplateColumn.CellTemplate>
@@ -186,75 +256,90 @@
                 <dg:DataGridTextColumn Header="Media Path" Binding="{Binding MediaPath}" Width="250"/>
             </dg:DataGrid.Columns>
         </dg:DataGrid>
-        <!--BUTTONS AND COUNTS-->
-        <Grid Grid.Row="5" Margin="0,10,0,0">
+        
+        <!-- Image display -->
+        <GridView x:Name="ImageGridView" Grid.Row="4" Margin="16,0,16,0"
+                Visibility="Collapsed"
+                ItemsSource="{x:Bind COCODatasetImages, Mode=OneWay}"
+                ItemTemplate="{StaticResource ImageTemplate}"
+                IsItemClickEnabled="False"
+                CanDragItems="False"
+                AllowDrop="False"
+                CanReorderItems="False"
+                SelectionMode="Single"
+                FlowDirection="LeftToRight"/>
+
+
+        <!-- Lower Control Area -->
+        <!-- Buttons and Counts -->
+        <Grid Grid.Row="5" Margin="16,10,16,10">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
+            
             <!-- Left side: Item count -->
-            <TextBlock x:Name="ItemCountTextBlock" VerticalAlignment="Bottom" Margin="0,0,20,0" Grid.Column="0" />
+            <TextBlock x:Name="ItemCountTextBlock" Text="" VerticalAlignment="Bottom" Margin="0,0,20,0" Grid.Column="0" />
 
-            <!-- Right side: Checkboxes & Buttons -->
-            <Grid VerticalAlignment="Top" HorizontalAlignment="Right" Grid.Column="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
+            <!-- Lower Button Section (More Options)/Export/Cancel -->
+            <StackPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
+                <!-- More Options... -->
+                <DropDownButton x:Name="MoreActionsButton" Content="More actions" VerticalAlignment="Top" HorizontalAlignment="Right" Margin="0,0,30,0">
+                    <DropDownButton.Flyout>
+                        <MenuFlyout>
+                            <MenuFlyoutItem Text="Recalculate with No Save" Click="RecalcNoSave_Click">
+                                <ToolTipService.ToolTip>
+                                    <TextBlock TextWrapping="Wrap" MaxWidth="420">
+                            Recalculate measurements but don't save anything back to the survey file.
+                            <LineBreak/><LineBreak/>
+                            This is used so you can see any changes in the totals in the grid below before deciding whether to save them.&#xA0;
+                            Only the metadata (totals in the grid below) can be exported because the data export comes from the survey files&#xA0;
+                            and because nothing is saved that data would be inconsistent with the metadata.
+                                    </TextBlock>
+                                </ToolTipService.ToolTip>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem Text="Recalculate &amp; Save" Click="RecalcSave_Click">
+                                <ToolTipService.ToolTip>
+                                    <TextBlock TextWrapping="Wrap" MaxWidth="420">
+                            Recalculate measurements and saves them back to the survey file.
+                                    </TextBlock>
+                                </ToolTipService.ToolTip>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem Text="New Calibration, Recalculate with No Save" Click="NewCalibRecalcNoSave_Click">
+                                <ToolTipService.ToolTip>
+                                    <TextBlock TextWrapping="Wrap" MaxWidth="420">
+                            Recalculate measurements with new calibration set but don't save anything back to the survey file.
+                            <LineBreak/><LineBreak/>
+                            Allows you to import a new calibration set and use it to recalculate the measurements.&#xA0;
+                            This is used so you can see any changes in the totals in the grid below before deciding whether to save them.&#xA0;
+                            Only the metadata (totals in the grid below) can be exported because the data export comes from the survey files&#xA0;
+                            and because nothing is saved that data would be inconsistent with the metadata.
+                                    </TextBlock>
+                                </ToolTipService.ToolTip>
+                            </MenuFlyoutItem>
+                            <MenuFlyoutItem Text="New Calibration, Recalculate &amp; Save" Click="NewCalibRecalcSave_Click">
+                                <ToolTipService.ToolTip>
+                                    <TextBlock TextWrapping="Wrap" MaxWidth="420">
+                            Recalculate measurements with new calibration set and saves those measurements back to the survey file.
+                            <LineBreak/><LineBreak/>
+                            Allows you to import a new calibration set and use it to recalculate the measurements.&#xA0;
+                            The new calibration set also saved back to the survey file.&#xA0;
+                            The old calibration set is retained in the survey file but the new calibration set becomes the preferred calibrate set
+                                    </TextBlock>
+                                </ToolTipService.ToolTip>
+                            </MenuFlyoutItem>
+                        </MenuFlyout>
+                    </DropDownButton.Flyout>
+                </DropDownButton>
 
-                <CheckBox x:Name="IncludeFailedRMS" Grid.Column="0" Grid.Row="0" Content="Include Failed RMS" IsChecked="True" Margin="0,0,10,0">
+                <Button x:Name="ExportButton" Content="Export" VerticalAlignment="Bottom" Click="Export_Click" Margin="0,0,10,0">
                     <ToolTipService.ToolTip>
-                        <ToolTip Content="Include in the export any measurements or 3D Points that failed their RMS rule. This is useful if you want to see which measurements failed and possibly re-measure so the fish are included in the final survey data."/>
+                        <ToolTip Content="Save the contains for the selected survey files in a sheet called 'Data' and the table above into a sheet called 'Metadata'"/>
                     </ToolTipService.ToolTip>
-                </CheckBox>
-
-                <CheckBox x:Name="IncludeOtherFailedRules" Grid.Column="0" Grid.Row="1" Content="Include Other Failed Rules" IsChecked="True" Margin="0,0,10,0">
-                    <ToolTipService.ToolTip>
-                        <ToolTip Content="Include in the export any measurements of 3D Points that failed the range, horizontal or vertical rules. i.e. include in the export measurements or 3D Points that are outside of the survey area. This is useful if you want to see which fish will not be included in the final survey data. It maybe that the fish swims into the survey zone at a different point in the survey video and can be re-measured at that point."/>
-                    </ToolTipService.ToolTip>
-                </CheckBox>
-
-                <CheckBox x:Name="IncludePartialIdentification" Grid.Column="1" Grid.Row="0" Content="Include Partial Identification" IsChecked="True" Margin="0,0,10,0">
-                    <ToolTipService.ToolTip>
-                        <ToolTip Content="Include in the export any fish that have either not been identified or have only been identified to family level. This is useful if you want to see which fish may been further identification to be included in the final survey data."/>
-                    </ToolTipService.ToolTip>
-                </CheckBox>
-
-                <CheckBox x:Name="DeriveMissingSpecies" Grid.Column="2" Grid.Row="0" Content="Derive Missing Species" IsChecked="True" Margin="0,0,10,0">
-                    <ToolTipService.ToolTip>
-                        <TextBlock TextWrapping="Wrap" MaxWidth="420">
-                                If the fish has only been identified to the genus level then derive the species based on the following method. As soon as one of the steps find a species the method stops:
-                                <LineBreak/><LineBreak/>
-                                1. Find the most common species for that genus in the same survey<LineBreak/>
-                                2. Find the most common species for that genus from the same site at the same depth<LineBreak/>
-                                3. Find the most common species for that genus from same site<LineBreak/>
-                                4. Find the most common species for that genus from any survey that year
-                        </TextBlock>
-                    </ToolTipService.ToolTip>
-                </CheckBox>
-
-                <CheckBox x:Name="ApplyAverageLengths" Grid.Column="2" Grid.Row="1" Content="Apply Average Lengths to Points" IsChecked="True" Margin="0,0,10,0">
-                    <ToolTipService.ToolTip>
-                        <ToolTip Content="Apply the average measurement length for any given species to Single Point and 3D Point of the same species.  All the surveys in this particular export will be used to create an average length per species from all the measurements. This can then be applied to all the Single Point and 3D Point values."/>
-                    </ToolTipService.ToolTip>
-                </CheckBox>
-
-                <StackPanel Grid.Column="3" Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
-                    <Button x:Name="ExportButton" Content="Export" VerticalAlignment="Bottom" Click="Export_Click" Margin="0,0,10,0">
-                        <ToolTipService.ToolTip>
-                            <ToolTip Content="Save the contains for the selected survey files in a sheet called 'Data' and the table above into a sheet called 'Metadata'"/>
-                        </ToolTipService.ToolTip>
-                    </Button>
-                    <Button Content="Cancel" VerticalAlignment="Bottom"  Click="Cancel_Click"/>
-                </StackPanel>
-            </Grid>
-
+                </Button>
+                <Button Content="Cancel" VerticalAlignment="Bottom"  Click="Cancel_Click"/>
+            </StackPanel>
+           
         </Grid>
     </Grid>
 </ex:WindowEx>

@@ -176,7 +176,7 @@ namespace Surveyor.Helper
                 surveyMeasurement.Measurement = measurement;
 
                 SurveyRulesCalc newRules = new();
-                newRules.ApplyCalcs(stereoProjection);
+                newRules.ApplyCalculations(stereoProjection);
 
                 // Apply the survey rules
                 if (survey is not null &&
@@ -228,7 +228,7 @@ namespace Surveyor.Helper
                 new Point(surveyStereoPoint.RightX, surveyStereoPoint.RightY)) == true)
             {
                 SurveyRulesCalc newRules = new();
-                newRules.ApplyCalcs(stereoProjection);
+                newRules.ApplyCalculations(stereoProjection);
 
                 // Apply the survey rules
                 if (survey is not null &&

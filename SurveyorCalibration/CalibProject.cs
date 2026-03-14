@@ -572,11 +572,11 @@ namespace Surveyor
                 private double _blurFilterValue = BLUR_LARGE_VALUE;
                 private int _monoCornersFilterValue = MONO_CORNER_COUNT_THRESHOLD;
                 private int _stereoCornersFilterValue = STEREO_CORNER_COUNT_THRESHOLD;
-                public int _minFrameGapValue = MIN_FRAME_GAP;
-                public int _minFramesAllowedForMonoCalibrationValue = MIN_FRAME_ALLOWED_FOR_MONO_CALIBRATION;                
-                public int _maxFramesAllowedForMonoCalibrationValue = MAX_FRAME_ALLOWED_FOR_MONO_CALIBRATION;
-                public int _minFramesAllowedForStereoCalibrationValue = MIN_FRAME_ALLOWED_FOR_STEREO_CALIBRATION;
-                public int _maxFramesAllowedForStereoCalibrationValue = MAX_FRAME_ALLOWED_FOR_STEREO_CALIBRATION;
+                private int _minFrameGapValue = MIN_FRAME_GAP;
+                private int _minFramesAllowedForMonoCalibrationValue = MIN_FRAME_ALLOWED_FOR_MONO_CALIBRATION;
+                private int _maxFramesAllowedForMonoCalibrationValue = MAX_FRAME_ALLOWED_FOR_MONO_CALIBRATION;
+                private int _minFramesAllowedForStereoCalibrationValue = MIN_FRAME_ALLOWED_FOR_STEREO_CALIBRATION;
+                private int _maxFramesAllowedForStereoCalibrationValue = MAX_FRAME_ALLOWED_FOR_STEREO_CALIBRATION;
 
                 public List<BestFrame> LeftMonoBestFrames
                 {

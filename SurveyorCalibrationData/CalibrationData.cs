@@ -187,6 +187,18 @@ namespace SurveyorCalibrationData
             return clone;
         }
 
+
+        /// <summary>
+        /// Returns the frame width and height from ImageSize
+        /// </summary>
+        /// <returns></returns>
+        public (int width, int height) GetFrameSize()
+        {
+            if (ImageSize is null)
+                return (0, 0);
+
+            return (ImageSize[0, 0], ImageSize[0, 1]);
+        }
     }
 
 

@@ -1,11 +1,11 @@
-﻿// SpeciesImageAndInfoCache  Mananges the cached species image file and species information
+﻿// SpeciesImageAndInfoCache  Manages the cached species image file and species information
 //
 // Version 1.0 11 Apr 2025
 //
 // Version 1.1 24 Apr 2025
 // Rename s from SpeciesImageCache to SpeciesImageAndInfoCache
-// Added Environment, Distribtuion and SpeciesSize information
-// and calculate a hash and use later to check for updates (update checking not yet implimented)
+// Added Environment, Distribution and SpeciesSize information
+// and calculate a hash and use later to check for updates (update checking not yet implemented)
 
 
 using Surveyor.Helper;
@@ -82,7 +82,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Underlaying cache record structure
+        /// Underlying cache record structure
         /// </summary>
         private class SpeciesCacheState
         {
@@ -123,7 +123,7 @@ namespace Surveyor
             // Unique hash of the data fields (Environment, Distribution, SpeciesSize and the contains of the image files)
             public string Hash { get; set; } = "";
 
-            // List of image URL, that corresponding local file name donwload status and date/time)
+            // List of image URL, that corresponding local file name download status and date/time)
             public List<SpeciesImageItem> SpeciesImageItemList { get; set; } = [];
 
             // Other information extracted and cached
@@ -242,12 +242,14 @@ namespace Surveyor
             {
                 _timerCts = new CancellationTokenSource();
                 _timerLoopTask = RunPeriodicAsync(_timerCts.Token);
+                timerRunning = true;
             }
             else if (!enable && _timerCts != null)
             {
                 _timerCts.Cancel();
                 _timerCts.Dispose();
                 _timerCts = null;
+                timerRunning = false;
             }
         }
 
@@ -588,7 +590,7 @@ namespace Surveyor
                 //        afterTotalsWaitingForAllImages != beforeTotalsWaitingForAllImages ||
                 //        afterTotalsDone != beforeTotalsDone)
                 //    {
-                //        report?.Info("", $"Fish Image Cache staqte changes:");
+                //        report?.Info("", $"Fish Image Cache state changes:");
                 //        report?.Info("", $"    WaitingForFirstPhotoPage:             {beforeTotalsWaitingForFirstPhotoPage} > {afterTotalsWaitingForFirstPhotoPage}");
                 //        report?.Info("", $"    ParsingFirstPhotoPage:                {beforeTotalsParsingFirstPhotoPage} > {afterTotalsParsingFirstPhotoPage}");
                 //        report?.Info("", $"    RequestingAllPhotoPages:              {beforeTotalsRequestingAllPhotoPages} > {afterTotalsRequestingAllPhotoPages}");
@@ -599,7 +601,7 @@ namespace Surveyor
                 //    }
                 //}
 
-                // Tigger the next timer in 3 secs time
+                // Trigger the next timer in 3 secs time
                 if (timerRunning)
                     TriggerNextTimer(TimeSpan.FromSeconds(3));
             }
@@ -694,7 +696,7 @@ namespace Surveyor
                 // Get the StorageFile of the downloaded page
                 StorageFile file = await ApplicationData.Current.LocalFolder.GetFileAsync(item.RelativeLocalFileSpec);
 
-                // Parse the first photo page for this species and extract the image url, genus+species, auther and the
+                // Parse the first photo page for this species and extract the image url, genus+species, author and the
                 // total number of photo pages available
                 var metadata = HtmlFishBaseParser.ParseHtmlFishbasePhotoPage(file.Path);
                 if (metadata.TotalImages.HasValue)
@@ -712,7 +714,7 @@ namespace Surveyor
                     state.Status = State.RequestingSpeciesInformationPage;
                 }
 
-                // Remove the page from the Download Manafer
+                // Remove the page from the Download Manager
                 await internetQueue.RemoveAsync(item);
             }
         }
@@ -778,7 +780,7 @@ namespace Surveyor
 
         /// <summary>
         /// Now all the photo pages are known to be downloaded and available
-        /// parse each one and extact the image url, genus and species and the auther
+        /// parse each one and extract the image url, genus and species and the author
         /// </summary>
         /// <param name="state"></param>
         private async Task ParseAllPhotoPagesAndRequestAllImagesAsync(SpeciesCacheState state)
@@ -799,7 +801,7 @@ namespace Surveyor
                     // Get the StorageFile of the downloaded page
                     StorageFile file = await ApplicationData.Current.LocalFolder.GetFileAsync(item.RelativeLocalFileSpec);  // Get the location
 
-                    // Parse the first photo page for this species and extract the image url, genus+species, auther and the
+                    // Parse the first photo page for this species and extract the image url, genus+species, author and the
                     // total number of photo pages available
                     var metadata =  HtmlFishBaseParser.ParseHtmlFishbasePhotoPage(file.Path);
                     
@@ -824,7 +826,7 @@ namespace Surveyor
                         await internetQueue.AddDownloadRequestIfNecessaryAsync(TransferType.File, fullImageUrl, "ImageCache");  // Image file to place in the localFolder/ImageCache
                     }
 
-                    // Remove the page from the Download Manafer
+                    // Remove the page from the Download Manager
                     await internetQueue.RemoveAsync(item);
                 }
             }
@@ -843,7 +845,7 @@ namespace Surveyor
             // Check the SpeciesImageItemList size matches the indicated TotalImages
             if (state.SpeciesImageItemList.Count == state.TotalImages)
             {
-                // Assume all ok until we find a problem
+                // Assume all OK until we find a problem
                 bool allDownloaded = true;
 
                 // Check if all pages have downloaded
@@ -870,7 +872,7 @@ namespace Surveyor
 
                 }
 
-                // If all downloaded ok proceed
+                // If all downloaded OK proceed
                 if (allDownloaded)
                 {
                     // Write the file name the page was downloaded as in cache record
@@ -964,12 +966,12 @@ namespace Surveyor
 
                 // Extract species size info for easier used
                 (double? maxLength_cm, state.LengthType) = HtmlFishBaseParser.ParseSpeciesSize(state.SpeciesSize);
-                state.MaxLength = maxLength_cm / 100.0; // to metres
+                state.MaxLength = maxLength_cm / 100.0; // to meters
 
                 // Calculate hash
                 state.Hash = await ComputeHashAsync(state);
 
-                // Remove the page from the Download Manafer
+                // Remove the page from the Download Manager
                 await internetQueue.RemoveAsync(item);
             }
 

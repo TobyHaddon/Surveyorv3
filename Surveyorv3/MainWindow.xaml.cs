@@ -3296,6 +3296,9 @@ namespace Surveyor
                 else
                     MenuImportCalibration.IsEnabled = false;
 
+                // Export Survey Data
+                MenuExport.IsEnabled = false;
+
                 // Media Lock
                 if (surveyClass.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
                     MenuLockUnlockMediaPlayers.IsEnabled = true;
@@ -3315,15 +3318,17 @@ namespace Surveyor
                 MenuSurveySaveAs.IsEnabled = false;
                 MenuSurveyClose.IsEnabled = false;
                 // Import calibration
-                MenuImportCalibration.IsEnabled = false;
+                MenuImportCalibration.IsEnabled = false;                
+                // Export Survey Data
+                MenuExport.IsEnabled = true;
                 // Media lock
                 MenuLockUnlockMediaPlayers.IsEnabled = false;
                 // Settings
                 MenuSettings.IsEnabled = true;      // Always allow settings and setting will adjust of no survey is open
                 // Survey Transect Marker
                 MenuTransectStartStopMarker.IsEnabled = false;
-                }
             }
+        }
 
 
         /// <summary>
@@ -3458,7 +3463,8 @@ namespace Surveyor
                 else
                     sb.Append("   ");
 
-                if (calibrationClass.CalibrationDataList[i].Description is not null && calibrationClass.CalibrationDataList[i].LeftCameraCalibration.ImageSize is not null)
+                if (calibrationClass.CalibrationDataList[i].Description is not null && 
+                    calibrationClass.CalibrationDataList[i].LeftCameraCalibration.ImageSize is not null)
                 {
                     Emgu.CV.Matrix<int> imageSize = calibrationClass.CalibrationDataList[i].LeftCameraCalibration.ImageSize!;
                     sb.AppendLine($"{i + 1}. {calibrationClass.CalibrationDataList[i].Description}, frame size:({imageSize[0, 0]},{imageSize[0, 1]})");

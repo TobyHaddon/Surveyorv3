@@ -62,7 +62,7 @@ int HexDumpEMObsFile(const std::string foundFile, std::wofstream& outputFileStre
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cout << "Usage: <program> <filespec> [/s] [/o:<outputfile>] [/a] [/t] [/th] [/h] [/nd]" << std::endl;
+        std::cout << "Usage: EMObsReader <filespec> [/s] [/o:<outputfile>] [/a] [/t] [/th] [/h] [/nd]" << std::endl;
         std::cout << "                            /s                 search sub-directories" << std::endl;
         std::cout << "                            /o                 output to EMObs_TLCList.txt" << std::endl;
         std::cout << "                            /o:<outputfile>]   output to outputfile" << std::endl;
@@ -219,7 +219,7 @@ struct _Config* parseArguments(int argc, char* argv[]) {
 
 	// If no output file is specified, use the default
     if (config->outputFileData.empty()) {
-        // There isn't a specifed output file
+        // There isn't a specified output file
         if (config->tlcMode)
             config->outputFileTLCList = baseFileSpec.string() + "_TLCList.txt";
         if (config->tlcHierarchyMode)

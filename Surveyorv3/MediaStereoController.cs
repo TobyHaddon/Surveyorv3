@@ -1768,17 +1768,6 @@ namespace Surveyor
                         Debug.WriteLine($"{cameraSideAlt} Epipolar for Point({point.Value.X:F2}, {point.Value.Y:F2})  ax+by+c=0: {epiLine_a:F5}x + {epiLine_b:F5}y + {epiLine_c:F5} = 0");
                         Debug.WriteLine($"{cameraSideAlt} Epipolar left border intersect (0, {-epiLine_c / epiLine_b})");
 
-                        // Signal to the MagnifyAndMarkerControl to display the epipolar line
-                        //???TO BE DELETED Epipolar line is obsolete
-                        //MagnifyAndMarkerControlData data = new(MagnifyAndMarkerControlData.MagnifyAndMarkerControlEvent.EpipolarLine, cameraSideAlt)
-                        //{
-                        //    TrueEpipolarLinePointAFalseEpipolarLinePointB = (bool)TruePointAFalsePointB,
-                        //    epipolarLine_a = (double)epiLine_a,
-                        //    epipolarLine_b = (double)epiLine_b,
-                        //    epipolarLine_c = (double)epiLine_c,
-                        //    channelWidth = 0
-                        //};
-                        //mediaControllerHandler?.Send(data);
 
                         // Calculate the points for an epipolar curve
                         if (stereoProjection.CalculateEpipolarCurveDistortedPoints(
@@ -1837,15 +1826,17 @@ namespace Surveyor
                 TargetBRight is not null)
             {
                 // Enough points for a measurement
-                SurveyMeasurement surveyMeasurement = new();
-                surveyMeasurement.LeftXA = TargetALeft!.Value.X;
-                surveyMeasurement.LeftYA = TargetALeft!.Value.Y;
-                surveyMeasurement.LeftXB = TargetBLeft!.Value.X;
-                surveyMeasurement.LeftYB = TargetBLeft!.Value.Y;
-                surveyMeasurement.RightXA = TargetARight!.Value.X;
-                surveyMeasurement.RightYA = TargetARight!.Value.Y;
-                surveyMeasurement.RightXB = TargetBRight!.Value.X;
-                surveyMeasurement.RightYB = TargetBRight!.Value.Y;
+                SurveyMeasurement surveyMeasurement = new()
+                {
+                    LeftXA = TargetALeft!.Value.X,
+                    LeftYA = TargetALeft!.Value.Y,
+                    LeftXB = TargetBLeft!.Value.X,
+                    LeftYB = TargetBLeft!.Value.Y,
+                    RightXA = TargetARight!.Value.X,
+                    RightYA = TargetARight!.Value.Y,
+                    RightXB = TargetBRight!.Value.X,
+                    RightYB = TargetBRight!.Value.Y
+                };
 
                 // Check that logically Target Left A corresponds to Target Right A and Target Left B is corresponds to Target Right B
                 // This is in case the user selected the points the wrong way around. If so the target will be swapped
@@ -1942,22 +1933,23 @@ namespace Surveyor
         /// <param name="pointB"></param>
         /// <returns></returns>
         internal async Task AddMeasurementRequestAsync(string species)
-        {
-            SurveyMeasurement surveyMeasurement = new();
-
+        {            
             // Check we have two sets of corresponding points from both cameras
             if (TargetALeft is null || TargetBLeft is null || TargetARight is null || TargetBRight is null)
                 return;
             else
             {
-                surveyMeasurement.LeftXA = TargetALeft!.Value.X;
-                surveyMeasurement.LeftYA = TargetALeft!.Value.Y;
-                surveyMeasurement.LeftXB = TargetBLeft!.Value.X;
-                surveyMeasurement.LeftYB = TargetBLeft!.Value.Y;
-                surveyMeasurement.RightXA = TargetARight!.Value.X;
-                surveyMeasurement.RightYA = TargetARight!.Value.Y;
-                surveyMeasurement.RightXB = TargetBRight!.Value.X;
-                surveyMeasurement.RightYB = TargetBRight!.Value.Y;
+                SurveyMeasurement surveyMeasurement = new()
+                {
+                    LeftXA = TargetALeft!.Value.X,
+                    LeftYA = TargetALeft!.Value.Y,
+                    LeftXB = TargetBLeft!.Value.X,
+                    LeftYB = TargetBLeft!.Value.Y,
+                    RightXA = TargetARight!.Value.X,
+                    RightYA = TargetARight!.Value.Y,
+                    RightXB = TargetBRight!.Value.X,
+                    RightYB = TargetBRight!.Value.Y
+                };
 
                 // Check that logically Target Left A corresponds to Target Right A and Target Left B is corresponds to Target Right B
                 // This is in case the user selected the points the wrong way around. If so the target will be swapped

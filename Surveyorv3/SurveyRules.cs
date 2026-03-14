@@ -337,13 +337,13 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Apply calvulations that the rules later depend on.
+        /// Apply calculations that the rules later depend on.
         /// Note. It is helpful to have the range, rms, x-offset, y-offset available
         /// even if the rules are not on
         /// </summary>
         /// <param name="stereoProjection"></param>
         /// <param name="calibrationDataIndex">Optional index of CalibrationDataList to use; -1 uses preferred.</param>
-        public void ApplyCalcs(StereoProjection stereoProjection, int calibrationDataIndex = -1)
+        public void ApplyCalculations(StereoProjection stereoProjection, int calibrationDataIndex = -1)
         {
             // Reset
             Clear();
@@ -352,8 +352,8 @@ namespace Surveyor
             Range = stereoProjection.RangeFromCameraSystemCentrePointToMeasurementCentrePoint(calibrationDataIndex);
 
             // Calculate the X & Y offset between the camera system mid-point and the measurement point mid-point
-            XOffset = stereoProjection.XOffsetFromCameraSystemCentrePointToMeasurementCentrePoint(calibrationDataIndex);
-            YOffset = stereoProjection.YOffsetFromCameraSystemCentrePointToMeasurementCentrePoint(calibrationDataIndex);
+            XOffset = stereoProjection.XOffsetFromCameraSystemCenterPointToMeasurementCentrePoint(calibrationDataIndex);
+            YOffset = stereoProjection.YOffsetFromCameraSystemCenterPointToMeasurementCentrePoint(calibrationDataIndex);
 
             // Calculate RMS
             RMSWorst = stereoProjection.RMS(StereoProjection.RMSMode.Worst, calibrationDataIndex);

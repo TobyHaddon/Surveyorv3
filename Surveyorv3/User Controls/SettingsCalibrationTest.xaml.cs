@@ -326,7 +326,7 @@ namespace Surveyor.User_Controls
 
                         // Use SurveyRulesCalc for calculate and rules per calibration index
                         var newRules = new Surveyor.SurveyRulesCalc();
-                        newRules.ApplyCalcs(stereo, i);
+                        newRules.ApplyCalculations(stereo, i);
                         if (survey.Data.SurveyRules.SurveyRulesActive)
                         {
                             newRules.ApplyRules(survey.Data.SurveyRules.SurveyRulesData);

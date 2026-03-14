@@ -2458,6 +2458,8 @@ namespace Surveyor
                             break;
                         case StereoMonoMediaSetMode.StereoOnlyMediaSet:
                             StereoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, null);
+                            LeftMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, trueLeftFalseRightNullStereo: true);
+                            RightMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, trueLeftFalseRightNullStereo: false);
                             break;
                         case StereoMonoMediaSetMode.MonoPairOnlyMediaSet:
                             LeftMonoCalibrationHead.DisplayCalibrationInfoSafeUI(calibProject, trueLeftFalseRightNullStereo: true);
