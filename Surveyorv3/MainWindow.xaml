@@ -268,6 +268,17 @@
                         Message="Please wait..."
                         IsClosable="false">
             </InfoBar>
+            <!--MEDIA NOT SYNCONISED-->
+            <InfoBar x:Name="InfoBarLockMedia" IsOpen="False"
+                        Severity="Warning" HorizontalAlignment="Stretch"
+                        Title="Lock Media"
+                        Message="Stereo media needs to be synced before processing the survey"
+                        ToolTipService.ToolTip="Find the sync point in both stereo media files, this is normally a torch flash. Make sure you move both the left and right stereo videos are on the same first frame of the same torch flash. Then press the 'Sync Stereo Media' button to syncronise them"
+                        IsClosable="false">
+                <InfoBar.ActionButton>
+                    <Button Content="Sync Stereo Media" Click="InfoBarLockMediaButton_Click" />
+                </InfoBar.ActionButton>
+            </InfoBar>
             <!--CALIBRATION MISSING WARNING-->
             <InfoBar x:Name="InfoBarCalibrationMissing" IsOpen="False"
                         Severity="Warning" HorizontalAlignment="Stretch"

@@ -1,6 +1,6 @@
 // EMObsReaderCore.cpp : Defines the functions for the static library.
 //
-// Verion 1.1 10 Sep 2024  Fixed bug with PD3 putting the right camera data in the left camera fields X2,Y2 fields
+// Version 1.1 10 Sep 2024  Fixed bug with PD3 putting the right camera data in the left camera fields X2,Y2 fields
 
 #include "pch.h"
 #include "framework.h"
@@ -15,7 +15,7 @@ namespace fs = std::filesystem;
 struct _EBS {
     long fileSeekPointer;
     char cTLC[3];
-    char cTLCVersion;                   // Seen 4 and 5 but no cheange in the data
+    char cTLCVersion;                   // Seen 4 and 5 but no change in the data
     std::wstring wsPictureDirectory;
 
     struct _CIN* pCIN;                  // Holds the opcode data
@@ -103,7 +103,7 @@ struct _FRA {
 // The character after this TLC is always ASCII 0x01
 // This is a variable length structure 
 // PDL is exclusively a child of IDA
-struct _PDA {       // Beleive to indicate a Point in a frame
+struct _PDA {       // Believe to indicate a Point in a frame
     long fileSeekPointer;
     char cTLC[3];
     char cTLCVersion;    // Seen 0 and 1, 1 has an additional 16 bytes of unknown data are the MAT
@@ -111,7 +111,7 @@ struct _PDA {       // Beleive to indicate a Point in a frame
     struct _CPT* pCPT;
     std::vector<std::vector<std::wstring>> matCollectionValues;
 
-    char bData[16];		 // Not used in verion 0
+    char bData[16];		 // Not used in version 0
 };
 
 // CPT is used to hold an X,Y position on a frame
@@ -382,7 +382,7 @@ int EMObsReader::Process(std::list<struct _OutputRow*>& outputRowsAdd) {
 
                     outputRowsAdd.push_back(outputRow);
                 }
-                // Collect the PDL 3D measurment point data
+                // Collect the PDL 3D measurement point data
                 for (_PDL* itemPDL : itemIDA->TypePDL.PDLList) {
 
                     // It is assumes that the base FRA is the left camera and the PDL>FRA is the right camera
@@ -571,7 +571,7 @@ static void DisplayIDA(struct _IDA* pIDA) {
     wprintf(L"\n");
 }
 
-// Display a PDA which is beleived to be a EventMeasure Point
+// Display a PDA which is believed to be a EventMeasure Point
 static void DisplayPDA(const wchar_t* pIndent, struct _PDA* pPDA) {
     if (pPDA->pCPT != nullptr) {
         wprintf(L"%sPDA>CPT: X:%.2f Y:%.2f\n",
@@ -591,10 +591,10 @@ static void DisplayPDA(const wchar_t* pIndent, struct _PDA* pPDA) {
     }
 }
 
-// Display a PDL which is beleived to be a EventMeasure set of measurement point
+// Display a PDL which is believed to be a EventMeasure set of measurement point
 static void DisplayPDL(const wchar_t* pIndent, struct _PDL* pPDL) {
 
-    wprintf(L"    Left CPT Count: %i (should aways be 2)\n", pPDL->iData1);
+    wprintf(L"    Left CPT Count: %i (should always be 2)\n", pPDL->iData1);
     if (pPDL->pCPT1 != nullptr) {
         wprintf(L"    PDL>CPT1: X:%.2f, Y:%.2f\n",
             pPDL->pCPT1->X, pPDL->pCPT1->Y);
@@ -610,7 +610,7 @@ static void DisplayPDL(const wchar_t* pIndent, struct _PDL* pPDL) {
     else
         wprintf(L"       error pPDL->pCPT2 null ptr\n");
 
-    wprintf(L"    Right CPT Count: %i (should aways be 2)\n", pPDL->iData2);
+    wprintf(L"    Right CPT Count: %i (should always be 2)\n", pPDL->iData2);
 
     if (pPDL->pCPT3 != nullptr) {
         wprintf(L"    PDL>CPT3: X:%.2f, Y:%.2f\n",
@@ -1616,7 +1616,9 @@ long EMObsReaderBase::findNextTLC(long startPointer, char* TLC) {
 /// <summary>
 /// Check if there is a TLC at the startPointer
 /// TLC should be declared as char TLC[4]
-/// Look for a three letter code (TLC) where the characters are upper case and the second and third characters can also be digits. The fourth character must can be ascii 0 to 5
+/// Look for a three letter code (TLC) where the characters are upper case and the 
+/// second and third characters can also be digits. The fourth character must can 
+/// be ASCII 0 to 5
 /// </summary>
 /// <param name="startPointer"></param>
 /// <param name="TLC"></param>
@@ -1645,12 +1647,12 @@ bool EMObsReaderBase::IsTLC(long startPointer, char* TLC) {
 
 
 /// <summary>
-/// Find the first wstring (if any) in the block of memory starting at p
+/// Find the first string (if any) in the block of memory starting at p
 /// </summary>
 /// <param name="p"></param>
 /// <param name="size"></param>
-/// <param name="wssize">Size of the wstring including the 4 byte size at the start</param>
-/// <returns>Index to the start of the wstring (which is the 4 byte size)</returns>
+/// <param name="wssize">Size of the string including the 4 byte size at the start</param>
+/// <returns>Index to the start of the string (which is the 4 byte size)</returns>
 long EMObsReaderBase::FindFirstwstring(void* p, int size, int* wssize) {
 
     long ret = -1;
@@ -1671,18 +1673,18 @@ long EMObsReaderBase::FindNextwstring(int* wssize) {
     int sizeLeft = this->size - (int)(this->pLast - this->p);
 
     for (int i = 0; i < sizeLeft - 3; i++) {
-        // Minus int32_t values are used to indicate the length of the wstring
-        // So if we see a int32_t that is negative and less than -512 then we have found a wstring
-        // Not perfect and we will miss any zero lenght wstrings because int32_t will be a too common
+        // Minus int32_t values are used to indicate the length of the string
+        // So if we see a int32_t that is negative and less than -512 then we have found a string
+        // Not perfect and we will miss any zero length strings because int32_t will be a too common
         // signature
         int32_t* pws = (int32_t*)&this->pLast[i];
         if (*pws < 0 && *pws > -512) {
             int sizeFound = -(*pws);
 
-            // Check the supposed wstring is within the buffer range
+            // Check the supposed string is within the buffer range
             if (i + sizeFound <= sizeLeft) {
 
-                // Typically a wstring will be 2 bytes per character where only the first byte is used (also not perfect)
+                // Typically a string will be 2 bytes per character where only the first byte is used (also not perfect)
                 bool allOk = true;
                 int16_t* pwsInner = (int16_t*)&this->pLast[i + sizeof(int32_t)];
                 for (int j = 0; j < sizeFound; j++) {
@@ -1693,7 +1695,7 @@ long EMObsReaderBase::FindNextwstring(int* wssize) {
                 }
 
                 if (allOk) {
-                    // We have found a wstring
+                    // We have found a string
                     *wssize = (sizeFound * sizeof(wchar_t)) + sizeof(int32_t);
                     long ret = i + (long)(this->pLast - this->p);
                     this->pLast += i + *wssize;
@@ -1736,7 +1738,7 @@ int EMObsReaderBase::HexDumpLine(long seek, int dataLength, int widthToDisplay, 
     }
     hex = ss.str();
 
-    // Format the asc section
+    // Format the ASCII section
     ss.str(L"");
     ss.clear();
     char c;
@@ -1858,11 +1860,6 @@ int EMObsReader::HexDumpToFile(std::wofstream& outputFileStream, int rowWidth, i
         size_t size = reader->GetSize();
 
         for (long seek = 0; seek < size; seek += rowWidth) {
-            //not working
-            //            if (rows == 0) {
-            //                outputFileStream << L"Address  " << std::setw(widthToDisplay) << std::setfill(L' ') << L"Hexadecimal" << std::setw(widthToDisplay) << std::setfill(L' ') << L"ASCII" << std::endl;
-            //                outputFileStream << L"-------  " << std::setw(widthToDisplay) << std::setfill(L'-') << L"-----------" << std::setw(widthToDisplay) << std::setfill(L'-') << L"-----" << std::endl;
-            //            }
 
             if (size - seek < 16)
                 dataLength = (int)(size - (size_t)seek);

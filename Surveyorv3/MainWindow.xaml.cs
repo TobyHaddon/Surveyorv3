@@ -1578,7 +1578,7 @@ namespace Surveyor
                     // Wait for things to settle i.e. any pending MediPlayer directed plays or pauses to have completed
                     // note. calling MediaPlayer.Play or Pause with the MediaTimelineController engaged will cause an
                     // exception
-                    await Task.Delay(500);
+                    await Task.Delay(300);
 
                     // Action flags
                     bool reEnable = false;
@@ -1664,7 +1664,6 @@ namespace Surveyor
                             surveyClass.Data.Sync.TimeSpanOffset = (TimeSpan)MediaPlayerRight.Position - (TimeSpan)MediaPlayerLeft.Position;
                             surveyClass.Data.Sync.ActualTimeSpanOffsetLeft = (TimeSpan)MediaPlayerLeft.Position;
                             surveyClass.Data.Sync.ActualTimeSpanOffsetRight = (TimeSpan)MediaPlayerRight.Position;
-
                         }
                     }
 
@@ -1740,6 +1739,7 @@ namespace Surveyor
 #pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
             }
 
+            SetMenuStatusBasedOnSurveyState();
         }
 
 
@@ -1764,6 +1764,14 @@ namespace Surveyor
                 Debug.WriteLine($"InsertSurveyStartStopMarker_Click(): Failed to insert a survey transect marker, {ex.Message}");
             }
         }
+
+
+        /// <summary>
+        /// InfoBar Lock Stereo Media button was pressed
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void InfoBarLockMediaButton_Click(object sender, RoutedEventArgs e) => _ = InsertLockUnlockMediaPlayersClickAsync();
 
 
         /// <summary>
@@ -3305,6 +3313,18 @@ namespace Surveyor
                 else
                     MenuLockUnlockMediaPlayers.IsEnabled = false;
 
+                // Media Lock Info Bar
+                if (surveyClass.Data.Info.SurveyType == Survey.SurveyType.StereoFish && !surveyClass.Data.Sync.IsSynchronized)
+                {
+                    InfoBarLockMedia.IsOpen = true;
+                    InfoBarLockMedia.Visibility = Visibility.Visible;
+                }
+                else
+                {
+                    InfoBarLockMedia.IsOpen = false;
+                    InfoBarLockMedia.Visibility = Visibility.Collapsed;
+                }
+
                 // Settings
                 MenuSettings.IsEnabled = true;
                 // Survey Transect Marker
@@ -4360,6 +4380,7 @@ namespace Surveyor
         internal void DisplayDynamicMeasurementPlaceholder(bool showRMSCombinedOnly, double? measurement, double? range, double? rmsCombined, double? rmsTargetA, double? rmsTargetB) { }
         internal void _SetDiagnosticInformationPlaceholder(bool diag) { }
         internal void _SetExperimentalPlaceholder(bool a, bool b, bool c, bool d) { }
+
 
     }
 

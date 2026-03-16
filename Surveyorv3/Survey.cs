@@ -1190,7 +1190,7 @@ namespace Surveyor
             else if (Path.GetExtension(SurveyFileSpec).Equals(".EMObs", StringComparison.OrdinalIgnoreCase))
             {
 
-                var (result, errorMessage) = await ProjectLoadEMObs(SurveyFileSpec);
+                var (result, errorMessage) = await ProjectLoadEMObsAsync(SurveyFileSpec);
 
                 if (result != 0)
                 {

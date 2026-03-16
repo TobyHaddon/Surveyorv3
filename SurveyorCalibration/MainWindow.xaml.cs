@@ -1131,14 +1131,14 @@ namespace Surveyor
                 if (calibProject.Data.Sync.IsSynchronized)
                 {
                     await LockUnlockMediaPlayersAsync(false/*lockTrueUnLockFalse*/);
-
-                    // Save the locked state
-                    calibProject.ProjectSave();
                 }
                 else
                 {
-                    await LockUnlockMediaPlayersAsync(true/*lockTrueUnLockFalse*/);
+                    await LockUnlockMediaPlayersAsync(true/*lockTrueUnLockFalse*/);                
                 }
+
+                // Save the locked state
+                calibProject.ProjectSave();
             }
 
             SetUIControls();

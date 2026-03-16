@@ -104,7 +104,7 @@
 
                     <CheckBox x:Name="IncludeSubfoldersCheckBox" Margin="0,0,10,0" Content="Subfolders" IsChecked="True" HorizontalAlignment="Left"/>
                     
-                    <DropDownButton x:Name="SelectDropDownButton" Content="Select Folder" VerticalAlignment="Top" HorizontalAlignment="Left"  Margin="0,0,10,0">
+                    <DropDownButton x:Name="SelectDropDownButton" Content="Select File or Folder" VerticalAlignment="Top" HorizontalAlignment="Left"  Margin="0,0,10,0">
                         <DropDownButton.Flyout>
                             <MenuFlyout>
                                 <MenuFlyoutItem Text="Select Folder" Click="SelectFolder_Click" ToolTipService.ToolTip="Select the folder with all the survey files to export from."/>
@@ -125,7 +125,7 @@
                           ToolTipService.ToolTip="Toggle all rows on or off"
                           VerticalAlignment="Bottom"
                           Margin="0,0,0,0"/>
-                    <StackPanel Orientation="Vertical" Grid.Row="3" Margin="0,0,0,6">
+                    <StackPanel Orientation="Vertical" Grid.Row="3" Margin="0,0,0,2">
                         <!--Rules Mismatch-->
                         <StackPanel x:Name="RulesMismatchPanel" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Left" 
                             Margin="0,0,0,4"
@@ -135,7 +135,7 @@
                         </StackPanel>
                         <!--Calibration Data Mismatch-->
                         <StackPanel x:Name="CalibrationDataMismatchPanel" Orientation="Horizontal" VerticalAlignment="Top" HorizontalAlignment="Left"  
-                            Margin="0,0,0,0"
+                            Margin="0,0,0,4"
                             Visibility="{Binding ElementName=CalibrationDataMismatchValidationText, Path=Text, Converter={StaticResource EmptyStringToVisibilityConverter}}">
                             <FontIcon x:Name="CalibrationDataMismatchGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
                             <TextBlock x:Name="CalibrationDataMismatchValidationText" VerticalAlignment="Center" Margin="8,0,0,0"/>
@@ -185,25 +185,25 @@
 
                 <CheckBox x:Name="ExtractRawFrame" Content="Extract Raw Frames" IsChecked="False" Margin="0,0,0,0">
                     <ToolTipService.ToolTip>
-                        <ToolTip Content="."/>
+                        <ToolTip Content="Extract the whole frame and save."/>
                     </ToolTipService.ToolTip>
                 </CheckBox>
 
                 <CheckBox x:Name="ExtractCroppedImage" Content="Extract Cropped Image" IsChecked="True" Margin="0,0,0,0">
                     <ToolTipService.ToolTip>
-                        <ToolTip Content="."/>
+                        <ToolTip Content="Extract a rectangle along the fish."/>
                     </ToolTipService.ToolTip>
                 </CheckBox>
 
                 <CheckBox x:Name="BoxRawFrame" Content="Apply Boxes To Raw Frame" IsChecked="False" Margin="0,0,0,0">
                     <ToolTipService.ToolTip>
-                        <ToolTip Content="."/>
+                        <ToolTip Content="Display a box around the fish."/>
                     </ToolTipService.ToolTip>
                 </CheckBox>
 
                 <CheckBox x:Name="MarkRawFrame" Content="Apply Markers To Raw Frame" IsChecked="False" Margin="0,0,0,0">
                     <ToolTipService.ToolTip>
-                        <ToolTip Content="."/>
+                        <ToolTip Content="Display the head and tail markers."/>
                     </ToolTipService.ToolTip>
                 </CheckBox>
 
@@ -250,8 +250,8 @@
                 <dg:DataGridTextColumn Header="Analyst" Binding="{Binding Analyst}" Width="180"/>
                 <dg:DataGridTextColumn Header="Survey Code" Binding="{Binding SurveyCode}" Width="180"/>
                 <dg:DataGridTextColumn Header="Ave. Length" Binding="{Binding AveLengthSummary}" Width="120"/>
-                <dg:DataGridTextColumn Header="LeftMediaFile" Binding="{Binding LeftMediaFile}" Width="250"/>
-                <dg:DataGridTextColumn Header="RightMediaFile" Binding="{Binding RightMediaFile}" Width="250"/>
+                <dg:DataGridTextColumn Header="LeftMediaFiles" Binding="{Binding LeftMediaFilesDisplay}" Width="250"/>
+                <dg:DataGridTextColumn Header="RightMediaFiles" Binding="{Binding RightMediaFilesDisplay}" Width="250"/>
                 <dg:DataGridTextColumn Header="Survey Path" Binding="{Binding SurveyPath}" Width="250"/>
                 <dg:DataGridTextColumn Header="Media Path" Binding="{Binding MediaPath}" Width="250"/>
             </dg:DataGrid.Columns>

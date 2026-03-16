@@ -7,6 +7,7 @@
 // 29 Apr 2024 Rename StereoMeasurementPoints to SurveyMeasurement and create SurveyStereoPoint and SurveyPoint
 // 01 Oct 2024 Added left/right indicator to SinglePoint class
 // 13 Feb 2025 Added SurveyStart and SurveyEnd SurveyDataType
+// 15 Mar 2026 Added a 
 
 
 
@@ -37,11 +38,14 @@ namespace Surveyor.Events
     public interface IPointData
     {
         // You can define common methods or properties that all point data classes must implement.
+
     }
 
     public class SinglePoint : IPointData
     {
-        public bool TrueLeftfalseRight { get; set; }
+        // Used this non-standard naming for backwards compatibility with older JSON files - DO NOT CHANGE THIS NAME
+        [JsonProperty("TrueLeftfalseRight")]  
+        public bool TrueLeftFalseRight { get; set; }
         public double X { get; set; }
         public double Y { get; set; }
     }
@@ -148,6 +152,7 @@ namespace Surveyor.Events
 
     public class StereoCalibrationPoints : IPointData
     {
+        public int MediaIndex { get; set; } = 0;
         public List<(int X, int Y)>? LeftPoints { get; set; }
         public List<(int X, int Y)>? RightPoints { get; set; }
     }
@@ -161,6 +166,12 @@ namespace Surveyor.Events
         public Guid Guid { get; set; }
         public DateTime DateTimeCreate { get; set; }
 
+        // MediaIndex is used to identify which media file in the array to use
+        // This is always zero for Surveyorv3 which only supports one media
+        // file. This is only used so a Survey class can hold .EMObs converted
+        // data and allows exports from .EMObs
+        public int MediaLeftIndex { get; set; } = 0;
+        public int MediaRightIndex { get; set; } = 0;
         public TimeSpan TimeSpanTimelineController { get; set; }
         public TimeSpan TimeSpanLeftFrame { get; set; }
         public TimeSpan TimeSpanRightFrame { get; set; }
@@ -308,9 +319,9 @@ namespace Surveyor.Events
     /// Sorter class for the Event collection
     /// Ensure that event stay in TimeSpanTimelineController order
     /// </summary>
-    public class SortedEventCollection : ObservableCollection<Event>
+    public class SortedEventCollection : ObservableCollection<Surveyor.Events.Event>
     {
-        protected override void InsertItem(int index, Event item)
+        protected override void InsertItem(int index, Surveyor.Events.Event item)
         {
             // Find the correct index to maintain TimeSpanTimelineController order
             //???index = Items.Take(index).TakeWhile(e => e.TimeSpanTimelineController < item.TimeSpanTimelineController).Count();

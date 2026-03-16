@@ -56,7 +56,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="projectFileSpec"></param>
         /// <returns></returns>
-        public async Task<(int result, string errorMessage)> ProjectLoadEMObs(string projectFileSpec)
+        public async Task<(int result, string errorMessage)> ProjectLoadEMObsAsync(string projectFileSpec)
         {
             int ret = 0;
 
@@ -172,7 +172,7 @@ namespace Surveyor
                 }
             }
 
-
+            // Loop through each object extracted from the .EMObs file
             foreach (OutputRow item in outputRows)
             {
 
@@ -279,6 +279,7 @@ namespace Surveyor
                             surveyMeasurement.RightYB = item.PointRY2;
                             LoadSpeciesInfo(item, surveyMeasurement.SpeciesInfo);
                             break;
+
                         case RowTypeManaged.RowTypePoint3D:
                             eventItem = new Event();
                             eventItem.SetData(SurveyDataType.SurveyStereoPoint);
@@ -289,23 +290,25 @@ namespace Surveyor
                             surveyStereoPoint.RightY = item.PointRY1;
                             LoadSpeciesInfo(item, surveyStereoPoint.SpeciesInfo);
                             break;
+
                         case RowTypeManaged.RowTypePoint2DLeftCamera:                            
                             eventItem = new Event();
                             {
                                 eventItem.SetData(SurveyDataType.SurveyPoint);
                                 SurveyPoint surveyPoint = (SurveyPoint)eventItem.EventData!;
-                                surveyPoint.TrueLeftfalseRight = true;/*left camera*/
+                                surveyPoint.TrueLeftFalseRight = true;/*left camera*/
                                 surveyPoint.X = item.PointLX1;
                                 surveyPoint.Y = item.PointLY1;
                                 LoadSpeciesInfo(item, surveyPoint.SpeciesInfo);
                             }
                             break;
+
                         case RowTypeManaged.RowTypePoint2DRightCamera:
                             eventItem = new Event();
                             {
                                 eventItem.SetData(SurveyDataType.SurveyPoint);
                                 SurveyPoint surveyPoint = (SurveyPoint)eventItem.EventData!;
-                                surveyPoint.TrueLeftfalseRight = false;/*right camera*/
+                                surveyPoint.TrueLeftFalseRight = false;/*right camera*/
                                 surveyPoint.X = item.PointRX1;
                                 surveyPoint.Y = item.PointRY1;
                                 LoadSpeciesInfo(item, surveyPoint.SpeciesInfo);

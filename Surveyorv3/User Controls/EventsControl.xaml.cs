@@ -411,7 +411,7 @@ namespace Surveyor.User_Controls
                             sb.Append($"Species: {surveyPoint.SpeciesInfo.Species}\r\n");
                             sb.Append($"\r\n");
                             sb.Append($"2D Point:\r\n");
-                            string camera = surveyPoint.TrueLeftfalseRight ? "Left" : "Right";
+                            string camera = surveyPoint.TrueLeftFalseRight ? "Left" : "Right";
                             sb.Append($"{camera} Camera: ({Math.Round(surveyPoint.X, 1)}, {Math.Round(surveyPoint.Y, 1)})\r\n");
                             sb.Append($"\r\n");
                         }

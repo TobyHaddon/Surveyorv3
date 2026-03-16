@@ -2012,7 +2012,7 @@ namespace Surveyor
             {
                 SurveyPoint surveyPoint = new()
                 {
-                    TrueLeftfalseRight = cameraSide == eCameraSide.Left
+                    TrueLeftFalseRight = cameraSide == eCameraSide.Left
                 };
 
                 if (cameraSide == eCameraSide.Left && TruePointAFalsePointB)

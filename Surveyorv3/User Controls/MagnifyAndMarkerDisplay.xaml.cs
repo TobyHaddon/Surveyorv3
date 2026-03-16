@@ -3420,8 +3420,8 @@ namespace Surveyor.User_Controls
                     else if (evt.EventData is SurveyPoint surveyPoint)
                     {
                         // Point definition are camera side specific                        
-                        if ((CameraSide == SurveyorMediaPlayer.eCameraSide.Left && surveyPoint.TrueLeftfalseRight) ||
-                            (CameraSide == SurveyorMediaPlayer.eCameraSide.Right && !surveyPoint.TrueLeftfalseRight))
+                        if ((CameraSide == SurveyorMediaPlayer.eCameraSide.Left && surveyPoint.TrueLeftFalseRight) ||
+                            (CameraSide == SurveyorMediaPlayer.eCameraSide.Right && !surveyPoint.TrueLeftFalseRight))
                         {
                             Point point = new(surveyPoint.X, surveyPoint.Y);
                             DrawEventPoint(evt.Guid, point, surveyPoint.SpeciesInfo);
