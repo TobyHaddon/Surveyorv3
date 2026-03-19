@@ -2130,7 +2130,7 @@ namespace Surveyor
 
                 SpeciesInfo specifiesInfo = new(); 
                 
-                if (await speciesSelector.SpeciesNew(mainWindow, 
+                if (await speciesSelector.SpeciesNewAsync(mainWindow, 
                                                     specifiesInfo, 
                                                     preSelectedSpecies, 
                                                     speciesImageCache, 

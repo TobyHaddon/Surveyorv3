@@ -19,21 +19,22 @@
 // Ignore Spelling: Json
 
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Newtonsoft.Json.Converters;
+using Newtonsoft.Json.Linq;
 using Surveyor.Events;
 using Surveyor.Helper;
 using Surveyor.User_Controls;
+using SurveyorCalibrationData;
 using System;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
-using SurveyorCalibrationData;
-using System.Diagnostics;
+using Windows.Media.Core;
 
 
 namespace Surveyor
@@ -398,6 +399,41 @@ namespace Surveyor
                     }
                 }
                
+
+                /// <summary>
+                /// Based on the media index (normally zero for Surveyor3) return the 
+                /// correct media file spec or file name as required.
+                /// Note media index > 0 are only used for handle EMObs data
+                /// </summary>
+                /// <param name="trueLeftFalseRight"></param>
+                /// <param name="mediaIndex"></param>
+                /// <returns></returns>
+                public string GetMediaFileSpec(bool trueLeftFalseRight, int mediaIndex, bool FileNameOnly = false)
+                {
+                    string fileName = string.Empty;
+
+                    if (trueLeftFalseRight)
+                    {
+                        if (mediaIndex >= 0 && mediaIndex < LeftMediaFileNames.Count)
+                            fileName = LeftMediaFileNames[mediaIndex];
+                    }
+                    else
+                    {
+                        if (mediaIndex >= 0 && mediaIndex < RightMediaFileNames.Count)
+                            fileName = RightMediaFileNames[mediaIndex];
+                    }
+
+                    if (FileNameOnly)
+                        return fileName;
+                    else
+                    {
+                        if (MediaPath is not null)
+                            return Path.Combine(MediaPath, fileName);
+                        else
+                            return string.Empty;
+                    }
+                }
+
 
                 /// 
                 /// EVENTS

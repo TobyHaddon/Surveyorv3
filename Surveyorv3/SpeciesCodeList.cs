@@ -8,7 +8,7 @@
 //
 // Version 1.2 30 Apr 2025
 // Moved the species.txt file to be in the local folder (was in same directory as the executable)
-// The Load() funcion will copy the file from the executable directory to the local folder if
+// The Load() function will copy the file from the executable directory to the local folder if
 // it doesn't exist
 // Added a GetHash() function 
 
@@ -112,7 +112,7 @@ namespace Surveyor
             Common
         }
 
-        // Code tyoe
+        // Code type
         public enum CodeType
         {
             None,
@@ -165,7 +165,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Maintain the check value for the IsScientificAndCommonNamePresent feild
+        /// Maintain the check value for the IsScientificAndCommonNamePresent field
         /// </summary>
         private void UpdateIsScientificAndCommonNamePresent()
         {
@@ -438,7 +438,7 @@ namespace Surveyor
         {
             SpeciesComboItems.Clear();
 
-            // Validate that if genis is present that it is valid
+            // Validate that if genus is present that it is valid
             bool isFamilyPresent = SpeciesItems.Any(item => item.Family.Equals(family, StringComparison.OrdinalIgnoreCase));
             if (!isFamilyPresent)
                 family = "";
@@ -545,7 +545,7 @@ namespace Surveyor
         {
             GenusComboItems.Clear();
 
-            // Validate that if genis is present that it is valid
+            // Validate that if genus is present that it is valid
             bool isFamilyPresent = SpeciesItems.Any(item => item.Family.Equals(family, StringComparison.OrdinalIgnoreCase));
             if (!isFamilyPresent)
                 family = "";
@@ -757,7 +757,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Sort the species code list either by the Scientific(latin name) or Common name
+        /// Sort the species code list either by the Scientific(Latin name) or Common name
         /// </summary>
         /// <param name="trueScientificFalseCommonName"></param>
         /// <returns></returns>
@@ -921,7 +921,7 @@ namespace Surveyor
         /// <returns></returns>
         private List<SpeciesItem> GetDuplicateSpeciesCodes()
         {
-            return SpeciesItems
+            return [.. SpeciesItems
                 .Where(item =>
                     !string.IsNullOrWhiteSpace(item.Code) &&
                     item.Code.Contains(':') &&
@@ -929,14 +929,13 @@ namespace Surveyor
                 )
                 .GroupBy(item => item.Code, StringComparer.OrdinalIgnoreCase)
                 .Where(g => g.Count() > 1)
-                .SelectMany(g => g)
-                .ToList();
+                .SelectMany(g => g)];
         }
 
 
         /// <summary>
         /// Report missing codes if the percentage of missing codes is over the threshold
-        /// This is sode we don't genenrate too many messages
+        /// This is code we don't generate too many messages
         /// </summary>
         /// <param name="percentThreshold"></param>
         private void ReportMissingCodesIfOverThreshold(double percentThreshold = 5.0)

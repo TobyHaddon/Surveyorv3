@@ -24,7 +24,7 @@
             <!-- ImageTemplate: -->
             <DataTemplate x:Key="ImageTemplate" x:DataType="local:COCOImageDataObject">
                 <Image Stretch = "UniformToFill" 
-                       Source = "{x:Bind ImageFileSpec, Mode=OneTime}"
+                       Source = "{x:Bind ImageSource, Mode=OneTime}"
                        AutomationProperties.Name = "{x:Bind Title, Mode=OneTime}"
                        Width = "190" 
                        Height = "130"

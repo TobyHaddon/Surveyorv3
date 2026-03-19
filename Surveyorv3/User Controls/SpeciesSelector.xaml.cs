@@ -3,7 +3,7 @@
 // Version 1.0 
 //
 // Version 1.1 18 Apr 2025
-// Added support for Fishbase fish images
+// Added support for Fishbase.org fish images
 // Version 1.2 24 Jun 2025
 // Changed NumberBox to TextBlock as it doesn't work on Ross's laptop
 
@@ -61,7 +61,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Diags dump of class information
+        /// Diagnostic dump of class information
         /// </summary>
         public void DumpAllProperties()
         {
@@ -104,7 +104,7 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Create a new species record
         /// </summary>
-        internal async Task<bool> SpeciesNew(MainWindow mainWindow, SpeciesInfo speciesInfo, string preselectedSpecies, SpeciesImageAndInfoCache speciesImageCache, IPointData? pointContext = null, Surveyor.Survey.DataClass.SurveyRulesClass? rulesContext = null)
+        internal async Task<bool> SpeciesNewAsync(MainWindow mainWindow, SpeciesInfo speciesInfo, string preselectedSpecies, SpeciesImageAndInfoCache speciesImageCache, IPointData? pointContext = null, Surveyor.Survey.DataClass.SurveyRulesClass? rulesContext = null)
         {
             // Clear the speciesInfo instance as this is a New species assignment
             speciesInfo.Clear();
@@ -161,7 +161,7 @@ namespace Surveyor.User_Controls
             SourceCredit.Text = string.Empty;
             GenusSpecies.Blocks.Clear();
 
-            // Clear environment, distrution and size (bound to xaml)            
+            // Clear environment, distribution and size (bound to xaml)            
             Environment.Text = string.Empty;
             Distribution.Text = string.Empty;
             SpeciesSize.Text = string.Empty;
@@ -426,7 +426,7 @@ namespace Surveyor.User_Controls
                 // Check if the RMS warning InfoBar is required
                 if (surveyRulesCalc is not null && surveyRulesCalc.RMSWorst is not null)
                 {
-                    // Compare as ints as requested
+                    // Compare as integer numbers as requested
                     int worst = (int)Math.Round(surveyRulesCalc.RMSWorst.Value * 1000.0, MidpointRounding.AwayFromZero); // convert to mm if RMSWorst is in meters
                     int max = (int)Math.Round(rules.SurveyRulesData.RMSMax, MidpointRounding.AwayFromZero);
 
@@ -578,7 +578,8 @@ namespace Surveyor.User_Controls
             }
         }
 
-        private async void AutoSuggestBoxSpecies_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+        private void AutoSuggestBoxSpecies_QuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args) => _ = AutoSuggestBoxSpeciesQuerySubmittedAsync(sender, args);
+        private async Task AutoSuggestBoxSpeciesQuerySubmittedAsync(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
         {
             if (args.ChosenSuggestion != null && args.ChosenSuggestion is SpeciesItem item)
             {

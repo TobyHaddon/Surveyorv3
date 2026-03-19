@@ -34,19 +34,10 @@ namespace Surveyor.User_Controls
         }
 
 
-        /// <summary>
-        /// Create a display thumbnail of the indicated size from the 
-        /// current image. This is used to create the thumbnail for the export dialog.
-        /// </summary>
-        /// <param name="width"></param>
-        /// <param name="height"></param>
-        public void CreateThumbNail(int width, int height)
-        {
-
-        }
 
 
-        public void AddMarkers(Point X, Point Y)
+
+        public void AddMarker(Point X, Point Y)
         {
             //public static void DrawDot(Canvas canvas, Point center, double diameter, Brush brush, CanvasTag canvasTag, PointerEventHandler? pointerMoved, PointerEventHandler? pointerPressed, string? toolTip = null)
         }

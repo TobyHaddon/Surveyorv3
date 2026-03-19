@@ -6,11 +6,15 @@ using ActionCameraMP4MetadataExtraction;
 using CommunityToolkit.WinUI.Animations;
 using CommunityToolkit.WinUI.UI.Controls;
 using MathNet.Numerics.LinearAlgebra.Factorization;
+using Microsoft.Graphics.Canvas;
+using Microsoft.Graphics.Canvas.Brushes;
+using Microsoft.Graphics.DirectX;
+using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
-//???using Microsoft.UI.Xaml.Shapes;
+using Microsoft.UI.Xaml.Media.Imaging;
 using Newtonsoft.Json;
 using OfficeOpenXml;
 using Surveyor.Events;
@@ -21,17 +25,19 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Drawing.Imaging;
-
+using System.Diagnostics.Metrics;
 //using System.Drawing;
-//using System.Drawing;
+//using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+//???using System.Xml;
+using Windows.Foundation;
 using Windows.Media.Core;
 using Windows.Storage;
 using Windows.Storage.Pickers;
@@ -49,7 +55,7 @@ namespace Surveyor.User_Controls
     public class COCOImageDataObject
     {
         public string Title { get; set; } = string.Empty;
-        public string ImageFileSpec { get; set; } = string.Empty;
+        public ImageSource? ImageSource { get; set; } = null;
     }
 
     /// <summary>
@@ -125,6 +131,12 @@ namespace Surveyor.User_Controls
         private const string folderCropped = @"\Cropped";
         private const string folderMarkup = @"\Markup";
 
+        // Thumbnail display size
+        private const int thumbnailWidth = 190;
+        private const int thumbnailHeight = 130;
+
+        // Cropping margin control
+        private readonly CroppingMargin croppingMargin = new();
 
         public BulkSurveyExportDialog(ExportType _exportType, Reporter? _report, SpeciesCodeList _speciesCodeList)
         {
@@ -170,6 +182,7 @@ namespace Surveyor.User_Controls
                     MarkRawFrame.Visibility = Visibility.Collapsed;
                     MoreActionsButton.Visibility = Visibility.Visible;
                     break;
+
                 case ExportType.COCO:
                     // Controls that are visible for COCO JSON export
                     InstructionsExcel.Visibility = Visibility.Collapsed;
@@ -184,6 +197,11 @@ namespace Surveyor.User_Controls
                     MoreActionsButton.Visibility = Visibility.Collapsed;
                     break;
             }
+
+            // Setup hard coded cropping margin table (could be made more dynamic in the future if needed)
+            croppingMargin.AddSizingTableItem(measurementGreaterThen: 0, margin: 5);
+            croppingMargin.AddSizingTableItem(measurementGreaterThen: 50, margin: 10);
+            croppingMargin.AddSizingTableItem(measurementGreaterThen: 150, margin: 15);
 
             // Show DataGrid and hide the GridView
             SetDisplayMode(trueDataFalseImages: true);
@@ -1480,85 +1498,60 @@ namespace Surveyor.User_Controls
                                      evt.EventDataType == Events.SurveyDataType.SurveyStereoPoint ||
                                      evt.EventDataType == Events.SurveyDataType.SurveyPoint)
                             {
-                                SpeciesInfo? speciesInfo = null;
-                                SurveyRulesCalc? surveyRulesCalc = null;
-                                double? measurement = null;
-                                int fishCount = 0;
-                                bool derivedSpecies = false;
-                                bool derivedLength = false;
-                                bool includeRowinExport = true;
 
+                                // Get the Rules and SpeciesInfo if possible
+                                (SurveyRulesCalc? surveyRulesCalc, SpeciesInfo? speciesInfo) = GetRulesAndSpeciesInfo(evt);
 
-                                // Get the speciesInfo, surveyRulesCalc & measurement depending on the event type 
-                                switch (evt.EventDataType)
-                                {
-                                    case Events.SurveyDataType.SurveyMeasurementPoints:
-                                        worksheet.Cells[rowIndex, (int)ExportExcelColumns.Type].Value = "Measurement";
-                                        if (evt.EventData is SurveyMeasurement surveyMeasurement)
-                                        {
-                                            speciesInfo = surveyMeasurement.SpeciesInfo;
-                                            surveyRulesCalc = surveyMeasurement.SurveyRulesCalc;
-                                            measurement = surveyMeasurement.Measurement;
-                                            if (!int.TryParse(speciesInfo.Number, out fishCount))
-                                                fishCount = 1;
-                                        }
-                                        break;
-
-                                    case Events.SurveyDataType.SurveyStereoPoint:
-                                    case Events.SurveyDataType.SurveyPoint:
-                                        if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
-                                        {
-                                            worksheet.Cells[rowIndex, (int)ExportExcelColumns.Type].Value = "3D";
-                                            speciesInfo = surveyStereoPoint.SpeciesInfo;
-                                            surveyRulesCalc = surveyStereoPoint.SurveyRulesCalc;
-                                        }
-                                        else if (evt.EventData is SurveyPoint surveyPoint)
-                                        {
-                                            worksheet.Cells[rowIndex, (int)ExportExcelColumns.Type].Value = "Point";
-                                            speciesInfo = surveyPoint.SpeciesInfo;
-                                        }
-                                        // Check the fish count
-                                        if (speciesInfo is not null)
-                                        {
-                                            if (!int.TryParse(speciesInfo.Number, out fishCount))
-                                                fishCount = 1;
-
-                                            // Apply average measurement if requested
-                                            if (applyAverageLengths && !string.IsNullOrWhiteSpace(speciesInfo.Genus) && !string.IsNullOrWhiteSpace(speciesInfo.Species))
-                                            {
-                                                measurement = allMeasurements.GetAverageLength(speciesInfo.Genus!, speciesInfo.Species!);
-                                                derivedLength = true;
-                                            }
-                                        }
-                                        break;
-                                }
-
-                                // Do we want to include failed RMS measurements and 3D Points in the export?
-                                if (!includeFailedRMS && surveyRulesCalc is not null)
-                                {
-                                    if (surveyRulesCalc.SurveyRuleRMS.HasValue && surveyRulesCalc.SurveyRuleRMS == false)
-                                        includeRowinExport = false;
-                                }
-
-                                // Do we want to include other failed rules measurements and 3D Points in the export?
-                                if (!includeOtherFailedRules && surveyRulesCalc is not null)
-                                {
-                                    if ((surveyRulesCalc.SurveyRuleRange.HasValue && surveyRulesCalc.SurveyRuleRange == false) ||
-                                        (surveyRulesCalc.SurveyRuleHoriz.HasValue && surveyRulesCalc.SurveyRuleHoriz == false) ||
-                                        (surveyRulesCalc.SurveyRuleVert.HasValue && surveyRulesCalc.SurveyRuleVert == false))
-                                    {
-                                        includeRowinExport = false;
-                                    }
-                                }
-
-                                // Do we want to include partial or unidentified fish in the export?
-                                if (!includePartialIdentification && speciesInfo is not null && string.IsNullOrWhiteSpace(speciesInfo.Genus))
-                                {
-                                    includeRowinExport = false;
-                                }
-
+                                // Is the Event eligible for the export
+                                bool includeRowinExport = IncludeEventInExport(includeFailedRMS, includeOtherFailedRules, includePartialIdentification, 
+                                                                surveyRulesCalc,
+                                                                speciesInfo);
+                                
                                 if (includeRowinExport)
                                 {
+                                    double? measurement = null;
+                                    int fishCount = 0;
+                                    bool derivedSpecies = false;
+                                    bool derivedLength = false;
+
+                                    // Get the speciesInfo, surveyRulesCalc & measurement depending on the event type 
+                                    switch (evt.EventDataType)
+                                    {
+                                        case Events.SurveyDataType.SurveyMeasurementPoints:
+                                            worksheet.Cells[rowIndex, (int)ExportExcelColumns.Type].Value = "Measurement";
+                                            if (evt.EventData is SurveyMeasurement surveyMeasurement && speciesInfo is not null)
+                                            {
+                                                measurement = surveyMeasurement.Measurement;
+                                                if (!int.TryParse(speciesInfo.Number, out fishCount))
+                                                    fishCount = 1;
+                                            }
+                                            break;
+
+                                        case Events.SurveyDataType.SurveyStereoPoint:
+                                        case Events.SurveyDataType.SurveyPoint:
+                                            if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
+                                            {
+                                                worksheet.Cells[rowIndex, (int)ExportExcelColumns.Type].Value = "3D";
+                                            }
+                                            else if (evt.EventData is SurveyPoint surveyPoint)
+                                            {
+                                                worksheet.Cells[rowIndex, (int)ExportExcelColumns.Type].Value = "Point";
+                                            }
+                                            // Check the fish count
+                                            if (speciesInfo is not null)
+                                            {
+                                                if (!int.TryParse(speciesInfo.Number, out fishCount))
+                                                    fishCount = 1;
+
+                                                // Apply average measurement if requested
+                                                if (applyAverageLengths && !string.IsNullOrWhiteSpace(speciesInfo.Genus) && !string.IsNullOrWhiteSpace(speciesInfo.Species))
+                                                {
+                                                    measurement = allMeasurements.GetAverageLength(speciesInfo.Genus!, speciesInfo.Species!);
+                                                    derivedLength = true;
+                                                }
+                                            }
+                                            break;
+                                    }
 
                                     // Common data
                                     worksheet.Cells[rowIndex, (int)ExportExcelColumns.SurveyName].Value = survey.Data.Info.SurveyCode ?? survey.Data.Info.SurveyFileName;
@@ -2037,6 +2030,89 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// Extract the SurveyRules result and the Specif Info result from the 
+        /// Event if possible
+        /// </summary>
+        /// <param name="evt"></param>
+        /// <returns></returns>
+        private static (SurveyRulesCalc? surveyRulesCalc, SpeciesInfo? speciesInfo) GetRulesAndSpeciesInfo(Event evt)
+        {
+            SurveyRulesCalc? surveyRulesCalc = null;
+            SpeciesInfo? speciesInfo = null;
+
+            // Get the speciesInfo, surveyRulesCalc & measurement depending on the event type 
+            switch (evt.EventDataType)
+            {
+                case Events.SurveyDataType.SurveyMeasurementPoints:
+                    if (evt.EventData is SurveyMeasurement surveyMeasurement)
+                    {
+                        speciesInfo = surveyMeasurement.SpeciesInfo;
+                        surveyRulesCalc = surveyMeasurement.SurveyRulesCalc;
+                    }
+                    break;
+
+                case Events.SurveyDataType.SurveyStereoPoint:
+                case Events.SurveyDataType.SurveyPoint:
+                    if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
+                    {
+                        speciesInfo = surveyStereoPoint.SpeciesInfo;
+                        surveyRulesCalc = surveyStereoPoint.SurveyRulesCalc;
+                    }
+                    else if (evt.EventData is SurveyPoint surveyPoint)
+                    {
+                        speciesInfo = surveyPoint.SpeciesInfo;
+                    }
+                    break;
+            }
+
+            return (surveyRulesCalc, speciesInfo);
+        }
+
+
+        /// <summary>
+        /// Check to see if this Event is eligible for inclusion in the export
+        /// </summary>
+        /// <param name="includeFailedRMS"></param>
+        /// <param name="includeOtherFailedRules"></param>
+        /// <param name="includePartialIdentification"></param>
+        /// <param name="surveyRulesCalc"></param>
+        /// <param name="speciesInfo"></param>
+        /// <returns></returns>
+        private static bool IncludeEventInExport(bool includeFailedRMS, bool includeOtherFailedRules, bool includePartialIdentification,
+                                                 SurveyRulesCalc? surveyRulesCalc,
+                                                 SpeciesInfo? speciesInfo)
+        {
+            bool includeRowinExport = true;
+
+            // Do we want to include failed RMS measurements and 3D Points in the export?
+            if (!includeFailedRMS && surveyRulesCalc is not null)
+            {
+                if (surveyRulesCalc.SurveyRuleRMS.HasValue && surveyRulesCalc.SurveyRuleRMS == false)
+                    includeRowinExport = false;
+            }
+
+            // Do we want to include other failed rules measurements and 3D Points in the export?
+            if (!includeOtherFailedRules && surveyRulesCalc is not null)
+            {
+                if ((surveyRulesCalc.SurveyRuleRange.HasValue && surveyRulesCalc.SurveyRuleRange == false) ||
+                    (surveyRulesCalc.SurveyRuleHoriz.HasValue && surveyRulesCalc.SurveyRuleHoriz == false) ||
+                    (surveyRulesCalc.SurveyRuleVert.HasValue && surveyRulesCalc.SurveyRuleVert == false))
+                {
+                    includeRowinExport = false;
+                }
+            }
+
+            // Do we want to include partial or unidentified fish in the export?
+            if (!includePartialIdentification && speciesInfo is not null && string.IsNullOrWhiteSpace(speciesInfo.Genus))
+            {
+                includeRowinExport = false;
+            }
+
+            return includeRowinExport;
+        }
+
+
+        /// <summary>
         /// Excel Export
         /// </summary>
         /// <returns></returns>
@@ -2106,6 +2182,1113 @@ namespace Surveyor.User_Controls
         /// <returns></returns>
         private async Task ExportCOCODatatSheetAsync(Stream stream, string exportFile)
         {
+            int ret = -1;
+
+            bool includeFailedRMS = IncludeFailedRMS.IsChecked == true;
+            bool includeOtherFailedRules = IncludeOtherFailedRules.IsChecked == true;
+            // Note this checkbox is not currently visible in COCO mode
+            // however I've keep the functionality in case I meet datasets
+            // not ID'd to species level in the future
+            bool includePartialIdentification = IncludePartialIdentification.IsChecked == true;
+
+            // Image extract
+            bool extractRawFrame = ExtractRawFrame.IsChecked == true;
+            bool extractCroppedImage = ExtractCroppedImage.IsChecked == true;
+            bool markBoxOnFrame = BoxRawFrame.IsChecked == true;
+            bool markHeadTailOnFrame = MarkRawFrame.IsChecked == true;
+
+            // Hide DataGrid and show the GridView
+            SetDisplayMode(trueDataFalseImages: false);
+
+            // Create list of surveys to include in the export
+            List<SurveyFileEntry> surveyFileEntries = SurveyFiles.Where(f => f.Include && !f.IsTotalRow).ToList();
+
+            // This list organizes the Events by frame at the lowest level
+            EventsByMediaFileByFrame eventsByMediaFileByFrame = new();
+
+            // Make the output folder and sub-folders
+            string exportBasePath = string.Empty;
+            if (extractRawFrame || extractCroppedImage || markHeadTailOnFrame || markHeadTailOnFrame)
+                ret = MakeOutputDirectories(out exportBasePath,
+                                            rawFolder: true,    // Always need \Raw either in temporary or permanent sense
+                                            croppedFolder: extractCroppedImage, 
+                                            markupFolder: markHeadTailOnFrame || markHeadTailOnFrame);
+
+            // Build the EventsByMediaFileByFrame list
+            if (ret == 0)
+            {
+                ret = await BuildEventsByMediaFileByFrameListAsync(includeFailedRMS, includeOtherFailedRules, includePartialIdentification,
+                                        surveyFileEntries, eventsByMediaFileByFrame);
+            }
+
+            // Extract the sync point frames as a test
+            // Good to be able to visually see the stereo media was properly synced
+            if (ret == 0) 
+            {
+                await ExtractSyncFramesAsync(surveyFileEntries, exportBasePath);
+            }
+
+            // Extract the frames and markup as necessary
+            if (ret == 0)
+            {
+                // Check image extraction was requested
+                if (extractRawFrame || extractCroppedImage || markHeadTailOnFrame || markHeadTailOnFrame)
+                {
+                    ret = await ExtractImagesCropAndMarkupAsync(extractRawFrame, extractCroppedImage, markBoxOnFrame, markHeadTailOnFrame,
+                                                                eventsByMediaFileByFrame, exportBasePath);
+                }
+            }
+
+            // Build the COCO export file
+            if (ret == 0)
+            {
+                ret = BuildCOCOExportFile(frameWidth, frameHeight, eventsByMediaFileByFrame, stream);
+            }
+
+            // Remove \Row sub-folder if only used for temporary stuff
+            if (!extractRawFrame)
+            {
+                Directory.Delete(exportBasePath + folderRaw);
+            }
+
+            // Show DataGrid and hide the GridView
+            SetDisplayMode(trueDataFalseImages: true);
+
+        }
+
+
+        /// <summary>
+        /// Inside of the Documents/Surveyor folder create sub-folders for 
+        /// the raw frames, cropped frames and markup frames.  
+        /// Return the base path to the export folder.
+        /// </summary>
+        /// <param name="exportBasePath"></param>
+        /// <returns></returns>
+        private int MakeOutputDirectories(out string exportBasePath, bool rawFolder, bool croppedFolder, bool markupFolder)
+        {
+            int ret = -1;
+
+            // Reset
+            exportBasePath = string.Empty;
+
+            // Create the output directories
+            try
+            {
+                string stem = $"Image Extract {DateTime.Now:yyyy-MM-dd HH-mm-ss}";
+                exportBasePath = ImageExtract.MakeAndCreateFramesDirectoryAndEmpty(stem);
+
+                if (rawFolder)
+                    ImageExtract.MakeAndCreateFramesDirectoryAndEmpty(stem + folderRaw);
+
+                if (croppedFolder)
+                    ImageExtract.MakeAndCreateFramesDirectoryAndEmpty(stem + folderCropped);
+
+                if (markupFolder)
+                    ImageExtract.MakeAndCreateFramesDirectoryAndEmpty(stem + folderMarkup);
+
+                ret = 0;
+            }
+            catch (Exception ex)
+            {
+                report?.Warning("", $"MakeOutputDirectories: Failed to create output directories for image extraction, {ex.Message}");
+                ret = -1;
+            }
+         
+            return ret;
+        }
+
+       
+        /// <summary>
+        /// Organize the data so all the Events for a frame are grouped together
+        /// This is ultimately so all the Events for one frame can be annotated 
+        /// on the frame image file
+        /// </summary>
+        /// <param name="surveyFileEntries"></param>
+        /// <param name="eventsByMediaFileByFrame"></param>
+        /// <returns></returns>
+        private static async Task<int> BuildEventsByMediaFileByFrameListAsync(bool includeFailedRMS, bool includeOtherFailedRules, bool includePartialIdentification, 
+                                            List<SurveyFileEntry> surveyFileEntries, 
+                                            EventsByMediaFileByFrame eventsByMediaFileByFrame)
+        {
+            int ret = 0;
+
+            // Loop through each survey in the batch
+            foreach (var fileEntry in surveyFileEntries)
+            {
+                // Open the survey with no auto save
+                var survey = new Survey(null!);
+                if (await survey.SurveyLoadAsync(fileEntry.FilePath, false/*autoSave*/) != 0)
+                    continue;
+
+                // Loop through the events for this survey
+                foreach (var evt in survey.Data.Events.EventList)
+                {
+                    if (evt.EventDataType == Events.SurveyDataType.SurveyMeasurementPoints ||
+                        evt.EventDataType == Events.SurveyDataType.SurveyStereoPoint ||
+                        evt.EventDataType == Events.SurveyDataType.SurveyPoint)
+                    {
+                        // Get the Rules and SpeciesInfo if possible
+                        (SurveyRulesCalc? surveyRulesCalc, SpeciesInfo? speciesInfo) = GetRulesAndSpeciesInfo(evt);
+
+                        // Include this Event in the export
+                        bool include = IncludeEventInExport(includeFailedRMS, includeOtherFailedRules, includePartialIdentification,
+                                                            surveyRulesCalc, speciesInfo);
+                        if (include)
+                        {
+                            string mediaFileSpec;
+
+                            // Here we kind of flatten out the data 
+                            switch (evt.EventDataType)
+                            {
+                                case Events.SurveyDataType.SurveyMeasurementPoints:
+                                case Events.SurveyDataType.SurveyStereoPoint:
+                                    mediaFileSpec = survey.Data.Media.GetMediaFileSpec(trueLeftFalseRight: true, evt.MediaLeftIndex);
+                                    if (!string.IsNullOrEmpty(mediaFileSpec))
+                                        eventsByMediaFileByFrame.Add(mediaFileSpec, trueLeftFalseRight: true, fileEntry.FilePath, evt.TimeSpanLeftFrame, evt);
+
+                                    mediaFileSpec = survey.Data.Media.GetMediaFileSpec(trueLeftFalseRight: false, evt.MediaRightIndex);
+                                    if (!string.IsNullOrEmpty(mediaFileSpec))
+                                        eventsByMediaFileByFrame.Add(mediaFileSpec, trueLeftFalseRight: false, fileEntry.FilePath, evt.TimeSpanRightFrame, evt);
+                                    break;
+
+                                case Events.SurveyDataType.SurveyPoint:
+                                    if (evt.EventData is SurveyPoint surveyPoint)
+                                    {
+                                        int mediaIndex = surveyPoint.TrueLeftFalseRight == true ? evt.MediaLeftIndex : evt.MediaRightIndex;
+
+                                        mediaFileSpec = survey.Data.Media.GetMediaFileSpec(surveyPoint.TrueLeftFalseRight, mediaIndex);
+
+                                        if (!string.IsNullOrEmpty(mediaFileSpec))
+                                            eventsByMediaFileByFrame.Add(mediaFileSpec, surveyPoint.TrueLeftFalseRight, fileEntry.FilePath, evt.TimeSpanRightFrame, evt);
+                                    }
+                                    break;
+                            }
+                        }
+                    }                   
+                }
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Extract the image one frame before, one frame on the sync frame itself and one frame after.
+        /// This is a useful for testing if the sync frame is setup correctly by visually seeing the torch
+        /// </summary>
+        /// <param name="surveyFileEntries"></param>
+        /// <param name="exportBasePath"></param>
+        /// <returns></returns>
+        private async Task<int> ExtractSyncFramesAsync(List<SurveyFileEntry> surveyFileEntries, string exportBasePath)
+        {
+            int ret = -1;
+
+            // Loop through each survey in the batch
+            foreach (var fileEntry in surveyFileEntries)
+            {
+                // Open the survey with no auto save
+                var survey = new Survey(null!);
+                if (await survey.SurveyLoadAsync(fileEntry.FilePath, false/*autoSave*/) != 0)
+                    continue;
+
+                // Image extract from video class instances
+                List<ImageExtract?> leftImageExtractList = [];
+                List<ImageExtract?> rightImageExtractList = [];
+
+                // Open the media file(s)
+                ret = OpenMediaFiles(trueLeftFalseRight: true, leftImageExtractList, survey.Data.Media, exportBasePath, fileEntry.FileName);
+
+                if (ret == 0)
+                {
+                    ret = OpenMediaFiles(trueLeftFalseRight: false, rightImageExtractList, survey.Data.Media, exportBasePath, fileEntry.FileName);
+                    if (ret == 0)
+                    {
+                        // Loop through the events for this survey
+                        foreach (var evt in survey.Data.Events.EventList)
+                        {
+                            if (evt.EventDataType == Events.SurveyDataType.StereoSyncPoint)
+                            {
+                                // Extract the raw frame before, on and after the sync point
+                                // to help debug any potential issues with the sync point timing and the frame extraction logic
+                                ret = await ExtractSyncPointImagesAsync(leftImageExtractList, evt.MediaLeftIndex, evt.TimeSpanLeftFrame, "left");
+                                if (ret == 0)
+                                    ret = await ExtractSyncPointImagesAsync(rightImageExtractList, evt.MediaRightIndex, evt.TimeSpanRightFrame, "right");
+
+                                /////////////////////////////////////////////////
+                                // Helper to extract images around the sync point
+                                static async Task<int>  ExtractSyncPointImagesAsync(List<ImageExtract?> imageExtractList, int mediaIndex, TimeSpan position, string side)
+                                {
+                                    int ret = -1;
+
+                                    ImageExtract? imageExtract = GetImageExtractInstance(imageExtractList, mediaIndex);
+                                    if (imageExtract is not null)
+                                    {
+                                        // Image extraction
+                                        (ret, List<string?> outputFileSpec) = await imageExtract.VideoExtractFramesAsync(position, -1, 1);
+                                    }
+
+                                    return ret;
+                                }
+                                /////////////////////////////////////////////////
+                            }
+                        }
+
+                        // Close the right media file(s)
+                        CloseMediaFiles(rightImageExtractList, fileEntry.FileName);
+                    }
+                    // Close the left media file(s)
+                    CloseMediaFiles(leftImageExtractList, fileEntry.FileName);
+
+                }
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Using the EventsByMediaFileByFrame instance extract images from
+        /// the media files in the list. Depending on the user selection also 
+        /// crop the images and markup the images with boxes and head/tail points. 
+        /// raw image frame go into the \raw folder, cropped into the \cropped
+        /// folder and box and/or marked head and tail into the \markup folder
+        /// </summary>
+        /// <param name="extractRawFrame"></param>
+        /// <param name="extractCroppedImage"></param>
+        /// <param name="markBoxOnFrame"></param>
+        /// <param name="markHeadTailOnFrame"></param>
+        /// <param name="eventsByMediaFileByFrame"></param>
+        /// <param name="exportBasePath"></param>
+        /// <returns></returns>
+        private async Task<int> ExtractImagesCropAndMarkupAsync(bool extractRawFrame, bool extractCroppedImage, 
+                                                                bool markBoxOnFrame, bool markHeadTailOnFrame,
+                                                                EventsByMediaFileByFrame eventsByMediaFileByFrame, 
+                                                                string exportBasePath)
+        {
+            int ret = -1;
+            Survey? survey = null;
+            string currentSurveyFilePath = string.Empty;
+
+            string rawFolder = exportBasePath + folderRaw;
+            string croppedFolder = exportBasePath + folderCropped;
+            string markupFolder = exportBasePath + folderMarkup;
+
+            // Iteration over eventsByMediaFileByFrame.mediaFilesList
+            // Each entry in mediaFilesList is a media file (e.g. left or right video)
+            // and contains a list of frames (TimeSpan) where there are Events, and
+            // the list of Events at each of those frames
+            foreach (var pair in eventsByMediaFileByFrame.mediaFilesList)
+            {
+                string mediaFileSpec = pair.Key;
+                MediaFileExtractList mediaFileExtractList = pair.Value;
+                string surveyFileName = Path.GetFileName(mediaFileExtractList.surveyFilePath);
+
+                // Open survey if not already open
+                if (currentSurveyFilePath != mediaFileExtractList.surveyFilePath)
+                {
+                    // Close the previous survey if needed
+                    if (survey is not null)
+                    {
+                        await survey.SurveyCloseAsync();
+                        survey = null;
+                        currentSurveyFilePath = string.Empty;
+                    }
+
+                    // Open the new survey with no auto save                    
+                    survey = new Survey(null!);
+                    if (await survey.SurveyLoadAsync(mediaFileExtractList.surveyFilePath, false/*autoSave*/) != 0)
+                        continue;
+
+                    // Remember the current open survey file path to avoid reopening the
+                    // same survey multiple times for media files belonging to the same survey
+                    currentSurveyFilePath = mediaFileExtractList.surveyFilePath;
+                }
+
+                if (survey is not null && mediaFileExtractList.trueLeftFalseRight is not null)
+                {
+                    // Clear the GridView of images
+                    COCODatasetImages.Clear();
+
+                    // Open the media file
+                    ImageExtract imageExtract = new();
+                    ret = imageExtract.VideoOpen(mediaFileExtractList.mediaFileSpec);
+
+                    if (ret == 0)
+                    {
+                        // Extract the images for this media file
+                        foreach (var evtPair in mediaFileExtractList.eventList)
+                        {
+                            TimeSpan position = evtPair.Key;
+                            List<Event> eventsAtThisFrame = evtPair.Value;
+
+                            // Extract the raw frame
+                            string rawExportFileSpec = MakeImageFrameFileSpec(mediaFileExtractList.mediaFileSpec, position, rawFolder, "Raw", null, null);
+                            try
+                            {
+                                ret = await imageExtract.VideoExtractFrameAsync(position, rawExportFileSpec);
+                            }
+                            catch (Exception ex)
+                            {
+                                report?.Warning("", $"Failed to extract raw frame for {surveyFileName}, media file {mediaFileExtractList.mediaFileSpec} at position {position}, {ex.Message}");
+                                continue;
+                            }
+
+                            if (ret == 0)
+                            {
+                                // Get the extracted raw frame as a WriteableBitmap for potential cropping and markup
+                                WriteableBitmap? wb = imageExtract.GetCurrentWriteableBitmap();
+
+                                // Is Raw frame the image we should display to the user?                            
+                                if (wb is not null && IsThisTheDisplayImage("Raw", extractRawFrame, extractCroppedImage, markBoxOnFrame, markHeadTailOnFrame) == true)
+                                {
+                                    string title = $"{Path.GetFileName(mediaFileExtractList.mediaFileSpec)} - {position}";
+                                    await DisplayImageToGridViewAsync(wb, title);
+                                }
+
+                                // Get the bounding boxes for the Events at this frame and whether they are overlapping or not
+                                List<Rect> bBoxList = [];
+                                List<bool> overlappingList = [];
+                                (int frameWidth, int frameHeight) = imageExtract.GetFrameSize();
+
+                                if (extractCroppedImage || markBoxOnFrame || markHeadTailOnFrame)
+                                    ret = GenerateBBoxListForThisFrame((bool)mediaFileExtractList.trueLeftFalseRight, frameWidth, frameHeight, eventsAtThisFrame, out bBoxList, out overlappingList);
+
+                                if (ret == 0)
+                                {
+                                    // Cropped image extraction 
+                                    if (ret == 0 && extractCroppedImage && wb is not null)
+                                    {
+                                        bool displayCropped = IsThisTheDisplayImage("Cropped", extractRawFrame, extractCroppedImage, markBoxOnFrame, markHeadTailOnFrame);
+
+                                        // Crop the image to the bounding boxes and save the cropped image
+                                        ret = await CropImageToBoundingBoxesAndSaveAsync(
+                                                                              wb, bBoxList, overlappingList, 
+                                                                              croppedFolder, mediaFileExtractList.mediaFileSpec, 
+                                                                              position, surveyFileName, displayCropped);
+                                    }
+                                
+
+                                    // Marked up image preparation
+                                    if (ret == 0 && (markBoxOnFrame || markHeadTailOnFrame) && wb is not null)
+                                    {
+                                        bool displayMarkedUp = IsThisTheDisplayImage("Markup", extractRawFrame, extractCroppedImage, markBoxOnFrame, markHeadTailOnFrame);
+
+                                        // Mark up the image with boxes and head/tail points and save the marked up image
+                                        ret = await MarkupImageAndSaveAsync (wb, (bool)mediaFileExtractList.trueLeftFalseRight, 
+                                                                             eventsAtThisFrame, bBoxList, overlappingList, 
+                                                                             markBoxOnFrame, markHeadTailOnFrame, 
+                                                                             markupFolder, mediaFileExtractList.mediaFileSpec, 
+                                                                             position, surveyFileName, displayMarkedUp);
+                                    }
+                                }
+
+                                // Clean up raw image if necessary
+                                if (!extractRawFrame)
+                                {
+                                    File.Delete(rawExportFileSpec);
+                                }
+                            }
+                        }
+
+                        // Close the media file
+                        imageExtract.VideoClose();
+                    }
+                }
+            }
+
+            // Close the previous survey
+            if (survey is not null)
+            {
+                await survey.SurveyCloseAsync();
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Display the image to the GridView for the user to see progress
+        /// Note the image is scaled down if necessary
+        /// </summary>
+        /// <param name="wb"></param>
+        /// <param name="title"></param>
+        /// <returns></returns>
+        private async Task DisplayImageToGridViewAsync(WriteableBitmap wb, string title)
+        {
+            WriteableBitmap thumbnail;
+
+            if (wb.PixelWidth > thumbnailWidth || wb.PixelHeight > thumbnailHeight)
+                thumbnail = await WriteableBitmapHelper.CreateThumbnailAsync(wb, 190, 130);
+            else
+                thumbnail = wb;
+
+            COCOImageDataObject imageDataObject = new()
+            {
+                ImageSource = thumbnail,
+                Title = title
+            };
+            COCODatasetImages.Add(imageDataObject);
+        }
+
+        /// <summary>
+        /// Use to generate the list of bounding boxes for the Events at this frame.  
+        /// This is used for both cropping and markup so we only have to loop through 
+        /// the Events once to get the bounding boxes.  Also determine if any of the 
+        /// bounding boxes are overlapping which is useful information to have when 
+        /// deciding how to display the images in the GridView and to indicate that an
+        /// image maybe compromised.
+        /// </summary>
+        /// <param name="trueLeftFalseRight"></param>
+        /// <param name="eventsAtThisFrame"></param>
+        /// <param name="bBoxList"></param>
+        /// <param name="overlappingList"></param>
+        /// <returns></returns>
+        private int GenerateBBoxListForThisFrame(bool trueLeftFalseRight, int frameWidth, int frameHeight, List<Event> eventsAtThisFrame, out List<Rect> bBoxList, out List<bool> overlappingList)
+        {
+            int ret = -1;
+            bBoxList = [];
+            overlappingList = [];
+
+            // Build an array of bounding boxes for the Events at this frame so
+            // they can be drawn on the cropped image and/or used to determine
+            // the cropped image dimensions
+            foreach (Event evt in eventsAtThisFrame)
+            {
+                
+                // Get the bounding box for this Event if possible
+                if (TryGetBoundingBox(trueLeftFalseRight, evt, frameWidth, frameHeight, out Rect bbox))
+                {
+                    bBoxList.Add(bbox);
+                }
+            }
+
+            // Check if Rectangles are overlapping
+            List<bool> IsOverlapping = [];
+
+            foreach (Rect bbox in bBoxList)
+            {
+                bool overlapping = false;
+                foreach (Rect other in bBoxList)
+                {
+                    if (bbox != other)
+                    {
+                        overlapping = bbox.Left < other.Right &&
+                                      bbox.Right > other.Left &&
+                                      bbox.Top < other.Bottom &&
+                                      bbox.Bottom > other.Top;
+
+                        break;
+                    }
+                }
+                IsOverlapping.Add(overlapping);
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Attempts to retrieve the bounding box associated with the specified event.
+        /// </summary>
+        /// <param name="trueLeftFalseRight">Indicates whether to consider the left or right media when retrieving the bounding box.</param>
+        /// <param name="evt">The event for which to obtain the bounding box. Cannot be null.</param>
+        /// <param name="frameWidth">The width of the frame.</param>
+        /// <param name="frameHeight">The height of the frame.  </param>
+        /// <param name="bbox">When this method returns, contains the bounding box of the event if found; otherwise, contains the default
+        /// value for <see cref="Rect"/>.</param>
+        /// <returns>true if the bounding box was successfully retrieved; otherwise, false.</returns>
+        private bool TryGetBoundingBox(bool trueLeftFalseRight, Event evt, int frameWidth, int frameHeight, out Rect bbox)
+        {
+            bool ret = false;
+
+            // Reset
+            bbox = new Rect(0, 0, 0, 0);
+
+            switch (evt.EventDataType)
+            {
+                case Events.SurveyDataType.SurveyMeasurementPoints:
+                    if (evt.EventData is SurveyMeasurement surveyMeasurement)
+                    {
+                        (double xA, double yA, double xB, double yB) = SurveyMeasurementGetCoordinates(surveyMeasurement, trueLeftFalseRight);
+
+                        int xSpaceAround = croppingMargin.GetCroppingMarginMeasurement(surveyMeasurement.Measurement,
+                                                                                       surveyMeasurement.SpeciesInfo.Species,
+                                                                                       surveyMeasurement.SpeciesInfo.Genus,
+                                                                                       surveyMeasurement.SpeciesInfo.Family);
+                        bbox = MakeCropHeadTail(frameWidth, frameHeight, xA, yA, xB, yB, xSpaceAround);
+                    }
+                    break;
+
+                case Events.SurveyDataType.SurveyStereoPoint:
+                    if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
+                    {
+                        (double x, double y) = SurveyStereoPointGetCoordinates(surveyStereoPoint, trueLeftFalseRight);
+                        
+                        (int xSpace, int ySpace) = croppingMargin.GetCroppingMarginPoint(surveyStereoPoint.SurveyRulesCalc.Range, 
+                                                                                         surveyStereoPoint.SpeciesInfo.Species, 
+                                                                                         surveyStereoPoint.SpeciesInfo.Genus, 
+                                                                                         surveyStereoPoint.SpeciesInfo.Family);
+                        bbox = MakeCropPoint(frameWidth, frameHeight, x, y, xSpace, ySpace);
+                    }
+                    break;
+
+                case Events.SurveyDataType.SurveyPoint:
+                    if (evt.EventData is SurveyPoint surveyPoint)
+                    {
+                        if (surveyPoint.TrueLeftFalseRight == trueLeftFalseRight)
+                        {
+                            (int xSpace, int ySpace) = croppingMargin.GetCroppingMarginPoint(null, surveyPoint.SpeciesInfo.Species, 
+                                                                                                   surveyPoint.SpeciesInfo.Genus, 
+                                                                                                   surveyPoint.SpeciesInfo.Family);
+                            bbox = MakeCropPoint(frameWidth, frameHeight, surveyPoint.X, surveyPoint.Y, xSpace, ySpace);
+                        }
+                    }
+                    break;
+            }
+
+            return ret;
+
+
+            // Helper to calculate the bounding box for an SurveyPoint surveyPoint Event
+            static Rect MakeCropPoint(int frameWidth, int frameHeight, double x1, double y1, int xSpace, int ySpace)
+            {
+                // Round
+                int x1Rounded = (int)Math.Round(x1, MidpointRounding.AwayFromZero);
+                int y1Rounded = (int)Math.Round(y1, MidpointRounding.AwayFromZero);
+
+                // Find top-left coordinates
+                int topLeftX = x1Rounded - xSpace;
+                int topLeftY = y1Rounded - ySpace;
+
+                // Ensure top-left doesn't exceed boundaries
+                if (topLeftX < 0) topLeftX = 0;
+                if (topLeftY < 0) topLeftY = 0;
+
+                // Calculate width and height
+                int width = 2 * xSpace;
+                int height = 2 * ySpace;
+
+                // Ensure the rectangle doesn't exceed the image dimensions
+                if ((topLeftX + width) > frameWidth) width = frameWidth - topLeftX;
+                if ((topLeftY + height) > frameHeight) height = frameHeight - topLeftY;
+
+                // Return the formatted string
+                return new Rect(topLeftX, topLeftY, width, height);
+            }
+
+            // Helper to calculate the bounding box for an SurveyMeasurementPoint Event
+            static Rect MakeCropHeadTail(int frameWidth, int frameHeight, double hX, double hY, double tX, double tY, double spaceAround)
+            {
+                const double hwRatio = 0.5;
+
+                // Calculate the angle between head and tail
+                double deltaX = tX - hX;
+                double deltaY = tY - hY;
+
+                // NOTE: Preserves VBA argument order: Atan2(deltaX, deltaY)
+                double angle = Math.Atan2(deltaX, deltaY);
+
+                // Calculate the fish length
+                double fishLength = Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
+
+                // Calculate the fish height using the ratio
+                double fishHeight = fishLength * hwRatio;
+
+                // Calculate half-length and half-height for easier calculations
+                double halfLength = fishLength / 2.0;
+                double halfHeight = fishHeight / 2.0;
+
+                // Expand by spaceAround on all sides
+                halfLength += spaceAround;
+                halfHeight += spaceAround;
+
+                // Calculate the corners of the "fish box" in the rotated space
+                double cosAngle = Math.Cos(angle);
+                double sinAngle = Math.Sin(angle);
+
+                // Center of the fish (midpoint between head and tail)
+                double centerX = (hX + tX) / 2.0;
+                double centerY = (hY + tY) / 2.0;
+
+                // Calculate the four corners of the fish box
+                double corner1X = centerX - (halfLength * cosAngle) - (halfHeight * sinAngle);
+                double corner1Y = centerY - (halfLength * sinAngle) + (halfHeight * cosAngle);
+
+                double corner2X = centerX + (halfLength * cosAngle) - (halfHeight * sinAngle);
+                double corner2Y = centerY + (halfLength * sinAngle) + (halfHeight * cosAngle);
+
+                double corner3X = centerX + (halfLength * cosAngle) + (halfHeight * sinAngle);
+                double corner3Y = centerY + (halfLength * sinAngle) - (halfHeight * cosAngle);
+
+                double corner4X = centerX - (halfLength * cosAngle) + (halfHeight * sinAngle);
+                double corner4Y = centerY - (halfLength * sinAngle) - (halfHeight * cosAngle);
+
+                // Determine the crop box that fully encloses the rotated fish box
+                double minX = Math.Min(Math.Min(corner1X, corner2X), Math.Min(corner3X, corner4X));
+                double maxX = Math.Max(Math.Max(corner1X, corner2X), Math.Max(corner3X, corner4X));
+                double minY = Math.Min(Math.Min(corner1Y, corner2Y), Math.Min(corner3Y, corner4Y));
+                double maxY = Math.Max(Math.Max(corner1Y, corner2Y), Math.Max(corner3Y, corner4Y));
+
+                // Crop box dimensions
+                double cropTopX = Math.Max(0, minX);
+                double cropLeftY = Math.Max(0, minY);
+                double cropWidth = Math.Min(frameWidth - cropTopX, maxX - minX);
+                double cropHeight = Math.Min(frameHeight - cropLeftY, maxY - minY);
+
+                // Guard against negative values
+                cropWidth = Math.Max(0, cropWidth);
+                cropHeight = Math.Max(0, cropHeight);
+
+                // Ceiling(..., 1) equivalent
+                int width = (int)Math.Ceiling(cropWidth);
+                int height = (int)Math.Ceiling(cropHeight);
+                int topX = (int)Math.Ceiling(cropTopX);
+                int leftY = (int)Math.Ceiling(cropLeftY);
+
+                // Return the formatted string
+                return new Rect(topX, leftY, width, height);
+            }
+
+        }
+
+
+        /// <summary>
+        /// Extract the coordinates from the SurveyMeasurement class
+        /// </summary>
+        /// <param name="surveyMeasurement"></param>
+        /// <param name="trueLeftFalseRight"></param>
+        /// <returns></returns>
+        private static (double xA, double yA, double xB, double yB) SurveyMeasurementGetCoordinates(SurveyMeasurement surveyMeasurement, bool trueLeftFalseRight)
+        {
+            double xA;
+            double xB;
+            double yA;
+            double yB;
+
+            if (trueLeftFalseRight == true)
+            {
+                xA = surveyMeasurement.LeftXA;
+                yA = surveyMeasurement.LeftYA;
+                xB = surveyMeasurement.LeftXB;
+                yB = surveyMeasurement.LeftYB;
+            }
+            else
+            {
+                xA = surveyMeasurement.RightXA;
+                yA = surveyMeasurement.RightYA;
+                xB = surveyMeasurement.RightXB;
+                yB = surveyMeasurement.RightYB;
+            }
+
+            return (xA, yA, xB, yB);
+        }
+
+
+        /// <summary>
+        ///Extract the coordinates from the SurveyStereoPoint class
+        /// </summary>
+        /// <param name="surveyStereoPoint"></param>
+        /// <param name="trueLeftFalseRight"></param>
+        /// <returns></returns>
+        private static (double x, double y) SurveyStereoPointGetCoordinates(SurveyStereoPoint surveyStereoPoint, bool trueLeftFalseRight)
+        {
+            double x;
+            double y;
+
+            if (trueLeftFalseRight == true)
+            {
+                x = surveyStereoPoint.LeftX;
+                y = surveyStereoPoint.LeftY;
+            }
+            else
+            {
+                x = surveyStereoPoint.RightX;
+                y = surveyStereoPoint.RightY;
+            }
+        
+            return (x, y);
+        }
+
+
+        /// <summary>
+        /// Extract and save the cropped images
+        /// </summary>
+        /// <param name="wb"></param>
+        /// <param name="bBoxList"></param>
+        /// <param name="overlappingList"></param>
+        /// <param name="croppedFolder"></param>
+        /// <param name="mediaFileSpec"></param>
+        /// <param name="position"></param>
+        /// <param name="surveyFileName"></param>
+        /// <param name="displayCropped"></param>
+        /// <returns></returns>
+        private async Task<int> CropImageToBoundingBoxesAndSaveAsync(
+                                                    WriteableBitmap wb,
+                                                    List<Rect> bBoxList, List<bool> overlappingList, 
+                                                    string croppedFolder, string mediaFileSpec, 
+                                                    TimeSpan position, string surveyFileName, bool displayCropped)
+        {
+            int ret = -1;
+
+            // Guard
+            if (bBoxList.Count != overlappingList.Count)
+                return -1;
+
+            // Loop over the BBox and Overlapping lists
+            for (int i = 0; i < bBoxList.Count; i++)
+            {
+                Rect rect = bBoxList[i];
+                bool overlapping = overlappingList[i];
+                string species = string.Empty;  // To be implemented if necessary
+
+                string croppedExportFileSpec = MakeImageFrameFileSpec(mediaFileSpec, position, croppedFolder, "Crop", species, overlapping);
+
+                // Extract cropped bitmap rect from wb
+                WriteableBitmap? wbCropped = null;
+                try 
+                {
+                    wbCropped = WriteableBitmapHelper.Crop(wb, rect);
+
+                }
+                catch (Exception ex)
+                {
+                    report?.Warning("", $"Failed to extract cropped image for {surveyFileName}, media file {mediaFileSpec} at position {position} box ({rect.X:F1},{rect.Y:F1},W={rect.Width:F1},H={rect.Height:F1}), {ex.Message}");
+                    continue;
+                }
+
+                // Write to file
+                if (wbCropped is not null)
+                {
+                    try
+                    {
+                        await WriteableBitmapHelper.SaveAsync(wbCropped, croppedExportFileSpec);
+                        ret = 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        report?.Warning("", $"Failed to save cropped image for {surveyFileName}, media file {mediaFileSpec} at position {position} box ({rect.X:F1},{rect.Y:F1},W={rect.Width:F1},H={rect.Height:F1}), {ex.Message}");
+                    }
+                }
+
+                // Display to user if required
+                if (displayCropped)
+                {
+                    string overlappingText = string.Empty;
+                    if (overlapping)
+                        overlappingText = "(overlap)";
+                    string title = $"{Path.GetFileName(mediaFileSpec)} - {position} {overlappingText}";
+                    await DisplayImageToGridViewAsync(wb, title);
+                }
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Markup either the box or head/tail markers or both and save
+        /// </summary>
+        /// <param name="wb"></param>
+        /// <param name="eventsAtThisFrame"></param>
+        /// <param name="bBoxList"></param>
+        /// <param name="overlappingList"></param>
+        /// <param name="markBoxOnFrame"></param>
+        /// <param name="markHeadTailOnFrame"></param>
+        /// <param name="markupFolder"></param>
+        /// <param name="mediaFileSpec"></param>
+        /// <param name="position"></param>
+        /// <param name="surveyFileName"></param>
+        /// <param name="displayMarkedUp"></param>
+        /// <returns></returns>
+        private async Task<int> MarkupImageAndSaveAsync(WriteableBitmap wb, bool trueLeftFalseRight,
+                                                        List<Event> eventsAtThisFrame, List<Rect> bBoxList, List<bool> overlappingList, 
+                                                        bool markBoxOnFrame, bool markHeadTailOnFrame, 
+                                                        string markupFolder, string mediaFileSpec, 
+                                                        TimeSpan position, string surveyFileName, bool displayMarkedUp)
+        {
+            int ret = -1;
+
+            if (bBoxList.Count != overlappingList.Count || bBoxList.Count != eventsAtThisFrame.Count)
+                return -1;
+
+            // White brush for a non-overlapping box
+            Windows.UI.Color nonOverlappingBoxColor = Colors.White;
+            // Orange brush for an overlapping box to indicate the image maybe compromised
+            Windows.UI.Color overlappingBoxColor = Colors.Orange;
+            // Red marker for the Head
+            Windows.UI.Color headMarkerColor = Colors.Red;
+            // Green marker for the Tail
+            Windows.UI.Color tailMarkerColor = Colors.Green;
+
+            // Convert to CanvasBitmap for markup
+            CanvasBitmap canvasBitmap = await ToCanvasBitmapAsync(wb);
+
+            // Create a CanvasRenderTarget to draw on
+            CanvasRenderTarget renderTarget = new(CanvasDevice.GetSharedDevice(), 
+                                                  canvasBitmap.SizeInPixels.Width, 
+                                                  canvasBitmap.SizeInPixels.Height, 
+                                                  canvasBitmap.Dpi);
+
+            using (CanvasDrawingSession drawingSession = renderTarget.CreateDrawingSession())
+            {
+                // Draw the original image onto the render target
+                drawingSession.DrawImage(canvasBitmap);
+
+                // Loop over the Events and associated BBoxes and draw the markups
+                for (int i = 0; i < eventsAtThisFrame.Count; i++)
+                {
+                    Event evt = eventsAtThisFrame[i];
+                    Rect rect = bBoxList[i];
+                    bool overlapping = overlappingList[i];
+
+                    // Draw the box if required and if we have a bounding box for this Event
+                    if (markBoxOnFrame)
+                    {
+                        Windows.UI.Color color = overlapping ? overlappingBoxColor : nonOverlappingBoxColor;
+                        drawingSession.DrawRectangle(
+                                            (float)rect.X, (float)rect.Y,
+                                            (float)rect.Width, (float)rect.Height,
+                                            color,
+                                            1);
+                    }
+
+                    // Draw the markers if required 
+                    if (markHeadTailOnFrame)
+                    {
+                        switch (evt.EventDataType)
+                        {
+                            case Events.SurveyDataType.SurveyMeasurementPoints:
+                                if (evt.EventData is SurveyMeasurement surveyMeasurement)
+                                {
+                                    (double xA, double yA, double xB, double yB) = SurveyMeasurementGetCoordinates(surveyMeasurement, trueLeftFalseRight);
+
+                                    drawingSession.FillCircle((float)xA, (float)yA, 5f, headMarkerColor);
+                                    drawingSession.FillCircle((float)xB, (float)yB, 5f, tailMarkerColor);
+                                }
+                                break;
+
+                            case Events.SurveyDataType.SurveyStereoPoint:
+                                if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
+                                {
+                                    (double x, double y) = SurveyStereoPointGetCoordinates(surveyStereoPoint, trueLeftFalseRight);
+
+                                    drawingSession.FillCircle((float)x, (float)y, 5f, headMarkerColor);
+                                }
+                                break;
+
+                            case Events.SurveyDataType.SurveyPoint:
+                                if (evt.EventData is SurveyPoint surveyPoint)
+                                {
+                                    if (surveyPoint.TrueLeftFalseRight == trueLeftFalseRight)
+                                    {
+                                        drawingSession.FillCircle((float)surveyPoint.X, (float)surveyPoint.Y, 5f, headMarkerColor);
+                                    }
+                                }
+                                break;
+                        }
+                    }
+
+                    // Convert the render target back to a WriteableBitmap
+                    renderTarget.GetPixelBytes().CopyTo(wb.PixelBuffer);
+
+
+                    string species = string.Empty;  // To be implemented if necessary
+                    string markupExportFileSpec = MakeImageFrameFileSpec(mediaFileSpec, position, markupFolder, "Markup", species, overlapping);
+
+                    // Write to file
+                    try
+                    {
+                        await WriteableBitmapHelper.SaveAsync(wb, markupExportFileSpec);
+                        ret = 0;
+                    }
+                    catch (Exception ex)
+                    {
+                        report?.Warning("", $"Failed to save markup image for {surveyFileName}, media file {mediaFileSpec}, {ex.Message}");
+                    }
+
+
+                    // Display to user if required
+                    if (displayMarkedUp)
+                    {
+                        string title = $"{Path.GetFileName(mediaFileSpec)} - {position} (marked up)";
+                        await DisplayImageToGridViewAsync(wb, title);
+                    }
+
+                }
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Convert a WriteableBitmap to a CanvasBitmap which is needed for the MarkUpImageAndSave method.
+        /// </summary>
+        /// <param name="source">The source WriteableBitmap.</param>
+        /// <param name="canvasDevice">The CanvasDevice to use. If null, the shared device will be used.</param>
+        /// <returns>A CanvasBitmap created from the source WriteableBitmap.</returns>
+        /// <exception cref="InvalidOperationException">Thrown if the source bitmap has invalid dimensions or if reading the pixel buffer fails.</exception>
+        public static async Task<CanvasBitmap> ToCanvasBitmapAsync(WriteableBitmap source, CanvasDevice? canvasDevice = null)
+        {
+            ArgumentNullException.ThrowIfNull(source);
+
+            if (source.PixelWidth <= 0 || source.PixelHeight <= 0)
+                throw new InvalidOperationException("Source bitmap has invalid dimensions.");
+
+            canvasDevice ??= CanvasDevice.GetSharedDevice();
+
+            byte[] pixels;
+            using (Stream pixelStream = source.PixelBuffer.AsStream())
+            {
+                pixelStream.Seek(0, SeekOrigin.Begin);
+                pixels = new byte[pixelStream.Length];
+
+                int offset = 0;
+                while (offset < pixels.Length)
+                {
+                    int read = await pixelStream.ReadAsync(pixels, offset, pixels.Length - offset);
+                    if (read == 0)
+                        break;
+
+                    offset += read;
+                }
+
+                if (offset != pixels.Length)
+                    throw new InvalidOperationException("Failed to read source pixel buffer.");
+            }
+
+            return CanvasBitmap.CreateFromBytes(
+                canvasDevice,
+                pixels,
+                source.PixelWidth,
+                source.PixelHeight,
+                Windows.Graphics.DirectX.DirectXPixelFormat.B8G8R8A8UIntNormalized,
+                96.0f);
+        }
+
+        private int BuildCOCOExportFile(int frameWidth, int frameHeight, EventsByMediaFileByFrame eventsByMediaFileByFrame, Stream stream)
+        {
+            int ret = -1;
+
+            // Build the categories for the COCO JSON file according to the specification at https://roboflow.com/formats/coco-json#format-description
+            COCOCategory cocoCategory = new();
+            // Media file level loop
+            foreach (var pair in eventsByMediaFileByFrame.mediaFilesList)
+            {
+                MediaFileExtractList mediaFileExtractList = pair.Value;
+
+                if (mediaFileExtractList.trueLeftFalseRight is null)
+                    continue;
+
+                // Frame level loop
+                foreach (var evtPair in mediaFileExtractList.eventList)
+                {
+                    List<Event> eventsAtThisFrame = evtPair.Value;
+                    SpeciesInfo? speciesInfo = null;
+
+                    // Events for a particular frame loop
+                    foreach (Event evt in eventsAtThisFrame)
+                    {                        
+                        switch (evt.EventDataType)
+                        {
+                            case Events.SurveyDataType.SurveyMeasurementPoints:
+                            { 
+                                if (evt.EventData is SurveyMeasurement surveyMeasurement)
+                                {
+                                    speciesInfo = surveyMeasurement.SpeciesInfo;
+                                }
+                            }
+                            break;
+
+                        case Events.SurveyDataType.SurveyStereoPoint:
+                            if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
+                            {
+                                speciesInfo = surveyStereoPoint.SpeciesInfo;
+                            }
+                            break;
+
+                        case Events.SurveyDataType.SurveyPoint:
+                            if (evt.EventData is SurveyPoint surveyPoint)
+                            {
+                                speciesInfo = surveyPoint.SpeciesInfo;
+                            }
+                            break;
+                        }
+
+                        if (speciesInfo is not null)
+                        {
+                            string genus = speciesInfo?.Genus?.Trim() ?? string.Empty;
+                            string speciesScientificName = ExtractScientificName(speciesInfo?.Species);
+                            string familyScientificName = ExtractScientificName(speciesInfo?.Family);
+
+                            // Add Species/Genus/Family to the category_id code list
+                            cocoCategory.Add(familyScientificName, genus, speciesScientificName);
+                        }
+                    }
+                }
+            }
+
+
+            // Iteration over eventsByMediaFileByFrame.mediaFilesList
+            // Each entry in mediaFilesList is a media file (e.g. left or right video)
+            // and contains a list of frames (TimeSpan) where there are Events, and
+            // the list of Events at each of those frames
+            // Generate the COCO JSON file according to the specification at https://roboflow.com/formats/coco-json#format-description
+            // Use the same BBox generation method as we used to extract the cropped images
+            ret = 0;
+            foreach (var pair in eventsByMediaFileByFrame.mediaFilesList)
+            {
+                string mediaFileSpec = pair.Key;
+                MediaFileExtractList mediaFileExtractList = pair.Value;
+
+                if (mediaFileExtractList.trueLeftFalseRight is null)
+                    continue;
+
+                // Frame level loop
+                foreach (var evtPair in mediaFileExtractList.eventList)
+                {
+                    TimeSpan position = evtPair.Key;
+                    List<Event> eventsAtThisFrame = evtPair.Value;
+
+                    // Get the bounding boxes for the Events at this frame and whether they are overlapping or not
+                    List<Rect> bBoxList = [];
+                    List<bool> overlappingList = [];
+                        
+                    ret = GenerateBBoxListForThisFrame((bool)mediaFileExtractList.trueLeftFalseRight, frameWidth, frameHeight, eventsAtThisFrame, out bBoxList, out overlappingList);
+
+                    if (ret == 0)
+                    {
+                        // Guard
+                        if (eventsAtThisFrame.Count == bBoxList.Count && bBoxList.Count == overlappingList.Count)
+                        {
+                            // Loop over the BBox and Overlapping lists
+                            for (int i = 0; i < bBoxList.Count; i++)
+                            {
+                                Rect rect = bBoxList[i];
+                                bool overlapping = overlappingList[i];
+
+                               
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (ret == 0)
+            {
+
+            }
+
+            return ret;
+        }
+
+        /// <summary>
+        /// COCO Export
+        /// https://roboflow.com/formats/coco-json#format-description
+        /// </summary>
+        /// <returns></returns>
+        private async Task ExportCOCODatatSheetAsync2(Stream stream, string exportFile)
+        {
             bool failed = false;
             int problemCount = 0;
             int exportLineCount = 0;
@@ -2143,7 +3326,7 @@ namespace Surveyor.User_Controls
             int? yearLatest = null;
 
             // Image extract control list
-            AllMediaFilesExtractList allMediaFilesExtractList = new();
+            EventsByMediaFileByFrame allMediaFilesExtractList = new();
 
 
             // Loop through each survey in the batch
@@ -2176,38 +3359,11 @@ namespace Surveyor.User_Controls
 
                 if (extractRawFrame || extractCroppedImage || markHeadTailOnFrame || markHeadTailOnFrame)
                 {
-                    // Open the media files
-                    OpenMediaFiles(leftImageExtractList, survey.Data.Media.MediaPath ?? "", [.. survey.Data.Media.LeftMediaFileNames], "left");
-                    OpenMediaFiles(rightImageExtractList, survey.Data.Media.MediaPath ?? "", [..survey.Data.Media.RightMediaFileNames], "right");
-
-                    // Helper function to open the media
-                    int OpenMediaFiles(List<ImageExtract?> imageExtractList, string mediaPath, List<string> mediaFiles, string side)
-                    {
-                        int ret = 0;
-
-                        foreach (string mediaFile in mediaFiles)
-                        {
-                            try
-                            {
-                                string mediaFileSpec = Path.Combine(mediaPath, mediaFile);
-                                ImageExtract imageExtract = new();
-                                imageExtract.VideoOpen(mediaFileSpec);
-                                imageExtractList.Add(imageExtract);
-                            }
-                            catch (Exception ex)
-                            {
-                                report?.Warning("", $"From Survey {fileEntry.FileName} failed to open {side} media file {mediaFile} for image extraction, in path {mediaPath}, {ex.Message}");
-                                imageExtractList.Add(null);
-                                ret = -1;
-                            }
-                        }
-                        return ret;
-                    }
-
+                    string stem = "";
                     // Create the output directories
                     try
                     {
-                        string stem = Path.GetFileNameWithoutExtension(fileEntry.FileName);
+                        stem = Path.GetFileNameWithoutExtension(fileEntry.FileName);
                         baseExportPath = ImageExtract.MakeAndCreateFramesDirectoryAndEmpty(stem);
                         ImageExtract.MakeAndCreateFramesDirectoryAndEmpty(stem + folderRaw);
                         ImageExtract.MakeAndCreateFramesDirectoryAndEmpty(stem + folderCropped);
@@ -2218,12 +3374,16 @@ namespace Surveyor.User_Controls
                         report?.Warning("", $"From Survey {fileEntry.FileName} failed to create output directories for image extraction, {ex.Message}");
                         failed = true;
                     }
+
+                    // Open the media files
+                    OpenMediaFiles(trueLeftFalseRight: true, leftImageExtractList, survey.Data.Media, stem, fileEntry.FileName);
+                    OpenMediaFiles(trueLeftFalseRight: false, rightImageExtractList, survey.Data.Media, stem, fileEntry.FileName);
+
                 }
 
-
+                // Loop through the events for this survey
                 foreach (var evt in survey.Data.Events.EventList)
                 {
-
                     try
                     {
                         // Log the transect starts and stops
@@ -2236,7 +3396,6 @@ namespace Surveyor.User_Controls
 
                             continue;
                         }
-
                         if (evt.EventDataType == Events.SurveyDataType.SurveyEnd)
                         {
                             transectNumber = string.Empty;
@@ -2330,21 +3489,21 @@ namespace Surveyor.User_Controls
 
                             // Left image extraction
                             leftImageExtract = GetImageExtractInstance(leftImageExtractList, evt.MediaLeftIndex);
-                            if (leftImageExtract is not null)
-                            {
-                                allMediaFilesExtractList.Add(leftImageExtract, trueLeftFalseRight: true, fileEntry.FilePath, evt.TimeSpanLeftFrame, evt);
-                            }
-                            else
-                                targetImage = "missing";
+                            //if (leftImageExtract is not null)
+                            //{
+                            //    allMediaFilesExtractList.Add(leftImageExtract, trueLeftFalseRight: true, fileEntry.FilePath, evt.TimeSpanLeftFrame, evt);
+                            //}
+                            //else
+                            //    targetImage = "missing";
 
-                            images.Add(new
-                            {
-                                id = leftImageId,
-                                //file_name = $"{leftMediaFile}|t={evt.TimeSpanLeftFrame.TotalSeconds:F3}",
-                                file_name = targetImage,
-                                width = leftWidth,
-                                height = leftHeight
-                            });
+                            //images.Add(new
+                            //{
+                            //    id = leftImageId,
+                            //    //file_name = $"{leftMediaFile}|t={evt.TimeSpanLeftFrame.TotalSeconds:F3}",
+                            //    file_name = targetImage,
+                            //    width = leftWidth,
+                            //    height = leftHeight
+                            //});
 
                             if (extractCroppedImage)
                             {
@@ -2371,21 +3530,21 @@ namespace Surveyor.User_Controls
 
                             // Right image extraction
                             rightImageExtract = GetImageExtractInstance(rightImageExtractList, evt.MediaRightIndex);
-                            if (rightImageExtract is not null)
-                            {
-                                allMediaFilesExtractList.Add(rightImageExtract, trueLeftFalseRight: false, fileEntry.FilePath, evt.TimeSpanRightFrame, evt);
-                            }
-                            else
-                                targetImage = "missing";
+                            //if (rightImageExtract is not null)
+                            //{
+                            //    allMediaFilesExtractList.Add(rightImageExtract, trueLeftFalseRight: false, fileEntry.FilePath, evt.TimeSpanRightFrame, evt);
+                            //}
+                            //else
+                            //    targetImage = "missing";
 
-                            images.Add(new
-                            {
-                                id = rightImageId,
-                                //file_name = $"{rightMediaFile}|t={evt.TimeSpanRightFrame.TotalSeconds:F3}",
-                                file_name = targetImage,
-                                width = rightWidth,
-                                height = rightHeight
-                            });
+                            //images.Add(new
+                            //{
+                            //    id = rightImageId,
+                            //    //file_name = $"{rightMediaFile}|t={evt.TimeSpanRightFrame.TotalSeconds:F3}",
+                            //    file_name = targetImage,
+                            //    width = rightWidth,
+                            //    height = rightHeight
+                            //});
 
                             if (extractCroppedImage)
                             {
@@ -2430,7 +3589,7 @@ namespace Surveyor.User_Controls
                                 {
                                     // Image extraction
                                     imageExtract.ImagePath = baseExportPath;
-                                    imageExtract.VideoExtractFrame(position, out List<string?> createdtImagesSpecFile, extractBefore: -1, extractAfter: 1);
+                       //???             (int ret, List<string?> createdtImagesSpecFile) = await imageExtract.VideoExtractFramesAsync(position, extractBefore: -1, extractAfter: 1);
                                 }
                             }
                         }
@@ -2452,25 +3611,8 @@ namespace Surveyor.User_Controls
                 // Close the media files
                 if (extractRawFrame || extractCroppedImage || markHeadTailOnFrame || markHeadTailOnFrame)
                 {
-                    CloseMediaFiles(leftImageExtractList);
-                    CloseMediaFiles(rightImageExtractList);
-
-                    // Helper function to close media files
-                    void CloseMediaFiles(List<ImageExtract?> imageExtractList)
-                    {
-                        foreach (ImageExtract? imageExtract in rightImageExtractList)
-                        {
-                            try
-                            {
-                                imageExtract?.VideoClose();
-                            }
-                            catch (Exception ex)
-                            {
-                                report?.Warning("", $"From Survey {fileEntry.FileName} failed to close right media file {imageExtract?.GetCurrentMediaFileSpec() ?? "(no file spec)"}, {ex.Message}");
-                                rightImageExtractList.Add(null);
-                            }
-                        }
-                    }
+                    CloseMediaFiles(leftImageExtractList, fileEntry.FileName);
+                    CloseMediaFiles(rightImageExtractList, fileEntry.FileName);
                 }
 
                 if (failed)
@@ -2576,20 +3718,7 @@ namespace Surveyor.User_Controls
             // Show DataGrid and hide the GridView
             SetDisplayMode(trueDataFalseImages: true);
 
-            // Extract the scientific name
-            static string ExtractScientificName(string? speciesField)
-            {
-                if (string.IsNullOrWhiteSpace(speciesField))
-                    return string.Empty;
 
-                int slash = speciesField.IndexOf('/');
-                if (slash > 0 && slash < speciesField.Length - 1)
-                    return speciesField[..slash].Trim();
-                if (slash > 0)
-                    return speciesField[..^1].Trim();
-
-                return speciesField.Trim();
-            }
 
             // Create BBox
             static double[] BuildBbox(double xa, double ya, double xb, double yb)
@@ -2610,6 +3739,99 @@ namespace Surveyor.User_Controls
                 h = Math.Round(h, 0, MidpointRounding.AwayFromZero);
 
                 return [x, y, w, h];
+            }
+        }
+
+
+        /// <summary>
+        /// Extract the scientific name
+        /// </summary>
+        /// <param name="speciesField"></param>
+        /// <returns></returns>
+        private static string ExtractScientificName(string? speciesField)
+        {
+            if (string.IsNullOrWhiteSpace(speciesField))
+                return string.Empty;
+
+            int slash = speciesField.IndexOf('/');
+            if (slash > 0 && slash < speciesField.Length - 1)
+                return speciesField[..slash].Trim();
+            if (slash > 0)
+                return speciesField[..^1].Trim();
+
+            return speciesField.Trim();
+        }
+
+
+        /// <summary>
+        /// Open Image Extract all the media files for the indicated side (left or right)
+        /// Normally there is only one media file expect if handling data from
+        /// EMObs files
+        /// </summary>
+        /// <param name="imageExtractList"></param>
+        /// <param name="mediaPath"></param>
+        /// <param name="mediaFiles"></param>
+        /// <param name="surveyFileName"></param>
+        /// <param name="side"></param>
+        /// <returns></returns>
+        private int OpenMediaFiles(bool trueLeftFalseRight, List<ImageExtract?> imageExtractList, Survey.DataClass.MediaClass media, string exportBasePath, string surveyFileName)
+        {
+            int ret = 0;
+
+            // Guard
+            if (media.MediaPath is null)
+                return -1;
+
+            // Get left or right media file name collection           
+            ObservableCollection<string> mediaFileNames = trueLeftFalseRight ? media.LeftMediaFileNames : media.RightMediaFileNames;
+
+            // Loop through and open each media file via the ImageExtract class
+            foreach (string mediaFile in mediaFileNames)
+            {
+                try
+                {
+                    // Open media file
+                    string mediaFileSpec = Path.Combine(media.MediaPath!, mediaFile);
+                    ImageExtract imageExtract = new();
+                    imageExtract.VideoOpen(mediaFileSpec);
+
+                    // Set the export path
+                    imageExtract.ImagePath = exportBasePath;
+
+                    // Add to the list of media file for this side
+                    // (left or right) for this survey (normally only one)
+                    imageExtractList.Add(imageExtract);
+                }
+                catch (Exception ex)
+                {
+                    string side = trueLeftFalseRight ? "left" : "right";
+                    report?.Warning("", $"From Survey {surveyFileName} failed to open {side} media file {mediaFile} for image extraction, in path {media.MediaPath ?? "(blank)"}, {ex.Message}");
+                    imageExtractList.Add(null);
+                    ret = -1;
+                }
+            }
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Close Image Extract media files
+        /// </summary>
+        /// <param name="imageExtractList"></param>
+        /// <param name="surveyFileName"></param>
+        private void CloseMediaFiles(List<ImageExtract?> imageExtractList, string surveyFileName)
+        {
+            foreach (ImageExtract? imageExtract in imageExtractList)
+            {
+                try
+                {
+                    imageExtract?.VideoClose();
+                }
+                catch (Exception ex)
+                {
+                    report?.Warning("", $"From Survey {surveyFileName} failed to close right media file {imageExtract?.GetCurrentMediaFileSpec() ?? "(no file spec)"}, {ex.Message}");
+                    imageExtractList.Add(null);
+                }
             }
         }
 
@@ -2672,6 +3894,78 @@ namespace Surveyor.User_Controls
                 ImageGridView.Visibility = Visibility.Visible;
             }
         }
+
+        /// <summary>
+        /// Make a standard name export file name for the extracted image frame based 
+        /// on the media file spec, the time position of the frame, and the 
+        /// type/species/overlapping info
+        /// </summary>
+        /// <param name="mediaFileSpec"></param>
+        /// <param name="position"></param>
+        /// <param name="rawFolder">sub-folder</param>
+        /// <param name="type">Raw or Cropped or Markup</param>
+        /// <param name="species">scientific species name</param>
+        /// <param name="overlapping">did the box overlap with another box</param>
+        /// <returns></returns>
+        private static string MakeImageFrameFileSpec(string mediaFileSpec, TimeSpan position, string subFolder, string type, string? species, bool? overlapping)
+        {
+            string formattedTime = "0000" + $"{Math.Round(position.TotalSeconds, 2):F2}";
+            string typeText = string.Empty;
+            string speciesText = string.Empty;
+            string overlappingText = string.Empty;
+
+            if (!string.IsNullOrWhiteSpace(type))
+                typeText = $"_{type}";
+            if (!string.IsNullOrWhiteSpace(species))
+                speciesText = $"_S.{species}";
+            if (overlapping.HasValue)
+                overlappingText = "_overlap";
+
+                string fileName = Path.GetFileNameWithoutExtension(mediaFileSpec) + $"_P.{formattedTime.Substring(Math.Max(0, formattedTime.Length - 12))}{typeText}{speciesText}{overlappingText}.png";
+            return Path.Combine(subFolder, fileName);
+        }
+
+
+        /// <summary>
+        /// This is used to take advantage of the fact that we should use a WritbleBitamp while it is available
+        /// if we are only extracting raw frames and not doing any cropping or markup, then we can just use the 
+        /// raw frame as the display image in the GridView without having to extract and save a separate image 
+        /// file for display. Same is true for cropped images, if we are extracting those then we can use the 
+        /// cropped image as the display image without having to reload from file later. And if we are preparing
+        /// marked up images than use them as the preferred GridView image
+        /// </summary>
+        /// <param name="caseToCheck"></param>
+        /// <param name="extractRawFrame"></param>
+        /// <param name="extractCroppedImage"></param>
+        /// <param name="markBoxOnFrame"></param>
+        /// <param name="markHeadTailOnFrame"></param>
+        /// <returns></returns>
+        private static bool IsThisTheDisplayImage(string caseToCheck, bool extractRawFrame, bool extractCroppedImage, bool markBoxOnFrame, bool markHeadTailOnFrame)
+        {
+            bool ret = false;
+
+            if (caseToCheck == "Raw")
+            {
+                // Is Raw the only image we will be extracting?
+                if (!extractCroppedImage && !markBoxOnFrame && !markHeadTailOnFrame)
+                    ret = true;
+            }
+            else if (caseToCheck == "Cropped")
+            {
+                // Are any cropped images be extracting?
+                if (extractCroppedImage && !markBoxOnFrame && !markHeadTailOnFrame)
+                    ret = true;
+            }
+            else if (caseToCheck == "Markup")
+            {
+                // Are any marked images be prepared?
+                if (markBoxOnFrame || markHeadTailOnFrame)
+                    ret = true;
+            }
+
+            return ret;
+        }
+
     }
 
     /// <summary>
@@ -2698,7 +3992,7 @@ namespace Surveyor.User_Controls
         private readonly Dictionary<string, COCOCategoryItem> familyDict = [];
         private readonly Dictionary<string, COCOCategoryItem> genusDict = [];
         private readonly Dictionary<string, COCOCategoryItem> speciesDict = [];
-        private int categoryIdNext = 0;
+        private int categoryIdNext = 1;
         
         /// <summary>
         /// Add to the categories list
@@ -3219,7 +4513,7 @@ namespace Surveyor.User_Controls
     }
 
 
-    public class AllMediaFilesExtractList
+    public class EventsByMediaFileByFrame
     {
         // Sorted list of MediaFileExtractList where the media file spec is also the key
         public SortedList<string, MediaFileExtractList> mediaFilesList = [];
@@ -3240,14 +4534,13 @@ namespace Surveyor.User_Controls
         /// <param name="evt">The event to add to the media file. Cannot be null.</param>
         /// <returns>true if the event was added to a new media file entry; false if the event was appended to an existing media
         /// file entry.</returns>
-        public bool Add(ImageExtract imageExtract, 
+        public bool Add(string mediaFileSpec, 
                         bool trueLeftFalseRight,
                         string surveyFilePath,
                         TimeSpan position, 
                         Event evt)
         {
             bool ret = true;
-            string mediaFileSpec = imageExtract.GetCurrentMediaFileSpec();
 
             if (mediaFilesList.TryGetValue(mediaFileSpec, out var mediaFileExtractList) == true)
             {
@@ -3260,7 +4553,6 @@ namespace Surveyor.User_Controls
                 // First Event for this media file
                 MediaFileExtractList mediaFileExtractListNew = new(trueLeftFalseRight,
                                                                    surveyFilePath,
-                                                                   imageExtract,
                                                                    mediaFileSpec);
                 mediaFilesList.Add(mediaFileSpec, mediaFileExtractListNew);
             }
@@ -3290,19 +4582,16 @@ namespace Surveyor.User_Controls
     {
         public bool? trueLeftFalseRight;
         public string surveyFilePath;
-        public ImageExtract? imageExtract;
         public string mediaFileSpec;
 
         public readonly SortedList<TimeSpan, List<Event>> eventList = [];
 
         public MediaFileExtractList(bool _trueLeftFalseRight, 
-                                    string _surveyFilePath,                                    
-                                    ImageExtract _imageExtract,
+                                    string _surveyFilePath,                                                                      
                                     string _mediaFileSpec)
         {
             trueLeftFalseRight = _trueLeftFalseRight;
             surveyFilePath = _surveyFilePath;
-            imageExtract = _imageExtract;
             mediaFileSpec = _mediaFileSpec;
         }
 
@@ -3341,7 +4630,6 @@ namespace Surveyor.User_Controls
         {
             trueLeftFalseRight = null;
             surveyFilePath = string.Empty;           
-            imageExtract = null;
             mediaFileSpec = string.Empty;
             eventList.Clear();
         }
