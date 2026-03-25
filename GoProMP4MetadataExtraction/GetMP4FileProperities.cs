@@ -16,7 +16,7 @@ namespace ActionCameraMP4MetadataExtraction
     public static class GetMP4FileProperities
     {
         /// <summary>
-        /// Retreive the file properties of a video file used StorageFile
+        /// Retrieve the file properties of a video file used StorageFile
         /// </summary>
         /// <param name="videoFile"></param>
         /// <returns></returns>
@@ -71,7 +71,7 @@ namespace ActionCameraMP4MetadataExtraction
 
 
         /// <summary>
-        /// Retreive the file properties of a video file using a file path
+        /// Retrieve the file properties of a video file using a file path
         /// </summary>
         /// <param name="fileSpec"></param>
         /// <returns></returns>

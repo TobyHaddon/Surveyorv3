@@ -2212,11 +2212,11 @@ namespace Surveyor.User_Controls
 
             // Make the output folder and sub-folders
             string exportBasePath = string.Empty;
-            if (extractRawFrame || extractCroppedImage || markHeadTailOnFrame || markHeadTailOnFrame)
+            if (extractRawFrame || extractCroppedImage || markBoxOnFrame || markHeadTailOnFrame)
                 ret = MakeOutputDirectories(out exportBasePath,
                                             rawFolder: true,    // Always need \Raw either in temporary or permanent sense
                                             croppedFolder: extractCroppedImage, 
-                                            markupFolder: markHeadTailOnFrame || markHeadTailOnFrame);
+                                            markupFolder: markBoxOnFrame || markHeadTailOnFrame);
 
             // Build the EventsByMediaFileByFrame list
             if (ret == 0)
@@ -2236,7 +2236,7 @@ namespace Surveyor.User_Controls
             if (ret == 0)
             {
                 // Check image extraction was requested
-                if (extractRawFrame || extractCroppedImage || markHeadTailOnFrame || markHeadTailOnFrame)
+                if (extractRawFrame || extractCroppedImage || markBoxOnFrame || markHeadTailOnFrame)
                 {
                     ret = await ExtractImagesCropAndMarkupAsync(extractRawFrame, extractCroppedImage, markBoxOnFrame, markHeadTailOnFrame,
                                                                 eventsByMediaFileByFrame, exportBasePath);
@@ -2374,11 +2374,12 @@ namespace Surveyor.User_Controls
                                         if (evt.EventData is SurveyPoint surveyPoint)
                                         {
                                             int mediaIndex = surveyPoint.TrueLeftFalseRight == true ? evt.MediaLeftIndex : evt.MediaRightIndex;
+                                            TimeSpan framePosition = surveyPoint.TrueLeftFalseRight ? evt.TimeSpanLeftFrame : evt.TimeSpanRightFrame;
 
                                             mediaFileSpec = survey.Data.Media.GetMediaFileSpec(surveyPoint.TrueLeftFalseRight, mediaIndex);
 
                                             if (!string.IsNullOrEmpty(mediaFileSpec))
-                                                eventsByMediaFileByFrame.Add(mediaFileSpec, surveyPoint.TrueLeftFalseRight, fileEntry.FilePath, leftWidth, leftHeight, evt.TimeSpanRightFrame, evt);
+                                                eventsByMediaFileByFrame.Add(mediaFileSpec, surveyPoint.TrueLeftFalseRight, fileEntry.FilePath, leftWidth, leftHeight, framePosition, evt);
                                         }
                                         break;
                                 }
@@ -2416,11 +2417,11 @@ namespace Surveyor.User_Controls
                 List<ImageExtract?> rightImageExtractList = [];
 
                 // Open the media file(s)
-                ret = OpenMediaFiles(trueLeftFalseRight: true, leftImageExtractList, survey.Data.Media, exportBasePath, fileEntry.FileName);
+                ret = await OpenMediaFilesAsync(trueLeftFalseRight: true, leftImageExtractList, survey.Data.Media, exportBasePath, fileEntry.FileName);
 
                 if (ret == 0)
                 {
-                    ret = OpenMediaFiles(trueLeftFalseRight: false, rightImageExtractList, survey.Data.Media, exportBasePath, fileEntry.FileName);
+                    ret = await OpenMediaFilesAsync(trueLeftFalseRight: false, rightImageExtractList, survey.Data.Media, exportBasePath, fileEntry.FileName);
                     if (ret == 0)
                     {
                         // Loop through the events for this survey
@@ -2534,7 +2535,7 @@ namespace Surveyor.User_Controls
 
                     // Open the media file
                     ImageExtract imageExtract = new();
-                    ret = imageExtract.VideoOpen(mediaFileExtractList.mediaFileSpec);
+                    ret = await imageExtract.VideoOpenAsync(mediaFileExtractList.mediaFileSpec);
 
                     if (ret == 0)
                     {
@@ -2569,7 +2570,7 @@ namespace Surveyor.User_Controls
                                 }
 
                                 // Get the bounding boxes for the Events at this frame and whether they are overlapping or not
-                                List<Rect> bBoxList = [];
+                                List<Rect?> bBoxList = [];
                                 List<bool> overlappingList = [];
                                 (int frameWidth, int frameHeight) = imageExtract.GetFrameSize();
 
@@ -2667,7 +2668,7 @@ namespace Surveyor.User_Controls
         /// <param name="bBoxList"></param>
         /// <param name="overlappingList"></param>
         /// <returns></returns>
-        private int GenerateBBoxListForThisFrame(bool trueLeftFalseRight, int frameWidth, int frameHeight, List<Event> eventsAtThisFrame, out List<Rect> bBoxList, out List<bool> overlappingList)
+        private int GenerateBBoxListForThisFrame(bool trueLeftFalseRight, int frameWidth, int frameHeight, List<Event> eventsAtThisFrame, out List<Rect?> bBoxList, out List<bool> overlappingList)
         {
             int ret = 0;
             bBoxList = [];
@@ -2684,22 +2685,28 @@ namespace Surveyor.User_Controls
                 {
                     bBoxList.Add(bbox);
                 }
+                else
+                    bBoxList.Add(null);
             }
 
             // Check if Rectangles are overlapping
-            foreach (Rect bbox in bBoxList)
+            foreach (Rect? bbox in bBoxList)
             {
                 bool overlapping = false;
-                foreach (Rect other in bBoxList)
+                foreach (Rect? other in bBoxList)
                 {
-                    if (bbox != other)
+                    if (bbox is not null && other is not null)
                     {
-                        overlapping = bbox.Left < other.Right &&
-                                      bbox.Right > other.Left &&
-                                      bbox.Top < other.Bottom &&
-                                      bbox.Bottom > other.Top;
+                        if (bbox != other)
+                        {
+                            overlapping = bbox.Value.Left < other.Value.Right &&
+                                          bbox.Value.Right > other.Value.Left &&
+                                          bbox.Value.Top < other.Value.Bottom &&
+                                          bbox.Value.Bottom > other.Value.Top;
 
-                        break;
+                            if (overlapping)
+                                break;
+                        }
                     }
                 }
                 overlappingList.Add(overlapping);
@@ -2810,8 +2817,8 @@ namespace Surveyor.User_Controls
                 double deltaX = tX - hX;
                 double deltaY = tY - hY;
 
-                // NOTE: Preserves VBA argument order: Atan2(deltaX, deltaY)
-                double angle = Math.Atan2(deltaX, deltaY);
+                // Angle
+                double angle = Math.Atan2(deltaY, deltaX);
 
                 // Calculate the fish length
                 double fishLength = Math.Sqrt((deltaX * deltaX) + (deltaY * deltaY));
@@ -2949,7 +2956,7 @@ namespace Surveyor.User_Controls
         /// <returns></returns>
         private async Task<int> CropImageToBoundingBoxesAndSaveAsync(
                                                     WriteableBitmap wb,
-                                                    List<Event> eventsAtThisFrame, List<Rect> bBoxList, List<bool> overlappingList, 
+                                                    List<Event> eventsAtThisFrame, List<Rect?> bBoxList, List<bool> overlappingList, 
                                                     string croppedFolder, string mediaFileSpec, 
                                                     TimeSpan position, string surveyFileName, bool displayCropped)
         {
@@ -2962,50 +2969,53 @@ namespace Surveyor.User_Controls
             // Loop over the BBox and Overlapping lists
             for (int i = 0; i < bBoxList.Count; i++)
             {
-                Rect rect = bBoxList[i];
-                bool overlapping = overlappingList[i];
-                
-                // Get the SpeciesInfo if possible
-                (_, SpeciesInfo? speciesInfo) = GetRulesAndSpeciesInfo(eventsAtThisFrame[i]);
-                string species = speciesInfo?.Species ?? "";
-
-                string croppedExportFileSpec = MakeImageFrameFileSpec(mediaFileSpec, position, croppedFolder, "Crop", rect, species, overlapping);
-
-                // Extract cropped bitmap rect from wb
-                WriteableBitmap? wbCropped = null;
-                try 
+                if (bBoxList[i] is not null)
                 {
-                    wbCropped = WriteableBitmapHelper.Crop(wb, rect);
+                    Rect rect = (Rect)bBoxList[i]!;
+                    bool overlapping = overlappingList[i];
 
-                }
-                catch (Exception ex)
-                {
-                    report?.Warning("", $"Failed to extract cropped image for {surveyFileName}, media file {mediaFileSpec} at position {position} box ({rect.X:F1},{rect.Y:F1},W={rect.Width:F1},H={rect.Height:F1}), {ex.Message}");
-                    continue;
-                }
+                    // Get the SpeciesInfo if possible
+                    (_, SpeciesInfo? speciesInfo) = GetRulesAndSpeciesInfo(eventsAtThisFrame[i]);
+                    string species = ExtractScientificName(speciesInfo?.Species);
 
-                // Write to file
-                if (wbCropped is not null)
-                {
+                    string croppedExportFileSpec = MakeImageFrameFileSpec(mediaFileSpec, position, croppedFolder, "Crop", rect, species, overlapping);
+
+                    // Extract cropped bitmap rect from wb
+                    WriteableBitmap? wbCropped;
                     try
                     {
-                        await WriteableBitmapHelper.SaveAsync(wbCropped, croppedExportFileSpec);
-                        ret = 0;
+                        wbCropped = WriteableBitmapHelper.Crop(wb, rect);
+
                     }
                     catch (Exception ex)
                     {
-                        report?.Warning("", $"Failed to save cropped image for {surveyFileName}, media file {mediaFileSpec} at position {position} box ({rect.X:F1},{rect.Y:F1},W={rect.Width:F1},H={rect.Height:F1}), {ex.Message}");
+                        report?.Warning("", $"Failed to extract cropped image for {surveyFileName}, media file {mediaFileSpec} at position {position} box ({rect.X:F1},{rect.Y:F1},W={rect.Width:F1},H={rect.Height:F1}), {ex.Message}");
+                        continue;
                     }
-                }
 
-                // Display to user if required
-                if (displayCropped)
-                {
-                    string overlappingText = string.Empty;
-                    if (overlapping)
-                        overlappingText = "(overlap)";
-                    string title = $"{Path.GetFileName(mediaFileSpec)} - {position} {overlappingText}";
-                    await DisplayImageToGridViewAsync(wb, title);
+                    // Write to file
+                    if (wbCropped is not null)
+                    {
+                        try
+                        {
+                            await WriteableBitmapHelper.SaveAsync(wbCropped, croppedExportFileSpec);
+                            ret = 0;
+                        }
+                        catch (Exception ex)
+                        {
+                            report?.Warning("", $"Failed to save cropped image for {surveyFileName}, media file {mediaFileSpec} at position {position} box ({rect.X:F1},{rect.Y:F1},W={rect.Width:F1},H={rect.Height:F1}), {ex.Message}");
+                        }
+                    }
+
+                    // Display to user if required
+                    if (displayCropped)
+                    {
+                        string overlappingText = string.Empty;
+                        if (overlapping)
+                            overlappingText = "(overlap)";
+                        string title = $"{Path.GetFileName(mediaFileSpec)} - {position} {overlappingText}";
+                        await DisplayImageToGridViewAsync(wbCropped, title);
+                    }
                 }
             }
 
@@ -3029,7 +3039,7 @@ namespace Surveyor.User_Controls
         /// <param name="displayMarkedUp"></param>
         /// <returns></returns>
         private async Task<int> MarkupImageAndSaveAsync(WriteableBitmap wb, bool trueLeftFalseRight,
-                                                        List<Event> eventsAtThisFrame, List<Rect> bBoxList, List<bool> overlappingList, 
+                                                        List<Event> eventsAtThisFrame, List<Rect?> bBoxList, List<bool> overlappingList, 
                                                         bool markBoxOnFrame, bool markHeadTailOnFrame, 
                                                         string markupFolder, string mediaFileSpec, 
                                                         TimeSpan position, string surveyFileName, bool displayMarkedUp)
@@ -3046,7 +3056,7 @@ namespace Surveyor.User_Controls
             // Red marker for the Head
             Windows.UI.Color headMarkerColor = Colors.Red;
             // Green marker for the Tail
-            Windows.UI.Color tailMarkerColor = Colors.Green;
+            Windows.UI.Color tailMarkerColor = Colors.Lime;
 
             // Convert to CanvasBitmap for markup
             CanvasBitmap canvasBitmap = await ToCanvasBitmapAsync(wb);
@@ -3065,8 +3075,11 @@ namespace Surveyor.User_Controls
                 // Loop over the Events and associated BBoxes and draw the markups
                 for (int i = 0; i < eventsAtThisFrame.Count; i++)
                 {
+                    if (bBoxList[i] == null)
+                        continue;
+
                     Event evt = eventsAtThisFrame[i];
-                    Rect rect = bBoxList[i];
+                    Rect rect = (Rect)bBoxList[i]!;
                     bool overlapping = overlappingList[i];
 
                     // Draw the box if required and if we have a bounding box for this Event
@@ -3115,32 +3128,39 @@ namespace Surveyor.User_Controls
                                 break;
                         }
                     }
-
-                    // Convert the render target back to a WriteableBitmap
-                    renderTarget.GetPixelBytes().CopyTo(wb.PixelBuffer);
-
-                    string markupExportFileSpec = MakeImageFrameFileSpec(mediaFileSpec, position, markupFolder, "Markup", null, null, null);
-
-                    // Write to file
-                    try
-                    {
-                        await WriteableBitmapHelper.SaveAsync(wb, markupExportFileSpec);
-                        ret = 0;
-                    }
-                    catch (Exception ex)
-                    {
-                        report?.Warning("", $"Failed to save markup image for {surveyFileName}, media file {mediaFileSpec}, {ex.Message}");
-                    }
-
-
-                    // Display to user if required
-                    if (displayMarkedUp)
-                    {
-                        string title = $"{Path.GetFileName(mediaFileSpec)} - {position} (marked up)";
-                        await DisplayImageToGridViewAsync(wb, title);
-                    }
-
                 }
+            }
+
+            // Convert the render target back to a WriteableBitmap
+            // Now copy pixels once and save once
+            byte[] pixels = renderTarget.GetPixelBytes();
+            using (Stream wbStream = wb.PixelBuffer.AsStream())
+            {
+                wbStream.Seek(0, SeekOrigin.Begin);
+                await wbStream.WriteAsync(pixels, 0, pixels.Length);
+                await wbStream.FlushAsync();
+            }
+            wb.Invalidate();
+
+            string markupExportFileSpec = MakeImageFrameFileSpec(mediaFileSpec, position, markupFolder, "Markup", null, null, null);
+
+            // Write to file
+            try
+            {
+                await WriteableBitmapHelper.SaveAsync(wb, markupExportFileSpec);
+                ret = 0;
+            }
+            catch (Exception ex)
+            {
+                report?.Warning("", $"Failed to save markup image for {surveyFileName}, media file {mediaFileSpec}, {ex.Message}");
+            }
+
+
+            // Display to user if required
+            if (displayMarkedUp)
+            {
+                string title = $"{Path.GetFileName(mediaFileSpec)} - {position} (marked up)";
+                await DisplayImageToGridViewAsync(wb, title);
             }
 
             return ret;
@@ -3318,7 +3338,7 @@ namespace Surveyor.User_Controls
                     }
 
                     // Get the bounding boxes for the Events at this frame and whether they are overlapping or not
-                    List<Rect> bBoxList = [];
+                    List<Rect?> bBoxList = [];
                     List<bool> overlappingList = [];
                         
                     ret = GenerateBBoxListForThisFrame((bool)mediaFileExtractList.trueLeftFalseRight, 
@@ -3333,52 +3353,57 @@ namespace Surveyor.User_Controls
                             // Loop over the BBox and Overlapping lists
                             for (int i = 0; i < bBoxList.Count; i++)
                             {
-                                Event evt = eventsAtThisFrame[i];
-                                Rect rect = bBoxList[i];
-                                bool overlapping = overlappingList[i];
-
-                                // Get the species info from the event
-                                SpeciesInfo? speciesInfo = GetSpeciesInfoFromEvent(evt);
-
-                                if (speciesInfo is null)
-                                    continue;
-
-                                // Are we using the cropped image?
-                                if (extractCroppedImage)
+                                if (bBoxList[i] is not null)
                                 {
-                                    string species = ExtractScientificName(speciesInfo.Species);
-                                    imageFileSpec = MakeImageFrameFileSpec(mediaFileExtractList.mediaFileSpec, position, croppedFolder, "Cropped", rect, species, overlapping);
 
-                                    // Add this frame to the images list
-                                    currentImageId = nextImageId++;
-                                    images.Add(new
+                                    Event evt = eventsAtThisFrame[i];
+                                    Rect rect = bBoxList[i]!.Value;
+                                    bool overlapping = overlappingList[i];
+
+
+                                    // Get the species info from the event
+                                    SpeciesInfo? speciesInfo = GetSpeciesInfoFromEvent(evt);
+
+                                    if (speciesInfo is null)
+                                        continue;
+
+                                    // Are we using the cropped image?
+                                    if (extractCroppedImage)
                                     {
-                                        id = currentImageId,
-                                        file_name = imageFileSpec,
-                                        width = mediaFileExtractList.frameWidth,
-                                        height = mediaFileExtractList.frameHeight
+                                        string species = ExtractScientificName(speciesInfo.Species);
+                                        imageFileSpec = MakeImageFrameFileSpec(mediaFileExtractList.mediaFileSpec, position, croppedFolder, "Cropped", rect, species, overlapping);
+
+                                        // Add this frame to the images list
+                                        currentImageId = nextImageId++;
+                                        images.Add(new
+                                        {
+                                            id = currentImageId,
+                                            file_name = imageFileSpec,
+                                            width = mediaFileExtractList.frameWidth,
+                                            height = mediaFileExtractList.frameHeight
+                                        });
+                                    }
+
+                                    // Get category id from the species
+                                    int category_id;
+                                    category_id = cocoCategory.GetSpeciesID(ExtractScientificName(speciesInfo.Species));
+
+                                    if (currentImageId < 0)
+                                        continue; // defensive: no image id available
+
+                                    // Add the annotation
+                                    double[] bbox = [rect.Left, rect.Top, rect.Width, rect.Height];
+                                    annotations.Add(new
+                                    {
+                                        id = nextAnnotationId++,
+                                        image_id = currentImageId,
+                                        category_id,
+                                        bbox,
+                                        area = rect.Width * rect.Height,
+                                        iscrowd = 0,
+                                        segmentation = Array.Empty<object>(),
                                     });
                                 }
-
-                                // Get category id from the species
-                                int category_id;
-                                category_id = cocoCategory.GetSpeciesID(speciesInfo?.Species!);
-
-                                if (currentImageId < 0)
-                                    continue; // defensive: no image id available
-
-                                // Add the annotation
-                                double[] bbox = [rect.Left, rect.Top, rect.Width, rect.Height];
-                                annotations.Add(new
-                                {
-                                    id = nextAnnotationId++,
-                                    image_id = currentImageId,
-                                    category_id,
-                                    bbox,
-                                    area = rect.Width * rect.Height,
-                                    iscrowd = 0,
-                                    segmentation = Array.Empty<object>(),
-                                });
                             }
                         }
                     }
@@ -3995,7 +4020,7 @@ namespace Surveyor.User_Controls
         /// <param name="surveyFileName"></param>
         /// <param name="side"></param>
         /// <returns></returns>
-        private int OpenMediaFiles(bool trueLeftFalseRight, List<ImageExtract?> imageExtractList, Survey.DataClass.MediaClass media, string exportBasePath, string surveyFileName)
+        private async Task <int> OpenMediaFilesAsync(bool trueLeftFalseRight, List<ImageExtract?> imageExtractList, Survey.DataClass.MediaClass media, string exportBasePath, string surveyFileName)
         {
             int ret = 0;
 
@@ -4014,14 +4039,17 @@ namespace Surveyor.User_Controls
                     // Open media file
                     string mediaFileSpec = Path.Combine(media.MediaPath!, mediaFile);
                     ImageExtract imageExtract = new();
-                    imageExtract.VideoOpen(mediaFileSpec);
+                    ret = await imageExtract.VideoOpenAsync(mediaFileSpec);
 
-                    // Set the export path
-                    imageExtract.ImagePath = exportBasePath;
+                    if (ret == 0)
+                    {
+                        // Set the export path
+                        imageExtract.ImagePath = exportBasePath;
 
-                    // Add to the list of media file for this side
-                    // (left or right) for this survey (normally only one)
-                    imageExtractList.Add(imageExtract);
+                        // Add to the list of media file for this side
+                        // (left or right) for this survey (normally only one)
+                        imageExtractList.Add(imageExtract);
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -4050,8 +4078,7 @@ namespace Surveyor.User_Controls
                 }
                 catch (Exception ex)
                 {
-                    report?.Warning("", $"From Survey {surveyFileName} failed to close right media file {imageExtract?.GetCurrentMediaFileSpec() ?? "(no file spec)"}, {ex.Message}");
-                    imageExtractList.Add(null);
+                    report?.Warning("", $"From Survey {surveyFileName} failed to close right media file {imageExtract?.GetCurrentMediaFileSpec() ?? "(no file spec)"}, {ex.Message}");                   
                 }
             }
         }
@@ -4150,7 +4177,7 @@ namespace Surveyor.User_Controls
             if (overlapping.HasValue)
                 overlappingText = "_overlap";
 
-                string fileName = Path.GetFileNameWithoutExtension(mediaFileSpec) + $"_P.{formattedTime.Substring(Math.Max(0, formattedTime.Length - 12))}{typeText}{bboxText}{speciesText}{overlappingText}.png";
+                string fileName = Path.GetFileNameWithoutExtension(mediaFileSpec) + $"_P.{formattedTime.Substring(Math.Max(0, formattedTime.Length - 12))}s{typeText}{bboxText}{speciesText}{overlappingText}.png";
             return Path.Combine(subFolder, fileName);
         }
 

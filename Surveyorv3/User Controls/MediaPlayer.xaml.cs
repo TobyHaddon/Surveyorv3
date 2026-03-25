@@ -259,7 +259,7 @@ namespace Surveyor.User_Controls
                         mp.SourceChanged += MediaPlayer_SourceChanged;
                         mp.VideoFrameAvailable += MediaPlayer_VideoFrameAvailable;
 
-                        // Remember the media Uri
+                        // Remember the media URI
                         mediaUri = mediaFileSpec;
 
                         // Set the media file spec
@@ -920,6 +920,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="ts"></param>
         /// <returns>-1 if can't calculate (normal because _frameRate is not yet set</returns>
+        //??? Can migrate this to use TimePositionHelper.ToFrameIndex  
         internal Int64 GetFrameIndexFromPosition(System.TimeSpan ts)
         {
             Int64 frameIndex = -1;
@@ -943,6 +944,7 @@ namespace Surveyor.User_Controls
         /// <param name="ts"></param>
         /// <param name="frameRate"></param>
         /// <returns></returns>
+        //??? Can migrate this to use TimePositionHelper.ToFrameIndex  
         internal static Int64 GetFrameIndexFromPosition(System.TimeSpan ts, double frameRate)
         {
             Int64 frameIndex = -1;

@@ -1,15 +1,11 @@
-﻿using Microsoft.Graphics.Canvas;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
+﻿using ActionCameraMP4MetadataExtraction;
+using Microsoft.Graphics.Canvas;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
@@ -26,7 +22,6 @@ namespace Surveyor.User_Controls
 
         // Media file files and handles
         private string mediaFileSpec = string.Empty;
-        //???private VideoCapture? cap = null;
         private MediaPlayer? mediaPlayer = null;
 
         // Frame capture resources
@@ -62,11 +57,11 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="fileSpec"></param>
         /// <returns></returns>
-        public int VideoOpen(string fileSpec)
+        public async Task<int> VideoOpenAsync(string fileSpec)
         {
             int ret = -1;
 
-            mediaGate.Wait();
+            await mediaGate.WaitAsync();
             try
             {
                 // Reset
@@ -77,6 +72,18 @@ namespace Surveyor.User_Controls
 
                 mediaFileSpec = fileSpec;
 
+
+                // Get the .MP4 file properties to determine the frame rate.
+                // If we fail to get the properties or parse the frame rate, we will use the default frame step value.
+                Dictionary<string, string> fileProperties = await GetMP4FileProperities.ExtractProperties(fileSpec);
+
+                if (fileProperties.TryGetValue("Video.FrameRate", out string? frameRate))
+                {
+                    frameStep = TimeSpan.FromMilliseconds(Double.Parse(frameRate));
+                }
+
+
+                // Create a dedicated MediaPlayer instance configured for frame extraction (not playback).
                 MediaPlayer mp = new()
                 {
                     AutoPlay = false,
@@ -85,6 +92,7 @@ namespace Surveyor.User_Controls
                     Source = null
                 };
 
+                // We block until MediaOpened/MediaFailed is raised (with timeout).
                 using ManualResetEventSlim openEvent = new(false);
                 Exception? openException = null;
 
@@ -102,13 +110,17 @@ namespace Surveyor.User_Controls
                 mp.MediaOpened += OnMediaOpened;
                 mp.MediaFailed += OnMediaFailed;
 
+                // Start opening media.
                 mp.Source = MediaSource.CreateFromUri(new Uri(mediaFileSpec));
 
+                // Wait up to 10s for open result.
                 bool opened = openEvent.Wait(TimeSpan.FromSeconds(10));
 
+                // Always unhook temporary handlers.
                 mp.MediaOpened -= OnMediaOpened;
                 mp.MediaFailed -= OnMediaFailed;
 
+                // Open failed or timed out.
                 if (!opened || openException is not null)
                 {
                     mp.Dispose();
@@ -131,10 +143,12 @@ namespace Surveyor.User_Controls
                     return -1;
                 }
 
+                // Cache media duration (named totalFrames in existing code).
                 totalFrames = mp.PlaybackSession.NaturalDuration;
                 if (totalFrames < TimeSpan.Zero)
                     totalFrames = TimeSpan.Zero;
 
+                // Allocate frame capture/render resources for BGRA frame copies.
                 canvasDevice = CanvasDevice.GetSharedDevice();
                 frameServerDest = new SoftwareBitmap(BitmapPixelFormat.Bgra8, (int)frameWidth, (int)frameHeight, BitmapAlphaMode.Premultiplied);
                 inputBitmap = CanvasBitmap.CreateFromSoftwareBitmap(canvasDevice, frameServerDest);
@@ -143,9 +157,10 @@ namespace Surveyor.User_Controls
                 frameSize = new Size(frameWidth, frameHeight);
                 currentFrame = TimeSpan.Zero;
 
+                // Promote local player to field only after successful setup.
                 mediaPlayer = mp;
 
-                // Prime first frame
+                // Prime by capturing first frame at time zero so downstream callers have valid buffers.
                 if (!TryCaptureFrameAtPosition(TimeSpan.Zero, out TimeSpan actual))
                 {
                     CloseInternalNoLock();
@@ -164,7 +179,6 @@ namespace Surveyor.User_Controls
             {
                 mediaGate.Release();
             }
-
 
             return ret;
         }
@@ -268,16 +282,19 @@ namespace Surveyor.User_Controls
                 currentFrame = actualPosition;
                 DrawFrameToScreen(wb);
 
-                string stem = Path.GetFileNameWithoutExtension(mediaFileSpec);
-                string msToken = Math.Round(actualPosition.TotalMilliseconds, MidpointRounding.AwayFromZero).ToString("F0");
-                string imageFileSpec = exportFileSpec ?? Path.Combine(ImagePath, $"{stem}_{msToken}ms.png");
+                //???string stem = Path.GetFileNameWithoutExtension(mediaFileSpec);
+                //string msToken = Math.Round(actualPosition.TotalMilliseconds, MidpointRounding.AwayFromZero).ToString("F0");
+                //string imageFileSpec = exportFileSpec ?? Path.Combine(ImagePath, $"{stem}_{msToken}ms.png");
+
+                string formattedTime = "0000" + $"{Math.Round(position.TotalSeconds, 2):F2}";
+                string fileName = Path.GetFileNameWithoutExtension(mediaFileSpec) + $"_P.{formattedTime[Math.Max(0, formattedTime.Length - 12)..]}s.png";
+                string imageFileSpec = exportFileSpec ?? Path.Combine(ImagePath, fileName);
 
                 await inputBitmap!.SaveAsync(imageFileSpec, CanvasBitmapFileFormat.Png); 
 
                 return imageFileSpec;
             }
-        }
-
+        }     
 
         /// <summary>
         /// Extract a frame from the indicated position in the video and save 

@@ -1,11 +1,6 @@
-﻿using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
+﻿using System;
 using System.Globalization;
-using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace Surveyor.Helper
 {
@@ -68,7 +63,7 @@ namespace Surveyor.Helper
 
 
         /// <summary>
-        /// Return the timespan as a double in seconds
+        /// Return the TimeSpan as a double in seconds
         /// </summary>
         public static double ToSeconds(TimeSpan timePosition, int dp)
         {
@@ -82,6 +77,65 @@ namespace Surveyor.Helper
                 // Not implemented exception
                 throw new NotImplementedException();
 
+        }
+
+
+        /// <summary>
+        /// Calculate the frame index from the time position and frame rate
+        /// </summary>
+        /// <param name="position"></param>
+        /// <param name="frameRate"></param>
+        /// <returns></returns>
+        public static long ToFrameIndex(TimeSpan position, double frameRate)
+        {
+            ArgumentOutOfRangeException.ThrowIfNegativeOrZero(frameRate);
+
+            double frame = position.TotalSeconds * frameRate;
+            return (long)Math.Round(frame, MidpointRounding.AwayFromZero);
+        }
+
+
+        /// <summary>
+        /// Calculate the frame index from the time position and frame stride.
+        /// </summary>
+        /// <param name="position"></param>
+        /// <param name="frameStride">Duration of one frame (e.g. 33.333ms at 30fps)</param>
+        /// <returns></returns>
+        public static long ToFrameIndex(TimeSpan position, TimeSpan frameStride)
+        {
+            if (frameStride <= TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(frameStride), "Frame stride must be greater than zero.");
+
+            double frame = position.Ticks / (double)frameStride.Ticks;
+            return (long)Math.Round(frame, MidpointRounding.AwayFromZero);
+        }
+
+
+        /// <summary>
+        /// Compare two media TimeSpan values and determine if they correspond 
+        /// to the same frame index at the given frame rate.
+        /// </summary>
+        /// <param name="requested">The requested time position</param>
+        /// <param name="actual">The actual time position</param>
+        /// <param name="frameRate">Number of frames per second</param>
+        /// <returns></returns>
+        public static bool IsExactFrameMatch(TimeSpan requested, TimeSpan actual, double frameRate)
+        {
+            return ToFrameIndex(requested, frameRate) == ToFrameIndex(actual, frameRate);
+        }
+
+
+        /// <summary>
+        /// Compare two media TimeSpan values and determine if they correspond
+        /// to the same frame index at the given frame stride.
+        /// </summary>
+        /// <param name="requested"></param>
+        /// <param name="actual"></param>
+        /// <param name="frameStride">Duration of one frame</param>
+        /// <returns></returns>
+        public static bool IsExactFrameMatch(TimeSpan requested, TimeSpan actual, TimeSpan frameStride)
+        {
+            return ToFrameIndex(requested, frameStride) == ToFrameIndex(actual, frameStride);
         }
     }
 }
