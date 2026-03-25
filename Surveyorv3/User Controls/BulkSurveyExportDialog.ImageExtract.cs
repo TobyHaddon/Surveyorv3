@@ -1,11 +1,21 @@
-﻿using ActionCameraMP4MetadataExtraction;
+﻿
+//using MathNet.Numerics;
+using ActionCameraMP4MetadataExtraction;
 using Microsoft.Graphics.Canvas;
+using Microsoft.UI.Composition;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.Windows.ApplicationModel.DynamicDependency;
+using Surveyor.Helper;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
@@ -45,6 +55,12 @@ namespace Surveyor.User_Controls
         // Thread safety
         private readonly SemaphoreSlim mediaGate = new(1, 1);
 
+        // Add these fields in ImageExtract (near other private fields)
+        private readonly object frameWaitLock = new();
+        private TaskCompletionSource<TimeSpan>? nextFrameTcs;
+
+        private static bool IsPositionWithinTolerance(TimeSpan requested, TimeSpan actual, TimeSpan tolerance)
+                        => Math.Abs((actual - requested).Ticks) <= tolerance.Ticks;
 
         public ImageExtract()
         {
@@ -57,6 +73,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="fileSpec"></param>
         /// <returns></returns>
+        // Replace VideoOpen with this version
+
         public async Task<int> VideoOpenAsync(string fileSpec)
         {
             int ret = -1;
@@ -64,42 +82,46 @@ namespace Surveyor.User_Controls
             await mediaGate.WaitAsync();
             try
             {
-                // Reset
-                Clear();
+                // Ensure previous resources/handlers are cleaned up before opening new media.
+                _ = CloseInternalNoLock();
 
                 if (!File.Exists(fileSpec))
                     return -1;
 
                 mediaFileSpec = fileSpec;
 
-
-                // Get the .MP4 file properties to determine the frame rate.
-                // If we fail to get the properties or parse the frame rate, we will use the default frame step value.
-                Dictionary<string, string> fileProperties = await GetMP4FileProperities.ExtractProperties(fileSpec);
-
-                if (fileProperties.TryGetValue("Video.FrameRate", out string? frameRate))
+                try
                 {
-                    frameStep = TimeSpan.FromMilliseconds(Double.Parse(frameRate));
+                    Dictionary<string, string> fileProperties = await GetMP4FileProperities.ExtractProperties(fileSpec);
+                    if (fileProperties.TryGetValue("Video.FrameRate", out string? frameRate))
+                    {
+                        frameStep = TimeSpan.FromMilliseconds(Double.Parse(frameRate));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"{ToString()} VideoOpen: Failed to extract frame rate, using default. {ex.Message}");
+                    return -1;
                 }
 
-
-                // Create a dedicated MediaPlayer instance configured for frame extraction (not playback).
+                // Create MediaPlayer with video frame server mode enabled
                 MediaPlayer mp = new()
                 {
                     AutoPlay = false,
                     IsMuted = true,
-                    IsVideoFrameServerEnabled = true,
+                    IsVideoFrameServerEnabled = false,
                     Source = null
                 };
 
-                // We block until MediaOpened/MediaFailed is raised (with timeout).
+                // Wait for MediaOpened or MediaFailed event to ensure media is ready before
+                // we query properties or attempt to capture frames
                 using ManualResetEventSlim openEvent = new(false);
                 Exception? openException = null;
 
-                void OnMediaOpened(MediaPlayer sender, object args)
-                {
-                    openEvent.Set();
-                }
+                // Handlers to capture MediaOpened and MediaFailed events.
+                // These will signal the openEvent when either event is raised, allowing
+                // us to wait for the media to be ready or fail before proceeding.
+                void OnMediaOpened(MediaPlayer sender, object args) => openEvent.Set();
 
                 void OnMediaFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args)
                 {
@@ -107,27 +129,33 @@ namespace Surveyor.User_Controls
                     openEvent.Set();
                 }
 
+                // Wire up the event handlers, set the source to start opening the media,
+                // and wait for the result.
                 mp.MediaOpened += OnMediaOpened;
                 mp.MediaFailed += OnMediaFailed;
 
-                // Start opening media.
+                // Setting the source will trigger the MediaPlayer to start opening the media,
+                // which will in turn trigger either the MediaOpened or MediaFailed event when
+                // it completes.
                 mp.Source = MediaSource.CreateFromUri(new Uri(mediaFileSpec));
 
-                // Wait up to 10s for open result.
+                // Wait for either MediaOpened or MediaFailed to be raised, with a timeout to
+                // avoid hanging indefinitely.
                 bool opened = openEvent.Wait(TimeSpan.FromSeconds(10));
 
-                // Always unhook temporary handlers.
+                // Unwire the event handlers as they are no longer needed after this point.
+                // The MediaPlayer will be disposed if opening failed, so we want to avoid
+                // any chance of these handlers being called after disposal.
                 mp.MediaOpened -= OnMediaOpened;
                 mp.MediaFailed -= OnMediaFailed;
 
-                // Open failed or timed out.
                 if (!opened || openException is not null)
                 {
                     mp.Dispose();
                     return -1;
                 }
 
-                // Wait briefly for natural dimensions if needed
+                // At this point the media is opened and we can query properties and capture frames.
                 int retry = 0;
                 while ((mp.PlaybackSession.NaturalVideoWidth == 0 || mp.PlaybackSession.NaturalVideoHeight == 0) && retry < 40)
                 {
@@ -135,6 +163,8 @@ namespace Surveyor.User_Controls
                     retry++;
                 }
 
+                // If we still don't have valid frame dimensions, something is wrong with
+                // the media or playback session, so we should clean up and return failure.
                 uint frameWidth = mp.PlaybackSession.NaturalVideoWidth;
                 uint frameHeight = mp.PlaybackSession.NaturalVideoHeight;
                 if (frameWidth == 0 || frameHeight == 0)
@@ -143,30 +173,41 @@ namespace Surveyor.User_Controls
                     return -1;
                 }
 
-                // Cache media duration (named totalFrames in existing code).
+                // At this point we have valid frame dimensions and can proceed with setting up the frame extraction.
                 totalFrames = mp.PlaybackSession.NaturalDuration;
                 if (totalFrames < TimeSpan.Zero)
                     totalFrames = TimeSpan.Zero;
 
-                // Allocate frame capture/render resources for BGRA frame copies.
+                // Create the CanvasDevice, SoftwareBitmap, and CanvasBitmap that will
+                // be used as the destination for the MediaPlayer's CopyFrameToVideoSurface calls.
                 canvasDevice = CanvasDevice.GetSharedDevice();
                 frameServerDest = new SoftwareBitmap(BitmapPixelFormat.Bgra8, (int)frameWidth, (int)frameHeight, BitmapAlphaMode.Premultiplied);
                 inputBitmap = CanvasBitmap.CreateFromSoftwareBitmap(canvasDevice, frameServerDest);
 
+                // Create the WriteableBitmap that will be used for display and extraction.
+                // The frame data will be copied
                 wb = new WriteableBitmap((int)frameWidth, (int)frameHeight);
                 frameSize = new Size(frameWidth, frameHeight);
                 currentFrame = TimeSpan.Zero;
 
-                // Promote local player to field only after successful setup.
+                // At this point we have a valid media player and can start extracting frames.
                 mediaPlayer = mp;
 
-                // Prime by capturing first frame at time zero so downstream callers have valid buffers.
-                if (!TryCaptureFrameAtPosition(TimeSpan.Zero, out TimeSpan actual))
+                // Wire once for lifetime of this open media session.
+                mediaPlayer.VideoFrameAvailable += MediaPlayer_VideoFrameAvailable;
+                mediaPlayer.IsVideoFrameServerEnabled = true;
+
+                // Capture the first frame to ensure everything is working and we have a
+                // valid current frame.
+                (bool retb, TimeSpan actual) = await TryCaptureFrameAtPosition(TimeSpan.Zero);
+                if (!retb)
                 {
                     CloseInternalNoLock();
                     return -1;
                 }
 
+                // Set the current frame to the actual captured frame, which may be
+                // different from the requested position
                 currentFrame = actual;
                 ret = 0;
             }
@@ -225,8 +266,8 @@ namespace Surveyor.User_Controls
             List<string?> imageFileSpecList = [];
             
             // Guard           
-            if (string.IsNullOrWhiteSpace(ImagePath) && string.IsNullOrEmpty(exportFileSpec))
-                return (-1, imageFileSpecList);
+            //if (string.IsNullOrWhiteSpace(ImagePath) && string.IsNullOrEmpty(exportFileSpec))
+            //    return (-1, imageFileSpecList);
 
             if (extractBefore > 0 || extractAfter < 0)
                 throw new ArgumentException("VideoExtractFramesAsync: extractBefore must be <= 0 and extractAfter must be >= 0");
@@ -240,8 +281,6 @@ namespace Surveyor.User_Controls
                 if (mediaPlayer is null || inputBitmap is null || wb is null)
                     return (-1, imageFileSpecList);
               
-                //???Directory.CreateDirectory(ImagePath);
-
                 if (extractBefore == 0 && extractAfter == 0)
                 {
                     string? one = await ExtractAtAsync(position, exportFileSpec);
@@ -276,21 +315,23 @@ namespace Surveyor.User_Controls
             {
                 TimeSpan clamped = ClampToMediaRange(target);
 
-                if (!TryCaptureFrameAtPosition(clamped, out TimeSpan actualPosition))
+                (bool retb, TimeSpan actualPosition) = await TryCaptureFrameAtPosition(clamped);
+                if (!retb)
                     return null;
 
                 currentFrame = actualPosition;
                 DrawFrameToScreen(wb);
 
-                //???string stem = Path.GetFileNameWithoutExtension(mediaFileSpec);
-                //string msToken = Math.Round(actualPosition.TotalMilliseconds, MidpointRounding.AwayFromZero).ToString("F0");
-                //string imageFileSpec = exportFileSpec ?? Path.Combine(ImagePath, $"{stem}_{msToken}ms.png");
+                string imageFileSpec = string.Empty;
 
-                string formattedTime = "0000" + $"{Math.Round(position.TotalSeconds, 2):F2}";
-                string fileName = Path.GetFileNameWithoutExtension(mediaFileSpec) + $"_P.{formattedTime[Math.Max(0, formattedTime.Length - 12)..]}s.png";
-                string imageFileSpec = exportFileSpec ?? Path.Combine(ImagePath, fileName);
+                if (!string.IsNullOrEmpty(ImagePath) || exportFileSpec is not null)
+                {
+                    string formattedTime = "0000" + $"{Math.Round(position.TotalSeconds, 2):F2}";
+                    string fileName = Path.GetFileNameWithoutExtension(mediaFileSpec) + $"_P.{formattedTime[Math.Max(0, formattedTime.Length - 12)..]}s.png";
+                    imageFileSpec = exportFileSpec ?? Path.Combine(ImagePath, fileName);
 
-                await inputBitmap!.SaveAsync(imageFileSpec, CanvasBitmapFileFormat.Png); 
+                    await inputBitmap!.SaveAsync(imageFileSpec, CanvasBitmapFileFormat.Png);
+                }
 
                 return imageFileSpec;
             }
@@ -309,7 +350,7 @@ namespace Surveyor.User_Controls
         {
             (int ret, List<string?> imageFileSpecList) = await VideoExtractFramesAsync(position, extractBefore: 0, extractAfter: 0);
 
-            if (ret == 0 && imageFileSpecList.Count == 1 && !string.IsNullOrEmpty(imageFileSpecList[0]))
+            if (ret == 0 && imageFileSpecList.Count == 1 && (!string.IsNullOrEmpty(imageFileSpecList[0]) || ImagePath == ""))
                 return (0, imageFileSpecList[0]!);
             else
                 return (-1, string.Empty);  
@@ -459,15 +500,25 @@ namespace Surveyor.User_Controls
         }
 
 
+        // Replace CloseInternalNoLock with this version
+
         private int CloseInternalNoLock()
         {
             try
             {
                 if (mediaPlayer is not null)
                 {
+                    mediaPlayer.VideoFrameAvailable -= MediaPlayer_VideoFrameAvailable;
+                    mediaPlayer.IsVideoFrameServerEnabled = false;
                     mediaPlayer.Source = null;
                     mediaPlayer.Dispose();
                     mediaPlayer = null;
+                }
+
+                lock (frameWaitLock)
+                {
+                    nextFrameTcs?.TrySetCanceled();
+                    nextFrameTcs = null;
                 }
 
                 if (inputBitmap is not null)
@@ -506,65 +557,210 @@ namespace Surveyor.User_Controls
             return position;
         }
 
-        private bool TryCaptureFrameAtPosition(TimeSpan requestedPosition, out TimeSpan actualPosition)
+        // Replace TryCaptureFrameAtPosition with this version
+
+        private async Task<(bool ret, TimeSpan actualPosition)> TryCaptureFrameAtPosition(TimeSpan requestedPosition)
         {
-            actualPosition = requestedPosition;
+            TimeSpan actualPosition = requestedPosition;
 
             if (mediaPlayer is null || inputBitmap is null)
-                return false;
+                return (false, TimeSpan.Zero);
 
             TimeSpan capturedPosition = requestedPosition;
-            int copied = 0;
-
-            using ManualResetEventSlim frameEvent = new(false);
-
-            void OnVideoFrameAvailable(MediaPlayer sender, object args)
-            {
-                if (Interlocked.Exchange(ref copied, 1) != 0)
-                    return;
-
-                try
-                {
-                    sender.CopyFrameToVideoSurface(inputBitmap);
-                    capturedPosition = sender.PlaybackSession.Position;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"{ToString()} TryCaptureFrameAtPosition CopyFrameToVideoSurface: {ex.Message}");
-                }
-                finally
-                {
-                    frameEvent.Set();
-                }
-            }
-
-            mediaPlayer.VideoFrameAvailable += OnVideoFrameAvailable;
 
             try
             {
-                mediaPlayer.IsVideoFrameServerEnabled = true;
-                mediaPlayer.Pause();
-
-                mediaPlayer.PlaybackSession.Position = requestedPosition;
-                mediaPlayer.StepForwardOneFrame();
-
-                if (!frameEvent.Wait(TimeSpan.FromSeconds(2)))
+                // If the media is currently playing, pause it before attempting to
+                // capture a frame. This is necessary because the MediaPlayer will not
+                // raise the VideoFrameAvailable event while it is playing, which means
+                // we won't be able to capture a frame.
+                if (mediaPlayer.PlaybackSession.PlaybackState == MediaPlaybackState.Playing)
                 {
+                    mediaPlayer.Pause();
+                    await Task.Delay(100);
+                }
+
+                // Check if we are already at the requested position (within frame step tolerance).
+                // If so, step forward and back to trigger frame availability.
+                if (TimePositionHelper.IsExactFrameMatch(mediaPlayer.PlaybackSession.Position, requestedPosition, frameStep))
+                {
+                    Debug.WriteLine($"Extract at: {requestedPosition.TotalSeconds:F2}, already at position so step forward and back.");
+
                     mediaPlayer.StepForwardOneFrame();
-                    frameEvent.Wait(TimeSpan.FromSeconds(2));
+                    (bool okFwd, TimeSpan posFwd) = await WaitForNextFrameAsync(
+                        $"Extract at: {requestedPosition.TotalSeconds:F2}), step forward",
+                        TimeSpan.FromSeconds(2));
+
+                    if (!okFwd)
+                        return (false, mediaPlayer.PlaybackSession.Position);
+
+                    mediaPlayer.StepBackwardOneFrame();
+                    (bool okBack, TimeSpan posBack) = await WaitForNextFrameAsync(
+                        $"Extract at: {requestedPosition.TotalSeconds:F2}), step back",
+                        TimeSpan.FromSeconds(2));
+
+                    if (!okBack)
+                    {
+                        // Fallback: explicit seek if backward frame callback does not arrive.
+                        mediaPlayer.PlaybackSession.Position = requestedPosition;
+
+                        (bool okSeek, TimeSpan posSeek) = await WaitForNextFrameAsync(
+                            $"Extract at: {requestedPosition.TotalSeconds:F2}), fallback seek",
+                            TimeSpan.FromSeconds(2));
+
+                        if (!okSeek)
+                            return (false, mediaPlayer.PlaybackSession.Position);
+
+                        capturedPosition = posSeek;
+                    }
+                    else
+                    {
+                        capturedPosition = posBack;
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine($"Extract at: {requestedPosition.TotalSeconds:F2}), seeking to position.");
+                    mediaPlayer.PlaybackSession.Position = requestedPosition;
+
+                    (bool okSeek, TimeSpan posSeek) = await WaitForNextFrameAsync(
+                        $"Extract at: {requestedPosition.TotalSeconds:F2}), seek",
+                        TimeSpan.FromSeconds(2));
+
+                    if (!okSeek)
+                        return (false, mediaPlayer.PlaybackSession.Position);
+
+                    capturedPosition = posSeek;
+                }
+
+                // If after the initial seek and potential step forward/back we are not on an exact
+                // frame match for the requested position, step forward or backward as needed until
+                // we find an exact frame match, or exhaust our max tries.
+                int maxTries = 10;
+                while (!TimePositionHelper.IsExactFrameMatch(mediaPlayer.PlaybackSession.Position, requestedPosition, frameStep))
+                {
+                    if (mediaPlayer.PlaybackSession.Position < requestedPosition)
+                    {
+                        Debug.WriteLine($"Extract at: {requestedPosition.TotalSeconds:F2}), current {mediaPlayer.PlaybackSession.Position.TotalSeconds:F2} before requested, stepping forward.");
+                        mediaPlayer.StepForwardOneFrame();
+                    }
+                    else
+                    {
+                        Debug.WriteLine($"Extract at: {requestedPosition.TotalSeconds:F2}), current {mediaPlayer.PlaybackSession.Position.TotalSeconds:F2} after requested, stepping backward.");
+                        mediaPlayer.StepBackwardOneFrame();
+                    }
+
+                    (bool okStep, TimeSpan posStep) = await WaitForNextFrameAsync(
+                        $"Extract at: {requestedPosition.TotalSeconds:F2}), step adjust",
+                        TimeSpan.FromSeconds(2));
+
+                    if (!okStep)
+                        return (false, mediaPlayer.PlaybackSession.Position);
+
+                    capturedPosition = posStep;
+
+                    maxTries--;
+                    if (maxTries == 0)
+                        return (false, mediaPlayer.PlaybackSession.Position);
                 }
             }
-            finally
+            catch (Exception ex)
             {
-                mediaPlayer.VideoFrameAvailable -= OnVideoFrameAvailable;
-                mediaPlayer.IsVideoFrameServerEnabled = false;
+                Debug.WriteLine($"{ToString()} TryCaptureFrameAtPosition: {ex.Message}");
+                return (false, mediaPlayer.PlaybackSession.Position);
             }
 
-            if (copied == 0)
-                return false;
-
             actualPosition = capturedPosition;
-            return true;
+            return (true, actualPosition);
+        }
+
+
+        // Add these helper methods + event handler in ImageExtract (private section)
+        /// <summary>
+        /// Called each time the MediaPlayer has a frame to deliver
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+        private void MediaPlayer_VideoFrameAvailable(MediaPlayer sender, object args)
+        {
+            if (inputBitmap is null)
+                return;
+
+            try
+            {
+                // Get the current frame into a CanvasBitmap and record the current media position
+                sender.CopyFrameToVideoSurface(inputBitmap);
+                TimeSpan position = sender.PlaybackSession.Position;
+
+                Debug.WriteLine($"OnVideoFrameAvailable: {position.TotalSeconds:F2}");
+
+                // Clear the current wait for frame availability and set the result to the position of this delivered frame.
+                TaskCompletionSource<TimeSpan>? tcs = null;
+                lock (frameWaitLock)
+                {
+                    tcs = nextFrameTcs;
+                    nextFrameTcs = null;
+                }
+
+                // Complete the wait for frame availability with the position of the delivered frame.
+                tcs?.TrySetResult(position);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"OnVideoFrameAvailable failed CopyFrameToVideoSurface: {ex.Message}");
+
+                // If there was an error during frame copy, complete any pending wait for frame availability
+                // with an error to unblock the waiting code and allow it to handle the failure.
+                TaskCompletionSource<TimeSpan>? tcs = null;
+                lock (frameWaitLock)
+                {
+                    tcs = nextFrameTcs;
+                    nextFrameTcs = null;
+                }
+
+                // Complete the wait for frame availability with the exception.
+                tcs?.TrySetException(ex);
+            }
+        }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
+        private TaskCompletionSource<TimeSpan> ArmNextFrameWait()
+        {
+            TaskCompletionSource<TimeSpan> tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            lock (frameWaitLock)
+            {
+                nextFrameTcs = tcs;
+            }
+
+            return tcs;
+        }
+
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="context"></param>
+        /// <param name="timeout"></param>
+        /// <returns></returns>
+        private async Task<(bool ok, TimeSpan position)> WaitForNextFrameAsync(string context, TimeSpan timeout)
+        {
+            TaskCompletionSource<TimeSpan> tcs = ArmNextFrameWait();
+
+            Task completed = await Task.WhenAny(tcs.Task, Task.Delay(timeout));
+            if (completed != tcs.Task)
+            {
+                Debug.WriteLine($"{context} did not trigger frame availability within timeout.");
+                return (false, TimeSpan.Zero);
+            }
+
+            TimeSpan framePosition = await tcs.Task;
+            Debug.WriteLine($"{context} triggered frame at: {framePosition.TotalSeconds:F2}");
+            return (true, framePosition);
         }
 
 

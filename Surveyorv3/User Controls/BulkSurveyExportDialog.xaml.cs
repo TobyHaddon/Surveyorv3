@@ -2253,7 +2253,14 @@ namespace Surveyor.User_Controls
             // Remove '\Row' sub-folder if only used for temporary stuff
             if (!extractRawFrame)
             {
-                Directory.Delete(exportBasePath + folderRaw);
+                try
+                {
+                    Directory.Delete(exportBasePath + folderRaw);
+                }
+                catch (Exception ex)
+                {
+                    report?.Warning("", @$"ExportCOCODatatSheetAsync: Failed to remove the '\Raw' image export directory, {ex.Message}");
+                }
             }
 
             // Show DataGrid and hide the GridView
