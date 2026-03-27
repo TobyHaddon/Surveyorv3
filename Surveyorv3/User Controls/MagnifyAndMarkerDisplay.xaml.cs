@@ -2113,9 +2113,6 @@ namespace Surveyor.User_Controls
             _ResetCanvas();
 
             // Clear Epipolar
-            //???TO BE DELELTED Epipolar Line is obsolete
-            //SetCanvasFrameEpipolarLine(true/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/, 0.0, 0.0, 0.0, -1);
-            //SetCanvasFrameEpipolarLine(false/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/, 0.0, 0.0, 0.0, -1);
             SetCanvasFrameEpipolarCurve(true/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/, null, -1);
             SetCanvasFrameEpipolarCurve(false/*TrueEpipolarLinePointAFalseEpipolarLinePointB*/, null, -1);
 

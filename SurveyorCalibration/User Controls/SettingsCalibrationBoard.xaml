@@ -17,129 +17,172 @@
         <converters:MetersToMillimetersConverter x:Key="MetersToMillimetersConverter2DP" Format="F2" />
         <converters:MetersToMillimetersConverter x:Key="MetersToMillimetersConverter0DP" Format="F0" />
     </UserControl.Resources>
-    
-    <!-- Board Parameter & Preview Grid -->
-    <Grid x:Name="RootGrid" Grid.Row="0">
+
+    <Grid>
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/><!-- Row 0: Board Type -->
-            <RowDefinition Height="Auto"/><!-- Row 1: Square Count -->
-            <RowDefinition Height="Auto"/><!-- Row 2: Square Size -->
-            <RowDefinition Height="Auto"/><!-- Row 3: Marker Size -->
-            <RowDefinition Height="Auto"/><!-- Row 4: ArUco Dictionary -->
-            <RowDefinition Height="Auto"/><!-- Row 5: Preview -->
-            <RowDefinition Height="Auto"/><!-- Row 6: Board Physical Size Title & Button -->
-            <RowDefinition Height="Auto"/><!-- Row 7: Board Physical Size -->
-            <RowDefinition Height="Auto"/><!-- Row 8: Dot Per Squares Inch -->
+            <RowDefinition Height="Auto"/><!-- Row 0: RootGrid -->
+            <RowDefinition Height="Auto"/><!-- Row 1: SavePDFGrid -->
         </Grid.RowDefinitions>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
-
-        <!-- Board Type -->
-        <TextBlock Text="Target Type:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
-        <!-- Locked to single supported option in code behind-->
-        <ComboBox x:Name="TargetTypeCombo"
-                    Grid.Row="0"
-                    Grid.Column="1"
-                    Margin="5">
-        </ComboBox>
         
-        <!-- Square Count -->
-        <TextBlock Text="Square Count:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
-        <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" Margin="5">
-            <TextBox x:Name="SquareColsNumeric" Width="60" 
-                        Text="{x:Bind CbdWorking.SquaresX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
-                        TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"
-                        TextChanged="NumericTextBox_TextChanged" />
-            <TextBlock Text=" x " VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox x:Name="SquareRowsNumeric" Width="60" 
-                        Text="{x:Bind CbdWorking.SquaresY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                        TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"
-                        TextChanged="NumericTextBox_TextChanged"/>
-        </StackPanel>
+        <!-- Board Parameter & Preview Grid -->
+        <Grid x:Name="RootGrid" Grid.Row="0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/><!-- Row 0: Board Type -->
+                <RowDefinition Height="Auto"/><!-- Row 1: Square Count -->
+                <RowDefinition Height="Auto"/><!-- Row 2: Square Size -->
+                <RowDefinition Height="Auto"/><!-- Row 3: Marker Size -->
+                <RowDefinition Height="Auto"/><!-- Row 4: ArUco Dictionary -->
+                <RowDefinition Height="*"/>   <!-- Row 5: Free Space -->
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="100"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
 
-        <!--Square Size-->
-        <TextBlock Text="Square Size:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
-        <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="1" Margin="5">
-            <TextBox x:Name="SquareSizeNumeric" Width="60" 
-                        Text="{x:Bind CbdWorking.SquareLength, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource MetersToMillimetersConverter2DP}}" 
-                        TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
-                        TextChanged="NumericTextBox_TextChanged"/>
-            <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
-        </StackPanel>
-
-        <!--Marker Size-->
-        <TextBlock Text="Marker Size:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
-        <StackPanel Orientation="Horizontal" Grid.Row="3" Grid.Column="1" Margin="5">
-            <TextBox x:Name="MarkerSizeNumeric" Width="60" 
-                        Text="{x:Bind CbdWorking.MarkerLength, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource MetersToMillimetersConverter2DP}}" 
-                        TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
-                        TextChanged="NumericTextBox_TextChanged"/>
-            <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
-        </StackPanel>
+            <!-- Board Type -->
+            <TextBlock Text="Target Type:" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+            <!-- Locked to single supported option in code behind-->
+            <ComboBox x:Name="TargetTypeCombo"
+                        Grid.Row="0"
+                        Grid.Column="1"
+                        Margin="5">
+            </ComboBox>
         
-        <!-- ArUco Dictionary -->
-        <TextBlock Text="ArUco Dictionary:" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
-        <ComboBox x:Name="ArucoDictionaryCombo" Grid.Row="4" Grid.Column="1" Margin="5"
-                    SelectionChanged="ArucoDictionaryCombo_SelectionChanged"
-                    SelectedItem="{x:Bind CbdWorking.PredefinedDictionaryName, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"/>
+            <!-- Square Count -->
+            <TextBlock Text="Square Count:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+            <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" Margin="5">
+                <TextBox x:Name="SquareColsNumeric" Width="60" 
+                            Text="{x:Bind CbdWorking.SquaresX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                            TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"
+                            TextChanged="NumericTextBox_TextChanged" />
+                <TextBlock Text=" x " VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBox x:Name="SquareRowsNumeric" Width="60" 
+                            Text="{x:Bind CbdWorking.SquaresY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"
+                            TextChanged="NumericTextBox_TextChanged"/>
+            </StackPanel>
 
-        <!-- Preview -->
-        <StackPanel Grid.Row ="5" Grid.Column="1" Orientation="Vertical" HorizontalAlignment="Left" Margin="5">
-            <Border Grid.Row="5" Grid.ColumnSpan="2" HorizontalAlignment="Left" 
-                    BorderBrush="Gray" BorderThickness="1" Width="500" Margin="0,15,0,0">
-                <Image x:Name="PreviewImage" Stretch="Uniform" />
-            </Border>
-            <TextBlock x:Name="PreviewCaption1" FontSize="10" Foreground="Gray" Margin="0,5,5,0"/>
-            <TextBlock x:Name="PreviewCaption2" FontSize="10" Foreground="Gray" Margin="0,0,5,5"/>
-        </StackPanel>
+            <!--Square Size-->
+            <TextBlock Text="Square Size:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+            <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="1" Margin="5">
+                <TextBox x:Name="SquareSizeNumeric" Width="60" 
+                            Text="{x:Bind CbdWorking.SquareLength, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource MetersToMillimetersConverter2DP}}" 
+                            TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
+                            TextChanged="NumericTextBox_TextChanged"/>
+                <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            </StackPanel>
 
+            <!--Marker Size-->
+            <TextBlock Text="Marker Size:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+            <StackPanel Orientation="Horizontal" Grid.Row="3" Grid.Column="1" Margin="5">
+                <TextBox x:Name="MarkerSizeNumeric" Width="60" 
+                            Text="{x:Bind CbdWorking.MarkerLength, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource MetersToMillimetersConverter2DP}}" 
+                            TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
+                            TextChanged="NumericTextBox_TextChanged"/>
+                <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            </StackPanel>
+        
+            <!-- ArUco Dictionary -->
+            <TextBlock Text="ArUco Dictionary:" Grid.Row="4" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+            <ComboBox x:Name="ArucoDictionaryCombo" Grid.Row="4" Grid.Column="1" Margin="5"
+                        SelectionChanged="ArucoDictionaryCombo_SelectionChanged"
+                        SelectedItem="{x:Bind CbdWorking.PredefinedDictionaryName, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"/>
 
-        <!-- Board Generation (only if Type="DefaultsManager) -->
-        <!-- Border background spanning rows 6-8 -->
-        <Border Grid.Row="6"
-                    Grid.RowSpan="3"
-                    Grid.Column="0"
-                    Grid.ColumnSpan="2"
-                    Margin="0"
-                    BorderBrush="Gray"
-                    BorderThickness="1"
-                    CornerRadius="4"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
+            <!-- Preview -->
+            <StackPanel Grid.Row ="0" Grid.Column="3" Grid.RowSpan="6" Orientation="Vertical" HorizontalAlignment="Left" Margin="5">
+                <Border HorizontalAlignment="Left" 
+                        BorderBrush="Gray" BorderThickness="1" Width="500" Margin="0,0,0,0">
+                    <Image x:Name="PreviewImage" Stretch="Uniform" />
+                </Border>
+                <TextBlock x:Name="PreviewCaption1" FontSize="10" Foreground="Gray" Margin="0,5,5,0"/>
+                <TextBlock x:Name="PreviewCaption2" FontSize="10" Foreground="Gray" Margin="0,0,5,5"/>
+            </StackPanel>
+        </Grid>
 
-        <!-- Board Physical Size Title-->
-        <TextBlock Text="Generate PDF for physical board manufacturing" Grid.Row="6" Grid.Column="0" Grid.ColumnSpan="2" Margin="5,10,5,5"/>
+        <Grid x:Name="SavePDFGrid" Grid.Row="1" Width="940" HorizontalAlignment="Left">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/><!-- Row 0: Board Physical Size Title & Button -->
+                <RowDefinition Height="Auto"/><!-- Row 1: Board Physical Size -->
+                <RowDefinition Height="Auto"/><!-- Row 2: Surrounding Border -->
+                <RowDefinition Height="Auto"/><!-- Row 3: Dot Per Squares Inch -->
+                <RowDefinition Height="Auto"/><!-- Row 4: Guidance Text -->
+            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-        <TextBlock Text="Board Size:" Grid.Row="7" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
-        <!-- Save to PDF Button -->
-        <Button x:Name="SaveToPDFButton" Grid.Row="6" Grid.Column="1" Content="Save to PDF" Click="SaveToPDF_Click" Width="150" HorizontalAlignment="Right" Margin="0,10,10,0"/>
+            <!-- Board Generation (only if Type="DefaultsManager") -->
+            <!-- Border background spanning rows 0-2 -->
+            <Border Grid.Row="0"
+                        Grid.RowSpan="5"
+                        Grid.Column="0"
+                        Grid.ColumnSpan="3"
+                        Margin="0"
+                        BorderBrush="Gray"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"/>
 
-        <!-- Board Physical Size -->
-        <StackPanel Orientation="Horizontal" Grid.Row="7" Grid.Column="1" Margin="5">
-            <TextBox x:Name="BoardSizeXNumeric" Width="60" 
-                        Text="{x:Bind BoardSizeX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource MetersToMillimetersConverter0DP}}" 
-                        TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
-                        TextChanged="GenerationTextBox_TextChanged"/>
-            <TextBlock Text=" mm  x " VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBox x:Name="BoardSizeYNumeric" Width="60" 
-                        Text="{x:Bind BoardSizeY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource MetersToMillimetersConverter0DP}}" 
-                        TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
-                        TextChanged="GenerationTextBox_TextChanged"/>
-            <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
-            <TextBlock Text="(size of printed board including margins)" Grid.Row="6" Grid.ColumnSpan="2" FontSize="10" Foreground="Gray" VerticalAlignment="Center" Margin="5,0,5,0"/>
-        </StackPanel>
+            <!-- Board Physical Size Title-->
+            <TextBlock Text="Generate PDF for physical board manufacturing" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Margin="5,10,5,5"/>
 
+            <TextBlock Text="Board Size:" Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+            <!-- Save to PDF Button -->
+            <Button x:Name="SaveToPDFButton" Grid.Row="0" Grid.Column="2" Content="Save to PDF" Click="SaveToPDF_Click" Width="150" HorizontalAlignment="Right" Margin="0,10,10,0"/>
 
-        <!-- Dot Per Squares Inch -->
-        <TextBlock Text="Print Resolution:" Grid.Row="8" Grid.Column="0" VerticalAlignment="Center" Margin="6"/>
-        <StackPanel Orientation="Horizontal" Grid.Row="8" Grid.Column="1" Margin="6">
-            <TextBox x:Name="BoardDPI" Width="60" 
-                        Text="{x:Bind PrintDPI, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" 
-                        TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"
-                        TextChanged="GenerationTextBox_TextChanged"/>
-            <TextBlock Text=" Dots Per Inch (DPI)" VerticalAlignment="Center" Margin="0,0,5,0"/>
-        </StackPanel>
+            <!-- Board Physical Size -->
+            <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="5">
+                <TextBox x:Name="BoardSizeXNumeric" Width="60" 
+                            Tag="{x:Bind BoardSizeXMin, Mode=OneWay}"
+                            Text="{x:Bind BoardSizeX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource MetersToMillimetersConverter0DP}}" 
+                            TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
+                            TextChanged="GenerationTextBox_TextChanged"/>
+                <TextBlock Text=" mm  x " VerticalAlignment="Center" Margin="0,0,5,0"/>
+                <TextBox x:Name="BoardSizeYNumeric" Width="60" 
+                            Tag="{x:Bind BoardSizeYMin, Mode=OneWay}"
+                            Text="{x:Bind BoardSizeY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource MetersToMillimetersConverter0DP}}" 
+                            TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
+                            TextChanged="GenerationTextBox_TextChanged"/>
+                <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            </StackPanel>
+            <TextBlock Text="Physical size of the calibration board" 
+                       Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="2" 
+                       FontSize="10" Foreground="Gray" VerticalAlignment="Center" Margin="5,0,5,0"/>
 
+            <!-- Surrounding Boarding Size -->
+            <TextBlock Text="Sticker Inset By:" Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+            <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="1" VerticalAlignment="Center" Margin="5">
+                <TextBox x:Name="BoardSurroundingBorderNumeric" Width="60" 
+                            Text="{x:Bind BoardSurroundingBorder, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource MetersToMillimetersConverter0DP}}" 
+                            TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
+                            TextChanged="GenerationTextBox_TextChanged"/>
+                <TextBlock Text=" mm" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            </StackPanel>
+            <TextBlock Text="Set to 0mm if your print shop is printing directly onto the board e.g. DiBond or set to 3mm if printing onto a sticker that will be attached to a board e.g. Plexiglas. The reason the sticker needs to be smaller that the board is so the sticker doesn't peel off." 
+                           Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="2" 
+                           FontSize="10" Foreground="Gray" VerticalAlignment="Center" TextWrapping="Wrap" Margin="5,0,15,0"/>
+
+            <!-- Dot Per Squares Inch -->
+            <TextBlock Text="Print Resolution:" Grid.Row="3" Grid.Column="0" VerticalAlignment="Center" Margin="5"/>
+            <StackPanel Orientation="Horizontal" Grid.Row="3" Grid.Column="1" VerticalAlignment="Center" Margin="5">
+                <TextBox x:Name="BoardDPI" Width="60" 
+                            Text="{x:Bind PrintDPI, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}" 
+                            TextChanging="NumberTextBoxPositiveWholeNumber_TextChanging"
+                            TextChanged="GenerationTextBox_TextChanged"/>
+                <TextBlock Text=" Dots Per Inch (DPI)" VerticalAlignment="Center" Margin="0,0,5,0"/>
+            </StackPanel>
+
+            <!-- Guidance Text -->
+            <TextBlock x:Name="BoardSizeGuidanceTextBlock" Text="{x:Bind BoardSizeGuidanceText, Mode=OneWay}" 
+                       Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" 
+                       FontSize="10" Foreground="Gray" VerticalAlignment="Center" TextWrapping="Wrap" Margin="5,0,15,0"/>
+        </Grid>
     </Grid>
 </UserControl>

@@ -392,27 +392,23 @@ namespace Surveyor.User_Controls
                     {
                         // Open the survey with no auto save
                         var survey = new Survey(report!);
-                        if (await survey.SurveyLoadAsync(fileSpec, false/*autoSave*/) == 0)
+                        if (await survey.SurveyLoadAsync(fileSpec, false/*autoSave off*/) == 0)
                         {
-                            // Get the frame size
-                            int frameWidth = 0;
-                            int frameHeight = 0;
-
-                            // Used the left mp4 file to get the frame size
-                            string mediaFileLeft = survey.GetLeftMediaFileSpec(0);
 
                             // Get the frame size and frame rate
                             CalibrationData? calibrationData = survey.Data.Calibration.GetPreferredCalibrationData(null, null);
 
-                            if (calibrationData is null)
-                                continue;
-
-                            // Try to get frame sizes
-                            (frameWidth, frameHeight) = calibrationData.LeftCameraCalibration.GetFrameSize();
 
                             // Force a recalculate?
-                            if (recalc == true)
+                            if (recalc == true && calibrationData is not null)
                             {
+                                // Get the frame size
+                                int frameWidth = 0;
+                                int frameHeight = 0;
+
+                                // Try to get frame sizes
+                                (frameWidth, frameHeight) = calibrationData.LeftCameraCalibration.GetFrameSize();
+
                                 // Set the calibration data for stereo projection
                                 if (calibrationData is not null)
                                 {
@@ -696,12 +692,12 @@ namespace Surveyor.User_Controls
 
                             // Check for calibration
                             string calibration = string.Empty;
-                            SurveyorCalibrationData.CalibrationData? calibrationDataPreferred = survey.Data.Calibration.GetPreferredCalibrationData(frameWidth, frameHeight);
-                            if (calibrationDataPreferred is not null)
+                            //???SurveyorCalibrationData.CalibrationData? calibrationDataPreferred = survey.Data.Calibration.GetPreferredCalibrationData(frameWidth, frameHeight);
+                            if (calibrationData is not null)
                             {
-                                if (calibrationDataPreferred.StereoCameraCalibration.RMS != 0)
+                                if (calibrationData.StereoCameraCalibration.RMS != 0)
                                 {
-                                    calibration = $"RMS:{calibrationDataPreferred.StereoCameraCalibration.RMS * 1000:F2}";
+                                    calibration = $"RMS:{calibrationData.StereoCameraCalibration.RMS * 1000:F2}";
                                 }
                                 else
                                 {
@@ -715,10 +711,10 @@ namespace Surveyor.User_Controls
 
                             // Get calibration Hash
                             string calibrationHash = string.Empty;
-                            if (calibrationDataPreferred is not null)
+                            if (calibrationData is not null)
                             {
-                                calibrationDataPreferred = survey.Data.Calibration.CalibrationDataList[survey.Data.Calibration.PreferredCalibrationDataIndex];
-                                calibrationHash = $"{calibrationDataPreferred.GetHashCode():x8}";
+                                //???calibrationDataPreferred = survey.Data.Calibration.CalibrationDataList[survey.Data.Calibration.PreferredCalibrationDataIndex];
+                                calibrationHash = $"{calibrationData.GetHashCode():x8}";
                             }
                             else
                             {
@@ -1473,7 +1469,7 @@ namespace Surveyor.User_Controls
 
                 // Open the survey with no auto save
                 var survey = new Survey(null!);
-                if (await survey.SurveyLoadAsync(fileEntry.FilePath, false/*autoSave*/) == 0)
+                if (await survey.SurveyLoadAsync(fileEntry.FilePath, false/*autoSave off*/) == 0)
                 {
                     //??? Debug Line
                     //if (survey.Data.Info.SurveyCode == "STU_5m_E2-E3_2025-07-14")
@@ -2193,7 +2189,7 @@ namespace Surveyor.User_Controls
             // Note this checkbox is not currently visible in COCO mode
             // however I've keep the functionality in case I meet datasets
             // not ID'd to species level in the future
-            bool includePartialIdentification = IncludePartialIdentification.IsChecked == true;
+            bool includePartialIdentification = false;  // IncludePartialIdentification.IsChecked == true;
 
             // Image extract
             bool extractRawFrame = ExtractRawFrame.IsChecked == true;
@@ -2255,6 +2251,7 @@ namespace Surveyor.User_Controls
             {
                 try
                 {
+                    await Task.Delay(500);
                     Directory.Delete(exportBasePath + folderRaw);
                 }
                 catch (Exception ex)
@@ -2318,26 +2315,35 @@ namespace Surveyor.User_Controls
         /// <param name="surveyFileEntries"></param>
         /// <param name="eventsByMediaFileByFrame"></param>
         /// <returns></returns>
-        private static async Task<int> BuildEventsByMediaFileByFrameListAsync(bool includeFailedRMS, bool includeOtherFailedRules, bool includePartialIdentification, 
+        private async Task<int> BuildEventsByMediaFileByFrameListAsync(bool includeFailedRMS, bool includeOtherFailedRules, bool includePartialIdentification, 
                                             List<SurveyFileEntry> surveyFileEntries, 
                                             EventsByMediaFileByFrame eventsByMediaFileByFrame)
         {
             int ret = 0;
+
+            // Reset
+            eventsByMediaFileByFrame.Clear();
 
             // Loop through each survey in the batch
             foreach (var fileEntry in surveyFileEntries)
             {
                 // Open the survey with no auto save
                 var survey = new Survey(null!);
-                if (await survey.SurveyLoadAsync(fileEntry.FilePath, false/*autoSave*/) != 0)
+                if (await survey.SurveyLoadAsync(fileEntry.FilePath, false/*autoSave off*/) != 0)
+                {
+                    report?.Warning("", $"BuildEventsByMediaFileByFrameListAsync: Failed to load survey file:{fileEntry.FilePath}");
                     continue;
+                }
 
                 // Get the frame width and height
                 // Get the calibration data
                 CalibrationData? calibrationData = survey.Data.Calibration.GetPreferredCalibrationData(null, null);
 
                 if (calibrationData is null)
+                {
+                    report?.Warning("", $"BuildEventsByMediaFileByFrameListAsync: Failed to get calibration data for survey file:{fileEntry.FilePath}");
                     continue;
+                }
 
                 // Try to get frame sizes
                 int leftWidth = 0, leftHeight = 0, rightWidth = 0, rightHeight = 0;
@@ -2394,6 +2400,11 @@ namespace Surveyor.User_Controls
                         }
                     }
                 }
+                else
+                {
+                    report?.Warning("", $"BuildEventsByMediaFileByFrameListAsync: Left and right frame sizes differ for survey file:{fileEntry.FilePath}, from the calibration section, left:{leftWidth}x{leftHeight}, right:{rightWidth}x{rightHeight}");
+                    ret = -1;
+                }
             }
 
             return ret;
@@ -2416,7 +2427,7 @@ namespace Surveyor.User_Controls
             {
                 // Open the survey with no auto save
                 var survey = new Survey(null!);
-                if (await survey.SurveyLoadAsync(fileEntry.FilePath, false/*autoSave*/) != 0)
+                if (await survey.SurveyLoadAsync(fileEntry.FilePath, false/*autoSave off*/) != 0)
                     continue;
 
                 // Image extract from video class instances
@@ -2452,7 +2463,7 @@ namespace Surveyor.User_Controls
                                     if (imageExtract is not null)
                                     {
                                         // Image extraction
-                                        (ret, List<string?> outputFileSpec) = await imageExtract.VideoExtractFramesAsync(position, -1, 1);
+                                        (ret, List<string?> outputFileSpec) = await imageExtract.VideoExtractFramesAsync(position, -2, 2);
                                     }
 
                                     return ret;
@@ -2524,7 +2535,7 @@ namespace Surveyor.User_Controls
 
                     // Open the new survey with no auto save                    
                     survey = new Survey(null!);
-                    if (await survey.SurveyLoadAsync(mediaFileExtractList.surveyFilePath, false/*autoSave*/) != 0)
+                    if (await survey.SurveyLoadAsync(mediaFileExtractList.surveyFilePath, false/*autoSave off*/) != 0)
                     {
                         report?.Error("", $"ExtractImagesCropAndMarkupAsync: Failed to load survey:{mediaFileExtractList.surveyFilePath}");
                         continue;
@@ -2624,6 +2635,10 @@ namespace Surveyor.User_Controls
 
                         // Close the media file
                         imageExtract.VideoClose();
+                    }
+                    else 
+                    {
+                        report?.Warning("", $"Failed to open media file:{mediaFileExtractList.mediaFileSpec} from survey:{survey.Data.Info.SurveyPath}");
                     }
                 }
             }
@@ -3015,7 +3030,7 @@ namespace Surveyor.User_Controls
                     }
 
                     // Display to user if required
-                    if (displayCropped)
+                    if (displayCropped && wbCropped is not null)
                     {
                         string overlappingText = string.Empty;
                         if (overlapping)
@@ -3338,7 +3353,7 @@ namespace Surveyor.User_Controls
                         images.Add(new
                         {
                             id = currentImageId,
-                            file_name = imageFileSpec,
+                            file_name = Path.GetFileName(imageFileSpec),
                             width = mediaFileExtractList.frameWidth,
                             height = mediaFileExtractList.frameHeight
                         });
@@ -3385,7 +3400,7 @@ namespace Surveyor.User_Controls
                                         images.Add(new
                                         {
                                             id = currentImageId,
-                                            file_name = imageFileSpec,
+                                            file_name = Path.GetFileName(imageFileSpec),
                                             width = mediaFileExtractList.frameWidth,
                                             height = mediaFileExtractList.frameHeight
                                         });
@@ -3460,7 +3475,7 @@ namespace Surveyor.User_Controls
                         info = new
                         {
                             year = yearText,
-                            version = "1.0",
+                            version = "1.2",
                             description = "Underwater Surveyor COCO export",
                             /*contributor = contributorText,*/
                             date_created = DateTime.UtcNow.ToString("o")
@@ -3532,468 +3547,6 @@ namespace Surveyor.User_Controls
 
             return speciesInfo;
         }
-
-
-        /// <summary>
-        /// COCO Export
-        /// https://roboflow.com/formats/coco-json#format-description
-        /// </summary>
-        /// <returns></returns>
-        //??? TO BE DELETED
-//        private async Task ExportCOCODatatSheetAsync2(Stream stream, string exportFile)
-//        {
-//            bool failed = false;
-//            int problemCount = 0;
-//            int exportLineCount = 0;
-
-//            bool includeFailedRMS = IncludeFailedRMS.IsChecked == true;
-//            bool includeOtherFailedRules = IncludeOtherFailedRules.IsChecked == true;
-//            // Note this checkbox is not currently visible in COCO mode
-//            // however I've keep the functionality in case I meet datasets
-//            // not ID'd to species level in the future
-//            bool includePartialIdentification = IncludePartialIdentification.IsChecked == true;
-
-//            // Image extract
-//            bool extractRawFrame = ExtractRawFrame.IsChecked == true;
-//            bool extractCroppedImage = ExtractCroppedImage.IsChecked == true;
-//            bool markBoxOnFrame = BoxRawFrame.IsChecked == true;
-//            bool markHeadTailOnFrame = MarkRawFrame.IsChecked == true;
-
-
-//            int nextImageId = 1;
-//            int nextAnnotationId = 1;
-
-//            var images = new List<object>();
-//            var annotations = new List<object>();
-
-
-//            // Hide DataGrid and show the GridView
-//            SetDisplayMode(trueDataFalseImages: false);
-
-//            // Setup the species/genus/family dictionaries
-//            COCOCategory cocoCategory = new(includePartialIdentification);
-
-
-//            // Data year earliest and latest
-//            int? yearEarliest = null;
-//            int? yearLatest = null;
-
-//            // Image extract control list
-//            EventsByMediaFileByFrame allMediaFilesExtractList = new();
-
-
-//            // Loop through each survey in the batch
-//            foreach (var fileEntry in SurveyFiles.Where(f => f.Include && !f.IsTotalRow))
-//            {
-//                // Open the survey with no auto save
-//                var survey = new Survey(null!);
-//                if (await survey.SurveyLoadAsync(fileEntry.FilePath, false/*autoSave*/) != 0)
-//                    continue;
-
-//                // Get the calibration data
-//                CalibrationData? calibrationData = survey.Data.Calibration.GetPreferredCalibrationData(null, null);
-
-//                if (calibrationData is null)
-//                    continue;
-
-//                // Try to get frame sizes
-//                int leftWidth = 0, leftHeight = 0, rightWidth = 0, rightHeight = 0;
-//                (leftWidth, leftHeight) = calibrationData.LeftCameraCalibration.GetFrameSize();
-//                (rightWidth, rightHeight) = calibrationData.RightCameraCalibration.GetFrameSize();
-
-//                // Reset the transect 
-//                string transectNumber = string.Empty;
-
-//                // Image extract from video class instances
-//                List<ImageExtract?> leftImageExtractList = [];
-//                List<ImageExtract?> rightImageExtractList = [];
-//                string baseExportPath = string.Empty;
-
-
-//                if (extractRawFrame || extractCroppedImage || markHeadTailOnFrame || markHeadTailOnFrame)
-//                {
-//                    string stem = "";
-//                    // Create the output directories
-//                    try
-//                    {
-//                        stem = Path.GetFileNameWithoutExtension(fileEntry.FileName);
-//                        baseExportPath = ImageExtract.MakeAndCreateFramesDirectoryAndEmpty(stem);
-//                        ImageExtract.MakeAndCreateFramesDirectoryAndEmpty(stem + folderRaw);
-//                        ImageExtract.MakeAndCreateFramesDirectoryAndEmpty(stem + folderCropped);
-//                        ImageExtract.MakeAndCreateFramesDirectoryAndEmpty(stem + folderMarkup);
-//                    }
-//                    catch (Exception ex)
-//                    {
-//                        report?.Warning("", $"From Survey {fileEntry.FileName} failed to create output directories for image extraction, {ex.Message}");
-//                        failed = true;
-//                    }
-
-//                    // Open the media files
-//                    OpenMediaFiles(trueLeftFalseRight: true, leftImageExtractList, survey.Data.Media, stem, fileEntry.FileName);
-//                    OpenMediaFiles(trueLeftFalseRight: false, rightImageExtractList, survey.Data.Media, stem, fileEntry.FileName);
-
-//                }
-
-//                // Loop through the events for this survey
-//                foreach (var evt in survey.Data.Events.EventList)
-//                {
-//                    try
-//                    {
-//                        // Log the transect starts and stops
-//                        if (evt.EventDataType == Events.SurveyDataType.SurveyStart)
-//                        {
-//                            if (evt.EventData is TransectMarker marker)
-//                                transectNumber = marker.MarkerName ?? string.Empty;
-//                            else
-//                                transectNumber = string.Empty;
-
-//                            continue;
-//                        }
-//                        if (evt.EventDataType == Events.SurveyDataType.SurveyEnd)
-//                        {
-//                            transectNumber = string.Empty;
-//                            continue;
-//                        }
-
-
-//                        // ONLY export SurveyMeasurementPoints
-//                        if (evt.EventDataType == Events.SurveyDataType.SurveyMeasurementPoints)
-//                        {
-
-//                            if (evt.EventData is not SurveyMeasurement m)
-//                                continue;
-
-//                            SpeciesInfo? speciesInfo = m.SpeciesInfo;
-//                            SurveyRulesCalc? surveyRulesCalc = m.SurveyRulesCalc;
-
-//                            // Filtering rules
-//                            if (!includeFailedRMS && surveyRulesCalc is not null &&
-//                                surveyRulesCalc.SurveyRuleRMS.HasValue && surveyRulesCalc.SurveyRuleRMS == false)
-//                            {
-//                                continue;
-//                            }
-
-//                            if (!includeOtherFailedRules && surveyRulesCalc is not null)
-//                            {
-//                                if ((surveyRulesCalc.SurveyRuleRange.HasValue && surveyRulesCalc.SurveyRuleRange == false) ||
-//                                    (surveyRulesCalc.SurveyRuleHoriz.HasValue && surveyRulesCalc.SurveyRuleHoriz == false) ||
-//                                    (surveyRulesCalc.SurveyRuleVert.HasValue && surveyRulesCalc.SurveyRuleVert == false))
-//                                {
-//                                    continue;
-//                                }
-//                            }
-
-//                            if (!includePartialIdentification &&
-//                                (speciesInfo is null || string.IsNullOrWhiteSpace(speciesInfo.Genus)))
-//                            {
-//                                continue;
-//                            }
-
-//                            string genus = speciesInfo?.Genus?.Trim() ?? string.Empty;
-//                            string speciesScientificName = ExtractScientificName(speciesInfo?.Species);
-//                            string familyScientificName = ExtractScientificName(speciesInfo?.Family);
-
-
-//                            // Is the event type the min or max year?  If so update
-//                            if (yearEarliest is null || yearEarliest > evt.DateTimeCreate.Year)
-//                                yearEarliest = evt.DateTimeCreate.Year;
-//                            if (yearLatest is null || yearLatest < evt.DateTimeCreate.Year)
-//                                yearLatest = evt.DateTimeCreate.Year;
-
-
-//                            // Build left/right boxes from SurveyMeasurement points
-//                            double[] leftBbox = BuildBbox(m.LeftXA, m.LeftYA, m.LeftXB, m.LeftYB);
-//                            double[] rightBbox = BuildBbox(m.RightXA, m.RightYA, m.RightXB, m.RightYB);
-
-//                            // Add Species/Genus/Family to the category_id code list
-//                            cocoCategory.Add(familyScientificName, genus, speciesScientificName);
-
-//                            // Get the category IDs
-//                            int category_idSpecies = cocoCategory.GetSpeciesID(speciesScientificName);
-//                            int category_idGenus = cocoCategory.GetGenusID(genus);
-//                            int category_idFamily = cocoCategory.GetFamilyID(familyScientificName);
-
-
-//                            // Detect category id based on available taxonomic information (family/genus/species)
-//                            CategoryId? category_id = null;
-//                            if (category_idSpecies != -1)
-//                            {
-//                                // Species level annotation
-//                                category_id = (CategoryId?)category_idSpecies;
-//                            }
-//                            else if (category_idGenus != -1)
-//                            {
-//                                // Genus level annotation
-//                                category_id = (CategoryId?)category_idGenus;
-//                            }
-//                            else if (category_idFamily != -1)
-//                            {
-//                                // Family level annotation
-//                                category_id = (CategoryId?)category_idFamily;
-//                            }
-
-//                            // Create TWO images per measurement event (left + right)
-//                            int leftImageId = nextImageId++;
-//                            int rightImageId = nextImageId++;
-//                            bool ret = false;
-//                            string targetImage;
-//                            ImageExtract? leftImageExtract = null; ;
-//                            ImageExtract? rightImageExtract = null; ;
-
-//                            // Left image extraction
-//                            leftImageExtract = GetImageExtractInstance(leftImageExtractList, evt.MediaLeftIndex);
-//                            //if (leftImageExtract is not null)
-//                            //{
-//                            //    allMediaFilesExtractList.Add(leftImageExtract, trueLeftFalseRight: true, fileEntry.FilePath, evt.TimeSpanLeftFrame, evt);
-//                            //}
-//                            //else
-//                            //    targetImage = "missing";
-
-//                            //images.Add(new
-//                            //{
-//                            //    id = leftImageId,
-//                            //    //file_name = $"{leftMediaFile}|t={evt.TimeSpanLeftFrame.TotalSeconds:F3}",
-//                            //    file_name = targetImage,
-//                            //    width = leftWidth,
-//                            //    height = leftHeight
-//                            //});
-
-//                            if (extractCroppedImage)
-//                            {
-//                                // Cropped as top left is (0,0)
-//                                leftBbox[0] = 0;
-//                                leftBbox[1] = 0;
-//                            }
-
-//                            // Left annotation
-//                            annotations.Add(new
-//                            {
-//                                id = nextAnnotationId++,
-//                                image_id = leftImageId,
-//                                category_id,
-//                                bbox = leftBbox,
-//                                area = leftBbox[2] * leftBbox[3],
-//                                iscrowd = 0,
-//                                segmentation = Array.Empty<object>(),
-//                                Xfamily = familyScientificName,
-//                                XGenus = genus,
-//                                XSpecies = speciesScientificName,
-//                            });
-
-
-//                            // Right image extraction
-//                            rightImageExtract = GetImageExtractInstance(rightImageExtractList, evt.MediaRightIndex);
-//                            //if (rightImageExtract is not null)
-//                            //{
-//                            //    allMediaFilesExtractList.Add(rightImageExtract, trueLeftFalseRight: false, fileEntry.FilePath, evt.TimeSpanRightFrame, evt);
-//                            //}
-//                            //else
-//                            //    targetImage = "missing";
-
-//                            //images.Add(new
-//                            //{
-//                            //    id = rightImageId,
-//                            //    //file_name = $"{rightMediaFile}|t={evt.TimeSpanRightFrame.TotalSeconds:F3}",
-//                            //    file_name = targetImage,
-//                            //    width = rightWidth,
-//                            //    height = rightHeight
-//                            //});
-
-//                            if (extractCroppedImage)
-//                            {
-//                                // Cropped as top left is (0,0)
-//                                rightBbox[0] = 0;
-//                                rightBbox[1] = 0;
-//                            }
-
-//                            // Right annotation
-//                            annotations.Add(new
-//                            {
-//                                id = nextAnnotationId++,
-//                                image_id = rightImageId,
-//                                category_id,
-//                                bbox = rightBbox,
-//                                area = rightBbox[2] * rightBbox[3],
-//                                iscrowd = 0,
-//                                segmentation = Array.Empty<object>(),
-//                                Xfamily = familyScientificName,
-//                                XGenus = genus,
-//                                XSpecies = speciesScientificName,
-//                            });
-
-//                            exportLineCount += 2;
-//                        }
-//#if DEBUG
-//                        else if (evt.EventDataType == Events.SurveyDataType.StereoSyncPoint)
-//                        {
-
-//                            // Extract the raw frame before, on and after the sync point
-//                            // to help debug any potential issues with the sync point timing and the frame extraction logic
-//                            ExtractSyncPointImages(leftImageExtractList, evt.MediaLeftIndex, evt.TimeSpanLeftFrame, "left");
-//                            ExtractSyncPointImages(rightImageExtractList, evt.MediaRightIndex, evt.TimeSpanRightFrame, "right");
-
-
-//                            // Helper to extract images around the sync point
-//                            void ExtractSyncPointImages(List<ImageExtract?> imageExtractList, int mediaIndex, TimeSpan position, string side)
-//                            {
-
-//                                ImageExtract? imageExtract = GetImageExtractInstance(imageExtractList, mediaIndex);
-//                                if (imageExtract is not null)
-//                                {
-//                                    // Image extraction
-//                                    imageExtract.ImagePath = baseExportPath;
-//                       //???             (int ret, List<string?> createdtImagesSpecFile) = await imageExtract.VideoExtractFramesAsync(position, extractBefore: -1, extractAfter: 1);
-//                                }
-//                            }
-//                        }
-//#endif
-//                    }
-//                    catch (Exception ex) when (ex is ObjectDisposedException)
-//                    {
-//                        report?.Error("", $"Export COCO failed, {ex}");
-//                        failed = true;
-//                        break;
-//                    }
-//                    catch (Exception ex)
-//                    {
-//                        report?.Warning("", $"Export COCO warning, {ex}");
-//                        problemCount++;
-//                    }
-//                }
-
-//                // Close the media files
-//                if (extractRawFrame || extractCroppedImage || markHeadTailOnFrame || markHeadTailOnFrame)
-//                {
-//                    CloseMediaFiles(leftImageExtractList, fileEntry.FileName);
-//                    CloseMediaFiles(rightImageExtractList, fileEntry.FileName);
-//                }
-
-//                if (failed)
-//                    break;
-//            }
-
-//            if (!failed)
-//            {
-//                try
-//                {
-//                    // Make the year string for the info section
-//                    string yearText = string.Empty;
-//                    if (yearEarliest is not null && yearLatest is not null)
-//                    {
-//                        if (yearEarliest == yearLatest)
-//                            yearText = $"{yearEarliest}";
-//                        else
-//                            yearText = $"{yearEarliest}-{yearLatest}";
-//                    }
-
-//                    // Example info section
-//                    //     "info": {
-//                    //     "year": "2020",
-//                    //     "version": "1",
-//                    //     "description": "Exported from roboflow.ai",
-//                    //     "contributor": "Surveyor",
-//                    //     "url": "https://app.roboflow.ai/datasets/hard-hat-sample/1",
-//                    //     "date_created": "2000-01-01T00:00:00+00:00"
-//                    //     },
-//                    // Example images section
-//                    //    "images": [
-//                    //        {
-//                    //          "id": 0,
-//                    //          "license": 1,
-//                    //          "file_name": "0001.jpg",
-//                    //          "height": 275,
-//                    //          "width": 490,
-//                    //          "date_captured": "2020-07-20T19:39:26+00:00"
-//                    //        }
-//                    //    ],
-//                    // Example annotations section
-//                    //    "annotations": [
-//                    //        {
-//                    //          "id": 0,
-//                    //          "image_id": 0,
-//                    //          "category_id": 2,
-//                    //          "bbox": [45,2,85,85],
-//                    //          "area": 7225,
-//                    //          "segmentation": [],
-//                    //          "iscrowd": 0
-//                    //        }
-//                    //    ],
-//                    var coco = new
-//                    {
-//                        info = new
-//                        {
-//                            year = yearText,
-//                            version = "1.0",
-//                            description = "Underwater Surveyor COCO export",
-//                            /*contributor = contributorText,*/
-//                            date_created = DateTime.UtcNow.ToString("o")
-//                        },
-//                        licenses = Array.Empty<object>(),
-//                        categories = cocoCategory.ToList(),
-//                        images,
-//                        annotations
-
-//                    };
-
-//                    using var streamWriter = new StreamWriter(stream, new UTF8Encoding(false), 4096, leaveOpen: true);
-//                    using var jsonWriter = new JsonTextWriter(streamWriter)
-//                    {
-//                        Formatting = Formatting.Indented,
-//                        CloseOutput = false
-//                    };
-
-//                    var serializer = JsonSerializer.CreateDefault();
-//                    serializer.Serialize(jsonWriter, coco);
-
-//                    await jsonWriter.FlushAsync();
-//                    await streamWriter.FlushAsync();
-//                }
-//                catch (Exception ex)
-//                {
-//                    report?.Warning("", $"ExportCOCODatatSheetAsync: Error, {ex.Message} ");
-//                    failed = true;
-//                }
-//            }
-
-//            if (failed)
-//            {
-//                report?.Error("", $"Export Failed, file:{exportFile}, partial export lines:{exportLineCount}");
-//            }
-//            else if (problemCount > 0)
-//            {
-//                report?.Warning("", $"Export Completed, file:{exportFile}, problem lines:{problemCount}, partial export lines:{exportLineCount}");
-//            }
-//            else
-//            {
-//                report?.Info("", $"Export Completed, file:{exportFile}, export lines:{exportLineCount}");
-//            }
-
-//            // Show DataGrid and hide the GridView
-//            SetDisplayMode(trueDataFalseImages: true);
-
-
-
-//            // Create BBox
-//            static double[] BuildBbox(double xa, double ya, double xb, double yb)
-//            {
-//                double x = Math.Min(xa, xb);
-//                double y = Math.Min(ya, yb);
-//                double w = Math.Abs(xb - xa);
-//                double h = Math.Abs(yb - ya);
-
-//                // Keep box valid for COCO
-//                if (w <= 0) w = 1;
-//                if (h <= 0) h = 1;
-
-//                // Round to nearest int, with midpoint away from zero (0.5 -> 1)
-//                x = Math.Round(x, 0, MidpointRounding.AwayFromZero);
-//                y = Math.Round(y, 0, MidpointRounding.AwayFromZero);
-//                w = Math.Round(w, 0, MidpointRounding.AwayFromZero);
-//                h = Math.Round(h, 0, MidpointRounding.AwayFromZero);
-
-//                return [x, y, w, h];
-//            }
-//        }
 
 
         /// <summary>
@@ -4178,10 +3731,10 @@ namespace Surveyor.User_Controls
             if (!string.IsNullOrWhiteSpace(type))
                 typeText = $"_{type}";
             if (rect is not null)
-                bboxText = $"_B({rect.Value.Left},{rect.Value.Top},{rect.Value.Width},{rect.Value.Height})";
+                bboxText = $"_B.({rect.Value.Left},{rect.Value.Top},{rect.Value.Width},{rect.Value.Height})";
             if (!string.IsNullOrWhiteSpace(species))
                 speciesText = $"_S.{species}";
-            if (overlapping.HasValue)
+            if (overlapping.HasValue && overlapping.Value == true)
                 overlappingText = "_overlap";
 
                 string fileName = Path.GetFileNameWithoutExtension(mediaFileSpec) + $"_P.{formattedTime.Substring(Math.Max(0, formattedTime.Length - 12))}s{typeText}{bboxText}{speciesText}{overlappingText}.png";
@@ -4216,13 +3769,13 @@ namespace Surveyor.User_Controls
             else if (caseToCheck == "Cropped")
             {
                 // Are any cropped images be extracting?
-                if (extractCroppedImage && !markBoxOnFrame && !markHeadTailOnFrame)
+                if (extractCroppedImage)
                     ret = true;
             }
             else if (caseToCheck == "Markup")
             {
                 // Are any marked images be prepared?
-                if (markBoxOnFrame || markHeadTailOnFrame)
+                if (!extractCroppedImage && (markBoxOnFrame || markHeadTailOnFrame))
                     ret = true;
             }
 
@@ -4825,7 +4378,7 @@ namespace Surveyor.User_Controls
 
             if (mediaFilesList.TryGetValue(mediaFileSpec, out var mediaFileExtractList) == true)
             {
-                // Update and add this Event is an existing list
+                // Add this Event is an existing list
                 mediaFileExtractList.AddEvent(position, evt);
                 ret = false;  // Update existing frame position
             }
@@ -4838,6 +4391,8 @@ namespace Surveyor.User_Controls
                                                                    frameWidth,
                                                                    frameHeight);
                 mediaFilesList.Add(mediaFileSpec, mediaFileExtractListNew);
+                // Add this Event as the first event in the new list
+                mediaFileExtractListNew.AddEvent(position, evt);
             }
 
             return ret;

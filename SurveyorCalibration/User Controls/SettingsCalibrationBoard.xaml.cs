@@ -30,6 +30,10 @@ namespace Surveyor.User_Controls
         public CalibrationBoardDefinition? CbdWorking { get; set; }                     // Working on
         public double BoardSizeX { get; set; }
         public double BoardSizeY { get; set; }
+        public double BoardSizeXMin { get; set; }
+        public double BoardSizeYMin { get; set; }
+        public double BoardSurroundingBorder { get; set; }
+        public string BoardSizeGuidanceText { get; set; } = string.Empty;
         public int PrintDPI { get; set; }
         private bool _loaded = false;
         private readonly DispatcherTimer _previewTimer = new();
@@ -60,17 +64,19 @@ namespace Surveyor.User_Controls
             if (IsBoardSetupMode)
             {
                 // Hide board dimension, dpi and Save to PDF button
-                RootGrid.RowDefinitions[6].Height = new GridLength(0);
-                RootGrid.RowDefinitions[7].Height = new GridLength(0);
-                RootGrid.RowDefinitions[8].Height = new GridLength(0);
+                SavePDFGrid.Visibility = Visibility.Collapsed;
+                //???RootGrid.RowDefinitions[6].Height = new GridLength(0);
+                //RootGrid.RowDefinitions[7].Height = new GridLength(0);
+                //RootGrid.RowDefinitions[8].Height = new GridLength(0);
                 SaveToPDFButton.IsEnabled = false;
             }
             else if (IsDefaultsManagerMode)
             {
                 // Show board dimension, dpi and Save to PDF button
-                RootGrid.RowDefinitions[6].Height = new GridLength(1, GridUnitType.Star);
-                RootGrid.RowDefinitions[7].Height = new GridLength(1, GridUnitType.Star);
-                RootGrid.RowDefinitions[8].Height = new GridLength(1, GridUnitType.Star);
+                SavePDFGrid.Visibility = Visibility.Visible;
+                //???RootGrid.RowDefinitions[6].Height = new GridLength(1, GridUnitType.Star);
+                //RootGrid.RowDefinitions[7].Height = new GridLength(1, GridUnitType.Star);
+                //RootGrid.RowDefinitions[8].Height = new GridLength(1, GridUnitType.Star);
                 SaveToPDFButton.IsEnabled = true;
             }
             else
@@ -127,7 +133,9 @@ namespace Surveyor.User_Controls
                 // Setup the Generate Board fields
                 BoardSizeX = SettingsManagerLocal.DefaultBoard_SizeX;
                 BoardSizeY = SettingsManagerLocal.DefaultBoard_SizeY;
+                BoardSurroundingBorder = SettingsManagerLocal.DefaultBoard_SurroundingBorder;
                 PrintDPI = SettingsManagerLocal.DefaultBoard_DPI;
+                UpdateBoardMinimumsAndGuidanceText();
             }
             else
             {
@@ -187,7 +195,8 @@ namespace Surveyor.User_Controls
         /// 
 
         /// <summary>
-        /// 
+        /// Handles the TextChanging event for a TextBox that accepts positive decimal numbers with up to 2 decimal places.
+        /// Ensures the value is within the specified minimum value if provided in the Tag=".." in the .XAML
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
@@ -207,6 +216,15 @@ namespace Surveyor.User_Controls
                         sender.Text = sender.Text[..(firstDotIndex + 3)];
                 }
                 sender.SelectionStart = Math.Max(caretPosition, 0);
+            }
+
+            // Check minimum value if specified in Tag
+            if (double.TryParse(sender.Text, out double value) &&
+                sender.Tag is double minValue &&
+                value < minValue)
+            {
+                sender.Text = minValue.ToString("F2");
+                sender.SelectionStart = sender.Text.Length;
             }
         }
 
@@ -277,12 +295,21 @@ namespace Surveyor.User_Controls
                     Debug.WriteLine($"Updated default Generate Board SizeY to {(BoardSizeY * 1000):F1}mm");
                 }
 
+                // Did the default for Board Surrounding Border change?
+                if (SettingsManagerLocal.DefaultBoard_SurroundingBorder != BoardSurroundingBorder)
+                {
+                    SettingsManagerLocal.DefaultBoard_SurroundingBorder = BoardSurroundingBorder;
+                    Debug.WriteLine($"Updated default Generate Board Surrounding Border to {(BoardSurroundingBorder * 1000):F1}mm");
+                }
+
                 // Did the default for Print DPI change?
                 if (SettingsManagerLocal.DefaultBoard_DPI != PrintDPI)
                 {
                     SettingsManagerLocal.DefaultBoard_DPI = PrintDPI;
                     Debug.WriteLine($"Updated default Generate Board DPI to {PrintDPI}");
                 }
+
+                UpdateBoardMinimumsAndGuidanceText();
             }
         }
 
@@ -341,45 +368,62 @@ namespace Surveyor.User_Controls
             if (CbdWorking is null)
                 return;
 
-            // Use the hosting SettingsWindow handle, not App.MainWindow
-            var hostingWindow = WindowHelper.GetWindowForElement(this); // assuming helper exists
+            // Change the button text
+            string originalButtonText = (string)SaveToPDFButton.Content;
+            SaveToPDFButton.Content = "Generating...";
+            SaveToPDFButton.IsEnabled = false;
 
-            if (hostingWindow is null)
-                return;
-
-            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(hostingWindow);
-
-            // Show file save picker
-            var savePicker = new Windows.Storage.Pickers.FileSavePicker
+            try
             {
-                SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary
-            };
-            savePicker.FileTypeChoices.Add("PDF Document", [".pdf"]);
-            savePicker.SuggestedFileName = $"ChArUco Target {CbdWorking.SquaresX}x{CbdWorking.SquaresY} {CbdWorking.PredefinedDictionaryName} Square={(CbdWorking.SquareLength * 1000):F2}mm Marker={(CbdWorking.MarkerLength * 1000):F2}mm.pdf";
+                await Task.Yield(); // optional: forces UI to render text change
 
-            WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hwnd);
-            var fileTask = savePicker.PickSaveFileAsync().AsTask();
-            await fileTask;
-            var file = await fileTask;
+                // Use the hosting SettingsWindow handle, not App.MainWindow
+                var hostingWindow = WindowHelper.GetWindowForElement(this); // assuming helper exists
 
-            // Restore focus explicitly (defensive)
-            hostingWindow?.Activate();
+                if (hostingWindow is null)
+                    return;
 
-            if (file is null)
-                return; // User canceled
+                var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(hostingWindow);
 
-            string fileSpec = file.Path;
+                // Show file save picker
+                var savePicker = new Windows.Storage.Pickers.FileSavePicker
+                {
+                    SuggestedStartLocation = Windows.Storage.Pickers.PickerLocationId.DocumentsLibrary
+                };
+                savePicker.FileTypeChoices.Add("PDF Document", [".pdf"]);
+                savePicker.SuggestedFileName = $"ChArUco Target {CbdWorking.SquaresX}x{CbdWorking.SquaresY} {CbdWorking.PredefinedDictionaryName} Square={(CbdWorking.SquareLength * 1000):F2}mm Marker={(CbdWorking.MarkerLength * 1000):F2}mm.pdf";
 
-            // Board Caption
-            string caption =
-                $"Camera Calibration  {CbdWorking.Description}";
+                WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hwnd);
+                var fileTask = savePicker.PickSaveFileAsync().AsTask();
+                await fileTask;
+                var file = await fileTask;
 
-            // Generate the PDF            
-            await GeneratePDFBoardAsync(fileSpec,
-                                        CbdWorking,
-                                        BoardSizeX, BoardSizeY,
-                                        PrintDPI,
-                                        caption);
+                // Restore focus explicitly (defensive)
+                hostingWindow?.Activate();
+
+                if (file is null)
+                    return; // User canceled
+
+                string fileSpec = file.Path;
+
+                // Board Caption
+                string caption = $"Camera Calibration  {CbdWorking.Description()}";
+
+                // Generate the PDF
+                double pdfSizeX = BoardSizeX - (BoardSurroundingBorder * 2);
+                double pdfSizeY = BoardSizeY - (BoardSurroundingBorder * 2);
+                await GeneratePDFBoardAsync(fileSpec,
+                                            CbdWorking,
+                                            pdfSizeX, pdfSizeY,
+                                            PrintDPI,
+                                            caption);
+            }
+            finally 
+            {
+                SaveToPDFButton.Content = originalButtonText;
+                SaveToPDFButton.IsEnabled = true;
+            }
+            
         }
 
 
@@ -529,8 +573,35 @@ namespace Surveyor.User_Controls
                     SettingsManagerLocal.DefaultChArUcoBoard_PredefinedDictionaryName = CbdWorking.PredefinedDictionaryName.ToString();
                     Debug.WriteLine($"Updated default CharucoBoard PredefinedDictionaryName to {CbdWorking.PredefinedDictionaryName}");
                 }
-            }
+            }   
         }
+
+
+        /// <summary>
+        /// Given the current ChArUco board definition, compute the minimum board size and update the guidance text.
+        /// </summary>
+        private void UpdateBoardMinimumsAndGuidanceText()
+        {
+            // The board size must be larger than the pattern size to allow for some surrounding border.
+            // We enforce a minimum of +1 SquareLength.
+            double minBoardSizeX = (CbdWorking?.SquaresX * CbdWorking?.SquareLength ?? 0) + CbdWorking?.SquareLength ?? 0;
+            double minBoardSizeY = (CbdWorking?.SquaresY * CbdWorking?.SquareLength ?? 0) + CbdWorking?.SquareLength ?? 0;
+            BoardSizeXMin = minBoardSizeX;
+            BoardSizeYMin = minBoardSizeY;
+            string GuidanceText = $"'Board Size' must be at least {(minBoardSizeX * 1000):F0}mm x {(minBoardSizeY * 1000):F0}mm to fit the pattern with the desired surrounding white border. ";
+            if (BoardSurroundingBorder == 0)
+                GuidanceText += "With a surrounding boarder setting of 0mm it is intended the PDF is printed directly onto the calibration board.";
+            else
+            {
+                GuidanceText += $"With a 'Sticker Inset By' setting of {(BoardSurroundingBorder * 1000):F0}mm it is intended that the pattern is printed onto a sticker that is attached to the calibration board. The sticker is smaller that the physical board so the sticker doesn't peel at the edges.";
+                GuidanceText += $" The dimensions of the PDF will be {((BoardSizeX - (BoardSurroundingBorder*2)) * 1000):F0}mm x {((BoardSizeY - (BoardSurroundingBorder * 2)) * 1000):F0}mm.";
+            }
+            BoardSizeGuidanceText = GuidanceText;
+
+            // No INotifyPropertyChanged Implemented on BoardSizeGuidanceText
+            Bindings.Update();
+        }
+
 
         /// <summary>
         /// Generates a PDF containing a single page of size boardWidth x boardHeight (in meters)

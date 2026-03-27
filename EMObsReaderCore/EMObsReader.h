@@ -10,7 +10,7 @@ enum RowType {
     Point2DRightCamera
 };
 
-struct _OutputRow {
+struct _SurveyRow {
     int row;
     std::wstring PathEMObs;
     std::wstring FileEMObs;
@@ -84,6 +84,7 @@ public:
     int PeekNextTLC(char* TLC);
     //std::string GetNextAsString();
     long GetReadPointer();
+    void* GetReadPointerPtr(long pointer);
     std::wstring GetNextAsWString();
     std::int64_t GetNextAsInt64();
     std::int32_t GetNextAsInt32();
@@ -93,7 +94,8 @@ public:
     double GetNextAsDouble();
 
     // complex types
-    std::vector<std::vector<std::wstring>> GetNextAsMAT();
+    std::vector<std::vector<std::wstring>> GetNextAsMATwstring();
+    std::vector<std::vector<double>> GetNextAsMATdouble();
 
     // Find any TLCs
     int GetFirstTLC(void** p, int* size, char* TLC);
@@ -129,7 +131,7 @@ private:
 public:
     EMObsReader(const std::string& _filespec);
 
-    int Process(std::list<struct _OutputRow*>& outputRowsAdd);
+    int Process(std::list<struct _SurveyRow*>& outputRowsAdd);
     int ExtractTLCs(std::list<struct _OutputTLC*>& outputTLCsAdd);
     int HexDumpToFile(std::wofstream& outputFileStream, int rowWidth, int rowsPerPage);
 
@@ -145,8 +147,12 @@ private:
     struct _PD3* GetPD3();
     struct _CPT* GetCPT();
     struct _CMS* GetCMS();
+    std::vector<struct _MSI*> GetMSIArray(int count);
+    struct _MSI* GetMSI();
     struct _PER* GetPER();
+    std::vector<struct _PED*> GetPEDArray(int count);
+    struct _PED* GetPED();
     struct _CCC* GetCCC();
-
+	struct _CAM* GetCAM();
 
 };

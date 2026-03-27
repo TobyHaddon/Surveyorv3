@@ -17,6 +17,8 @@
 #include "EMObsReader.h"
 #include "FileFind.h"
 #include "FileMapping.h"
+#include <Shlwapi.h>
+#pragma comment(lib, "Shlwapi.lib")
 
 namespace fs = std::filesystem;
 
@@ -44,6 +46,7 @@ struct _Config
 	bool tlcMode = false;
 	bool tlcHierarchyMode = false;
 	bool hexDumpMode = false;
+    //bool mediaCheck = false;
     fs::path fileMappingFileSpec;
 };
 
@@ -62,7 +65,7 @@ int HexDumpEMObsFile(const std::string foundFile, std::wofstream& outputFileStre
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cout << "Usage: EMObsReader <filespec> [/s] [/o:<outputfile>] [/a] [/t] [/th] [/h] [/nd]" << std::endl;
+        std::cout << "Usage: EMObsReader <filespec> [/s] [/o:<outputfile>] [/a] [/t] [/th] [/h] [/n0]" << std::endl;
         std::cout << "                            /s                 search sub-directories" << std::endl;
         std::cout << "                            /o                 output to EMObs_TLCList.txt" << std::endl;
         std::cout << "                            /o:<outputfile>]   output to outputfile" << std::endl;
@@ -71,6 +74,7 @@ int main(int argc, char* argv[]) {
         std::cout << "                            /th                additionally export the TLCs in their hierarchy" << std::endl;
         std::cout << "                            /h                 additionally dump file to hex in the output file" << std::endl;
 		std::cout << "                            /no                don't export the data" << std::endl;
+        //???std::cout << "                            /m                 check if the media files in the EMObs can be found" << std::endl;
         std::cout << "                            /f:<filemapping>]  two column tab delimited text file to map EMObs video file name to new file name" << std::endl; 
         return 1;
     }
@@ -100,16 +104,16 @@ int main(int argc, char* argv[]) {
     if (config->hexDumpMode == true) {
         std::cout << "Additionally create a hex dump to:[" << config->outputFileHexDump << +"]" << std::endl;
     }
-    else {
-		std::cout << "Normal mode enabled. All data will be extracted" << std::endl;
-	}
+ //   else {
+	//	std::cout << "Normal mode enabled. All data will be extracted" << std::endl;
+	//}
 
     
 	FileMapping fileMapping(config->fileMappingFileSpec.string());
 
 
     // Search for files based on the specified arguments
-    searchFiles(convertWildcardToRegex(config->fileSpec), config, fileMapping);
+    searchFiles(config->fileSpec, config, fileMapping);
 
     return 0;
 }
@@ -169,6 +173,14 @@ struct _Config* parseArguments(int argc, char* argv[]) {
             else {
                 config->dataMode = true;
 			}
+
+            // m switch to indicate that a check to see if the media files in the EMOBs can be found
+            //???if (arg == "/M" || arg == "/m") {
+            //    config->mediaCheck = true;
+            //}
+            //else {
+            //    config->mediaCheck = false;
+            //}
 
             // /O:<filespec> switch for output file
             if (arg.find("/o:") == 0 || arg.find("/O:") == 0) {
@@ -238,6 +250,15 @@ struct _Config* parseArguments(int argc, char* argv[]) {
 	return config;
 }
 
+
+static bool wildcardMatchInsensitive(const std::string& pattern, const fs::path& path)
+{
+    const std::wstring wPattern(pattern.begin(), pattern.end());
+    const std::wstring wName = path.filename().wstring();
+
+    // Windows wildcard matching, case-insensitive by default
+    return PathMatchSpecW(wName.c_str(), wPattern.c_str()) == TRUE;
+}
 
 // Function to convert a wildcard pattern like "*.EMObs" to a regex pattern
 std::string convertWildcardToRegex(const std::string& wildcard) {
@@ -326,7 +347,7 @@ void searchFiles(const std::string& fileSpec, struct _Config* Config, FileMappin
     fs::directory_options dirOptions = fs::directory_options::skip_permission_denied;
     fs::directory_iterator endIter;  // End marker for iteration
     int ret = 0;
-    std::list<struct _OutputRow*> outputRowsAdd;
+    std::list<struct _SurveyRow*> outputRowsAdd;
 
     try {
        
@@ -344,7 +365,7 @@ void searchFiles(const std::string& fileSpec, struct _Config* Config, FileMappin
                 }
 
                 if (entry.is_regular_file()) {
-                    if (std::regex_match(entry.path().filename().string(), std::regex(fileSpec))) {
+                    if (wildcardMatchInsensitive(fileSpec, entry.path())) {
                         std::string foundFile = entry.path().string();
                         std::cout << "Found: " << foundFile << std::endl;
 
@@ -380,7 +401,7 @@ void searchFiles(const std::string& fileSpec, struct _Config* Config, FileMappin
                 }
 
                 if (entry.is_regular_file()) {
-                    if (std::regex_match(entry.path().filename().string(), std::regex(fileSpec))) {
+                    if (wildcardMatchInsensitive(fileSpec, entry.path())) {
                         std::string foundFile = entry.path().string();
                         std::cout << "Found: " << foundFile << std::endl;
 
@@ -435,15 +456,13 @@ void searchFiles(const std::string& fileSpec, struct _Config* Config, FileMappin
 
 
 		// Iterate through the list of output rows
-        for (struct _OutputRow* item : outputRowsAdd) {
+        for (struct _SurveyRow* item : outputRowsAdd) {
             std::vector<FileItem> itemsLeft;
             std::vector<FileItem> itemsRight;
             std::wstring searchFileL;
             std::wstring searchFileR;
 
-            //???std::wstring test = L"AD_10_1_2017_07_14_Left.avi";
-            //???if (_wcsicmp(item->FileL.c_str(), test.c_str()) == 0)
-            //???    test = L"";
+
 
             // Check of the file needed to be remapping to a different name
 			searchFileL = fileMapping.findNewFile(item->FileL);
@@ -589,7 +608,7 @@ void searchFiles(const std::string& fileSpec, struct _Config* Config, FileMappin
 
             std::wstring rowToWrite;
 
-            for (struct _OutputRow* item : outputRowsAdd) {
+            for (struct _SurveyRow* item : outputRowsAdd) {
                 std::wstring opCodeItem = ReplaceTabs(item->opCode);
                 std::wstring PeriodItem = ReplaceTabs(item->Period);
                 std::wstring FamilyItem = ReplaceTabs(item->Family);
@@ -631,7 +650,7 @@ void searchFiles(const std::string& fileSpec, struct _Config* Config, FileMappin
             }
 
             // Clear the list of output rows
-            for (struct _OutputRow* item : outputRowsAdd) {
+            for (struct _SurveyRow* item : outputRowsAdd) {
                 delete item;
             }
             outputRowsAdd.clear();
@@ -844,3 +863,4 @@ int HexDumpEMObsFile(const std::string foundFile, std::wofstream& outputFileStre
 
     return ret;
 }
+

@@ -46,6 +46,7 @@ namespace Surveyor
         private const string DefaultCharucoBoardPredefinedDictionaryNameKey = "DefaultCharucoBoard_PredefinedDictionaryName";
         private const string DefaultBoardSizeXKey = "DefaultBoard_SizeX";
         private const string DefaultBoardSizeYKey = "DefaultBoard_SizeY";
+        private const string DefaultBoardSurroundingBorderKey = "DefaultBoard_SurroundingBorder";
         private const string DefaultBoardDPIKey = "DefaultBoard_DPI";
 
 
@@ -311,6 +312,19 @@ namespace Surveyor
             get => GetDouble(DefaultBoardSizeYKey, 0.4/*default*/);  // 400mm
             set => SetDouble(DefaultBoardSizeYKey, value);
         }
+
+        /// <summary>
+        /// Default size of the surrounding border that the PDF will be reduced by so
+        /// it comfortably fits inside the physical board and the sticker doesn't peel
+        /// off.  Set to 0mm if printing directly onto a board i.e. DiBond or 3mm if
+        /// printing onto to sticker e.g. Plexiglas
+        /// </summary>
+        public static double DefaultBoard_SurroundingBorder
+        {
+            get => GetDouble(DefaultBoardSurroundingBorderKey, 0/*default*/);  // 0mm
+            set => SetDouble(DefaultBoardSurroundingBorderKey, value);
+        }
+
 
         /// <summary>
         /// Default Board Dots Per Square Inch (DPI)

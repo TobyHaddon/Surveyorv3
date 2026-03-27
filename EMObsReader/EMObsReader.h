@@ -11,7 +11,7 @@ enum RowType {
     Point2DRightCamera
 };
 
-struct _OutputRow {
+struct _SurveyRow {
     int row;
     std::wstring PathEMObs;
     std::wstring FileEMObs;
@@ -130,7 +130,7 @@ private:
 public:
     EMObsReader(const std::string& _filespec);
     
-    int Process(std::list<struct _OutputRow*>& outputRowsAdd);
+    int Process(std::list<struct _SurveyRow*>& outputRowsAdd);
     int ExtractTLCs(std::list<struct _OutputTLC*>& outputTLCsAdd);
     int HexDumpToFile(std::wofstream& outputFileStream, int rowWidth, int rowsPerPage);
 

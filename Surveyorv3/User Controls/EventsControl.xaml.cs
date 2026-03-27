@@ -34,7 +34,7 @@ namespace Surveyor.User_Controls
 
         private readonly int displayToDecimalPlaces = 2;     // If we start using frame rate of 120fps then we will need to increase this to 3dp
 
-        // Spacebar press event handler
+        // Space bar press event handler
         public event EventHandler<RoutedEventArgs>? SpaceKeyPressed = null;
 
 
@@ -101,8 +101,8 @@ namespace Surveyor.User_Controls
                 mainWindow?.SetInfoBarSpeciesInfoMissing();
             }
 
-            // If the event type could contain RMS Calc then check for the info bar
-            // to show any RMS rule violoations if necessary
+            // If the event type could contain RMS Calculate then check for the info bar
+            // to show any RMS rule violations if necessary
             if (evt.EventData is SurveyMeasurement ||
                 evt.EventData is SurveyStereoPoint)
             {
@@ -128,8 +128,8 @@ namespace Surveyor.User_Controls
                 mainWindow?.SetInfoBarSpeciesInfoMissing();
             }
 
-            // If the event type could contain RMS Calc then check for the info bar
-            // to show any RMS rule violoations if necessary
+            // If the event type could contain RMS Calculate then check for the info bar
+            // to show any RMS rule violations if necessary
             if (evt.EventData is SurveyMeasurement ||
                 evt.EventData is SurveyStereoPoint)
             {
@@ -306,20 +306,21 @@ namespace Surveyor.User_Controls
                     case SurveyDataType.SurveyMeasurementPoints:
                     case SurveyDataType.SurveyStereoPoint:
                         SurveyRulesCalc? surveyRulesCalc = null;
+
+                        // Media Position
+                        if (surveyTransectName is not null)
+                            sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Transect #{surveyTransectName}");
+                        else
+                            sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}");
+
+                        if (SettingsManagerLocal.DiagnosticInformation)
+                        {
+                            sb.AppendLine($"Left media position: {TimePositionHelper.Format(evt.TimeSpanLeftFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexLeft}");
+                            sb.AppendLine($"Right media position: {TimePositionHelper.Format(evt.TimeSpanRightFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexRight}");
+                        }
+
                         if (evt.EventData is SurveyMeasurement surveyMeasurement)
                         {
-                            // Media Position
-                            if (surveyTransectName is not null)
-                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Transect #{surveyTransectName}");
-                            else
-                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}");
-
-                            if (SettingsManagerLocal.DiagnosticInformation)
-                            {
-                                sb.AppendLine($"Left media position: {TimePositionHelper.Format(evt.TimeSpanLeftFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexLeft}");
-                                sb.AppendLine($"Right media position: {TimePositionHelper.Format(evt.TimeSpanRightFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexRight}");
-                            }
-
                             // Measurement
                             sb.AppendLine("");
                             sb.AppendLine($"Species: {surveyMeasurement.SpeciesInfo.Species}\r\n");
@@ -345,6 +346,7 @@ namespace Surveyor.User_Controls
                         }
                         else if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
                         {
+                            sb.AppendLine("");
                             sb.AppendLine($"Species: {surveyStereoPoint.SpeciesInfo.Species}\r\n");
 
                             // Survey Rules
@@ -364,7 +366,7 @@ namespace Surveyor.User_Controls
                             if (surveyRulesCalc.RMSWorst is not null)
                             {
                                 sb.AppendLine($"RMS Distance Error: {Math.Round((double)surveyRulesCalc.RMSWorst * 1000, 0)}mm");
-                                sb.AppendLine($"When a point is selected in the left camera and the corresponding point selected in the right camaera, the 3D point is computed by intersecting the resulting rays in 3D space.");
+                                sb.AppendLine($"When a point is selected in the left camera and the corresponding point selected in the right camera, the 3D point is computed by intersecting the resulting rays in 3D space.");
                                 sb.AppendLine($"RMS Distance is the distance of the shortest line, between the intersecting rays. In practice, the intersection is unlikely to ever be perfect (RMS = 0mm).");
                                 sb.AppendLine($"");
                             }
@@ -372,9 +374,9 @@ namespace Surveyor.User_Controls
                             {
                                 sb.AppendLine($"Range: {Math.Round((double)surveyRulesCalc.Range, 2)}m");
                                 if (evt.EventData is SurveyMeasurement)
-                                    sb.AppendLine($"This is the calculated distance from centre of the camera system to the centre of the measurement points.");
+                                    sb.AppendLine($"This is the calculated distance from center of the camera system to the center of the measurement points.");
                                 else
-                                    sb.AppendLine($"This is the calculated distance from centre of the camera system to the 3D point.");
+                                    sb.AppendLine($"This is the calculated distance from center of the camera system to the 3D point.");
                                 sb.AppendLine($"");
                             }
                             if (surveyRulesCalc.XOffset is not null)
@@ -408,6 +410,15 @@ namespace Surveyor.User_Controls
                             else
                                 sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
 
+                            if (SettingsManagerLocal.DiagnosticInformation)
+                            {
+                                if (surveyPoint.TrueLeftFalseRight)
+                                    sb.AppendLine($"Left media position: {TimePositionHelper.Format(evt.TimeSpanLeftFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexLeft}");
+                                else
+                                    sb.AppendLine($"Right media position: {TimePositionHelper.Format(evt.TimeSpanRightFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexRight}");
+                            }
+
+                            sb.Append($"");
                             sb.Append($"Species: {surveyPoint.SpeciesInfo.Species}\r\n");
                             sb.Append($"\r\n");
                             sb.Append($"2D Point:\r\n");
@@ -620,7 +631,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Go to Frame selected via item selection inthe list view 
+        /// Go to Frame selected via item selection in the list view 
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -628,12 +639,7 @@ namespace Surveyor.User_Controls
         {           
             if (ListViewEvent.SelectedItem is Event selectedItem)
             {
-                // Attempt to go to the left frame
-                // Jump to frame of this event
-                //???if (selectedItem.TimeSpanTimelineController != TimeSpan.Zero)
-                    mediaStereoController?.UserReqFrameJump(SurveyorMediaControl.eControlType.Primary, selectedItem.TimeSpanTimelineController);
-                //???else if (selectedItem.TimeSpanLeftFrame != TimeSpan.Zero)
-                //???    mediaStereoController?.UserReqFrameJump(SurveyorMediaControl.eControlType.Primary, selectedItem.TimeSpanLeftFrame);
+                mediaStereoController?.UserReqFrameJump(SurveyorMediaControl.eControlType.Primary, selectedItem.TimeSpanTimelineController);
             }
         }
 
@@ -962,7 +968,7 @@ namespace Surveyor.User_Controls
                 if (eventItem.EventData is Surveyor.Events.SurveyMeasurement ||
                     eventItem.EventData is Surveyor.Events.SurveyStereoPoint)
                 {
-                    // Get the species info/Measurement/Survey rules calcs
+                    // Get the species info/Measurement/Survey rules calculation
                     SpeciesInfo? speciesInfo = null;
                     double? measurement = null;
                     SurveyRulesCalc? surveyRulesCalc = null;

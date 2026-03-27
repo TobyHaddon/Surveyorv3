@@ -64,6 +64,7 @@ struct _IDA {
         double doubles[2];
     } data1;
 #pragma pack(pop)
+
     std::wstring wsPeriodName;
 
     // 3D Measurement Point Array
@@ -82,6 +83,7 @@ struct _IDA {
     union {
         char bData[16];
         int32_t ints[4];
+        double doubles[2];
     } data2;
 #pragma pack(pop)
 };
@@ -168,7 +170,21 @@ struct _CMS {
     char cTLC[3];
     char cTLCVersion;
 
+    int Count;
+    std::vector<struct _MSI*> pMSIArray;
 };
+
+// MSI
+struct _MSI {
+    long fileSeekPointer;
+    char cTLC[3];
+    char cTLCVersion;
+
+    std::wstring wsMediaFile;
+	int64_t FrameCount;
+    double FrameRate;
+};
+
 
 // PER and children
 struct _PER {
@@ -176,20 +192,70 @@ struct _PER {
     char cTLC[3];
     char cTLCVersion;
 
+    int PeriodCount;
+    std::vector<struct _PED*> pPEDArray;
 };
+
+// PED and children
+struct _PED {
+    long fileSeekPointer;
+    char cTLC[3];
+    char cTLCVersion;
+
+    std::wstring wsPeriodName;	
+    char bData[17];
+    struct _FRA* pFRAStart;
+    struct _FRA* pFRAEnd;
+};
+
 
 // CCC and children
 struct _CCC {
     long fileSeekPointer;
     char cTLC[3];
-    char cTLCVersion;
+    char cTLCVersion;       // seen 0
+
+    char bData1[5];          // seen 00 01 00 00 00
+    struct _CAM* pCAM;
+    char bData2[8];		 
+    long frameHeight;               // pixels
+    long frameWidth;                // pixels
 
 };
 
+// CAM and children
+struct _CAM {
+    long fileSeekPointer;
+    char cTLC[3];
+    char cTLCVersion;
+
+    std::wstring wsCameraName;
+    std::wstring wsDerivedFrom;
+
+    double xPixelSize;              // mm
+	double yPixelSize;              // mm
+    long frameHeight;               // pixels
+	long frameWidth;                // pixels
+    
+    double xPPOffset;               // mm
+    double yPPOffset;               // mm
+	double focalLength;             // mm
+	double k3RadialDistortion;      // mm^-2
+	double k5RadialDistortion;      // mm^-4
+	double k7RadialDistortion;      // mm^-6
+	double p1DecenteringDistortion; // mm^-1
+	double p2DecenteringDistortion; // mm^-1
+	double orthogonality;           // dimensionless
+	double affinity;                // dimensionless
+	double cameraX;                 // mm
+	double cameraY;                 // mm
+	double cameraZ;                 // mm
+    double omega;                   // degrees
+    double phi;                     // degrees
+	double kappa;                   // degrees
+};
+
 //#pragma pack(pop) // Restore the previous alignment setting
-
-
-
 
 
 
@@ -197,17 +263,20 @@ static void hexDump(const char* desc, long seekOffset, void* data, int len);
 static void DisplayEBS(struct _EBS* pEBS);
 static void DisplayIDA(struct _IDA* pIDA);
 static void DisplayCMS(struct _CMS* pCMS);
+static void DisplayMSI(struct _MSI* pMSI);
 static void DisplayPER(struct _PER* pPER);
+static void DisplayPED(struct _PED* pPED);
 static void DisplayCCC(struct _CCC* pCCC);
 static void DisplayPDA(const wchar_t* pIndent, struct _PDA* pPDA);
 static void DisplayPDL(const wchar_t* pIndent, struct _PDL* pPDL);
-static void ClearOutputRow(struct _OutputRow* outputRow);
+static void DisplayPD3(const wchar_t* pIndent, struct _PD3* pPDL);
+static void ClearOutputRow(struct _SurveyRow* outputRow);
 
 EMObsReader::EMObsReader(const std::string& _filespec) : filespec(_filespec) {
     this->reader = new EMObsReaderBase(filespec);
 }
 
-int EMObsReader::Process(std::list<struct _OutputRow*>& outputRowsAdd) {
+int EMObsReader::Process(std::list<struct _SurveyRow*>& outputRowsAdd) {
     int ret = 0;
     struct _EBS* pEBS = nullptr;
     std::list<struct _IDA*> IDAList;
@@ -247,6 +316,7 @@ int EMObsReader::Process(std::list<struct _OutputRow*>& outputRowsAdd) {
                 // Print known information
                 DisplayEBS(pEBS);
             }
+			// Get the IDA structures which contain the Measurement, 2D and 3D point data
             else if (strcmp(TLC, "IDA") == 0) {
 
                 struct _IDA* pIDA = GetIDA();
@@ -256,46 +326,48 @@ int EMObsReader::Process(std::list<struct _OutputRow*>& outputRowsAdd) {
                 // Print known information
                 DisplayIDA(pIDA);
             }
+			// Get the CMS structures which contain the media file information (list of files) for the left and right cameras
             else if (strcmp(TLC, "CMS") == 0) {
-                finished = true;
 
-                //// Check this is a max of 2 CMS
-                //if (CMSList.size() >= 2)
-                //    wprintf(L"*** Warning more then two CMS detected!\n");
+                // Check this is a max of 2 CMS
+                size_t count = CMSList.size();
+                if (count > 2)
+                    wprintf(L"*** Warning more then two CMS (Media Info Lists) detected! (%zu found)\n", count);
 
-                //struct _CMS* pCMS = GetCMS();
-                //reader->SetSeekPointerToReadPointer();
-                //CMSList.push_back(pCMS);
+                struct _CMS* pCMS = GetCMS();
+                reader->SetSeekPointerToReadPointer();
+                CMSList.push_back(pCMS);
 
-                //// Print known information
-                //DisplayCMS(pCMS);
+                // Print known information
+                DisplayCMS(pCMS);
             }
+			// Get the PER structure which contains the period information
             else if (strcmp(TLC, "PER") == 0) {
-                finished = true;
+                
+                // Check this is only one EBS
+                if (pPER != nullptr)
+                    wprintf(L"*** Warning more then one PER (Period List) detected!\n");
 
-                //// Check this is only one EBS
-                //if (pPER != nullptr)
-                //    wprintf(L"*** Warning more then one EBS detected!\n");
+                pPER = GetPER();
+                reader->SetSeekPointerToReadPointer();
 
-                //pPER = GetPER();
-                //reader->SetSeekPointerToReadPointer();
-
-                //// Print known information
-                //DisplayPER(pPER);
+                // Print known information
+                DisplayPER(pPER);
             }
+			// Get the CCC structures which contain the camera calibration information for the left and right cameras
             else if (strcmp(TLC, "CCC") == 0) {
-                finished = true;
 
-                //// Check this is a max of 2 CMS
-                //if (CCCList.size() >= 2)
-                //    wprintf(L"*** Warning more then two CCC detected!\n");
+                // Check this is a max of 2 CMS
+                size_t count = CCCList.size();
+                if (count > 2)
+                    wprintf(L"*** Warning more then two CCC (Calibration Data) detected! (%zu found)\n", count);
 
-                //struct _CCC* pCCC = GetCCC();
-                //reader->SetSeekPointerToReadPointer();
-                //CCCList.push_back(pCCC);
+                struct _CCC* pCCC = GetCCC();
+                reader->SetSeekPointerToReadPointer();
+                CCCList.push_back(pCCC);
 
-                //// Print known information
-                //DisplayCCC(pCCC);
+                // Print known information
+                DisplayCCC(pCCC);
             }
             else {
                 printf("%08lX %s:\t%05i\t%i\t%i\n", reader->GetReadPointer(), TLC, size, (int)*pAfterTLC, fixedSize);
@@ -333,13 +405,13 @@ int EMObsReader::Process(std::list<struct _OutputRow*>& outputRowsAdd) {
             // Range-based for loop (modern C++11)
             for (_IDA* itemIDA : IDAList) {
 
-                struct _OutputRow* outputRow;
+                struct _SurveyRow* outputRow;
                 struct _FRA* pFRA = itemIDA->pFRA;
 
                 // Collect the PDA 2D point data
                 for (_PDA* itemPDA : itemIDA->TypePDA.PDAList) {
 
-                    outputRow = new struct _OutputRow;
+                    outputRow = new struct _SurveyRow;
                     ClearOutputRow(outputRow);
                     outputRow->row = row++;
 
@@ -389,7 +461,7 @@ int EMObsReader::Process(std::list<struct _OutputRow*>& outputRowsAdd) {
                     assert(pFRA->iCameraZeroLeftOneRight == 0);
                     assert(itemPDL->pFRA->iCameraZeroLeftOneRight == 1);
 
-                    outputRow = new struct _OutputRow;
+                    outputRow = new struct _SurveyRow;
                     ClearOutputRow(outputRow);
                     outputRow->row = row++;
 
@@ -433,7 +505,7 @@ int EMObsReader::Process(std::list<struct _OutputRow*>& outputRowsAdd) {
                 for (_PD3* itemPD3 : itemIDA->TypePD3.PD3List) {
 
 
-                    outputRow = new struct _OutputRow;
+                    outputRow = new struct _SurveyRow;
                     ClearOutputRow(outputRow);
                     outputRow->row = row++;
 
@@ -524,7 +596,7 @@ static void DisplayIDA(struct _IDA* pIDA) {
 
     if (pIDA != nullptr && pIDA->pFRA != nullptr) {
 
-        wprintf(L"%08lX IDA>FRA: Left Frame=%i Camera=%s) Media=%ls\n",
+        wprintf(L"%08lX IDA>FRA: Left Frame=%i (Camera=%s) Media=%ls\n",
             pIDA->fileSeekPointer,
             pIDA->pFRA->iFrameIndex,
             pIDA->pFRA->iCameraZeroLeftOneRight == 0 ? L"Left" : L"Right",
@@ -539,7 +611,7 @@ static void DisplayIDA(struct _IDA* pIDA) {
 
 
         if (pIDA->TypePDA.iPDACount > 0) {
-            wprintf(L"      PDA Count=%i\n",
+            wprintf(L"      PDA Count=%i  2D Points\n",
                 pIDA->TypePDA.iPDACount);
 
             for (auto pPDA : pIDA->TypePDA.PDAList) {
@@ -547,19 +619,36 @@ static void DisplayIDA(struct _IDA* pIDA) {
             }
         }
 
-        hexDump("  IDA>Data1", -1, pIDA->data1.bData, sizeof(pIDA->data1.bData)/*16*/);
+        //hexDump("  IDA>Data1", -1, pIDA->data1.bData, sizeof(pIDA->data1.bData)/*16*/);
+        wprintf(L"    IDA>Data1: As Int32:%d,%d,%d,%d  Double:=%.6f,=%.6f\n", 
+                                pIDA->data1.ints[0], pIDA->data1.ints[1], pIDA->data1.ints[2], pIDA->data1.ints[3], 
+            pIDA->data1.doubles[0], pIDA->data1.doubles[1]);
+
         wprintf(L"    IDA>Period:[%ls]\n", pIDA->wsPeriodName.c_str());
 
 
         if (pIDA->TypePDL.iPDLCount > 0) {
-            wprintf(L"      PDL Count=%i\n",
+            wprintf(L"      PDL Count=%i  Measurements\n",
                 pIDA->TypePDL.iPDLCount);
 
             for (auto pPDL : pIDA->TypePDL.PDLList) {
                 DisplayPDL(L"    ", pPDL);
             }
         }
-        hexDump("  IDA>Data2", -1, pIDA->data2.bData, sizeof(pIDA->data2.bData));
+
+        if (pIDA->TypePD3.iPD3Count > 0) {
+            wprintf(L"      PD3 Count=%i  3D Points\n",
+                pIDA->TypePD3.iPD3Count);
+
+            for (auto pPD3 : pIDA->TypePD3.PD3List) {
+                DisplayPD3(L"    ", pPD3);
+            }
+        }
+
+        //hexDump("  IDA>Data2", -1, pIDA->data2.bData, sizeof(pIDA->data2.bData));
+        wprintf(L"    IDA>Data2: As Int32:%d,%d,%d,%d  Double:=%.6f,=%.6f\n",
+            pIDA->data2.ints[0], pIDA->data2.ints[1], pIDA->data2.ints[2], pIDA->data2.ints[3],
+            pIDA->data2.doubles[0], pIDA->data2.doubles[1]);
     }
     else {
         if (pIDA == nullptr)
@@ -637,7 +726,7 @@ static void DisplayPDL(const wchar_t* pIndent, struct _PDL* pPDL) {
         }
     }
 
-    wprintf(L"       IDA>FRA: Right Frame=%i (Camera=%s) Media=%ls\n",
+    wprintf(L"       PDL>FRA: Right Frame=%i (Camera=%s) Media=%ls\n",
         pPDL->pFRA->iFrameIndex,
         pPDL->pFRA->iCameraZeroLeftOneRight == 0 ? L"Left" : L"Right",
         pPDL->pFRA->wsMediaFile.c_str());
@@ -645,24 +734,144 @@ static void DisplayPDL(const wchar_t* pIndent, struct _PDL* pPDL) {
 }
 
 
-static void DisplayCMS(struct _CMS* pCMS) {
-    // TODO
+// Display a PD3 which is believed to be a EventMeasure set of 3D point
+static void DisplayPD3(const wchar_t* pIndent, struct _PD3* pPD3) {
 
-    wprintf(L"\n");
+    //wprintf(L"    Left CPT Count: %i (should always be 2)\n", pPD3->iData1);
+    if (pPD3->pCPT1 != nullptr) {
+        wprintf(L"    PDL>CPT1: X:%.2f, Y:%.2f\n",
+            pPD3->pCPT1->X, pPD3->pCPT1->Y);
+
+    }
+    else
+        wprintf(L"       error pPD3->pCPT1 null ptr\n");
+
+    if (pPD3->pCPT2 != nullptr) {
+        wprintf(L"    PD3>CPT2: X:%.2f, Y:%.2f\n",
+            pPD3->pCPT2->X, pPD3->pCPT2->Y);
+    }
+    else
+        wprintf(L"       error pPD3->pCPT2 null ptr\n");
+
+    for (int i = 0; i < pPD3->matCollectionValues.size(); i++) {
+        if (!pPD3->matCollectionValues[i][0].empty()) {
+            wprintf(L"       %02i: Values = [%ls]\n",
+                i,
+                pPD3->matCollectionValues[i][0].c_str());
+        }
+    }
+
+    wprintf(L"       PD3>FRA: Right Frame=%i (Camera=%s) Media=%ls\n",
+        pPD3->pFRA->iFrameIndex,
+        pPD3->pFRA->iCameraZeroLeftOneRight == 0 ? L"Left" : L"Right",
+        pPD3->pFRA->wsMediaFile.c_str());
+
 }
 
+
+/// <summary>
+/// Display a media list for the left or right camera, and 
+/// the frame count and frame rate for each media file in that list
+/// </summary>
+/// <param name="pCMS">List of Media Info structures</param>
+static void DisplayCMS(struct _CMS* pCMS) {
+
+    if (pCMS != nullptr) {
+
+        wprintf(L"%08lX CMS: Media Count=%i\n",
+            pCMS->fileSeekPointer,
+            pCMS->Count);
+
+        for (auto pMSI : pCMS->pMSIArray) {
+            DisplayMSI(pMSI);
+        }
+    }
+}
+
+/// <summary>
+/// Display a single media info structure which is a media file for either the left or right 
+/// camera, and the frame count and frame rate for that media file
+/// <summary>
+/// /// <param name="pMSI">Single Media info structure</param>
+static void DisplayMSI(struct _MSI* pMSI) {
+    
+    if (pMSI != nullptr) {
+        wprintf(L"%08lX CMS>MSI: Media=%ls FrameCount=%lli FrameRate=%.2f\n",
+            pMSI->fileSeekPointer,
+            pMSI->wsMediaFile.c_str(),
+            pMSI->FrameCount,
+            pMSI->FrameRate);
+	}
+}
 
 static void DisplayPER(struct _PER* pPER) {
-    // TODO
 
-    wprintf(L"\n");
+    if (pPER != nullptr) {
+
+        wprintf(L"%08lX PER: Period Count=%i\n",
+            pPER->fileSeekPointer,
+            pPER->PeriodCount);
+
+        for (auto pPED : pPER->pPEDArray) {
+            DisplayPED(pPED);
+        }
+    }
 }
 
 
-static void DisplayCCC(struct _CCC* pCCC) {
-    // TODO
+/// <summary>
+/// Display a single period structure 
+/// <summary>
+/// /// <param name="pPED">Single Period structure</param>
+static void DisplayPED(struct _PED* pPED) {
 
-    wprintf(L"\n");
+    if (pPED != nullptr) {
+        wprintf(L"%08lX PER>PED: Period Name:%s %s %s Start:%i, End:%i\n",
+            pPED->fileSeekPointer,
+			pPED->pFRAStart->iCameraZeroLeftOneRight == 0 ? L"Left" : L"Right",
+			pPED->pFRAStart->wsMediaFile.c_str(),
+            pPED->wsPeriodName.c_str(),
+            pPED->pFRAStart->iFrameIndex,
+            pPED->pFRAEnd->iFrameIndex);
+    }
+}
+
+static void DisplayCCC(struct _CCC* pCCC) {
+    
+    if (pCCC != nullptr) {
+        wprintf(L"%08lX CCC>CAM  CAMERA CALIBRATION\n",
+            pCCC->fileSeekPointer);
+
+        hexDump("  CCC>Data1", -1, pCCC->bData1, sizeof(pCCC->bData1)/*5*/);
+
+        wprintf(L"    %s\n", pCCC->pCAM->wsCameraName.c_str());
+        wprintf(L"    %s\n", pCCC->pCAM->wsDerivedFrom.c_str());
+
+        wprintf(L"    X Pixel Size: %.4f mm\n", pCCC->pCAM->xPixelSize);
+        wprintf(L"    Y Pixel Size: %.4f mm\n", pCCC->pCAM->yPixelSize);
+        wprintf(L"    Frame Height: %i pixels\n", pCCC->pCAM->frameHeight);
+        wprintf(L"    Frame Width: %i pixels\n", pCCC->pCAM->frameWidth);
+        wprintf(L"    X Principal Point Offset: %.4f mm\n", pCCC->pCAM->xPPOffset);
+        wprintf(L"    Y Principal Point Offset: %.4f mm\n", pCCC->pCAM->yPPOffset);
+        wprintf(L"    Focal Length: %.4f mm\n", pCCC->pCAM->focalLength);
+        wprintf(L"    K3 Radial Distortion: %.6f mm^-2\n", pCCC->pCAM->k3RadialDistortion);
+        wprintf(L"    K5 Radial Distortion: %.6f mm^-4\n", pCCC->pCAM->k5RadialDistortion);
+        wprintf(L"    K7 Radial Distortion: %.6f mm^-6\n", pCCC->pCAM->k7RadialDistortion);
+        wprintf(L"    P1 Decentering/Tangential Distortion: %.6f mm^-1\n", pCCC->pCAM->p1DecenteringDistortion);
+        wprintf(L"    P2 Decentering/Tangential Distortion: %.6f mm^-1\n", pCCC->pCAM->p2DecenteringDistortion);
+        wprintf(L"    Orthogonality: %.6f\n", pCCC->pCAM->orthogonality);
+        wprintf(L"    Affinity: %.6f\n", pCCC->pCAM->affinity);
+        wprintf(L"    Camera X: %.4f mm\n", pCCC->pCAM->cameraX);
+        wprintf(L"    Camera Y: %.4f mm\n", pCCC->pCAM->cameraY);
+        wprintf(L"    Camera Z: %.4f mm\n", pCCC->pCAM->cameraZ);
+        wprintf(L"    Omega: %.2f degrees\n", pCCC->pCAM->omega);
+        wprintf(L"    Phi: %.2f degrees\n", pCCC->pCAM->phi);
+        wprintf(L"    Kappa: %.2f degrees\n", pCCC->pCAM->kappa);
+
+        hexDump("  CCC>Data2", -1, pCCC->bData2, sizeof(pCCC->bData2)/*8*/);
+        wprintf(L" Frame Height: %i pixels\n", pCCC->frameHeight);
+        wprintf(L" Frame Width: %i pixels\n", pCCC->frameWidth);
+    }
 }
 
 
@@ -786,8 +995,8 @@ struct _CIN* EMObsReader::GetCIN() {
         if (memcmp(pCIN->cTLC, "CIN", 3) == 0) {
 
             if (pCIN->cTLCVersion == 0) {
-                pCIN->matTitle = reader->GetNextAsMAT();
-                pCIN->matValue = reader->GetNextAsMAT();
+                pCIN->matTitle = reader->GetNextAsMATwstring();
+                pCIN->matValue = reader->GetNextAsMATwstring();
             }
             else {
                 printf("***GetCIN Error CIN, unexpected TLC version of %i found\n", (int)pCIN->cTLCVersion);
@@ -824,7 +1033,7 @@ struct _PTN* EMObsReader::GetPTN() {
         reader->GetNextAsFixedChar(&pPTN->cTLCVersion, 1);
         if (memcmp(pPTN->cTLC, "PTN", 3) == 0) {
             if (pPTN->cTLCVersion == 0) {
-                pPTN->matCollectionHeadings = reader->GetNextAsMAT();
+                pPTN->matCollectionHeadings = reader->GetNextAsMATwstring();
                 pPTN->iData1 = reader->GetNextAsInt32();
             }
             else {
@@ -1012,7 +1221,7 @@ struct _PDA* EMObsReader::GetPDA() {
             if (pPDA->cTLCVersion == 0 || pPDA->cTLCVersion == 1) {
 
                 pPDA->pCPT = GetCPT();
-                pPDA->matCollectionValues = reader->GetNextAsMAT();
+                pPDA->matCollectionValues = reader->GetNextAsMATwstring();
 
                 if (pPDA->cTLCVersion == 1) {
                     reader->GetNextAsFixedChar(pPDA->bData, sizeof(pPDA->bData));
@@ -1069,7 +1278,7 @@ struct _PDL* EMObsReader::GetPDL() {
                 pPDL->pCPT3 = GetCPT();
                 pPDL->pCPT4 = GetCPT();
                 pPDL->pFRA = GetFRA();
-                pPDL->matCollectionValues = reader->GetNextAsMAT();
+                pPDL->matCollectionValues = reader->GetNextAsMATwstring();
             }
             else {
                 printf("***GetPDL Error PDL, unexpected TLC version of %i found\n", (int)pPDL->cTLCVersion);
@@ -1112,7 +1321,7 @@ struct _PD3* EMObsReader::GetPD3() {
                 pPD3->pCPT1 = GetCPT();
                 pPD3->pCPT2 = GetCPT();
                 pPD3->pFRA = GetFRA();
-                pPD3->matCollectionValues = reader->GetNextAsMAT();
+                pPD3->matCollectionValues = reader->GetNextAsMATwstring();
             }
             else {
                 printf("***GetPD3 Error PD3, unexpected TLC version of %i found\n", (int)pPD3->cTLCVersion);
@@ -1167,10 +1376,11 @@ struct _CPT* EMObsReader::GetCPT() {
 
 
 /// <summary>
-/// ???
+/// Holds a collection of media files and associated information for either the left or right camera
 /// TLC=CMS Version = 1
 /// Children:
-///  TODO
+///     int32: Count of MSI (Media Info) entries
+///     TLC: Array of MSI (Media Info) structures
 /// </summary>
 struct _CMS* EMObsReader::GetCMS() {
 
@@ -1185,7 +1395,8 @@ struct _CMS* EMObsReader::GetCMS() {
         if (memcmp(pCMS->cTLC, "CMS", 3) == 0) {
             if (pCMS->cTLCVersion == 1) {
 
-                /// TODO
+                pCMS->Count = reader->GetNextAsInt32();
+                pCMS->pMSIArray = GetMSIArray(pCMS->Count);
             }
             else {
                 printf("***GetCMS Error CMS, unexpected TLC version of %i found\n", (int)pCMS->cTLCVersion);
@@ -1195,6 +1406,9 @@ struct _CMS* EMObsReader::GetCMS() {
         }
         else {
             printf("***GetCMS Error CMS expected not found\n");
+            hexDump("before TLC:", -1, reader->GetReadPointerPtr(pCMS->fileSeekPointer - 16), 16);
+            hexDump("       TLC:", -1, reader->GetReadPointerPtr(pCMS->fileSeekPointer), 16);
+            hexDump("after  TLC:", -1, reader->GetReadPointerPtr(pCMS->fileSeekPointer + 16), 16);
             delete pCMS;
             pCMS = nullptr;
         }
@@ -1203,11 +1417,76 @@ struct _CMS* EMObsReader::GetCMS() {
     return pCMS;
 }
 
+
 /// <summary>
-/// ???
-/// TLC=PER Version = 0
+/// Retrieves an array of MSI (Media Info) structures.
+/// </summary>
+/// <returns>A pointer to a vector containing pointers to MSI structures, or null if no array is available.</returns>
+std::vector<struct _MSI*> EMObsReader::GetMSIArray(int count)
+{
+    std::vector<struct _MSI*> ret;
+
+    // Resize the vector to the desired dimensions
+    ret.resize(count);
+
+    // Optionally, initialize with default values or perform operations
+    for (int x = 0; x < count; ++x) {
+
+        // Initialize each element or perform other operations
+        ret[x] = GetMSI();
+    }
+
+    return ret;
+
+}
+
+/// <summary>
+/// Holds and array of MSI (Media Info)
+/// TLC=MSI Version = 0
 /// Children:
-///  TODO
+///     wstring: Media File
+///     int64: Frame Count
+///     double: Frame Rate
+/// </summary>
+struct _MSI* EMObsReader::GetMSI() {
+
+    int ret = 0;
+    struct _MSI* pMSI = new _MSI();
+
+    if (pMSI != nullptr) {
+
+        pMSI->fileSeekPointer = reader->GetReadPointer();
+        reader->GetNextAsFixedChar(pMSI->cTLC, 3);
+        reader->GetNextAsFixedChar(&pMSI->cTLCVersion, 1);
+        if (memcmp(pMSI->cTLC, "MSI", 3) == 0) {
+            if (pMSI->cTLCVersion == 0) {
+
+                pMSI->wsMediaFile = reader->GetNextAsWString();
+                pMSI->FrameCount = reader->GetNextAsInt64();
+                pMSI->FrameRate = reader->GetNextAsDouble();
+            }
+            else {
+                printf("***GetMSI Error MSI, unexpected TLC version of %i found\n", (int)pMSI->cTLCVersion);
+                delete pMSI;
+                pMSI = nullptr;
+            }
+        }
+        else {
+            printf("***GetMSI Error MSI expected not found\n");
+            delete pMSI;
+            pMSI = nullptr;
+        }
+    }
+
+    return pMSI;
+}
+
+
+/// <summary>
+/// Holds and array of Period PED
+/// TLC=PER Version = 1
+/// Children:
+///     TLC: PED
 /// </summary>
 struct _PER* EMObsReader::GetPER() {
 
@@ -1220,9 +1499,11 @@ struct _PER* EMObsReader::GetPER() {
         reader->GetNextAsFixedChar(pPER->cTLC, 3);
         reader->GetNextAsFixedChar(&pPER->cTLCVersion, 1);
         if (memcmp(pPER->cTLC, "PER", 3) == 0) {
-            if (pPER->cTLCVersion == 0) {
+            if (pPER->cTLCVersion == 1) {
 
-                /// TODO
+                pPER->PeriodCount = reader->GetNextAsInt32();
+                pPER->pPEDArray = GetPEDArray(pPER->PeriodCount);
+
             }
             else {
                 printf("***GetPER Error PER, unexpected TLC version of %i found\n", (int)pPER->cTLCVersion);
@@ -1240,12 +1521,75 @@ struct _PER* EMObsReader::GetPER() {
     return pPER;
 }
 
+/// <summary>
+/// Retrieves an array of PED (single period) structures.
+/// </summary>
+/// <returns>A pointer to a vector containing pointers to PED structures, or null if no array is available.</returns>
+std::vector<struct _PED*> EMObsReader::GetPEDArray(int count)
+{
+    std::vector<struct _PED*> ret;
+
+    // Resize the vector to the desired dimensions
+    ret.resize(count);
+
+    // Optionally, initialize with default values or perform operations
+    for (int x = 0; x < count; ++x) {
+
+        // Initialize each element or perform other operations
+        ret[x] = GetPED();
+    }
+
+    return ret;
+
+}
 
 /// <summary>
-/// ???
+/// Holds an array of Period PED
+/// TLC=PED Version = 0
+/// Children:
+///     TLC: FRA
+/// </summary>
+struct _PED* EMObsReader::GetPED() {
+
+    int ret = 0;
+    struct _PED* pPED = new _PED();
+
+    if (pPED != nullptr) {
+
+        pPED->fileSeekPointer = reader->GetReadPointer();
+        reader->GetNextAsFixedChar(pPED->cTLC, 3);
+        reader->GetNextAsFixedChar(&pPED->cTLCVersion, 1);
+        if (memcmp(pPED->cTLC, "PED", 3) == 0) {
+            if (pPED->cTLCVersion == 0) {
+
+                pPED->wsPeriodName = reader->GetNextAsWString();
+				reader->GetNextAsFixedChar(pPED->bData, sizeof(pPED->bData)/*17*/);
+
+                pPED->pFRAStart = GetFRA();
+                pPED->pFRAEnd = GetFRA();
+            }
+            else {
+                printf("***GetPED Error PED, unexpected TLC version of %i found\n", (int)pPED->cTLCVersion);
+                delete pPED;
+                pPED = nullptr;
+            }
+        }
+        else {
+            printf("***GetPER Error PED expected not found\n");
+            delete pPED;
+            pPED = nullptr;
+        }
+    }
+
+    return pPED;
+}
+
+
+/// <summary>
+/// Holds the .cam calibration data
 /// TLC=CCC Version = 0
 /// Children:
-///  TODO
+///     TLC:CAM
 /// </summary>
 struct _CCC* EMObsReader::GetCCC() {
 
@@ -1260,7 +1604,11 @@ struct _CCC* EMObsReader::GetCCC() {
         if (memcmp(pCCC->cTLC, "CCC", 3) == 0) {
             if (pCCC->cTLCVersion == 0) {
 
-                /// TODO
+                reader->GetNextAsFixedChar(pCCC->bData1, sizeof(pCCC->bData1));
+				pCCC->pCAM = GetCAM();
+                reader->GetNextAsFixedChar(pCCC->bData2, sizeof(pCCC->bData2));
+				pCCC->frameHeight = reader->GetNextAsInt32();
+				pCCC->frameWidth = reader->GetNextAsInt32();
             }
             else {
                 printf("***GetCCC Error CCC, unexpected TLC version of %i found\n", (int)pCCC->cTLCVersion);
@@ -1278,7 +1626,76 @@ struct _CCC* EMObsReader::GetCCC() {
     return pCCC;
 }
 
+/// <summary>
+/// Contains camera calibration and other camera related data
+/// This structure is exactly what is in a SeaGIS .cam file
+/// 
+/// TLC=CAM Version = 1
+/// Children:
+///     wstring:wsCameraName
+///     wstring:wsDerviedFrom
+///     double: X Pixel Size in mm
+///     double: Y Pixel Size in mm
+///     long: frameHeight in pixels
+///     long: frameWidth in pixels
+///     TLC:MAT Calibration data
+///     TLC:MAT Unknown data
+/// </summary>
+struct _CAM* EMObsReader::GetCAM() {
 
+    int ret = 0;
+    struct _CAM* pCAM = new _CAM();
+	std::vector<std::vector<double>> mat;
+
+    if (pCAM != nullptr) {
+
+        pCAM->fileSeekPointer = reader->GetReadPointer();
+        reader->GetNextAsFixedChar(pCAM->cTLC, 3);
+        reader->GetNextAsFixedChar(&pCAM->cTLCVersion, 1);
+        if (memcmp(pCAM->cTLC, "CAM", 3) == 0) {
+            if (pCAM->cTLCVersion == 1) {
+				pCAM->wsCameraName = reader->GetNextAsWString();
+				pCAM->wsDerivedFrom = reader->GetNextAsWString();
+				pCAM->xPixelSize = reader->GetNextAsDouble();
+				pCAM->yPixelSize = reader->GetNextAsDouble();
+				pCAM->frameHeight = reader->GetNextAsInt32();
+				pCAM->frameWidth = reader->GetNextAsInt32();
+
+                // Get the calibration data
+				mat = reader->GetNextAsMATdouble();
+
+                pCAM->xPPOffset = mat[0][0];
+                pCAM->yPPOffset = mat[1][0];
+				pCAM->focalLength = mat[2][0];
+				pCAM->k3RadialDistortion = mat[3][0];
+                pCAM->k5RadialDistortion = mat[4][0];
+                pCAM->k7RadialDistortion = mat[5][0];
+				pCAM->p1DecenteringDistortion = mat[6][0];
+				pCAM->p2DecenteringDistortion = mat[7][0];
+				pCAM->orthogonality = mat[8][0];
+				pCAM->affinity = mat[9][0];
+				pCAM->cameraX = mat[10][0];
+				pCAM->cameraY = mat[11][0];
+				pCAM->cameraZ = mat[12][0];
+				pCAM->omega = mat[13][0];
+                pCAM->phi = mat[14][0];
+                pCAM->kappa = mat[15][0];
+            }
+            else {
+                printf("***GetCAM Error CAM, unexpected TLC version of %i found\n", (int)pCAM->cTLCVersion);
+                delete pCAM;
+                pCAM = nullptr;
+            }
+        }
+        else {
+            printf("***GetCAM Error CAM expected not found\n");
+            delete pCAM;
+            pCAM = nullptr;
+        }
+    }
+
+    return pCAM;
+}
 
 /// <summary>
 /// EMOBReaderBase
@@ -1356,6 +1773,11 @@ long EMObsReaderBase::GetReadPointer() {
     return readPointer;
 }
 
+void * EMObsReaderBase::GetReadPointerPtr(long pointer) {
+    return &readBuffer[pointer];
+}
+
+
 std::wstring EMObsReaderBase::GetNextAsWString() {
 
     std::wstring ret;
@@ -1431,7 +1853,7 @@ double EMObsReaderBase::GetNextAsDouble()
     return ret;
 }
 
-std::vector<std::vector<std::wstring>> EMObsReaderBase::GetNextAsMAT()
+std::vector<std::vector<std::wstring>> EMObsReaderBase::GetNextAsMATwstring()
 {
     std::vector<std::vector<std::wstring>> ret;
 
@@ -1464,6 +1886,39 @@ std::vector<std::vector<std::wstring>> EMObsReaderBase::GetNextAsMAT()
     return ret;
 }
 
+std::vector<std::vector<double>> EMObsReaderBase::GetNextAsMATdouble()
+{
+    std::vector<std::vector<double>> ret;
+
+    // Check this is really a matrix 
+    char szMAT[4];
+    GetNextAsFixedChar(szMAT, 4);
+
+    if (strcmp(szMAT, "MAT") == 0) {
+
+        int32_t dimX = GetNextAsInt32();
+        int32_t dimY = GetNextAsInt32();
+
+        // Resize the vector to the desired dimensions
+        ret.resize(dimX);
+        for (auto& row : ret) {
+            row.resize(dimY);
+        }
+
+        // Optionally, initialize with default values or perform operations
+        for (int y = 0; y < dimY; ++y) {
+            for (int x = 0; x < dimX; ++x) {
+
+
+                // Initialize each element or perform other operations
+                ret[x][y] = GetNextAsDouble();
+            }
+        }
+    }
+
+    return ret;
+}
+
 
 int EMObsReaderBase::GetFirstTLC(void** p, int* size, char* TLC) {
 
@@ -1481,6 +1936,7 @@ int EMObsReaderBase::GetNextTLC(void** p, int* size, char* TLC) {
     *size = 0;
 
     // Find the next Three Letter Code (TLC)
+    // -1 indicates the end
     retPointer = findNextTLC(seekPointer, TLC);
 
     if (retPointer != -1) {
@@ -1888,7 +2344,7 @@ int EMObsReader::HexDumpToFile(std::wofstream& outputFileStream, int rowWidth, i
 }
 
 
-static void ClearOutputRow(struct _OutputRow* outputRow)
+static void ClearOutputRow(struct _SurveyRow* outputRow)
 {
     // Manually initialize values
     outputRow->row = 0;

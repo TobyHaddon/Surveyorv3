@@ -1,21 +1,14 @@
 ﻿
-//using MathNet.Numerics;
 using ActionCameraMP4MetadataExtraction;
 using Microsoft.Graphics.Canvas;
-using Microsoft.UI.Composition;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media.Imaging;
-using Microsoft.Windows.ApplicationModel.DynamicDependency;
 using Surveyor.Helper;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.WindowsRuntime;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.ApplicationModel;
@@ -59,8 +52,6 @@ namespace Surveyor.User_Controls
         private readonly object frameWaitLock = new();
         private TaskCompletionSource<TimeSpan>? nextFrameTcs;
 
-        private static bool IsPositionWithinTolerance(TimeSpan requested, TimeSpan actual, TimeSpan tolerance)
-                        => Math.Abs((actual - requested).Ticks) <= tolerance.Ticks;
 
         public ImageExtract()
         {
@@ -73,8 +64,6 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="fileSpec"></param>
         /// <returns></returns>
-        // Replace VideoOpen with this version
-
         public async Task<int> VideoOpenAsync(string fileSpec)
         {
             int ret = -1;
@@ -93,14 +82,22 @@ namespace Surveyor.User_Controls
                 try
                 {
                     Dictionary<string, string> fileProperties = await GetMP4FileProperities.ExtractProperties(fileSpec);
-                    if (fileProperties.TryGetValue("Video.FrameRate", out string? frameRate))
+                    if (fileProperties.TryGetValue("Video.FrameRate", out string? frameRateText) &&
+                        double.TryParse(frameRateText, NumberStyles.Float, CultureInfo.InvariantCulture, out double fps) &&
+                        fps > 0.0)
                     {
-                        frameStep = TimeSpan.FromMilliseconds(Double.Parse(frameRate));
+                        frameStep = TimeSpan.FromSeconds(1.0 / fps);
+                    }
+                    else
+                    {
+                        // Keep default fallback (already initialized) instead of failing open
+                        Debug.WriteLine($"{ToString()} VideoOpen: Frame rate missing/invalid.");
+                        return -1;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"{ToString()} VideoOpen: Failed to extract frame rate, using default. {ex.Message}");
+                    Debug.WriteLine($"{ToString()} VideoOpen: Failed to extract frame rate. {ex.Message}");
                     return -1;
                 }
 
@@ -264,14 +261,14 @@ namespace Surveyor.User_Controls
         {
             int ret = -1;
             List<string?> imageFileSpecList = [];
-            
+
             // Guard           
             //if (string.IsNullOrWhiteSpace(ImagePath) && string.IsNullOrEmpty(exportFileSpec))
             //    return (-1, imageFileSpecList);
 
             if (extractBefore > 0 || extractAfter < 0)
                 throw new ArgumentException("VideoExtractFramesAsync: extractBefore must be <= 0 and extractAfter must be >= 0");
-            
+
             if (exportFileSpec is not null && (extractBefore != 0 || extractAfter != 0))
                 throw new ArgumentException("VideoExtractFramesAsync: exportFileSpec can only be specified when extractBefore and extractAfter are both zero.");
 
@@ -280,7 +277,7 @@ namespace Surveyor.User_Controls
             {
                 if (mediaPlayer is null || inputBitmap is null || wb is null)
                     return (-1, imageFileSpecList);
-              
+
                 if (extractBefore == 0 && extractAfter == 0)
                 {
                     string? one = await ExtractAtAsync(position, exportFileSpec);
@@ -306,7 +303,7 @@ namespace Surveyor.User_Controls
             finally
             {
                 mediaGate.Release();
-            }           
+            }
 
             return (ret, imageFileSpecList);
 
@@ -326,7 +323,7 @@ namespace Surveyor.User_Controls
 
                 if (!string.IsNullOrEmpty(ImagePath) || exportFileSpec is not null)
                 {
-                    string formattedTime = "0000" + $"{Math.Round(position.TotalSeconds, 2):F2}";
+                    string formattedTime = "0000" + $"{Math.Round(actualPosition.TotalSeconds, 2):F2}";
                     string fileName = Path.GetFileNameWithoutExtension(mediaFileSpec) + $"_P.{formattedTime[Math.Max(0, formattedTime.Length - 12)..]}s.png";
                     imageFileSpec = exportFileSpec ?? Path.Combine(ImagePath, fileName);
 
@@ -335,7 +332,7 @@ namespace Surveyor.User_Controls
 
                 return imageFileSpec;
             }
-        }     
+        }
 
         /// <summary>
         /// Extract a frame from the indicated position in the video and save 
@@ -353,7 +350,7 @@ namespace Surveyor.User_Controls
             if (ret == 0 && imageFileSpecList.Count == 1 && (!string.IsNullOrEmpty(imageFileSpecList[0]) || ImagePath == ""))
                 return (0, imageFileSpecList[0]!);
             else
-                return (-1, string.Empty);  
+                return (-1, string.Empty);
         }
 
 
@@ -487,7 +484,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         private void Clear()
         {
-            frameSize = new (0.0, 0.0);
+            frameSize = new(0.0, 0.0);
             wb = null;
             totalFrames = TimeSpan.Zero;
             currentFrame = TimeSpan.Zero;
@@ -580,32 +577,48 @@ namespace Surveyor.User_Controls
                     await Task.Delay(100);
                 }
 
+                // Special-case stream start: stepping backward from 0.00 is undefined/no-op.
+                if (requestedPosition <= TimeSpan.FromTicks(frameStep.Ticks / 2))
+                {
+                    Debug.WriteLine($"Extract at: {requestedPosition.TotalSeconds:F2}, start-boundary seek+step.");
+
+                    (bool okStart, TimeSpan posStart) = await ExecuteAndWaitForNextFrameAsync(
+                        () =>
+                        {
+                            mediaPlayer.PlaybackSession.Position = TimeSpan.Zero;
+                            mediaPlayer.StepForwardOneFrame(); // force frame delivery at boundary
+                        },
+                        $"Extract at: {requestedPosition.TotalSeconds:F2}), start seek+step",
+                        TimeSpan.FromSeconds(2));
+
+                    if (!okStart)
+                        return (false, mediaPlayer.PlaybackSession.Position);
+
+                    capturedPosition = posStart;
+                }
                 // Check if we are already at the requested position (within frame step tolerance).
                 // If so, step forward and back to trigger frame availability.
-                if (TimePositionHelper.IsExactFrameMatch(mediaPlayer.PlaybackSession.Position, requestedPosition, frameStep))
+                else if (TimePositionHelper.IsExactFrameMatch(mediaPlayer.PlaybackSession.Position, requestedPosition, frameStep))
                 {
-                    Debug.WriteLine($"Extract at: {requestedPosition.TotalSeconds:F2}, already at position so step forward and back.");
-
-                    mediaPlayer.StepForwardOneFrame();
-                    (bool okFwd, TimeSpan posFwd) = await WaitForNextFrameAsync(
+                    (bool okFwd, TimeSpan posFwd) = await ExecuteAndWaitForNextFrameAsync(
+                        () => mediaPlayer.StepForwardOneFrame(),
                         $"Extract at: {requestedPosition.TotalSeconds:F2}), step forward",
                         TimeSpan.FromSeconds(2));
 
                     if (!okFwd)
                         return (false, mediaPlayer.PlaybackSession.Position);
 
-                    mediaPlayer.StepBackwardOneFrame();
-                    (bool okBack, TimeSpan posBack) = await WaitForNextFrameAsync(
+                    (bool okBack, TimeSpan posBack) = await ExecuteAndWaitForNextFrameAsync(
+                        () => mediaPlayer.StepBackwardOneFrame(),
                         $"Extract at: {requestedPosition.TotalSeconds:F2}), step back",
                         TimeSpan.FromSeconds(2));
 
                     if (!okBack)
                     {
                         // Fallback: explicit seek if backward frame callback does not arrive.
-                        mediaPlayer.PlaybackSession.Position = requestedPosition;
-
-                        (bool okSeek, TimeSpan posSeek) = await WaitForNextFrameAsync(
-                            $"Extract at: {requestedPosition.TotalSeconds:F2}), fallback seek",
+                        (bool okSeek, TimeSpan posSeek) = await ExecuteAndWaitForNextFrameAsync(
+                            () => mediaPlayer.PlaybackSession.Position = requestedPosition,
+                            $"Extract at: {requestedPosition.TotalSeconds:F2}), seek",
                             TimeSpan.FromSeconds(2));
 
                         if (!okSeek)
@@ -672,6 +685,35 @@ namespace Surveyor.User_Controls
 
             actualPosition = capturedPosition;
             return (true, actualPosition);
+        }
+
+
+        /// <summary>
+        /// Action+wait helper
+        /// </summary>
+        /// <param name="triggerAction"></param>
+        /// <param name="context"></param>
+        /// <param name="timeout"></param>
+        /// <returns></returns>
+        private async Task<(bool ok, TimeSpan position)> ExecuteAndWaitForNextFrameAsync(
+                                    Action triggerAction,
+                                    string context,
+                                    TimeSpan timeout)
+        {
+            TaskCompletionSource<TimeSpan> tcs = ArmNextFrameWait();
+
+            triggerAction();
+
+            Task completed = await Task.WhenAny(tcs.Task, Task.Delay(timeout));
+            if (completed != tcs.Task)
+            {
+                Debug.WriteLine($"{context} did not trigger frame availability within timeout.");
+                return (false, TimeSpan.Zero);
+            }
+
+            TimeSpan framePosition = await tcs.Task;
+            Debug.WriteLine($"{context} triggered frame at: {framePosition.TotalSeconds:F2}");
+            return (true, framePosition);
         }
 
 

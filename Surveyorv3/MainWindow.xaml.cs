@@ -2810,7 +2810,8 @@ namespace Surveyor
                 WinRT.Interop.InitializeWithWindow.Initialize(savePicker, hwnd); // Link the picker with the window handle
 
                 savePicker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
-                savePicker.FileTypeChoices.Add("Survey", [".survey"]);
+                savePicker.FileTypeChoices.Add("Survey Files", [".survey"]);
+
                 savePicker.SuggestedFileName = string.IsNullOrWhiteSpace(surveyClass.Data.Info.SurveyCode) ? "New Document" : surveyClass.Data.Info.SurveyCode;
         
 

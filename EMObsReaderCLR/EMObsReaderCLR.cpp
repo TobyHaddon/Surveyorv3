@@ -129,7 +129,7 @@ namespace EMObsReaderNameSpace
         System::Collections::Generic::List<OutputRow^>^ Process()
         {
             // Native std::list to hold _OutputRow pointers
-            std::list<struct _OutputRow*> outputRows;
+            std::list<struct _SurveyRow*> outputRows;
 
             reader->Process(outputRows);  // Call C++ class method
 

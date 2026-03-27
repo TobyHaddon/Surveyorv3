@@ -1,19 +1,22 @@
-﻿// Surveyor Load EventMeasure .EMObs file into the Project class
+﻿// Surveyor Load EventMeasure .EMObs file into the Survey class
 // 
 // Version 1.0
 // Created
+// Version 1.1  27 Mar 2026
+// Added more error checking and reporting around the media file loading and frame rate and duration extraction
 
+using EMObsReaderNameSpace;
 using Surveyor.Events;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.Media.Editing;
 using Windows.Media.MediaProperties;
 using Windows.Storage;
-using EMObsReaderNameSpace;
-
+using static Surveyor.User_Controls.SurveyorTesting;
 
 
 namespace Surveyor
@@ -22,6 +25,11 @@ namespace Surveyor
     {
         private class MediaItemInfo
         {
+            private string _filename = string.Empty;
+            private double _fps = 0.0;
+            private TimeSpan _duration = TimeSpan.Zero;
+            private TimeSpan _durationPriorMP4s = TimeSpan.Zero;
+
             public MediaItemInfo()
             {
                 Filename = "";
@@ -31,41 +39,85 @@ namespace Surveyor
                 DurationPriorMP4s = TimeSpan.Zero;
                 TotalFramesPriorMP4s = 0;
             }
-            public MediaItemInfo(string _filename, double _fps, TimeSpan _duration, TimeSpan _durationPriorMP4s)
+
+            public MediaItemInfo(string filename, double fps, TimeSpan duration, TimeSpan durationPriorMP4s)
             {
-                Filename = _filename;
-                Fps = _fps;
-                Duration = _duration;                
-                TotalFrames = (long)((_fps * _duration.TotalMilliseconds) / 1000.0);
-                DurationPriorMP4s = _durationPriorMP4s;
-                TotalFramesPriorMP4s = (long)((_fps * _durationPriorMP4s.TotalMilliseconds) / 1000.0);
+                Filename = filename;
+                Fps = fps;
+                Duration = duration;
+                DurationPriorMP4s = durationPriorMP4s;
+                TotalFramesPriorMP4s = (long)Math.Round(Fps * DurationPriorMP4s.TotalSeconds, MidpointRounding.AwayFromZero);
             }
 
-            public string Filename { get; set; }  // Make this public to access it from outside
-            
-            public double Fps { get; set; }
-            public TimeSpan Duration { get; set; }
-            public long TotalFrames { get; }
-            public TimeSpan DurationPriorMP4s { get; set; }
-            public long TotalFramesPriorMP4s { get; }
+            public string Filename
+            {
+                get => _filename;
+                set => _filename = value ?? string.Empty;
+            }
 
+            public double Fps
+            {
+                get => _fps;
+                set
+                {
+                    _fps = value;
+                    RecalculateTotalFrames();
+                }
+            }
+
+            public TimeSpan Duration
+            {
+                get => _duration;
+                set
+                {
+                    _duration = value < TimeSpan.Zero ? TimeSpan.Zero : value;
+                    RecalculateTotalFrames();
+                }
+            }
+
+            public long TotalFrames { get; private set; }
+
+            public TimeSpan DurationPriorMP4s
+            {
+                get => _durationPriorMP4s;
+                set => _durationPriorMP4s = value < TimeSpan.Zero ? TimeSpan.Zero : value;
+            }
+
+            public long TotalFramesPriorMP4s { get; set; }
+
+            private void RecalculateTotalFrames()
+            {
+                if (_fps > 0.0 && _duration > TimeSpan.Zero)
+                    TotalFrames = (long)Math.Round(_fps * _duration.TotalSeconds, MidpointRounding.AwayFromZero);
+                else
+                    TotalFrames = 0;
+            }
         }
 
         /// <summary>
-        /// Called from Project.ProjectLoad() for reading an EMObs file.
+        /// Called from Survey.SurveyLoad() for reading an EMObs file.
         /// </summary>
-        /// <param name="projectFileSpec"></param>
+        /// <param name="surveyFileSpec"></param>
         /// <returns></returns>
-        public async Task<(int result, string errorMessage)> ProjectLoadEMObsAsync(string projectFileSpec)
+        public async Task<(int result, string errorMessage)> SurveyLoadEMObsAsync(string surveyFileSpec)
         {
             int ret = 0;
+
+            // Allow tolerance when comparing frame rates as some video formats can
+            // have frame rates that are not exactly the same but are close enough
+            // to be considered the same for synchronization purposes. For example,
+            // a video might have a frame rate of 29.97 fps instead of 30 fps,
+            // which is common for NTSC video. In such cases, a small tolerance
+            // can help avoid false positives when checking for consistent frame
+            // rates across media files. 
+            const double fpsTolerance = 0.001; // ~1e-3 fps is typically enough
 
             // Reset
             string errorMessages = "";
 
 
             // Create an instance of the managed wrapper class
-            EMObsReaderCLR obj = new EMObsReaderCLR(projectFileSpec);
+            EMObsReaderCLR obj = new EMObsReaderCLR(surveyFileSpec);
 
             // Call DoSomething and get the list of OutputRow
             List<OutputRow> outputRows = obj.Process();
@@ -73,8 +125,8 @@ namespace Surveyor
             // Iterate over the event data
             bool? singleMediaPath = null;
             string mediaPath = "";
-            List<MediaItemInfo> leftMediaFiles = new();
-            List<MediaItemInfo> rightMediaFiles = new();
+            List<MediaItemInfo> leftMediaFiles = [];
+            List<MediaItemInfo> rightMediaFiles = [];
             bool? mediaOffsetConsistent = null;
             int mediaOffsetFirstFoundRow = 0;
             TimeSpan mediaOffsetDuration = new(0);
@@ -114,22 +166,50 @@ namespace Surveyor
                 if (!string.IsNullOrEmpty(item.FileL))
                 {
                     if (!leftMediaFiles.Any(i => i.Filename == item.FileL))
-                    {
-                        var (fps, duration) = await GetVideoFpsAndDurationAsync(mediaPath, item.FileL);
-                        long totalFrames = (long)((fps * duration.TotalMilliseconds) / 1000.0);
-                        leftMediaFiles.Add(new MediaItemInfo(item.FileL, fps, duration, durationPriorMP4sLeft));
-                        durationPriorMP4sLeft += duration;
-                    }
+                        leftMediaFiles.Add(new MediaItemInfo(item.FileL, -1.0, TimeSpan.Zero, TimeSpan.Zero));
                 }
                 if (!string.IsNullOrEmpty(item.FileR))
                 {
                     if (!rightMediaFiles.Any(i => i.Filename == item.FileR))
+                        rightMediaFiles.Add(new MediaItemInfo(item.FileR, -1.0, TimeSpan.Zero, TimeSpan.Zero));
+                }
+            }
+
+            // Next check the media files are all present. If not prompt the user for a new media path and then re-check
+            bool allMediaFound = CheckForMediaFiles(mediaPath, leftMediaFiles, rightMediaFiles, out string errorMessage);
+
+            if (!allMediaFound)
+            {
+                // Next try look for the media in the survey file path
+                // Note Post field trip the path from the survey file to the media files
+                // is rarely correct
+                string? surveyPath = Path.GetDirectoryName(surveyFileSpec);
+                if (surveyPath is not null)
+                {
+                    mediaPath = (string)surveyPath;
+
+                    allMediaFound = CheckForMediaFiles(mediaPath, leftMediaFiles, rightMediaFiles, out errorMessage);
+                    if (!allMediaFound)
                     {
-                        var (fps, duration) = await GetVideoFpsAndDurationAsync(mediaPath, item.FileR);
-                        long totalFrames = (long)((fps * duration.TotalMilliseconds) / 1000.0);
-                        rightMediaFiles.Add(new MediaItemInfo(item.FileR, fps, duration, durationPriorMP4sRight));
-                        durationPriorMP4sRight += duration;
+                        Report?.Warning("", $"EMObs media is missing, {errorMessage}");
+                        ret = -2;
                     }
+                }
+                else
+                {
+                    Report?.Warning("", $"Can't extract the survey path and therefore can't look for missing media paths in the survey path");
+                    ret = -1;
+                }
+            }
+
+            // For each media file get the frame rate and the total frames
+            if (ret == 0 && (singleMediaPath is not null && singleMediaPath == true))
+            {
+                // From the properties get the frame rate and the total frames. Note. Error reporting done inside
+                ret = await PopulateFrameRateAndDurationAsync(mediaPath, leftMediaFiles);
+                if (ret == 0)
+                {
+                    ret = await PopulateFrameRateAndDurationAsync(mediaPath, rightMediaFiles);
                 }
             }
 
@@ -144,7 +224,9 @@ namespace Surveyor
                         mediafpsFirstFile = mii.Filename;
                         mediafpsConsistent = true;
                     }
-                    else if (mii.Fps != mediafps)
+                    // Do a tolerance check rather than exact equality as some video formats can have frame rates
+                    // that are not exactly the same 
+                    else if (Math.Abs(mii.Fps - mediafps) > fpsTolerance)
                     {
                         if (errorMessages != "")
                             errorMessages += "\n";
@@ -243,15 +325,16 @@ namespace Surveyor
                 (mediafpsConsistent is not null && mediafpsConsistent == true))
             {
 
-                // Load the Project class
+                // Load the Survey class
                 // Info instance
-                this.Data.Info.SurveyFileName = System.IO.Path.GetFileName(projectFileSpec);
-                this.Data.Info.SurveyPath = System.IO.Path.GetDirectoryName(projectFileSpec);
-                this.Data.Media.MediaPath = mediaPath;
-                this.Data.Media.LeftMediaFileNames = new ObservableCollection<string>(leftMediaFiles.Select(item => item.Filename));
-                this.Data.Media.RightMediaFileNames = new ObservableCollection<string>(rightMediaFiles.Select(item => item.Filename));
-                this.Data.Sync.TimeSpanOffset = mediaOffsetDuration;
-
+                Data.Info.SurveyType = SurveyType.StereoFish;
+                Data.Info.SurveyFileName = System.IO.Path.GetFileName(surveyFileSpec);
+                Data.Info.SurveyPath = System.IO.Path.GetDirectoryName(surveyFileSpec);
+                Data.Media.MediaPath = mediaPath;
+                Data.Media.LeftMediaFileNames = new ObservableCollection<string>(leftMediaFiles.Select(item => item.Filename));
+                Data.Media.RightMediaFileNames = new ObservableCollection<string>(rightMediaFiles.Select(item => item.Filename));
+                Data.Sync.TimeSpanOffset = mediaOffsetDuration;
+                
                 // Flag the left and right movie as synchronized
                 if (mediaOffsetDuration != TimeSpan.Zero)
                     this.Data.Sync.IsSynchronized = true;
@@ -300,6 +383,9 @@ namespace Surveyor
                                 surveyPoint.X = item.PointLX1;
                                 surveyPoint.Y = item.PointLY1;
                                 LoadSpeciesInfo(item, surveyPoint.SpeciesInfo);
+
+                                // Fix the right frame index as I will be 0
+                                item.FrameR = item.FrameL + (int)mediaOffsetFrames;
                             }
                             break;
 
@@ -312,42 +398,42 @@ namespace Surveyor
                                 surveyPoint.X = item.PointRX1;
                                 surveyPoint.Y = item.PointRY1;
                                 LoadSpeciesInfo(item, surveyPoint.SpeciesInfo);
+
+                                // Fix the left frame index as I will be 0
+                                item.FrameL = item.FrameR - (int)mediaOffsetFrames;
                             }
                             break;
                     }
 
                     if (eventItem != null)
                     {
-                        long? absFrameL = null;
-                        long? absFrameR = null;
-
-                        MediaItemInfo ? mediaItemInfoL = leftMediaFiles.Find(i => i.Filename == item.FileL);
+                        MediaItemInfo? mediaItemInfoL = leftMediaFiles.Find(i => i.Filename == item.FileL);
                         MediaItemInfo? mediaItemInfoR = rightMediaFiles.Find(i => i.Filename == item.FileR);
 
-                        if (mediaItemInfoL is not null)
-                            absFrameL = mediaItemInfoL.TotalFramesPriorMP4s + item.FrameL;
-                                                
-                        if (mediaItemInfoR is not null)
-                            absFrameR = mediaItemInfoR.TotalFramesPriorMP4s + item.FrameR;
- 
-                        if (absFrameL is null && absFrameR is not null)
-                            absFrameL = absFrameR - mediaOffsetFrames;
+                        eventItem.TimeSpanLeftFrame = TimeSpan.FromMicroseconds((double)((item.FrameL) * 1000000.0 / mediafps));
+                        eventItem.TimeSpanRightFrame = TimeSpan.FromMicroseconds((double)((item.FrameR) * 1000000.0 / mediafps));
+                         
 
-                        if (absFrameR is null && absFrameL is not null)
-                            absFrameR = absFrameL + mediaOffsetFrames;
+                        if (mediaOffsetFrames > 0)
+                            // Positive offset means right media started before left.
+                            // This means the TimeLine controller will adopt the left
+                            // side position
+                            eventItem.TimeSpanTimelineController = eventItem.TimeSpanLeftFrame;
+                        else
+                            // Minus offset means left media started before right.
+                            // This means the TimeLine controller will adopt the right
+                            // side position
+                            eventItem.TimeSpanTimelineController = eventItem.TimeSpanRightFrame;             
 
-
-                        if (absFrameL is not null && absFrameR is not null)
+                        if (eventItem.TimeSpanTimelineController != TimeSpan.Zero)
+                            this.Data.Events.EventList.Add(eventItem);
+                        else
                         {
-                            eventItem.TimeSpanLeftFrame = TimeSpan.FromMicroseconds((double)((absFrameL) * 1000000.0 / mediafps));
-                            eventItem.TimeSpanRightFrame = TimeSpan.FromMicroseconds((double)((absFrameR) * 1000000.0 / mediafps));
-                            if (mediaOffsetFrames > 0)
-                                eventItem.TimeSpanTimelineController = eventItem.TimeSpanRightFrame;
-                            else
-                                eventItem.TimeSpanTimelineController = eventItem.TimeSpanLeftFrame;
+                            if (errorMessages != "")
+                                errorMessages += "\n";
+                            errorMessages += $"Event at row {item.row} has a zero TimeSpanTimelineController, media files {item.FileL} & {item.FileR}, frames {item.FrameL} & {item.FrameR}, in media directory {mediaPath}";
+                            ret = 1;
                         }
-
-                        this.Data.Events.EventList.Add(eventItem);
                     }
                 }
             }
@@ -357,12 +443,132 @@ namespace Surveyor
 
 
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="mediaPath">Path to all the media files</param>
+        /// <param name="leftMediaFiles">List of left media files</param>
+        /// <param name="rightMediaFiles">List of right media files</param>
+        /// <param name="errorMessage"></param>
+        /// <returns></returns>
+        private static bool CheckForMediaFiles(string mediaPath, List<MediaItemInfo> leftMediaFiles, List<MediaItemInfo> rightMediaFiles, out string errorMessage)
+        {
+            // Reset
+            errorMessage = string.Empty;
+
+            List<string> errors = [];
+
+            bool leftOk = _CheckFiles(mediaPath, leftMediaFiles, "Left", errors);
+            bool rightOk = _CheckFiles(mediaPath, rightMediaFiles, "Right", errors);
+
+            errorMessage = string.Join("\n", errors);
+            return leftOk && rightOk;
+
+            static bool _CheckFiles(string mediaPath, List<MediaItemInfo> mediaFiles, string side, List<string> errors)
+            {
+                bool allOk = true;
+
+                if (string.IsNullOrWhiteSpace(mediaPath))
+                {
+                    errors.Add($"{side} media path is blank.");
+                    return false;
+                }
+
+                if (!System.IO.Directory.Exists(mediaPath))
+                {
+                    errors.Add($"{side} media path does not exist: {mediaPath}");
+                    return false;
+                }
+
+                foreach (MediaItemInfo mediaItem in mediaFiles)
+                {
+                    if (string.IsNullOrWhiteSpace(mediaItem.Filename))
+                    {
+                        errors.Add($"{side} media list contains a blank filename.");
+                        allOk = false;
+                        continue;
+                    }
+
+                    string fileSpec = System.IO.Path.Combine(mediaPath, mediaItem.Filename);
+
+                    if (!System.IO.File.Exists(fileSpec))
+                    {
+                        errors.Add($"{side} media file missing: {fileSpec}");
+                        allOk = false;
+                        continue;
+                    }
+
+                    long length = 0;
+                    try
+                    {
+                        length = new System.IO.FileInfo(fileSpec).Length;
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add($"{side} media file not readable: {fileSpec}, {ex.Message}");
+                        allOk = false;
+                        continue;
+                    }
+
+                    if (length <= 0)
+                    {
+                        errors.Add($"{side} media file is empty (0 bytes): {fileSpec}");
+                        allOk = false;
+                    }
+                }
+
+                return allOk;
+            }
+        }
+
+
+        /// <summary>
+        /// Asynchronously populates the frame rate and total frame count information for the specified media files.
+        /// </summary>
+        /// <param name="mediaPath">The file system path to the media file or directory containing media files to analyze. Cannot be null or
+        /// empty.</param>
+        /// <param name="mediaFiles">A list of MediaItemInfo objects representing the media files to update with frame rate and total frame
+        /// information. Cannot be null.</param>
+        /// <returns>A task that represents the asynchronous operation. The task result contains the number of media files
+        /// successfully updated.</returns>
+        private async Task<int> PopulateFrameRateAndDurationAsync(string mediaPath, List<MediaItemInfo> mediaFiles)
+        {
+            int ret = 0;
+            TimeSpan durationPriorMP4s = TimeSpan.Zero;
+
+            foreach (MediaItemInfo mediaItemInfo in mediaFiles)
+            {
+                try
+                {
+                    (double fps, TimeSpan duration) = await GetVideoFpsAndDurationAsync(mediaPath, mediaItemInfo.Filename);
+
+                    long totalFrames = (long)((fps * duration.TotalMilliseconds) / 1000.0);
+                    
+                    // Log the duration and frame rate
+                    mediaItemInfo.Duration = duration;                    
+                    mediaItemInfo.Fps = fps;
+                    mediaItemInfo.DurationPriorMP4s = durationPriorMP4s;
+
+                    // Calculate for the next media file
+                    durationPriorMP4s += mediaItemInfo.Duration;
+                }
+                catch (Exception ex)
+                {
+                    Report?.Warning("", $"Failed to get frame rate and total frames for:{Path.Combine(mediaPath, mediaItemInfo.Filename)}, {ex.Message}");
+                    // Continue on (don't break out) so we catch an other problem files
+                    ret = -1;
+                }
+            }
+
+            return ret;
+        }
+
+        /// <summary>
         /// Take the species information with the OutputRaw class and load it into the SpeciesInfo class.
         /// </summary>
         /// <param name="item"></param>
         /// <param name="speciesInfo"></param>
         /// <returns></returns>
-        static int LoadSpeciesInfo(OutputRow item, SpeciesInfo speciesInfo)
+        private static int LoadSpeciesInfo(OutputRow item, SpeciesInfo speciesInfo)
         {
             int ret = 0;
 
