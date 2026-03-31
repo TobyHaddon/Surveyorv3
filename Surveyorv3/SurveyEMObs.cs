@@ -5,11 +5,17 @@
 // Version 1.1  27 Mar 2026
 // Added more error checking and reporting around the media file loading and frame rate and duration extraction
 
+using Emgu.CV;
+using Emgu.CV.CvEnum;
+using Emgu.CV.Structure;
 using EMObsReaderNameSpace;
+using Microsoft.UI.Xaml.Controls;
 using Surveyor.Events;
+using SurveyorCalibrationData;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Data;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -17,12 +23,22 @@ using Windows.Media.Editing;
 using Windows.Media.MediaProperties;
 using Windows.Storage;
 using static Surveyor.User_Controls.SurveyorTesting;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 
 namespace Surveyor
 {
     public partial class Survey
     {
+        // Allow tolerance when comparing frame rates as some video formats can
+        // have frame rates that are not exactly the same but are close enough
+        // to be considered the same for synchronization purposes. For example,
+        // a video might have a frame rate of 29.97 fps instead of 30 fps,
+        // which is common for NTSC video. In such cases, a small tolerance
+        // can help avoid false positives when checking for consistent frame
+        // rates across media files. 
+        private const double fpsTolerance = 0.001; // ~1e-3 fps is typically enough
+
         private class MediaItemInfo
         {
             private string _filename = string.Empty;
@@ -103,339 +119,88 @@ namespace Surveyor
         {
             int ret = 0;
 
-            // Allow tolerance when comparing frame rates as some video formats can
-            // have frame rates that are not exactly the same but are close enough
-            // to be considered the same for synchronization purposes. For example,
-            // a video might have a frame rate of 29.97 fps instead of 30 fps,
-            // which is common for NTSC video. In such cases, a small tolerance
-            // can help avoid false positives when checking for consistent frame
-            // rates across media files. 
-            const double fpsTolerance = 0.001; // ~1e-3 fps is typically enough
-
             // Reset
             string errorMessages = "";
 
-
             // Create an instance of the managed wrapper class
-            EMObsReaderCLR obj = new EMObsReaderCLR(surveyFileSpec);
+            EMObsReaderCLR obj = new(surveyFileSpec);
 
             // Call DoSomething and get the list of OutputRow
             List<OutputRow> outputRows = obj.Process();
+            Report?.Info("", $"EMObs file processed, {outputRows.Count} rows extracted from the .EMObs file");
 
-            // Iterate over the event data
-            bool? singleMediaPath = null;
-            string mediaPath = "";
-            List<MediaItemInfo> leftMediaFiles = [];
-            List<MediaItemInfo> rightMediaFiles = [];
-            bool? mediaOffsetConsistent = null;
-            int mediaOffsetFirstFoundRow = 0;
-            TimeSpan mediaOffsetDuration = new(0);
-            long mediaOffsetFrames = 0;
-            string mediaOffsetFirstFoundFileL = "";
-            string mediaOffsetFirstFoundFileR = "";
-            long mediaOffsetFirstFoundFrameL = 0;
-            long mediaOffsetFirstFoundFrameR = 0;
-            bool? mediafpsConsistent = null;
-            double mediafps = 0.0;
-            string mediafpsFirstFile = "";
-            TimeSpan durationPriorMP4sLeft = TimeSpan.Zero;
-            TimeSpan durationPriorMP4sRight = TimeSpan.Zero;
+            // Get the period information
+            List<PeriodRow> periodRows = obj.GetPeriodRows();
+            Report?.Info("", $"EMObs, {periodRows.Count} period rows");
 
-            foreach (var item in outputRows)
+            // Get the media information
+            List<MediaInfoRow> mediaInfoRows = obj.GetMediaInfoRows();
+            Report?.Info("", $"EMObs, {mediaInfoRows.Count} media info rows");
+
+            // Get the calibration information
+            List<CalibrationRow> calibrationRows = obj.GetCalibrationRows();
+            Report?.Info("", $"EMObs, {calibrationRows.Count} calibration rows");
+
+            // Get the frame rate and check for consistency across the media files. 
+            // Note. Error reporting done inside the GetAndCheckFrameRate method
+            double mediafps = GetAndCheckFrameRate(mediaInfoRows);
+
+            // Get the synchronization offset and check for consistency 
+            // Note. Error reporting done inside the GetAndCheckmediaOffsetFrames method
+            long mediaOffsetFrames = GetAndCheckMediaFrameOffset(outputRows, mediaInfoRows);
+
+            if (mediafps > 0 && mediaOffsetFrames != -1)
             {
-                // Check there is only one media path
-                if (item.Path is not null)
-                {
-                    if (singleMediaPath is null)
-                    {
-                        mediaPath = item.Path;
-                        singleMediaPath = true;
-                    }
-                    else if (mediaPath != item.Path)
-                    {
-                        if (errorMessages != "")
-                            errorMessages += "\n";
-                        errorMessages += $"Multiple media paths found {mediaPath} and {item.Path}";
-                        ret = 1;
-                        singleMediaPath = false;
-                        break;
-                    }
-                }
-
-                // Build a list of left and right media files
-                if (!string.IsNullOrEmpty(item.FileL))
-                {
-                    if (!leftMediaFiles.Any(i => i.Filename == item.FileL))
-                        leftMediaFiles.Add(new MediaItemInfo(item.FileL, -1.0, TimeSpan.Zero, TimeSpan.Zero));
-                }
-                if (!string.IsNullOrEmpty(item.FileR))
-                {
-                    if (!rightMediaFiles.Any(i => i.Filename == item.FileR))
-                        rightMediaFiles.Add(new MediaItemInfo(item.FileR, -1.0, TimeSpan.Zero, TimeSpan.Zero));
-                }
-            }
-
-            // Next check the media files are all present. If not prompt the user for a new media path and then re-check
-            bool allMediaFound = CheckForMediaFiles(mediaPath, leftMediaFiles, rightMediaFiles, out string errorMessage);
-
-            if (!allMediaFound)
-            {
-                // Next try look for the media in the survey file path
-                // Note Post field trip the path from the survey file to the media files
-                // is rarely correct
-                string? surveyPath = Path.GetDirectoryName(surveyFileSpec);
-                if (surveyPath is not null)
-                {
-                    mediaPath = (string)surveyPath;
-
-                    allMediaFound = CheckForMediaFiles(mediaPath, leftMediaFiles, rightMediaFiles, out errorMessage);
-                    if (!allMediaFound)
-                    {
-                        Report?.Warning("", $"EMObs media is missing, {errorMessage}");
-                        ret = -2;
-                    }
-                }
-                else
-                {
-                    Report?.Warning("", $"Can't extract the survey path and therefore can't look for missing media paths in the survey path");
-                    ret = -1;
-                }
-            }
-
-            // For each media file get the frame rate and the total frames
-            if (ret == 0 && (singleMediaPath is not null && singleMediaPath == true))
-            {
-                // From the properties get the frame rate and the total frames. Note. Error reporting done inside
-                ret = await PopulateFrameRateAndDurationAsync(mediaPath, leftMediaFiles);
-                if (ret == 0)
-                {
-                    ret = await PopulateFrameRateAndDurationAsync(mediaPath, rightMediaFiles);
-                }
-            }
-
-            // Check all the videos have the same fps rate
-            if (ret == 0 && (singleMediaPath is not null && singleMediaPath == true))
-            {
-                foreach (MediaItemInfo mii in leftMediaFiles)
-                {
-                    if (mediafpsConsistent is null)
-                    {
-                        mediafps = mii.Fps;
-                        mediafpsFirstFile = mii.Filename;
-                        mediafpsConsistent = true;
-                    }
-                    // Do a tolerance check rather than exact equality as some video formats can have frame rates
-                    // that are not exactly the same 
-                    else if (Math.Abs(mii.Fps - mediafps) > fpsTolerance)
-                    {
-                        if (errorMessages != "")
-                            errorMessages += "\n";
-                        errorMessages += $"Left media fps differ, {mii.Filename} is different to {mediafpsFirstFile} in media directory {mediaPath}";
-                        ret = 1;
-                        mediafpsConsistent = false;
-                    }
-                }
-                foreach (MediaItemInfo mii in rightMediaFiles)
-                {
-                    if (mediafpsConsistent is null)
-                    {
-                        mediafps = mii.Fps;
-                        mediafpsFirstFile = mii.Filename;
-                        mediafpsConsistent = true;
-                    }
-                    else if (mii.Fps != mediafps)
-                    {
-                        if (errorMessages != "")
-                            errorMessages += "\n";
-                        errorMessages += $"Right media fps differ, {mii.Filename} is different to {mediafpsFirstFile} in media directory {mediaPath}";
-                        ret = 1;
-                        mediafpsConsistent = false;
-                    }
-                }
-            }
-
-            // Loop through each object extracted from the .EMObs file
-            foreach (OutputRow item in outputRows)
-            {
-
-                // Check the media frame offset is consistent
-                if (ret == 0 && 
-                    (singleMediaPath is not null && singleMediaPath == true) &&
-                    (mediafpsConsistent is not null && mediafpsConsistent == true))
-                {
-                    int row = item.row;
-                    RowTypeManaged rowType = item.rowType;
-
-                    if (rowType == RowTypeManaged.RowTypeMeasurementPoint3D ||
-                        rowType == RowTypeManaged.RowTypePoint3D)
-                    {
-                        MediaItemInfo? mediaItemInfoL = leftMediaFiles.Find(i => i.Filename == item.FileL);
-                        MediaItemInfo? mediaItemInfoR = rightMediaFiles.Find(i => i.Filename == item.FileR);
-
-                        if (mediaItemInfoL is not null && mediaItemInfoR is not null)
-                        {
-                            // Approach 1
-                            TimeSpan timeSpanFullOffsetL = mediaItemInfoL.DurationPriorMP4s.Add(TimeSpan.FromMicroseconds(((double)item.FrameL * 1000000.0) / mediafps));
-                            TimeSpan timeSpanFullOffsetR = mediaItemInfoR.DurationPriorMP4s.Add(TimeSpan.FromMicroseconds(((double)item.FrameR * 1000000.0) / mediafps));
-
-                            TimeSpan timeOffsetFull = timeSpanFullOffsetR - timeSpanFullOffsetL;
-
-                            // Approach 2
-                            long absFrameL = mediaItemInfoL.TotalFramesPriorMP4s + item.FrameL;
-                            long absFrameR = mediaItemInfoR.TotalFramesPriorMP4s + item.FrameR;
-                            long absFrameOffset = absFrameR - absFrameL;
-                            TimeSpan timeOffsetAbs = TimeSpan.FromMilliseconds(1000.0 * absFrameOffset / mediafps);
-
-                            if (mediaOffsetConsistent is null)
-                            {
-                                mediaOffsetFirstFoundRow = item.row;
-                                mediaOffsetDuration = timeOffsetFull;
-                                mediaOffsetFrames = absFrameOffset;
-                                mediaOffsetFirstFoundFrameL = item.FrameL;
-                                mediaOffsetFirstFoundFrameR = item.FrameR;
-
-                                mediaOffsetFirstFoundFileL = item.FileL;
-                                mediaOffsetFirstFoundFileR = item.FileR;
-                                mediaOffsetConsistent = true;
-                            }
-                            else 
-                            {
-                                TimeSpan difference = mediaOffsetDuration - timeOffsetFull;
-
-                                if (/*Math.Abs(difference.TotalMilliseconds) > 1*/ mediaOffsetFrames != absFrameOffset)
-                                {
-                                    if (errorMessages != "")
-                                        errorMessages += "\n";
-                                    errorMessages += $"Media offsets differ, files {item.FileL} & {item.FileR} offset = {mediaOffsetDuration} are different to {mediaOffsetFirstFoundFileL} & {mediaOffsetFirstFoundFileR} where the offset = {timeOffsetFull}";
-                                    ret = 1;
-                                    mediaOffsetConsistent = false;
-                                    break;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-
-
-            if (ret == 0 &&
-                (singleMediaPath is not null && singleMediaPath == true) &&
-                (mediaOffsetConsistent is not null && mediaOffsetConsistent == true) &&
-                (mediafpsConsistent is not null && mediafpsConsistent == true))
-            {
-
-                // Load the Survey class
-                // Info instance
+                // Build the Survey.InfoClass
                 Data.Info.SurveyType = SurveyType.StereoFish;
+                Data.Info.SurveyDepth = string.Empty;
                 Data.Info.SurveyFileName = System.IO.Path.GetFileName(surveyFileSpec);
                 Data.Info.SurveyPath = System.IO.Path.GetDirectoryName(surveyFileSpec);
-                Data.Media.MediaPath = mediaPath;
-                Data.Media.LeftMediaFileNames = new ObservableCollection<string>(leftMediaFiles.Select(item => item.Filename));
-                Data.Media.RightMediaFileNames = new ObservableCollection<string>(rightMediaFiles.Select(item => item.Filename));
-                Data.Sync.TimeSpanOffset = mediaOffsetDuration;
+                Data.Info.SurveyCode = System.IO.Path.GetFileNameWithoutExtension(surveyFileSpec);
+
+                // Build the MediaInfoItems
+                if (outputRows.Count > 0)
+                    Data.Media.MediaPath = Path.GetDirectoryName(outputRows[0].Path);
+                Data.Media.LeftMediaFileNames = MakeMediaItemInfo(mediaInfoRows, trueLeftFalseRight: true);
+                Data.Media.RightMediaFileNames = MakeMediaItemInfo(mediaInfoRows, trueLeftFalseRight: false);
+
+                // Build the synchronization info
+                Data.Sync.IsSynchronized = true;
+                Data.Sync.TimeSpanOffset = TimeSpan.FromMilliseconds(1000.0 * mediaOffsetFrames / mediafps);
+
+                // Build the calibration info. 
+                CalibrationData calibrationData = MakeCalibrationData(surveyFileSpec, calibrationRows);
+                Data.Calibration.AllowMultipleCalibrationData = false;
+                Data.Calibration.PreferredCalibrationDataIndex = 0;
+                Data.Calibration.CalibrationDataList.Add(calibrationData);
                 
-                // Flag the left and right movie as synchronized
-                if (mediaOffsetDuration != TimeSpan.Zero)
-                    this.Data.Sync.IsSynchronized = true;
 
-                Event? eventItem;
+                // EVENTS Section
 
-                foreach (var item in outputRows)
+                // Add the Survey Start/Stop info
+                ret = AddSurveyStartAndEndInfo(periodRows, mediaInfoRows, mediafps, mediaOffsetFrames);
+
+                // Add the measurement, 3D point and 2D point info
+                if (ret == 0)
+                    ret = AddSurveyMeasurement3DAnd2DInfo(outputRows, mediaInfoRows, mediafps, mediaOffsetFrames, Data.Calibration.CalibrationDataList[0].CalibrationID);
+
+            }
+            else
+            {
+                if (!(mediafps > 0))
                 {
-                    eventItem = null;
-
-                    switch (item.rowType)
-                    {
-                        case RowTypeManaged.RowTypeMeasurementPoint3D:
-                            eventItem = new Event(SurveyDataType.SurveyMeasurementPoints);
-                            eventItem.SetData(SurveyDataType.SurveyMeasurementPoints);
-                            SurveyMeasurement surveyMeasurement = (SurveyMeasurement)eventItem.EventData!;                            
-                            surveyMeasurement.Measurement/*fish length*/ = item.Length;
-                            surveyMeasurement.LeftXA = item.PointLX1;
-                            surveyMeasurement.LeftYA = item.PointLY1;
-                            surveyMeasurement.LeftXB = item.PointLX2;
-                            surveyMeasurement.LeftYB = item.PointLY2;
-                            surveyMeasurement.RightXA = item.PointRX1;
-                            surveyMeasurement.RightYA = item.PointRY1;
-                            surveyMeasurement.RightXB = item.PointRX2;
-                            surveyMeasurement.RightYB = item.PointRY2;
-                            LoadSpeciesInfo(item, surveyMeasurement.SpeciesInfo);
-                            break;
-
-                        case RowTypeManaged.RowTypePoint3D:
-                            eventItem = new Event();
-                            eventItem.SetData(SurveyDataType.SurveyStereoPoint);
-                            SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)eventItem.EventData!;
-                            surveyStereoPoint.LeftX = item.PointLX1;
-                            surveyStereoPoint.LeftY = item.PointLY1;
-                            surveyStereoPoint.RightX = item.PointRX1;
-                            surveyStereoPoint.RightY = item.PointRY1;
-                            LoadSpeciesInfo(item, surveyStereoPoint.SpeciesInfo);
-                            break;
-
-                        case RowTypeManaged.RowTypePoint2DLeftCamera:                            
-                            eventItem = new Event();
-                            {
-                                eventItem.SetData(SurveyDataType.SurveyPoint);
-                                SurveyPoint surveyPoint = (SurveyPoint)eventItem.EventData!;
-                                surveyPoint.TrueLeftFalseRight = true;/*left camera*/
-                                surveyPoint.X = item.PointLX1;
-                                surveyPoint.Y = item.PointLY1;
-                                LoadSpeciesInfo(item, surveyPoint.SpeciesInfo);
-
-                                // Fix the right frame index as I will be 0
-                                item.FrameR = item.FrameL + (int)mediaOffsetFrames;
-                            }
-                            break;
-
-                        case RowTypeManaged.RowTypePoint2DRightCamera:
-                            eventItem = new Event();
-                            {
-                                eventItem.SetData(SurveyDataType.SurveyPoint);
-                                SurveyPoint surveyPoint = (SurveyPoint)eventItem.EventData!;
-                                surveyPoint.TrueLeftFalseRight = false;/*right camera*/
-                                surveyPoint.X = item.PointRX1;
-                                surveyPoint.Y = item.PointRY1;
-                                LoadSpeciesInfo(item, surveyPoint.SpeciesInfo);
-
-                                // Fix the left frame index as I will be 0
-                                item.FrameL = item.FrameR - (int)mediaOffsetFrames;
-                            }
-                            break;
-                    }
-
-                    if (eventItem != null)
-                    {
-                        MediaItemInfo? mediaItemInfoL = leftMediaFiles.Find(i => i.Filename == item.FileL);
-                        MediaItemInfo? mediaItemInfoR = rightMediaFiles.Find(i => i.Filename == item.FileR);
-
-                        eventItem.TimeSpanLeftFrame = TimeSpan.FromMicroseconds((double)((item.FrameL) * 1000000.0 / mediafps));
-                        eventItem.TimeSpanRightFrame = TimeSpan.FromMicroseconds((double)((item.FrameR) * 1000000.0 / mediafps));
-                         
-
-                        if (mediaOffsetFrames > 0)
-                            // Positive offset means right media started before left.
-                            // This means the TimeLine controller will adopt the left
-                            // side position
-                            eventItem.TimeSpanTimelineController = eventItem.TimeSpanLeftFrame;
-                        else
-                            // Minus offset means left media started before right.
-                            // This means the TimeLine controller will adopt the right
-                            // side position
-                            eventItem.TimeSpanTimelineController = eventItem.TimeSpanRightFrame;             
-
-                        if (eventItem.TimeSpanTimelineController != TimeSpan.Zero)
-                            this.Data.Events.EventList.Add(eventItem);
-                        else
-                        {
-                            if (errorMessages != "")
-                                errorMessages += "\n";
-                            errorMessages += $"Event at row {item.row} has a zero TimeSpanTimelineController, media files {item.FileL} & {item.FileR}, frames {item.FrameL} & {item.FrameR}, in media directory {mediaPath}";
-                            ret = 1;
-                        }
-                    }
+                    if (errorMessages != "")
+                        errorMessages += "\n";
+                    errorMessages += $"Media frame has not been established. This is normal found in the media section of the EMObs {surveyFileSpec} in CMS>MSI";
                 }
+                if (!(mediaOffsetFrames != -1))
+                {
+                    if (errorMessages != "")
+                        errorMessages += "\n";
+                    errorMessages += $"Media synchronization offset has not been established. This is normal found by looking at the frame offsets of measurement or 3D points in the media section of the EMObs {surveyFileSpec}";
+                }
+
+                ret = -1;
             }
 
             return (ret, errorMessages);
@@ -443,124 +208,595 @@ namespace Surveyor
 
 
         /// <summary>
-        /// 
+        /// Parse media info rows and check the frame rates are consistent across the media files. 
+        /// Return the established frame rate if consistent or -1 if not consistent. 
         /// </summary>
-        /// <param name="mediaPath">Path to all the media files</param>
-        /// <param name="leftMediaFiles">List of left media files</param>
-        /// <param name="rightMediaFiles">List of right media files</param>
-        /// <param name="errorMessage"></param>
+        /// <param name="mediaInfoRows"></param>
         /// <returns></returns>
-        private static bool CheckForMediaFiles(string mediaPath, List<MediaItemInfo> leftMediaFiles, List<MediaItemInfo> rightMediaFiles, out string errorMessage)
+        private double GetAndCheckFrameRate(List<MediaInfoRow> mediaInfoRows)
         {
-            // Reset
-            errorMessage = string.Empty;
+            double frameRate = -1.0;
+            bool? mediafpsConsistent = null;
 
-            List<string> errors = [];
+            // Get a distinct of frame rates
+            var distinctFrameRates = mediaInfoRows
+                    .Select(x => x.FrameRate)
+                    .Distinct()
+                    .OrderBy(x => x)
+                    .ToList();
 
-            bool leftOk = _CheckFiles(mediaPath, leftMediaFiles, "Left", errors);
-            bool rightOk = _CheckFiles(mediaPath, rightMediaFiles, "Right", errors);
-
-            errorMessage = string.Join("\n", errors);
-            return leftOk && rightOk;
-
-            static bool _CheckFiles(string mediaPath, List<MediaItemInfo> mediaFiles, string side, List<string> errors)
+            if (distinctFrameRates.Count == 0)
             {
-                bool allOk = true;
-
-                if (string.IsNullOrWhiteSpace(mediaPath))
-                {
-                    errors.Add($"{side} media path is blank.");
-                    return false;
-                }
-
-                if (!System.IO.Directory.Exists(mediaPath))
-                {
-                    errors.Add($"{side} media path does not exist: {mediaPath}");
-                    return false;
-                }
-
-                foreach (MediaItemInfo mediaItem in mediaFiles)
-                {
-                    if (string.IsNullOrWhiteSpace(mediaItem.Filename))
-                    {
-                        errors.Add($"{side} media list contains a blank filename.");
-                        allOk = false;
-                        continue;
-                    }
-
-                    string fileSpec = System.IO.Path.Combine(mediaPath, mediaItem.Filename);
-
-                    if (!System.IO.File.Exists(fileSpec))
-                    {
-                        errors.Add($"{side} media file missing: {fileSpec}");
-                        allOk = false;
-                        continue;
-                    }
-
-                    long length = 0;
-                    try
-                    {
-                        length = new System.IO.FileInfo(fileSpec).Length;
-                    }
-                    catch (Exception ex)
-                    {
-                        errors.Add($"{side} media file not readable: {fileSpec}, {ex.Message}");
-                        allOk = false;
-                        continue;
-                    }
-
-                    if (length <= 0)
-                    {
-                        errors.Add($"{side} media file is empty (0 bytes): {fileSpec}");
-                        allOk = false;
-                    }
-                }
-
-                return allOk;
+                Report?.Warning("", $"No media info rows found in the .EMObs file, can't determine the media frame rate");
             }
+            else if (distinctFrameRates.Count > 1)
+            {
+                string mediafpsFirstFile = string.Empty;
+
+                foreach (MediaInfoRow mediaInfoRow in mediaInfoRows)
+                {
+                    if (mediafpsConsistent is null)
+                    {
+                        frameRate = mediaInfoRow.FrameRate;
+                        mediafpsFirstFile = mediaInfoRow.MediaFile;
+                        mediafpsConsistent = true;
+                    }
+                    else if (Math.Abs(mediaInfoRow.FrameRate - frameRate) > fpsTolerance)
+                    {
+                        Report?.Warning("", $"Media fps differ, {mediaInfoRow.MediaFile} has {mediaInfoRow.FrameRate:F3} which is different to {mediafpsFirstFile} with {frameRate:F3}");
+                        mediafpsConsistent = false;
+                    }
+                }
+            }
+            else if (distinctFrameRates.Count == 1)
+            {
+                mediafpsConsistent = true;
+                frameRate = mediaInfoRows[0].FrameRate;
+            }
+
+            if (mediafpsConsistent is not null && !(bool)mediafpsConsistent)
+                frameRate = -1.0;
+
+            return frameRate;
         }
 
 
         /// <summary>
-        /// Asynchronously populates the frame rate and total frame count information for the specified media files.
+        /// Extract a list of media file names for either the left or 
+        /// right camera from the media info rows.
         /// </summary>
-        /// <param name="mediaPath">The file system path to the media file or directory containing media files to analyze. Cannot be null or
-        /// empty.</param>
-        /// <param name="mediaFiles">A list of MediaItemInfo objects representing the media files to update with frame rate and total frame
-        /// information. Cannot be null.</param>
-        /// <returns>A task that represents the asynchronous operation. The task result contains the number of media files
-        /// successfully updated.</returns>
-        private async Task<int> PopulateFrameRateAndDurationAsync(string mediaPath, List<MediaItemInfo> mediaFiles)
+        /// <param name="mediaInfoRows"></param>
+        /// <param name="trueLeftFalseRight"></param>
+        /// <returns></returns>
+        private ObservableCollection<string> MakeMediaItemInfo(List<MediaInfoRow> mediaInfoRows, bool trueLeftFalseRight)
+        {
+            ObservableCollection<string> MediaFileList = [];
+
+            foreach (MediaInfoRow mediaInfoRow in mediaInfoRows)
+            {
+                if (mediaInfoRow.TrueLeftFalseRightCamera == trueLeftFalseRight)
+                {
+                    MediaFileList.Add(Path.GetFileName(mediaInfoRow.MediaFile));
+                }
+            }
+
+            return MediaFileList;
+        }
+
+
+        /// <summary>
+        /// Parse the stereo rows (Measurements and 3D) and get the media
+        /// frame offset and check for consistency
+        /// </summary>
+        /// <param name="outputRows"></param>
+        /// <returns></returns>
+        private long GetAndCheckMediaFrameOffset(List <OutputRow> outputRows, List<MediaInfoRow> mediaInfoRows)
+        {
+            long mediaFrameOffset = -1;
+            bool? mediaOffsetConsistent = null;
+            int mediaOffsetFirstFoundRow = -1;
+            int mediaOffsetFirstFoundFrameL;
+            int mediaOffsetFirstFoundFrameR;
+            string mediaOffsetFirstFoundFileL = string.Empty;
+            string mediaOffsetFirstFoundFileR = string.Empty;
+
+            // To allow a absolute frame offset to be calculated wen need to create
+            // a left and right array holding the cumulative frames counts.
+            int[] totalFramesPriorMP4s = new int[mediaInfoRows.Count];
+            for (int i = 0; i < mediaInfoRows.Count; i++)
+            {
+                totalFramesPriorMP4s[i] = mediaInfoRows
+                                .Where(m => m.TrueLeftFalseRightCamera == mediaInfoRows[i].TrueLeftFalseRightCamera
+                                         && m.row < mediaInfoRows[i].row)
+                                .Sum(m => m.FrameCount);
+            }
+
+            foreach (OutputRow item in outputRows)
+            {
+                int row = item.row;
+                RowTypeManaged rowType = item.rowType;
+
+                if (rowType == RowTypeManaged.RowTypeMeasurementPoint3D ||
+                    rowType == RowTypeManaged.RowTypePoint3D)
+                {
+                    MediaInfoRow? mediaInfoRowL = mediaInfoRows.Find(i =>
+                        string.Equals(i.MediaFile, item.FileL, StringComparison.OrdinalIgnoreCase) &&
+                        i.TrueLeftFalseRightCamera == true);
+
+                    MediaInfoRow? mediaInfoRowR = mediaInfoRows.Find(i =>
+                        string.Equals(i.MediaFile, item.FileR, StringComparison.OrdinalIgnoreCase) &&
+                        i.TrueLeftFalseRightCamera == false);
+
+                    if (mediaInfoRowL is not null && mediaInfoRowR is not null)
+                    {
+                        // Calculate the absolute frame offset
+                        long absFrameL = totalFramesPriorMP4s[mediaInfoRowL.row] + item.FrameL;
+                        long absFrameR = totalFramesPriorMP4s[mediaInfoRowR.row] + item.FrameR;
+                        long absFrameOffset = absFrameR - absFrameL;
+
+                        if (mediaOffsetConsistent is null)
+                        {
+                            mediaOffsetFirstFoundRow = item.row;
+                            
+                            mediaFrameOffset = absFrameOffset;
+                            mediaOffsetFirstFoundFrameL = item.FrameL;
+                            mediaOffsetFirstFoundFrameR = item.FrameR;
+
+                            mediaOffsetFirstFoundFileL = item.FileL;
+                            mediaOffsetFirstFoundFileR = item.FileR;
+                            mediaOffsetConsistent = true;
+                        }
+                        else
+                        {
+                            // Is the frame offset consistent with the first found frame offset?
+                            if (mediaFrameOffset != absFrameOffset)
+                            {
+                                Report?.Warning("", $"Media offsets differ, files {item.FileL} & {item.FileR} offset={absFrameOffset} are different to {mediaOffsetFirstFoundFileL} & {mediaOffsetFirstFoundFileR} where the offset = {mediaFrameOffset}");
+                                mediaOffsetConsistent = false;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (mediaOffsetConsistent is not null && !(bool)mediaOffsetConsistent)
+                mediaFrameOffset = -1;
+
+
+            return mediaFrameOffset;
+        }
+
+
+        /// <summary>
+        /// Try to build a CalibrationData instance from the calibration rows. 
+        /// Note. This is a bit of a work in progress as I need to understand 
+        /// better the calibration information that is in the .EMObs file and 
+        /// how this maps to the CalibrationData class.
+        /// </summary>
+        /// <param name="surveyFileSpec"></param>
+        /// <param name="calibrationRows"></param>
+        /// <returns></returns>
+        private CalibrationData MakeCalibrationData(string surveyFileSpec, List <CalibrationRow> calibrationRows)
+        {
+            CalibrationData calibrationData = new();
+
+            if (calibrationRows.Count == 2)
+            {
+                // Element zero is always left and element one is always right
+                CalibrationRow calibrationRowLeft = calibrationRows[0];
+                CalibrationRow calibrationRowRight = calibrationRows[1];
+
+                calibrationData.Description = $"Extracted from EMObs {surveyFileSpec}";
+                calibrationData.CalibrationID = Guid.NewGuid();
+
+                calibrationData.LeftCameraCalibration = BuildCameraCalibration(calibrationRowLeft, "LeftFromEMObs");
+                calibrationData.RightCameraCalibration = BuildCameraCalibration(calibrationRowRight, "RightFromEMObs");
+                calibrationData.StereoCameraCalibration = BuildStereoCalibration(calibrationRowLeft, calibrationRowRight);
+            }
+            else
+            {
+                Report?.Warning("", $"The EMObs file {surveyFileSpec} contains {calibrationRows.Count} calibration records, two records are required one for left and one for the right camera.");
+            }
+
+            return calibrationData;
+        }
+
+        // !!!This is untested code
+        private static CalibrationCameraData BuildCameraCalibration(CalibrationRow row, string cameraId)
+        {
+            CalibrationCameraData cam = new()
+            {
+                CameraID = cameraId,
+                RMS = 0.0,
+                ProjectionRMS = 0.0,
+                MaxError = 0.0,
+                ImageTotal = 0,
+                ImagesUsed = 0,
+                // Image size [width,height] in your project
+                ImageSize = new Emgu.CV.Matrix<int>(1, 2)
+            };
+            cam.ImageSize[0, 0] = row.FrameWidth;
+            cam.ImageSize[0, 1] = row.FrameHeight;
+
+            // Intrinsic matrix K (pixels)
+            // Assumption: PPOffset is in mm from image center.
+            double fx = row.FocalLength / row.XPixelSize;
+            double fy = row.FocalLength / row.YPixelSize;
+            double cx = (row.FrameWidth * 0.5) + (row.XPPOffset / row.XPixelSize);
+            double cy = (row.FrameHeight * 0.5) + (row.YPPOffset / row.YPixelSize);
+
+            cam.Intrinsic = new Emgu.CV.Matrix<double>(3, 3);
+            cam.Intrinsic[0, 0] = fx; cam.Intrinsic[0, 1] = 0.0; cam.Intrinsic[0, 2] = cx;
+            cam.Intrinsic[1, 0] = 0.0; cam.Intrinsic[1, 1] = fy; cam.Intrinsic[1, 2] = cy;
+            cam.Intrinsic[2, 0] = 0.0; cam.Intrinsic[2, 1] = 0.0; cam.Intrinsic[2, 2] = 1.0;
+
+            // Distortion vector D in OpenCV order [k1,k2,p1,p2,k3]
+            // Best-effort mapping from EMObs terms (k3,k5,k7,p1,p2).
+            double f = row.FocalLength; // mm
+
+            double k1 = row.K3RadialDistortion * f * f;
+            double k2 = row.K5RadialDistortion * Math.Pow(f, 4);
+            double k3 = row.K7RadialDistortion * Math.Pow(f, 6);
+            double p1 = row.P1DecenteringDistortion * f;
+            double p2 = row.P2DecenteringDistortion * f;
+
+            cam.Distortion = new Matrix<double>(1, 5);
+            cam.Distortion[0, 0] = k1;
+            cam.Distortion[0, 1] = k2;
+            cam.Distortion[0, 2] = p1;
+            cam.Distortion[0, 3] = p2;
+            cam.Distortion[0, 4] = k3;
+
+            return cam;
+        }
+
+        // !!!This is untested code
+        private static CalibrationStereoCameraData BuildStereoCalibration(CalibrationRow left, CalibrationRow right)
+        {
+            const double mmToM = 0.001;
+
+            CalibrationStereoCameraData stereo = new()
+            {
+                RMS = 0.0,
+                ProjectionRMS = 0.0,
+                MaxError = 0.0,
+                ImageTotal = 0,
+                ImagesUsed = 0
+            };
+
+            // Rotation matrices from omega/phi/kappa (degrees)
+            Emgu.CV.Matrix<double> rLeft = BuildRotationFromOmegaPhiKappa(left.Omega, left.Phi, left.Kappa);
+            Emgu.CV.Matrix<double> rRight = BuildRotationFromOmegaPhiKappa(right.Omega, right.Phi, right.Kappa);
+
+            // Relative rotation Right <- Left
+            Emgu.CV.Matrix<double> rRel = rRight * rLeft.Transpose();
+            stereo.Rotation = rRel;
+
+            // Camera centers (convert mm -> m)
+            Matrix<double> cLeft = new(3, 1);
+            cLeft[0, 0] = left.CameraX * mmToM;
+            cLeft[1, 0] = left.CameraY * mmToM;
+            cLeft[2, 0] = left.CameraZ * mmToM;
+
+            Matrix<double> cRight = new(3, 1);
+            cRight[0, 0] = right.CameraX * mmToM;
+            cRight[1, 0] = right.CameraY * mmToM;
+            cRight[2, 0] = right.CameraZ * mmToM;
+
+            // Relative translation Right <- Left: T = R_right * (C_left - C_right)
+            Emgu.CV.Matrix<double> dC = new(3, 1);
+            dC[0, 0] = cLeft[0, 0] - cRight[0, 0];
+            dC[1, 0] = cLeft[1, 0] - cRight[1, 0];
+            dC[2, 0] = cLeft[2, 0] - cRight[2, 0];
+
+            stereo.Translation = rRight * dC;
+
+            return stereo;
+        }
+
+        // !!!This is untested code
+        private static Emgu.CV.Matrix<double> BuildRotationFromOmegaPhiKappa(double omegaDeg, double phiDeg, double kappaDeg)
+        {
+            double o = omegaDeg * Math.PI / 180.0;
+            double p = phiDeg * Math.PI / 180.0;
+            double k = kappaDeg * Math.PI / 180.0;
+
+            // Rx(omega), Ry(phi), Rz(kappa)
+            Emgu.CV.Matrix<double> rx = new(3, 3);
+            rx[0, 0] = 1; rx[0, 1] = 0; rx[0, 2] = 0;
+            rx[1, 0] = 0; rx[1, 1] = Math.Cos(o); rx[1, 2] = -Math.Sin(o);
+            rx[2, 0] = 0; rx[2, 1] = Math.Sin(o); rx[2, 2] = Math.Cos(o);
+
+            Emgu.CV.Matrix<double> ry = new(3, 3);
+            ry[0, 0] = Math.Cos(p); ry[0, 1] = 0; ry[0, 2] = Math.Sin(p);
+            ry[1, 0] = 0; ry[1, 1] = 1; ry[1, 2] = 0;
+            ry[2, 0] = -Math.Sin(p); ry[2, 1] = 0; ry[2, 2] = Math.Cos(p);
+
+            Emgu.CV.Matrix<double> rz = new(3, 3);
+            rz[0, 0] = Math.Cos(k); rz[0, 1] = -Math.Sin(k); rz[0, 2] = 0;
+            rz[1, 0] = Math.Sin(k); rz[1, 1] = Math.Cos(k); rz[1, 2] = 0;
+            rz[2, 0] = 0; rz[2, 1] = 0; rz[2, 2] = 1;
+
+            // Conventional OPK order
+            return rz * ry * rx;
+        }
+
+
+        /// <summary>
+        /// Convert the EMObs period info into the Survey class SurveyStart and SurveyEnd events. 
+        /// </summary>
+        /// <param name="outputRows"></param>
+        /// <param name="mediafps"></param>
+        /// <param name="mediaOffsetFrames"></param>
+        /// <returns></returns>
+        private int AddSurveyStartAndEndInfo(List <PeriodRow> periodRows, List<MediaInfoRow> mediaInfoRows, double mediafps, long mediaOffsetFrames)
         {
             int ret = 0;
-            TimeSpan durationPriorMP4s = TimeSpan.Zero;
 
-            foreach (MediaItemInfo mediaItemInfo in mediaFiles)
+            foreach(PeriodRow periodRow in periodRows)
             {
-                try
+                Event? eventItemStart = new (SurveyDataType.SurveyStart);
+                Event? eventItemEnd = new (SurveyDataType.SurveyEnd);
+
+                // Build the SurveyStart
+                TransectMarker transectMarkerStart = new ();
+                eventItemStart.EventData = transectMarkerStart;
+                transectMarkerStart.MarkerName = periodRow.PeriodName;
+
+                // Period always appear to use the left side
+                LoadEventPosition(eventItemStart, trueLeftFalseRight: true, periodRow.MediaFile, periodRow.StartFrame, mediaInfoRows, mediafps, mediaOffsetFrames);
+
+                // Build the SurveyEnd
+                TransectMarker transectMarkerEnd = new ();
+                eventItemEnd.EventData = transectMarkerEnd;
+                transectMarkerEnd.MarkerName = periodRow.PeriodName;
+
+                // Period always appear to use the left side
+                LoadEventPosition(eventItemEnd, trueLeftFalseRight: true, periodRow.MediaFile, periodRow.EndFrame, mediaInfoRows, mediafps, mediaOffsetFrames);
+
+                if (eventItemStart.TimeSpanTimelineController != TimeSpan.Zero)
+                    this.Data.Events.EventList.Add(eventItemStart);
+                else
                 {
-                    (double fps, TimeSpan duration) = await GetVideoFpsAndDurationAsync(mediaPath, mediaItemInfo.Filename);
-
-                    long totalFrames = (long)((fps * duration.TotalMilliseconds) / 1000.0);
-                    
-                    // Log the duration and frame rate
-                    mediaItemInfo.Duration = duration;                    
-                    mediaItemInfo.Fps = fps;
-                    mediaItemInfo.DurationPriorMP4s = durationPriorMP4s;
-
-                    // Calculate for the next media file
-                    durationPriorMP4s += mediaItemInfo.Duration;
+                    Report?.Warning("", $"Survey start event at row {periodRow.row} has a zero TimeSpanTimelineController, media file {periodRow.MediaFile}, frame {periodRow.StartFrame}");
+                    ret = 1;
                 }
-                catch (Exception ex)
+
+                if (eventItemEnd.TimeSpanTimelineController != TimeSpan.Zero)
+                    this.Data.Events.EventList.Add(eventItemEnd);
+                else
                 {
-                    Report?.Warning("", $"Failed to get frame rate and total frames for:{Path.Combine(mediaPath, mediaItemInfo.Filename)}, {ex.Message}");
-                    // Continue on (don't break out) so we catch an other problem files
-                    ret = -1;
+                    Report?.Warning("", $"Survey end event at row {periodRow.row} has a zero TimeSpanTimelineController, media file {periodRow.MediaFile}, frame {periodRow.EndFrame}");
+                    ret = 1;
+                }
+            }
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Convert the EMObs measurement, 3D point and 2D point info into the 
+        /// Survey class SurveyMeasurementPoints, SurveyStereoPoints and SurveyPoints events.
+        /// </summary>
+        /// <param name="outputRows"></param>
+        /// <param name="mediafps"></param>
+        /// <param name="mediaOffsetFrames"></param>
+        /// <returns></returns>
+        private int AddSurveyMeasurement3DAnd2DInfo(List<OutputRow> outputRows, List<MediaInfoRow> mediaInfoRows, double mediafps, long mediaOffsetFrames, Guid? calibrationID)
+        {
+            int ret = 0;
+
+            Event? eventItem;
+
+            foreach (var item in outputRows)
+            {
+                eventItem = null;
+
+                switch (item.rowType)
+                {
+                    case RowTypeManaged.RowTypeMeasurementPoint3D:
+                        eventItem = new Event(SurveyDataType.SurveyMeasurementPoints);
+                        eventItem.SetData(SurveyDataType.SurveyMeasurementPoints);
+                        SurveyMeasurement surveyMeasurement = (SurveyMeasurement)eventItem.EventData!;
+                        surveyMeasurement.CalibrationID = calibrationID;
+                        surveyMeasurement.Measurement/*fish length*/ = item.Length;
+                        surveyMeasurement.LeftXA = item.PointLX1;
+                        surveyMeasurement.LeftYA = item.PointLY1;
+                        surveyMeasurement.LeftXB = item.PointLX2;
+                        surveyMeasurement.LeftYB = item.PointLY2;
+                        surveyMeasurement.RightXA = item.PointRX1;
+                        surveyMeasurement.RightYA = item.PointRY1;
+                        surveyMeasurement.RightXB = item.PointRX2;
+                        surveyMeasurement.RightYB = item.PointRY2;
+                        LoadSpeciesInfo(item, surveyMeasurement.SpeciesInfo);
+                        break;
+
+                    case RowTypeManaged.RowTypePoint3D:
+                        eventItem = new Event();
+                        eventItem.SetData(SurveyDataType.SurveyStereoPoint);
+                        SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)eventItem.EventData!;
+                        surveyStereoPoint.CalibrationID = calibrationID;
+                        surveyStereoPoint.LeftX = item.PointLX1;
+                        surveyStereoPoint.LeftY = item.PointLY1;
+                        surveyStereoPoint.RightX = item.PointRX1;
+                        surveyStereoPoint.RightY = item.PointRY1;
+                        LoadSpeciesInfo(item, surveyStereoPoint.SpeciesInfo);
+                        break;
+
+                    case RowTypeManaged.RowTypePoint2DLeftCamera:
+                        eventItem = new Event();
+                        {
+                            eventItem.SetData(SurveyDataType.SurveyPoint);
+                            SurveyPoint surveyPoint = (SurveyPoint)eventItem.EventData!;
+                            surveyPoint.TrueLeftFalseRight = true;/*left camera*/
+                            surveyPoint.X = item.PointLX1;
+                            surveyPoint.Y = item.PointLY1;
+                            LoadSpeciesInfo(item, surveyPoint.SpeciesInfo);
+
+                            item.FrameR = item.FrameL + (int)mediaOffsetFrames;
+                        }
+                        break;
+
+                    case RowTypeManaged.RowTypePoint2DRightCamera:
+                        eventItem = new Event();
+                        {
+                            eventItem.SetData(SurveyDataType.SurveyPoint);
+                            SurveyPoint surveyPoint = (SurveyPoint)eventItem.EventData!;
+                            surveyPoint.TrueLeftFalseRight = false;/*right camera*/
+                            surveyPoint.X = item.PointRX1;
+                            surveyPoint.Y = item.PointRY1;
+                            LoadSpeciesInfo(item, surveyPoint.SpeciesInfo);
+
+                            item.FrameL = item.FrameR - (int)mediaOffsetFrames;
+                        }
+                        break;
+                }
+
+                if (eventItem != null)
+                {
+                    LoadEventPosition(eventItem, item.FileL, item.FileR, item.FrameL, item.FrameR, mediaInfoRows, mediafps, mediaOffsetFrames);
+                   
+                    if (eventItem.TimeSpanTimelineController != TimeSpan.Zero)
+                        this.Data.Events.EventList.Add(eventItem);
+                    else
+                    {
+                        Report?.Warning("", $"Event at row {item.row} has a zero TimeSpanTimelineController, media files {item.FileL} & {item.FileR}, frames {item.FrameL} & {item.FrameR}");
+                        ret = 1;
+                    }
                 }
             }
 
             return ret;
         }
+
+
+        /// <summary>
+        /// Convert the media file name to a media index that can be used to link the 
+        /// Survey class events to the media files.
+        /// </summary>
+        /// <param name="trueLeftFalseRight"></param>
+        /// <param name="mediaInfoRows"></param>
+        /// <param name="mediaFileName"></param>
+        /// <returns></returns>
+        private int GetMediaIndexFromFileName(bool trueLeftFalseRight, string mediaFileName)
+        {
+            int rowIndex;
+
+            if (trueLeftFalseRight)
+            {
+                rowIndex = Data.Media.LeftMediaFileNames
+                                .Select((value, i) => new { value, i })
+                                .FirstOrDefault(x => string.Equals(x.value, mediaFileName, StringComparison.OrdinalIgnoreCase))
+                                ?.i ?? -1;
+            }
+            else
+            {
+                rowIndex = Data.Media.RightMediaFileNames
+                                .Select((value, i) => new { value, i })
+                                .FirstOrDefault(x => string.Equals(x.value, mediaFileName, StringComparison.OrdinalIgnoreCase))
+                                ?.i ?? -1;
+            }
+
+            return rowIndex;
+        }
+
+
+        /// <summary>
+        /// Using the media file name and frame index complete the Event position
+        /// information
+        /// </summary>
+        /// <param name="eventItem"></param>
+        /// <param name="mediaFileNameLeft"></param>
+        /// <param name="mediaFileNameRight"></param>
+        /// <param name="frameLeft"></param>
+        /// <param name="frameRight"></param>
+        /// <param name="mediaInfoRows"></param>
+        /// <param name="mediafps"></param>
+        /// <param name="mediaOffsetFrames"></param>
+        /// <returns></returns>
+        private int LoadEventPosition(Event eventItem, string mediaFileNameLeft, string mediaFileNameRight, int frameLeft, int frameRight, List<MediaInfoRow> mediaInfoRows, double mediafps, long mediaOffsetFrames)
+        {
+            int ret = 0;
+
+            if (eventItem is not null)
+            {
+                eventItem.DateTimeCreate = DateTime.Now;
+
+                // Left Side
+                if (!string.IsNullOrEmpty(mediaFileNameLeft))
+                    eventItem.MediaLeftIndex = GetMediaIndexFromFileName(trueLeftFalseRight: true, mediaFileNameLeft);
+                else
+                    eventItem.MediaLeftIndex = -1;
+
+                // Load left frame index
+                eventItem.FrameIndexLeft = frameLeft;
+                eventItem.FrameIndexRight = frameRight;
+
+                // Right Side
+                if (!string.IsNullOrEmpty(mediaFileNameRight))
+                    eventItem.MediaRightIndex = GetMediaIndexFromFileName(trueLeftFalseRight: false, mediaFileNameRight);
+                else
+                    eventItem.MediaRightIndex = -1;
+
+                // Load right frame index
+                eventItem.FrameIndexRight = frameRight;
+                eventItem.FrameIndexLeft = frameLeft;
+
+
+                // Calculate time span frame positions
+                eventItem.TimeSpanLeftFrame = TimeSpan.FromMicroseconds((double)((eventItem.FrameIndexLeft) * 1000000.0 / mediafps));
+                eventItem.TimeSpanRightFrame = TimeSpan.FromMicroseconds((double)((eventItem.FrameIndexRight) * 1000000.0 / mediafps));
+
+                if (mediaOffsetFrames > 0)
+                    // Positive offset means right media started before left.
+                    // This means the TimeLine controller will adopt the left
+                    // side position
+                    eventItem.TimeSpanTimelineController = eventItem.TimeSpanLeftFrame;
+                else
+                    // Minus offset means left media started before right.
+                    // This means the TimeLine controller will adopt the right
+                    // side position
+                    eventItem.TimeSpanTimelineController = eventItem.TimeSpanRightFrame;
+            }
+
+            return ret;
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="eventItem"></param>
+        /// <param name="trueLeftFalseRight"></param>
+        /// <param name="mediaFileName"></param>
+        /// <param name="frame"></param>
+        /// <param name="mediaInfoRows"></param>
+        /// <param name="mediafps"></param>
+        /// <param name="mediaOffsetFrames"></param>
+        /// <returns></returns>
+        private int LoadEventPosition(Event eventItem, bool trueLeftFalseRight, string mediaFileName, int frame, List<MediaInfoRow> mediaInfoRows, double mediafps, long mediaOffsetFrames)
+        {
+            string mediaFileNameLeft = string.Empty;
+            string mediaFileNameRight = string.Empty;
+            int frameLeft;
+            int frameRight;
+
+            if (trueLeftFalseRight)
+            {
+                mediaFileNameLeft = mediaFileName;
+                frameLeft = frame;
+                frameRight = frame + (int)mediaOffsetFrames;
+            }
+            else
+            {
+                mediaFileNameRight = mediaFileName;
+                frameRight = frame;
+                frameLeft = frame - (int)mediaOffsetFrames;
+            }
+
+            return LoadEventPosition(eventItem, mediaFileNameLeft, mediaFileNameRight, frameLeft, frameRight, mediaInfoRows, mediafps, mediaOffsetFrames);
+        }
+
 
         /// <summary>
         /// Take the species information with the OutputRaw class and load it into the SpeciesInfo class.
@@ -582,44 +818,6 @@ namespace Surveyor
             speciesInfo.Comment = "";
 
             return ret;
-        }
-
-      
-
-        public static async Task<(double fps, TimeSpan duration)> GetVideoFpsAndDurationAsync(string path, string file)
-        {
-            double fps = 0.0;
-            TimeSpan duration = TimeSpan.Zero;
-
-            // Combine the path and file to get the full file path
-            string fullFilePath = System.IO.Path.Combine(path, file);
-
-            // Open the video file using Windows.Storage
-            StorageFile videoFile = await StorageFile.GetFileFromPathAsync(fullFilePath);
-
-            // Create a MediaClip from the video file
-            MediaClip mediaClip = await MediaClip.CreateFromFileAsync(videoFile);
-
-            // Get the video encoding properties
-            VideoEncodingProperties properties = mediaClip.GetVideoEncodingProperties();
-
-            // Get FPS
-            if (properties != null)
-            {
-                uint frameRateNumerator = properties.FrameRate.Numerator;
-                uint frameRateDenominator = properties.FrameRate.Denominator;
-
-                if (frameRateDenominator != 0)
-                {
-                    fps = (double)frameRateNumerator / frameRateDenominator;
-                }
-            }
-
-            // Get the duration
-            duration = mediaClip.OriginalDuration;
-
-            // Return both FPS and Duration as a tuple
-            return (fps, duration);
-        }
+        }     
     }
 }

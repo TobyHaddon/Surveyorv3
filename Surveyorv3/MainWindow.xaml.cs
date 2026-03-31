@@ -3315,7 +3315,8 @@ namespace Surveyor
                     MenuLockUnlockMediaPlayers.IsEnabled = false;
 
                 // Media Lock Info Bar
-                if (surveyClass.Data.Info.SurveyType == Survey.SurveyType.StereoFish && !surveyClass.Data.Sync.IsSynchronized)
+                if (surveyClass.Data.Info.SurveyType == Survey.SurveyType.StereoFish && 
+                    !surveyClass.Data.Sync.IsSynchronized)
                 {
                     InfoBarLockMedia.IsOpen = true;
                     InfoBarLockMedia.Visibility = Visibility.Visible;
@@ -3344,6 +3345,9 @@ namespace Surveyor
                 MenuExport.IsEnabled = true;
                 // Media lock
                 MenuLockUnlockMediaPlayers.IsEnabled = false;
+                // Lock warning
+                InfoBarLockMedia.IsOpen = false;
+                InfoBarLockMedia.Visibility = Visibility.Collapsed;
                 // Settings
                 MenuSettings.IsEnabled = true;      // Always allow settings and setting will adjust of no survey is open
                 // Survey Transect Marker

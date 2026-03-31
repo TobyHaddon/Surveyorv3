@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "EMObsPrettyPrint": {
+      "commandName": "Project",
+      "commandLineArgs": "\"C:\\Users\\tobyh\\source\\repos\\Surveyorv3\\x64\\Debug\\EMObs_HexDump.txt\" \"C:\\Users\\tobyh\\source\\repos\\Surveyorv3\\x64\\Debug\\EMObs_TLCOffset.txt\" \"C:\\Users\\tobyh\\source\\repos\\Surveyorv3\\x64\\Debug\\EMObsPretty.docx\""
+    }
+  }
+}

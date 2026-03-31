@@ -14,7 +14,7 @@
 #include <sstream>
 #include <locale>
 #include <codecvt>  // For std::wstring_convert
-#include "EMObsReader.h"
+#include "..\EMObsReaderCore\EMObsReader.h"
 #include "FileFind.h"
 #include "FileMapping.h"
 #include <Shlwapi.h>
@@ -40,11 +40,13 @@ struct _Config
 	fs::path outputFileData;
     fs::path outputFileTLCList;
     fs::path outputFileTLCHierarchy;
+    fs::path outputFileTLCOffset;
     fs::path outputFileHexDump;
     bool dataMode = true;
 	bool appendMode = false;
 	bool tlcMode = false;
 	bool tlcHierarchyMode = false;
+    bool tlcOffsetMode = false;
 	bool hexDumpMode = false;
     //bool mediaCheck = false;
     fs::path fileMappingFileSpec;
@@ -58,6 +60,7 @@ std::wstring ReplaceTabs(const std::wstring& input);
 std::wstring RowTypeToString(RowType type);
 int ExtractEMObsFileTLCs(const std::string foundFile, std::wofstream& outputFileStream, std::list<struct _OutputTLC*>& outputTLCsAdd);
 int ExtractEMObsFileTLCsDisplayHierarchy(const std::string foundFile, std::wofstream& outputFileStream);
+int ExtractEMObsFileTLCsOffset(const std::string foundFile, std::wofstream& outputFileStream);
 int HexDumpEMObsFile(const std::string foundFile, std::wofstream& outputFileStream);
 
 
@@ -72,9 +75,9 @@ int main(int argc, char* argv[]) {
         std::cout << "                            /a                 append to output file" << std::endl;
         std::cout << "                            /t                 additionally export the TLC (three letter codes)" << std::endl;
         std::cout << "                            /th                additionally export the TLCs in their hierarchy" << std::endl;
+        std::cout << "                            /of                additionally export the TLCs offset and size" << std::endl;
         std::cout << "                            /h                 additionally dump file to hex in the output file" << std::endl;
-		std::cout << "                            /no                don't export the data" << std::endl;
-        //???std::cout << "                            /m                 check if the media files in the EMObs can be found" << std::endl;
+		std::cout << "                            /no                don't export the data" << std::endl;        
         std::cout << "                            /f:<filemapping>]  two column tab delimited text file to map EMObs video file name to new file name" << std::endl; 
         return 1;
     }
@@ -101,12 +104,12 @@ int main(int argc, char* argv[]) {
     if (config->tlcHierarchyMode == true) {
         std::cout << "TLC Hierarchy mode enabled. Additionally export TLC (three letter code) in their hierarchy to :[" << config->outputFileTLCHierarchy << + "]" << std::endl;
     }
+    if (config->tlcOffsetMode == true) {
+        std::cout << "Additionally create a TLC offset & size and dump to:[" << config->outputFileTLCOffset << +"]" << std::endl;
+    }
     if (config->hexDumpMode == true) {
         std::cout << "Additionally create a hex dump to:[" << config->outputFileHexDump << +"]" << std::endl;
     }
- //   else {
-	//	std::cout << "Normal mode enabled. All data will be extracted" << std::endl;
-	//}
 
     
 	FileMapping fileMapping(config->fileMappingFileSpec.string());
@@ -114,6 +117,10 @@ int main(int argc, char* argv[]) {
 
     // Search for files based on the specified arguments
     searchFiles(config->fileSpec, config, fileMapping);
+
+	// Prompt the user to press Enter before exiting
+	std::cout << "Processing complete. Press Enter to exit." << std::endl;
+	std::cin.get();
 
     return 0;
 }
@@ -143,52 +150,49 @@ struct _Config* parseArguments(int argc, char* argv[]) {
         }
         else {
             // /s switch for sub-directory searching
-            if (arg == "/s" || arg == "/S") {
+            if (_stricmp(arg.c_str(), "/s") == 0) {
                 config->searchSubdirs = true;
             }
 
             // /A switch for append mode
-            if (arg == "/a" || arg == "/A") {
+            if (_stricmp(arg.c_str(), "/a") == 0) {
                 config->appendMode = true;
             }
 
             // Exclusive modes (can only have one of these)
             // /T switch for TLC reporting only
-            if (arg == "/T" || arg == "/t") {
+            if (_stricmp(arg.c_str(), "/t") == 0) {
                 config->tlcMode = true;
             }
             // /TH switch for TLC Hierarchy reporting only
-            if (arg == "/TH" || arg == "/th") {
+            if (_stricmp(arg.c_str(), "/th") == 0) {
                 config->tlcHierarchyMode = true;
             }
+            // /OF switch for TLC Offset reporting only
+            if (_stricmp(arg.c_str(), "/of") == 0) {
+                config->tlcOffsetMode = true;
+            }
+
             // /H switch for dump file to hex output
-            if (arg == "/H" || arg == "/h") {
+            if (_stricmp(arg.c_str(), "/h") == 0) {
                 config->hexDumpMode = true;
             }
 
 			// no switch to indicate no data is to be exported
-            if (arg == "/NO" || arg == "/no") {
+            if (_stricmp(arg.c_str(), "/no") == 0) {
                 config->dataMode = false;
             }
             else {
                 config->dataMode = true;
 			}
 
-            // m switch to indicate that a check to see if the media files in the EMOBs can be found
-            //???if (arg == "/M" || arg == "/m") {
-            //    config->mediaCheck = true;
-            //}
-            //else {
-            //    config->mediaCheck = false;
-            //}
-
             // /O:<filespec> switch for output file
-            if (arg.find("/o:") == 0 || arg.find("/O:") == 0) {
+            if (_stricmp(arg.c_str(), "/o:") == 0) {
                 config->outputFileData = arg.substr(3);  // Extract the file name after "/O:"
             }
 
             // /F:<filespec> switch for file mapping file
-            if (arg.find("/f:") == 0 || arg.find("/F:") == 0) {
+            if (_stricmp(arg.c_str(), "/f:") == 0) {
                 config->fileMappingFileSpec = arg.substr(3);  // Extract the file name after "/F:"
             }
         }
@@ -225,6 +229,8 @@ struct _Config* parseArguments(int argc, char* argv[]) {
         config->outputFileTLCList = baseFileSpec.string() + "_TLCList.txt";
     if (config->tlcHierarchyMode)
         config->outputFileTLCHierarchy = baseFileSpec.string() + "_TLCHierarchy.txt";
+    if (config->tlcOffsetMode)
+        config->outputFileTLCOffset = baseFileSpec.string() + "_TLCOffset.txt";
     if (config->hexDumpMode)
         config->outputFileHexDump = baseFileSpec.string() + "_HexDump.txt";
 
@@ -232,12 +238,14 @@ struct _Config* parseArguments(int argc, char* argv[]) {
 	// If no output file is specified, use the default
     if (config->outputFileData.empty()) {
         // There isn't a specified output file
-        if (config->tlcMode)
+        /*???if (config->tlcMode)
             config->outputFileTLCList = baseFileSpec.string() + "_TLCList.txt";
         if (config->tlcHierarchyMode)
             config->outputFileTLCHierarchy = baseFileSpec.string() + "_TLCHierarchy.txt";
+        if (config->tlcOffsetMode)
+            config->outputFileTLCOffset = baseFileSpec.string() + "_TLCOffset.txt";
         if (config->hexDumpMode)
-            config->outputFileHexDump = baseFileSpec.string() + "_HexDump.txt";
+            config->outputFileHexDump = baseFileSpec.string() + "_HexDump.txt";*/
 
         config->outputFileData = baseFileSpec.string() + "_Data.txt";        
     }
@@ -288,6 +296,7 @@ void searchFiles(const std::string& fileSpec, struct _Config* Config, FileMappin
     std::wofstream outputFileDataStream;
 	std::wofstream outputFileTLCListStream;
 	std::wofstream outputFileTLCHierarchyStream;
+    std::wofstream outputFileTLCOffsetStream;
 	std::wofstream outputFileHexDumpStream;
 
     // Check if the output file already exists
@@ -306,7 +315,7 @@ void searchFiles(const std::string& fileSpec, struct _Config* Config, FileMappin
         }
 
         if (!Config->appendMode) {
-            outputFileDataStream << L"Row\tPathEMObs\tFileEMObs\tOpCode\tRowType\tPeriod\tPath (Original Path, probably not valid now)\tFileLeft\tFileLeft Status\tFrameL\tPointLX1\tPointLY1\tPointLX2\tPointLY2\tFileRight\tFileRight Status\tFrameR\tPointRX1\tPointRY1\tLPointRX2\tPointRY2\tLength\tFamily\tGenus\tSpecies\tCount\n";  // Add your column headings here                
+            outputFileDataStream << L"Row\tPathEMObs\tFileEMObs\tOpCode\tRowType\tPeriod\tPath\tFileLeft\tFileLeft Status\tFrameL\tPointLX1\tPointLY1\tPointLX2\tPointLY2\tFileRight\tFileRight Status\tFrameR\tPointRX1\tPointRY1\tLPointRX2\tPointRY2\tLength\tFamily\tGenus\tSpecies\tCount\n";  // Add your column headings here                
         }
     }
 
@@ -326,6 +335,16 @@ void searchFiles(const std::string& fileSpec, struct _Config* Config, FileMappin
         outputFileTLCHierarchyStream.open(Config->outputFileTLCHierarchy, std::ios::out | std::ios::trunc);
         if (!outputFileTLCHierarchyStream.is_open()) {
             std::cerr << "Error: Unable to open output file for the EMObs TLC List export: " << Config->outputFileTLCHierarchy << std::endl;
+            return;
+        }
+        // No titles
+    }
+
+    // Open the EMObs TLC Offset export file if required
+    if (Config->tlcOffsetMode && !Config->outputFileTLCOffset.empty()) {
+        outputFileTLCOffsetStream.open(Config->outputFileTLCOffset, std::ios::out | std::ios::trunc);
+        if (!outputFileTLCOffsetStream.is_open()) {
+            std::cerr << "Error: Unable to open output file for the EMObs TLC Offset export: " << Config->outputFileTLCOffset << std::endl;
             return;
         }
         // No titles
@@ -375,6 +394,9 @@ void searchFiles(const std::string& fileSpec, struct _Config* Config, FileMappin
                         if (ret == 0 && Config->tlcHierarchyMode == true)
                             ret = ExtractEMObsFileTLCsDisplayHierarchy(foundFile, outputFileTLCHierarchyStream);
 
+                        if (ret == 0 && Config->tlcOffsetMode == true)
+                            ret = ExtractEMObsFileTLCsOffset(foundFile, outputFileTLCOffsetStream);
+
                         if (ret == 0 && Config->hexDumpMode == true)
                             ret = HexDumpEMObsFile(foundFile, outputFileHexDumpStream);
 
@@ -410,6 +432,9 @@ void searchFiles(const std::string& fileSpec, struct _Config* Config, FileMappin
 
                         if (ret == 0 && Config->tlcHierarchyMode == true)
                             ret = ExtractEMObsFileTLCsDisplayHierarchy(foundFile, outputFileTLCHierarchyStream);
+
+                        if (ret == 0 && Config->tlcOffsetMode == true)
+                            ret = ExtractEMObsFileTLCsOffset(foundFile, outputFileTLCOffsetStream);
 
                         if (ret == 0 && Config->hexDumpMode == true)
                             ret = HexDumpEMObsFile(foundFile, outputFileHexDumpStream);
@@ -776,7 +801,7 @@ int ExtractEMObsFileTLCsDisplayHierarchy(const std::string foundFile, std::wofst
 
             for (struct _OutputTLC* item : outputTLCsAdd) {
 
-                if (item->tlc == L"EBS" || item->tlc == L"IDA" || item->tlc == L"CCC" || item->tlc == L"CMS" || item->tlc == L"PER") {
+                if (item->tlc == L"EBS" || item->tlc == L"IDA" || item->tlc == L"CCC" || item->tlc == L"CMS" || item->tlc == L"PER" || item->tlc == L"CAM") {
                     currentLevel = 1;
 
                     if (item->tlc != L"EBS")
@@ -817,6 +842,67 @@ int ExtractEMObsFileTLCsDisplayHierarchy(const std::string foundFile, std::wofst
 
     return ret;
 }
+
+int ExtractEMObsFileTLCsOffset(const std::string foundFile, std::wofstream& outputFileStream) {
+
+    int ret = 0;
+
+    std::list<struct _OutputTLC*>outputTLCsAdd;
+
+    // Open the EMObs file
+    EMObsReader reader(foundFile);
+
+    // Read the contains
+    std::list<struct _SurveyRow*> outputRowsAdd;
+
+    ret = reader.Process(outputRowsAdd);
+    
+
+    if (ret == 0) {
+        if (outputFileStream.is_open()) {
+            std::list <struct _TLCOffset*> tlcOffsets;
+
+            reader.GetTLCOffsetList(tlcOffsets);
+
+            // Convert std::string to std::wstring
+            std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
+            std::wstring wfileSpec = converter.from_bytes(foundFile);
+            outputFileStream << std::endl << wfileSpec << std::endl;
+
+
+            int currentLevel = 0;
+            std::wstring rowToWrite;
+            std::wstringstream ss;
+
+            for (struct _TLCOffset* item : tlcOffsets) {
+
+
+                ss << item->tlc << "\t";
+                // Format the number as hexadecimal, with padding of zeros, 8 digits long
+                ss << std::setfill(L'0') << std::setw(8) << std::hex << std::uppercase << item->seekOffset << "\t";
+				ss << std::dec << item->size << "\t";
+                ss << item->level << "\t";
+                ss << std::endl;
+
+            }
+
+            // Write the row to the output file
+            outputFileStream << ss.str();
+
+
+            // Clear the list of output rows
+            for (struct _OutputTLC* item : outputTLCsAdd) {
+                delete item;
+            }
+            outputTLCsAdd.clear();
+
+            ss << std::endl;
+        }
+    }
+
+    return ret;
+}
+
 
 /*
 Seem TLC and TLC counts From Utila 2023

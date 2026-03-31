@@ -1,6 +1,15 @@
 // EMObsReaderCore.cpp : Defines the functions for the static library.
 //
 // Version 1.1 10 Sep 2024  Fixed bug with PD3 putting the right camera data in the left camera fields X2,Y2 fields
+// Version 1.2 27 Mar 2026  Complete understanding the whole format. IDA moved to be children of EBS.  Support for 
+// PER, CMS and CCC and children (PED>PED, CMS>MSI, CCC>CAM)
+// Version 1.3 28 Mar 2026  Support for older EBS4 files where CAM are at the top level.  If I see a CAM at top 
+// level I apply it to the CCCList
+// 
+// 
+// EMObs Format changes
+// EBS 4 CAM (two) are at the top level
+// EBS 5 CAM (two) are inside a CCC and the CCC is top level
 
 #include "pch.h"
 #include "framework.h"
@@ -9,32 +18,34 @@
 
 namespace fs = std::filesystem;
 
-//#pragma pack(push, 1) // Save the current alignment setting and set alignment to 1 byte
 
-// EBS and children
-struct _EBS {
+// Base TLC base
+struct _TLC {
     long fileSeekPointer;
     char cTLC[3];
-    char cTLCVersion;                   // Seen 4 and 5 but no change in the data
+    unsigned char cTLCVersion;                   // Seen 4 and 5 but no change in the data
+};
+
+// EBS and children 
+// cTLCVersion Seen 4 and 5 but no change in the data
+struct _EBS : _TLC {
     std::wstring wsPictureDirectory;
 
     struct _CIN* pCIN;                  // Holds the opcode data
     struct _PTN* pPTN;                  // Holds the input field titles
+
+    // Measurement/2D/3D Point Array
+    std::list<struct _IDA*> IDAList;
+
+    char bData[8];
 };
-struct _CIN {   // Holds the opcode data
-    long fileSeekPointer;
-    char cTLC[3]{};
-    char cTLCVersion;
+struct _CIN : _TLC {   // Holds the opcode data
 
     std::vector<std::vector<std::wstring>> matTitle;
     std::vector<std::vector<std::wstring>> matValue;
 };
-struct _PTN {   // Holds the input field titles
-    long fileSeekPointer;
-    char cTLC[3];
-    char cTLCVersion;
-    std::vector<std::vector<std::wstring>> matCollectionHeadings;
-    int32_t iData1;	    // seen as 86  
+struct _PTN : _TLC {   // Holds the input field titles
+    std::vector<std::vector<std::wstring>> matCollectionHeadings;    
 };
 
 // IDA and children
@@ -43,19 +54,11 @@ struct _PTN {   // Holds the input field titles
 // This is a variable length structure 
 // If always starts with an FRA
 
-struct _IDA {
-    long fileSeekPointer;
-    char cTLC[3];
-    char cTLCVersion;
-
+struct _IDA : _TLC {
     struct _FRA* pFRA;
 
     // 2D Point Array
-    struct {
-        int32_t iPDACount;
-        std::list<struct _PDA*> PDAList;
-
-    } TypePDA;
+    std::list<struct _PDA*> PDAList;
 
 #pragma pack(push, 1)
     union {
@@ -68,16 +71,10 @@ struct _IDA {
     std::wstring wsPeriodName;
 
     // 3D Measurement Point Array
-    struct {
-        int32_t iPDLCount;
-        std::list<struct _PDL*> PDLList;
-    } TypePDL;
+    std::list<struct _PDL*> PDLList;
 
     // 3D Point Array
-    struct {
-        int32_t iPD3Count;
-        std::list<struct _PD3*> PD3List;
-    } TypePD3;
+    std::list<struct _PD3*> PD3List;
 
 #pragma pack(push, 1)
     union {
@@ -91,11 +88,7 @@ struct _IDA {
 // FRA is used to hold a left/right camera indicator, a frame number and a media file (MP4)
 // The character after this TLC is always ASCII 0x01
 // This is a variable length structure 
-struct _FRA {
-    long fileSeekPointer;
-    char cTLC[3];
-    char cTLCVersion;
-
+struct _FRA : _TLC {
     int32_t iCameraZeroLeftOneRight;
     int32_t iFrameIndex;
     std::wstring wsMediaFile;
@@ -105,11 +98,8 @@ struct _FRA {
 // The character after this TLC is always ASCII 0x01
 // This is a variable length structure 
 // PDL is exclusively a child of IDA
-struct _PDA {       // Believe to indicate a Point in a frame
-    long fileSeekPointer;
-    char cTLC[3];
-    char cTLCVersion;    // Seen 0 and 1, 1 has an additional 16 bytes of unknown data are the MAT
-
+// cTLCVersion Seen 0 and 1, 1 has an additional 16 bytes of unknown data after the MAT
+struct _PDA : _TLC {       // Believe to indicate a Point in a frame
     struct _CPT* pCPT;
     std::vector<std::vector<std::wstring>> matCollectionValues;
 
@@ -119,25 +109,16 @@ struct _PDA {       // Believe to indicate a Point in a frame
 // CPT is used to hold an X,Y position on a frame
 // The character after this TLC is always ASCII 0x00
 // This is a fixed length structure of 16 bytes (2x double)
-struct _CPT {
-    long fileSeekPointer;
-    char cTLC[3];
-    char cTLCVersion;
-
+struct _CPT : _TLC {
     double X;
     double Y;
 };
-
 
 // PDL is used to hold a 3D measurement point i.e. 2x3D points in the left camera frame and 2x3D points in the right camera frame
 // The character after this TLC is always ASCII 0x01
 // This is a variable length structure 
 // PDL is exclusively a child of IDA
-struct _PDL {
-    long fileSeekPointer;
-    char cTLC[3];
-    char cTLCVersion;
-
+struct _PDL : _TLC {
     int32_t iData1;	    // seen 2
     struct _CPT* pCPT1;
     struct _CPT* pCPT2;
@@ -152,11 +133,7 @@ struct _PDL {
 // The character after this TLC is always ASCII 0x00 (different to PDA and PDL)
 // This is a variable length structure 
 // PD3 is exclusively a child of IDA
-struct _PD3 {
-    long fileSeekPointer;
-    char cTLC[3];
-    char cTLCVersion;
-
+struct _PD3 : _TLC {
     struct _CPT* pCPT1;
     struct _CPT* pCPT2;
     struct _FRA* pFRA;
@@ -165,43 +142,28 @@ struct _PD3 {
 
 
 // CMS and children
-struct _CMS {
-    long fileSeekPointer;
-    char cTLC[3];
-    char cTLCVersion;
-
-    int Count;
-    std::vector<struct _MSI*> pMSIArray;
+struct _CMS : _TLC {
+    std::list<struct _MSI*> MSIList;
+    char bData[12];
 };
 
 // MSI
-struct _MSI {
-    long fileSeekPointer;
-    char cTLC[3];
-    char cTLCVersion;
-
+struct _MSI : _TLC {
     std::wstring wsMediaFile;
-	int64_t FrameCount;
+	int32_t FrameCount;
+    char bData[4];
     double FrameRate;
 };
 
 
 // PER and children
-struct _PER {
-    long fileSeekPointer;
-    char cTLC[3];
-    char cTLCVersion;
-
-    int PeriodCount;
-    std::vector<struct _PED*> pPEDArray;
+struct _PER : _TLC {
+    std::list<struct _PED*> PEDList;
+    char bData[4];
 };
 
 // PED and children
-struct _PED {
-    long fileSeekPointer;
-    char cTLC[3];
-    char cTLCVersion;
-
+struct _PED : _TLC{
     std::wstring wsPeriodName;	
     char bData[17];
     struct _FRA* pFRAStart;
@@ -210,32 +172,23 @@ struct _PED {
 
 
 // CCC and children
-struct _CCC {
-    long fileSeekPointer;
-    char cTLC[3];
-    char cTLCVersion;       // seen 0
-
+struct _CCC: _TLC {
     char bData1[5];          // seen 00 01 00 00 00
     struct _CAM* pCAM;
-    char bData2[8];		 
-    long frameHeight;               // pixels
-    long frameWidth;                // pixels
-
+    char bData2[8];		     
+    int32_t frameWidth;             // pixels
+    int32_t frameHeight;            // pixels
 };
 
 // CAM and children
-struct _CAM {
-    long fileSeekPointer;
-    char cTLC[3];
-    char cTLCVersion;
-
+struct _CAM : _TLC {
     std::wstring wsCameraName;
     std::wstring wsDerivedFrom;
 
     double xPixelSize;              // mm
 	double yPixelSize;              // mm
-    long frameHeight;               // pixels
-	long frameWidth;                // pixels
+    int32_t frameHeight;            // pixels
+    int32_t frameWidth;             // pixels
     
     double xPPOffset;               // mm
     double yPPOffset;               // mm
@@ -253,9 +206,16 @@ struct _CAM {
     double omega;                   // degrees
     double phi;                     // degrees
 	double kappa;                   // degrees
+
+    // Unknown data
+    std::vector<std::vector<unsigned char>> mat1;
+    std::vector<std::vector<double>> mat2;
+    char bData1[132];
+    std::wstring wsData2;           // seen as "mm"
+    std::wstring wsData3;           // seen as "micron"
+
 };
 
-//#pragma pack(pop) // Restore the previous alignment setting
 
 
 
@@ -276,13 +236,46 @@ EMObsReader::EMObsReader(const std::string& _filespec) : filespec(_filespec) {
     this->reader = new EMObsReaderBase(filespec);
 }
 
+int EMObsReader::Clear() {
+
+    for (auto pCMS : CMSList) {
+        if (pCMS != nullptr) {
+            for (auto pMSI : pCMS->MSIList) {
+                delete pMSI;
+            }
+            pCMS->MSIList.clear();
+           
+        }
+    }
+    CMSList.clear();
+
+    if (pPER != nullptr) {
+        for (auto pPED : pPER->PEDList) {
+            if (pPED != nullptr) {
+                delete pPED->pFRAStart;
+                delete pPED->pFRAEnd;
+                delete pPED;
+            }
+        }
+        pPER->PEDList.clear();
+        delete pPER;
+        pPER = nullptr;
+    }
+
+    for (auto pCCC : CCCList) {
+        if (pCCC != nullptr) {
+            delete pCCC->pCAM;
+            delete pCCC;
+        }
+    }
+    CCCList.clear();
+
+    return 0;
+}
+
 int EMObsReader::Process(std::list<struct _SurveyRow*>& outputRowsAdd) {
     int ret = 0;
     struct _EBS* pEBS = nullptr;
-    std::list<struct _IDA*> IDAList;
-    std::list<struct _CMS*> CMSList;    // List of 2 items max
-    struct _PER* pPER = nullptr;
-    std::list<struct _CCC*> CCCList;    // List of 2 items max
     bool finished = false;
 
     ret = reader->ReadFile();
@@ -303,12 +296,13 @@ int EMObsReader::Process(std::list<struct _SurveyRow*>& outputRowsAdd) {
             if (strcmp(TLC, "EBS") == 0) {
 
                 // Check this is only one EBS
+                // EBS contains all the IDA (measurements/2D/3D points) which is the bulk the EMObs
                 if (pEBS != nullptr)
-                    wprintf(L"*** Warning more then one EBS detected!\n");
+                    fwprintf(stderr, L"%hs\t*** Warning more then one EBS detected!\n", reader->GetFileSpec().c_str());
 
                 pEBS = GetEBS();
                 if (pEBS == nullptr) {
-                    wprintf(L"*** Error EBS not found!\n");
+                    fwprintf(stderr, L"%hs\t*** Error EBS not found!\n", reader->GetFileSpec().c_str());
                     break;
                 }
                 reader->SetSeekPointerToReadPointer();
@@ -316,23 +310,13 @@ int EMObsReader::Process(std::list<struct _SurveyRow*>& outputRowsAdd) {
                 // Print known information
                 DisplayEBS(pEBS);
             }
-			// Get the IDA structures which contain the Measurement, 2D and 3D point data
-            else if (strcmp(TLC, "IDA") == 0) {
-
-                struct _IDA* pIDA = GetIDA();
-                reader->SetSeekPointerToReadPointer();
-                IDAList.push_back(pIDA);
-
-                // Print known information
-                DisplayIDA(pIDA);
-            }
 			// Get the CMS structures which contain the media file information (list of files) for the left and right cameras
             else if (strcmp(TLC, "CMS") == 0) {
 
                 // Check this is a max of 2 CMS
                 size_t count = CMSList.size();
                 if (count > 2)
-                    wprintf(L"*** Warning more then two CMS (Media Info Lists) detected! (%zu found)\n", count);
+                    fwprintf(stderr, L"%hs\t*** Warning more then two CMS (Media Info Lists) detected! (%zu found)\n", reader->GetFileSpec().c_str(), count);
 
                 struct _CMS* pCMS = GetCMS();
                 reader->SetSeekPointerToReadPointer();
@@ -346,7 +330,7 @@ int EMObsReader::Process(std::list<struct _SurveyRow*>& outputRowsAdd) {
                 
                 // Check this is only one EBS
                 if (pPER != nullptr)
-                    wprintf(L"*** Warning more then one PER (Period List) detected!\n");
+                    fwprintf(stderr, L"%hs\t*** Warning more then one PER (Period List) detected!\n", reader->GetFileSpec().c_str());
 
                 pPER = GetPER();
                 reader->SetSeekPointerToReadPointer();
@@ -360,7 +344,7 @@ int EMObsReader::Process(std::list<struct _SurveyRow*>& outputRowsAdd) {
                 // Check this is a max of 2 CMS
                 size_t count = CCCList.size();
                 if (count > 2)
-                    wprintf(L"*** Warning more then two CCC (Calibration Data) detected! (%zu found)\n", count);
+                    fwprintf(stderr, L"%hs\t*** Warning more then two CCC (Calibration Data) detected! (%zu found)\n", reader->GetFileSpec().c_str(), count);
 
                 struct _CCC* pCCC = GetCCC();
                 reader->SetSeekPointerToReadPointer();
@@ -369,22 +353,59 @@ int EMObsReader::Process(std::list<struct _SurveyRow*>& outputRowsAdd) {
                 // Print known information
                 DisplayCCC(pCCC);
             }
+            // BACKWARDS COMPATIBILITY  EBS4: CAM are at the top level
+            // If we see CAM at the top level apply with to CCCList
+            else if (strcmp(TLC, "CAM") == 0) {
+                
+                struct _CAM* pCAM = GetCAM();
+                reader->SetSeekPointerToReadPointer();
+                if (pCAM != nullptr) {
+                    // Make a CCC and populate with the CAM and the frame width and height
+                    struct _CCC* pCCC = new _CCC();
+
+                    if (pCCC != nullptr) {
+
+                        pCCC->fileSeekPointer = -1;
+                        memcpy(pCCC->cTLC, "CCC", 3);
+                        pCCC->cTLCVersion = 0;
+                        pCCC->pCAM = pCAM;
+                        pCCC->frameWidth = pCAM->frameWidth;
+                        pCCC->frameHeight = pCAM->frameHeight;
+                        CCCList.push_back(pCCC);
+                    }
+                }
+            }
             else {
-                printf("%08lX %s:\t%05i\t%i\t%i\n", reader->GetReadPointer(), TLC, size, (int)*pAfterTLC, fixedSize);
+                char cTLC[3];
+                char cTLCVersion;
+                reader->GetNextAsFixedChar(cTLC, 3);
+                reader->GetNextAsFixedChar(&cTLCVersion, 1);
+                unsigned char cEBSVersion = ' ';
+                if (pEBS != nullptr)
+                    cEBSVersion = pEBS->cTLCVersion;
+                printf("%08lX %s(v%hhu):\t%05i\t%i\t%i\tEBS(v%hhu)\n", reader->GetReadPointer(), TLC, cTLCVersion, size, (int)*pAfterTLC, fixedSize, cEBSVersion);
+                fprintf(stderr, "%s\t%08lX %s(v%hhu):\t%05i\t%i\t%i\tEBS(v%hhu)\n", reader->GetFileSpec().c_str(), reader->GetReadPointer(), TLC, cTLCVersion, size, (int)*pAfterTLC, fixedSize, cEBSVersion);
                 // Display raw data
                 hexDump("*** Unsupported", -1, p, (int)size);
                 finished = true;
             }
 
             ret = reader->GetNextTLC((void**)&p, &size, TLC);
+            if (ret == -1)
+            {
+                printf("Read to end of file\n");
+                ret = 0;
+                break;
+            }
         }
+
 
         if (ret == 0 && pEBS != nullptr) {
 
             // Populate the OutputRow list
 
-            // Grab the row from the previous _OutputRow item or if the list is empty set it to 1
-            int row = 1;
+            // Grab the row from the previous _OutputRow item or if the list is empty set it to zero
+            int row = 0;
             if (!outputRowsAdd.empty())
                 row = outputRowsAdd.back()->row + 1;
 
@@ -403,13 +424,13 @@ int EMObsReader::Process(std::list<struct _SurveyRow*>& outputRowsAdd) {
 
 
             // Range-based for loop (modern C++11)
-            for (_IDA* itemIDA : IDAList) {
+            for (_IDA* itemIDA : pEBS->IDAList) {
 
                 struct _SurveyRow* outputRow;
                 struct _FRA* pFRA = itemIDA->pFRA;
 
                 // Collect the PDA 2D point data
-                for (_PDA* itemPDA : itemIDA->TypePDA.PDAList) {
+                for (_PDA* itemPDA : itemIDA->PDAList) {
 
                     outputRow = new struct _SurveyRow;
                     ClearOutputRow(outputRow);
@@ -419,6 +440,7 @@ int EMObsReader::Process(std::list<struct _SurveyRow*>& outputRowsAdd) {
                     outputRow->FileEMObs = FileEMObs;
                     outputRow->Period = itemIDA->wsPeriodName;
                     outputRow->opCode = pCIN->matValue[0][0];
+                    outputRow->Analyst = pCIN->matValue[1][0];
                     outputRow->Path = pEBS->wsPictureDirectory;
                     if (pFRA->iCameraZeroLeftOneRight == 0) {// Left Camera
                         outputRow->rowType = Point2DLeftCamera;
@@ -455,7 +477,7 @@ int EMObsReader::Process(std::list<struct _SurveyRow*>& outputRowsAdd) {
                     outputRowsAdd.push_back(outputRow);
                 }
                 // Collect the PDL 3D measurement point data
-                for (_PDL* itemPDL : itemIDA->TypePDL.PDLList) {
+                for (_PDL* itemPDL : itemIDA->PDLList) {
 
                     // It is assumes that the base FRA is the left camera and the PDL>FRA is the right camera
                     assert(pFRA->iCameraZeroLeftOneRight == 0);
@@ -469,6 +491,7 @@ int EMObsReader::Process(std::list<struct _SurveyRow*>& outputRowsAdd) {
                     outputRow->FileEMObs = FileEMObs;
                     outputRow->Period = itemIDA->wsPeriodName;
                     outputRow->opCode = pCIN->matValue[0][0];
+                    outputRow->Analyst = pCIN->matValue[1][0];
                     outputRow->rowType = MeasurementPoint3D;
                     outputRow->Path = pEBS->wsPictureDirectory;
                     outputRow->FileL = pFRA->wsMediaFile;
@@ -502,8 +525,7 @@ int EMObsReader::Process(std::list<struct _SurveyRow*>& outputRowsAdd) {
                     outputRowsAdd.push_back(outputRow);
                 }
                 // Collect the PD3 3D point data
-                for (_PD3* itemPD3 : itemIDA->TypePD3.PD3List) {
-
+                for (_PD3* itemPD3 : itemIDA->PD3List) {
 
                     outputRow = new struct _SurveyRow;
                     ClearOutputRow(outputRow);
@@ -513,6 +535,7 @@ int EMObsReader::Process(std::list<struct _SurveyRow*>& outputRowsAdd) {
                     outputRow->FileEMObs = FileEMObs;
                     outputRow->Period = itemIDA->wsPeriodName;
                     outputRow->opCode = pCIN->matValue[0][0];
+                    outputRow->Analyst = pCIN->matValue[1][0];
                     outputRow->Path = pEBS->wsPictureDirectory;
                     if (pFRA->iCameraZeroLeftOneRight == 0 && itemPD3->pFRA->iCameraZeroLeftOneRight == 1) {// should always be the case
                         outputRow->rowType = Point3D;
@@ -558,6 +581,141 @@ int EMObsReader::Process(std::list<struct _SurveyRow*>& outputRowsAdd) {
     return ret;
 }
 
+void EMObsReader::GetTLCOffsetList(std::list<struct _TLCOffset*>& outputTLCOffsets) const
+{
+    outputTLCOffsets = TLCOffsetList;
+    return;
+}
+
+/// <summary>
+/// Get the list of Periods (PED) which contain the period name and 
+/// the start and end frame for each period. 
+/// </summary>
+/// <param name="PEDList"></param>
+void EMObsReader::GetPeriodRows(std::list<struct _OutputPeriodRow*>& outputPeriodRows) const
+{
+    outputPeriodRows.clear();
+
+    if (pPER == nullptr) {
+        return;
+    }
+
+    int row = 0;
+    for (auto pPED : pPER->PEDList) {
+
+        if (pPED == nullptr || pPED->pFRAStart == nullptr || pPED->pFRAEnd == nullptr) {
+            continue;
+        }
+
+        struct _OutputPeriodRow* outputPeriodRow = new _OutputPeriodRow {};
+        outputPeriodRow->row++;
+        outputPeriodRow->PeriodName = pPED->wsPeriodName;
+        outputPeriodRow->Camera = pPED->pFRAStart->iCameraZeroLeftOneRight;
+        outputPeriodRow->MediaFile = pPED->pFRAStart->wsMediaFile;
+        outputPeriodRow->StartFrame = pPED->pFRAStart->iFrameIndex;
+        outputPeriodRow->EndFrame = pPED->pFRAEnd->iFrameIndex;
+
+        outputPeriodRows.push_back(outputPeriodRow);
+    }
+}
+
+/// <summary>
+/// Get the lis of media files (MSI) which contain the media file name 
+/// and frame information for each media file.
+/// </summary>
+/// <param name="CMSList"></param>
+void EMObsReader::GetMediaInfoRows(std::list<struct _OutputMediaInfoRow*>& outputRows) const
+{
+    outputRows.clear();
+
+	// Maximum of two CMS (left and right camera) expected, but check just in case
+    if (CMSList.size() <= 2)
+    {
+        int indexCMS = 0;
+        int row = 0;
+
+        for (auto pCMS : CMSList)
+        {
+            if (pCMS == nullptr)
+                continue;
+
+            bool trueLeftFalseRightCamera = (indexCMS == 0); // Assuming the first CMS is for the left camera and the second CMS is for the right camera
+
+            for (auto pMSI : pCMS->MSIList)
+            {
+                if (pMSI == nullptr)
+                    continue;
+
+                auto* outputMediaInfoRow = new _OutputMediaInfoRow{};
+                outputMediaInfoRow->row = row++;
+                outputMediaInfoRow->TrueLeftFalseRightCamera = trueLeftFalseRightCamera;
+                outputMediaInfoRow->MediaFile = pMSI->wsMediaFile;
+                outputMediaInfoRow->FrameCount = pMSI->FrameCount;
+                outputMediaInfoRow->FrameRate = pMSI->FrameRate;
+
+                outputRows.push_back(outputMediaInfoRow);
+            }
+
+            indexCMS++;
+        }
+    }
+}
+
+
+/// <summary>
+/// Get the left and right camera calibration information (CCC) which 
+/// contains the camera name, pixel size, focal length, 
+/// distortion parameters and other information for each camera.
+/// </summary>
+/// <param name="CCCList"></param>
+void EMObsReader::GetCalibrationRows(std::list<struct _OutputCalibrationRow*>& outputRows) const
+{
+    outputRows.clear();
+
+	// Maximum of 2 cameras (left and right) expected, but check just in case
+    if (CMSList.size() <= 2)
+    {
+		int row = 0;
+        for (auto pCCC : CCCList)
+        {
+            if (pCCC == nullptr || pCCC->pCAM == nullptr)
+                continue;
+
+            bool trueLeftFalseRightCamera = (row == 0); // Assuming the first CMS is for the left camera and the second CMS is for the right camera
+
+            auto* outputCalibrationRow = new _OutputCalibrationRow{};
+            outputCalibrationRow->row = row++;
+			outputCalibrationRow->TrueLeftFalseRightCamera = trueLeftFalseRightCamera;
+            outputCalibrationRow->CameraName = pCCC->pCAM->wsCameraName;
+            outputCalibrationRow->DerivedFrom = pCCC->pCAM->wsDerivedFrom;
+            outputCalibrationRow->XPixelSize = pCCC->pCAM->xPixelSize;
+            outputCalibrationRow->YPixelSize = pCCC->pCAM->yPixelSize;
+            outputCalibrationRow->FrameHeight = pCCC->pCAM->frameHeight;
+            outputCalibrationRow->FrameWidth = pCCC->pCAM->frameWidth;
+
+            outputCalibrationRow->XPPOffset = pCCC->pCAM->xPPOffset;
+            outputCalibrationRow->YPPOffset = pCCC->pCAM->yPPOffset;
+            outputCalibrationRow->FocalLength = pCCC->pCAM->focalLength;
+            outputCalibrationRow->K3RadialDistortion = pCCC->pCAM->k3RadialDistortion;
+            outputCalibrationRow->K5RadialDistortion = pCCC->pCAM->k5RadialDistortion;
+            outputCalibrationRow->K7RadialDistortion = pCCC->pCAM->k7RadialDistortion;
+            outputCalibrationRow->P1DecenteringDistortion = pCCC->pCAM->p1DecenteringDistortion;
+            outputCalibrationRow->P2DecenteringDistortion = pCCC->pCAM->p2DecenteringDistortion;
+            outputCalibrationRow->Orthogonality = pCCC->pCAM->orthogonality;
+            outputCalibrationRow->Affinity = pCCC->pCAM->affinity;
+            outputCalibrationRow->CameraX = pCCC->pCAM->cameraX;
+            outputCalibrationRow->CameraY = pCCC->pCAM->cameraY;
+            outputCalibrationRow->CameraZ = pCCC->pCAM->cameraZ;
+            outputCalibrationRow->Omega = pCCC->pCAM->omega;
+            outputCalibrationRow->Phi = pCCC->pCAM->phi;
+            outputCalibrationRow->Kappa = pCCC->pCAM->kappa;
+
+            outputRows.push_back(outputCalibrationRow);
+        }
+    }
+}
+
+
 static void DisplayEBS(struct _EBS* pEBS) {
     wprintf(L"%08lX EBS: Picture Directory=[%ls]\n", pEBS->fileSeekPointer, pEBS->wsPictureDirectory.c_str());
 
@@ -588,9 +746,15 @@ static void DisplayEBS(struct _EBS* pEBS) {
     else
         wprintf(L"       error null ptr\n");
 
+    if (pEBS->IDAList.size() > 0) {
+        wprintf(L"      IDA Count=%zu\n", pEBS->IDAList.size());
+        for (auto pIDA : pEBS->IDAList) {
+            DisplayIDA(pIDA);
+        }
+	}
+
     wprintf(L"\n");
 }
-
 
 static void DisplayIDA(struct _IDA* pIDA) {
 
@@ -602,50 +766,43 @@ static void DisplayIDA(struct _IDA* pIDA) {
             pIDA->pFRA->iCameraZeroLeftOneRight == 0 ? L"Left" : L"Right",
             pIDA->pFRA->wsMediaFile.c_str());
 
-        //???
-        if (pIDA->pFRA->iFrameIndex == 2243)
-            pIDA->pFRA->iFrameIndex = 2243;   // In File 6 at 2243 example of 3 PDA and two PDL 
-
         if (!(pIDA->pFRA->iCameraZeroLeftOneRight == 0 || pIDA->pFRA->iCameraZeroLeftOneRight == 1))
             wprintf(L"         ***IDA>FRA>iCameraZeroLeftOneRight should be either 0 or 1, and it is %i***\n", pIDA->pFRA->iCameraZeroLeftOneRight);
 
 
-        if (pIDA->TypePDA.iPDACount > 0) {
-            wprintf(L"      PDA Count=%i  2D Points\n",
-                pIDA->TypePDA.iPDACount);
+		// Report 2D Points (PDA)
+        wprintf(L"      PDA Count=%zu  2D Points\n",
+            pIDA->PDAList.size());
 
-            for (auto pPDA : pIDA->TypePDA.PDAList) {
-                DisplayPDA(L"    ", pPDA);
-            }
+        for (auto pPDA : pIDA->PDAList) {
+            DisplayPDA(L"    ", pPDA);
         }
 
-        //hexDump("  IDA>Data1", -1, pIDA->data1.bData, sizeof(pIDA->data1.bData)/*16*/);
+        // Report unknown data
         wprintf(L"    IDA>Data1: As Int32:%d,%d,%d,%d  Double:=%.6f,=%.6f\n", 
                                 pIDA->data1.ints[0], pIDA->data1.ints[1], pIDA->data1.ints[2], pIDA->data1.ints[3], 
-            pIDA->data1.doubles[0], pIDA->data1.doubles[1]);
+                                pIDA->data1.doubles[0], pIDA->data1.doubles[1]);
 
         wprintf(L"    IDA>Period:[%ls]\n", pIDA->wsPeriodName.c_str());
 
+		// Report Measurement Points (PDL)
+        wprintf(L"      PDL Count=%zu  Measurements\n",
+            pIDA->PDLList.size());
 
-        if (pIDA->TypePDL.iPDLCount > 0) {
-            wprintf(L"      PDL Count=%i  Measurements\n",
-                pIDA->TypePDL.iPDLCount);
-
-            for (auto pPDL : pIDA->TypePDL.PDLList) {
-                DisplayPDL(L"    ", pPDL);
-            }
+        for (auto pPDL : pIDA->PDLList) {
+            DisplayPDL(L"    ", pPDL);
         }
 
-        if (pIDA->TypePD3.iPD3Count > 0) {
-            wprintf(L"      PD3 Count=%i  3D Points\n",
-                pIDA->TypePD3.iPD3Count);
 
-            for (auto pPD3 : pIDA->TypePD3.PD3List) {
-                DisplayPD3(L"    ", pPD3);
-            }
+        // Report 3D Points (PD3)
+        wprintf(L"      PD3 Count=%zu  3D Points\n",
+            pIDA->PD3List.size());
+
+        for (auto pPD3 : pIDA->PD3List) {
+            DisplayPD3(L"    ", pPD3);
         }
 
-        //hexDump("  IDA>Data2", -1, pIDA->data2.bData, sizeof(pIDA->data2.bData));
+		// Report unknown data
         wprintf(L"    IDA>Data2: As Int32:%d,%d,%d,%d  Double:=%.6f,=%.6f\n",
             pIDA->data2.ints[0], pIDA->data2.ints[1], pIDA->data2.ints[2], pIDA->data2.ints[3],
             pIDA->data2.doubles[0], pIDA->data2.doubles[1]);
@@ -778,11 +935,11 @@ static void DisplayCMS(struct _CMS* pCMS) {
 
     if (pCMS != nullptr) {
 
-        wprintf(L"%08lX CMS: Media Count=%i\n",
+        wprintf(L"%08lX CMS: Media Count=%zu\n",
             pCMS->fileSeekPointer,
-            pCMS->Count);
+            pCMS->MSIList.size());
 
-        for (auto pMSI : pCMS->pMSIArray) {
+        for (auto pMSI : pCMS->MSIList) {
             DisplayMSI(pMSI);
         }
     }
@@ -792,11 +949,11 @@ static void DisplayCMS(struct _CMS* pCMS) {
 /// Display a single media info structure which is a media file for either the left or right 
 /// camera, and the frame count and frame rate for that media file
 /// <summary>
-/// /// <param name="pMSI">Single Media info structure</param>
+/// <param name="pMSI">Single Media info structure</param>
 static void DisplayMSI(struct _MSI* pMSI) {
     
     if (pMSI != nullptr) {
-        wprintf(L"%08lX CMS>MSI: Media=%ls FrameCount=%lli FrameRate=%.2f\n",
+        wprintf(L"%08lX CMS>MSI: Media=%ls FrameCount=%i FrameRate=%.2f\n",
             pMSI->fileSeekPointer,
             pMSI->wsMediaFile.c_str(),
             pMSI->FrameCount,
@@ -808,11 +965,11 @@ static void DisplayPER(struct _PER* pPER) {
 
     if (pPER != nullptr) {
 
-        wprintf(L"%08lX PER: Period Count=%i\n",
+        wprintf(L"%08lX PER: Period Count=%zu\n",
             pPER->fileSeekPointer,
-            pPER->PeriodCount);
+            pPER->PEDList.size());
 
-        for (auto pPED : pPER->pPEDArray) {
+        for (auto pPED : pPER->PEDList) {
             DisplayPED(pPED);
         }
     }
@@ -826,11 +983,11 @@ static void DisplayPER(struct _PER* pPER) {
 static void DisplayPED(struct _PED* pPED) {
 
     if (pPED != nullptr) {
-        wprintf(L"%08lX PER>PED: Period Name:%s %s %s Start:%i, End:%i\n",
+        wprintf(L"%08lX PER>PED: Period Name:%s Camera:%s %s Start:%i, End:%i\n",
             pPED->fileSeekPointer,
-			pPED->pFRAStart->iCameraZeroLeftOneRight == 0 ? L"Left" : L"Right",
-			pPED->pFRAStart->wsMediaFile.c_str(),
             pPED->wsPeriodName.c_str(),
+			pPED->pFRAStart->iCameraZeroLeftOneRight == 0 ? L"Left" : L"Right",
+			pPED->pFRAStart->wsMediaFile.c_str(),            
             pPED->pFRAStart->iFrameIndex,
             pPED->pFRAEnd->iFrameIndex);
     }
@@ -939,6 +1096,7 @@ static void hexDump(const char* desc, long seekOffset, void* data, int len) {
 ///     WString:wsPictureDirectory Directory where the media is located
 ///     TLC:CIN
 ///     TLC:PTN
+///     TLC:IDA List (one per period)   
 /// </summary>
 
 struct _EBS* EMObsReader::GetEBS() {
@@ -950,7 +1108,7 @@ struct _EBS* EMObsReader::GetEBS() {
 
         pEBS->fileSeekPointer = reader->GetReadPointer();
         reader->GetNextAsFixedChar(pEBS->cTLC, 3);
-        reader->GetNextAsFixedChar(&pEBS->cTLCVersion, 1);
+        reader->GetNextAsFixedUChar(&pEBS->cTLCVersion, 1);
         if (memcmp(pEBS->cTLC, "EBS", 3) == 0) {
 
             if (pEBS->cTLCVersion == 4 || pEBS->cTLCVersion == 5) {
@@ -958,15 +1116,25 @@ struct _EBS* EMObsReader::GetEBS() {
 
                 pEBS->pCIN = GetCIN();
                 pEBS->pPTN = GetPTN();
+
+                // Get IDA Array
+                size_t IDACount = reader->GetNextAsInt32();
+                pEBS->IDAList = reader->GetArray(IDACount, this, &EMObsReader::GetIDA);
+                
+                reader->GetNextAsFixedChar(pEBS->bData, sizeof(pEBS->bData)/*8*/);
             }
             else {
-                printf("***GetEBS Error EBS, unexpected TLC version of %i found\n", (int)pEBS->cTLCVersion);
+                fprintf(stderr, "%s\t***GetEBS Error EBS, unexpected TLC version of %hhu found, expecting 4 or 5\n", 
+                        reader->GetFileSpec().c_str(), pEBS->cTLCVersion);
                 delete pEBS;
                 pEBS = nullptr;
             }
+
+            LogTLCOffset(pEBS, 0);
         }
         else {
-            printf("***GetEBS Error EBS expected not found\n");
+            fprintf(stderr, "%s\t***GetEBS Error EBS expected not found\n", 
+                    reader->GetFileSpec().c_str());
             delete pEBS;
             pEBS = nullptr;
         }
@@ -991,7 +1159,7 @@ struct _CIN* EMObsReader::GetCIN() {
 
         pCIN->fileSeekPointer = reader->GetReadPointer();
         reader->GetNextAsFixedChar(pCIN->cTLC, 3);
-        reader->GetNextAsFixedChar(&pCIN->cTLCVersion, 1);
+        reader->GetNextAsFixedUChar(&pCIN->cTLCVersion, 1);
         if (memcmp(pCIN->cTLC, "CIN", 3) == 0) {
 
             if (pCIN->cTLCVersion == 0) {
@@ -999,13 +1167,17 @@ struct _CIN* EMObsReader::GetCIN() {
                 pCIN->matValue = reader->GetNextAsMATwstring();
             }
             else {
-                printf("***GetCIN Error CIN, unexpected TLC version of %i found\n", (int)pCIN->cTLCVersion);
+                fprintf(stderr, "%hs\t***GetCIN Error CIN, unexpected TLC version of %hhu found, expecting 0\n", 
+                        reader->GetFileSpec().c_str(), (int)pCIN->cTLCVersion);
                 delete pCIN;
                 pCIN = nullptr;
             }
+
+            LogTLCOffset(pCIN, 1);
         }
         else {
-            printf("***GetCIN Error CIN expected not found\n");
+            fprintf(stderr, "%hs\t***GetCIN Error CIN expected not found\n", 
+                    reader->GetFileSpec().c_str());
             delete pCIN;
             pCIN = nullptr;
         }
@@ -1030,23 +1202,26 @@ struct _PTN* EMObsReader::GetPTN() {
 
         pPTN->fileSeekPointer = reader->GetReadPointer();
         reader->GetNextAsFixedChar(pPTN->cTLC, 3);
-        reader->GetNextAsFixedChar(&pPTN->cTLCVersion, 1);
+        reader->GetNextAsFixedUChar(&pPTN->cTLCVersion, 1);
         if (memcmp(pPTN->cTLC, "PTN", 3) == 0) {
             if (pPTN->cTLCVersion == 0) {
                 pPTN->matCollectionHeadings = reader->GetNextAsMATwstring();
-                pPTN->iData1 = reader->GetNextAsInt32();
             }
             else {
-                printf("***GetPTN Error PTN, unexpected TLC version of %i found\n", (int)pPTN->cTLCVersion);
+                fprintf(stderr, "%hs\t***GetPTN Error PTN, unexpected TLC version of %hhu found, expecting 0\n", 
+                        reader->GetFileSpec().c_str(), (int)pPTN->cTLCVersion);
                 delete pPTN;
                 pPTN = nullptr;
             }
+
+            LogTLCOffset(pPTN, 1);
         }
         else {
-            printf("***GetPTN Error PTN expected not found\n");
+            fprintf(stderr, "%hs\t***GetPTN Error PTN expected not found\n", 
+                    reader->GetFileSpec().c_str());
             delete pPTN;
             pPTN = nullptr;
-        }
+        }        
     }
 
     return pPTN;
@@ -1058,9 +1233,9 @@ struct _PTN* EMObsReader::GetPTN() {
 /// TLC=IDA Version = 5
 /// Children:
 ///     TLC:FRA 
-///     TLC:PDA
-///     TLC:PDL
-///     TLC:PD3
+///     TLC:PDA List
+///     TLC:PDL List
+///     TLC:PD3 List
 ///     TLC:MAT
 ///  TODO
 /// </summary>
@@ -1074,82 +1249,44 @@ struct _IDA* EMObsReader::GetIDA() {
 
         pIDA->fileSeekPointer = reader->GetReadPointer();
         reader->GetNextAsFixedChar(pIDA->cTLC, 3);
-        reader->GetNextAsFixedChar(&pIDA->cTLCVersion, 1);
+        reader->GetNextAsFixedUChar(&pIDA->cTLCVersion, 1);
         if (memcmp(pIDA->cTLC, "IDA", 3) == 0) {
             if (pIDA->cTLCVersion == 5) {
 
                 pIDA->pFRA = GetFRA();
 
                 // Get PDA Count
-                pIDA->TypePDA.iPDACount = reader->GetNextAsInt32();        // Seen as 3, 2, 1 & 0 maybe 3, 2 & 1 are PDA and 0 is PDL
+                size_t PDACount = reader->GetNextAsInt32();        // Seen as 3, 2, 1 & 0 maybe 3, 2 & 1 are PDA and 0 is PDL
+                pIDA->PDAList = reader->GetArray(PDACount, this, &EMObsReader::GetPDA);
 
-                int i;
+                // Get unknown data
+                reader->GetNextAsFixedChar(pIDA->data1.bData, sizeof(pIDA->data1.bData));
+                // Get the Period Name
+                pIDA->wsPeriodName = reader->GetNextAsWString();
 
-                for (i = 0; i < pIDA->TypePDA.iPDACount; i++) {
-                    struct _PDA* pPDA = GetPDA();
-                    if (pPDA != nullptr) {
-                        pIDA->TypePDA.PDAList.push_back(pPDA);
-                    }
-                    else {
-                        failed = true;
-                        break;
-                    }
-                }
+                // Get PDL Count
+                size_t PDLCount = reader->GetNextAsInt32();        // Seen as 3, 2, 1 & 0 maybe 3, 2 & 1 are PDA and 0 is PDL
+                pIDA->PDLList = reader->GetArray(PDLCount, this, &EMObsReader::GetPDL);
 
-                if (!failed) {
-                    // Get data and period
+                // Get PD3 Count
+                size_t PD3Count = reader->GetNextAsInt32();        // Seen as 3, 2, 1 & 0 maybe 3, 2 & 1 are PDA and 0 is PDL
+                pIDA->PD3List = reader->GetArray(PD3Count, this, &EMObsReader::GetPD3);
 
-                    // Get the data
-                    reader->GetNextAsFixedChar(pIDA->data1.bData, sizeof(pIDA->data1.bData));
-                    // Get the Period Name
-                    pIDA->wsPeriodName = reader->GetNextAsWString();
+                // Get unknown data
+                reader->GetNextAsFixedChar(pIDA->data2.bData, sizeof(pIDA->data2.bData));
 
-
-                    // Get PDL Count
-                    pIDA->TypePDL.iPDLCount = reader->GetNextAsInt32();        // Seen as 3, 2, 1 & 0 maybe 3, 2 & 1 are PDA and 0 is PDL
-
-                    for (i = 0; i < pIDA->TypePDL.iPDLCount; i++) {
-                        struct _PDL* pPDL = GetPDL();
-                        if (pPDL != nullptr) {
-                            pIDA->TypePDL.PDLList.push_back(pPDL);
-                        }
-                        else {
-                            failed = true;
-                            break;
-                        }
-                    }
-
-                    if (!failed) {
-
-                        // Get PD3 Count
-                        pIDA->TypePD3.iPD3Count = reader->GetNextAsInt32();        // Seen as 3, 2, 1 & 0 maybe 3, 2 & 1 are PDA and 0 is PDL
-
-                        for (i = 0; i < pIDA->TypePD3.iPD3Count; i++) {
-                            struct _PD3* pPD3 = GetPD3();
-                            if (pPD3 != nullptr) {
-                                pIDA->TypePD3.PD3List.push_back(pPD3);
-                            }
-                            else {
-                                failed = true;
-                                break;
-                            }
-                        }
-
-                        if (!failed) {
-                            // Get end type data
-                            reader->GetNextAsFixedChar(pIDA->data2.bData, sizeof(pIDA->data2.bData));
-                        }
-                    }
-                }
+                LogTLCOffset(pIDA, 1);
             }
             else {
-                printf("***GetIDA Error IDA, unexpected TLC version of %i found\n", (int)pIDA->cTLCVersion);
+                fprintf(stderr, "%hs\t***GetIDA Error IDA, unexpected TLC version of %hhu found, expecting 5\n", 
+                        reader->GetFileSpec().c_str(), (int)pIDA->cTLCVersion);
                 delete pIDA;
                 pIDA = nullptr;
             }
         }
         else {
-            printf("***GetIDA Error IDA expected not found\n");
+            fprintf(stderr, "%hs\t***GetIDA Error IDA expected not found\n", 
+                    reader->GetFileSpec().c_str());
             delete pIDA;
             pIDA = nullptr;
         }
@@ -1174,21 +1311,25 @@ struct _FRA* EMObsReader::GetFRA() {
 
         pFRA->fileSeekPointer = reader->GetReadPointer();
         reader->GetNextAsFixedChar(pFRA->cTLC, 3);
-        reader->GetNextAsFixedChar(&pFRA->cTLCVersion, 1);
+        reader->GetNextAsFixedUChar(&pFRA->cTLCVersion, 1);
         if (memcmp(pFRA->cTLC, "FRA", 3) == 0) {
             if (pFRA->cTLCVersion == 1) {
                 pFRA->iCameraZeroLeftOneRight = reader->GetNextAsInt32();
                 pFRA->iFrameIndex = reader->GetNextAsInt32();	// Frame Number
                 pFRA->wsMediaFile = reader->GetNextAsWString();
+
+                LogTLCOffset(pFRA, -1);
             }
             else {
-                printf("***GetFRA Error FRA, unexpected TLC version of %i found\n", (int)pFRA->cTLCVersion);
+                fprintf(stderr, "%hs\t***GetFRA Error FRA, unexpected TLC version of %hhu found, expecting 1\n", 
+                        reader->GetFileSpec().c_str(), (int)pFRA->cTLCVersion);
                 delete pFRA;
                 pFRA = nullptr;
             }
         }
         else {
-            printf("***GetFRA Error FRA expected not found\n");
+            fprintf(stderr, "%hs\t***GetFRA Error FRA expected not found\n", 
+                    reader->GetFileSpec().c_str());
             delete pFRA;
             pFRA = nullptr;
         }
@@ -1215,7 +1356,7 @@ struct _PDA* EMObsReader::GetPDA() {
 
         pPDA->fileSeekPointer = reader->GetReadPointer();
         reader->GetNextAsFixedChar(pPDA->cTLC, 3);
-        reader->GetNextAsFixedChar(&pPDA->cTLCVersion, 1);
+        reader->GetNextAsFixedUChar(&pPDA->cTLCVersion, 1);
         // No sure why both 0 and 1 is possible the value most normally is 1
         if (memcmp(pPDA->cTLC, "PDA", 3) == 0) {
             if (pPDA->cTLCVersion == 0 || pPDA->cTLCVersion == 1) {
@@ -1226,15 +1367,19 @@ struct _PDA* EMObsReader::GetPDA() {
                 if (pPDA->cTLCVersion == 1) {
                     reader->GetNextAsFixedChar(pPDA->bData, sizeof(pPDA->bData));
                 }
+
+                LogTLCOffset(pPDA, 2);
             }
             else {
-                printf("***GetPDA Error PDA, unexpected TLC version of %i found\n", (int)pPDA->cTLCVersion);
+                fprintf(stderr, "%hs\t***GetPDA Error PDA, unexpected TLC version of %hhu found, expecting 0 or 1\n", 
+                        reader->GetFileSpec().c_str(), (int)pPDA->cTLCVersion);
                 delete pPDA;
                 pPDA = nullptr;
             }
         }
         else {
-            printf("***GetPDA Error PDA expected not found\n");
+            fprintf(stderr, "%hs\t***GetPDA Error PDA expected not found\n", 
+                    reader->GetFileSpec().c_str());
             delete pPDA;
             pPDA = nullptr;
         }
@@ -1261,33 +1406,39 @@ struct _PDL* EMObsReader::GetPDL() {
 
         pPDL->fileSeekPointer = reader->GetReadPointer();
         reader->GetNextAsFixedChar(pPDL->cTLC, 3);
-        reader->GetNextAsFixedChar(&pPDL->cTLCVersion, 1);
+        reader->GetNextAsFixedUChar(&pPDL->cTLCVersion, 1);
         if (memcmp(pPDL->cTLC, "PDL", 3) == 0) {
             if (pPDL->cTLCVersion == 1) {
 
                 pPDL->iData1 = reader->GetNextAsInt32();        // Seen as 2
                 if (pPDL->iData1 != 2)
-                    wprintf(L"*** Warning PDL iData1 not 2\n");
+                    fprintf(stderr, "%hs\t*** Warning PDL iData1 not 2\n", 
+                            reader->GetFileSpec().c_str());
 
                 pPDL->pCPT1 = GetCPT();
                 pPDL->pCPT2 = GetCPT();
                 pPDL->iData2 = reader->GetNextAsInt32();        // Seen as 2
                 if (pPDL->iData2 != 2)
-                    wprintf(L"*** Warning PDL iData2 not 2\n");
+                    fprintf(stderr, "%hs\t*** Warning PDL iData2 not 2\n", 
+                            reader->GetFileSpec().c_str());
 
                 pPDL->pCPT3 = GetCPT();
                 pPDL->pCPT4 = GetCPT();
                 pPDL->pFRA = GetFRA();
                 pPDL->matCollectionValues = reader->GetNextAsMATwstring();
+
+                LogTLCOffset(pPDL, 2);
             }
             else {
-                printf("***GetPDL Error PDL, unexpected TLC version of %i found\n", (int)pPDL->cTLCVersion);
+                fprintf(stderr, "%hs\t***GetPDL Error PDL, unexpected TLC version of %hhu found, expecting 1\n", 
+                        reader->GetFileSpec().c_str(), (int)pPDL->cTLCVersion);
                 delete pPDL;
                 pPDL = nullptr;
             }
         }
         else {
-            printf("***GetPDL Error PDL expected not found\n");
+            fprintf(stderr, "%hs\t***GetPDL Error PDL expected not found\n", 
+                    reader->GetFileSpec().c_str());
             delete pPDL;
             pPDL = nullptr;
         }
@@ -1314,7 +1465,7 @@ struct _PD3* EMObsReader::GetPD3() {
 
         pPD3->fileSeekPointer = reader->GetReadPointer();
         reader->GetNextAsFixedChar(pPD3->cTLC, 3);
-        reader->GetNextAsFixedChar(&pPD3->cTLCVersion, 1);
+        reader->GetNextAsFixedUChar(&pPD3->cTLCVersion, 1);
         if (memcmp(pPD3->cTLC, "PD3", 3) == 0) {
             if (pPD3->cTLCVersion == 0) {
 
@@ -1322,15 +1473,19 @@ struct _PD3* EMObsReader::GetPD3() {
                 pPD3->pCPT2 = GetCPT();
                 pPD3->pFRA = GetFRA();
                 pPD3->matCollectionValues = reader->GetNextAsMATwstring();
+
+                LogTLCOffset(pPD3, 2);
             }
             else {
-                printf("***GetPD3 Error PD3, unexpected TLC version of %i found\n", (int)pPD3->cTLCVersion);
+                fprintf(stderr, "%hs\t***GetPD3 Error PD3, unexpected TLC version of %hhu found, expecting 0\n", 
+                        reader->GetFileSpec().c_str(), (int)pPD3->cTLCVersion);
                 delete pPD3;
                 pPD3 = nullptr;
             }
         }
         else {
-            printf("***GetPD3 Error PD3 expected not found\n");
+            fprintf(stderr, "%hs\t***GetPD3 Error PD3 expected not found\n", 
+                    reader->GetFileSpec().c_str());
             delete pPD3;
             pPD3 = nullptr;
         }
@@ -1351,21 +1506,25 @@ struct _CPT* EMObsReader::GetCPT() {
     if (pCPT != nullptr) {
 
         reader->GetNextAsFixedChar(pCPT->cTLC, 3);
-        reader->GetNextAsFixedChar(&pCPT->cTLCVersion, 1);
+        reader->GetNextAsFixedUChar(&pCPT->cTLCVersion, 1);
         if (memcmp(pCPT->cTLC, "CPT", 3) == 0) {
             if (pCPT->cTLCVersion == 0) {
 
                 pCPT->X = reader->GetNextAsDouble();
                 pCPT->Y = reader->GetNextAsDouble();
+
+                LogTLCOffset(pCPT, 2);
             }
             else {
-                printf("***GetCPT Error CPT, unexpected TLC version of %i found\n", (int)pCPT->cTLCVersion);
+                fprintf(stderr, "%hs\t***GetCPT Error CPT, unexpected TLC version of %hhu found, expecting 0\n", 
+                        reader->GetFileSpec().c_str(), (int)pCPT->cTLCVersion);
                 delete pCPT;
                 pCPT = nullptr;
             }
         }
         else {
-            printf("***GetCPT20 Error CPT expected not found\n");
+            fprintf(stderr, "%hs\t***GetCPT Error CPT expected not found\n", 
+                    reader->GetFileSpec().c_str());
             delete pCPT;
             pCPT = nullptr;
         }
@@ -1391,24 +1550,26 @@ struct _CMS* EMObsReader::GetCMS() {
 
         pCMS->fileSeekPointer = reader->GetReadPointer();
         reader->GetNextAsFixedChar(pCMS->cTLC, 3);
-        reader->GetNextAsFixedChar(&pCMS->cTLCVersion, 1);
+        reader->GetNextAsFixedUChar(&pCMS->cTLCVersion, 1);
         if (memcmp(pCMS->cTLC, "CMS", 3) == 0) {
             if (pCMS->cTLCVersion == 1) {
 
-                pCMS->Count = reader->GetNextAsInt32();
-                pCMS->pMSIArray = GetMSIArray(pCMS->Count);
+                size_t MSICount = reader->GetNextAsInt32();
+                pCMS->MSIList = reader->GetArray(MSICount, this, &EMObsReader::GetMSI);
+				reader->GetNextAsFixedChar(pCMS->bData, sizeof(pCMS->bData)/*12*/);
+
+                LogTLCOffset(pCMS, 0);
             }
             else {
-                printf("***GetCMS Error CMS, unexpected TLC version of %i found\n", (int)pCMS->cTLCVersion);
+                fprintf(stderr, "%hs\t***GetCMS Error CMS, unexpected TLC version of %hhu found, expecting 1\n", 
+                        reader->GetFileSpec().c_str(), (int)pCMS->cTLCVersion);
                 delete pCMS;
                 pCMS = nullptr;
             }
         }
         else {
-            printf("***GetCMS Error CMS expected not found\n");
-            hexDump("before TLC:", -1, reader->GetReadPointerPtr(pCMS->fileSeekPointer - 16), 16);
-            hexDump("       TLC:", -1, reader->GetReadPointerPtr(pCMS->fileSeekPointer), 16);
-            hexDump("after  TLC:", -1, reader->GetReadPointerPtr(pCMS->fileSeekPointer + 16), 16);
+            fprintf(stderr, "%hs\t***GetCMS Error CMS expected not found\n", 
+                    reader->GetFileSpec().c_str());
             delete pCMS;
             pCMS = nullptr;
         }
@@ -1417,28 +1578,6 @@ struct _CMS* EMObsReader::GetCMS() {
     return pCMS;
 }
 
-
-/// <summary>
-/// Retrieves an array of MSI (Media Info) structures.
-/// </summary>
-/// <returns>A pointer to a vector containing pointers to MSI structures, or null if no array is available.</returns>
-std::vector<struct _MSI*> EMObsReader::GetMSIArray(int count)
-{
-    std::vector<struct _MSI*> ret;
-
-    // Resize the vector to the desired dimensions
-    ret.resize(count);
-
-    // Optionally, initialize with default values or perform operations
-    for (int x = 0; x < count; ++x) {
-
-        // Initialize each element or perform other operations
-        ret[x] = GetMSI();
-    }
-
-    return ret;
-
-}
 
 /// <summary>
 /// Holds and array of MSI (Media Info)
@@ -1457,22 +1596,27 @@ struct _MSI* EMObsReader::GetMSI() {
 
         pMSI->fileSeekPointer = reader->GetReadPointer();
         reader->GetNextAsFixedChar(pMSI->cTLC, 3);
-        reader->GetNextAsFixedChar(&pMSI->cTLCVersion, 1);
+        reader->GetNextAsFixedUChar(&pMSI->cTLCVersion, 1);
         if (memcmp(pMSI->cTLC, "MSI", 3) == 0) {
             if (pMSI->cTLCVersion == 0) {
 
                 pMSI->wsMediaFile = reader->GetNextAsWString();
-                pMSI->FrameCount = reader->GetNextAsInt64();
+                pMSI->FrameCount = reader->GetNextAsInt32();
+                reader->GetNextAsFixedChar(pMSI->bData, sizeof(pMSI->bData));
                 pMSI->FrameRate = reader->GetNextAsDouble();
+
+                LogTLCOffset(pMSI, 1);
             }
             else {
-                printf("***GetMSI Error MSI, unexpected TLC version of %i found\n", (int)pMSI->cTLCVersion);
+                fprintf(stderr, "%hs\t***GetMSI Error MSI, unexpected TLC version of %hhu found, expecting 0\n", 
+                        reader->GetFileSpec().c_str(), (int)pMSI->cTLCVersion);
                 delete pMSI;
                 pMSI = nullptr;
             }
         }
         else {
-            printf("***GetMSI Error MSI expected not found\n");
+            fprintf(stderr, "%hs\t***GetMSI Error MSI expected not found\n", 
+                    reader->GetFileSpec().c_str());
             delete pMSI;
             pMSI = nullptr;
         }
@@ -1484,7 +1628,7 @@ struct _MSI* EMObsReader::GetMSI() {
 
 /// <summary>
 /// Holds and array of Period PED
-/// TLC=PER Version = 1
+/// TLC=PER Version = 0 or 1
 /// Children:
 ///     TLC: PED
 /// </summary>
@@ -1497,22 +1641,29 @@ struct _PER* EMObsReader::GetPER() {
 
         pPER->fileSeekPointer = reader->GetReadPointer();
         reader->GetNextAsFixedChar(pPER->cTLC, 3);
-        reader->GetNextAsFixedChar(&pPER->cTLCVersion, 1);
+        reader->GetNextAsFixedUChar(&pPER->cTLCVersion, 1);
         if (memcmp(pPER->cTLC, "PER", 3) == 0) {
-            if (pPER->cTLCVersion == 1) {
+            if (pPER->cTLCVersion == 0 || pPER->cTLCVersion == 1) {
 
-                pPER->PeriodCount = reader->GetNextAsInt32();
-                pPER->pPEDArray = GetPEDArray(pPER->PeriodCount);
+                size_t PeriodCount = reader->GetNextAsInt32();
+                pPER->PEDList = reader->GetArray(PeriodCount, this, &EMObsReader::GetPED);
 
+				// Unknown data that seems to be present when the version is 1, but not when the version is 0
+                if (pPER->cTLCVersion >= 1)
+				    reader->GetNextAsFixedChar(pPER->bData, sizeof(pPER->bData)/*4*/);
+
+                LogTLCOffset(pPER, 0);
             }
             else {
-                printf("***GetPER Error PER, unexpected TLC version of %i found\n", (int)pPER->cTLCVersion);
+                fprintf(stderr, "%hs\t***GetPER Error PER, unexpected TLC version of %hhu found, expecting 0 or 1\n", 
+                        reader->GetFileSpec().c_str(), (int)pPER->cTLCVersion);
                 delete pPER;
                 pPER = nullptr;
             }
         }
         else {
-            printf("***GetPER Error PER expected not found\n");
+            fprintf(stderr, "%hs\t***GetPER Error PER expected not found\n", 
+                    reader->GetFileSpec().c_str());
             delete pPER;
             pPER = nullptr;
         }
@@ -1521,27 +1672,6 @@ struct _PER* EMObsReader::GetPER() {
     return pPER;
 }
 
-/// <summary>
-/// Retrieves an array of PED (single period) structures.
-/// </summary>
-/// <returns>A pointer to a vector containing pointers to PED structures, or null if no array is available.</returns>
-std::vector<struct _PED*> EMObsReader::GetPEDArray(int count)
-{
-    std::vector<struct _PED*> ret;
-
-    // Resize the vector to the desired dimensions
-    ret.resize(count);
-
-    // Optionally, initialize with default values or perform operations
-    for (int x = 0; x < count; ++x) {
-
-        // Initialize each element or perform other operations
-        ret[x] = GetPED();
-    }
-
-    return ret;
-
-}
 
 /// <summary>
 /// Holds an array of Period PED
@@ -1558,7 +1688,7 @@ struct _PED* EMObsReader::GetPED() {
 
         pPED->fileSeekPointer = reader->GetReadPointer();
         reader->GetNextAsFixedChar(pPED->cTLC, 3);
-        reader->GetNextAsFixedChar(&pPED->cTLCVersion, 1);
+        reader->GetNextAsFixedUChar(&pPED->cTLCVersion, 1);
         if (memcmp(pPED->cTLC, "PED", 3) == 0) {
             if (pPED->cTLCVersion == 0) {
 
@@ -1567,15 +1697,19 @@ struct _PED* EMObsReader::GetPED() {
 
                 pPED->pFRAStart = GetFRA();
                 pPED->pFRAEnd = GetFRA();
+
+                LogTLCOffset(pPED, 1);
             }
             else {
-                printf("***GetPED Error PED, unexpected TLC version of %i found\n", (int)pPED->cTLCVersion);
+                fprintf(stderr, "%hs\t***GetPED Error PED, unexpected TLC version of %hhu found, expecting 0\n", 
+                        reader->GetFileSpec().c_str(), (int)pPED->cTLCVersion);
                 delete pPED;
                 pPED = nullptr;
             }
         }
         else {
-            printf("***GetPER Error PED expected not found\n");
+            fprintf(stderr, "%hs\t***GetPER Error PED expected not found\n", 
+                    reader->GetFileSpec().c_str());
             delete pPED;
             pPED = nullptr;
         }
@@ -1600,24 +1734,28 @@ struct _CCC* EMObsReader::GetCCC() {
 
         pCCC->fileSeekPointer = reader->GetReadPointer();
         reader->GetNextAsFixedChar(pCCC->cTLC, 3);
-        reader->GetNextAsFixedChar(&pCCC->cTLCVersion, 1);
+        reader->GetNextAsFixedUChar(&pCCC->cTLCVersion, 1);
         if (memcmp(pCCC->cTLC, "CCC", 3) == 0) {
             if (pCCC->cTLCVersion == 0) {
 
                 reader->GetNextAsFixedChar(pCCC->bData1, sizeof(pCCC->bData1));
 				pCCC->pCAM = GetCAM();
                 reader->GetNextAsFixedChar(pCCC->bData2, sizeof(pCCC->bData2));
+                pCCC->frameWidth = reader->GetNextAsInt32();
 				pCCC->frameHeight = reader->GetNextAsInt32();
-				pCCC->frameWidth = reader->GetNextAsInt32();
+
+                LogTLCOffset(pCCC, 0);
             }
             else {
-                printf("***GetCCC Error CCC, unexpected TLC version of %i found\n", (int)pCCC->cTLCVersion);
+                fprintf(stderr, "%hs\t***GetCCC Error CCC, unexpected TLC version of %hhu found, expecting 0\n", 
+                        reader->GetFileSpec().c_str(), (int)pCCC->cTLCVersion);
                 delete pCCC;
                 pCCC = nullptr;
             }
         }
         else {
-            printf("***GetCCC Error CCC expected not found\n");
+            fprintf(stderr, "%hs\t***GetCCC Error CCC expected not found\n", 
+                    reader->GetFileSpec().c_str());
             delete pCCC;
             pCCC = nullptr;
         }
@@ -1651,7 +1789,7 @@ struct _CAM* EMObsReader::GetCAM() {
 
         pCAM->fileSeekPointer = reader->GetReadPointer();
         reader->GetNextAsFixedChar(pCAM->cTLC, 3);
-        reader->GetNextAsFixedChar(&pCAM->cTLCVersion, 1);
+        reader->GetNextAsFixedUChar(&pCAM->cTLCVersion, 1);
         if (memcmp(pCAM->cTLC, "CAM", 3) == 0) {
             if (pCAM->cTLCVersion == 1) {
 				pCAM->wsCameraName = reader->GetNextAsWString();
@@ -1680,15 +1818,32 @@ struct _CAM* EMObsReader::GetCAM() {
 				pCAM->omega = mat[13][0];
                 pCAM->phi = mat[14][0];
                 pCAM->kappa = mat[15][0];
+
+                // Get unknown bit matrix
+                pCAM->mat1 = reader->GetNextAsMATbyte();
+
+                // Get unknown double matrix
+                pCAM->mat2 = reader->GetNextAsMATdouble();
+
+                // Get unknown data
+                reader->GetNextAsFixedChar(pCAM->bData1, sizeof(pCAM->bData1)/*132*/);
+
+                // Get unknown stings
+                pCAM->wsData2 = reader->GetNextAsWString();
+                pCAM->wsData3 = reader->GetNextAsWString();
+
+                LogTLCOffset(pCAM, 1);
             }
             else {
-                printf("***GetCAM Error CAM, unexpected TLC version of %i found\n", (int)pCAM->cTLCVersion);
+                fprintf(stderr, "%hs\t***GetCAM Error CAM, unexpected TLC version of %hhu found, expecting 1\n", 
+                        reader->GetFileSpec().c_str(), (int)pCAM->cTLCVersion);
                 delete pCAM;
                 pCAM = nullptr;
             }
         }
         else {
-            printf("***GetCAM Error CAM expected not found\n");
+            fprintf(stderr, "%hs\t***GetCAM Error CAM expected not found\n", 
+                    reader->GetFileSpec().c_str());
             delete pCAM;
             pCAM = nullptr;
         }
@@ -1696,6 +1851,7 @@ struct _CAM* EMObsReader::GetCAM() {
 
     return pCAM;
 }
+
 
 /// <summary>
 /// EMOBReaderBase
@@ -1769,7 +1925,7 @@ int EMObsReaderBase::PeekNextTLC(char* TLC) {
     return ret;
 }
 
-long EMObsReaderBase::GetReadPointer() {
+long EMObsReaderBase::GetReadPointer() const {
     return readPointer;
 }
 
@@ -1832,6 +1988,14 @@ char* EMObsReaderBase::GetNextAsFixedChar(char* buffer, size_t len)
     return buffer;
 }
 
+unsigned char* EMObsReaderBase::GetNextAsFixedUChar(unsigned char* buffer, size_t len)
+{
+    memcpy(buffer, &readBuffer[readPointer], len);
+    readPointer += (long)len;
+
+    return (unsigned char* )buffer;
+}
+
 float EMObsReaderBase::GetNextAsFloat() {
     float ret = 0;
     float* p = (float*)&readBuffer[readPointer];
@@ -1849,6 +2013,17 @@ double EMObsReaderBase::GetNextAsDouble()
 
     ret = *p;
     readPointer += sizeof(double);
+
+    return ret;
+}
+
+unsigned char EMObsReaderBase::GetNextAsUnsignedChar()
+{
+    unsigned char ret = 0;
+    unsigned char* p = (unsigned char*)&readBuffer[readPointer];
+
+    ret = *p;
+    readPointer += sizeof(unsigned char);
 
     return ret;
 }
@@ -1875,7 +2050,6 @@ std::vector<std::vector<std::wstring>> EMObsReaderBase::GetNextAsMATwstring()
         // Optionally, initialize with default values or perform operations
         for (int y = 0; y < dimY; ++y) {
             for (int x = 0; x < dimX; ++x) {
-
 
                 // Initialize each element or perform other operations
                 ret[x][y] = GetNextAsWString();
@@ -1909,7 +2083,6 @@ std::vector<std::vector<double>> EMObsReaderBase::GetNextAsMATdouble()
         for (int y = 0; y < dimY; ++y) {
             for (int x = 0; x < dimX; ++x) {
 
-
                 // Initialize each element or perform other operations
                 ret[x][y] = GetNextAsDouble();
             }
@@ -1919,6 +2092,59 @@ std::vector<std::vector<double>> EMObsReaderBase::GetNextAsMATdouble()
     return ret;
 }
 
+std::vector<std::vector<unsigned char>> EMObsReaderBase::GetNextAsMATbyte()
+{
+    std::vector<std::vector<unsigned char>> ret;
+
+    // Check this is really a matrix 
+    char szMAT[4];
+    GetNextAsFixedChar(szMAT, 4);
+
+    if (strcmp(szMAT, "MAT") == 0) {
+
+        int32_t dimX = GetNextAsInt32();
+        int32_t dimY = GetNextAsInt32();
+
+        // Resize the vector to the desired dimensions
+        ret.resize(dimX);
+        for (auto& row : ret) {
+            row.resize(dimY);
+        }
+
+        // Optionally, initialize with default values or perform operations
+        for (int y = 0; y < dimY; ++y) {
+            for (int x = 0; x < dimX; ++x) {
+
+                // Initialize each element or perform other operations
+                ret[x][y] = GetNextAsUnsignedChar();
+            }
+        }
+    }
+
+    return ret;
+}
+
+
+template <typename TOwner, typename T>
+std::list<T*> EMObsReaderBase::GetArray(size_t count, TOwner* owner, T* (TOwner::* getter)())
+{
+    std::list<T*> ret;
+    if (count <= 0)
+        return ret;
+
+    //???ret.reserve(static_cast<size_t>(count));
+
+    for (int i = 0; i < count; ++i)
+    {
+        T* item = (owner->*getter)();
+        if (item == nullptr)
+            break;
+
+        ret.push_back(item);
+    }
+
+    return ret;
+}
 
 int EMObsReaderBase::GetFirstTLC(void** p, int* size, char* TLC) {
 
@@ -2165,7 +2391,6 @@ long EMObsReaderBase::FindNextwstring(int* wssize) {
     return -1;
 }
 
-
 int EMObsReaderBase::HexDumpLine(long seek, int dataLength, int widthToDisplay, std::wstring& address, std::wstring& hex, std::wstring& asc) {
     int ret = 0;
     std::wstringstream ss;
@@ -2243,8 +2468,7 @@ int EMObsReader::ExtractTLCs(std::list<struct _OutputTLC*>& outputTLCsAdd) {
         fs::path fileNameWithExtension = fullPath.filename();
 
 
-
-        int row = 1;
+        int row = 0;
 
         unsigned char* p;
         int size;
@@ -2258,28 +2482,32 @@ int EMObsReader::ExtractTLCs(std::list<struct _OutputTLC*>& outputTLCsAdd) {
 
             std::wstring wideTLC(TLC, TLC + 3);  // Copy first 3 characters
 
-            struct _OutputTLC* outputTLC = new struct _OutputTLC;
+            // Limit TLC to one with a version 10 or below
+            if (*pAfterTLC <= 10)
+            {
+                struct _OutputTLC* outputTLC = new struct _OutputTLC;
 
-            outputTLC->row = row++;
-            outputTLC->Path = directoryPath;
-            outputTLC->File1 = fileNameWithExtension;
-            outputTLC->seekOffset = reader->GetLastTLCSeekPointer();
-            outputTLC->tlc = wideTLC;
-            outputTLC->cTLCByte = *pAfterTLC;
+                outputTLC->row = row++;
+                outputTLC->Path = directoryPath;
+                outputTLC->File1 = fileNameWithExtension;
+                outputTLC->seekOffset = reader->GetLastTLCSeekPointer();
+                outputTLC->tlc = wideTLC;
+                outputTLC->cTLCByte = *pAfterTLC;
 
-            // Extract the data (development only)
-            if (outputTLC->tlc == L"FRA") {
-                reader->SetReadPointerToLastTLCSeekPointer();
-                struct _FRA* pFAR = GetFRA();
+                // Extract the data (development only)
+                if (outputTLC->tlc == L"FRA") {
+                    reader->SetReadPointerToLastTLCSeekPointer();
+                    struct _FRA* pFAR = GetFRA();
 
-                if (pFAR != nullptr) {
-                    outputTLC->data1 = std::to_wstring(pFAR->iCameraZeroLeftOneRight);
-                    outputTLC->data2 = std::to_wstring(pFAR->iFrameIndex);
+                    if (pFAR != nullptr) {
+                        outputTLC->data1 = std::to_wstring(pFAR->iCameraZeroLeftOneRight);
+                        outputTLC->data2 = std::to_wstring(pFAR->iFrameIndex);
+                    }
                 }
+
+
+                outputTLCsAdd.push_back(outputTLC);
             }
-
-
-            outputTLCsAdd.push_back(outputTLC);
 
             ret = reader->GetNextTLC((void**)&p, &size, TLC);
 
@@ -2297,6 +2525,20 @@ int EMObsReader::ExtractTLCs(std::list<struct _OutputTLC*>& outputTLCsAdd) {
 
     return ret;
 }
+
+
+void EMObsReader::LogTLCOffset(struct _TLC* pTLC, int level)
+{
+    struct _TLCOffset* pItem = new struct _TLCOffset;
+    pItem->seekOffset = pTLC->fileSeekPointer;
+    std::wstring ws(pTLC->cTLC, pTLC->cTLC + 3);
+	pItem->tlc = ws;
+    pItem->size = this->reader->GetReadPointer() - pTLC->fileSeekPointer;
+    pItem->level = level;
+
+    TLCOffsetList.push_back(pItem);
+}
+
 
 
 int EMObsReader::HexDumpToFile(std::wofstream& outputFileStream, int rowWidth, int rowsPerPage) {
@@ -2351,6 +2593,7 @@ static void ClearOutputRow(struct _SurveyRow* outputRow)
     outputRow->PathEMObs = L"";
     outputRow->FileEMObs = L"";
     outputRow->opCode = L"";
+    outputRow->Analyst = L"";
     outputRow->rowType = None;
     outputRow->Period = L"";
     outputRow->Path = L"";

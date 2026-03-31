@@ -24,6 +24,7 @@ namespace EMObsReaderNameSpace
         System::String^ PathEMObs;
         System::String^ FileEMObs;
         System::String^ OpCode;
+        System::String^ Analyst;
         RowTypeManaged rowType;
         System::String^ Period;
         System::String^ Path;
@@ -52,6 +53,7 @@ namespace EMObsReaderNameSpace
             System::String^ _PathEMObs,
             System::String^ _FileEMObs,
             System::String^ _OpCode,
+            System::String^ _Analyst,
             RowTypeManaged _rowType,
             System::String^ _Period,
             System::String^ _Path,
@@ -79,6 +81,7 @@ namespace EMObsReaderNameSpace
             PathEMObs = _PathEMObs;
             FileEMObs = _FileEMObs;
             OpCode = _OpCode;
+			Analyst = _Analyst;
             rowType = _rowType;
             Period = _Period;
             Path = _Path;
@@ -104,30 +107,160 @@ namespace EMObsReaderNameSpace
         }
     };
 
+    public ref class PeriodRow
+    {
+    public:
+        int row;
+        System::String^ PeriodName;
+        int Camera;
+        System::String^ MediaFile;
+        long StartFrame;
+        long EndFrame;
 
+        PeriodRow(int row, System::String^ periodName, int camera, System::String^ mediaFile, long startFrame, long endFrame)
+        {
+            this->row = row;
+            PeriodName = periodName;
+            Camera = camera;
+            MediaFile = mediaFile;
+            StartFrame = startFrame;
+            EndFrame = endFrame;
+        }
+    };
+
+    public ref class MediaInfoRow
+    {
+    public:
+        int row;
+        bool TrueLeftFalseRightCamera;
+        System::String^ MediaFile;
+        int FrameCount;
+        double FrameRate;
+
+        MediaInfoRow(int row, bool trueLeftFalseRightCamera, System::String^ mediaFile, int frameCount, double frameRate)
+        {
+            this->row = row;    
+            TrueLeftFalseRightCamera = trueLeftFalseRightCamera;
+            MediaFile = mediaFile;
+            FrameCount = frameCount;
+            FrameRate = frameRate;
+        }
+    };
+
+    public ref class CalibrationRow
+    {
+    public:
+        int row;
+        bool TrueLeftFalseRightCamera;
+        System::String^ CameraName;
+        System::String^ DerivedFrom;
+
+        double XPixelSize;
+        double YPixelSize;
+        int FrameHeight;
+        int FrameWidth;
+
+        double XPPOffset;
+        double YPPOffset;
+        double FocalLength;
+        double K3RadialDistortion;
+        double K5RadialDistortion;
+        double K7RadialDistortion;
+        double P1DecenteringDistortion;
+        double P2DecenteringDistortion;
+        double Orthogonality;
+        double Affinity;
+        double CameraX;
+        double CameraY;
+        double CameraZ;
+        double Omega;
+        double Phi;
+        double Kappa;
+
+        CalibrationRow(
+            int row,
+            bool trueLeftFalseRightCamera,
+            System::String^ cameraName,
+            System::String^ derivedFrom,
+            double xPixelSize,
+            double yPixelSize,
+            int frameHeight,
+            int frameWidth,
+            double xPPOffset,
+            double yPPOffset,
+            double focalLength,
+            double k3RadialDistortion,
+            double k5RadialDistortion,
+            double k7RadialDistortion,
+            double p1DecenteringDistortion,
+            double p2DecenteringDistortion,
+            double orthogonality,
+            double affinity,
+            double cameraX,
+            double cameraY,
+            double cameraZ,
+            double omega,
+            double phi,
+            double kappa)
+        {
+			this->row = row;
+			TrueLeftFalseRightCamera = trueLeftFalseRightCamera;
+            CameraName = cameraName;
+            DerivedFrom = derivedFrom;
+            XPixelSize = xPixelSize;
+            YPixelSize = yPixelSize;
+            FrameHeight = frameHeight;
+            FrameWidth = frameWidth;
+            XPPOffset = xPPOffset;
+            YPPOffset = yPPOffset;
+            FocalLength = focalLength;
+            K3RadialDistortion = k3RadialDistortion;
+            K5RadialDistortion = k5RadialDistortion;
+            K7RadialDistortion = k7RadialDistortion;
+            P1DecenteringDistortion = p1DecenteringDistortion;
+            P2DecenteringDistortion = p2DecenteringDistortion;
+            Orthogonality = orthogonality;
+            Affinity = affinity;
+            CameraX = cameraX;
+            CameraY = cameraY;
+            CameraZ = cameraZ;
+            Omega = omega;
+            Phi = phi;
+            Kappa = kappa;
+        }
+    };
 
     public ref class EMObsReaderCLR
     {
     private:
-        EMObsReader* reader;  // Native C++ class pointer
+        System::IntPtr nativeReader;
 
     public:
         EMObsReaderCLR(System::String^ filePath)
         {
             // Convert System::String^ to std::wstring
             std::string nativeFilePath = msclr::interop::marshal_as<std::string>(filePath);
-
-
-            reader = new EMObsReader(nativeFilePath);  // Create an instance of your C++ class
+            nativeReader = System::IntPtr(new EMObsReader(nativeFilePath));
         }
 
         ~EMObsReaderCLR()
         {
-            delete reader;  // Cleanup native instance
+            this->!EMObsReaderCLR();
+        }
+
+        !EMObsReaderCLR()
+        {
+            if (nativeReader != System::IntPtr::Zero)
+            {
+                delete static_cast<EMObsReader*>(nativeReader.ToPointer());
+                nativeReader = System::IntPtr::Zero;
+            }
         }
 
         System::Collections::Generic::List<OutputRow^>^ Process()
         {
+            auto* reader = static_cast<EMObsReader*>(nativeReader.ToPointer());
+
             // Native std::list to hold _OutputRow pointers
             std::list<struct _SurveyRow*> outputRows;
 
@@ -165,6 +298,7 @@ namespace EMObsReaderNameSpace
                     msclr::interop::marshal_as<System::String^>(item->PathEMObs),
                     msclr::interop::marshal_as<System::String^>(item->FileEMObs),
                     msclr::interop::marshal_as<System::String^>(item->opCode),
+                    msclr::interop::marshal_as<System::String^>(item->Analyst),
                     managedRowType,
                     msclr::interop::marshal_as<System::String^>(item->Period),
                     msclr::interop::marshal_as<System::String^>(item->Path),
@@ -195,6 +329,112 @@ namespace EMObsReaderNameSpace
             }
 
             return managedOutputRows;
+        }
+
+       
+        System::Collections::Generic::List<PeriodRow^>^ GetPeriodRows()
+        {
+            auto* reader = static_cast<EMObsReader*>(nativeReader.ToPointer());
+
+            std::list<struct _OutputPeriodRow*> nativeRows;
+            reader->GetPeriodRows(nativeRows);
+
+            auto managedRows = gcnew System::Collections::Generic::List<PeriodRow^>();
+
+            for (auto* item : nativeRows) {
+                if (item == nullptr) {
+                    continue;
+                }
+
+                managedRows->Add(gcnew PeriodRow(
+                    item->row,
+                    msclr::interop::marshal_as<System::String^>(item->PeriodName),
+                    item->Camera,
+                    msclr::interop::marshal_as<System::String^>(item->MediaFile),
+                    item->StartFrame,
+                    item->EndFrame));
+
+                delete item; // free native DTO after conversion
+            }
+
+            nativeRows.clear();
+            return managedRows;
+        }  
+
+        System::Collections::Generic::List<MediaInfoRow^>^ GetMediaInfoRows()
+        {
+            auto* reader = static_cast<EMObsReader*>(nativeReader.ToPointer());
+
+            std::list<struct _OutputMediaInfoRow*> nativeRows;
+            reader->GetMediaInfoRows(nativeRows);
+
+            auto managedRows = gcnew System::Collections::Generic::List<MediaInfoRow^>();
+
+            for (auto* item : nativeRows)
+            {
+                if (item == nullptr)
+                    continue;
+
+                managedRows->Add(gcnew MediaInfoRow(
+					item->row,
+                    item->TrueLeftFalseRightCamera,
+                    msclr::interop::marshal_as<System::String^>(item->MediaFile),
+                    static_cast<long long>(item->FrameCount),
+                    item->FrameRate));
+
+                delete item;
+            }
+
+            nativeRows.clear();
+            return managedRows;
+        }
+
+
+        System::Collections::Generic::List<CalibrationRow^>^ GetCalibrationRows()
+        {
+            auto* reader = static_cast<EMObsReader*>(nativeReader.ToPointer());
+
+            std::list<struct _OutputCalibrationRow*> nativeRows;
+            reader->GetCalibrationRows(nativeRows);
+
+            auto managedRows = gcnew System::Collections::Generic::List<CalibrationRow^>();
+
+            for (auto* item : nativeRows)
+            {
+                if (item == nullptr)
+                    continue;
+
+                managedRows->Add(gcnew CalibrationRow(
+					item->row,
+                    item->TrueLeftFalseRightCamera,
+                    msclr::interop::marshal_as<System::String^>(item->CameraName),
+                    msclr::interop::marshal_as<System::String^>(item->DerivedFrom),
+                    item->XPixelSize,
+                    item->YPixelSize,
+                    item->FrameHeight,
+                    item->FrameWidth,
+                    item->XPPOffset,
+                    item->YPPOffset,
+                    item->FocalLength,
+                    item->K3RadialDistortion,
+                    item->K5RadialDistortion,
+                    item->K7RadialDistortion,
+                    item->P1DecenteringDistortion,
+                    item->P2DecenteringDistortion,
+                    item->Orthogonality,
+                    item->Affinity,
+                    item->CameraX,
+                    item->CameraY,
+                    item->CameraZ,
+                    item->Omega,
+                    item->Phi,
+                    item->Kappa));
+
+                delete item;
+            }
+
+            nativeRows.clear();
+            return managedRows;
         }
     };
 }

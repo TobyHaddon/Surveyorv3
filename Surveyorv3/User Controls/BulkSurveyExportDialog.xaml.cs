@@ -26,10 +26,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
-//using System.Drawing;
-
-//using System.Drawing;
-//using System.Drawing.Imaging;
+using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -38,7 +35,6 @@ using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-//???using System.Xml;
 using Windows.Foundation;
 using Windows.Media.Core;
 using Windows.Storage;
@@ -320,6 +316,7 @@ namespace Surveyor.User_Controls
 
                     // Filter: Surveys (*.survey)
                     openPicker.FileTypeFilter.Add(".survey");
+                    openPicker.FileTypeFilter.Add(".EMObs");
 
                     // Associate picker with this window
                     IntPtr hWnd = WindowNative.GetWindowHandle(this);
@@ -893,7 +890,7 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// Create a List<> of files from the indicated root folder and pattern. 
-        /// If recurse is true then all sub-folders are also searched. 
+        /// If recursive is true then all sub-folders are also searched. 
         /// Any folders that cannot be accessed are skipped with a warning in the report.
         /// </summary>
         /// <param name="root"></param>
@@ -2435,11 +2432,11 @@ namespace Surveyor.User_Controls
                 List<ImageExtract?> rightImageExtractList = [];
 
                 // Open the media file(s)
-                ret = await OpenMediaFilesAsync(trueLeftFalseRight: true, leftImageExtractList, survey.Data.Media, exportBasePath, fileEntry.FileName);
+                ret = await OpenMediaFilesAsync(trueLeftFalseRight: true, leftImageExtractList, survey.Data.Media, exportBasePath, fileEntry.FilePath);
 
                 if (ret == 0)
                 {
-                    ret = await OpenMediaFilesAsync(trueLeftFalseRight: false, rightImageExtractList, survey.Data.Media, exportBasePath, fileEntry.FileName);
+                    ret = await OpenMediaFilesAsync(trueLeftFalseRight: false, rightImageExtractList, survey.Data.Media, exportBasePath, fileEntry.FilePath);
                     if (ret == 0)
                     {
                         // Loop through the events for this survey
@@ -2551,9 +2548,15 @@ namespace Surveyor.User_Controls
                     // Clear the GridView of images
                     COCODatasetImages.Clear();
 
+                    // The media paths are often wrong because survey data is moved from
+                    // device to device. Check the media file exists in the media path and 
+                    // if not check the survey path.
+                    string mediaPath = Path.GetDirectoryName(mediaFileExtractList.mediaFileSpec) ?? string.Empty;
+                    string mediaFileSpec2 = CheckMediaFileExists(mediaPath, Path.GetFileName(mediaFileExtractList.mediaFileSpec), mediaFileExtractList.surveyFilePath);
+
                     // Open the media file
                     ImageExtract imageExtract = new();
-                    ret = await imageExtract.VideoOpenAsync(mediaFileExtractList.mediaFileSpec);
+                    ret = await imageExtract.VideoOpenAsync(mediaFileSpec2);
 
                     if (ret == 0)
                     {
@@ -2564,7 +2567,7 @@ namespace Surveyor.User_Controls
                             List<Event> eventsAtThisFrame = evtPair.Value;
 
                             // Extract the raw frame
-                            string rawExportFileSpec = MakeImageFrameFileSpec(mediaFileExtractList.mediaFileSpec, position, rawFolder, "Raw", null, null, null);
+                            string rawExportFileSpec = MakeImageFrameFileSpec(mediaFileExtractList.mediaFileSpec, position, rawFolder, "Raw", null, null, null, null);
                             try
                             {
                                 ret = await imageExtract.VideoExtractFrameAsync(position, rawExportFileSpec);
@@ -3000,7 +3003,22 @@ namespace Surveyor.User_Controls
                     (_, SpeciesInfo? speciesInfo) = GetRulesAndSpeciesInfo(eventsAtThisFrame[i]);
                     string species = ExtractScientificName(speciesInfo?.Species);
 
-                    string croppedExportFileSpec = MakeImageFrameFileSpec(mediaFileSpec, position, croppedFolder, "Crop", rect, species, overlapping);
+                    // Type of event Measurement, 3D or 2D
+                    string eventDataType = string.Empty;
+                    switch (eventsAtThisFrame[i].EventDataType)
+                    {
+                        case SurveyDataType.SurveyMeasurementPoints:
+                            eventDataType = "Measure";
+                            break;
+                        case SurveyDataType.SurveyStereoPoint:
+                            eventDataType = "3DPoint";
+                            break;
+                        case SurveyDataType.SurveyPoint:
+                            eventDataType = "2DPoint";
+                            break;
+                    }
+
+                    string croppedExportFileSpec = MakeImageFrameFileSpec(mediaFileSpec, position, croppedFolder, "Crop", rect, species, eventDataType, overlapping);
 
                     // Extract cropped bitmap rect from wb
                     WriteableBitmap? wbCropped;
@@ -3164,7 +3182,7 @@ namespace Surveyor.User_Controls
             }
             wb.Invalidate();
 
-            string markupExportFileSpec = MakeImageFrameFileSpec(mediaFileSpec, position, markupFolder, "Markup", null, null, null);
+            string markupExportFileSpec = MakeImageFrameFileSpec(mediaFileSpec, position, markupFolder, "Markup", null, null, null, null);
 
             // Write to file
             try
@@ -3263,7 +3281,7 @@ namespace Surveyor.User_Controls
                                     evt.EventDataType == Events.SurveyDataType.SurveyStereoPoint ||
                                     evt.EventDataType == Events.SurveyDataType.SurveyPoint);
 
-            // Nullable so empty sequence is handled safely
+            // Null able so empty sequence is handled safely
             yearEarliest = pointAndMeasurementEvents.Select(evt => (int?)evt.DateTimeCreate.Year).Min();
             yearLatest = pointAndMeasurementEvents.Select(evt => (int?)evt.DateTimeCreate.Year).Max();
 
@@ -3346,7 +3364,7 @@ namespace Surveyor.User_Controls
                     // If so all annotations for this frame will point to this image 
                     if (!extractCroppedImage)
                     {
-                        imageFileSpec = MakeImageFrameFileSpec(mediaFileExtractList.mediaFileSpec, position, rawFolder, "Raw", null, null, null);
+                        imageFileSpec = MakeImageFrameFileSpec(mediaFileExtractList.mediaFileSpec, position, rawFolder, "Raw", null, null, null, null);
 
                         // Add this frame to the images list
                         currentImageId = nextImageId++;
@@ -3392,8 +3410,23 @@ namespace Surveyor.User_Controls
                                     // Are we using the cropped image?
                                     if (extractCroppedImage)
                                     {
+                                        // Type of event Measurement, 3D or 2D
+                                        string eventDataType = string.Empty;
+                                        switch (eventsAtThisFrame[i].EventDataType)
+                                        {
+                                            case SurveyDataType.SurveyMeasurementPoints:
+                                                eventDataType = "Measure";
+                                                break;
+                                            case SurveyDataType.SurveyStereoPoint:
+                                                eventDataType = "3DPoint";
+                                                break;
+                                            case SurveyDataType.SurveyPoint:
+                                                eventDataType = "2DPoint";
+                                                break;
+                                        }
+
                                         string species = ExtractScientificName(speciesInfo.Species);
-                                        imageFileSpec = MakeImageFrameFileSpec(mediaFileExtractList.mediaFileSpec, position, croppedFolder, "Cropped", rect, species, overlapping);
+                                        imageFileSpec = MakeImageFrameFileSpec(mediaFileExtractList.mediaFileSpec, position, croppedFolder, "Cropped", rect, species, eventDataType, overlapping);
 
                                         // Add this frame to the images list
                                         currentImageId = nextImageId++;
@@ -3596,8 +3629,12 @@ namespace Surveyor.User_Controls
             {
                 try
                 {
+                    // The media paths are often wrong because survey data is moved from
+                    // device to device. Check the media file exists in the media path and 
+                    // if not check the survey path.
+                    string mediaFileSpec = CheckMediaFileExists(media.MediaPath!, mediaFile, surveyFileName);
+
                     // Open media file
-                    string mediaFileSpec = Path.Combine(media.MediaPath!, mediaFile);
                     ImageExtract imageExtract = new();
                     ret = await imageExtract.VideoOpenAsync(mediaFileSpec);
 
@@ -3641,6 +3678,41 @@ namespace Surveyor.User_Controls
                     report?.Warning("", $"From Survey {surveyFileName} failed to close right media file {imageExtract?.GetCurrentMediaFileSpec() ?? "(no file spec)"}, {ex.Message}");                   
                 }
             }
+        }
+
+
+        // The media paths are often wrong because survey data is moved from
+        // device to device. Check the media file exists in the media path and 
+        // if not check the survey path.
+        private string CheckMediaFileExists(string mediaPath, string mediaFileName, string surveyFileName)
+        {
+            string mediaFileSpec = string.Empty;
+
+            // Check of the media exists in the media path
+            mediaFileSpec = Path.Combine(mediaPath, mediaFileName);
+            if (!System.IO.File.Exists(mediaFileSpec))
+            {
+                // Not found - next try the survey path
+                string? surveyPath = Path.GetDirectoryName(surveyFileName);
+                if (surveyPath is not null)
+                {
+                    mediaFileSpec = Path.Combine(surveyPath, mediaFileName);
+
+                    if (!System.IO.File.Exists(mediaFileSpec))
+                    {
+                        // Still not found - restore to original path so the failure is logical
+                        mediaFileSpec = Path.Combine(mediaPath, mediaFileName);
+                        report?.Info("", $"The media file for survey {surveyFileName} called {mediaFileName} was not found in either the media path {mediaPath} or the survey path {surveyPath}");
+                    }
+                    else
+                    {
+                        report?.Info("", $"The media file for survey {surveyFileName} called {mediaFileName} was not found in the media path {mediaPath} but it was found in the survey path {surveyPath}");
+                    }
+                }
+            }
+                
+
+            return mediaFileSpec;
         }
 
 
@@ -3720,12 +3792,13 @@ namespace Surveyor.User_Controls
         /// <param name="species">scientific species name</param>
         /// <param name="overlapping">did the box overlap with another box</param>
         /// <returns></returns>
-        private static string MakeImageFrameFileSpec(string mediaFileSpec, TimeSpan position, string subFolder, string type, Rect? rect, string? species, bool? overlapping)
+        private static string MakeImageFrameFileSpec(string mediaFileSpec, TimeSpan position, string subFolder, string type, Rect? rect, string? species, string? eventDataType, bool? overlapping)
         {
             string formattedTime = "0000" + $"{Math.Round(position.TotalSeconds, 2):F2}";
             string typeText = string.Empty;
             string bboxText = string.Empty;
             string speciesText = string.Empty;
+            string eventDataTypeText = string.Empty;
             string overlappingText = string.Empty;
 
             if (!string.IsNullOrWhiteSpace(type))
@@ -3734,10 +3807,12 @@ namespace Surveyor.User_Controls
                 bboxText = $"_B.({rect.Value.Left},{rect.Value.Top},{rect.Value.Width},{rect.Value.Height})";
             if (!string.IsNullOrWhiteSpace(species))
                 speciesText = $"_S.{species}";
+            if (!string.IsNullOrWhiteSpace(eventDataType))
+                eventDataTypeText = $"_E.{eventDataType}";
             if (overlapping.HasValue && overlapping.Value == true)
                 overlappingText = "_overlap";
 
-                string fileName = Path.GetFileNameWithoutExtension(mediaFileSpec) + $"_P.{formattedTime.Substring(Math.Max(0, formattedTime.Length - 12))}s{typeText}{bboxText}{speciesText}{overlappingText}.png";
+                string fileName = Path.GetFileNameWithoutExtension(mediaFileSpec) + $"_P.{formattedTime.Substring(Math.Max(0, formattedTime.Length - 12))}s{typeText}{bboxText}{speciesText}{eventDataTypeText}{overlappingText}.png";
             return Path.Combine(subFolder, fileName);
         }
 
