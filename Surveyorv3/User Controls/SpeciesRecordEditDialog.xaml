@@ -84,22 +84,22 @@
 
             <TextBlock Grid.Row ="0" Grid.Column="0" Text="Species:" VerticalAlignment="Center"  Margin="0,15,0,0"/>
             <StackPanel Grid.Row ="0" Grid.Column="1" Orientation="Horizontal"  HorizontalAlignment="Left"  Margin="10,15,0,0">
-                <TextBox x:Name="SpeciesLatin" TextChanged="SpeciesLatin_TextChanged" PlaceholderText="Latin Name" VerticalAlignment="Center"/>
+                <TextBox x:Name="SpeciesLatin" Width="200" TextChanged="SpeciesLatin_TextChanged" PlaceholderText="Latin Name" VerticalAlignment="Center"/>
                 <TextBlock Text="/" VerticalAlignment="Center"  Margin="10,0,10,0"/>
-                <TextBox x:Name="SpeciesCommon" TextChanged="SpeciesCommon_TextChanged" PlaceholderText="Common Name" VerticalAlignment="Center"/>
+                <TextBox x:Name="SpeciesCommon" Width="200" TextChanged="SpeciesCommon_TextChanged" PlaceholderText="Common Name" VerticalAlignment="Center"/>
             </StackPanel>
 
 
             <TextBlock Grid.Row ="1" Grid.Column="0" Text="Genus:" VerticalAlignment="Center" Margin="0,15,0,0"/>
             <StackPanel Grid.Row ="1" Grid.Column="1" Orientation="Horizontal"  HorizontalAlignment="Left"  Margin="10,15,0,0">
-                <TextBox x:Name="GenusLatin" TextChanged="GenusLatin_TextChanged" PlaceholderText="Latin Name" VerticalAlignment="Center"/>
+                <TextBox x:Name="GenusLatin" Width="200" TextChanged="GenusLatin_TextChanged" PlaceholderText="Latin Name" VerticalAlignment="Center"/>
             </StackPanel>
 
             <TextBlock Grid.Row ="2" Grid.Column="0" Text="Family:" VerticalAlignment="Center" Margin="0,10,0,0"/>
             <StackPanel Grid.Row ="2" Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Left" Margin="10,10,0,0">
                 <AutoSuggestBox x:Name="Family"
                   PlaceholderText="Scientific Name/Common Name"
-                  Width="250"
+                  Width="400"
                   QueryIcon="Find"
                   TextChanged="FamilyAutoSuggest_TextChanged"
                   SuggestionChosen="FamilyAutoSuggest_SuggestionChosen"

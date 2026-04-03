@@ -1,0 +1,333 @@
+family	genus	species	CAAB
+Pomacentridae/Damselfishes	Amblyglyphidodon	curacao/Staghorn damselfish	Fishbase:5477
+Pomacentridae/Damselfishes	Dascyllus	reticulatus/Reticulate dascyllus	Fishbase:5113
+Pomacentridae/Damselfishes	Pomacentrus	brachialis/Charcoal damsel	Fishbase:5718
+Pomacentridae/Damselfishes	Neoglyphidodon	nigroris/Black-and-gold chromis	Fishbase:5708
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Ctenochaetus	striatus/Striated surgeonfish	Fishbase:1262
+Pomacentridae/Damselfishes	Chromis	ternatensis/Ternate chromis	Fishbase:5677
+Pomacentridae/Damselfishes	Pomacentrus	moluccensis/Lemon damsel	Fishbase:5724
+Pomacentridae/Damselfishes	Pomacentrus	wardi/Ward's damsel	Fishbase:10281
+Pomacentridae/Damselfishes	Amblyglyphidodon	leucogaster/Yellowbelly damselfish	Fishbase:5691
+Caesionidae/Fusiliers	Pterocaesio	tile/Dark-banded fusilier	Fishbase:939
+Pomacentridae/Damselfishes	Chromis	viridis/Blue green damselfish	Fishbase:5679
+Balistidae/Triggerfishes	Odonus	niger/Red-toothed triggerfish	Fishbase:1311
+Pomacentridae/Damselfishes	Chromis	weberi/Weber's chromis	Fishbase:5680
+Pomacentridae/Damselfishes	Chromis	analis/Yellow chromis	Fishbase:6551
+Anthiadidae/Fairy basslets or Streamer basses	Mirolabrichthys	evansi/Yellowback anthias	Fishbase:7799
+Pomacentridae/Damselfishes	Pomacentrus	coelestis/Neon damselfish	Fishbase:5720
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Zebrasoma	scopas/Twotone tang	Fishbase:5951
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Ctenochaetus	binotatus/Twospot surgeonfish	Fishbase:6012
+Pomacentridae/Damselfishes	Chromis	alpha/Yellow-speckled chromis	Fishbase:5670
+Pomacentridae/Damselfishes	Chrysiptera	springeri/Springer's demoiselle	Fishbase:12450
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Acanthurus	thompsoni/Thompson's surgeonfish	Fishbase:4734
+Pomacentridae/Damselfishes	Chrysiptera	glauca/Grey demoiselle	Fishbase:5696
+Pomacentridae/Damselfishes	Chromis	xanthura/Paletail chromis	Fishbase:5682
+Caesionidae/Fusiliers	Pterocaesio	trilineata/Three-stripe fusilier	Fishbase:1886
+Labridae/Wrasses	Thalassoma	lunare/Moon wrasse	Fishbase:5645
+Lutjanidae/Snappers	Lutjanus	ehrenbergii/Blackspot snapper	Fishbase:793
+Pomacentridae/Damselfishes	Dascyllus	trimaculatus/Threespot dascyllus	Fishbase:5112
+Nemipteridae/Threadfin breams, Whiptail breams	Scolopsis	lineata/Striped monocle bream	Fishbase:5877
+Labridae/Wrasses	Chlorurus	sordidus/Daisy parrotfish	Fishbase:5556
+Anthiadidae/Fairy basslets or Streamer basses	Pseudanthias	huchtii/Red-cheeked fairy basslet	Fishbase:6567
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Naso	caesius/Gray unicornfish	Fishbase:15628
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Acanthurus	auranticavus/Orange-socket surgeonfish	Fishbase:4748
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Naso	vlamingii/Bignose unicornfish	Fishbase:6024
+Labridae/Wrasses	Thalassoma	hardwicke/Sixbar wrasse	Fishbase:5643
+Zanclidae/Moorish idol	Zanclus	cornutus/Moorish idol	Fishbase:5950
+Chaetodontidae/Butterflyfishes	Hemitaurichthys	polylepis/Pyramid butterflyfish	Fishbase:5586
+Pomacentridae/Damselfishes	Pycnochromis	margaritifer/Bicolor chromis	Fishbase:5675
+Pomacentridae/Damselfishes	Pomacentrus	lepidogenys/Scaly damsel	Fishbase:6620
+Pomacentridae/Damselfishes	Pycnochromis	caudalis/Blue-axil chromis	Fishbase:5672
+Pomacentridae/Damselfishes	Pomacentrus	amboinensis/Ambon damsel	Fishbase:5715
+Labridae/Wrasses	Chlorurus	bleekeri/Bleeker's parrotfish	Fishbase:4976
+Anthiadidae/Fairy basslets or Streamer basses	Pseudanthias	pleurotaenia/Square-spot fairy basslet	Fishbase:6569
+Balistidae/Triggerfishes	Balistapus	undulatus/Orange-lined triggerfish	Fishbase:6025
+Chaetodontidae/Butterflyfishes	Chaetodon	lunulatus/Oval butterflyfish	Fishbase:14300
+Balistidae/Triggerfishes	Melichthys	vidua/Pinktail triggerfish	Fishbase:5838
+Labridae/Wrasses	Thalassoma	amblycephalum/Blunthead wrasse	Fishbase:5642
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Acanthurus	pyroferus/Mimic surgeonfish	Fishbase:4742
+Pomacentridae/Damselfishes	Dascyllus	aruanus/Whitetail dascyllus	Fishbase:5110
+Chaetodontidae/Butterflyfishes	Chaetodon	kleinii/Sunburst butterflyfish	Fishbase:5446
+Anthiadidae/Fairy basslets or Streamer basses	Nemanthias	dispar/Peach fairy basslet	Fishbase:7454
+Chaetodontidae/Butterflyfishes	Forcipiger	longirostris/Longnose butterflyfish	Fishbase:5585
+Nemipteridae/Threadfin breams, Whiptail breams	Scolopsis	bilineata/Two-lined monocle bream	Fishbase:5885
+Pomacentridae/Damselfishes	Dascyllus	melanurus/Blacktail humbug	Fishbase:5111
+Pomacentridae/Damselfishes	Chromis	fumea/Smokey chromis	Fishbase:10842
+Pomacentridae/Damselfishes	Neoglyphidodon	melas/Bowtie damselfish	Fishbase:5707
+Labridae/Wrasses	Scarus	rivulatus/Rivulated parrotfish	Fishbase:4969
+Pomacentridae/Damselfishes	Pomacentrus	reidi/Reid's damsel	Fishbase:5728
+Labridae/Wrasses	Labroides	dimidiatus/Bluestreak cleaner wrasse	Fishbase:5459
+Labridae/Wrasses	Scarus	flavipectoralis/Yellowfin parrotfish	Fishbase:4968
+Pomacentridae/Damselfishes	Chrysiptera	rex/King demoiselle	Fishbase:5699
+Mullidae/Goatfishes	Parupeneus	multifasciatus/Manybar goatfish	Fishbase:5993
+Mullidae/Goatfishes	Mulloidichthys	flavolineatus/Yellowstripe goatfish	Fishbase:5983
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Acanthurus	nigrofuscus/Brown surgeonfish	Fishbase:4739
+Caesionidae/Fusiliers	Pterocaesio	pisang/Banana fusilier	Fishbase:936
+Pomacentridae/Damselfishes	Chrysiptera	parasema/Goldtail demoiselle	Fishbase:12448
+Pomacentridae/Damselfishes	Hemiglyphidodon	plagiometopon/Lagoon damselfish	Fishbase:5487
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Acanthurus	nigroris/Bluelined surgeonfish	Fishbase:4738
+Blenniidae/Combtooth blennies	Meiacanthus	vicinus/Sulawesi fangblenny	Fishbase:46632
+Pomacanthidae/Angelfishes	Centropyge	vrolikii/Pearlscale angelfish	Fishbase:5447
+Balistidae/Triggerfishes	Sufflamen	chrysopterum/Halfmoon triggerfish	Fishbase:5842
+Mullidae/Goatfishes	Mulloidichthys	vanicolensis/Yellowfin goatfish	Fishbase:5984
+Pomacentridae/Damselfishes	Pycnochromis	agilis/Agile chromis	Fishbase:69154
+Siganidae/Rabbitfishes	Siganus	doliatus/Barred spinefoot	Fishbase:4623
+Lutjanidae/Snappers	Macolor	macularis/Midnight snapper	Fishbase:186
+Pomacanthidae/Angelfishes	Centropyge	bicolor/Bicolor angelfish	Fishbase:5454
+Labridae/Wrasses	Scarus	dimidiatus/Yellowbarred parrotfish	Fishbase:4973
+Labridae/Wrasses	Scarus	psittacus/Common parrotfish	Fishbase:5553
+Chaetodontidae/Butterflyfishes	Chaetodon	melannotus/Blackback butterflyfish	Fishbase:5566
+Pomacentridae/Damselfishes	Pycnochromis	amboinensis/Ambon chromis	Fishbase:5671
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Acanthurus	tristis/Indian Ocean mimic surgeonfish	Fishbase:12782
+Pomacentridae/Damselfishes	Abudefduf	vaigiensis/Indo-Pacific sergeant	Fishbase:6630
+Pomacentridae/Damselfishes	Pomacentrus	alexanderae/Alexander's damsel	Fishbase:6920
+Labridae/Wrasses	Scarus	niger/Dusky parrotfish	Fishbase:5550
+Chaetodontidae/Butterflyfishes	Chaetodon	baronessa/Eastern triangular butterflyfish	Fishbase:5558
+Mullidae/Goatfishes	Parupeneus	barberinus/Dotdash goatfish	Fishbase:5987
+Pomacentridae/Damselfishes	Amblyglyphidodon	aureus/Golden damselfish	Fishbase:5690
+Pomacanthidae/Angelfishes	Pygoplites	diacanthus/Regal angelfish	Fishbase:6572
+Caesionidae/Fusiliers	Caesio	teres/Yellow and blueback fusilier	Fishbase:923
+Pomacentridae/Damselfishes	Pomacentrus	chrysurus/Whitetail damsel	Fishbase:5721
+Nemipteridae/Threadfin breams, Whiptail breams	Scolopsis	ciliata/Saw-jawed monocle bream	Fishbase:5876
+Pomacentridae/Damselfishes	Dischistodus	melanotus/Blackvent damsel	Fishbase:5703
+Lutjanidae/Snappers	Lutjanus	decussatus/Checkered snapper	Fishbase:1428
+Chaetodontidae/Butterflyfishes	Chaetodon	vagabundus/Vagabond butterflyfish	Fishbase:5582
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Acanthurus	grammoptilus/Finelined surgeonfish	Fishbase:4749
+Labridae/Wrasses	Scarus	spinus/Greensnout parrotfish	Fishbase:4974
+Epinephelidae/Groupers	Cephalopholis	argus/Peacock hind	Fishbase:6396
+Labridae/Wrasses	Scarus	schlegeli/Yellowband parrotfish	Fishbase:4975
+Labridae/Wrasses	Labropsis	xanthura/Yellowtail tubelip	Fishbase:5108
+Caesionidae/Fusiliers	Caesio	lunaris/Lunar fusilier	Fishbase:920
+Chaetodontidae/Butterflyfishes	Heniochus	varius/Horned bannerfish	Fishbase:5592
+Nemipteridae/Threadfin breams, Whiptail breams	Scolopsis	affinis/Peters' monocle bream	Fishbase:5890
+Labridae/Wrasses	Hemigymnus	melapterus/Blackeye thicklip	Fishbase:5636
+Pomacentridae/Damselfishes	Abudefduf	sexfasciatus/Scissortail sergeant	Fishbase:5688
+Labridae/Wrasses	Halichoeres	prosopeion/Twotone wrasse	Fishbase:4862
+Chaetodontidae/Butterflyfishes	Chaetodon	ulietensis/Pacific double-saddle butterflyfish	Fishbase:5580
+Pomacentridae/Damselfishes	Pomacentrus	littoralis/Smoky damsel	Fishbase:12493
+Caesionidae/Fusiliers	Caesio	cuning/Redbelly yellowtail fusilier	Fishbase:919
+Labridae/Wrasses	Halichoeres	hortulanus/Checkerboard wrasse	Fishbase:12663
+Chaetodontidae/Butterflyfishes	Chaetodon	lunula/Raccoon butterflyfish	Fishbase:5565
+Pomacentridae/Damselfishes	Amphiprion	clarkii/Yellowtail clownfish	Fishbase:5448
+Pomacentridae/Damselfishes	Dischistodus	pseudochrysopoecilus/Monarch damsel	Fishbase:8242
+Pomacentridae/Damselfishes	Pomacentrus	nigromanus/Goldback damsel	Fishbase:5725
+Chaetodontidae/Butterflyfishes	Forcipiger	flavissimus/Forcepsfish	Fishbase:5584
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Zebrasoma	velifer/Sailfin tang	Fishbase:1266
+Pomacentridae/Damselfishes	Acanthochromis	polyacanthus/Spiny chromis	Fishbase:6655
+Epinephelidae/Groupers	Cephalopholis	urodeta/Darkfin hind	Fishbase:6456
+Chaetodontidae/Butterflyfishes	Heniochus	chrysostomus/Pennant bannerfish	Fishbase:5589
+Nemipteridae/Threadfin breams, Whiptail breams	Scolopsis	temporalis/Bald-spot monocle bream	Fishbase:5880
+Epinephelidae/Groupers	Epinephelus	merra/Honeycomb grouper	Fishbase:4923
+Chaetodontidae/Butterflyfishes	Chaetodon	rafflesii/Lattice butterflyfish	Fishbase:5573
+Labridae/Wrasses	Scarus	oviceps/Darkcap parrotfish	Fishbase:5551
+Labridae/Wrasses	Concholabrus	fasciatus/Redbreasted wrasse	Fishbase:5600
+Siganidae/Rabbitfishes	Siganus	vulpinus/Foxface	Fishbase:4629
+Labridae/Wrasses	Hemigymnus	fasciatus/Barred thicklip	Fishbase:5635
+Pomacentridae/Damselfishes	Stegastes	lacrymatus/Whitespotted devil	Fishbase:5712
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Naso	lituratus/Orangespine unicornfish	Fishbase:1264
+Pomacentridae/Damselfishes	Pomacentrus	nigromarginatus/Blackmargined damsel	Fishbase:6621
+Siganidae/Rabbitfishes	Siganus	puellus/Masked spinefoot	Fishbase:4617
+Pomacanthidae/Angelfishes	Centropyge	tibicen/Keyhole angelfish	Fishbase:6548
+Pomacentridae/Damselfishes	Azurina	lepidolepis/Scaly chromis	Fishbase:5674
+Balistidae/Triggerfishes	Sufflamen	bursa/Boomerang triggerfish	Fishbase:6029
+Labridae/Wrasses	Hipposcarus	longiceps/Pacific longnose parrotfish	Fishbase:5539
+Chaetodontidae/Butterflyfishes	Chaetodon	unimaculatus/Teardrop butterflyfish	Fishbase:5581
+Ephippidae/Spadefishes, batfishes and scats	Platax	teira/Longfin batfish	Fishbase:5739
+Caesionidae/Fusiliers	Caesio	caerulaurea/Blue and gold fusilier	Fishbase:918
+Labridae/Wrasses	Halichoeres	scapularis/Zigzag wrasse	Fishbase:5633
+Mullidae/Goatfishes	Parupeneus	crassilabris/Triplebar goatfish	Fishbase:60947
+Nemipteridae/Threadfin breams, Whiptail breams	Scolopsis	margaritifera/Pearly monocle bream	Fishbase:5878
+Holocentridae/Squirrelfishes, soldierfishes	Myripristis	violacea/Lattice soldierfish	Fishbase:7309
+Labridae/Wrasses	Scarus	hypselopterus/Yellowtail parrotfish	Fishbase:12707
+Labridae/Wrasses	Anampses	meleagrides/Spotted wrasse	Fishbase:4889
+Labridae/Wrasses	Scarus	russelii/Eclipse parrotfish	Fishbase:7912
+Haemulidae/Grunts	Plectorhinchus	vittatus/Oriental sweetlips	Fishbase:25706
+Labridae/Wrasses	Anampses	geographicus/Geographic wrasse	Fishbase:4891
+Labridae/Wrasses	Choerodon	anchorago/Orange-dotted tuskfish	Fishbase:5502
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Naso	caeruleacauda/Blue unicorn	Fishbase:27318
+Chaetodontidae/Butterflyfishes	Chaetodon	ephippium/Saddle butterflyfish	Fishbase:5562
+Holocentridae/Squirrelfishes, soldierfishes	Sargocentron	caudimaculatum/Silverspot squirrelfish	Fishbase:4907
+Labridae/Wrasses	Gomphosus	varius/Bird wrasse	Fishbase:5626
+Lethrinidae/Emperors or scavengers	Lethrinus	erythracanthus/Orange-spotted emperor	Fishbase:1862
+Pomacentridae/Damselfishes	Neopomacentrus	azysron/Yellowtail demoiselle	Fishbase:10227
+Labridae/Wrasses	Scarus	ghobban/Blue-barred parrotfish	Fishbase:5548
+Holocentridae/Squirrelfishes, soldierfishes	Neoniphon	sammara/Sammara squirrelfish	Fishbase:4911
+Labridae/Wrasses	Cirrhilabrus	solorensis/Red-eye wrasse	Fishbase:60815
+Nemipteridae/Threadfin breams, Whiptail breams	Scolopsis	trilineata/Threeline monocle bream	Fishbase:5881
+Epinephelidae/Groupers	Epinephelus	fasciatus/Blacktip grouper	Fishbase:5348
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Acanthurus	nigricauda/Epaulette surgeonfish	Fishbase:4747
+Blenniidae/Combtooth blennies	Aspidontus	taeniatus/False cleanerfish	Fishbase:6066
+Carangidae/Jacks and pompanos	Caranx	melampygus/Bluefin trevally	Fishbase:1906
+Chaetodontidae/Butterflyfishes	Chaetodon	speculum/Mirror butterflyfish	Fishbase:5576
+Lethrinidae/Emperors or scavengers	Monotaxis	grandoculis/Humpnose big-eye bream	Fishbase:1869
+Pomacanthidae/Angelfishes	Pomacanthus	sexstriatus/Sixbar angelfish	Fishbase:6564
+Pomacentridae/Damselfishes	Chromis	opercularis/Doublebar chromis	Fishbase:12427
+Cirrhitidae/Hawkfishes	Paracirrhites	forsteri/Blackside hawkfish	Fishbase:5952
+Labridae/Wrasses	Epibulus	insidiator/Sling-jaw wrasse	Fishbase:5606
+Lutjanidae/Snappers	Lutjanus	fulvus/Blacktail snapper	Fishbase:262
+Pseudochromidae/Dottybacks	Labracinus	cyclophthalmus/Fire-tail devil	Fishbase:12662
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Acanthurus	nigricans/Whitecheek surgeonfish	Fishbase:6011
+Chaetodontidae/Butterflyfishes	Chaetodon	lineolatus/Lined butterflyfish	Fishbase:5564
+Haemulidae/Grunts	Plectorhinchus	lineatus/Yellowbanded sweetlips	Fishbase:6940
+Pomacentridae/Damselfishes	Neopomacentrus	violascens/Violet demoiselle	Fishbase:5706
+Pomacentridae/Damselfishes	Plectroglyphidodon	johnstonianus/Johnston Island damsel	Fishbase:5711
+Pseudochromidae/Dottybacks	Pictichromis	paccagnellorum/Royal dottyback	Fishbase:12647
+Siganidae/Rabbitfishes	Siganus	lineatus/Golden-lined spinefoot	Fishbase:4625
+Lethrinidae/Emperors or scavengers	Lethrinus	erythropterus/Longfin emperor	Fishbase:1842
+Lutjanidae/Snappers	Lutjanus	biguttatus/Twospot banded snapper	Fishbase:1410
+Mullidae/Goatfishes	Parupeneus	trifasciatus/Doublebar goatfish	Fishbase:5988
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Naso	unicornis/Bluespine unicornfish	Fishbase:1265
+Chaetodontidae/Butterflyfishes	Chaetodon	punctatofasciatus/Spotband butterflyfish	Fishbase:5571
+Holocentridae/Squirrelfishes, soldierfishes	Myripristis	adusta/Shadowfin soldierfish	Fishbase:6506
+Labridae/Wrasses	Anampses	caeruleopunctatus/Bluespotted wrasse	Fishbase:4888
+Labridae/Wrasses	Cheilio	inermis/Cigar wrasse	Fishbase:5623
+Labridae/Wrasses	Coris	batuensis/Batu coris	Fishbase:25688
+Labridae/Wrasses	Coris	gaimard/African coris	Fishbase:5625
+Labridae/Wrasses	Oxycheilinus	digramma/Cheeklined wrasse	Fishbase:5599
+Pomacentridae/Damselfishes	Chromis	xanthochira/Yellow-axil chromis	Fishbase:5681
+Pomacentridae/Damselfishes	Neoglyphidodon	crossi/Cross' damsel	Fishbase:12457
+Pomacentridae/Damselfishes	Pomacentrus	burroughi/Burrough's damsel	Fishbase:5719
+Pomacentridae/Damselfishes	Pomacentrus	philippinus/Philippine damsel	Fishbase:5727
+Scombridae/Mackerels, tunas, bonitos	Grammatorcynus	bilineatus/Doublelined mackerel	Fishbase:104
+Tetraodontidae/Puffers	Canthigaster	papua/Papuan toby	Fishbase:55072
+Aulostomidae/Trumpetfishes	Aulostomus	chinensis/Chinese trumpetfish	Fishbase:1309
+Balistidae/Triggerfishes	Balistoides	viridescens/Titan triggerfish	Fishbase:6026
+Chaetodontidae/Butterflyfishes	Chaetodon	meyeri/Scrawled butterflyfish	Fishbase:5568
+Chaetodontidae/Butterflyfishes	Heniochus	acuminatus/Pennant coralfish	Fishbase:5588
+Fistulariidae/Cornetfishes	Fistularia	commersonii/Bluespotted cornetfish	Fishbase:5444
+Labridae/Wrasses	Bodianus	mesothorax/Splitlevel hogfish	Fishbase:5501
+Lethrinidae/Emperors or scavengers	Lethrinus	harak/Thumbprint emperor	Fishbase:1851
+Lutjanidae/Snappers	Lutjanus	bohar/Two-spot red snapper	Fishbase:1417
+Siganidae/Rabbitfishes	Siganus	punctatissimus/Peppered spinefoot	Fishbase:4620
+Chaetodontidae/Butterflyfishes	Chaetodon	auriga/Threadfin butterflyfish	Fishbase:5557
+Holocentridae/Squirrelfishes, soldierfishes	Myripristis	kuntee/Shoulderbar soldierfish	Fishbase:7306
+Labridae/Wrasses	Cheilinus	chlorourus/Floral wrasse	Fishbase:5598
+Labridae/Wrasses	Coris	aygula/Clown coris	Fishbase:5624
+Pomacanthidae/Angelfishes	Pomacanthus	imperator/Emperor angelfish	Fishbase:6504
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Ctenochaetus	cyanocheilus/Short-tail bristletooth	Fishbase:59486
+Chaetodontidae/Butterflyfishes	Heniochus	monoceros/Masked bannerfish	Fishbase:5590
+Labridae/Wrasses	Cheilinus	trilobatus/Tripletail wrasse	Fishbase:5603
+Labridae/Wrasses	Halichoeres	nigrescens/Bubblefin wrasse	Fishbase:58179
+Labridae/Wrasses	Labroides	bicolor/Bicolor cleaner wrasse	Fishbase:5650
+Lethrinidae/Emperors or scavengers	Lethrinus	ornatus/Ornate emperor	Fishbase:1866
+Monacanthidae/Filefishes	Paraluteres	prionurus/False puffer	Fishbase:6560
+Lethrinidae/Emperors or scavengers	Monotaxis	heterodon/Redfin emperor	Fishbase:68239
+Pomacentridae/Damselfishes	Chromis	atripectoralis/Black-axil chromis	Fishbase:5450
+Pomacentridae/Damselfishes	Pycnochromis	atripes/Dark-fin chromis	Fishbase:4982
+Pomacentridae/Damselfishes	Chrysiptera	talboti/Talbot's demoiselle	Fishbase:5700
+Pomacentridae/Damselfishes	Chrysiptera	unimaculata/Onespot demoiselle	Fishbase:5702
+Pomacentridae/Damselfishes	Dischistodus	perspicillatus/White damsel	Fishbase:5704
+Labridae/Wrasses	Cetoscarus	bicolor/Bicolour parrotfish	Fishbase:5538
+Labridae/Wrasses	Scarus	prasiognathos/Singapore parrotfish	Fishbase:4971
+Labridae/Wrasses	Scarus	quoyi/Quoy's parrotfish	Fishbase:5554
+Anthiadidae/Fairy basslets or Streamer basses	Pseudanthias	hypselosoma/Stocky anthias	Fishbase:8124
+Tetraodontidae/Puffers	Arothron	nigropunctatus/Blackspotted puffer	Fishbase:6400
+Blenniidae/Combtooth blennies	Plagiotremus	laudandus/Bicolour fangblenny	Fishbase:6070
+Lutjanidae/Snappers	Lutjanus	semicinctus/Black-banded snapper	Fishbase:179
+Monacanthidae/Filefishes	Cantherhines	dumerilii/Whitespotted filefish	Fishbase:5836
+Mullidae/Goatfishes	Parupeneus	macronemus/Longbarbel goatfish	Fishbase:7878
+Pomacentridae/Damselfishes	Pomacentrus	bankanensis/Speckled damselfish	Fishbase:5717
+Epinephelidae/Groupers	Plectropomus	areolatus/Squaretail coralgrouper	Fishbase:6082
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Acanthurus	mata/Elongate surgeonfish	Fishbase:1255
+Balistidae/Triggerfishes	Rhinecanthus	aculeatus/White-banded triggerfish	Fishbase:5839
+Chaetodontidae/Butterflyfishes	Chaetodon	ornatissimus/Ornate butterflyfish	Fishbase:6550
+Chaetodontidae/Butterflyfishes	Heniochus	singularius/Singular bannerfish	Fishbase:5591
+null/null	Laticauda	null/colubrina	
+Haemulidae/Grunts	Plectorhinchus	lessonii/Lesson's thicklip	Fishbase:50052
+Labridae/Wrasses	Anampses	melanurus/White-spotted wrasse	Fishbase:5622
+Labridae/Wrasses	Cheilinus	undulatus/Humphead wrasse	Fishbase:5604
+Labridae/Wrasses	Halichoeres	podostigma/Axil spot wrasse	Fishbase:4861
+Labridae/Wrasses	Halichoeres	richmondi/Richmond's wrasse	Fishbase:5632
+Labridae/Wrasses	Novaculichthys	taeniourus/Rockmover wrasse	Fishbase:5610
+Labridae/Wrasses	Stethojulis	bandanensis/Red shoulder wrasse	Fishbase:5640
+Labridae/Wrasses	Thalassoma	lutescens/Green moon wrasse	Fishbase:5646
+Lethrinidae/Emperors or scavengers	Gnathodentex	aureolineatus/Striped large-eye bream	Fishbase:1832
+Monacanthidae/Filefishes	Amanses	scopas/Broom filefish	Fishbase:6672
+Monacanthidae/Filefishes	Cantherhines	pardalis/Honeycomb filefish	Fishbase:6635
+Pomacanthidae/Angelfishes	Centropyge	nox/Midnight angelfish	Fishbase:6647
+Pomacentridae/Damselfishes	Amblyglyphidodon	ternatensis/Ternate damsel	Fishbase:5692
+Pomacentridae/Damselfishes	Chrysiptera	rollandi/Rolland's demoiselle	Fishbase:5486
+Pomacentridae/Damselfishes	Pomacentrus	smithi/Smith's damsel	Fishbase:10279
+Pomacentridae/Damselfishes	Stegastes	nigricans/Dusky farmerfish	Fishbase:4352
+Microdesmidae/Wormfishes	Nemateleotris	magnifica/Fire goby	Fishbase:6629
+Scorpaenidae/Scorpionfishes or rockfishes	Pterois	volitans/Red lionfish	Fishbase:5195
+Labridae/Wrasses	Chlorurus	strongylocephalus/Steephead parrotfish	Fishbase:12833
+Epinephelidae/Groupers	Epinephelus	tauvina/Greasy grouper	Fishbase:4461
+Labridae/Wrasses	Halichoeres	biocellatus/Red-lined wrasse	Fishbase:5627
+Pomacentridae/Damselfishes	Amphiprion	ocellaris/Clown anemonefish	Fishbase:6509
+Pomacentridae/Damselfishes	Chrysiptera	cyanea/Sapphire devil	Fishbase:5695
+Pomacentridae/Damselfishes	Neoglyphidodon	oxyodon/Bluestreak damselfish	Fishbase:11988
+Microdesmidae/Wormfishes	Ptereleotris	evides/Blackfin dartfish	Fishbase:4375
+Labridae/Wrasses	Bolbometopon	muricatum/Green humphead parrotfish	Fishbase:5537
+Epinephelidae/Groupers	Epinephelus	spilotoceps/Foursaddle grouper	Fishbase:5837
+Synodontidae/Lizardfishes	Synodus	binotatus/Twospot lizardfish	Fishbase:7292
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Acanthurus	blochii/Ringtail surgeonfish	Fishbase:4750
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Acanthurus	japonicus/Japan surgeonfish	Fishbase:23375
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Acanthurus	triostegus/Convict surgeonfish	Fishbase:1260
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Acanthurus	xanthopterus/Yellowfin surgeonfish	Fishbase:1261
+Balistidae/Triggerfishes	Rhinecanthus	verrucosus/Blackbelly triggerfish	Fishbase:6028
+Blenniidae/Combtooth blennies	Meiacanthus	atrodorsalis/Forktail blenny	Fishbase:6067
+Caesionidae/Fusiliers	Pterocaesio	digramma/Double-lined fusilier	Fishbase:933
+Caesionidae/Fusiliers	Pterocaesio	randalli/Randall's fusilier	Fishbase:937
+Chaetodontidae/Butterflyfishes	Chaetodon	bennetti/Bluelashed butterflyfish	Fishbase:5559
+Chaetodontidae/Butterflyfishes	Chaetodon	citrinellus/Speckled butterflyfish	Fishbase:5561
+Chaetodontidae/Butterflyfishes	Chaetodon	ocellicaudus/Spot-tail butterflyfish	Fishbase:5569
+Chaetodontidae/Butterflyfishes	Chaetodon	semeion/Dotted butterflyfish	Fishbase:5575
+Chaetodontidae/Butterflyfishes	Chaetodon	trifascialis/Chevron butterflyfish	Fishbase:5578
+Dasyatidae/Stingrays	Taeniura	lymma/Ribbontail stingray	Fishbase:5399
+Ephippidae/Spadefishes, batfishes and scats	Platax	pinnatus/Dusky batfish	Fishbase:5738
+Gobiidae/Gobies	Valenciennea	strigata/Blueband goby	Fishbase:6575
+Nemipteridae/Threadfin breams, Whiptail breams	Pentapodus	trivittatus/Three-striped whiptail	Fishbase:5873
+Holocentridae/Squirrelfishes, soldierfishes	Myripristis	berndti/Blotcheye soldierfish	Fishbase:4910
+Holocentridae/Squirrelfishes, soldierfishes	Myripristis	murdjan/Pinecone soldierfish	Fishbase:5408
+Labridae/Wrasses	Bodianus	axillaris/Axilspot hogfish	Fishbase:5498
+Labridae/Wrasses	Halichoeres	chrysus/Canary wrasse	Fishbase:4855
+Labridae/Wrasses	Halichoeres	leucurus/Greyhead wrasse	Fishbase:56811
+Labridae/Wrasses	Halichoeres	melanochir/Orangefin wrasse	Fishbase:6929
+Labridae/Wrasses	Halichoeres	solorensis/Green wrasse	Fishbase:11622
+Labridae/Wrasses	Hologymnosus	doliatus/Pastel ringwrasse	Fishbase:5638
+Labridae/Wrasses	Oxycheilinus	celebicus/Celebes wrasse	Fishbase:5597
+Labridae/Wrasses	Pseudodax	moluccanus/Chiseltooth wrasse	Fishbase:5594
+Labridae/Wrasses	Stethojulis	strigiventer/Three-ribbon wrasse	Fishbase:5641
+Latidae/Lates perches	Psammoperca	waigiensis/Waigieu seaperch	Fishbase:8212
+Lethrinidae/Emperors or scavengers	Lethrinus	microdon/Smalltooth emperor	Fishbase:1845
+Lethrinidae/Emperors or scavengers	Lethrinus	olivaceus/Longface emperor	Fishbase:1864
+Lutjanidae/Snappers	Lutjanus	monostigma/One-spot snapper	Fishbase:166
+Monacanthidae/Filefishes	Pervagor	nigrolineatus/Blacklined filefish	Fishbase:4371
+Mullidae/Goatfishes	Parupeneus	ciliatus/Blacksaddle goatfish	Fishbase:5989
+Mullidae/Goatfishes	Parupeneus	indicus/Indian goatfish	Fishbase:5992
+Ostraciidae/Boxfishes	Ostracion	cubicum/Yellow boxfish	Fishbase:6555
+Ostraciidae/Boxfishes	Ostracion	meleagris/Spotted boxfish	Fishbase:6556
+Plotosidae/Eeltail catfishes	Plotosus	lineatus/Striped eel catfish	Fishbase:4706
+Pomacanthidae/Angelfishes	Apolemichthys	trimaculatus/Threespot angelfish	Fishbase:6525
+Pomacanthidae/Angelfishes	Centropyge	bispinosa/Twospined angelfish	Fishbase:5458
+Pomacanthidae/Angelfishes	Chaetodontoplus	mesoleucus/Vermiculate angelfish	Fishbase:5660
+Pomacanthidae/Angelfishes	Pomacanthus	navarchus/Bluegirdle angelfish	Fishbase:5661
+Pomacentridae/Damselfishes	Pycnochromis	lineatus/Lined chromis	Fishbase:5128
+Pomacentridae/Damselfishes	Pomacentrus	adelus/Obscure damsel	Fishbase:12476
+Labridae/Wrasses	Scarus	tricolor/Tricolour parrotfish	Fishbase:6438
+Scombridae/Mackerels, tunas, bonitos	Gymnosarda	unicolor/Dogtooth tuna	Fishbase:106
+Epinephelidae/Groupers	Cephalopholis	formosa/Bluelined hind	Fishbase:6446
+Epinephelidae/Groupers	Epinephelus	bontoides/Palemargin grouper	Fishbase:6460
+Epinephelidae/Groupers	Epinephelus	chlorostigma/Brownspotted grouper	Fishbase:5524
+Epinephelidae/Groupers	Epinephelus	rivulatus/Halfmoon grouper	Fishbase:6001
+Anthiadidae/Fairy basslets or Streamer basses	Pseudanthias	squamipinnis/Sea goldie	Fishbase:6568
+Epinephelidae/Groupers	Variola	louti/Yellow-edged lyretail	Fishbase:5354
+Siganidae/Rabbitfishes	Siganus	guttatus/Orange-spotted spinefoot	Fishbase:4588
+Synodontidae/Lizardfishes	Saurida	gracilis/Gracile lizardfish	Fishbase:4534
+Synodontidae/Lizardfishes	Synodus	variegatus/Variegated lizardfish	Fishbase:5398
+Tetraodontidae/Puffers	Arothron	hispidus/White-spotted puffer	Fishbase:5425
+Tetraodontidae/Puffers	Arothron	manilensis/Narrowlined puffer	Fishbase:7187
+Apogonidae/Cardinalfishes	Ostorhinchus	nigrofasciatus/Blackstripe cardinalfish	Fishbase:4836
+Acanthuridae/Surgeonfishes, tangs, unicornfishes	Ctenochaetus	tominiensis/Tomini surgeonfish	Fishbase:6016
+Balistidae/Triggerfishes	Balistoides	conspicillum/Clown triggerfish	Fishbase:2300
+Chaetodontidae/Butterflyfishes	Chaetodon	falcula/Blackwedged butterflyfish	Fishbase:8014
+Labridae/Wrasses	Pseudocheilinus	hexataenia/Sixline wrasse	Fishbase:5617
+Labridae/Wrasses	Thalassoma	jansenii/Jansen's wrasse	Fishbase:5644
+Pomacanthidae/Angelfishes	Paracentropyge	multifasciata/Barred angelfish	Fishbase:5666
+Pomacentridae/Damselfishes	Amphiprion	melanopus/Fire clownfish	Fishbase:4654
+Pomacentridae/Damselfishes	Azurina	elerae/Twinspot chromis	Fishbase:4983
+Pomacentridae/Damselfishes	Pomacentrus	pavo/Sapphire damsel	Fishbase:5726
+Pseudochromidae/Dottybacks	Manonichthys	splendens/Splendid dottyback	Fishbase:12714
+Epinephelidae/Groupers	Cephalopholis	boenak/Chocolate hind	Fishbase:6444
+Epinephelidae/Groupers	Cephalopholis	cyanostigma/Bluespotted hind	Fishbase:6445

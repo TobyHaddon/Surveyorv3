@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "CreateSpeciesTxtFromURL": {
+      "commandName": "Project",
+      "commandLineArgs": "<\"C:\\Users\\tobyh\\source\\repos\\CreateSpeciesTxtFromURL\\genusspeciesInput.txt\" >C:\\Users\\tobyh\\source\\repos\\CreateSpeciesTxtFromURL\\species.txt"
+    }
+  }
+}

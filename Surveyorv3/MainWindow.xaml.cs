@@ -68,7 +68,7 @@ namespace Surveyor
         private string titlebarSaveStatus = "";
 
         // Current Survey Class
-        private Survey? surveyClass = null;
+        private Survey? survey = null;
 
         // StereoProjection class
         private readonly StereoProjection stereoProjection = new();
@@ -428,9 +428,9 @@ namespace Surveyor
         /// <param name="controlType"></param>
         public async Task SaveCurrentFrameAsync(SurveyorMediaControl.eControlType controlType)
         {
-            if (surveyClass is null ||
-                surveyClass.IsLoaded == false ||
-                string.IsNullOrEmpty(surveyClass.Data.Info.SurveyPath))
+            if (survey is null ||
+                survey.IsLoaded == false ||
+                string.IsNullOrEmpty(survey.Data.Info.SurveyPath))
             {
 
                 // Survey needs to be saved before a frame can be saved
@@ -472,11 +472,11 @@ namespace Surveyor
             }
 
             // Recheck if the SurveyClass is null
-            if (surveyClass is not null &&
-                surveyClass.IsLoaded &&
-                !string.IsNullOrEmpty(surveyClass.Data.Info.SurveyPath))
+            if (survey is not null &&
+                survey.IsLoaded &&
+                !string.IsNullOrEmpty(survey.Data.Info.SurveyPath))
             {
-                string framesPath = surveyClass.Data.Info.SurveyPath + @"\Frames";
+                string framesPath = survey.Data.Info.SurveyPath + @"\Frames";
 
                 // Create the folder if it does not exist
                 if (!Directory.Exists(framesPath))
@@ -546,9 +546,9 @@ namespace Surveyor
 
             // Only show if a survey is open and is StereoFish (SVS) type
             // This is the only survey type that uses calibration
-            if (surveyClass is not null && surveyClass.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
+            if (survey is not null && survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
             {
-                CalibrationClass calibrationClass = surveyClass.Data.Calibration;
+                CalibrationClass calibrationClass = survey.Data.Calibration;
                 int frameWidth = MediaPlayerLeft.FrameWidth;
                 int frameHeight = MediaPlayerLeft.FrameHeight;
 
@@ -585,9 +585,9 @@ namespace Surveyor
             int countStereoPointsMissingSpecies = 0;
             int countSinglePointsMissingSpecies = 0;
 
-            if (surveyClass is not null)
+            if (survey is not null)
             {
-                countMeasurementPointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
+                countMeasurementPointsMissingSpecies = survey.Data.Events.EventList.Cast<Event>()
                     .Where(e => e.EventDataType == SurveyDataType.SurveyMeasurementPoints)
                     .Select(e => e.EventData as SurveyMeasurement)
                     .Count(m => m != null && m.SpeciesInfo?.Species == null);
@@ -598,7 +598,7 @@ namespace Surveyor
                 }
                 else
                 {
-                    countStereoPointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
+                    countStereoPointsMissingSpecies = survey.Data.Events.EventList.Cast<Event>()
                         .Where(e => e.EventDataType == SurveyDataType.SurveyStereoPoint)
                         .Select(e => e.EventData as SurveyStereoPoint)
                         .Count(s => s != null && s.SpeciesInfo?.Species == null);
@@ -608,7 +608,7 @@ namespace Surveyor
                     }
                     else
                     {
-                        countSinglePointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
+                        countSinglePointsMissingSpecies = survey.Data.Events.EventList.Cast<Event>()
                             .Where(e => e.EventDataType == SurveyDataType.SurveyPoint)
                             .Select(e => e.EventData as SurveyPoint)
                             .Count(p => p != null && p.SpeciesInfo?.Species == null);
@@ -684,9 +684,9 @@ namespace Surveyor
             int countMeasurementPointsMissingSpecies = 0;
             int countStereoPointsMissingSpecies = 0;
 
-            if (surveyClass is not null)
+            if (survey is not null)
             {
-                countMeasurementPointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
+                countMeasurementPointsMissingSpecies = survey.Data.Events.EventList.Cast<Event>()
                     .Where(e => e.EventDataType == SurveyDataType.SurveyMeasurementPoints)
                     .Select(e => e.EventData as SurveyMeasurement)
                     .Count(m => m != null && m.SurveyRulesCalc.SurveyRuleRMS is false);
@@ -697,7 +697,7 @@ namespace Surveyor
                 }
                 else
                 {
-                    countStereoPointsMissingSpecies = surveyClass.Data.Events.EventList.Cast<Event>()
+                    countStereoPointsMissingSpecies = survey.Data.Events.EventList.Cast<Event>()
                         .Where(e => e.EventDataType == SurveyDataType.SurveyStereoPoint)
                         .Select(e => e.EventData as SurveyStereoPoint)
                         .Count(s => s != null && s.SurveyRulesCalc.SurveyRuleRMS is false);
@@ -780,7 +780,7 @@ namespace Surveyor
         /// <returns>null is no survey</returns>
         public SurveyRulesClass? GetSurveyRulesClass()
         {
-            return surveyClass!.Data.SurveyRules;
+            return survey!.Data.SurveyRules;
         }
 
 
@@ -876,9 +876,9 @@ namespace Surveyor
         {
             if (e.PropertyName == nameof(Survey.IsDirty))
             {
-                if (surveyClass is not null)
+                if (survey is not null)
                 {
-                    if (surveyClass.IsDirty)
+                    if (survey.IsDirty)
                         SetTitleSaveStatus("Unsaved");
                     else
                         SetTitleSaveStatus("");
@@ -897,7 +897,7 @@ namespace Surveyor
         {
             bool ret;
 
-            if (surveyClass is null)
+            if (survey is null)
             {
                 ret = await SurveyCreateAllTypesAsync(Survey.SurveyType.StereoFish);
 
@@ -919,7 +919,7 @@ namespace Surveyor
         {
             bool ret;
 
-            if (surveyClass is null)
+            if (survey is null)
             {
                 ret = await SurveyCreateAllTypesAsync(Survey.SurveyType.MonoFish);
 
@@ -941,7 +941,7 @@ namespace Surveyor
         {
             bool ret;
 
-            if (surveyClass is null)
+            if (survey is null)
             {
                 ret = await SurveyCreateAllTypesAsync(Survey.SurveyType.MonoBenthic);
 
@@ -1175,7 +1175,7 @@ namespace Surveyor
             StorageFile file = await openPicker.PickSingleFileAsync();
 
             // Check if files were picked and handle them
-            if (file is not null && this.surveyClass is not null)
+            if (file is not null && this.survey is not null)
             {
                 string? calibrationFileSpec = file.Path;
 
@@ -1192,17 +1192,17 @@ namespace Surveyor
 
                     // Check for GoPro serial numbers in the calibration data and the media class
                     if (!string.IsNullOrEmpty(calibrationData.LeftCameraCalibration.CameraID) &&
-                        !string.IsNullOrEmpty(surveyClass.Data.Media.LeftCameraID))
+                        !string.IsNullOrEmpty(survey.Data.Media.LeftCameraID))
                     {
-                        if (calibrationData.LeftCameraCalibration.CameraID == surveyClass.Data.Media.LeftCameraID)
+                        if (calibrationData.LeftCameraCalibration.CameraID == survey.Data.Media.LeftCameraID)
                             leftCameraIDMatch = true;
                         else
                             leftCameraIDMatch = false;
                     }
                     if (!string.IsNullOrEmpty(calibrationData.RightCameraCalibration.CameraID) &&
-                        !string.IsNullOrEmpty(surveyClass.Data.Media.RightCameraID))
+                        !string.IsNullOrEmpty(survey.Data.Media.RightCameraID))
                     {
-                        if (calibrationData.RightCameraCalibration.CameraID == surveyClass.Data.Media.RightCameraID)
+                        if (calibrationData.RightCameraCalibration.CameraID == survey.Data.Media.RightCameraID)
                             rightCameraIDMatch = true;
                         else
                             rightCameraIDMatch = false;
@@ -1211,8 +1211,8 @@ namespace Surveyor
                     if (leftCameraIDMatch is not null && rightCameraIDMatch is not null &&
                         !(bool)leftCameraIDMatch && !(bool)rightCameraIDMatch)
                     {
-                        if (calibrationData.LeftCameraCalibration.CameraID == surveyClass.Data.Media.RightCameraID &&
-                            calibrationData.RightCameraCalibration.CameraID == surveyClass.Data.Media.LeftCameraID)
+                        if (calibrationData.LeftCameraCalibration.CameraID == survey.Data.Media.RightCameraID &&
+                            calibrationData.RightCameraCalibration.CameraID == survey.Data.Media.LeftCameraID)
                         {
                             cameraWrongWayRound = true;
                         }
@@ -1302,22 +1302,22 @@ namespace Surveyor
                     string message = "";
 
                     // Check if we are already storing this calibration date in the survey file                        
-                    var result = surveyClass.IsInCalibrationDataList(calibrationData, out int index);
+                    var result = survey.IsInCalibrationDataList(calibrationData, out int index);
                     if (result == Survey.CalibrationDataListResult.Found)
                     {
-                        if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == false)
+                        if (survey.Data.Calibration.AllowMultipleCalibrationData == false)
                         {
                             // We are only storing one calibration result and we already have this one so inform user we will ignore
                             // Cancel Only
                             message = $"The calibration data '{calibrationData.Description}' is already in the survey file. No action will be taken.";
                         }
-                        else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true && surveyClass.Data.Calibration.PreferredCalibrationDataIndex == index)
+                        else if (survey.Data.Calibration.AllowMultipleCalibrationData == true && survey.Data.Calibration.PreferredCalibrationDataIndex == index)
                         {
                             // We are storing multiple calibration results and this is the preferred one so inform user we will ignore
                             // Cancel Only
                             message = $"The calibration data '{calibrationData.Description}' is already in the survey file and it is the preferred calibration so no action will be taken.";
                         }
-                        else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true && surveyClass.Data.Calibration.PreferredCalibrationDataIndex != index)
+                        else if (survey.Data.Calibration.AllowMultipleCalibrationData == true && survey.Data.Calibration.PreferredCalibrationDataIndex != index)
                         {
                             // We are storing multiple calibration results and this is not the preferred one so ask user if they want this to be the preferred calibration
                             // OK/Cancel
@@ -1349,19 +1349,19 @@ namespace Surveyor
                     }
                     else if (result == Survey.CalibrationDataListResult.FoundButDescriptionDiffer)
                     {
-                        if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == false)
+                        if (survey.Data.Calibration.AllowMultipleCalibrationData == false)
                         {
                             // We are only storing one calibration result and we already have this one but under a different Description so ask the user if the Description should be updated
                             message = $"The calibration data '{calibrationData.Description}' is already in the survey file but with a different Description. Do you want to update the Description?";
                             primaryButtonText = "OK";
                         }
-                        else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true && surveyClass.Data.Calibration.PreferredCalibrationDataIndex == index)
+                        else if (survey.Data.Calibration.AllowMultipleCalibrationData == true && survey.Data.Calibration.PreferredCalibrationDataIndex == index)
                         {
                             // We are storing multiple calibration results and this is the preferred one so info user we will ignore
                             message = $"The calibration data '{calibrationData.Description}' is already in the survey file but with a different Description. Do you want to update the Description?";
                             primaryButtonText = "OK";
                         }
-                        else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true && surveyClass.Data.Calibration.PreferredCalibrationDataIndex != index)
+                        else if (survey.Data.Calibration.AllowMultipleCalibrationData == true && survey.Data.Calibration.PreferredCalibrationDataIndex != index)
                         {
                             // We are storing multiple calibration results and this is not the preferred one so ask user if they want this to be the preferred calibration
                             message = $"The calibration data '{calibrationData.Description}' is already in the survey file but with a different Description and is not the preferred calibration. Press 'Yes' to update the Description and make it the preferred calibration or 'No' to just update the Description?";
@@ -1393,28 +1393,28 @@ namespace Surveyor
                         else if (secondaryButtonText is not null && resultDlg == ContentDialogResult.Primary)
                         {
                             // Update Description and make preferred calibration
-                            surveyClass.Data.Calibration.CalibrationDataList[(int)surveyClass.Data.Calibration.PreferredCalibrationDataIndex].Description = calibrationData.Description;
+                            survey.Data.Calibration.CalibrationDataList[(int)survey.Data.Calibration.PreferredCalibrationDataIndex].Description = calibrationData.Description;
                             makeThisCalibPreferred = index;
                         }
                         else if (secondaryButtonText is not null && resultDlg == ContentDialogResult.Secondary)
                         {
                             // Update Description only
-                            surveyClass.Data.Calibration.CalibrationDataList[(int)surveyClass.Data.Calibration.PreferredCalibrationDataIndex].Description = calibrationData.Description;
+                            survey.Data.Calibration.CalibrationDataList[(int)survey.Data.Calibration.PreferredCalibrationDataIndex].Description = calibrationData.Description;
                         }
                     }
                     else if (result == Survey.CalibrationDataListResult.NotFound)
                     {
-                        if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == false)
+                        if (survey.Data.Calibration.AllowMultipleCalibrationData == false)
                         {
-                            if (surveyClass.Data.Calibration.CalibrationDataList.Count == 0)
+                            if (survey.Data.Calibration.CalibrationDataList.Count == 0)
                             {
                                 makeThisCalibPreferred = int.MaxValue;      // Basically if we are added a new calibration any non -1 value will make it the preferred calibration
                                 addNewCalib = true;
                             }
-                            else if (surveyClass.Data.Calibration.PreferredCalibrationDataIndex == 0 && surveyClass.Data.Calibration.CalibrationDataList.Count == 1)
+                            else if (survey.Data.Calibration.PreferredCalibrationDataIndex == 0 && survey.Data.Calibration.CalibrationDataList.Count == 1)
                             {
                                 // We are only storing one calibration and we don't have this one so ask the user if they want to remove the existing one and add this one
-                                message = $"Are you sure you want to replace '{surveyClass.Data.Calibration.CalibrationDataList[0].Description}' with '{calibrationData.Description}'?";
+                                message = $"Are you sure you want to replace '{survey.Data.Calibration.CalibrationDataList[0].Description}' with '{calibrationData.Description}'?";
                                 primaryButtonText = "OK";
 
                                 // Ask the user
@@ -1442,7 +1442,7 @@ namespace Surveyor
                                 }
                             }
                         }
-                        else if (surveyClass.Data.Calibration.AllowMultipleCalibrationData == true)
+                        else if (survey.Data.Calibration.AllowMultipleCalibrationData == true)
                         {
                             // We are storing multiple calibrations and already have at less one storage. Ask the user if they want this new one to be the preferred calibration
                             message = $"Do you want this new calibration data '{calibrationData.Description}' to be the preferred calibration?";
@@ -1482,37 +1482,37 @@ namespace Surveyor
                     if (removeAllCalibs == true)
                     {
                         // Remove all calibrations
-                        surveyClass.Data.Calibration.CalibrationDataList?.Clear();
-                        surveyClass.Data.Calibration.PreferredCalibrationDataIndex = -1;
+                        survey.Data.Calibration.CalibrationDataList?.Clear();
+                        survey.Data.Calibration.PreferredCalibrationDataIndex = -1;
                     }
                     else if (removeThisCalibIndex >= 0)
                     {
                         // Remove this calibration
-                        surveyClass.Data.Calibration.CalibrationDataList!.RemoveAt(removeThisCalibIndex);
-                        if (surveyClass.Data.Calibration.PreferredCalibrationDataIndex == removeThisCalibIndex)
-                            surveyClass.Data.Calibration.PreferredCalibrationDataIndex = -1;
+                        survey.Data.Calibration.CalibrationDataList!.RemoveAt(removeThisCalibIndex);
+                        if (survey.Data.Calibration.PreferredCalibrationDataIndex == removeThisCalibIndex)
+                            survey.Data.Calibration.PreferredCalibrationDataIndex = -1;
                     }
 
                     if (addNewCalib == true)
                     {
-                        if (surveyClass.Data.Calibration.CalibrationDataList is not null && calibrationData is not null)
+                        if (survey.Data.Calibration.CalibrationDataList is not null && calibrationData is not null)
                         {
                             // Add the new calibration
-                            surveyClass.Data.Calibration.CalibrationDataList.Add(calibrationData);
+                            survey.Data.Calibration.CalibrationDataList.Add(calibrationData);
                             if (makeThisCalibPreferred != -1)
                                 // Make this the preferred calibration
-                                surveyClass.Data.Calibration.PreferredCalibrationDataIndex = surveyClass.Data.Calibration.CalibrationDataList.Count - 1;
+                                survey.Data.Calibration.PreferredCalibrationDataIndex = survey.Data.Calibration.CalibrationDataList.Count - 1;
                         }
                     }
                     else if (makeThisCalibPreferred != -1)
                     {
                         // Make this the preferred calibration
-                        surveyClass.Data.Calibration.PreferredCalibrationDataIndex = makeThisCalibPreferred;
+                        survey.Data.Calibration.PreferredCalibrationDataIndex = makeThisCalibPreferred;
                     }
                 }
 
                 // Load the calibration data to the Stereo Projection class 
-                stereoProjection.SetCalibrationData(surveyClass.Data.Calibration);
+                stereoProjection.SetCalibrationData(survey.Data.Calibration);
 
                 // Using the left player get the current frame size (if any)
                 SetCalibratedIndicator(MediaPlayerLeft.FrameWidth, MediaPlayerLeft.FrameHeight);
@@ -1573,7 +1573,7 @@ namespace Surveyor
         {
             if (!mediaStereoController.IsPlaying())
             {
-                if (surveyClass is not null && surveyClass.Data.Sync.IsSynchronized == false)
+                if (survey is not null && survey.Data.Sync.IsSynchronized == false)
                 {
                     // Wait for things to settle i.e. any pending MediPlayer directed plays or pauses to have completed
                     // note. calling MediaPlayer.Play or Pause with the MediaTimelineController engaged will cause an
@@ -1585,10 +1585,10 @@ namespace Surveyor
                     bool newPosition = false;
 
                     // Check if sync offset is already present and just needs enabling
-                    if (surveyClass is not null)
+                    if (survey is not null)
                     {
-                        if (surveyClass.Data.Sync.ActualTimeSpanOffsetLeft != TimeSpan.Zero || 
-                            surveyClass.Data.Sync.ActualTimeSpanOffsetRight != TimeSpan.Zero)
+                        if (survey.Data.Sync.ActualTimeSpanOffsetLeft != TimeSpan.Zero || 
+                            survey.Data.Sync.ActualTimeSpanOffsetRight != TimeSpan.Zero)
                         {
                             // Create a SymbolIcon with an exclamation mark
                             var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
@@ -1651,26 +1651,26 @@ namespace Surveyor
                     }
 
                     // Lock the left and right media controllers
-                    if (surveyClass is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
+                    if (survey is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
                         MediaPlayerLeft.Position is not null && MediaPlayerRight.Position is not null)
                     {
                         if (reEnable)
                         {
-                            surveyClass.Data.Sync.IsSynchronized = true;
+                            survey.Data.Sync.IsSynchronized = true;
                         }
                         else if (newPosition)
                         {
-                            surveyClass.Data.Sync.IsSynchronized = true;
-                            surveyClass.Data.Sync.TimeSpanOffset = (TimeSpan)MediaPlayerRight.Position - (TimeSpan)MediaPlayerLeft.Position;
-                            surveyClass.Data.Sync.ActualTimeSpanOffsetLeft = (TimeSpan)MediaPlayerLeft.Position;
-                            surveyClass.Data.Sync.ActualTimeSpanOffsetRight = (TimeSpan)MediaPlayerRight.Position;
+                            survey.Data.Sync.IsSynchronized = true;
+                            survey.Data.Sync.TimeSpanOffset = (TimeSpan)MediaPlayerRight.Position - (TimeSpan)MediaPlayerLeft.Position;
+                            survey.Data.Sync.ActualTimeSpanOffsetLeft = (TimeSpan)MediaPlayerLeft.Position;
+                            survey.Data.Sync.ActualTimeSpanOffsetRight = (TimeSpan)MediaPlayerRight.Position;
                         }
                     }
 
                     // Engage the MediaTimelineController
-                    if (surveyClass is not null && (reEnable || newPosition))
+                    if (survey is not null && (reEnable || newPosition))
                     {
-                        await mediaStereoController.MediaLockMediaPlayersAsync(null/*current media positions*/, surveyClass.Data.Events.EventList);
+                        await mediaStereoController.MediaLockMediaPlayersAsync(null/*current media positions*/, survey.Data.Events.EventList);
                     }
                 }
                 else
@@ -1717,10 +1717,10 @@ namespace Surveyor
                     if (result == ContentDialogResult.Primary)
                     {
                         // Lock the left and right media controllers
-                        if (surveyClass is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
+                        if (survey is not null && MediaPlayerLeft is not null && MediaPlayerRight is not null &&
                         MediaPlayerLeft.Position is not null && MediaPlayerRight.Position is not null)
                         {
-                            surveyClass.Data.Sync.IsSynchronized = false;
+                            survey.Data.Sync.IsSynchronized = false;
 
                             // Don't remove the TimeSpanOffset, ActualTimeSpanOffsetLeft & ActualTimeSpanOffsetRight
                             // in case the user wants to sync again
@@ -1792,9 +1792,9 @@ namespace Surveyor
         /// <param name="e"></param>
         private void GoToFirstMissingSpeciesEvent_Click(object sender, RoutedEventArgs e)
         {
-            if (surveyClass is not null)
+            if (survey is not null)
             {
-                Event? firstMissingSpeciesEvent = surveyClass.Data.Events.EventList
+                Event? firstMissingSpeciesEvent = survey.Data.Events.EventList
                                 .Cast<Event>() // or .AsEnumerable()/.ToList() depending on your context
                                 .FirstOrDefault(e =>
                                     (e.EventDataType == SurveyDataType.SurveyMeasurementPoints && (e.EventData as SurveyMeasurement)?.SpeciesInfo?.Species == null) ||
@@ -1817,9 +1817,9 @@ namespace Surveyor
         /// <param name="e"></param>
         private void GoToFirstRMSRuleViolationEvent_Click(object sender, RoutedEventArgs e)
         {
-            if (surveyClass is not null)
+            if (survey is not null)
             {
-                Event? firstRMSRuleViolationEvent = surveyClass.Data.Events.EventList
+                Event? firstRMSRuleViolationEvent = survey.Data.Events.EventList
                                 .Cast<Event>() // or .AsEnumerable()/.ToList() depending on your context
                                 .FirstOrDefault(e =>
                                     (e.EventDataType == SurveyDataType.SurveyMeasurementPoints && (e.EventData as SurveyMeasurement)?.SurveyRulesCalc.SurveyRuleRMS == false) ||
@@ -1861,7 +1861,7 @@ namespace Surveyor
                 if (entryCount == 1)
                 {
                     // Initialize if necessary
-                    var dialog = new BulkSurveyExportDialog(exportType, report, mediaStereoController.speciesSelector.speciesCodeList);
+                    var dialog = new BulkSurveyExportDialog(exportType, report, mediaStereoController.speciesSelector.SpeciesCodeList);
 
                     // Get the HWND (window handle) for both windows
                     IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
@@ -1919,9 +1919,9 @@ namespace Surveyor
         {
             bool ready = false;
 
-            if (surveyClass is not null)
+            if (survey is not null)
             {
-                CalibrationClass calibrationClass = surveyClass.Data.Calibration;
+                CalibrationClass calibrationClass = survey.Data.Calibration;
                 if (calibrationClass is not null)
                 {
                     int frameWidth = MediaPlayerLeft.FrameWidth;
@@ -1970,7 +1970,7 @@ namespace Surveyor
                                 if (result == ContentDialogResult.Primary)
                                 {
                                     // Make this the preferred calibration
-                                    surveyClass.Data.Calibration.PreferredCalibrationDataIndex = i;
+                                    survey.Data.Calibration.PreferredCalibrationDataIndex = i;
                                     ready = true;
                                     SetCalibratedIndicator(frameWidth, frameHeight);
                                 }
@@ -2035,7 +2035,7 @@ namespace Surveyor
             mediaStereoController.DumpAllProperties();
             MediaPlayerLeft.DumpAllProperties();
             MediaPlayerRight.DumpAllProperties();
-            surveyClass?.Data.DumpAllProperties(report);
+            survey?.Data.DumpAllProperties(report);
 
             // To Be Completed            
             //???eventsControl.DumpAllProperties();
@@ -2371,12 +2371,12 @@ namespace Surveyor
                     // Force a Save
                     ret2 = await FileSurveySaveOrSaveAsAsync();
 
-                    if (ret2 == 0 && surveyClass is not null)
+                    if (ret2 == 0 && survey is not null)
                     {
-                        if (surveyClass.Data.Info.SurveyPath is not null && surveyClass.Data.Info.SurveyFileName is not null)
+                        if (survey.Data.Info.SurveyPath is not null && survey.Data.Info.SurveyFileName is not null)
                         {
                             // Make survey path
-                            string surveyPath = Path.Combine(surveyClass.Data.Info.SurveyPath, surveyClass.Data.Info.SurveyFileName);
+                            string surveyPath = Path.Combine(survey.Data.Info.SurveyPath, survey.Data.Info.SurveyFileName);
 
                             // Close the Survey
                             await CheckForOpenSurveyAndCloseAsync();
@@ -2445,7 +2445,7 @@ namespace Surveyor
             }
 
             if (!ret)
-                surveyClass = null;
+                survey = null;
 
             SetMenuStatusBasedOnSurveyState();
 
@@ -2492,14 +2492,14 @@ namespace Surveyor
             if (mediaFilesSelected.Count == 2)
             {
                 // Create a new empty survey
-                surveyClass = new Survey(report);
-                surveyClass.PropertyChanged += Survey_PropertyChanged;
+                survey = new Survey(report);
+                survey.PropertyChanged += Survey_PropertyChanged;
 
                 // Set the survey type stereo fish (SVS)
-                surveyClass.Data.Info.SurveyType = SurveyType.StereoFish;
+                survey.Data.Info.SurveyType = SurveyType.StereoFish;
 
                 // Inform the EventControl of the new survey events
-                eventsControl.SetEvents(surveyClass.Data.Events.EventList);
+                eventsControl.SetEvents(survey.Data.Events.EventList);
 
                 // Get the name (if any) of a potential survey to inherit information from
                 string potentialSurveyToInheritFrom = string.Empty;
@@ -2532,14 +2532,14 @@ namespace Surveyor
                     if (result == ContentDialogResult.Primary)
                     {
                         // Copy the survey info and media info setup in the dialog into the survey class
-                        bool inheritanceRequested = SurveyStereoInfoAndMediaUserControl.SaveForContentDialog(surveyClass);
+                        bool inheritanceRequested = SurveyStereoInfoAndMediaUserControl.SaveForContentDialog(survey);
 
                         // Inherit information from recent survey if user requested                        
                         if (inheritanceRequested == true && !string.IsNullOrEmpty(potentialSurveyToInheritFrom))
                         {
                             // Copies select information (calibration and/or rules)
                             SurveyInheritance surveyInheritance = new();
-                            ret = await surveyInheritance.InheritFromSurveyAsync(this, report, surveyClass, potentialSurveyToInheritFrom);
+                            ret = await surveyInheritance.InheritFromSurveyAsync(this, report, survey, potentialSurveyToInheritFrom);
                         }
                         else
                             // All good
@@ -2636,14 +2636,14 @@ namespace Surveyor
             if (mediaFileSelected is not null)
             {
                 // Create a new empty survey
-                surveyClass = new Survey(report);
-                surveyClass.PropertyChanged += Survey_PropertyChanged;
+                survey = new Survey(report);
+                survey.PropertyChanged += Survey_PropertyChanged;
 
                 // Set the survey type Mono fish or Benthic
-                surveyClass.Data.Info.SurveyType = surveyType;
+                survey.Data.Info.SurveyType = surveyType;
 
                 // Inform the EventControl of the new survey events
-                eventsControl.SetEvents(surveyClass.Data.Events.EventList);
+                eventsControl.SetEvents(survey.Data.Events.EventList);
 
                 // Load the Info and Media user control to setup the survey
                 List<StorageFile> mediaFilesSelected = [];
@@ -2668,7 +2668,7 @@ namespace Surveyor
                     if (result == ContentDialogResult.Primary)
                     {
                         // Copy the survey info and media info setup in the dialog into the survey class                        
-                        _ = SurveyMonoInfoAndMediaUserControl.SaveForContentDialog(surveyClass);
+                        _ = SurveyMonoInfoAndMediaUserControl.SaveForContentDialog(survey);
 
                         ret = true;
                     }
@@ -2700,44 +2700,44 @@ namespace Surveyor
         {
             int ret = 0;
 
-            if (surveyClass is null)
+            if (survey is null)
             {
-                surveyClass ??= new Survey(report);
-                surveyClass.PropertyChanged += Survey_PropertyChanged;
+                survey ??= new Survey(report);
+                survey.PropertyChanged += Survey_PropertyChanged;
             }
             else
             {
-                await surveyClass.SurveyCloseAsync();
+                await survey.SurveyCloseAsync();
             }
 
 
-            ret = await surveyClass.SurveyLoadAsync(surveyFileSpec);
+            ret = await survey.SurveyLoadAsync(surveyFileSpec);
 
             if (ret == 0 &&
-                surveyClass.Data is not null && surveyClass.Data.Media is not null && surveyClass.Data.Media.MediaPath is not null)
+                survey.Data is not null && survey.Data.Media is not null && survey.Data.Media.MediaPath is not null)
             {
                 // Check if the left media file(s) exist
-                ret = await CheckIfMediaFileExistsAsync(true/*trueLeftFalseRight*/, surveyClass.Data.Media, surveyFileSpec);
+                ret = await CheckIfMediaFileExistsAsync(true/*trueLeftFalseRight*/, survey.Data.Media, surveyFileSpec);
                 if (ret == 0)
-                    ret = await CheckIfMediaFileExistsAsync(false/*trueLeftFalseRight*/, surveyClass.Data.Media, surveyFileSpec);
+                    ret = await CheckIfMediaFileExistsAsync(false/*trueLeftFalseRight*/, survey.Data.Media, surveyFileSpec);
 
                 if (ret == 0)
                 {
                     // Setup the events
-                    eventsControl.SetEvents(surveyClass.Data.Events.EventList);
-
+                    eventsControl.SetEvents(survey.Data.Events.EventList);
 
                     // Create a StereoProjection instance that allows the user to add measurement points to the media images
                     // Do this before opening the media so the calibration data is available when the media is opened and the frame size established
-                    stereoProjection.SetCalibrationData(surveyClass.Data.Calibration);
-                    stereoProjection.SetSurveyRules(surveyClass.Data.SurveyRules);
+                    stereoProjection.SetCalibrationData(survey.Data.Calibration);
+                    stereoProjection.SetSurveyRules(survey.Data.SurveyRules);
+
+                    // Open the species list if necessary
+                    if (survey.Data.Info.SurveySpeciesListName is not null)
+                        mediaStereoController.OpenSpeciesListIfNecessary(survey.Data.Info.SurveySpeciesListName);
 
                     // Open Media Files and bind the MediaPlayers if IsSynchronized is true
                     if (await OpenSVSMediaFilesAsync() == true)
                     {
-                        // Enable the insert survey transect marker menu item
-                        //???MenuTransectStartStopMarker.IsEnabled = true;  // This is probably not need here (handled elsewhere)
-
                         // Remember the survey folder
                         SettingsManagerLocal.SurveyFolder = Path.GetDirectoryName(surveyFileSpec);
 
@@ -2748,35 +2748,35 @@ namespace Surveyor
 
                         // Report Survey details
                         string calibrationStatus;
-                        if (surveyClass.Data.Calibration.CalibrationDataList.Count == 0)
+                        if (survey.Data.Calibration.CalibrationDataList.Count == 0)
                             calibrationStatus = "No Calibration Data";
-                        else if (surveyClass.Data.Calibration.CalibrationDataList.Count == 1)
+                        else if (survey.Data.Calibration.CalibrationDataList.Count == 1)
                             calibrationStatus = "Calibrated";
                         else
                             calibrationStatus = "Multiple Calibrations";
 
                         string eventsStatus;
-                        if (surveyClass.Data.Events.EventList.Count == 0)
+                        if (survey.Data.Events.EventList.Count == 0)
                             eventsStatus = "No Events";
-                        else if (surveyClass.Data.Events.EventList.Count == 1)
+                        else if (survey.Data.Events.EventList.Count == 1)
                             eventsStatus = "1 Event";
                         else
-                            eventsStatus = $"{surveyClass.Data.Events.EventList.Count} Events";
+                            eventsStatus = $"{survey.Data.Events.EventList.Count} Events";
 
-                        report.Info("", $"Survey Loaded: '{surveyClass.GetSurveyTitle()}', {calibrationStatus}, {eventsStatus}");
+                        report.Info("", $"Survey Loaded: '{survey.GetSurveyTitle()}', {calibrationStatus}, {eventsStatus}");
                     }
                     else
                         // Failed to open media files
-                        surveyClass = null;
+                        survey = null;
                 }
                 else
                     // Failed to open media files
-                    surveyClass = null;
+                    survey = null;
             }
             else
             {
                 report.Warning("", $"Failed to open survey file:{surveyFileSpec}, error = {ret}");
-                surveyClass = null;
+                survey = null;
             }
 
             // Display the missing calibration warning InfoBar if necessary
@@ -2803,7 +2803,7 @@ namespace Surveyor
         {
             int ret = 0;
 
-            if (surveyClass is not null)
+            if (survey is not null)
             {
                 FileSavePicker savePicker = new();
                 IntPtr hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this); // 'this' should be your window or page
@@ -2812,7 +2812,7 @@ namespace Surveyor
                 savePicker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
                 savePicker.FileTypeChoices.Add("Survey Files", [".survey"]);
 
-                savePicker.SuggestedFileName = string.IsNullOrWhiteSpace(surveyClass.Data.Info.SurveyCode) ? "New Document" : surveyClass.Data.Info.SurveyCode;
+                savePicker.SuggestedFileName = string.IsNullOrWhiteSpace(survey.Data.Info.SurveyCode) ? "New Document" : survey.Data.Info.SurveyCode;
         
 
                 StorageFile file = await savePicker.PickSaveFileAsync();
@@ -2826,7 +2826,7 @@ namespace Surveyor
 
                     // Write data to the file
                     // Save As
-                    ret = await surveyClass.SurveySaveAsAsync(file.Path);
+                    ret = await survey.SurveySaveAsAsync(file.Path);
 
 
                     // Let Windows know that we're finished changing the file so the other app can update the remote version of the file.
@@ -2864,9 +2864,9 @@ namespace Surveyor
         {
             int ret = -1;
 
-            if (surveyClass is not null)
+            if (survey is not null)
             {
-                if (surveyClass.Data.Info.SurveyPath == null || surveyClass.Data.Info.SurveyFileName == null)
+                if (survey.Data.Info.SurveyPath == null || survey.Data.Info.SurveyFileName == null)
                 {
                     // Not saved yet so use 'Save As'
                     ret = await SaveAsSurveyAsync();
@@ -2874,7 +2874,7 @@ namespace Surveyor
                 else
                 {
                     // Save
-                    ret = surveyClass.SurveySave();
+                    ret = survey.SurveySave();
                 }
             }
 
@@ -2895,11 +2895,11 @@ namespace Surveyor
         {
             bool ret = false;
 
-            if (this.surveyClass is not null)
+            if (this.survey is not null)
             {
                 bool closeSurvey = false;
 
-                if (this.surveyClass.IsDirty == true)
+                if (this.survey.IsDirty == true)
                 {
                     Debug.WriteLine("CheckForOpenSurveyAndClose Dirty Path");//???
                     try
@@ -2979,11 +2979,11 @@ namespace Surveyor
                         await CloseSVSMediaFilesAsync();
 
                         // Close and clear the Survey class (holds the survey data)
-                        if (surveyClass is not null)
+                        if (survey is not null)
                         {
                             Debug.WriteLine("CheckForOpenSurveyAndClose Before SurveyClose");//???
-                            await surveyClass.SurveyCloseAsync();
-                            surveyClass = null;
+                            await survey.SurveyCloseAsync();
+                            survey = null;
                         }
 
                         // Clear the calibration data and the survey rules 
@@ -3187,7 +3187,7 @@ namespace Surveyor
             bool ret = true;
             int retOpen;
 
-            if (surveyClass != null && surveyClass.Data.Media.MediaPath != null)
+            if (survey != null && survey.Data.Media.MediaPath != null)
             {
                 // Check if already Open and close if necessary
                 if (mediaStereoController.MediaIsOpen())
@@ -3199,8 +3199,8 @@ namespace Surveyor
 
 
                 // Get the media file names
-                string mediaFileLeft = surveyClass.GetLeftMediaFileSpec(0);
-                string mediaFileRight = surveyClass.GetRightMediaFileSpec(0);
+                string mediaFileLeft = survey.GetLeftMediaFileSpec(0);
+                string mediaFileRight = survey.GetRightMediaFileSpec(0);
 
                 //???TOBEDELETED
                 //if (surveyClass.Data.Media.LeftMediaFileNames.Count > 0)
@@ -3225,21 +3225,21 @@ namespace Surveyor
                 if (string.IsNullOrEmpty(mediaFileLeft) == false && string.IsNullOrEmpty(mediaFileRight) == false)
                 {
                     // Extract depth underwater for color correction
-                    if (uint.TryParse(surveyClass.Data.Info.SurveyDepth, out uint depthUnderwater) == false)
+                    if (uint.TryParse(survey.Data.Info.SurveyDepth, out uint depthUnderwater) == false)
                         depthUnderwater = 0;
 
                     // Open the new media
-                    retOpen = await mediaStereoController.MediaOpenAsync(surveyClass.Data.Info.SurveyType,
+                    retOpen = await mediaStereoController.MediaOpenAsync(survey.Data.Info.SurveyType,
                                                                         mediaFileLeft,
                                                                         mediaFileRight,
-                                                                        surveyClass.Data.Events.EventList,
-                                                                        surveyClass.Data.Sync.IsSynchronized == true ? surveyClass.Data.Sync.TimeSpanOffset : null,
+                                                                        survey.Data.Events.EventList,
+                                                                        survey.Data.Sync.IsSynchronized == true ? survey.Data.Sync.TimeSpanOffset : null,
                                                                         depthUnderwater);
 
                     if (retOpen == 0)
                     {
-                        if (surveyClass.Data.Info.SurveyFileName is not null)
-                            SetTitle(surveyClass.Data.Info.SurveyFileName);
+                        if (survey.Data.Info.SurveyFileName is not null)
+                            SetTitle(survey.Data.Info.SurveyFileName);
 
                         MenuLockUnlockMediaPlayers.IsEnabled = true;
                         MenuTransectStartStopMarker.IsEnabled = true;
@@ -3291,7 +3291,7 @@ namespace Surveyor
         /// </summary>
         private void SetMenuStatusBasedOnSurveyState()
         {
-            if (surveyClass is not null /*&& this.projectClass.IsLoaded == true*/)
+            if (survey is not null /*&& this.projectClass.IsLoaded == true*/)
             {
                 // Survey
                 MenuSurveyNew.IsEnabled = false;
@@ -3300,7 +3300,7 @@ namespace Surveyor
                 MenuSurveyClose.IsEnabled = true;
 
                 // Import calibration
-                if (surveyClass.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
+                if (survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
                     MenuImportCalibration.IsEnabled = true;
                 else
                     MenuImportCalibration.IsEnabled = false;
@@ -3309,14 +3309,14 @@ namespace Surveyor
                 MenuExport.IsEnabled = false;
 
                 // Media Lock
-                if (surveyClass.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
+                if (survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
                     MenuLockUnlockMediaPlayers.IsEnabled = true;
                 else
                     MenuLockUnlockMediaPlayers.IsEnabled = false;
 
                 // Media Lock Info Bar
-                if (surveyClass.Data.Info.SurveyType == Survey.SurveyType.StereoFish && 
-                    !surveyClass.Data.Sync.IsSynchronized)
+                if (survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish && 
+                    !survey.Data.Sync.IsSynchronized)
                 {
                     InfoBarLockMedia.IsOpen = true;
                     InfoBarLockMedia.Visibility = Visibility.Visible;
@@ -3410,7 +3410,7 @@ namespace Surveyor
             // Remember the 'Calibrated' symbol so we can reuse it later
             calibratedIndictorText ??= CalibratedIndicator.Text;
 
-            CalibrationClass? calibrationClass = surveyClass?.Data?.Calibration;
+            CalibrationClass? calibrationClass = survey?.Data?.Calibration;
             CalibrationData? calibrationDataPreferred = calibrationClass?.GetPreferredCalibrationData(frameWidth, frameHeight);
 
             if (calibrationClass is not null && 
@@ -3519,17 +3519,17 @@ namespace Surveyor
             bool ret = false;
 
             // Get the Calibration ID from the preferred calibration data
-            if (surveyClass is not null && MediaPlayerLeft.IsOpen())
+            if (survey is not null && MediaPlayerLeft.IsOpen())
             {
                 ret = await SurveyMeasurementHelper.CheckIfEventMeasurementsAreUpToDate(
                                                             stereoProjection,
-                                                            surveyClass,
+                                                            survey,
                                                             MediaPlayerLeft.FrameWidth,
                                                             MediaPlayerLeft.FrameHeight,
                                                             this.Content.XamlRoot, 
                                                             forceReCalc);
                             
-                if (ret == true && surveyClass is not null)
+                if (ret == true && survey is not null)
                 {
                     // Reset the event list
                     eventsControl.SetEvents([]);
@@ -3538,7 +3538,7 @@ namespace Surveyor
                     await Task.Delay(500);
 
                     // Refresh the event list (it will not automatic detect changes within existing events)
-                    eventsControl.SetEvents(surveyClass.Data.Events.EventList);
+                    eventsControl.SetEvents(survey.Data.Events.EventList);
                 }
             }
 
@@ -3558,11 +3558,11 @@ namespace Surveyor
         {
             bool updated = false;
 
-            if (surveyClass is not null)
+            if (survey is not null)
             {
                 updated = SurveyMeasurementHelper.DoMeasurementAndRulesCalculations(
                                     stereoProjection,
-                                    surveyClass,
+                                    survey,
                                     surveyMeasurement);
             }
 
@@ -3582,11 +3582,11 @@ namespace Surveyor
         {
             bool updated = false;
 
-            if (surveyClass is not null)
+            if (survey is not null)
             {
                 updated = SurveyMeasurementHelper.DoRulesCalculations(
                                     stereoProjection,
-                                    surveyClass, 
+                                    survey, 
                                     surveyStereoPoint);
             }
 
@@ -3972,7 +3972,7 @@ namespace Surveyor
                 if (entryCount == 1)
                 {
                     // Initialize if necessary
-                    SettingsWindow settingsWindow = new(mediator, this, surveyClass, report, section);
+                    SettingsWindow settingsWindow = new(mediator, this, survey, report, section);
 
                     // Get the HWND (window handle) for both windows
                     IntPtr mainWindowHandle = WindowNative.GetWindowHandle(this);
@@ -4323,8 +4323,8 @@ namespace Surveyor
                     if (startSeconds is not null)
                     {
                         // Go to the start position in the video (only if stereo set and synced)
-                        if (surveyClass?.Data.Info.SurveyType == Survey.SurveyType.StereoFish &&
-                            surveyClass?.Data.Sync.IsSynchronized == true)
+                        if (survey?.Data.Info.SurveyType == Survey.SurveyType.StereoFish &&
+                            survey?.Data.Sync.IsSynchronized == true)
                         {
                             TimeSpan startPositionTS = TimeSpan.FromSeconds((double)startSeconds);
 
@@ -4348,8 +4348,8 @@ namespace Surveyor
                             }
                         }
                         // Go to the start position in the video (only if mono set)
-                        else if (surveyClass?.Data.Info.SurveyType == Survey.SurveyType.MonoFish ||
-                                 surveyClass?.Data.Info.SurveyType == Survey.SurveyType.MonoBenthic)
+                        else if (survey?.Data.Info.SurveyType == Survey.SurveyType.MonoFish ||
+                                 survey?.Data.Info.SurveyType == Survey.SurveyType.MonoBenthic)
                         {
                             TimeSpan startPositionTS = TimeSpan.FromSeconds((double)startSeconds);
                             report.Info("", $"Start position: {startPositionTS:hh\\:mm\\:ss\\.ff} ({startPositionTS.TotalSeconds:F2})");

@@ -2,7 +2,7 @@ using CommunityToolkit.WinUI.Controls;
 using ActionCameraMP4MetadataExtraction;
 using Microsoft.UI.Dispatching;
 ///
-/// *** Remember when editting this User Control code that it is used from both   ***
+/// *** Remember when editing this User Control code that it is used from both   ***
 /// *** the context of a ContentDialog (for a new Survey) and from a SettingCard  ***
 /// *** from the SettingsWindow.                                                  ***  
 ///
@@ -129,7 +129,7 @@ namespace Surveyor.User_Controls
         /// This is used when this control is used view survey settings
         /// </summary>
         /// <param name="settings"></param>
-        public async void SetupForSettingWindow(SettingsCard settings, Survey survey)
+        public async Task SetupForSettingWindowAsync(SettingsCard settings, Survey survey)
         {
             // Remember the parent 
             ParentSettings = settings;
@@ -159,7 +159,7 @@ namespace Surveyor.User_Controls
                 SurveyCode.Text = survey.Data.Info.SurveyCode;
             else
                 // If the survey code is empty then use the survey file name stem
-                // This maybe because the .survey file is an old verison
+                // This maybe because the .survey file is an old version
                 SurveyCode.Text = Path.GetFileNameWithoutExtension(survey.Data.Info.SurveyFileName);
 
 
@@ -184,7 +184,7 @@ namespace Surveyor.User_Controls
             SurveyAnalystName.Text = survey.Data.Info.SurveyAnalystName;
 
 
-            // Get suitable default thubmnail based on the current theme
+            // Get suitable default thumbnail based on the current theme
             BitmapImage thumbnailDefault = GetDefaultThumbnail();
 
             if (survey.Data.Media.MediaPath is not null)
@@ -289,7 +289,7 @@ namespace Surveyor.User_Controls
         /// 
 
         /// <summary>
-        /// Validate the buttons if the user has editted value in the dialog
+        /// Validate the buttons if the user has edited value in the dialog
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -300,7 +300,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Validate the buttons if the user has editted value in the dialog
+        /// Validate the buttons if the user has edited value in the dialog
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -311,7 +311,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Validate the buttons if the user has editted value in the dialog
+        /// Validate the buttons if the user has edited value in the dialog
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -322,7 +322,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Validate the buttons if the user has editted value in the dialog
+        /// Validate the buttons if the user has edited value in the dialog
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -425,12 +425,12 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Try to find a suitable user name for the SurveyAnalystName field
         /// </summary>
-        private async void LoadUserFullNameAsync()
+        private async Task LoadUserFullNameAsync()
         {
             // Get the user name
             string? fullName = await UserHelper.GetUserFullNameAsync();
 
-            // Get any previously usef name from local settings
+            // Get any previously user name from local settings
             string? previousName = SettingsManagerLocal.UserName;
             if (string.IsNullOrEmpty(previousName))
             {
@@ -450,7 +450,7 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// Called when anything change to test the validity of the survey information and media
-        /// This is also shows on the users control whick fields are invalid
+        /// This is also shows on the users control which fields are invalid
         /// </summary>
         /// <returns></returns>
         /// 
@@ -594,7 +594,7 @@ namespace Surveyor.User_Controls
                 validationText.Text = text;
             }
 
-            // Retrieve the tooltip programmatically
+            // Retrieve the tool tip programmatically
             bool applyTooltip = false;
 
             if (ToolTipService.GetToolTip(validationText) is not ToolTip existingToolTip)
@@ -603,11 +603,11 @@ namespace Surveyor.User_Controls
             }
             else if ((string)existingToolTip.Content != tooltip)
             {
-                // Update tooltip
+                // Update tool tip
                 existingToolTip.Content = tooltip;
             }
 
-            // Change the tooltip
+            // Change the tool tip
             if (applyTooltip)
             {
                 ToolTip toolTip = new() { Content = tooltip };
@@ -768,7 +768,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Use at the top of the function if that function is intended for use use only on the 
+        /// Use at the top of the function if that function is intended for use only on the 
         /// UI Thread.  This is to prevent the function being called from a non-UI thread.
         /// </summary>
         private void CheckIsUIThread()

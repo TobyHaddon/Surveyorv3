@@ -24,7 +24,7 @@ namespace Surveyor.Helper
     public class HtmlFishBaseParser
     {
         /// <summary>
-        /// Extract the image url, the genus and species, the author and the total number of images available for this species
+        /// Extract the iamge url, the genus and species, the auther and the total number of images available for this species
         /// </summary>
         /// <param name="file"></param>
         /// <returns></returns>

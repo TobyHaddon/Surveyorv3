@@ -16,8 +16,6 @@ using System.Text;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.DataTransfer;
 
-
-
 namespace Surveyor.User_Controls
 {
     public sealed partial class EventsControl : UserControl

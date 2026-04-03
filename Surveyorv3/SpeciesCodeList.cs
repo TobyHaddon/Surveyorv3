@@ -288,6 +288,42 @@ namespace Surveyor
             SpeciesItems = [];
         }
 
+
+        /// <summary>
+        /// Scan the 'Species Lists' folder and return the list of available species code list files
+        /// </summary>
+        /// <returns></returns>
+        public static List<string> GetAvailableSpeciesLists()
+        {
+            List<string> ret = [];
+
+            string speciesListsFolder = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, "Species Lists");
+
+            if (Directory.Exists(speciesListsFolder))
+            {
+                var files = Directory.GetFiles(speciesListsFolder, "*.txt");
+                foreach (var file in files)
+                    ret.Add(Path.GetFileNameWithoutExtension(file));
+            }
+
+            return ret;
+        }
+
+
+        /// <summary>
+        /// Check if the specified species list is present in the 'Species Lists' folder
+        /// </summary>
+        /// <param name="surveySpeciesListName"></param>
+        /// <returns></returns>
+        public static bool IsSpeciesListPresent(string surveySpeciesListName)
+        {
+            string surveySpeciesListFileName = $"{surveySpeciesListName}.txt";
+            string speciesListsFolder = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, "Species Lists");
+            string surveySpeciesListFileSpec = Path.Combine(speciesListsFolder, surveySpeciesListFileName);
+            return File.Exists(surveySpeciesListFileSpec);
+        }
+
+
         /// <summary>
         /// Allow access to the species list code file spec
         /// </summary>
@@ -295,6 +331,7 @@ namespace Surveyor
         {
             get => _speciesCodeListFileSpec;
         }
+
 
         /// <summary>
         /// Load the species code list from a file
@@ -322,11 +359,10 @@ namespace Surveyor
                 if (!File.Exists(_speciesCodeListFileSpec))
                 {
                     // Copy the file from the executable directory
-                    string speciesCodeListExecutablePathFileSpec = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, fileName);
+                    string speciesCodeListExecutablePathFileSpec = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, "Fish Species Lists", fileName);
                     File.Copy(speciesCodeListExecutablePathFileSpec, _speciesCodeListFileSpec, true);
                     Debug.WriteLine($"SpeciesCodeList.Load: Species file not found in the local folder. The default version was copied from the executable path.");
                 }
-
                            
                 // Try to load all the species code list records
                 try
@@ -417,6 +453,7 @@ namespace Surveyor
 
             return;
         }
+
 
         /// <summary>
         /// Set the display type for the Family, Genus, Species to scientific/common, 

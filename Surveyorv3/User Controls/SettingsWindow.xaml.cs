@@ -11,6 +11,7 @@
 
 using CommunityToolkit.WinUI;
 using CommunityToolkit.WinUI.Controls;
+using Emgu.CV;
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
@@ -32,6 +33,7 @@ using Windows.Foundation;
 using Windows.Storage;
 using WinUIEx;
 using static Surveyor.User_Controls.SettingsWindowEventData;
+using static Surveyor.User_Controls.SurveyorTesting;
 
 
 namespace Surveyor.User_Controls
@@ -123,13 +125,13 @@ namespace Surveyor.User_Controls
                 switch (survey.Data.Info.SurveyType)
                 {
                     case Survey.SurveyType.StereoFish:
-                        SurveyStereoInfoAndMedia.SetupForSettingWindow(SettingsCardSurveyStereoInfoAndMedia, survey);
+                        SurveyStereoInfoAndMedia.SetupForSettingWindowAsync(SettingsCardSurveyStereoInfoAndMedia, survey);
                         SettingsCardSurveyStereoInfoAndMedia.Visibility = Visibility.Visible;
                         SettingsCardSurveyMonoInfoAndMedia.Visibility = Visibility.Collapsed;
                         break;
                     case Survey.SurveyType.MonoFish:
                     case Survey.SurveyType.MonoBenthic:
-                        SurveyMonoInfoAndMedia.SetupForSettingWindow(SettingsCardSurveyMonoInfoAndMedia, survey);
+                        SurveyMonoInfoAndMedia.SetupForSettingWindowAsync(SettingsCardSurveyMonoInfoAndMedia, survey);
                         SettingsCardSurveyStereoInfoAndMedia.Visibility = Visibility.Collapsed;
                         SettingsCardSurveyMonoInfoAndMedia.Visibility = Visibility.Visible;
                         break;
@@ -323,7 +325,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Set the combobox theme to the last saved theme
+        /// Set the combo box theme to the last saved theme
         /// </summary>
         /// <param name="theme"></param>
         private void OnSettingsPageLoaded(ElementTheme theme)
@@ -351,7 +353,7 @@ namespace Surveyor.User_Controls
                             break;
                     }
 
-                    // Load the current diags info saved state
+                    // Load the current dialog info saved state
                     DiagnosticInformation.IsOn = SettingsManagerLocal.DiagnosticInformation;
 
                     // Load the SpeciesImageCache saved state
@@ -385,7 +387,7 @@ namespace Surveyor.User_Controls
                     // Load survey inheritance saved state
                     AllowSurveyInheritance.IsOn = SettingsManagerLocal.InheritFromLastSetting;
 
-                    // Set the tooltip on the information icon on the Reporter info, Species image and information cache expander
+                    // Set the tool tip on the information icon on the Reporter info, Species image and information cache expander
                     ToolTip tooltipSpeciesImageCacheFolder = new();
                     ToolTip tooltipReporterFolder = new();
                     try
@@ -406,22 +408,49 @@ namespace Surveyor.User_Controls
                     // Load the Scientific Name Order saved state
                     SpeciesCodeListScientificNameOrder.IsOn = SettingsManagerLocal.ScientificNameOrderEnabled;
 
-                    // Set the tooltip on the information icon on the Species List expander
+                    // Set the tool tip on the information icon on the Species List expander
                     ToolTip tooltipSpeciesCodeListFileSpec = new();
                     try
                     {
-                        tooltipSpeciesCodeListFileSpec.Content = $"Species file location: {mainWindow?.mediaStereoController.speciesSelector.speciesCodeList.SpeciesCodeListFileSpec}";
+                        tooltipSpeciesCodeListFileSpec.Content = $"Species file location: {mainWindow?.mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesCodeListFileSpec}";
                         ToolTipService.SetToolTip(SpeciesCodeListFileSpec, tooltipSpeciesCodeListFileSpec);
                     }
                     catch { }
+
+                    // Load the Species List Selector code list
+                    string activeSpeciesList = SettingsManagerLocal.ActiveSpeciesList;
+                    List<string> items = SpeciesCodeList.GetAvailableSpeciesLists();
+                    SpeciesActiveListMenuFlyout.Items.Clear();
                     
+                    foreach (string text in items)
+                    {
+                        MenuFlyoutItem item = new()
+                        {
+                            Text = text,
+                            Tag = text
+                        };
+
+                        item.Click += SpeciesListSelectorItem_Click;
+                        SpeciesActiveListMenuFlyout.Items.Add(item);
+                    }
+                    // Set the text tot he active Species List
+                    if (!string.IsNullOrEmpty(activeSpeciesList))
+                    {
+                        SpeciesActiveListDropDown.Content = activeSpeciesList;
+                    }
+                    else
+                    {
+                        SpeciesActiveListDropDown.Content = "Not Selected";
+                    }
+
+
                     // Refresh the Species State list
                     mainWindow?.mediaStereoController.speciesImageCache.RefreshView();
 
                     // Refresh the internet queue
                     mainWindow?.internetQueue.RefreshView();
 
-                    // Load the Telemtry setting
+                    // Load the Telemetry setting
                     Telemetry.IsOn = SettingsManagerLocal.TelemetryEnabled;
 
                     // Load the Experimental setting
@@ -466,7 +495,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Unloaded event for the root grid.  This is used to clean up the UI and close any open dialogs
+        /// Unloaded event for the root grid.  This is used to clean up the UI and close any open dialog
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -519,7 +548,7 @@ namespace Surveyor.User_Controls
             // Set the save theme
             SettingsManagerLocal.ApplicationTheme = rootElement.RequestedTheme;
           
-            // Unregister the mediator handler
+            // De-register the mediator handler
             if (mediator is not null && settingsWindowHandler is not null)
             {
                 mediator.Unregister(settingsWindowHandler);
@@ -534,7 +563,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Toggle theauto save survey feature
+        /// Toggle the auto save survey feature
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -609,7 +638,7 @@ namespace Surveyor.User_Controls
 
         
         /// <summary>
-        /// Toggle the allowed to use interst
+        /// Toggle the allowed to use internet
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -637,7 +666,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Toggle the ability to use the mousewheel of the two finger swipe to move the frame forward
+        /// Toggle the ability to use the mouse wheel of the two finger swipe to move the frame forward
         /// or backwards when the pointer is on the media player
         /// </summary>
         /// <param name="sender"></param>
@@ -869,7 +898,7 @@ namespace Surveyor.User_Controls
                     Title = "Files Copied",
                     Content = $"{storageItems.Count} reporter file(s) have been copied to the clipboard. You can now paste them into an email.",
                     CloseButtonText = "OK",
-                    XamlRoot = this.Content.XamlRoot // Required in WinUI 3 for non-windowed dialogs
+                    XamlRoot = this.Content.XamlRoot // Required in WinUI 3 for a non-windowed dialog
                 };
 
                 await dialog.ShowAsync();
@@ -880,7 +909,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Eanbled or disable beat release code
+        /// Enabled or disable beat release code
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -964,6 +993,18 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void DownloadNow_Click(object sender, RoutedEventArgs e)
+        {
+            // Trigger the next image cache timer now
+            mainWindow?.mediaStereoController.speciesImageCache.TriggerNextTimer();
+        }
+
+
+        /// <summary>
         /// User requested the species image cache view is updated
         /// </summary>
         /// <param name="sender"></param>
@@ -1030,7 +1071,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Remove the downadloed and the uploaded items in the internet queue and leave the other
+        /// Remove the downloaded and the uploaded items in the internet queue and leave the other
         /// states 
         /// </summary>
         /// <param name="sender"></param>
@@ -1077,7 +1118,7 @@ namespace Surveyor.User_Controls
                     PrimaryButtonText = "Yes",
                     CloseButtonText = "Cancel",
                     DefaultButton = ContentDialogButton.Close,
-                    XamlRoot = this.Content.XamlRoot // Required in WinUI 3 for non-windowed dialogs
+                    XamlRoot = this.Content.XamlRoot // Required in WinUI 3 for a non-windowed dialog
                 };
 
                 var result = await dialog.ShowAsync();
@@ -1112,7 +1153,7 @@ namespace Surveyor.User_Controls
                 PrimaryButtonText = "Yes",
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Close,
-                XamlRoot = this.Content.XamlRoot // Required in WinUI 3 for non-windowed dialogs
+                XamlRoot = this.Content.XamlRoot // Required in WinUI 3 for a non-windowed dialog
             };
 
             var result = await dialog.ShowAsync();
@@ -1154,7 +1195,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Show the folder where the species image and information cahce can be found
+        /// Show the folder where the species image and information cache can be found
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -1167,6 +1208,38 @@ namespace Surveyor.User_Controls
                 var dataPackage = new DataPackage();
                 dataPackage.SetText(localFolderPath);
                 Clipboard.SetContent(dataPackage);
+            }
+        }
+
+
+        /// <summary>
+        /// Remove all the image records with a status of Error
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void RemoveErrorsSpeciesCache_Click(object sender, RoutedEventArgs e) => _ = RemoveErrorsSpeciesCacheClickAsync();
+
+        private async Task RemoveErrorsSpeciesCacheClickAsync()
+        {
+            var dialog = new ContentDialog
+            {
+                Title = "Confirm Remove",
+                Content = $"Are you sure you want to delete all record(s) from the species image cache with an error status?",
+                PrimaryButtonText = "Yes",
+                CloseButtonText = "Cancel",
+                DefaultButton = ContentDialogButton.Close,
+                XamlRoot = this.Content.XamlRoot // Required in WinUI 3 for a non-windowed dialog
+            };
+
+            var result = await dialog.ShowAsync();
+
+            if (result == ContentDialogResult.Primary)
+            {
+                if (mainWindow is not null)
+                {                    
+                    await mainWindow.mediaStereoController.speciesImageCache.RemoveErrorAsync();
+                    mainWindow.mediaStereoController.speciesImageCache.RefreshView();
+                }
             }
         }
 
@@ -1185,11 +1258,11 @@ namespace Surveyor.User_Controls
             var dialog = new ContentDialog
             {
                 Title = "Confirm Remove",
-                Content = $"Are you sure you want to delete all {count} record{pural} from the species image cache. These are the images that help with fish ID?",
+                Content = $"Are you sure you want to delete all {count} record{pural} from the species image cache?",
                 PrimaryButtonText = "Yes",
                 CloseButtonText = "Cancel",
                 DefaultButton = ContentDialogButton.Close,
-                XamlRoot = this.Content.XamlRoot // Required in WinUI 3 for non-windowed dialogs
+                XamlRoot = this.Content.XamlRoot // Required in WinUI 3 for a non-windowed dialog
             };
 
             var result = await dialog.ShowAsync();
@@ -1305,7 +1378,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void SpeciesCodeListFileSpec_Click(object sender, RoutedEventArgs e)
         {
-            string filePath = mainWindow?.mediaStereoController?.speciesSelector?.speciesCodeList?.SpeciesCodeListFileSpec ?? "";
+            string filePath = mainWindow?.mediaStereoController?.speciesSelector?.SpeciesCodeList?.SpeciesCodeListFileSpec ?? "";
 
             if (!string.IsNullOrEmpty(filePath))
             {
@@ -1315,6 +1388,28 @@ namespace Surveyor.User_Controls
             }
         }
 
+
+        /// <summary>
+        /// Handles the click event for a species list selector item.
+        /// This handler is attached in code behind to each item in the species list selector menu flyout, 
+        /// and the Tag property of each menu item is used to identify which item was clicked.  It doesn't
+        /// appear in the .XAML
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void SpeciesListSelectorItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuFlyoutItem item && item.Tag is string newSpeciesListName)
+            {
+                if (mainWindow is not null)
+                {
+                    if (mainWindow.mediaStereoController.OpenSpeciesListIfNecessary(newSpeciesListName))
+                    {
+                        SpeciesActiveListDropDown.Content = newSpeciesListName;
+                    }
+                }                
+            }
+        }
 
 
         /// <summary>
@@ -1331,12 +1426,12 @@ namespace Surveyor.User_Controls
             {
                 SpeciesRecordEditDialog dialog = new(report);
 
-                SpeciesCodeList speciesCodeList = mainWindow.mediaStereoController.speciesSelector.speciesCodeList;
+                SpeciesCodeList speciesCodeList = mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList;
 
                 if (await dialog.SpeciesRecordNewAsync(this, speciesItemNew, speciesCodeList) == true)
                 {
                     // Add the new species code to the list
-                    bool ret = mainWindow?.mediaStereoController.speciesSelector.speciesCodeList.AddItem(speciesItemNew, SettingsManagerLocal.ScientificNameOrderEnabled) ?? false;
+                    bool ret = mainWindow?.mediaStereoController.speciesSelector.SpeciesCodeList.AddItem(speciesItemNew, SettingsManagerLocal.ScientificNameOrderEnabled) ?? false;
 
                     if (!ret)
                     {
@@ -1398,7 +1493,7 @@ namespace Surveyor.User_Controls
                 var result = await dialog.ShowAsync();
                 if (result == ContentDialogResult.Primary)
                 {
-                    mainWindow?.mediaStereoController.speciesSelector.speciesCodeList.DeleteItem(speciesItem);
+                    mainWindow?.mediaStereoController.speciesSelector.SpeciesCodeList.DeleteItem(speciesItem);
                 }
             }                
         }
@@ -1435,7 +1530,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Toggle sorting on the common name instead of the latin name
+        /// Toggle sorting on the common name instead of the Latin name
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -1463,8 +1558,8 @@ namespace Surveyor.User_Controls
             // Re-sort
             if (mainWindow is not null)
             {
-                if (mainWindow.mediaStereoController.speciesSelector.speciesCodeList.Sort(settingValue))
-                    mainWindow.mediaStereoController.speciesSelector.speciesCodeList.Save();
+                if (mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList.Sort(settingValue))
+                    mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList.Save();
             }
         }
 
@@ -1485,7 +1580,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// User selected a suggestion from the dropdown in SpeciesCodeList AutoSuggestBox
+        /// User selected a suggestion from the drop-down in SpeciesCodeList AutoSuggestBox
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
@@ -1555,6 +1650,41 @@ namespace Surveyor.User_Controls
             }
         }
 
+
+        /// <summary>
+        /// Copy the file spec of the CreateSpeciesTxtFromURL.exe utility
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void UtilityCreateSpeciesTxtFromURL_Click(object sender, RoutedEventArgs e)
+        {
+            string fileSpec = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, "CreateSpeciesTxtFromURL.exe");
+
+            if (!string.IsNullOrEmpty(fileSpec))
+            {
+                var dataPackage = new DataPackage();
+                dataPackage.SetText(fileSpec);
+                Clipboard.SetContent(dataPackage);
+            }
+        }
+
+
+        /// <summary>
+        /// Copy the file spec of the EMObsReader.exe utility
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void UtilityEMObsReader_Click(object sender, RoutedEventArgs e)
+        {
+            string fileSpec = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, "EMObsReader.exe");
+
+            if (!string.IsNullOrEmpty(fileSpec))
+            {
+                var dataPackage = new DataPackage();
+                dataPackage.SetText(fileSpec);
+                Clipboard.SetContent(dataPackage);
+            }
+        }
 
 
         ///
@@ -1679,14 +1809,14 @@ namespace Surveyor.User_Controls
             {
                 SpeciesRecordEditDialog dialog = new(report);
 
-                SpeciesCodeList speciesCodeList = mainWindow.mediaStereoController.speciesSelector.speciesCodeList;
+                SpeciesCodeList speciesCodeList = mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList;
 
                 if (await dialog.SpeciesRecordEditAsync(this, speciesItem, speciesCodeList) == true)
                 {
                     // Update the species code to the list
-                    mainWindow?.mediaStereoController.speciesSelector.speciesCodeList.UpdateItem(speciesItem, SettingsManagerLocal.ScientificNameOrderEnabled);
+                    mainWindow?.mediaStereoController.speciesSelector.SpeciesCodeList.UpdateItem(speciesItem, SettingsManagerLocal.ScientificNameOrderEnabled);
 
-                    // Because it is an existing item that has been editted we need to force an update
+                    // Because it is an existing item that has been edited we need to force an update
                     // Note This is because INotifyPropertyChanged/OnPropertyChanged() isn't implemented
                     // on the SpeciesItem class
                     SpeciesCodeListDataGrid.UpdateLayout();
@@ -1711,7 +1841,7 @@ namespace Surveyor.User_Controls
                 {
                     var lower = searchText?.ToLowerInvariant() ?? "";
 
-                    foreach (var item in mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems)
+                    foreach (var item in mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesItems)
                     {
                         if (string.IsNullOrWhiteSpace(searchText) ||
                             item.Genus?.ToLowerInvariant().Contains(lower, StringComparison.InvariantCultureIgnoreCase) == true ||
@@ -1730,8 +1860,8 @@ namespace Surveyor.User_Controls
                 else
                 {
                     // No search text, show all items. Bind back to the full list if necessary
-                    if (SpeciesCodeListDataGrid.ItemsSource != mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems)
-                        SpeciesCodeListDataGrid.ItemsSource = mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems;
+                    if (SpeciesCodeListDataGrid.ItemsSource != mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesItems)
+                        SpeciesCodeListDataGrid.ItemsSource = mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesItems;
 
                 }
             }        
@@ -1755,7 +1885,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Boardcast the experimental status to all listeners if anything changed
+        /// Broadcast the experimental status to all listeners if anything changed
         /// </summary>
         private void BroadcastExperimentalStatus()
         {
@@ -1793,7 +1923,7 @@ namespace Surveyor.User_Controls
                 double expanderTop = point.Y;
                 double expanderHeight = expander.ActualHeight;
 
-                // Get the height of the visible viewport of the ScrollViewer
+                // Get the height of the visible view port of the ScrollViewer
                 double viewportHeight = contentSV.ViewportHeight;
 
                 // Scroll so that the whole expander is visible if possible
@@ -1832,6 +1962,7 @@ namespace Surveyor.User_Controls
                 GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(updated);
             }
         }
+
 
         // ***END OF SettingsWindow***
     }

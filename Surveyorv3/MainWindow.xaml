@@ -16,6 +16,20 @@
     <Grid x:Name="RootGrid" 
           Background="{ThemeResource ApplicationPageBackgroundThemeBrush}"
           KeyDown="RootGrid_KeyDown">
+
+        <Grid.Resources>
+            <Style TargetType="InfoBar">
+                <Setter Property="MinHeight" Value="32"/>
+                <Setter Property="Padding" Value="8,4,8,4"/>
+                <Setter Property="Margin" Value="0"/>
+            </Style>
+            <Style x:Key="InfoBarActionButtonStyle" TargetType="Button" BasedOn="{StaticResource DefaultButtonStyle}">
+                <Setter Property="MinHeight" Value="28"/>
+                <Setter Property="Padding" Value="10,4,10,4"/>
+                <Setter Property="VerticalAlignment" Value="Center"/>
+            </Style>
+        </Grid.Resources>
+        
         <!-- The top level grid only contains the menu bar and everything else in two separate cells in 1x2 grid  -->
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!--Title Bar-->
@@ -276,7 +290,8 @@
                         ToolTipService.ToolTip="Find the sync point in both stereo media files, this is normally a torch flash. Make sure you move both the left and right stereo videos are on the same first frame of the same torch flash. Then press the 'Sync Stereo Media' button to syncronise them"
                         IsClosable="false">
                 <InfoBar.ActionButton>
-                    <Button Content="Sync Stereo Media" Click="InfoBarLockMediaButton_Click" />
+                    <Button Content="Sync Stereo Media" Click="InfoBarLockMediaButton_Click" 
+                             Style="{StaticResource InfoBarActionButtonStyle}"/>
                 </InfoBar.ActionButton>
             </InfoBar>
             <!--CALIBRATION MISSING WARNING-->

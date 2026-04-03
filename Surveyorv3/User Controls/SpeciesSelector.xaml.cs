@@ -23,6 +23,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Windows.Storage;
 using static Surveyor.SpeciesImageAndInfoCache;
+using CommunityToolkitNetworkHelper = CommunityToolkit.WinUI.Helpers.NetworkHelper;
 
 
 namespace Surveyor.User_Controls
@@ -40,7 +41,7 @@ namespace Surveyor.User_Controls
         private string? fileSpecSpecies;
         private Reporter? report;
         private SpeciesImageAndInfoCache? speciesImageCache = null;
-        internal SpeciesCodeList speciesCodeList { get; } = new() ;
+        internal SpeciesCodeList SpeciesCodeList { get; } = new();
 
         private bool userSelectedGenus = false; // Set to true if the user selected a genus from the AutoSuggestBox or typed in a name as opposed to it being calculated from the species
         private bool userSelectedFamily = false; // Set to true if the user selected a family from the AutoSuggestBox or typed in a name as opposed to it being calculated from the species or genus
@@ -83,11 +84,11 @@ namespace Surveyor.User_Controls
         /// Called to load the species code list
         /// </summary>
         /// <param name="fileSpec"></param>
-        public void Load(string fileSpec, bool trueScientificFalseCommonName)
+        public bool Load(string fileSpec, bool trueScientificFalseCommonName)
         {
             fileSpecSpecies = fileSpec;
 
-            speciesCodeList.Load(fileSpec, report, trueScientificFalseCommonName);
+            return SpeciesCodeList.Load(fileSpec, report, trueScientificFalseCommonName);
         }
 
 
@@ -96,9 +97,10 @@ namespace Surveyor.User_Controls
         /// </summary>
         public void Unload()
         {
-            speciesCodeList.Unload();
+            SpeciesCodeList.Unload();
             fileSpecSpecies = null;
         }
+
 
 
         /// <summary>
@@ -234,14 +236,14 @@ namespace Surveyor.User_Controls
                 if (speciesInfo.Species is not null)
                 {
                     AutoSuggestSpecies.Text = speciesInfo.Species;
-                    if (speciesCodeList.SearchSpecies(speciesInfo.Species, ""/*genus*/, ""/*family*/) == true)
+                    if (SpeciesCodeList.SearchSpecies(speciesInfo.Species, ""/*genus*/, ""/*family*/) == true)
                     {
-                        AutoSuggestSpecies.ItemsSource = speciesCodeList.SpeciesComboItems;
+                        AutoSuggestSpecies.ItemsSource = SpeciesCodeList.SpeciesComboItems;
 
                         // If the search resulted in one result then use that result as the selection
-                        if (speciesCodeList.SpeciesComboItems.Count == 1)
+                        if (SpeciesCodeList.SpeciesComboItems.Count == 1)
                         {
-                            SpeciesItem speciesItem = speciesCodeList.SpeciesComboItems[0];
+                            SpeciesItem speciesItem = SpeciesCodeList.SpeciesComboItems[0];
                             await SpeciesSelected(speciesItem, true/*setAutoSuggest*/);
                         }
                     }
@@ -265,14 +267,14 @@ namespace Surveyor.User_Controls
                 if (speciesInfo.Species is not null)
                 {
                     AutoSuggestSpecies.Text = speciesInfo.Species;
-                    if (speciesCodeList.SearchSpecies(speciesInfo.Species, ""/*genus*/, ""/*family*/) == true)
+                    if (SpeciesCodeList.SearchSpecies(speciesInfo.Species, ""/*genus*/, ""/*family*/) == true)
                     {
-                        AutoSuggestSpecies.ItemsSource = speciesCodeList.SpeciesComboItems;
+                        AutoSuggestSpecies.ItemsSource = SpeciesCodeList.SpeciesComboItems;
 
                         // If the search resulted in one result then use that result as the selection
-                        if (speciesCodeList.SpeciesComboItems.Count == 1)
+                        if (SpeciesCodeList.SpeciesComboItems.Count == 1)
                         {
-                            SpeciesItem speciesItem = speciesCodeList.SpeciesComboItems[0];
+                            SpeciesItem speciesItem = SpeciesCodeList.SpeciesComboItems[0];
                             await SpeciesSelected(speciesItem, true/*setAutoSuggest*/);
                         }
                     }
@@ -292,7 +294,7 @@ namespace Surveyor.User_Controls
 
                 if (species is not null)
                 {
-                    SpeciesItem? speciesItemLookup = speciesCodeList.GetSpeciesItemBySpeciesName(species);
+                    SpeciesItem? speciesItemLookup = SpeciesCodeList.GetSpeciesItemBySpeciesName(species);
 
                     if (speciesItemLookup is not null)
                     {
@@ -568,10 +570,10 @@ namespace Surveyor.User_Controls
                 userSelectedFamily = false;
 
                 // Search on the genus
-                if (speciesCodeList.SearchSpecies(sender.Text, genus, family) == true)
+                if (SpeciesCodeList.SearchSpecies(sender.Text, genus, family) == true)
                 {
-                    AutoSuggestSpecies.ItemsSource = speciesCodeList.SpeciesComboItems;
-                    Debug.WriteLine($"AutoSuggestBoxSpecies_TextChanged: speciesCodeList.SpeciesComboItems = {speciesCodeList.SpeciesComboItems.Count}");
+                    AutoSuggestSpecies.ItemsSource = SpeciesCodeList.SpeciesComboItems;
+                    Debug.WriteLine($"AutoSuggestBoxSpecies_TextChanged: speciesCodeList.SpeciesComboItems = {SpeciesCodeList.SpeciesComboItems.Count}");
                 }
                 else
                     Debug.WriteLine($"AutoSuggestBoxSpecies_TextChanged: speciesCodeList.SearchSpecies failed");
@@ -598,14 +600,14 @@ namespace Surveyor.User_Controls
                 string genusSearch  = userSelectedGenus == true ? genus : string.Empty;
                 string familySearch = userSelectedFamily == true ? family : string.Empty;
 
-                if (speciesCodeList.SearchSpecies(args.QueryText, genusSearch, familySearch) == true)
+                if (SpeciesCodeList.SearchSpecies(args.QueryText, genusSearch, familySearch) == true)
                 {
-                    AutoSuggestSpecies.ItemsSource = speciesCodeList.SpeciesComboItems;
+                    AutoSuggestSpecies.ItemsSource = SpeciesCodeList.SpeciesComboItems;
 
                     // If the search resulted in one result then use that result as the selection
-                    if (speciesCodeList.SpeciesComboItems.Count == 1)
+                    if (SpeciesCodeList.SpeciesComboItems.Count == 1)
                     {
-                        SpeciesItem speciesItem = speciesCodeList.SpeciesComboItems[0];
+                        SpeciesItem speciesItem = SpeciesCodeList.SpeciesComboItems[0];
                         await SpeciesSelected(speciesItem, true/*setAutoSuggest*/);
                     }
                 }
@@ -636,7 +638,7 @@ namespace Surveyor.User_Controls
             }
 
             // Display images of fish for this species to help fish ID
-            await DisplayCachedFishImages(speciesItem);
+            await DisplayCachedFishImagesAndDetails(speciesItem);
         }
 
 
@@ -656,10 +658,10 @@ namespace Surveyor.User_Controls
                 userSelectedGenus = true;
 
                 // Search on the genus
-                if (speciesCodeList.SearchGenus(sender.Text, family) == true)
+                if (SpeciesCodeList.SearchGenus(sender.Text, family) == true)
                 {
-                    AutoSuggestGenus.ItemsSource = speciesCodeList.GenusComboItems;
-                    Debug.WriteLine($"AutoSuggestBoxGenus_TextChanged: speciesCodeList.SpeciesComboItems = {speciesCodeList.GenusComboItems.Count}");
+                    AutoSuggestGenus.ItemsSource = SpeciesCodeList.GenusComboItems;
+                    Debug.WriteLine($"AutoSuggestBoxGenus_TextChanged: speciesCodeList.SpeciesComboItems = {SpeciesCodeList.GenusComboItems.Count}");
                 }
                 else
                     Debug.WriteLine($"AutoSuggestBoxGenus_TextChanged: speciesCodeList.SearchSpecies failed");
@@ -683,8 +685,8 @@ namespace Surveyor.User_Controls
                 userSelectedGenus = true;
 
                 // Do a fuzzy search based on the text
-                if (speciesCodeList.SearchGenus(sender.Text, family) == true)
-                    AutoSuggestGenus.ItemsSource = speciesCodeList.GenusComboItems;
+                if (SpeciesCodeList.SearchGenus(sender.Text, family) == true)
+                    AutoSuggestGenus.ItemsSource = SpeciesCodeList.GenusComboItems;
             }
         }
 
@@ -713,10 +715,10 @@ namespace Surveyor.User_Controls
                 userSelectedFamily = true;
 
                 // Search on the family
-                if (speciesCodeList.SearchFamily(sender.Text) == true)
+                if (SpeciesCodeList.SearchFamily(sender.Text) == true)
                 {
-                    AutoSuggestSpecies.ItemsSource = speciesCodeList.GenusComboItems;
-                    Debug.WriteLine($"AutoSuggestBoxFamily_TextChanged: speciesCodeList.SpeciesComboItems = {speciesCodeList.GenusComboItems.Count}");
+                    AutoSuggestSpecies.ItemsSource = SpeciesCodeList.GenusComboItems;
+                    Debug.WriteLine($"AutoSuggestBoxFamily_TextChanged: speciesCodeList.SpeciesComboItems = {SpeciesCodeList.GenusComboItems.Count}");
                 }
                 else
                     Debug.WriteLine($"AutoSuggestBoxFamily_TextChanged: speciesCodeList.SearchSpecies failed");
@@ -737,8 +739,8 @@ namespace Surveyor.User_Controls
                 userSelectedFamily = true;
 
                 // Do a fuzzy search based on the text
-                if (speciesCodeList.SearchFamily(sender.Text) == true)
-                    AutoSuggestFamily.ItemsSource = speciesCodeList.FamilyComboItems;
+                if (SpeciesCodeList.SearchFamily(sender.Text) == true)
+                    AutoSuggestFamily.ItemsSource = SpeciesCodeList.FamilyComboItems;
             }
 
         }
@@ -859,10 +861,11 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Display the cached fish images in a GridView
+        /// Display the cached fish images in a GridView and
+        /// details about the species if available
         /// </summary>
         /// <param name="speciesItem"></param>
-        private async Task DisplayCachedFishImages(SpeciesItem speciesItem)
+        private async Task DisplayCachedFishImagesAndDetails(SpeciesItem speciesItem)
         {
             WinUIGuards.CheckIsUIThread();
 
@@ -879,7 +882,7 @@ namespace Surveyor.User_Controls
 
                     List<SpeciesImageItem>? SpeciesImageItemList = speciesImageCache.GetImagesForSpecies(speciesItem.Code);
 
-                    if (SpeciesImageItemList is not null && SpeciesImageItemList.Count > 0)
+                    if (!string.IsNullOrEmpty(speciesItem.Code) && SpeciesImageItemList is not null && SpeciesImageItemList.Count > 0)
                     {
                         if (speciesItem is not null)
                         {
@@ -895,7 +898,7 @@ namespace Surveyor.User_Controls
                             // Set the source credit text
                             SourceCredit.Text = $"Source: {source}";
 
-                            // Set the copy/pastable genus/species text
+                            // Set the copy/paste genus/species text
                             GenusSpecies.Blocks.Clear();
                             var para = new Paragraph();
 
@@ -918,7 +921,7 @@ namespace Surveyor.User_Controls
                             Debug.WriteLine($"SpeciesSelector: AutoSuggestBoxSpecies_SuggestionChosen: {genusSpecies} {source} {speciesItem.Code}");
                         }
 
-                        // Make the fish image accessble to the XAML put loading into the
+                        // Make the fish image accessible to the XAML put loading into the
                         // Image List
                         ImageList.Clear();
                         foreach (SpeciesImageItem speciesImageItem in SpeciesImageItemList)
@@ -943,9 +946,9 @@ namespace Surveyor.User_Controls
 
                         // Can we check the max length
                         if (_pointContext is not null && _pointContext is SurveyMeasurement surveyMeasurement &&
-                            maxLength is not null && maxLength > 0) 
+                            maxLength is not null && maxLength > 0)
                         {
-                            if (surveyMeasurement.Measurement is not null && 
+                            if (surveyMeasurement.Measurement is not null &&
                                 surveyMeasurement.Measurement > 0 &&
                                 surveyMeasurement.Measurement/*m*/ > maxLength/*m*/)
                             {
@@ -957,7 +960,7 @@ namespace Surveyor.User_Controls
                                 if (lengthType.Equals("TL", StringComparison.OrdinalIgnoreCase))
                                 {
                                     MaxLengthInfoBar.Severity = InfoBarSeverity.Error;
-                                    MaxLengthInfoBar.Title = "Total Length(TL) exceeded";                                                                  
+                                    MaxLengthInfoBar.Title = "Total Length(TL) exceeded";
                                 }
                                 // If the max length is for the standard length (SL) (snout tip to base of tail)
                                 // then Severity is Warning
@@ -980,6 +983,7 @@ namespace Surveyor.User_Controls
                         GridRowsVisibility(SpeciesInfoGrid, string.IsNullOrEmpty(environment) ? Visibility.Collapsed : Visibility.Visible, 0/*fromRowIndex*/, 0/*toRowIndex*/);
                         GridRowsVisibility(SpeciesInfoGrid, string.IsNullOrEmpty(distribution) ? Visibility.Collapsed : Visibility.Visible, 1/*fromRowIndex*/, 1/*toRowIndex*/);
                         GridRowsVisibility(SpeciesInfoGrid, string.IsNullOrEmpty(speciesSize) ? Visibility.Collapsed : Visibility.Visible, 2/*fromRowIndex*/, 2/*toRowIndex*/);
+                        ImageCacheStatusSection.Visibility = Visibility.Collapsed;
                     }
                     else
                     {
@@ -990,11 +994,38 @@ namespace Surveyor.User_Controls
                         SourceCredit.Text = string.Empty;
                         GenusSpecies.Blocks.Clear();
 
-                        // Clear environment, distrution and size (bound to xaml)
+                        // Clear environment, distribution and size (bound to xaml)
                         Environment.Text = string.Empty;
                         Distribution.Text = string.Empty;
                         SpeciesSize.Text = string.Empty;
                         SpeciesInfoExpander.Visibility = Visibility.Collapsed;
+
+                        // If there is a code but no images then the cache is being built so show a message to that effect
+                        string statusMessage = "";
+                        if (!string.IsNullOrEmpty(speciesItem.Code))
+                        {
+                            bool isOnline = CommunityToolkitNetworkHelper.Instance.ConnectionInformation.IsInternetAvailable;
+                            bool? status = speciesImageCache.GetImageCacheStatusForSpecies(speciesItem.Code);
+                            if (status is not null)
+                            {
+                                if ((bool)status)
+                                    // Shouldn't get here in the code
+                                    statusMessage = "Images available.";
+                                else
+                                {
+                                    if (isOnline)
+                                        statusMessage = "Image request pending.";
+                                    else
+                                        statusMessage = "Image request pending, need internet to download.";
+                                }
+                            }
+                        }
+                        else
+                        {
+                            statusMessage = "No images available, not linked to FishBase.";
+                        }
+                        ImageCacheStatusText.Text = statusMessage;
+                        ImageCacheStatusSection.Visibility = Visibility.Visible;
                     }
                 }
                 catch (Exception ex)
@@ -1032,7 +1063,7 @@ namespace Surveyor.User_Controls
     }
 
     /// <summary>
-    /// Used to convert the image Uri
+    /// Used to convert the image URI
     /// </summary>
     public sealed partial class UriToImageSourceConverter : IValueConverter
     {
@@ -1050,7 +1081,7 @@ namespace Surveyor.User_Controls
     }
 
     /// <summary>
-    /// Add "by " as a prefix to the author is the Author proirity has a value
+    /// Add "by " as a prefix to the author is the Author priority has a value
     /// </summary>
     public sealed partial class AuthorDisplayConverter : IValueConverter
     {

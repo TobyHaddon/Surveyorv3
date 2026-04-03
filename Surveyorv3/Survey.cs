@@ -14,6 +14,8 @@
 // to indicate which of the specific rules passed/failed
 // Version 1.6
 // Added SurveyType to InfoClass and moved it's version to 2.0
+// Version 1.7
+// Added SpeciesListName to InfoClass version not changed
 
 
 // Ignore Spelling: Json
@@ -116,6 +118,7 @@ namespace Surveyor
                     _surveyCode = null;
                     _surveyAnalystName = null;
                     _surveyDepth = null;
+                    _surveySpeciesListName = null;
                 }
 
 
@@ -129,9 +132,10 @@ namespace Surveyor
                 private string? _surveyCode = null;
                 private string? _surveyAnalystName = null;
                 private string? _surveyDepth = null;  // Normally 5,8,10,13,15 or Flat, Crest or Slope 
+                private string? _surveySpeciesListName = null;
 
                 // Setters and getters
-                
+
                 [JsonConverter(typeof(StringEnumConverter))]
                 public SurveyType SurveyType
                 {
@@ -220,6 +224,23 @@ namespace Surveyor
                         if (_surveyDepth != value)
                         {
                             _surveyDepth = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                /// <summary>
+                /// Gets or sets the name of the species list associated with the survey.
+                /// </summary>
+                public string? SurveySpeciesListName
+                {
+                    get => _surveySpeciesListName;
+                    set
+                    {
+                        if (_surveySpeciesListName != value)
+                        {
+                            _surveySpeciesListName = value;
                             IsDirty = true;
                             OnPropertyChanged();
                         }
@@ -908,6 +929,7 @@ namespace Surveyor
                 public void Clear()
                 {
                     _surveyRulesActive = false;
+                    _surveyRulesInherited = null;
                     _surveyRulesData.Clear();
                     _isDirty = false;
                 }
@@ -1250,7 +1272,7 @@ namespace Surveyor
             }
 
             stopwatch.Stop();
-            Debug.WriteLine($"Survey.SurveyLoad {SurveyFileSpec} Return code:{ret}, Elapsed time: {stopwatch.ElapsedMilliseconds} ms");
+            Debug.WriteLine($"Survey.SurveyLoadAsync {SurveyFileSpec} Return code:{ret}, Elapsed time: {stopwatch.ElapsedMilliseconds} ms");
 
 
             return ret;
@@ -1415,12 +1437,12 @@ namespace Surveyor
             catch (ArgumentNullException e)
             {
                 ret = -1;
-                Report?.Warning("", $"SetSurveyNameAndPath() trying to set survey path base on:{surveyFileSpec}, however were a null argument. {e.Message}");
+                Report?.Warning("", $"SetSurveyNameAndPath: trying to set survey path base on:{surveyFileSpec}, however were a null argument. {e.Message}");
             }
             catch (ArgumentException e)
             {
                 ret = -2;
-                Report?.Warning("", $"SetSurveyNameAndPath() trying to set survey path base on:{surveyFileSpec}, however were was an error. {e.Message}");
+                Report?.Warning("", $"SetSurveyNameAndPath: trying to set survey path base on:{surveyFileSpec}, however were was an error. {e.Message}");
             }
 
             // Extract the file name
@@ -1431,7 +1453,7 @@ namespace Surveyor
             catch (ArgumentException e)
             {
                 ret = -3;
-                Report?.Warning("", $"SetSurveyNameAndPath() trying to set survey name base on:{surveyFileSpec}, however were was an error. {e.Message}");
+                Report?.Warning("", $"SetSurveyNameAndPath: trying to set survey name base on:{surveyFileSpec}, however were was an error. {e.Message}");
             }
 
             Data.Info.SurveyFileName = fileName;

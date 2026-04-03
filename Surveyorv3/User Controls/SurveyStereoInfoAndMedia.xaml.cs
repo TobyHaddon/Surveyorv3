@@ -2,7 +2,7 @@ using CommunityToolkit.WinUI.Controls;
 using ActionCameraMP4MetadataExtraction;
 using Microsoft.UI.Dispatching;
 ///
-/// *** Remember when editting this User Control code that it is used from both   ***
+/// *** Remember when editing this User Control code that it is used from both   ***
 /// *** the context of a ContentDialog (for a new Survey) and from a SettingCard  ***
 /// *** from the SettingsWindow.                                                  ***  
 ///
@@ -80,7 +80,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="dialog"></param>
         /// <param name="_mediaFilesSelected"></param>
-        public void SetupForContentDialog(ContentDialog dialog, IReadOnlyList<StorageFile> _mediaFilesSelected, string potentialInhertanceSurvey)
+        public void SetupForContentDialog(ContentDialog dialog, IReadOnlyList<StorageFile> _mediaFilesSelected, string potentialInheritanceSurvey)
         {
             Debug.WriteLine($"SetupForContentDialog() Started");
             ParentDialog = dialog;
@@ -89,7 +89,7 @@ namespace Surveyor.User_Controls
             ResetDialogFields();
 
             // Inherit from prior Survey
-            if (!string.IsNullOrEmpty(potentialInhertanceSurvey))
+            if (!string.IsNullOrEmpty(potentialInheritanceSurvey))
             {
                 // Show the inherit survey data checkbox
                 InheritSurveyData.Visibility = Visibility.Visible;
@@ -116,52 +116,47 @@ namespace Surveyor.User_Controls
             this.mediaFilesSelected = _mediaFilesSelected;
 
             // Run on the UI thread
-            _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, async () =>
+            _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
             {
-                // Get suitable default thubmnail based on the current theme
+                _ = SetupForContentDialogOnUiThreadAsync(potentialInheritanceSurvey);
+            }); ;
+
+            Debug.WriteLine($"SetMediaFiles() Complete");
+        }
+
+        private async Task SetupForContentDialogOnUiThreadAsync(string potentialInhertanceSurvey)
+        {
+            try
+            {
                 BitmapImage thumbnailDefault = GetDefaultThumbnail();
 
-
-                // Loading from Dialog context. This means the users has provided a list of media files via
-                // mediaFilesSelected
                 if (mediaFilesSelected is not null && mediaFilesSelected.Count > 0)
                 {
-                    // Convert storage files list to a MediaFileItem list and connect other attributes: thumbnail, creation date, GoPro serial number, Frame size, etc.
                     List<StereoMediaFileItem> mediaFileItemList = [];
                     foreach (StorageFile file in mediaFilesSelected)
                     {
                         StereoMediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
-
                         mediaFileItemList.Add(item);
                     }
 
+                    (LeftMediaFileItemList, RightMediaFileItemList, _) = DetectLeftAndRightMediaFile(mediaFileItemList);
 
-                    // Try to figure out which is the left and which is the right media file
-                    (LeftMediaFileItemList, RightMediaFileItemList, double Certainty) = DetectLeftAndRightMediaFile(mediaFileItemList);
-
-                    // Bind the collection to the ListView
                     LeftMediaFileNames.ItemsSource = LeftMediaFileItemList;
                     RightMediaFileNames.ItemsSource = RightMediaFileItemList;
                 }
 
-                // Get the full name from Windows if we are running in the ContextDialog (New Survey) context
-                LoadUserFullNameAsync();
+                await LoadUserFullNameAsync();
 
-                // Set the inheritance survey file name
-                if (!string.IsNullOrEmpty(potentialInhertanceSurvey))
-                {
-                    PotentialInheritanceSurveyName.Text = $"({potentialInhertanceSurvey})";
-                }
-                else
-                {
-                    PotentialInheritanceSurveyName.Text = string.Empty;
-                }
+                PotentialInheritanceSurveyName.Text = string.IsNullOrEmpty(potentialInhertanceSurvey)
+                    ? string.Empty
+                    : $"({potentialInhertanceSurvey})";
 
-                EntryFieldsValid(false/*no reporting*/);
-
-            });
-
-            Debug.WriteLine($"SetMediaFiles() Complete");
+                EntryFieldsValid(false);
+            }
+            catch (Exception ex)
+            {
+                report?.Error("", $"SetupForContentDialog failed: {ex.Message}");
+            }
         }
 
 
@@ -170,7 +165,7 @@ namespace Surveyor.User_Controls
         /// This is used when this control is used view survey settings
         /// </summary>
         /// <param name="settings"></param>
-        public async void SetupForSettingWindow(SettingsCard settings, Survey survey)
+        public async Task SetupForSettingWindowAsync(SettingsCard settings, Survey survey)
         {
             // Remember the parent 
             ParentSettings = settings;
@@ -205,7 +200,7 @@ namespace Surveyor.User_Controls
                 SurveyCode.Text = survey.Data.Info.SurveyCode;
             else
                 // If the survey code is empty then use the survey file name stem
-                // This maybe because the .survey file is an old verison
+                // This maybe because the .survey file is an old version
                 SurveyCode.Text = Path.GetFileNameWithoutExtension(survey.Data.Info.SurveyFileName);
 
 
@@ -230,7 +225,7 @@ namespace Surveyor.User_Controls
             SurveyAnalystName.Text = survey.Data.Info.SurveyAnalystName;
 
 
-            // Get suitable default thubmnail based on the current theme
+            // Get suitable default thumbnail based on the current theme
             BitmapImage thumbnailDefault = GetDefaultThumbnail();
 
             if (survey.Data.Media.MediaPath is not null)
@@ -351,7 +346,7 @@ namespace Surveyor.User_Controls
             // Remember the last used analyst name
             SettingsManagerLocal.UserName = SurveyAnalystName.Text;
 
-            // Remember the inheritence check box setting
+            // Remember the inheritance check box setting
             if (IsParentContentDialog() && InheritSurveyData.IsChecked is not null)
             {
                 SettingsManagerLocal.InheritFromLastSetting =  (bool)InheritSurveyData.IsChecked;
@@ -374,7 +369,7 @@ namespace Surveyor.User_Controls
         /// 
 
         /// <summary>
-        /// Validate the buttons if the user has editted value in the dialog
+        /// Validate the buttons if the user has edited value in the dialog
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -385,7 +380,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Validate the buttons if the user has editted value in the dialog
+        /// Validate the buttons if the user has edited value in the dialog
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -396,7 +391,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Validate the buttons if the user has editted value in the dialog
+        /// Validate the buttons if the user has edited value in the dialog
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -407,7 +402,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Validate the buttons if the user has editted value in the dialog
+        /// Validate the buttons if the user has edited value in the dialog
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -537,7 +532,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void LeftMediaFileNames_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Remove any existing seleced item in the other (right list view)
+            // Remove any existing selected item in the other (right list view)
             if (e.AddedItems.Count > 0)
                 RightMediaFileNames.SelectedIndex = -1;
             
@@ -554,7 +549,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void RightMediaFileNames_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            // Remove any existing seleced item in the other (left list view)
+            // Remove any existing selected item in the other (left list view)
             if (e.AddedItems.Count > 0)
                 LeftMediaFileNames.SelectedIndex = -1;
 
@@ -641,12 +636,12 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Try to find a suitable user name for the SurveyAnalystName field
         /// </summary>
-        private async void LoadUserFullNameAsync()
+        private async Task LoadUserFullNameAsync()
         {
             // Get the user name
             string? fullName = await UserHelper.GetUserFullNameAsync();
 
-            // Get any previously usef name from local settings
+            // Get any previously user name from local settings
             string? previousName = SettingsManagerLocal.UserName;
             if (string.IsNullOrEmpty(previousName))
             {
@@ -674,7 +669,7 @@ namespace Surveyor.User_Controls
             ObservableCollection<StereoMediaFileItem> leftFiles = [];
             ObservableCollection<StereoMediaFileItem> rightFiles = [];
 
-            // Regex to identify and isolcate 'L' or 'R'
+            // Regex to identify and isolate 'L' or 'R'
             // Regex pattern explanation:
             // (?<![a-zA-Z]) - Ensures there is NO letter before 'L'
             // L             - Matches uppercase 'L'
@@ -738,8 +733,8 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Called when anything change to test the validity of the survey information and media
-        /// This is also shows on the users control whick fields are invalid
+        /// Called when anything changes to test the validity of the survey information and media
+        /// This is also shows on the users control which fields are invalid
         /// </summary>
         /// <returns></returns>
         /// 
@@ -981,11 +976,11 @@ namespace Surveyor.User_Controls
                 // there is more than one media file on either the left or right side
                 if (LeftMediaFileItemList.Count > 1 || RightMediaFileItemList.Count > 1)
                 {
-                    SetValidationText(true/*valid*/, SurveyMediaContiguousPanel, SurveyMediaContiguousGlyph, SurveyMediaContiguousValidationText, "All media is contingious", "");
+                    SetValidationText(true/*valid*/, SurveyMediaContiguousPanel, SurveyMediaContiguousGlyph, SurveyMediaContiguousValidationText, "All media is contiguous", "");
                 }
                 else
                 {
-                    SetValidationText(null/*hdie*/, SurveyMediaContiguousPanel, SurveyMediaContiguousGlyph, SurveyMediaContiguousValidationText, "", "");
+                    SetValidationText(null/*hide*/, SurveyMediaContiguousPanel, SurveyMediaContiguousGlyph, SurveyMediaContiguousValidationText, "", "");
                 }
             }
 
@@ -1103,7 +1098,7 @@ namespace Surveyor.User_Controls
                 validationText.Text = text;
             }
 
-            // Retrieve the tooltip programmatically
+            // Retrieve the tool tip programmatically
             bool applyTooltip = false;
 
             if (ToolTipService.GetToolTip(validationText) is not ToolTip existingToolTip)
@@ -1112,11 +1107,11 @@ namespace Surveyor.User_Controls
             }
             else if ((string)existingToolTip.Content != tooltip)
             {
-                // Update tooltip
+                // Update tool tip
                 existingToolTip.Content = tooltip;
             }
 
-            // Change the tooltip
+            // Change the tool tip
             if (applyTooltip)
             {
                 ToolTip toolTip = new() { Content = tooltip };
@@ -1627,7 +1622,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Use at the top of the function if that function is intended for use use only on the 
+        /// Use at the top of the function if that function is intended for use only on the 
         /// UI Thread.  This is to prevent the function being called from a non-UI thread.
         /// </summary>
         private void CheckIsUIThread()

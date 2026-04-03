@@ -21,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
+using System.IO;
 using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Media;
@@ -164,7 +165,6 @@ namespace Surveyor
             _SetExperimental(SettingsManagerLocal.ExperimentalEnabled,
                 SettingsManagerLocal.ExperimentalFeatureSetAEnabled, SettingsManagerLocal.ExperimentalFeatureSetBEnabled, SettingsManagerLocal.ExperimentalFeatureSetCEnabled);
 
-
             // Remember the StereoProjection class
             stereoProjection = _stereoProjection;
             stereoProjection.SetReporter(report);
@@ -172,10 +172,10 @@ namespace Surveyor
             // SpeciesSelector dialog class which contains the Species code list
             speciesSelector = new();
             speciesSelector.SetReporter(report);
-            speciesSelector.Load("species.txt", SettingsManagerLocal.ScientificNameOrderEnabled);
-
+            OpenSpeciesListIfNecessary(SettingsManagerLocal.ActiveSpeciesList);
+            
             // Initialize the species image cache
-            speciesImageCache = new(speciesSelector.speciesCodeList, mainWindow.internetQueue, report);
+            speciesImageCache = new(speciesSelector.SpeciesCodeList, mainWindow.internetQueue, report);
             _ = speciesImageCache.LoadAsync(SettingsManagerLocal.UseInternetEnabled && SettingsManagerLocal.SpeciesImageCacheEnabled); // Fire and forget / Load persistent SpeciesState from disk
 
             // Setup the Handler for the MainWindow
@@ -208,6 +208,32 @@ namespace Surveyor
         {
             DumpClassPropertiesHelper.DumpAllProperties(this, report, /*ignore*/"mediator,report,mediaControllerHandler,mainWindow,mediaPlayerLeft,mediaPlayerRight,mediaControlPrimary,mediaControlSecondary,magnifyAndMarkerDisplayLeft,magnifyAndMarkerDisplayRight,mediaTimelineController,eventsControl,speciesSelector,stereoProjection");
             DumpClassPropertiesHelper.DumpAllProperties(speciesSelector, report, /*ignore*/"_contentLoaded,<speciesCodeList>k__BackingField,<ImageList>k__BackingField,Bindings");
+        }
+
+
+        /// <summary>
+        /// Open the indicated species list name if necessary
+        /// </summary>
+        /// <param name="speciesListName"></param>
+        /// <returns>true is is open or opened successfully</returns>
+        public bool OpenSpeciesListIfNecessary(string speciesListName)
+        {
+            bool ret = true;
+
+            // Get the current species list name before we switch to the new one (so we can check it is necessary to switch)
+            string currentSpeciesListName = speciesSelector.SpeciesCodeList.SpeciesCodeListFileSpec;
+            if (string.Compare(Path.GetFileNameWithoutExtension(currentSpeciesListName), speciesListName, true) != 0)
+            {
+                string newSpeciesListNameFile = $"{speciesListName}.txt";
+
+                // Swap over the species code list
+                speciesSelector.Unload();
+                ret = speciesSelector.Load(newSpeciesListNameFile, SettingsManagerLocal.ScientificNameOrderEnabled);
+
+                SettingsManagerLocal.ActiveSpeciesList = speciesListName;
+            }
+
+            return ret;
         }
 
 

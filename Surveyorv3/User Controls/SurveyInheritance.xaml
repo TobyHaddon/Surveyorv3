@@ -19,13 +19,19 @@
             <!-- Survey we are inheriting from -->
             <TextBlock x:Name="IneritFrom" Margin="0,0,0,8"/>
 
-            <!-- Inherit Rules-->
+            <!-- Inherit Rules -->
             <CheckBox x:Name="InheritRulesCheckBox" Content="Survey Rules"/>
 
-            <!-- Inherit Calibration-->
+            <!-- Inherit Calibration -->
             <CheckBox x:Name="InheritCalibrationCheckBox" Content="Calibration Data"/>
 
-            <!--Survey Rules Available?-->
+            <!-- Inherit Species List -->
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Left" Margin="0,0,0,0">
+                <CheckBox x:Name="InheritSpeciesListCheckBox" Content="Species List"/>
+                <TextBlock x:Name="InheritSpeciesListName" Margin="20,0,0,0"/>
+            </StackPanel>
+            
+            <!--Survey Rules Available? -->
             <StackPanel x:Name="SurveyRulesAvailablePanel" 
                         Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center"  
                         Margin="0,8,0,0" 

@@ -114,6 +114,15 @@
                 <TextBlock x:Name="SurveyAnalystNameValidationText"  VerticalAlignment="Center" Margin="8,0,0,0"/>
             </StackPanel>
 
+            <!--Species List Selection -->
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,8,0,0">
+                <DropDownButton x:Name="SpeciesActiveListDropDown" Content="Select Species List">
+                    <DropDownButton.Flyout>
+                        <MenuFlyout x:Name="SpeciesActiveListMenuFlyout"/>
+                    </DropDownButton.Flyout>
+                </DropDownButton>
+            </StackPanel>
+
 
             <Grid x:Name="SurveyMediaGrid" Margin="0,8,0,0">
                 <Grid.ColumnDefinitions>

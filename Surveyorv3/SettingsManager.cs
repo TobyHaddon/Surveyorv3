@@ -1,11 +1,11 @@
 ﻿// Handles the local per user settings and the shipped application settings
 // class SettingsManagerLocal is for the local settings that are stored on the user's device
 // class SettingsManagerApp is for the application settings that are shipped with the application and are read-only
-// Note settings from SettingsManagerApp should be remembered and not learnt repeatedly from SettingsManagerApp 
+// Note settings from SettingsManagerApp should be remembered and not learned repeatedly from SettingsManagerApp 
 // This is because the whole appSettings.json is loaded each time and it is not efficient to read it repeatedly
 //
 // Version 1.0
-// Verison 1.1  26 Feb 2025
+// Version 1.1  26 Feb 2025
 // Added SettingsManagerApp 
 // Version 1.2  21 May 2025
 // Simplified the code 
@@ -46,6 +46,7 @@ namespace Surveyor
         private const string SpeciesImageCacheEnabledKey = "SpeciesImageCacheEnabled";
         private const string ScientificNameOrderEnabledKey = "ScientificNameOrderEnabled";
         private const string InheritFromLastSettingKey = "InheritFromLastSetting";
+        private const string ActiveSpeciesListKey = "ActiveSpeciesList";
 
 
         // Path where new media (MP4) are typically imported from
@@ -97,7 +98,7 @@ namespace Surveyor
         }
 
 
-        // Mousewheel/Two-finger scroll gesture in the media player window move frame forward/back
+        // Mouse wheel/Two-finger scroll gesture in the media player window move frame forward/back
         public static bool MouseWheelFrameMoveEnabled
         {
             get => GetBool(MouseWheelFrameMoveEnabledKey, false/*default*/);
@@ -302,6 +303,17 @@ namespace Surveyor
 
 
         /// <summary>
+        /// The last value of the 'InheritFrom' checkbox in the SurveyInfoAndMedia dialog
+        /// </summary>
+        public static string ActiveSpeciesList
+        {
+            get => GetString(ActiveSpeciesListKey, "");
+            set => SetString(ActiveSpeciesListKey, value);
+        }
+
+        
+
+        /// <summary>
         /// 
         /// </summary>
         /// <param name="key"></param>
@@ -331,11 +343,11 @@ namespace Surveyor
         private static SettingsManagerApp? _instance;
         public static SettingsManagerApp Instance => _instance ??= Load();
 
-        public int RecentSurveysDisplayed { get; set; }  // Only use the 'get' the 'set' is for the Json deserializer
+        public int RecentSurveysDisplayed { get; set; }  // Only use the 'get' the 'set' is for the JSON de-serializer
 
 
         [JsonConverter(typeof(KeyValuePairListJsonConverter))]
-        public List<(string, string)> GoProScripts { get; set; } = [];  // Only use the 'get' the 'set' is for the Json deserializer
+        public List<(string, string)> GoProScripts { get; set; } = [];  // Only use the 'get' the 'set' is for the JSON de-serializer
 
 
 

@@ -1,4 +1,5 @@
 // Not Implemented yet
+// Intended to be used in the future for 3D distortion visualization, but currently not implemented. The event handlers are placeholders for future functionality.
 
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;

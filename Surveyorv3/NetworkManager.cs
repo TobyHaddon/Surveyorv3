@@ -3,15 +3,11 @@
 // Version 1.0 10 Apr 2025
 
 using CommunityToolkit.WinUI.Helpers;
-using Microsoft.UI.Xaml.Documents;
 using Surveyor.User_Controls;
 using System;
 using System.Collections.Concurrent;
-using System.Data.Common;
 using System.Net.Http;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Timers;
 
 namespace Surveyor
 {

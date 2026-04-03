@@ -162,11 +162,11 @@ namespace Surveyor
                     return;
                 }
 
-                // Read the json data file from the local folder
+                // Read the JSON data file from the local folder
                 string json = await FileIO.ReadTextAsync(file);
                 transferItems.Clear();
 
-                // Parse the json
+                // Parse the JSON
                 List<InternetQueueItem>? transferItemList = System.Text.Json.JsonSerializer.Deserialize<List<InternetQueueItem>>(json, CachedJsonSerializerOptions);
 
                 if (transferItemList is not null)
@@ -190,7 +190,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Save the presistent download/upload list
+        /// Save the persistent download/upload list
         /// </summary>
         /// <returns></returns>
         public async Task SaveAsync()
@@ -600,7 +600,7 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Called to service any reqiured downloading or uploading
+        /// Called to service any required downloading or uploading
         /// Normally called on a timer
         /// </summary>
         /// <returns></returns>
@@ -783,7 +783,7 @@ namespace Surveyor
 
         /// <summary>
         /// Used in place of httpClient.GetAsync() that automatically retries with 
-        /// exponential backoff only if it gets 403 Forbidden
+        /// exponential back off only if it gets 403 Forbidden
         /// </summary>
         /// <param name="url"></param>
         /// <returns></returns>
@@ -807,7 +807,7 @@ namespace Surveyor
                     return response; // After max retries, return last forbidden response
                 }
 
-                // Exponential backoff: 2s, 4s, 8s, etc.
+                // Exponential back off: 2s, 4s, 8s, etc.
                 await Task.Delay(delay);
                 delay = TimeSpan.FromSeconds(delay.TotalSeconds * 2);
             }

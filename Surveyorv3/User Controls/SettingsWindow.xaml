@@ -45,7 +45,7 @@
 
             <Grid HorizontalAlignment="Stretch" MinWidth="0">
 
-                <StackPanel Spacing="{StaticResource SettingsCardSpacing}">
+                <StackPanel Spacing="{StaticResource SettingsCardSpacing}" Margin="0,0,0,10">
                     <StackPanel.ChildrenTransitions>
                         <TransitionCollection>
                             <EntranceThemeTransition FromVerticalOffset="50" />
@@ -202,71 +202,82 @@
                                     ToolTipService.ToolTip="Path to the Species.txt file  (path has been copied to the clipboard)"
                                     Background="Transparent"
                                     BorderBrush="{x:Null}"
-                                    Padding="0" MinWidth="0" MinHeight="0"
+                                    Padding="0" MinWidth="0" MinHeight="0" 
                                     HorizontalAlignment="Center" VerticalAlignment="Center"
                                     HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                     Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
                                 <FontIcon x:Name="SpeciesCodeListFileSpec"
                                           Glyph="&#xE946;"
-                                          Margin="0,0,10,0"
+                                          Margin="0,3,20,0"
                                           VerticalAlignment="Center" />
                             </Button>
 
-                            <!-- SpeciesCodeList Search -->
-                            <AutoSuggestBox x:Name="SpeciesCodeListSearchBox"
-                                                    PlaceholderText="Search"
-                                                    Width="250"
-                                                    QueryIcon="Find"
-                                                    TextChanged="SpeciesCodeListSearchBox_TextChanged"
-                                                    SuggestionChosen="SpeciesCodeListSearchBox_SuggestionChosen"
-                                                    QuerySubmitted="SpeciesCodeListSearchBox_QuerySubmitted" 
-                                                    Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" 
-                                                    Margin="0,0,10,0" VerticalAlignment="Center"/>
+                            <!-- Active Species List-->
+                            <TextBlock x:Name="SpeciesActiveListLabel" Text="Active List:" Margin="0,0,3,0" VerticalAlignment="Center"
+                                                    Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
+                            <DropDownButton x:Name="SpeciesActiveListDropDown"
+                                                    Content="ActiveOptions">
+                                <DropDownButton.Flyout>
+                                    <MenuFlyout x:Name="SpeciesActiveListMenuFlyout"/>
+                                </DropDownButton.Flyout>
+                            </DropDownButton>
+                            
                             <!-- SpeciesCodeList Item Count-->
-                            <TextBlock x:Name="SpeciesCodeListItemCount" Text="{x:Bind mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="SpeciesCodeListItemCount" Text="{x:Bind mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesItems.Count, Mode=OneWay}" Margin="20,0,3,0" VerticalAlignment="Center"/>
                             <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
-
-
-                            <!-- SpeciesCodeList New Button -->
-                            <Button Click="SpeciesCodeListAdd_Click"
-                                            HorizontalAlignment="Left" VerticalAlignment="Top"
-                                            ToolTipService.ToolTip="Add a new species code list item."
-                                            Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
-                                <StackPanel Orientation="Horizontal">
-                                    <FontIcon Glyph="&#xE710;" />
-                                    <TextBlock Text="Add" Margin="4,0,0,0" />
-                                </StackPanel>
-                            </Button>
-
-                            <!-- SpeciesCodeList Edit Button -->
-                            <Button x:Name="SpeciesCodeListEditButton" Click="SpeciesCodeListEdit_Click"
-                                            HorizontalAlignment="Left" VerticalAlignment="Top"
-                                            ToolTipService.ToolTip="Edit existing species code list item."
-                                            Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
-                                <StackPanel Orientation="Horizontal">
-                                    <FontIcon Glyph="&#xE70F;" />
-                                    <TextBlock Text="Edit" Margin="4,0,0,0" />
-                                </StackPanel>
-                            </Button>
-
-                            <!-- SpeciesCodeList Delete Button -->
-                            <Button x:Name="SpeciesCodeListDeleteButton" Click="SpeciesCodeListDelete_Click" HorizontalAlignment="Left" VerticalAlignment="Top"
-                                            ToolTipService.ToolTip="Delete species code list item."
-                                            Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                <StackPanel Orientation="Horizontal">
-                                    <FontIcon Glyph="&#xE738;" />
-                                    <TextBlock Text="Delete" Margin="4,0,0,0" />
-                                </StackPanel>
-                            </Button>
-
-                            <TextBlock Text="Scientific Order" Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="10,0,10,0" VerticalAlignment="Center"/>
-                            <ToggleSwitch x:Name="SpeciesCodeListScientificNameOrder" Toggled="SpeciesCodeListSort_Toggled" Visibility="{Binding IsExpanded, ElementName=SpeciesCodeListExpander, Converter={StaticResource BooleanToVisibilityConverter}}"/>
                         </StackPanel>
 
                         <toolkit:SettingsExpander.Items>
                             <toolkit:SettingsCard HorizontalContentAlignment="Left" HorizontalAlignment="Left">
                                 <StackPanel Spacing="8">
+                                    <StackPanel Orientation="Horizontal">
+
+                                        <!-- SpeciesCodeList Search -->
+                                        <AutoSuggestBox x:Name="SpeciesCodeListSearchBox"
+                                                    PlaceholderText="Search"
+                                                    Width="250"
+                                                    QueryIcon="Find"
+                                                    TextChanged="SpeciesCodeListSearchBox_TextChanged"
+                                                    SuggestionChosen="SpeciesCodeListSearchBox_SuggestionChosen"
+                                                    QuerySubmitted="SpeciesCodeListSearchBox_QuerySubmitted"                                                      
+                                                    Margin="0,0,10,0" VerticalAlignment="Center"/>
+
+                                        <!-- SpeciesCodeList New Button -->
+                                        <Button Click="SpeciesCodeListAdd_Click"
+                                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                                            ToolTipService.ToolTip="Add a new species code list item."
+                                            Margin="0,0,10,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <FontIcon Glyph="&#xE710;" />
+                                                <TextBlock Text="Add" Margin="4,0,0,0" />
+                                            </StackPanel>
+                                        </Button>
+
+                                        <!-- SpeciesCodeList Edit Button -->
+                                        <Button x:Name="SpeciesCodeListEditButton" Click="SpeciesCodeListEdit_Click"
+                                            HorizontalAlignment="Left" VerticalAlignment="Top"
+                                            ToolTipService.ToolTip="Edit existing species code list item."
+                                            Margin="0,0,10,0">
+                                            <StackPanel Orientation="Horizontal">
+                                                <FontIcon Glyph="&#xE70F;" />
+                                                <TextBlock Text="Edit" Margin="4,0,0,0" />
+                                            </StackPanel>
+                                        </Button>
+
+                                        <!-- SpeciesCodeList Delete Button -->
+                                        <Button x:Name="SpeciesCodeListDeleteButton" Click="SpeciesCodeListDelete_Click" HorizontalAlignment="Left" VerticalAlignment="Top"
+                                            ToolTipService.ToolTip="Delete species code list item.">
+                                            <StackPanel Orientation="Horizontal">
+                                                <FontIcon Glyph="&#xE738;" />
+                                                <TextBlock Text="Delete" Margin="4,0,0,0" />
+                                            </StackPanel>
+                                        </Button>
+
+                                        <TextBlock Text="Scientific Order" Margin="10,0,10,0" VerticalAlignment="Center"/>
+                                        <ToggleSwitch x:Name="SpeciesCodeListScientificNameOrder" Toggled="SpeciesCodeListSort_Toggled"/>
+                                    </StackPanel>
+
                                     <!-- ScrollViewer only around the DataGrid -->
                                     <ScrollViewer HorizontalScrollBarVisibility="Auto"
                                                   VerticalScrollBarVisibility="Auto">
@@ -274,7 +285,7 @@
                                         <dg:DataGrid x:Name="SpeciesCodeListDataGrid" 
                                                                 DoubleTapped="SpeciesCodeListDataGrid_DoubleTapped"
                                                                 SelectionChanged="SpeciesCodeListDataGrid_SelectionChanged"
-                                                                ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesSelector.speciesCodeList.SpeciesItems, Mode=OneWay}"
+                                                                ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesItems, Mode=OneWay}"
                                                                 AutoGenerateColumns="False"
                                                                 HeadersVisibility="Column"
                                                                 CanUserSortColumns="False"                                               
@@ -583,13 +594,17 @@
                             <!-- Image count -->
                             <TextBlock x:Name="SpeciesImageCacheItemImageCount" Margin="0,0,10,0" VerticalAlignment="Center"/>
 
-                            <!-- Remove All Button -->
-                            <Button Click="RemoveAllSpeciesCache_Click" Content="Remove All"
-                                                            HorizontalAlignment="Left"
-                                                            VerticalAlignment="Top"
-                                                            ToolTipService.ToolTip="Remove all records."
-                                                            Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
-                            </Button>
+                            <!-- Remove Multi Button -->
+                            <DropDownButton Content="Remove Status" VerticalAlignment="Top" HorizontalAlignment="Left"  Margin="0,0,10,0"
+                                            Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <DropDownButton.Flyout>
+                                    <MenuFlyout>
+                                        <MenuFlyoutItem Text="Remove Errors" Click="RemoveErrorsSpeciesCache_Click" ToolTipService.ToolTip="Remove all the image cache records in an error state."/>
+                                        <MenuFlyoutItem Text="Remove All" Click="RemoveAllSpeciesCache_Click" ToolTipService.ToolTip="Remove all records."/>
+                                    </MenuFlyout>
+                                </DropDownButton.Flyout>
+                            </DropDownButton>
+
 
                             <!-- Remove Record Button -->
                             <Button Click="RemoveRecordSpeciesCache_Click" Content="Remove"
@@ -603,6 +618,14 @@
                             <TextBlock x:Name="SpeciesImageCacheItemCount" Text="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
                             <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
 
+                            <!-- Download Button -->
+                            <Button Click="DownloadNow_Click" Content="Trigger"
+                                                            HorizontalAlignment="Left"
+                                                            VerticalAlignment="Top"
+                                                            ToolTipService.ToolTip="Force any pending image processing or downloading to happen now"
+                                                            Visibility="{Binding IsExpanded, ElementName=SpeciesCacheExpander, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,10,0">
+                            </Button>
+                            
                             <!-- Species Image Cache Refresh Button -->
                             <Button Click="RefreshSpeciesStateView_Click"
                                                         HorizontalAlignment="Left"
@@ -634,13 +657,11 @@
                                             <DataTemplate x:DataType="surveyor:SpeciesCacheViewItem">
                                                 <Grid HorizontalAlignment="Stretch" Margin="0,0,5,0">
                                                     <Grid.ColumnDefinitions>
-                                                        <ColumnDefinition Width="40"/>
+                                                        <ColumnDefinition Width="22"/>
                                                         <ColumnDefinition Width="580"/>
                                                         <ColumnDefinition Width="160"/>
                                                         <ColumnDefinition Width="180"/>
                                                     </Grid.ColumnDefinitions>
-
-
                                                     <Grid.RowDefinitions>
                                                         <RowDefinition Height="Auto"/>
                                                         <RowDefinition Height="Auto"/>
@@ -648,8 +669,8 @@
 
                                                     <Ellipse x:Name="Ellipse"
                                                              Grid.RowSpan="2"
-                                                             Width ="32"
-                                                             Height="32"
+                                                             Width ="20"
+                                                             Height="20"
                                                              Margin="6"
                                                              VerticalAlignment="Center"
                                                              HorizontalAlignment="Center"
@@ -699,7 +720,6 @@
                                             </DataTemplate>
                                         </ListView.ItemTemplate>
                                     </ListView>
-
                                 </StackPanel>
                             </toolkit:SettingsCard>
 
@@ -740,13 +760,34 @@
                                     <HyperlinkButton Content="Snorkeling mask icon from Noun Project CC BY 3.0" NavigateUri="https://thenounproject.com/icon/snorkeling-mask-1541410/" />
                                     <HyperlinkButton Content="Fish icon created by Those Icons - Flaticon" NavigateUri="https://www.flaticon.com/free-icons/fish"/>
                                     <HyperlinkButton Content="Media icon by Thea Graph from Noun Project CC BY 3.0" NavigateUri="https://thenounproject.com/browse/icons/term/media/" />
-
                                 </StackPanel>
                             </toolkit:SettingsCard>
 
+                            <toolkit:SettingsCard
+                                HorizontalContentAlignment="Left"
+                                ContentAlignment="Vertical"                             
+                                Header="Command Line Utilities">
+                                <Grid Margin="-12,0,0,0" >
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="450"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="auto"/>
+                                        <RowDefinition Height="auto"/>
+                                    </Grid.RowDefinitions>
+                                    <HyperlinkButton Grid.Row="0" Grid.Column="0" Content="CreateSpeciesTxtFromURL" 
+                                                     ToolTipService.ToolTip="Click to copy the full location of this utility"
+                                                     Click="UtilityCreateSpeciesTxtFromURL_Click"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Creates a species pick list from a genus/species list" VerticalAlignment="Center"/>
+                                    <HyperlinkButton Grid.Row="1" Grid.Column="0" Content="EMObsReader" 
+                                                     ToolTipService.ToolTip="Click to copy the full location of this utility"
+                                                     Click="UtilityEMObsReader_Click" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="Extracts and outputs the contents of EventManager .EMObs files" VerticalAlignment="Center"/>
+                                </Grid>
+                            </toolkit:SettingsCard>
                         </toolkit:SettingsExpander.Items>
                     </toolkit:SettingsExpander>
-
                 </StackPanel>
             </Grid>
         </ScrollViewer>

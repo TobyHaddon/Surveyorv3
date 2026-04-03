@@ -45,6 +45,8 @@ namespace Surveyor.User_Controls
 
             bool doesInheritanceSourceHaveRules = false;
             bool doesInheritanceSourceHaveCalibration = false;
+            bool doesInheritanceSourceHaveSpeciesList = false;
+            bool inheritanceSourceSpeciesListFound = false;
 
             string surveyInheritingFromFileName = Path.GetFileName(surveyInheritingFromFileSpec);
 
@@ -75,26 +77,35 @@ namespace Surveyor.User_Controls
                     {
                         doesInheritanceSourceHaveCalibration = true;
                     }
+
+                    // Check if the species list exists
+                    if (!string.IsNullOrEmpty(surveyInheritanceSource.Data.Info.SurveySpeciesListName))
+                    {
+                        doesInheritanceSourceHaveSpeciesList = true;
+                        inheritanceSourceSpeciesListFound = !SpeciesCodeList.IsSpeciesListPresent(surveyInheritanceSource.Data.Info.SurveySpeciesListName);
+                    }
                 }
 
                 // Create the dialog
                 dialog = new()
                 {
                     Content = this,
-                    Title = "Inherit From Exisiting Survey",
+                    Title = "Inherit From Existing Survey",
                     CloseButtonText = "Cancel",
                     PrimaryButtonText = "Inherit",                   
                     XamlRoot = mainWindow.Content.XamlRoot  // Set the XamlRoot property
                 };
 
                 // Setup the dialog test
-                if (!doesInheritanceSourceHaveRules && !doesInheritanceSourceHaveCalibration)
+                if (!doesInheritanceSourceHaveRules && !doesInheritanceSourceHaveCalibration && !doesInheritanceSourceHaveSpeciesList)
                 {
                     dialog.IsPrimaryButtonEnabled = false;
 
-                    IneritFrom.Text = $"This are no survey rules or calibration information in {surveyInheritingFromFileName}, so there is nothing to inherit!";
+                    IneritFrom.Text = $"This are no survey rules, calibration or species list information in {surveyInheritingFromFileName}, so there is nothing to inherit!";
                     InheritRulesCheckBox.IsEnabled = false;
                     InheritCalibrationCheckBox.IsEnabled = false;
+                    InheritSpeciesListCheckBox.IsEnabled = false;
+                    InheritSpeciesListName.Text = "";
                 }
                 else
                 {
@@ -106,12 +117,28 @@ namespace Surveyor.User_Controls
                     InheritRulesCheckBox.IsEnabled = doesInheritanceSourceHaveRules;
                     InheritRulesCheckBox.IsChecked = doesInheritanceSourceHaveRules;
 
-                    // Make the Calibration Datea checkbox visible and default to checked
+                    // Make the Calibration Data checkbox visible and default to checked
                     InheritCalibrationCheckBox.IsEnabled = doesInheritanceSourceHaveCalibration;
                     InheritCalibrationCheckBox.IsChecked = doesInheritanceSourceHaveCalibration;
+
+
+                    if (inheritanceSourceSpeciesListFound)
+                    {
+                        // Make the Species List checkbox visible and default to checked
+                        InheritSpeciesListCheckBox.IsEnabled = doesInheritanceSourceHaveSpeciesList;
+                        InheritSpeciesListCheckBox.IsChecked = doesInheritanceSourceHaveSpeciesList;
+                        InheritSpeciesListName.Text = $"({surveyInheritanceSource.Data.Info.SurveySpeciesListName})";
+                    }
+                    else
+                    {                         
+                        // If the species list is not found, disable the checkbox and show a warning
+                        InheritSpeciesListCheckBox.IsEnabled = false;
+                        InheritSpeciesListCheckBox.IsChecked = false;
+                        InheritSpeciesListName.Text = $"(Species list {surveyInheritanceSource.Data.Info.SurveySpeciesListName} not found)";
+                    }
                 }
 
-                
+
                 // Setup an open dialog handler
                 dialog.Opened += Dialog_Opened;
 
@@ -126,7 +153,7 @@ namespace Surveyor.User_Controls
                 {
                     if (InheritRulesCheckBox.IsChecked == true)
                     {
-                        // Safely copies the survey ruilesfrom the source survey
+                        // Safely copies the survey rules from the source survey
                         survey.Data.SurveyRules.CopyFrom(surveyInheritanceSource.Data.SurveyRules);
                         surveyInheritanceSource.Data.SurveyRules.SurveyRulesInherited = surveyInheritingFromFileName;
                     }
@@ -136,6 +163,12 @@ namespace Surveyor.User_Controls
                         // Safely copies the calibration data from the source survey
                         survey.Data.Calibration.CopyFrom(surveyInheritanceSource.Data.Calibration);
                         survey.Data.Calibration.CalibrationInherited = surveyInheritingFromFileName;
+                    }
+
+                    if (InheritSpeciesListCheckBox.IsChecked == true)
+                    {
+                        // Safely copies the species list name from the source survey
+                        survey.Data.Info.SurveySpeciesListName = surveyInheritanceSource.Data.Info.SurveySpeciesListName;                     
                     }
 
                     ret = true;
@@ -199,7 +232,7 @@ namespace Surveyor.User_Controls
 
             // Clear source credit and genus/species  (bound to xaml)
 
-            // Clear environment, distrution and size (bound to xaml)            
+            // Clear environment, distribution and size (bound to xaml)            
 
         }
 
@@ -262,7 +295,7 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// Called when anything change to test the validity of the survey information and media
-        /// This is also shows on the users control whick fields are invalid
+        /// This is also shows on the users control which fields are invalid
         /// </summary>
         /// <returns></returns>
         /// 
@@ -415,7 +448,7 @@ namespace Surveyor.User_Controls
                 validationText.Text = text;
             }
 
-            // Retrieve the tooltip programmatically
+            // Retrieve the tool tip programmatically
             bool applyTooltip = false;
 
             if (ToolTipService.GetToolTip(validationText) is not ToolTip existingToolTip)
@@ -424,11 +457,11 @@ namespace Surveyor.User_Controls
             }
             else if ((string)existingToolTip.Content != tooltip)
             {
-                // Update tooltip
+                // Update tool tip
                 existingToolTip.Content = tooltip;
             }
 
-            // Change the tooltip
+            // Change the tool tip
             if (applyTooltip)
             {
                 ToolTip toolTip = new() { Content = tooltip };

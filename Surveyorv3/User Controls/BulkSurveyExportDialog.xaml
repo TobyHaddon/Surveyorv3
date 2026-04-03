@@ -183,13 +183,13 @@
                     </ToolTipService.ToolTip>
                 </CheckBox>
 
-                <CheckBox x:Name="ExtractRawFrame" Content="Extract Raw Frames" IsChecked="False" Margin="0,0,0,0">
+                <CheckBox x:Name="ExtractRawFrame" Content="Extract Raw Frames" IsChecked="True" Margin="0,0,0,0">
                     <ToolTipService.ToolTip>
                         <ToolTip Content="Extract the whole frame and save."/>
                     </ToolTipService.ToolTip>
                 </CheckBox>
 
-                <CheckBox x:Name="ExtractCroppedImage" Content="Extract Cropped Image" IsChecked="True" Margin="0,0,0,0">
+                <CheckBox x:Name="ExtractCroppedImage" Content="Extract Cropped Image" IsChecked="False" Margin="0,0,0,0">
                     <ToolTipService.ToolTip>
                         <ToolTip Content="Extract a rectangle along the fish."/>
                     </ToolTipService.ToolTip>

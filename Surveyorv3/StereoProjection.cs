@@ -15,9 +15,6 @@ using Emgu.CV;
 using Emgu.CV.CvEnum;
 using Emgu.CV.Structure;
 using Emgu.CV.Util;
-using Microsoft.Graphics.Canvas;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Shapes;
 using Surveyor.Helper;
 using Surveyor.User_Controls;
 using SurveyorCalibrationData;
@@ -1160,7 +1157,7 @@ namespace Surveyor
             MathNet.Numerics.LinearAlgebra.Vector<double> L2D;
             MathNet.Numerics.LinearAlgebra.Vector<double> R2D;
 
-            // Undort the points if necessary
+            // Undistort the points if necessary
             if (TrueUndistortedFalseDistorted == true)
             {
                 Point _pointL2D = UndistortPoint(cd.LeftCameraCalibration, PointL2D);

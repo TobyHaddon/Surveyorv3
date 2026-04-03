@@ -56,10 +56,11 @@ namespace Surveyor
         private readonly Dictionary<string, SpeciesCacheState> speciesStates = [];
         private bool isReady = false;
 
-        private Timer? timer;
+        //???private Timer? timer;
         private bool timerRunning = false;
         private bool isProcessing = false;
-        private readonly TimeSpan timerInterval = TimeSpan.FromMinutes(5);
+        private TimeSpan timerIntervalDefault = TimeSpan.FromMinutes(5);
+        private TimeSpan timerInterval = TimeSpan.FromMinutes(5);
 
         // Which FishBase mirror
         private string baseURL = string.Empty;
@@ -220,11 +221,11 @@ namespace Surveyor
 
             }
 
-            if (timer != null)
-            {
-                await timer.DisposeAsync();
-                timer = null;
-            }
+            //???if (timer != null)
+            //{
+            //    await timer.DisposeAsync();
+            //    timer = null;
+            //}
 
             speciesStates.Clear();
         }
@@ -234,6 +235,7 @@ namespace Surveyor
         /// Starts or stops the background timer
         /// </summary>
         /// <param name="enable"></param>
+        private bool firstTimeCalled = true;
         private CancellationTokenSource? _timerCts;
         private Task? _timerLoopTask;
         public void Enable(bool enable)
@@ -250,6 +252,26 @@ namespace Surveyor
                 _timerCts.Dispose();
                 _timerCts = null;
                 timerRunning = false;
+            }
+        }
+
+
+        /// <summary>
+        /// Update the periodic timer interval. If running, restart the loop to apply it.
+        /// </summary>
+        /// <param name="newInterval"></param>
+        public void SetTimerInterval(TimeSpan newInterval)
+        {
+            if (newInterval <= TimeSpan.Zero)
+                throw new ArgumentOutOfRangeException(nameof(newInterval), "Timer interval must be greater than zero.");
+
+            timerInterval = newInterval;
+
+            // PeriodicTimer interval is fixed at construction time, so restart when running.
+            if (timerRunning)
+            {
+                Enable(false);
+                Enable(true);
             }
         }
 
@@ -305,6 +327,27 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Returns high status of the image cache for a given species code. Null if the species code is not in the cache, 
+        /// false if the cache is not yet populated with all the images or true if all images are downloaded and available in local storage
+        /// </summary>
+        /// <param name="speciesCode"></param>
+        /// <returns></returns>
+        public bool? GetImageCacheStatusForSpecies(string speciesCode)
+        {
+            bool? ret = null;
+
+            if (speciesStates.TryGetValue(speciesCode, out var state))
+            {
+                if (state.Status == State.Done) // Image all downloaded
+                    ret = true;
+                else
+                    ret = false;
+            }
+            return ret;
+        }
+
+
+        /// <summary>
         /// Remove item from the list and tidy up
         /// </summary>
         /// <param name="item"></param>
@@ -334,6 +377,30 @@ namespace Surveyor
 
                 await SaveSpeciesStatesAsync();
             }
+        }
+
+
+        /// <summary>
+        /// Removes all records with a status of error from the image cache and tidies up
+        /// Called as RemoveAll() removes everything
+        /// </summary>
+        /// <returns></returns>
+        public async Task RemoveErrorAsync()
+        {
+            int itemCount = 0;
+
+            foreach (var item in speciesStates.ToList())
+            {
+                if (item.Value.Status == State.Error)
+                {
+                    await RemoveAsync(item.Value.SpeciesItem.Code);
+                    itemCount++;
+                }
+            }
+
+            await SaveSpeciesStatesAsync();
+
+            report?.Info("", $"{itemCount} items removed from the Download/Upload list that were marked as error");
         }
 
 
@@ -426,7 +493,8 @@ namespace Surveyor
         /// <param name="timeSpanNextTimer">The delay before the next timer starts.</param>
         public void TriggerNextTimer(TimeSpan timeSpanNextTimer)
         {
-            timer?.Change(timeSpanNextTimer, timerInterval);
+            //???timer?.Change(timeSpanNextTimer, timerInterval);
+            SetTimerInterval(timeSpanNextTimer);
         }
 
 
@@ -435,7 +503,7 @@ namespace Surveyor
         /// </summary>
         public void TriggerNextTimer()
         {
-            TriggerNextTimer(TimeSpan.Zero);
+            SetTimerInterval(new TimeSpan(0,0,1));
         }
 
 
@@ -452,11 +520,16 @@ namespace Surveyor
         /// <returns></returns>
         private async Task RunPeriodicAsync(CancellationToken ct)
         {
+            if (firstTimeCalled)
+            {
 #if DEBUG
-            await Task.Delay(TimeSpan.FromSeconds(5), ct);
+                await Task.Delay(TimeSpan.FromSeconds(5), ct);
 #else
-    await Task.Delay(TimeSpan.FromMinutes(1), ct);
+        await Task.Delay(TimeSpan.FromMinutes(1), ct);
 #endif
+                firstTimeCalled = false;
+            }
+
             using var periodic = new PeriodicTimer(timerInterval);
             while (await periodic.WaitForNextTickAsync(ct))
             {
@@ -494,6 +567,8 @@ namespace Surveyor
         /// <returns></returns>
         private async Task ProcessAsync()
         {
+            baseURL = SettingsManagerLocal.FishBaseURL;
+
             try
             {
                 // Get the before State totals
@@ -511,8 +586,7 @@ namespace Surveyor
 
                         switch (state.Status)
                         {
-                            case State.None:
-                                baseURL = SettingsManagerLocal.FishBaseURL;
+                            case State.None:                                
                                 await RequestFirstPageAsync(state);
                                 break;
 
