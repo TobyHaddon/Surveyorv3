@@ -239,6 +239,11 @@ namespace Surveyor
                     }
                 }
 
+
+                /// <summary>
+                /// Collection of allowed replicates for the survey. This is used to limit 
+                /// the replicates that can be selected when adding a transect marker to the survey.
+                /// </summary>
                 public ObservableCollection<string> SurveyAllowedReplicates
                 {
                     get => _surveyAllowedReplicates;
