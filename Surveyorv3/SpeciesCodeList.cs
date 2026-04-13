@@ -297,7 +297,7 @@ namespace Surveyor
         {
             List<string> ret = [];
 
-            string speciesListsFolder = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, "Species Lists");
+            string speciesListsFolder = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, "Fish Species Lists");
 
             if (Directory.Exists(speciesListsFolder))
             {
@@ -318,7 +318,7 @@ namespace Surveyor
         public static bool IsSpeciesListPresent(string surveySpeciesListName)
         {
             string surveySpeciesListFileName = $"{surveySpeciesListName}.txt";
-            string speciesListsFolder = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, "Species Lists");
+            string speciesListsFolder = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, "Fish Species Lists");
             string surveySpeciesListFileSpec = Path.Combine(speciesListsFolder, surveySpeciesListFileName);
             return File.Exists(surveySpeciesListFileSpec);
         }

@@ -760,6 +760,8 @@
                                     <HyperlinkButton Content="Snorkeling mask icon from Noun Project CC BY 3.0" NavigateUri="https://thenounproject.com/icon/snorkeling-mask-1541410/" />
                                     <HyperlinkButton Content="Fish icon created by Those Icons - Flaticon" NavigateUri="https://www.flaticon.com/free-icons/fish"/>
                                     <HyperlinkButton Content="Media icon by Thea Graph from Noun Project CC BY 3.0" NavigateUri="https://thenounproject.com/browse/icons/term/media/" />
+                                    <HyperlinkButton Content="Excel icon by Icons8" NavigateUri="https://icons8.com" />
+                                    
                                 </StackPanel>
                             </toolkit:SettingsCard>
 

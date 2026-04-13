@@ -106,6 +106,13 @@ namespace Surveyor
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
 
+                public InfoClass()
+                {
+                    // Subscribe to the collection's CollectionChanged event
+                    _surveyAllowedReplicates.CollectionChanged += CollectionChangedHandler;
+
+                }
+
                 /// <summary>
                 /// Clear down the InfoClass
                 /// </summary>
@@ -118,6 +125,7 @@ namespace Surveyor
                     _surveyCode = null;
                     _surveyAnalystName = null;
                     _surveyDepth = null;
+                    _surveyAllowedReplicates.Clear();
                     _surveySpeciesListName = null;
                 }
 
@@ -132,6 +140,7 @@ namespace Surveyor
                 private string? _surveyCode = null;
                 private string? _surveyAnalystName = null;
                 private string? _surveyDepth = null;  // Normally 5,8,10,13,15 or Flat, Crest or Slope 
+                private ObservableCollection<string> _surveyAllowedReplicates = []; 
                 private string? _surveySpeciesListName = null;
 
                 // Setters and getters
@@ -230,6 +239,23 @@ namespace Surveyor
                     }
                 }
 
+                public ObservableCollection<string> SurveyAllowedReplicates
+                {
+                    get => _surveyAllowedReplicates;
+                    set
+                    {
+                        if (ReferenceEquals(_surveyAllowedReplicates, value))
+                            return;
+
+                        _surveyAllowedReplicates.CollectionChanged -= CollectionChangedHandler;
+                        _surveyAllowedReplicates = value ?? [];
+                        _surveyAllowedReplicates.CollectionChanged += CollectionChangedHandler;
+
+                        IsDirty = true;
+                        OnPropertyChanged();
+                    }
+                }
+
                 /// <summary>
                 /// Gets or sets the name of the species list associated with the survey.
                 /// </summary>
@@ -246,6 +272,18 @@ namespace Surveyor
                         }
                     }
                 }
+
+                /// <summary>
+                /// This method will be called whenever the SurveyAllowedReplicates ObservableCollection<string> collection changes
+                /// </summary>
+                /// <param name="sender"></param>
+                /// <param name="e"></param>
+                private void CollectionChangedHandler(object? sender, NotifyCollectionChangedEventArgs e)
+                {
+                    // Any change to the list means data changed
+                    IsDirty = true;
+                }
+
 
                 [JsonIgnore]
                 private bool _isDirty;
@@ -338,13 +376,15 @@ namespace Surveyor
                     get => _leftMediaFileNames;
                     set
                     {
-                        if (_leftMediaFileNames != value)
-                        {
-                            _leftMediaFileNames = value;
+                        if (ReferenceEquals(_leftMediaFileNames, value))
+                            return;
 
-                            IsDirty = true;
-                            OnPropertyChanged();
-                        }
+                        _leftMediaFileNames.CollectionChanged -= CollectionChangedHandler;
+                        _leftMediaFileNames = value ?? [];
+                        _leftMediaFileNames.CollectionChanged += CollectionChangedHandler;
+
+                        IsDirty = true;
+                        OnPropertyChanged();
                     }
                 }
 
@@ -354,13 +394,15 @@ namespace Surveyor
                     get => _rightMediaFileNames;
                     set
                     {
-                        if (_rightMediaFileNames != value)
-                        {
-                            _rightMediaFileNames = value;
+                        if (ReferenceEquals(_rightMediaFileNames, value))
+                            return;
 
-                            IsDirty = true;
-                            OnPropertyChanged();
-                        }
+                        _rightMediaFileNames.CollectionChanged -= CollectionChangedHandler;
+                        _rightMediaFileNames = value ?? [];
+                        _rightMediaFileNames.CollectionChanged += CollectionChangedHandler;
+
+                        IsDirty = true;
+                        OnPropertyChanged();
                     }
                 }
 
@@ -617,15 +659,9 @@ namespace Surveyor
                 public SortedEventCollection EventList
                 {
                     get => _eventList;
-                    set
-                    {
-                        if (_eventList != value)
-                        {
-                            _eventList = value;
-                            IsDirty = true;
-                            OnPropertyChanged();
-                        }
-                    }
+                    // No setter - Do not allow the SortedEventCollection to be re-setup as this will
+                    // break the event handlers. Instead, clear and re-populate the existing
+                    // collection if needed.
                 }
 
                 /// <summary>

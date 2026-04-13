@@ -130,18 +130,38 @@
                         </MenuFlyoutSubItem.Icon>
                     </MenuFlyoutSubItem>
                     <MenuFlyoutSeparator/>
-                    <MenuFlyoutItem Name="MenuImportCalibration" Text="Import Calibration" IsEnabled="False" Click="FileImportCalibration_Click">
-                        <MenuFlyoutItem.Icon>
+                    <!-- Import Sub-Menu -->
+                    <MenuFlyoutSubItem Name="MenuImport" Text="Import...">
+                        <MenuFlyoutSubItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8B5;" />
-                        </MenuFlyoutItem.Icon>
-                    </MenuFlyoutItem>
+                        </MenuFlyoutSubItem.Icon>
+                        <MenuFlyoutItem Name="MenuImportCalibration" Text="Calibration..." Click="FileImportCalibration_Click" IsEnabled="False">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEB3C;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Name="MenuImportFieldTrip" Text="Field Trip Template..." Click="FileImportFieldTrip_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE621;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                    </MenuFlyoutSubItem>
+                    <!-- Export Sub-Menu -->
                     <MenuFlyoutSubItem Name="MenuExport" Text="Export..." IsEnabled="True"
-                        ToolTipService.ToolTip="Export data from one or many existing surveys. This option is only available when there is no survey open.">
+                                        ToolTipService.ToolTip="Export data from one or many existing surveys. This option is only available when there is no survey open.">
                         <MenuFlyoutSubItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEDE1;" />
                         </MenuFlyoutSubItem.Icon>
-                        <MenuFlyoutItem Name="MenuExportExcel" Text="Excel" Click="ExportExcel_Click" />
-                        <MenuFlyoutItem Name="MenuExportCOCO" Text="COCO Json" Click="ExportCOCO_Click" />
+                        <MenuFlyoutItem Name="MenuExportExcel" Text="Excel" Click="ExportExcel_Click">
+                            <MenuFlyoutItem.Icon>
+                                <ImageIcon Source="ms-appx:///Assets/excel-16.png" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Name="MenuExportCOCO" Text="COCO Json" Click="ExportCOCO_Click">
+                            <MenuFlyoutItem.Icon>
+                                <ImageIcon Source="ms-appx:///Assets/COCO.png"  />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
                     </MenuFlyoutSubItem>
                     <MenuFlyoutSeparator/>
                     <MenuFlyoutItem Name="MenuSettings" Text="Settings..." IsEnabled="True" Click="FileSettings_Click">

@@ -1,9 +1,9 @@
-﻿// Used to manage the surevey transect start/stop markers in the events list
+﻿// Used to manage the survey transect start/stop markers in the events list
 // Markers are just inserted at a points and this class looks through
 // the list of events to figure out if a marker should be a start or a stop 
 // marker. 
 //
-// Verison 1.0 13 Feb 2025
+// Version 1.0 13 Feb 2025
 //
 // Version 1.1 13 Apr 2025
 // Rename from SurveryMarkerManager to TransectMarkerManager
@@ -35,14 +35,13 @@ namespace Surveyor
             Event? newEvent = null;
             SurveyDataType markerType = SurveyDataType.SurveyStart;
 
-            // Check if the marker is already in the list
+            // Check if there are any markers already in the event list
             int eventCount = eventsControl.GetEvents().Count(e => (e.EventDataType == SurveyDataType.SurveyStart || e.EventDataType == SurveyDataType.SurveyEnd)
                                                              && e.TimeSpanTimelineController == positionTimelineController);
             if (eventCount == 0)
             {
                 // First query the existing SurveyDataType.SurveyStart and SurveyDataType.SurveyStop events
-                List<Event> startEndEvents = [.. eventsControl.GetEvents().Where(e => e.EventDataType == SurveyDataType.SurveyStart || e.EventDataType == SurveyDataType.SurveyEnd)                                                                                       
-                                                                          .OrderBy(e => e.TimeSpanTimelineController)];
+                List<Event> startEndEvents = [.. eventsControl.GetEvents().Where(e => e.EventDataType == SurveyDataType.SurveyStart || e.EventDataType == SurveyDataType.SurveyEnd).OrderBy(e => e.TimeSpanTimelineController)];
 
                 // Check if this is first marker
                 if (startEndEvents.Count == 0)
@@ -117,7 +116,7 @@ namespace Surveyor
                 ret = true;
             }
 
-            // Recalc start/end
+            // Recalculate start/end
             if (ret)
                 await ReCalcMarkerStartAndEndAsync(eventsControl);
 

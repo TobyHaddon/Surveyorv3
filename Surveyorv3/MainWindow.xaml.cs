@@ -67,6 +67,9 @@ namespace Surveyor
         private string titlebarCameraSide = "";
         private string titlebarSaveStatus = "";
 
+        // Current Field Trip Template
+        private FieldTrip? fieldTrip = null;
+
         // Current Survey Class
         private Survey? survey = null;
 
@@ -888,6 +891,23 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Called if FieldTrip data changes
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FieldTrip_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(Survey.IsDirty))
+            {
+                if (fieldTrip is not null)
+                {
+                    //???if (fieldTrip.IsDirty)
+                }
+            }
+        }
+
+
+        /// <summary>
         /// Create a new stereo fish survey 
         /// </summary>
         /// <param name="sender"></param>
@@ -1529,6 +1549,61 @@ namespace Surveyor
                 //// Inform the two media players of the MeasurementPointControl instances that allow the user to add measurement points to the media
                 //LMediaPlayer.SetMeasurementPointControl(measurementPointControl);
                 //RMediaPlayer.SetMeasurementPointControl(measurementPointControl);
+            }
+        }
+
+
+        /// <summary>
+        /// Import the field trip template
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void FileImportFieldTrip_Click(object sender, RoutedEventArgs e) => _ = FileImportFieldTripAsync();
+
+        private async Task FileImportFieldTripAsync()
+        {
+            int ret = 0;
+
+            // Create the file picker object
+            FileOpenPicker openPicker = new()
+            {
+                ViewMode = PickerViewMode.Thumbnail,
+                SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+            };
+
+            // Add file type filters
+            openPicker.FileTypeFilter.Add(".trip");
+
+            // Associate the file picker with the current window
+            IntPtr hWnd = WindowNative.GetWindowHandle(this/*App.MainWindow*/);
+            InitializeWithWindow.Initialize(openPicker, hWnd);
+
+            // Show the picker and allow multiple file selection
+            StorageFile file = await openPicker.PickSingleFileAsync();
+
+            // Check if files were picked and handle them
+            if (file is not null && this.survey is not null)
+            {
+                string? fieldTripFileSpec = file.Path;
+
+
+                if (fieldTrip is null)
+                {
+                    fieldTrip ??= new FieldTrip(report);
+                    fieldTrip.PropertyChanged += FieldTrip_PropertyChanged;
+                }
+                else
+                {
+                    await fieldTrip.FieldTripCloseAsync();
+                }
+
+
+                ret = await fieldTrip.FieldTripLoadAsync(fieldTripFileSpec);
+
+                if (ret == 0 &&
+                    fieldTrip.Data is not null)
+                {
+                }
             }
         }
 
@@ -4385,7 +4460,6 @@ namespace Surveyor
         internal void DisplayDynamicMeasurementPlaceholder(bool showRMSCombinedOnly, double? measurement, double? range, double? rmsCombined, double? rmsTargetA, double? rmsTargetB) { }
         internal void _SetDiagnosticInformationPlaceholder(bool diag) { }
         internal void _SetExperimentalPlaceholder(bool a, bool b, bool c, bool d) { }
-
 
     }
 

@@ -11,7 +11,6 @@
 
 using CommunityToolkit.WinUI;
 using CommunityToolkit.WinUI.Controls;
-using Emgu.CV;
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
@@ -33,7 +32,6 @@ using Windows.Foundation;
 using Windows.Storage;
 using WinUIEx;
 using static Surveyor.User_Controls.SettingsWindowEventData;
-using static Surveyor.User_Controls.SurveyorTesting;
 
 
 namespace Surveyor.User_Controls
@@ -1727,7 +1725,10 @@ namespace Surveyor.User_Controls
 
                         if (!string.IsNullOrEmpty(survey.Data.Info.SurveyDepth))
                         {
-                            sb.Append($"/{survey.Data.Info.SurveyDepth}");
+                            if (int.TryParse(survey.Data.Info.SurveyDepth, out int depthNumber))
+                                sb.Append($"/{survey.Data.Info.SurveyDepth}m");
+                            else
+                                sb.Append($"/{survey.Data.Info.SurveyDepth}");
                         }
                     }
                 }
@@ -1735,6 +1736,7 @@ namespace Surveyor.User_Controls
                 return sb.ToString();
             }
         }
+
 
 
         /// <summary>

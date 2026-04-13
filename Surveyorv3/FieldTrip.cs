@@ -1126,10 +1126,10 @@ namespace Surveyor
 
 
         /// <summary>
-        /// Close a survey 
+        /// Close a Field Trip 
         /// </summary>
         /// <returns></returns>
-        public async Task<int> SurveyCloseAsync()
+        public async Task<int> FieldTripCloseAsync()
         {
             await StopAutoSaveAsync();
 
