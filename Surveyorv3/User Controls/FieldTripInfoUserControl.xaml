@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="Surveyor.User_Controls.FieldTripInfoUserControl"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Surveyor.User_Controls"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:surveyorControls="using:Surveyor.User_Controls"
+    HorizontalAlignment="Stretch"
+    mc:Ignorable="d">
+
+    <Grid Padding="10" RowSpacing="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" HorizontalAlignment="Stretch" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="400" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+                
+                <TextBlock x:Name="FieldTripTitleText" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                            FontWeight="Bold" Text="Field Trip" Margin="0,0,0,12"/>
+
+                <!-- Reef Count -->
+                <TextBlock Grid.Row="1" Grid.Column="0" Text="Number of sites:" Margin="0,0,0,8"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind NumberOfSites, Mode=OneWay}" Margin="8,0,0,8"/>
+
+                <!-- Total Surveys -->
+                <TextBlock Grid.Row="2" Grid.Column="0" Text="Total surveys:" Margin="0,0,0,8"/>
+                <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind TotalSurveys, Mode=OneWay}" Margin="8,0,0,8"/>
+
+                <!-- Transect Length -->
+                <TextBlock Grid.Row="3" Grid.Column="0" Text="Transect Length:" Margin="0,0,0,8"/>
+                <TextBlock Grid.Row="3" Grid.Column="1" Text="{x:Bind TransectLength, Mode=OneWay}" Margin="8,0,0,8"/>
+
+                <!-- Species List Name-->
+                <TextBlock Grid.Row="4" Grid.Column="0" Text="Species List:" Margin="0,0,0,8"/>
+                <TextBlock Grid.Row="4" Grid.Column="1" Text="{x:Bind SpeciesListName, Mode=OneWay}" Margin="8,0,0,8"/>
+
+                <!-- Field Trip Template Name-->
+                <TextBlock Grid.Row="5" Grid.Column="0" Text="Field Trip Loaded:" Margin="0,0,0,8"/>
+                <TextBlock Grid.Row="5" Grid.Column="1" Text="{x:Bind FieldTripTemplateName, Mode=OneWay}" Margin="8,0,0,8"/>
+
+
+            </Grid>
+
+
+            <!-- Map / Metered fallback -->
+            <Grid Grid.Column="1">
+                <Border x:Name="FieldTripMapBorder" MinHeight="320"
+                                CornerRadius="8"
+                                BorderThickness="1"
+                                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}">
+                    <MapControl x:Name="FieldTripMapControl" 
+                                MapServiceToken=""
+                                InteractiveControlsVisible="True"
+                                MapElementClick="FieldTripMapControl_MapElementClick" Margin="0,0,14,0"/>
+                </Border>
+
+                <Button x:Name="DownloadMapButton"
+                        Content="Download Map"
+                        Visibility="Collapsed"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Top"
+                        Click="DownloadMapButton_Click"/>
+            </Grid>
+        </Grid>
+
+
+        <!-- Survey Replicate Cards -->
+        <GridView x:Name="SurveyReplicatesGridView"
+                    Grid.Row="2"
+                    HorizontalAlignment="Right"
+                    HorizontalContentAlignment="Right"
+                    IsItemClickEnabled="False"
+                    SelectionMode="None">
+            <GridView.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel Width="340" Spacing="6" Margin="0,0,10,10">
+                        <TextBlock Text="{Binding TitleText}" Foreground="{Binding CardBorderBrush, Mode=OneWay}" FontWeight="SemiBold"/>
+
+                        <Border Grid.Column="1" Padding="8" CornerRadius="4" BorderThickness="1"
+                                            BorderBrush="{Binding CardBorderBrush, Mode=OneWay}">
+                            <surveyorControls:ReplicatesUserControl Mode="View"
+                                                                    Tag="{Binding SiteCode}" HorizontalAlignment="Center"
+                                                                    Loaded="SurveyReplicatesUserControl_Loaded"/>
+                        </Border>
+                    </StackPanel>
+                </DataTemplate>
+            </GridView.ItemTemplate>
+        </GridView>
+    </Grid>
+</UserControl>

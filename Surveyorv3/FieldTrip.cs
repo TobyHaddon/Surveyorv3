@@ -1,4 +1,5 @@
-﻿// Hold the survey control information for a particular research base
+﻿// Field Trip Template:
+// Hold the survey control information for a particular research base
 // - Research Base or Area information: Country, Area, Notes, Fish species list name
 // - Survey: ReefCode, Reef Name, Coordinates, Depths, Replicate count, Required surveys (SVS,3D,Benthic)
 // - Survey Rules: SVS rules, transect length
@@ -6,10 +7,7 @@
 using Newtonsoft.Json;
 using Newtonsoft.Json.Converters;
 using Newtonsoft.Json.Linq;
-using Surveyor.Events;
-using Surveyor.Helper;
 using Surveyor.User_Controls;
-using SurveyorCalibrationData;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -20,9 +18,12 @@ using System.Diagnostics.Metrics;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml.Linq;
+using Windows.ApplicationModel.Background;
+using static Surveyor.FieldTrip.DataClass;
+using static Surveyor.User_Controls.Reporter;
 
 namespace Surveyor
 {
@@ -54,7 +55,7 @@ namespace Surveyor
             public void Clear()
             {
                 Info.Clear();
-                ReplicateLayout.Clear();
+                ReplicatesLayout.Clear();
                 Surveys.Clear();
                 SurveyRules.Clear();
             }
@@ -65,11 +66,7 @@ namespace Surveyor
             /// </summary>
             public void DumpAllProperties(Reporter? report)
             {
-                DumpClassPropertiesHelper.DumpAllProperties(Info, report, /*ignore*/"<Version>k__BackingField,_fieldTripFileName,_fieldTripPath,_countryName,_countryCode,_researchBaseName,_notes,PropertyChanged");
-                DumpClassPropertiesHelper.DumpAllProperties(ReplicateLayout, report, /*ignore*/"PropertyChanged,<Version>k__BackingField,_isSynchronized,_timeSpanOffset,_actualTimeSpanOffsetLeft,_actualTimeSpanOffsetRight,_isDirty");
-                DumpClassPropertiesHelper.DumpAllProperties(Surveys, report, /*ignore*/"PropertyChanged,<Version>k__BackingField,_eventList,_isDirty,EventList");
-                DumpClassPropertiesHelper.DumpAllProperties(SurveyRules, report, /*ignore*/"PropertyChanged,<Version>k__BackingField,_surveyRulesActive,_surveyRulesInherited,_surveyRulesData,_isDirty,SurveyRulesData");
-                DumpClassPropertiesHelper.DumpAllProperties(SurveyRules.SurveyRulesData, report, /*ignore*/"PropertyChanged,<Version>k__BackingField,_rangeRuleActive,_rangeMin,_rangeMax,_rmsRuleActive,_rmsMax,_horizontalRangeRuleActive,_horizontalRangeLeft,\r\n_horizontalRangeRight,_verticalRangeRuleActive,_verticalRangeTop,_verticalRangeBottom,_isDirty");
+               
             }
 
             // InfoClass - DataClass Child
@@ -88,6 +85,7 @@ namespace Surveyor
                     _countryCode = null;  // ISO2
                     _areaName = null;
                     _areaCode = null;
+                    _speciesListName = null;
                     _notes = null;
                 }
 
@@ -103,6 +101,7 @@ namespace Surveyor
                 private string? _countryCode = null;  // ISO2
                 private string? _areaName = null;
                 private string? _areaCode = null; // can be same as research base name is that is only one word like 'Hoga' or 'Uitla'
+                private string? _speciesListName = null;
                 private string? _notes = null;
 
                 // Setters and getters
@@ -204,6 +203,23 @@ namespace Surveyor
                 }
 
                 /// <summary>
+                /// Name of the species list to use
+                /// </summary>
+                public string? SpeciesListName
+                {
+                    get => _speciesListName;
+                    set
+                    {
+                        if (_speciesListName != value)
+                        {
+                            _speciesListName = value;
+                            IsDirty = true;
+                            OnPropertyChanged();
+                        }
+                    }
+                }
+
+                /// <summary>
                 /// Any notes or comments
                 /// </summary>
                 public string? Notes
@@ -248,15 +264,19 @@ namespace Surveyor
             public InfoClass Info { get; } = new InfoClass();
 
 
-            public enum ReplicateItemType
+            public enum  ReplicatesItemType
             {
                 Replicate,
                 BuoyLine,
+                North,
+                South,
+                East,
+                West,
                 Other
             }
 
-            // Used by ReplicateLayoutClass
-            public partial class ReplicateItem : INotifyPropertyChanged
+            // Used by ReplicatesLayoutClass
+            public partial class ReplicatesItem : INotifyPropertyChanged
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
 
@@ -265,8 +285,8 @@ namespace Surveyor
                 /// </summary>
                 public void Clear()
                 {
-                    _replicateItemType = null;
-                    _replicateName = null;
+                    _replicatesItemType = null;
+                    _replicatesName = null;
                     _isDirty = false;
                 }
 
@@ -275,17 +295,18 @@ namespace Surveyor
                 public float Version { get; set; } = 1.0f;
 
                 
-                private ReplicateItemType? _replicateItemType = null;
-                private string? _replicateName = null;
+                private  ReplicatesItemType? _replicatesItemType = null;
+                private string? _replicatesName = null;
 
-                public ReplicateItemType? ReplicateItemType
+                [JsonConverter(typeof(StringEnumConverter))]
+                public  ReplicatesItemType? ReplicateItemType
                 {
-                    get => _replicateItemType;
+                    get => _replicatesItemType;
                     set
                     {
-                        if (_replicateItemType != value)
+                        if (_replicatesItemType != value)
                         {
-                            _replicateItemType = value;
+                            _replicatesItemType = value;
                             IsDirty = true;
                             OnPropertyChanged();
                         }
@@ -294,12 +315,12 @@ namespace Surveyor
 
                 public string? ReplicateName
                 {
-                    get => _replicateName;
+                    get => _replicatesName;
                     set
                     {
-                        if (_replicateName != value)
+                        if (_replicatesName != value)
                         {
-                            _replicateName = value;
+                            _replicatesName = value;
                             IsDirty = true;
                             OnPropertyChanged();
                         }
@@ -330,12 +351,12 @@ namespace Surveyor
                 }           
             }
 
-            // ReplicateLayoutClass - DataClass Child
-            public partial class ReplicateLayoutClass : INotifyPropertyChanged
+            // ReplicatesLayoutClass - DataClass Child
+            public partial class ReplicatesLayoutClass : INotifyPropertyChanged
             {
                 public event PropertyChangedEventHandler? PropertyChanged;
 
-                public ReplicateLayoutClass()
+                public ReplicatesLayoutClass()
                 {
                     // Subscribe to the collection's CollectionChanged event
                     _layout.CollectionChanged += CollectionChangedHandler;
@@ -355,20 +376,23 @@ namespace Surveyor
                 public float Version { get; set; } = 1.0f;
 
 
-                private ObservableCollection<ReplicateItem> _layout = [];       // If synchronized is switched to false the frame offset isn't removed in case it needs to be recovered 
+                private ObservableCollection<ReplicatesItem> _layout = [];       // If synchronized is switched to false the frame offset isn't removed in case it needs to be recovered 
 
-                public ObservableCollection<ReplicateItem> Layout
+                public ObservableCollection<ReplicatesItem> Layout
                 {
                     get => _layout;
+                    
                     set
                     {
-                        if (_layout != value)
-                        {
-                            _layout = value;
+                        if (ReferenceEquals(_layout, value))
+                            return;
 
-                            IsDirty = true;
-                            OnPropertyChanged();
-                        }
+                        _layout.CollectionChanged -= CollectionChangedHandler;
+                        _layout = value;
+                        _layout.CollectionChanged += CollectionChangedHandler;
+
+                        IsDirty = true;
+                        OnPropertyChanged();
                     }
                 }
 
@@ -406,7 +430,7 @@ namespace Surveyor
                     PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
                 }
             }
-            public ReplicateLayoutClass ReplicateLayout { get; } = new ReplicateLayoutClass();
+            public ReplicatesLayoutClass ReplicatesLayout { get; } = new ReplicatesLayoutClass();
 
 
             // Used by SurveysClass
@@ -426,7 +450,6 @@ namespace Surveyor
                 public void Clear()
                 {
                     _active = false;
-                    _areaCode = null;
                     _siteCode = null;
                     _siteName = null;
                     _coordinatesLatitude = null;
@@ -440,12 +463,12 @@ namespace Surveyor
                 public float Version { get; set; } = 1.0f;
 
                 private bool _active = false;   
-                private string? _areaCode = null;
                 private string? _siteCode = null;
                 private string? _siteName = null;
                 private double? _coordinatesLatitude = null;
                 private double? _coordinatesLongitude = null;
                 private ObservableCollection<string> _depths = [];  // Depth in m or Flat, Crest and Slope
+                private ReplicatesLayoutClass? _overrideReplicatesLayout = null; // Optional layout for this survey, if not specified then the main layout is used
 
 
                 /// <summary>
@@ -464,24 +487,6 @@ namespace Surveyor
                         }
                     }
                 }
-
-                /// <summary>
-                /// As set-up in the InfoClass 
-                /// </summary>
-                public string? AreaCode
-                {
-                    get => _areaCode;
-                    set
-                    {
-                        if (_areaCode != value)
-                        {
-                            _areaCode = value;
-                            IsDirty = true;
-                            OnPropertyChanged();
-                        }
-                    }
-                }
-
 
                 /// <summary>
                 /// Site code or reef code
@@ -551,15 +556,37 @@ namespace Surveyor
                     }
                 }
 
+                /// <summary>
+                /// Survey depths
+                /// </summary>
                 public ObservableCollection<string> Depths
                 {
                     get => _depths;
                     set
                     {
-                        if (_depths != value)
-                        {
-                            _depths = value;
+                        if (ReferenceEquals(_depths, value))
+                            return;
 
+                        _depths.CollectionChanged -= CollectionChangedHandler;
+                        _depths = value;
+                        _depths.CollectionChanged += CollectionChangedHandler;
+
+                        IsDirty = true;
+                        OnPropertyChanged();                        
+                    }
+                }
+
+                /// <summary>
+                /// Replicates layout if different to the default layout for the field trip. This allows surveys to have different layouts if required. If null then the default layout is used.
+                /// </summary>
+                public ReplicatesLayoutClass? OverrideReplicatesLayout
+                {
+                    get => _overrideReplicatesLayout;
+                    set
+                    {
+                        if (_overrideReplicatesLayout != value)
+                        {
+                            _overrideReplicatesLayout = value;
                             IsDirty = true;
                             OnPropertyChanged();
                         }
@@ -633,14 +660,17 @@ namespace Surveyor
                 public ObservableCollection<SurveyItem> SurveyItemList
                 {
                     get => _surveyItemList;
+
                     set
                     {
-                        if (_surveyItemList != value)
-                        {
-                            _surveyItemList = value;
-                            IsDirty = true;
-                            OnPropertyChanged();
-                        }
+                        if (ReferenceEquals(_surveyItemList, value))
+                            return;
+
+                        _surveyItemList.CollectionChanged -= CollectionChangedHandler;
+                        _surveyItemList = value;
+                        _surveyItemList.CollectionChanged += CollectionChangedHandler;
+                        IsDirty = true;
+                        OnPropertyChanged();                     
                     }
                 }
 
@@ -861,7 +891,7 @@ namespace Surveyor
         {
             get
             {
-                if (Data.Info.IsDirty || Data.ReplicateLayout.IsDirty || Data.Surveys.IsDirty || Data.SurveyRules.IsDirty)
+                if (Data.Info.IsDirty || Data.ReplicatesLayout.IsDirty || Data.Surveys.IsDirty || Data.SurveyRules.IsDirty)
                 {
                     return true;
                 }
@@ -870,7 +900,7 @@ namespace Surveyor
             private set
             {
                 Data.Info.IsDirty = value;
-                Data.ReplicateLayout.IsDirty = value;
+                Data.ReplicatesLayout.IsDirty = value;
                 Data.Surveys.IsDirty = value;
                 Data.SurveyRules.IsDirty = value;
                 OnPropertyChanged();
@@ -911,6 +941,127 @@ namespace Surveyor
             }
 
             return title;
+        }
+
+
+        /// <summary>
+        /// Prepare title summary string which as combinations of values
+        /// </summary>
+        /// <param name="siteNameOrCode"></param>
+        /// <param name="titleSummaryLineType"></param>
+        /// <returns></returns>
+        public enum TitleSummaryLineType
+        {
+            SiteAndDepth,
+        }
+        public string GetTitleSummary(string siteNameOrCode, TitleSummaryLineType titleSummaryLineType)
+        {
+            string titleSummary = $"Error survey found for: {siteNameOrCode}";
+            StringBuilder sb = new();
+
+            int index = GetSurveyItemIndex(siteNameOrCode);
+            if (index != -1)
+            {
+                SurveyItem item = Data.Surveys.SurveyItemList[index];
+
+                switch (titleSummaryLineType)
+                {
+                    case TitleSummaryLineType.SiteAndDepth:
+                        string siteNameCodeString = MakeSiteNameCodeString(item);
+                        string depthsString = MakeDepthString(item.Depths);
+                        if (!string.IsNullOrEmpty(depthsString))
+                            sb.Append($"{siteNameCodeString} {depthsString}");
+                        else
+                            sb.Append($"{siteNameCodeString}");
+
+
+                        break;
+                }
+            }
+
+            return sb.Length > 0 ? sb.ToString() : titleSummary; 
+
+            // Make SiteName/SiteCode string
+            static string MakeSiteNameCodeString(SurveyItem item)
+            {
+                StringBuilder sb = new();
+
+                // Active/Inactive
+                if (!item.Active)
+                    sb.Append($"Inactive: ");
+
+                if (!string.IsNullOrWhiteSpace(item.SiteName))
+                {
+                    sb.Append($"{item.SiteName}");
+                    if (!string.IsNullOrWhiteSpace(item.SiteCode))
+                        sb.Append($"({item.SiteCode})");
+                }
+                else
+                    sb.Append($"{item.SiteCode}");
+
+
+                return sb.ToString();
+            }
+
+            // Make a string of depth1/depth2/depth(n)
+            static string MakeDepthString(ObservableCollection<string> depths)
+            {
+                StringBuilder sb = new();
+
+                if (depths.Count > 0)
+                {
+                    bool first = true;
+                    foreach (string depth in depths)
+                    {
+                        if (!first)
+                            sb.Append('/');
+
+                        if (int.TryParse(depth, out int depthNumber))
+                            sb.Append($"{depth}m");
+                        else
+                            sb.Append($"{depth}");
+
+                        first = false;
+                    }
+                }
+
+                return sb.ToString();
+            }
+        }
+
+        /// <summary>
+        /// Check that none of the replicate layout overrides are setup. i.e.
+        /// all replicate layouts are the same
+        /// </summary>
+        /// <returns></returns>
+        public bool IsAllReplicatesSameSetup()
+        {
+            if (Data.Surveys.SurveyItemList.Count == 0)
+                return true;
+
+            // Check if all OverrideReplicatesLayout as set to null
+            return Data.Surveys.SurveyItemList.All(s => s.OverrideReplicatesLayout == null);
+        }
+
+
+        /// <summary>
+        /// Get the override layout for this survey if it exists, otherwise return the default layout for the field trip
+        /// </summary>
+        /// <param name="siteNameOrCode"></param>
+        /// <returns></returns>
+        public FieldTrip.DataClass.ReplicatesLayoutClass? GetReplicateLayout(string siteNameOrCode)
+        {
+            int index = GetSurveyItemIndex(siteNameOrCode);
+
+            if (index != -1)
+            {
+                if (Data.Surveys.SurveyItemList[index].OverrideReplicatesLayout != null)
+                    return Data.Surveys.SurveyItemList[index].OverrideReplicatesLayout;
+                else
+                    return Data.ReplicatesLayout;
+            }
+            else
+                return null;
         }
 
 
@@ -970,7 +1121,6 @@ namespace Surveyor
                     {
                         Converters =
                         [
-                            new EventJsonConverter(),
                         ]
                     };
 
@@ -978,6 +1128,7 @@ namespace Surveyor
                     try
                     {
                         data = JsonConvert.DeserializeObject<DataClass>(json, settings);
+                        ret = 0;
                     }
                     catch (Exception e)
                     {
@@ -985,10 +1136,19 @@ namespace Surveyor
                         ret = -1;
                     }
 
-                    if (data != null)
+                    if (ret == 0 && data != null)
                     {
                         Data = data;
 
+                        ret = ValidateFieldTrip();
+
+                        // Allow to continue if warning only
+                        if (ret == 1)
+                            ret = 0;
+                    }
+
+                    if (ret == 0 && data != null)
+                    { 
                         ret = SetFieldTripNameAndPath(fieldTripFileSpec);
 
                         IsDirty = false;
@@ -1042,7 +1202,7 @@ namespace Surveyor
                     var settings = new JsonSerializerSettings
                     {
                         Formatting = Formatting.Indented,  // For pretty-printing the JSON
-                        Converters = [new EventJsonConverter()]
+                        Converters = []
                     };
 
                     // Remove the Survey Path so the survey can be safely moved to a different folder
@@ -1092,6 +1252,192 @@ namespace Surveyor
             return ret;
         }
 
+
+        /// <summary>
+        /// Validate the field trip values
+        /// </summary>
+        /// <param name="errorMessageList"></param>
+        /// <returns>0 - All ok, 1 - one or more warnings, 2 - one or more errors</returns>
+        public int ValidateFieldTrip()
+        {
+            int ret = 0;
+            int partRet = 0;
+
+            // Check we have an country code (Warning)
+            if (string.IsNullOrWhiteSpace(Data.Info.CountryCode))
+            {
+                if (string.IsNullOrWhiteSpace(Data.Info.CountryName))
+                    Report?.Warning("", "FieldTrip: The country code is missing or empty, required an ISO2 country code.");
+                else
+                    Report?.Warning("", $"FieldTrip: The country code is missing or empty, however the Code Name control:{Data.Info.CountryName}.");
+
+                partRet = 1;
+                if (ret < 1) ret = 1; 
+            }
+            else if (Data.Info.CountryCode.Length != 2)
+            {
+                Report?.Warning("", $"FieldTrip: The country code '{Data.Info.CountryCode}' is not a valid ISO2 country code.");
+                partRet = 1;
+                
+            }
+            if (ret < partRet) ret = partRet;
+
+            // In the survey list check each has a site codes
+            Data.Surveys.SurveyItemList.Where(s => s.Active && string.IsNullOrWhiteSpace(s.SiteCode))
+                .ToList()
+                .ForEach(s =>
+                {
+                    Report?.Error("", $"FieldTrip: The site code is missing or empty for an active survey with site name '{s.SiteName}'. Each active survey must have a site code.");
+                    partRet = 2;
+                });
+            if (ret < partRet) ret = partRet;
+
+            // In the survey list check each has a site Name
+            Data.Surveys.SurveyItemList.Where(s => s.Active && string.IsNullOrWhiteSpace(s.SiteName))
+                .ToList()
+                .ForEach(s =>
+                {
+                    Report?.Error("", $"FieldTrip: The site name is missing or empty for an active survey with site code '{s.SiteCode}'. Each active survey must have a site name.");
+                    partRet = 2;
+                });
+            if (ret < partRet) ret = partRet;
+
+            // In the survey list check the site codes are distinct
+            Data.Surveys.SurveyItemList                
+                .Where(s => s.Active && !string.IsNullOrWhiteSpace(s.SiteCode))
+                .GroupBy(s => s.SiteCode)
+                .Where(g => g.Count() > 1)
+                .ToList()
+                .ForEach(g =>
+                {
+                    Report?.Error("", $"FieldTrip: The site code '{g.Key}' is used in more than one active survey, they must be unique.");
+                    partRet = 2;
+                });
+            if (ret < partRet) ret = partRet;
+
+            // Check each active survey has at least one depth
+            Data.Surveys.SurveyItemList.Where(s => s.Active && (s.Depths == null || s.Depths.Count == 0))
+                .ToList()
+                .ForEach(s =>
+                {
+                    Report?.Error("", $"FieldTrip: There are no depths specified for an active survey with site code '{s.SiteCode}' and site name '{s.SiteName}'. Each active survey must have at least one depth or marked as inactive.");
+                    partRet = 2;
+                });
+            if (ret < partRet) ret = partRet;
+
+            // Check each replicate as a names 
+            Data.ReplicatesLayout.Layout.Where(r => r.ReplicateItemType == DataClass.ReplicatesItemType.Replicate && string.IsNullOrWhiteSpace(r.ReplicateName))
+                .ToList()
+                .ForEach(r =>
+                {
+                    Report?.Error("", $"FieldTrip: The replicate name is missing or empty for a replicate item in the replicate layout. Each replicate item must have a unique replicate name.");
+                    partRet = 2;
+                 });
+            if (ret < partRet) ret = partRet;
+
+            // Check the replicate names are distinct
+            Data.ReplicatesLayout.Layout
+                .Where(r => r.ReplicateItemType == DataClass.ReplicatesItemType.Replicate && !string.IsNullOrWhiteSpace(r.ReplicateName))
+                .GroupBy(r => r.ReplicateName)
+                .Where(g => g.Count() > 1)
+                .ToList()
+                .ForEach(g =>
+                {
+                    Report?.Error("", $"FieldTrip: The replicate name '{g.Key}' is used more than once in the replicate layout, they must be unique.");
+                    partRet = 2;
+                });
+            if (ret < partRet) ret = partRet;
+
+            // If the rules are switched on and there is a range rule check it make sense
+            if (Data.SurveyRules.SurveyRulesData.RangeRuleActive)
+            {
+                if (Data.SurveyRules.SurveyRulesData.RangeMin == 0.0 && Data.SurveyRules.SurveyRulesData.RangeMax == 0.0)
+                {
+                    Report?.Error("", $"FieldTrip: The range rule is active but the minimum and maximum values are both 0, they must be set to valid values.");
+                    partRet = 2;
+                }
+                else if (Data.SurveyRules.SurveyRulesData.RangeMin >= Data.SurveyRules.SurveyRulesData.RangeMax)
+                {
+                    Report?.Error("", $"FieldTrip: The range rule is active but the minimum value {Data.SurveyRules.SurveyRulesData.RangeMin} is not less than the maximum value {Data.SurveyRules.SurveyRulesData.RangeMax}.");
+                    partRet = 2;
+                }
+                else if (Data.SurveyRules.SurveyRulesData.RangeMax > 15)
+                {
+                    Report?.Warning("", $"FieldTrip: The range rule is active but the maximum value {Data.SurveyRules.SurveyRulesData.RangeMax} is too large.");
+                    partRet = 1;
+                }
+            }
+            if (ret < partRet) ret = partRet;
+
+            // If the rules are switched on and there is a horizontal rule check it make sense (i.e. both can't be zero, can't be negative, maximum value of 10)
+            if (Data.SurveyRules.SurveyRulesData.HorizontalRangeRuleActive)
+            {
+                if (Data.SurveyRules.SurveyRulesData.HorizontalRangeLeft == 0.0 && Data.SurveyRules.SurveyRulesData.HorizontalRangeRight == 0.0)
+                {
+                    Report?.Error("", $"FieldTrip: The horizontal range rule is active but the minimum and maximum values are both 0, they must be set to valid values.");
+                    partRet = 2;
+                }
+                else if (Data.SurveyRules.SurveyRulesData.HorizontalRangeLeft < 0 || Data.SurveyRules.SurveyRulesData.HorizontalRangeRight < 0)
+                {
+                    Report?.Error("", $"FieldTrip: The horizontal range rule is active but the left value {Data.SurveyRules.SurveyRulesData.HorizontalRangeLeft} and the right value {Data.SurveyRules.SurveyRulesData.HorizontalRangeRight} can't be negative.");
+                    partRet = 2;
+                }
+                else if (Data.SurveyRules.SurveyRulesData.HorizontalRangeLeft > 10 || Data.SurveyRules.SurveyRulesData.HorizontalRangeRight > 10)
+                {
+                    Report?.Warning("", $"FieldTrip: The horizontal range rule is active but the left value {Data.SurveyRules.SurveyRulesData.HorizontalRangeLeft} or the right value {Data.SurveyRules.SurveyRulesData.HorizontalRangeRight} is too large.");
+                    partRet = 1;
+                }
+            }
+            if (ret < partRet) ret = partRet;
+
+            // If the rules are switched on and there is a vertical rule check it make sense (i.e. both can't be zero, can't be negative, maximum value of 10)
+            if (Data.SurveyRules.SurveyRulesData.VerticalRangeRuleActive)
+            {
+                if (Data.SurveyRules.SurveyRulesData.VerticalRangeBottom == 0.0 && Data.SurveyRules.SurveyRulesData.VerticalRangeTop == 0.0)
+                {
+                    Report?.Error("", $"FieldTrip: The vertical range rule is active but the bottom and top values are both 0, they must be set to valid values.");
+                    partRet = 2;
+                }
+                else if (Data.SurveyRules.SurveyRulesData.VerticalRangeBottom < 0 || Data.SurveyRules.SurveyRulesData.VerticalRangeTop < 0)
+                {
+                    Report?.Error("", $"FieldTrip: The vertical range rule is active but the bottom value {Data.SurveyRules.SurveyRulesData.VerticalRangeBottom} and the top value {Data.SurveyRules.SurveyRulesData.VerticalRangeTop} can't be negative.");
+                    partRet = 2;
+                }
+                else if (Data.SurveyRules.SurveyRulesData.VerticalRangeBottom > 10 || Data.SurveyRules.SurveyRulesData.VerticalRangeTop > 10)
+                {
+                    Report?.Warning("", $"FieldTrip: The vertical range rule is active but the bottom value {Data.SurveyRules.SurveyRulesData.VerticalRangeBottom} or the top value {Data.SurveyRules.SurveyRulesData.VerticalRangeTop} is too large.");
+                    partRet = 1;
+                }
+            }
+            if (ret < partRet) ret = partRet;
+
+            // If the rules are switched on and there is an RMS rule check it make sense (i.e. positive value, Min 0 and maximum 100mm)
+            if (Data.SurveyRules.SurveyRulesData.RMSRuleActive)
+            {
+                if (Data.SurveyRules.SurveyRulesData.RMSMax < 0)
+                {
+                    Report?.Error("", $"FieldTrip: The RMS rule is active but the maximum value {Data.SurveyRules.SurveyRulesData.RMSMax}mm can't be negative.");
+                    partRet = 2;
+                }
+                else if (Data.SurveyRules.SurveyRulesData.RMSMax > 100/*mm*/)
+                {
+                    Report?.Warning("", $"FieldTrip: The RMS rule is active but the maximum value {Data.SurveyRules.SurveyRulesData.RMSMax}mm is too large.");
+                    partRet = 1;
+                }
+            }
+            if (ret < partRet) ret = partRet;
+
+            // Check the transect length is set to a positive value
+            if (Data.SurveyRules.TransectLength == 0)
+            {
+                Report?.Warning("", "FieldTrip: The transect length isn't setup.");
+                    ret = 1;
+
+            }
+            if (ret < partRet) ret = partRet;
+
+            return ret;
+        }
 
         /// <summary>
         /// Save a field trip to a json file using passed file spec
@@ -1151,7 +1497,8 @@ namespace Surveyor
         public List<string> GetSiteNameList()
         {
             return [.. Data.Surveys.SurveyItemList
-                            .Select(s => s.SiteName)
+                            .Where(s => s.Active == true)
+                            .Select(s => s.SiteName)                            
                             .OfType<string>()
                             .Distinct()];
         }
@@ -1178,7 +1525,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="siteName"></param>
         /// <returns></returns>
-        public string GetSiteCodeFromName(string siteName)
+        public string? GetSiteCodeFromName(string siteName)
         {
             // Build SiteName, SiteCode dictionary
             var siteDictionary = Data.Surveys.SurveyItemList
@@ -1186,7 +1533,7 @@ namespace Surveyor
                 .ToDictionary(s => s.SiteName!, s => s.SiteCode!);
 
             // Search for the site code using the site name
-            if (siteDictionary.TryGetValue(siteName, out string siteCode))
+            if (siteDictionary.TryGetValue(siteName, out string? siteCode))
             {
                 return siteCode;
             }
@@ -1202,14 +1549,14 @@ namespace Surveyor
         /// </summary>
         /// <param name="siteCode"></param>
         /// <returns></returns>
-        public string GetSiteNameFromCode(string siteCode)
+        public string? GetSiteNameFromCode(string siteCode)
         {
             // Build SiteCode, SiteName dictionary
             var siteDictionary = Data.Surveys.SurveyItemList
                 .Where(s => s.SiteName != null && s.SiteCode != null)
                 .ToDictionary(s => s.SiteCode!, s => s.SiteName!);
             // Search for the site name using the site code
-            if (siteDictionary.TryGetValue(siteCode, out string siteName))
+            if (siteDictionary.TryGetValue(siteCode, out string? siteName))
             {
                 return siteName;
             }
@@ -1227,11 +1574,25 @@ namespace Surveyor
         public List<string> GetDepthList()
         {
             // From the Surveys list extract the Depths list, flatten it and return the distinct values
-            return Data.Surveys.SurveyItemList
+            return [.. Data.Surveys.SurveyItemList
                 .SelectMany(s => s.Depths)
                 .Where(d => d != null)
-                .Distinct()
-                .ToList();
+                .Distinct()];
+        }
+
+
+        /// <summary>
+        /// Return of list for depths used in the Field Trip surveys list for this site code
+        /// </summary>
+        /// <returns></returns>
+        public List<string> GetDepthList(string siteCode)
+        {
+            // From the Surveys list extract the Depths list, flatten it and return the distinct values
+            return [.. Data.Surveys.SurveyItemList
+                .Where(s => s.SiteCode == siteCode)
+                .SelectMany(s => s.Depths)
+                .Where(d => d != null)
+                .Distinct()];
         }
 
 
@@ -1360,5 +1721,24 @@ namespace Surveyor
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
         }
+
+
+        /// <summary>
+        /// Return the index of the survey item in the Field Trip Surveys list for a given site name or code, or -1 if not found
+        /// </summary>
+        /// <param name="siteNameOrCode"></param>
+        /// <returns></returns>
+        private int GetSurveyItemIndex(string siteNameOrCode)
+        {
+            int count = Data.Surveys.SurveyItemList.Count;
+            for (int i = 0; i < count; i++)
+            {
+                if (Data.Surveys.SurveyItemList[i].SiteName == siteNameOrCode || Data.Surveys.SurveyItemList[i].SiteCode == siteNameOrCode)
+                    return i;
+            }
+            return -1;
+        }
+
     }
 }
+
