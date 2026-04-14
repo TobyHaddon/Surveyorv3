@@ -47,6 +47,8 @@ namespace Surveyor
         private const string ScientificNameOrderEnabledKey = "ScientificNameOrderEnabled";
         private const string InheritFromLastSettingKey = "InheritFromLastSetting";
         private const string ActiveSpeciesListKey = "ActiveSpeciesList";
+        private const string FieldTripTemplateOriginalFileSpecListKey = "FieldTripTemplateOriginalFileSpec";
+        private const string FieldTripTemplateCachedFileSpecListKey = "FieldTripTemplateCahcedFileSpec";
 
 
         // Path where new media (MP4) are typically imported from
@@ -311,7 +313,28 @@ namespace Surveyor
             set => SetString(ActiveSpeciesListKey, value);
         }
 
-        
+
+        /// <summary>
+        /// Path to the currently used Field Trip Template file. If set this field trip file
+        /// is reloaded when the application starts. If the file is missing a cached version
+        /// is loaded. 
+        /// </summary>
+        public static string FieldTripTemplateOriginalFileSpec
+        {            
+            get => GetString(FieldTripTemplateOriginalFileSpecListKey, "");
+            set => SetString(FieldTripTemplateOriginalFileSpecListKey, value);
+        }
+
+        /// <summary>
+        /// Path to the cached copy of the field trip template file. This is used when the original file is missing. 
+        /// The cached version is updated each time the field trip template file is successfully loaded.
+        /// </summary>
+        public static string FieldTripTemplateCachedFileSpec
+        {
+            get => GetString(FieldTripTemplateCachedFileSpecListKey, "");
+            set => SetString(FieldTripTemplateCachedFileSpecListKey, value);
+        }
+
 
         /// <summary>
         /// 

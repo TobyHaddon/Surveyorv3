@@ -5,7 +5,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:Surveyor.User_Controls"    
     xmlns:local2="using:Surveyor.Helper"
-    xmlns:converters="using:Surveyor.Converters"    
+    xmlns:converters="using:Surveyor.Converters"  
+    xmlns:surveyorControls="using:Surveyor.User_Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
@@ -64,71 +65,15 @@
     
     <Grid>
         <StackPanel>
-            <!--Survey code-->
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,8,0,0">
-                <TextBox x:Name="SurveyCode" Width="480" 
-                         PlaceholderText="[ReefCode]-[Depth]m-[TransectNumber]-[YYYY-MM-DD]" 
-                         HorizontalAlignment="Left" 
-                         TextChanged="SurveyCode_TextChanged" 
-                         ToolTipService.ToolTip="[ReefCode]-[Depth]m-[TransectNumber]-[YYYY-MM-DD]"/>
-                <FontIcon x:Name="SurveyCodeValidationGlyph" FontSize="16" VerticalAlignment="Center" Margin="8,0,0,0"/>
-                <TextBlock x:Name="SurveyCodeValidationText"  VerticalAlignment="Center" Margin="8,0,0,0"/>
-            </StackPanel>
-            <!--Survey Depth-->
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,8,0,0">
-                <ComboBox x:Name="SurveyDepth" Width="250" IsEditable="True" 
-                          PlaceholderText="Survey depth"
-                          SelectionChanged="SurveyDepth_SelectionChanged"
-                          TextSubmitted="SurveyDepth_TextSubmitted"
-                          GettingFocus="SurveyDepth_GettingFocus"
-                          ToolTipService.ToolTip="Survey depth can be 5m to 18m or Flat, Crest or Slope which is used in some regions">
-                        <ComboBoxItem Content="5" />
-                        <ComboBoxItem Content="6" />
-                        <ComboBoxItem Content="7" />
-                        <ComboBoxItem Content="8" />
-                        <ComboBoxItem Content="9" />
-                        <ComboBoxItem Content="10" />
-                        <ComboBoxItem Content="11" />
-                        <ComboBoxItem Content="12" />
-                        <ComboBoxItem Content="13" />
-                        <ComboBoxItem Content="14" />
-                        <ComboBoxItem Content="15" />
-                        <ComboBoxItem Content="16" />
-                        <ComboBoxItem Content="17" />
-                        <ComboBoxItem Content="18" />
-                        <ComboBoxItem Content="Flat" />
-                        <ComboBoxItem Content="Crest" />
-                        <ComboBoxItem Content="Slope" />
-                </ComboBox>
-                <FontIcon x:Name="SurveyDepthValidationGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
-                <TextBlock x:Name="SurveyDepthValidationText"  VerticalAlignment="Center" Margin="8,0,0,0"/>
-            </StackPanel>
-            
-            <!--Survey Analyst Name-->
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,8,0,0">
-                <TextBox x:Name="SurveyAnalystName" Width="250" 
-                         PlaceholderText="Your Name" 
-                         HorizontalAlignment="Left" 
-                         TextChanged="SurveyAnalystName_TextChanged" />
-                <FontIcon x:Name="SurveyAnalystNameValidationGlyph" FontSize="16" VerticalAlignment="Center"  Margin="8,0,0,0"/>
-                <TextBlock x:Name="SurveyAnalystNameValidationText"  VerticalAlignment="Center" Margin="8,0,0,0"/>
-            </StackPanel>
+            <!-- Survey User Info User Control -->
+            <surveyorControls:SurveyInfoUserControl x:Name="SurveyInfoUserControl" Margin="8,8,0,0"/>
 
-            <!--Species List Selection -->
-            <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Margin="8,8,0,0">
-                <DropDownButton x:Name="SpeciesActiveListDropDown" Content="Select Species List">
-                    <DropDownButton.Flyout>
-                        <MenuFlyout x:Name="SpeciesActiveListMenuFlyout"/>
-                    </DropDownButton.Flyout>
-                </DropDownButton>
-            </StackPanel>
-
-
-            <Grid x:Name="SurveyMediaGrid" Margin="0,8,0,0">
+            <!-- Media Grid -->
+            <Grid x:Name="SurveyMediaGrid" Margin="0,16,0,0">
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="500" />
+                    <ColumnDefinition Width="450" />
                     <ColumnDefinition Width="50" />
-                    <ColumnDefinition Width="500" />
+                    <ColumnDefinition Width="450" />
                 </Grid.ColumnDefinitions>
                 
                 <!--Left Camera Media Files-->

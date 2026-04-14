@@ -349,7 +349,7 @@ namespace Surveyor.User_Controls
 
                             // Play Step 1
                             SetProgressBarAndStatus(1, "Play");
-                            mainWindow.mediaStereoController.Play(SurveyorMediaPlayer.eCameraSide.None);
+                            mainWindow._mediaStereoController.Play(SurveyorMediaPlayer.eCameraSide.None);
 
                             if (ret == true && AbortRequestCheck(fileSpecSurvey) == true)
                                 ret = false;
@@ -360,7 +360,7 @@ namespace Surveyor.User_Controls
 
                                 // Pause Step 2
                                 SetProgressBarAndStatus(2, "Pause");
-                                await mainWindow.mediaStereoController.PauseAsync(SurveyorMediaPlayer.eCameraSide.None);
+                                await mainWindow._mediaStereoController.PauseAsync(SurveyorMediaPlayer.eCameraSide.None);
                             }
 
                             if (ret == true && AbortRequestCheck(fileSpecSurvey) == true)
@@ -375,7 +375,7 @@ namespace Surveyor.User_Controls
                                 {
                                     SetProgressBarAndStatus(3 + i, "Frame forward");
 
-                                    await mainWindow.mediaStereoController.FrameMoveAsync(SurveyorMediaPlayer.eCameraSide.None, 1);
+                                    await mainWindow._mediaStereoController.FrameMoveAsync(SurveyorMediaPlayer.eCameraSide.None, 1);
 
                                     await Task.Delay(100);
                                 }
@@ -385,7 +385,7 @@ namespace Surveyor.User_Controls
                             {
                                 // Play Step 13
                                 SetProgressBarAndStatus(13, "Play");
-                                mainWindow.mediaStereoController.Play(SurveyorMediaPlayer.eCameraSide.None);
+                                mainWindow._mediaStereoController.Play(SurveyorMediaPlayer.eCameraSide.None);
                             }
 
                             if (ret == true && AbortRequestCheck(fileSpecSurvey) == true)
@@ -397,7 +397,7 @@ namespace Surveyor.User_Controls
 
                                 // Pause Step 14
                                 SetProgressBarAndStatus(14, "Pause");
-                                await mainWindow.mediaStereoController.PauseAsync(SurveyorMediaPlayer.eCameraSide.None);
+                                await mainWindow._mediaStereoController.PauseAsync(SurveyorMediaPlayer.eCameraSide.None);
                             }
 
                             if (ret == true && AbortRequestCheck(fileSpecSurvey) == true)
@@ -545,23 +545,23 @@ namespace Surveyor.User_Controls
                 string url3 = "https://www.fishbase.se/photos/PicturesSummary.php?resultPage=2&ID=3602&what=species";
 
                 // Remove if already present in the queue
-                var item = mainWindow?.internetQueue.Find(url1);
+                var item = mainWindow?._internetQueue.Find(url1);
                 if (item is not null)
-                    mainWindow?.internetQueue.RemoveAsync(item);
+                    mainWindow?._internetQueue.RemoveAsync(item);
 
-                item = mainWindow?.internetQueue.Find(url2);
+                item = mainWindow?._internetQueue.Find(url2);
                 if (item is not null)
-                    mainWindow?.internetQueue.RemoveAsync(item);
+                    mainWindow?._internetQueue.RemoveAsync(item);
 
-                item = mainWindow?.internetQueue.Find(url3);
+                item = mainWindow?._internetQueue.Find(url3);
                 if (item is not null)
-                    mainWindow?.internetQueue.RemoveAsync(item);
+                    mainWindow?._internetQueue.RemoveAsync(item);
 
                 if (mainWindow is not null)
                 {
-                    await mainWindow.internetQueue.AddDownloadRequestAsync(TransferType.Page, url1, "temp", Priority.Normal);
-                    await mainWindow.internetQueue.AddDownloadRequestAsync(TransferType.Page, url2, "temp", Priority.Normal);
-                    await mainWindow.internetQueue.AddDownloadRequestAsync(TransferType.Page, url3, "temp", Priority.Normal);
+                    await mainWindow._internetQueue.AddDownloadRequestAsync(TransferType.Page, url1, "temp", Priority.Normal);
+                    await mainWindow._internetQueue.AddDownloadRequestAsync(TransferType.Page, url2, "temp", Priority.Normal);
+                    await mainWindow._internetQueue.AddDownloadRequestAsync(TransferType.Page, url3, "temp", Priority.Normal);
                     SetProgressBarAndStatus(steps++, "Request 3 downloads");
                 }
 
@@ -574,9 +574,9 @@ namespace Surveyor.User_Controls
                 Stopwatch sw = Stopwatch.StartNew();
                 while (sw.ElapsedMilliseconds < timeout && !allDownloaded) // Timeout after 20 seconds
                 {
-                    item1 = mainWindow?.internetQueue.Find(url1);
-                    item2 = mainWindow?.internetQueue.Find(url2);
-                    item3 = mainWindow?.internetQueue.Find(url3);
+                    item1 = mainWindow?._internetQueue.Find(url1);
+                    item2 = mainWindow?._internetQueue.Find(url2);
+                    item3 = mainWindow?._internetQueue.Find(url3);
 
                     // Check for passed test
                     if (item1 is not null && item1.Status == Status.Downloaded)
@@ -624,11 +624,11 @@ namespace Surveyor.User_Controls
                 if (mainWindow is not null)
                 {
                     if (item1 is not null)
-                        await mainWindow.internetQueue.RemoveAsync(item1);
+                        await mainWindow._internetQueue.RemoveAsync(item1);
                     if (item2 is not null)
-                        await mainWindow.internetQueue.RemoveAsync(item2);
+                        await mainWindow._internetQueue.RemoveAsync(item2);
                     if (item3 is not null)
-                        await mainWindow.internetQueue.RemoveAsync(item3);
+                        await mainWindow._internetQueue.RemoveAsync(item3);
                 }
             }
             else
@@ -662,7 +662,7 @@ namespace Surveyor.User_Controls
                 int steps = 0;
 
                 string url1 = $"https://www.fishbase.se/summary/{speciesID}";
-                mainWindow?.internetQueue.AddDownloadRequestAsync(TransferType.Page, url1, "temp", Priority.Normal);
+                mainWindow?._internetQueue.AddDownloadRequestAsync(TransferType.Page, url1, "temp", Priority.Normal);
                 SetProgressBarAndStatus(steps++, "Request species summary page");
 
                 long timeout = 20000;
@@ -672,7 +672,7 @@ namespace Surveyor.User_Controls
                 Stopwatch sw = Stopwatch.StartNew();
                 while (sw.ElapsedMilliseconds < timeout && !allDownloaded) // Timeout after 20 seconds
                 {
-                    item1 = mainWindow?.internetQueue.Find(url1);
+                    item1 = mainWindow?._internetQueue.Find(url1);
                     
                     // Check for passed test
                     if (item1 is not null && item1.Status == Status.Downloaded)
@@ -770,7 +770,7 @@ namespace Surveyor.User_Controls
 
                 // Clean up
                 if (item1 is not null && mainWindow is not null)
-                    await mainWindow.internetQueue.RemoveAsync(item1);
+                    await mainWindow._internetQueue.RemoveAsync(item1);
 
             }
             else
@@ -901,7 +901,7 @@ namespace Surveyor.User_Controls
                                             else
                                                 SetProgressBarAndStatus(stepIndex++, $"{repeats + 1}/{i + 1}:Play");
 
-                                            mainWindow.mediaStereoController.Play(SurveyorMediaPlayer.eCameraSide.None);
+                                            mainWindow._mediaStereoController.Play(SurveyorMediaPlayer.eCameraSide.None);
 
                                             if (item.Duration is not null)
                                                 await Task.Delay(duration.Milliseconds);
@@ -909,35 +909,35 @@ namespace Surveyor.User_Controls
 
                                         case MAction.Pause:
                                             SetProgressBarAndStatus(stepIndex++, $"{repeats + 1}/{i + 1}:Pause");
-                                            await mainWindow.mediaStereoController.PauseAsync(SurveyorMediaPlayer.eCameraSide.None);
+                                            await mainWindow._mediaStereoController.PauseAsync(SurveyorMediaPlayer.eCameraSide.None);
                                             break;
 
                                         case MAction.FrameMove:
                                             if (frameIndex != 0)
                                             {
                                                 SetProgressBarAndStatus(stepIndex++, $"{repeats + 1}/{i + 1}:Frame move {frameIndex} frames");
-                                                await mainWindow.mediaStereoController.FrameMoveAsync(SurveyorMediaPlayer.eCameraSide.None, frameIndex);
+                                                await mainWindow._mediaStereoController.FrameMoveAsync(SurveyorMediaPlayer.eCameraSide.None, frameIndex);
                                             }
                                             else
                                             {
                                                 SetProgressBarAndStatus(stepIndex++, $"{repeats + 1}/{i + 1}:Frame move relative {framePosition:hh\\:mm\\:ss\\.ff}");
-                                                await mainWindow.mediaStereoController.FrameMoveAsync(SurveyorMediaPlayer.eCameraSide.None, framePosition);
+                                                await mainWindow._mediaStereoController.FrameMoveAsync(SurveyorMediaPlayer.eCameraSide.None, framePosition);
                                             }
                                             break;
 
                                         case MAction.FrameJump:
                                             SetProgressBarAndStatus(stepIndex++, $"{repeats + 1}/{i + 1}:Frame jump to position {framePosition:hh\\:mm\\:ss\\.ff}");
-                                            mainWindow.mediaStereoController.FrameJump(SurveyorMediaPlayer.eCameraSide.None, framePosition);
+                                            mainWindow._mediaStereoController.FrameJump(SurveyorMediaPlayer.eCameraSide.None, framePosition);
                                             break;
 
                                         case MAction.StepForward:
                                             SetProgressBarAndStatus(stepIndex++, $"{repeats + 1}/{i + 1}:Step forward 30 frames"); // 30 frames
-                                            await mainWindow.mediaStereoController.FrameMoveAsync(SurveyorMediaPlayer.eCameraSide.None, 30);
+                                            await mainWindow._mediaStereoController.FrameMoveAsync(SurveyorMediaPlayer.eCameraSide.None, 30);
                                             break;
 
                                         case MAction.StepBackward:
                                             SetProgressBarAndStatus(stepIndex++, $"{repeats + 1}/{i + 1}:Step backward 10 frames");  // 10 frames
-                                            await mainWindow.mediaStereoController.FrameMoveAsync(SurveyorMediaPlayer.eCameraSide.None, -10);
+                                            await mainWindow._mediaStereoController.FrameMoveAsync(SurveyorMediaPlayer.eCameraSide.None, -10);
                                             break;
 
                                         case MAction.Wait:

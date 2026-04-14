@@ -1,26 +1,8 @@
-using CommunityToolkit.WinUI.Controls;
 using ActionCameraMP4MetadataExtraction;
+using CommunityToolkit.WinUI.Controls;
 using Microsoft.UI.Dispatching;
-///
-/// *** Remember when editing this User Control code that it is used from both   ***
-/// *** the context of a ContentDialog (for a new Survey) and from a SettingCard  ***
-/// *** from the SettingsWindow.                                                  ***  
-///
-// SurveyStereoInfoAndMedia  
-// This is a user control is used to setup and edit the Survey information and media file list
-// 
-// Version 1.1
-// 2024-12-31 Added to support to size the parent content dialog if running in that context
-// Version 1.2
-// 2025-01-16 Added Setup method for calling from ContentDialog and one for Settings Window
-// Version 1.3
-// 2025-01-17 Initial functionally complete
-// Version 1.4
-// 2025-10-31 Renamed to SurveyStereoInfoAndMediaUserControl 
-
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Surveyor.Helper;
@@ -35,15 +17,34 @@ using System.Runtime.CompilerServices;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Windows.Storage;
+using WinRT.Surveyorv3VtableClasses;
+using static Surveyor.User_Controls.SurveyInfoUserControl;
 
-
+///
+/// *** Remember when editing this User Control code that it is used from both    ***
+/// *** the context of a ContentDialog (for a new Survey) and from a SettingCard  ***
+/// *** from the SettingsWindow.                                                  ***  
+///
+// SurveyStereoInfoAndMedia  
+// This is a user control is used to setup and edit the Survey information and media file list
+// 
+// Version 1.1
+// 2024-12-31 Added to support to size the parent content dialog if running in that context
+// Version 1.2
+// 2025-01-16 Added Setup method for calling from ContentDialog and one for Settings Window
+// Version 1.3
+// 2025-01-17 Initial functionally complete
+// Version 1.4
+// 2025-10-31 Renamed to SurveyStereoInfoAndMediaUserControl 
+// Version 1.5
+// 2026-04-13 Moved to using SurveyInfoUserControl (which in turn depends in SurveyCodeUserControl and ReplicatesUserControl)
 
 namespace Surveyor.User_Controls
 {
     public sealed partial class SurveyStereoInfoAndMedia : UserControl
     {        
         // Reporter
-        private Reporter? report = null;
+        private Reporter? _report = null;
 
         public IReadOnlyList<StorageFile>? mediaFilesSelected = null;
 
@@ -53,6 +54,11 @@ namespace Surveyor.User_Controls
         private ObservableCollection<StereoMediaFileItem> LeftMediaFileItemList { get; set; }
         private ObservableCollection<StereoMediaFileItem> RightMediaFileItemList { get; set; }
 
+        // This copy of the survey class is only used in Settings and the setup Dialog
+        // It is necessary because the is no save concept with Settings. We therefore
+        // need access to the survey class to update the survey information as the user
+        // makes changes in the UI
+        private Survey? _survey = null;
 
         public SurveyStereoInfoAndMedia()
         {
@@ -69,9 +75,9 @@ namespace Surveyor.User_Controls
         /// Call as early as possible after creating the class instance.
         /// </summary>
         /// <param name="_report"></param>
-        public void SetReporter(Reporter _report)
+        public void SetReporter(Reporter report)
         {
-            report = _report;
+            _report = report;
         }
 
 
@@ -80,16 +86,21 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="dialog"></param>
         /// <param name="_mediaFilesSelected"></param>
-        public void SetupForContentDialog(ContentDialog dialog, IReadOnlyList<StorageFile> _mediaFilesSelected, string potentialInheritanceSurvey)
+        public void SetupForContentDialog(ContentDialog dialog, FieldTrip? fieldTrip, IReadOnlyList<StorageFile> _mediaFilesSelected, string potentialInheritanceSurvey)
         {
             Debug.WriteLine($"SetupForContentDialog() Started");
             ParentDialog = dialog;
+            ParentSettings = null; // N/A
+            _survey = null;  // N/A
 
             // Reset Fields
             ResetDialogFields();
 
-            // Inherit from prior Survey
-            if (!string.IsNullOrEmpty(potentialInheritanceSurvey))
+            // Allow all fields to be edited
+            SurveyInfoUserControl.Mode = SurveyInfoMode.Setup;
+
+            // If not under control of a field trip template and a prior Survey is available then offer the inherit option
+            if (fieldTrip is null && !string.IsNullOrEmpty(potentialInheritanceSurvey))
             {
                 // Show the inherit survey data checkbox
                 InheritSurveyData.Visibility = Visibility.Visible;
@@ -118,16 +129,37 @@ namespace Surveyor.User_Controls
             // Run on the UI thread
             _ = DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
             {
-                _ = SetupForContentDialogOnUiThreadAsync(potentialInheritanceSurvey);
+                _ = SetupForContentDialogOnUiThreadAsync(fieldTrip, potentialInheritanceSurvey);
             }); ;
 
             Debug.WriteLine($"SetMediaFiles() Complete");
         }
 
-        private async Task SetupForContentDialogOnUiThreadAsync(string potentialInhertanceSurvey)
+        private async Task SetupForContentDialogOnUiThreadAsync(FieldTrip? fieldTrip, string potentialInhertanceSurvey)
         {
             try
             {
+                SurveyInfoUserControl.SelectionChanged += SurveyInfoUserControl_SelectionChanged;
+
+                // Load the available species list (must be before the SetFieldTrip)
+                List<string> availableSpeciesLists = SpeciesCodeList.GetAvailableSpeciesLists();
+                SurveyInfoUserControl.LoadSpeciesList(availableSpeciesLists);
+
+                // Set the field trip if available
+                if (fieldTrip is not null)
+                    SurveyInfoUserControl.SetFieldTrip(fieldTrip);
+                else
+                {
+                    SurveyInfoUserControl.ResetFieldTrip();
+                    // To use the default species list if setup
+                    if (!string.IsNullOrEmpty(SettingsManagerLocal.ActiveSpeciesList))
+                        SurveyInfoUserControl.SetSpeciesListSelectedItem(SettingsManagerLocal.ActiveSpeciesList);
+                }
+
+                // Help the User Info control default the Survey Code fields based on the media name
+                if (mediaFilesSelected is not null && mediaFilesSelected.Count > 0)
+                    SurveyInfoUserControl.SetHint(mediaFilesSelected[0].Path);
+
                 BitmapImage thumbnailDefault = GetDefaultThumbnail();
 
                 if (mediaFilesSelected is not null && mediaFilesSelected.Count > 0)
@@ -135,7 +167,7 @@ namespace Surveyor.User_Controls
                     List<StereoMediaFileItem> mediaFileItemList = [];
                     foreach (StorageFile file in mediaFilesSelected)
                     {
-                        StereoMediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
+                        StereoMediaFileItem item = await GetMediaFileInfoAsync(file, thumbnailDefault);
                         mediaFileItemList.Add(item);
                     }
 
@@ -155,7 +187,7 @@ namespace Surveyor.User_Controls
             }
             catch (Exception ex)
             {
-                report?.Error("", $"SetupForContentDialog failed: {ex.Message}");
+                _report?.Error("", $"SetupForContentDialog failed: {ex.Message}");
             }
         }
 
@@ -165,64 +197,76 @@ namespace Surveyor.User_Controls
         /// This is used when this control is used view survey settings
         /// </summary>
         /// <param name="settings"></param>
-        public async Task SetupForSettingWindowAsync(SettingsCard settings, Survey survey)
+        public async Task SetupForSettingWindowAsync(SettingsCard settings, FieldTrip? fieldTrip, Survey survey)
         {
             // Remember the parent 
             ParentSettings = settings;
             ParentDialog = null;
+            _survey = survey;
 
             // Reset Fields
             ResetDialogFields();
 
-            // Disable UI elements not used by the SettingsCard
-            SurveyCode.IsEnabled = false;       // Survey code is the name of the survey e.g. CVW-10-5-2024-07-12.
-                                                // It is used as the file name and therefore can't be changed in the Setting window
+            // Allow no fields to be edited (there is an edit button)
+            SurveyInfoUserControl.Mode = SurveyInfoMode.View;
 
             // Hide the inherit survey data checkbox (in-case it has been set in the ContentDialog context)
             InheritSurveyData.Visibility = Visibility.Collapsed;
             PotentialInheritanceSurveyName.Visibility = Visibility.Collapsed;
 
-            // Because the depth is also in the file name it can't be changed in the Setting window
-            // The only exception is if the depth has never been set (i.e. an old .survey file)
-            if (survey.Data.Info.SurveyDepth is null || (survey.Data.Info.SurveyDepth is not null && string.IsNullOrWhiteSpace(survey.Data.Info.SurveyDepth)))
-            {
-                SurveyDepth.IsEnabled = true;
-            }
+            // Used to save any replicates edit
+            SurveyInfoUserControl.SelectionChanged += SurveyInfoUserControl_SelectionChanged;
+
+            // Load the available species list (must be before the SetFieldTrip)
+            List<string> availableSpeciesLists = SpeciesCodeList.GetAvailableSpeciesLists();
+            SurveyInfoUserControl.LoadSpeciesList(availableSpeciesLists);
+
+            // Set the field trip if available
+            if (fieldTrip is not null)
+                SurveyInfoUserControl.SetFieldTrip(fieldTrip);
             else
             {
-                SurveyDepth.IsEnabled = false;
-                SurveyMediaGrid.ColumnDefinitions[1].Width = new GridLength(0); // Hides the second column
+                SurveyInfoUserControl.ResetFieldTrip();
+                // To use the default species list if setup
+                if (!string.IsNullOrEmpty(SettingsManagerLocal.ActiveSpeciesList))
+                    SurveyInfoUserControl.SetSpeciesListSelectedItem(SettingsManagerLocal.ActiveSpeciesList);
             }
 
 
             // Load the survey code (survey name e.g. CVW-10-5-2024-07-12)
             if (!string.IsNullOrWhiteSpace(survey.Data.Info.SurveyCode))
-                SurveyCode.Text = survey.Data.Info.SurveyCode;
+            {
+                SurveyInfoUserControl.SetSurveyCode(survey.Data.Info.SurveyCode);   // Survey Date will be extracted from this (not store in the Survey class)      
+            }
             else
+            {
                 // If the survey code is empty then use the survey file name stem
                 // This maybe because the .survey file is an old version
-                SurveyCode.Text = Path.GetFileNameWithoutExtension(survey.Data.Info.SurveyFileName);
-
-
-            // Load the survey depth
-            // Iterate through the Survey Depth ComboBox items to find a match
-            bool depthMatchFound = false;
-            foreach (var item in SurveyDepth.Items)
-            {
-                if (item is ComboBoxItem comboBoxItem && comboBoxItem.Content.ToString() == survey.Data.Info.SurveyDepth)
+                if (survey.Data.Info.SurveyFileName is not null)
                 {
-                    SurveyDepth.SelectedItem = comboBoxItem; // Set the matching item as selected
-                    depthMatchFound = true;
-                    break;
+                    string surveyCode = Path.GetFileNameWithoutExtension(survey.Data.Info.SurveyFileName);
+                    SurveyInfoUserControl.SetSurveyCode(surveyCode);
                 }
             }
-            // If no match was found, set the text directly
-            if (!depthMatchFound)
-                SurveyDepth.Text = survey.Data.Info.SurveyDepth; // Set the text property with the value
 
+            // Load the survey depth
+            if (survey.Data.Info.SurveyDepth is not null)
+                SurveyInfoUserControl.SetDepth(survey.Data.Info.SurveyDepth);       // SurveyInfoUserControl.SetSurveyCode will also extract a depth from the survey code
+                                                                                    // This method should be called after SetSurveyCode() to ensure the official value is 
+                                                                                    // use (but is probably the same value)
+
+            // If Structured load the allowed replicates
+            if (fieldTrip is not null)
+                SurveyInfoUserControl.SetSelectedReplicateNames(survey.Data.Info.SurveyAllowedReplicates);  // SurveyInfoUserControl.SetSurveyCode will also extract the transect
+                                                                                                        // name from the survey code. method should be called after SetSurveyCode()
+                                                                                                        // to ensure the official values are use (but is probably the same value)
 
             // Load the survey analyst name
-            SurveyAnalystName.Text = survey.Data.Info.SurveyAnalystName;
+            if (survey.Data.Info.SurveyAnalystName is not null)
+                SurveyInfoUserControl.SetAnalystName(survey.Data.Info.SurveyAnalystName);
+            else
+                SurveyInfoUserControl.SetAnalystName(string.Empty);
+           
 
 
             // Get suitable default thumbnail based on the current theme
@@ -238,7 +282,7 @@ namespace Surveyor.User_Controls
                         string fileSpec = survey.GetLeftMediaFileSpec(index);
 
                         StorageFile file = await StorageFile.GetFileFromPathAsync(fileSpec);
-                        StereoMediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
+                        StereoMediaFileItem item = await GetMediaFileInfoAsync(file, thumbnailDefault);
 
                         LeftMediaFileItemList.Add(item);
                     }
@@ -252,7 +296,7 @@ namespace Surveyor.User_Controls
                         string fileSpec = survey.GetRightMediaFileSpec(index);
 
                         StorageFile file = await StorageFile.GetFileFromPathAsync(fileSpec);
-                        StereoMediaFileItem item = await GetMediaFileInfo(file, thumbnailDefault);
+                        StereoMediaFileItem item = await GetMediaFileInfoAsync(file, thumbnailDefault);
 
                         RightMediaFileItemList.Add(item);
                     }
@@ -296,21 +340,16 @@ namespace Surveyor.User_Controls
             surveyClass.Data.Info.SurveyType = surveyType;
 
             // Save the survey code (name of the survey)
-            surveyClass.Data.Info.SurveyCode = SurveyCode.Text;
+            surveyClass.Data.Info.SurveyCode = SurveyInfoUserControl.GetSurveyCode();
 
-            // Extract the value from the ComboBox
-            if (SurveyDepth.SelectedItem is ComboBoxItem selectedItem)
-            {
-                surveyClass.Data.Info.SurveyDepth = selectedItem.Content.ToString();
-            }
-            else
-            {
-                // Use the typed text if no item is selected
-                surveyClass.Data.Info.SurveyDepth = SurveyDepth.Text;
-            }
+            // Get the survey depth
+            surveyClass.Data.Info.SurveyDepth = SurveyInfoUserControl.GetDepth();
 
             // Save the survey analyst name
-            surveyClass.Data.Info.SurveyAnalystName = SurveyAnalystName.Text;
+            surveyClass.Data.Info.SurveyAnalystName = SurveyInfoUserControl.GetAnalystName();
+
+            // Remember the allow replicate names
+            surveyClass.Data.Info.SurveyAllowedReplicates = SurveyInfoUserControl.GetSelectedReplicateNames();
 
             // Save the media files
             if (LeftMediaFileNames is not null && RightMediaFileNames is not null && (LeftMediaFileNames.Items.Count + RightMediaFileNames.Items.Count > 0))
@@ -344,7 +383,7 @@ namespace Surveyor.User_Controls
             }
 
             // Remember the last used analyst name
-            SettingsManagerLocal.UserName = SurveyAnalystName.Text;
+            SettingsManagerLocal.UserName = SurveyInfoUserControl.GetAnalystName();
 
             // Remember the inheritance check box setting
             if (IsParentContentDialog() && InheritSurveyData.IsChecked is not null)
@@ -369,48 +408,33 @@ namespace Surveyor.User_Controls
         /// 
 
         /// <summary>
-        /// Validate the buttons if the user has edited value in the dialog
+        /// The Survey Info user control that handle structured and unstructured survey information
+        /// setup is signaling a change in status
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void SurveyCode_TextChanged(object sender, Microsoft.UI.Xaml.Controls.TextChangedEventArgs e)
+        private void SurveyInfoUserControl_SelectionChanged(object sender, RoutedEventArgs e)
         {
+            /// Validate the buttons if the user has edited value in the dialog
             EntryFieldsValid(false/*no reporting*/);
+
+            // If the survey info user control there is a limited edit mode (used in Settings windows only)
+            // it is possible that the user adjusted the replicates this survey covers. If so that needs
+            // to be saved back to the survey
+            if (ParentSettings is not null && SurveyInfoUserControl.Mode == SurveyInfoMode.LimitedEdit && _survey is not null)
+            {
+                // Compare the replicates elements from the survey to the settings to see if the user edited
+                ObservableCollection<string> newReplicates = SurveyInfoUserControl.GetSelectedReplicateNames();
+                ObservableCollection<string> currentReplicates = _survey.Data.Info.SurveyAllowedReplicates;
+                if (!newReplicates.SequenceEqual(currentReplicates))
+                    // Update the replicates in the survey
+                    _survey.Data.Info.SurveyAllowedReplicates = newReplicates;
+
+                // Compare the analysts name
+                if (SurveyInfoUserControl.GetAnalystName() != _survey.Data.Info.SurveyAnalystName)
+                    _survey.Data.Info.SurveyAnalystName = SurveyInfoUserControl.GetAnalystName();
+            }
         }
-
-
-        /// <summary>
-        /// Validate the buttons if the user has edited value in the dialog
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void SurveyDepth_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            EntryFieldsValid(false/*no reporting*/);
-        }
-
-
-        /// <summary>
-        /// Validate the buttons if the user has edited value in the dialog
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void SurveyDepth_TextSubmitted(object sender, Microsoft.UI.Xaml.Controls.ComboBoxTextSubmittedEventArgs e)
-        {
-            EntryFieldsValid(false/*no reporting*/);
-        }
-
-
-        /// <summary>
-        /// Validate the buttons if the user has edited value in the dialog
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void SurveyAnalystName_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            EntryFieldsValid(false/*no reporting*/);
-        }
-
 
 
         /// <summary>
@@ -557,50 +581,6 @@ namespace Surveyor.User_Controls
             EnableDisableControlButtons();
         }
 
-        
-        /// <summary>
-        /// Enter has been pressed on the combo after text entry, update the Ok button is necessary
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="args"></param>
-        private void SurveyDepth_TextSubmitted(ComboBox sender, ComboBoxTextSubmittedEventArgs args)
-        {
-            // Setup the buttons
-            EntryFieldsValid(false/*no reporting*/);
-        }
-
-
-        /// <summary>
-        /// Wire up the TextChanged on the child TextBox. 
-        /// Note. I tried to use the Loaded event but SurveyDepthTextBox_TextChanged 
-        /// was never called so I switch to GotFocus
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void SurveyDepth_GettingFocus(object sender, RoutedEventArgs e)
-        {
-            var comboBox = sender as ComboBox;
-            var textBox = UIHelper.FindDescendant<TextBox>(SurveyDepth);
-            if (textBox is not null)
-            {
-                textBox.TextChanged -= SurveyDepthTextBox_TextChanged;
-                textBox.TextChanged += SurveyDepthTextBox_TextChanged;
-            }
-        }
-
-
-        /// <summary>
-        /// This had to be manually wired up because there is currently no TextChanged event on a Combo UIControl
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void SurveyDepthTextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-            // Setup the buttons
-            EntryFieldsValid(false/*no reporting*/);
-        }
-
-
 
         ///
         /// PRIVATE
@@ -646,13 +626,13 @@ namespace Surveyor.User_Controls
             if (string.IsNullOrEmpty(previousName))
             {
                 if (!string.IsNullOrEmpty(fullName))
-                    SurveyAnalystName.Text = fullName;
+                    SurveyInfoUserControl.SetAnalystName(fullName);
                 else
-                    SurveyAnalystName.Text = "";
+                    SurveyInfoUserControl.SetAnalystName(string.Empty);
             }
             else
             {
-                SurveyAnalystName.Text = previousName;
+                SurveyInfoUserControl.SetAnalystName(previousName);
             }
         }
 
@@ -755,57 +735,19 @@ namespace Surveyor.User_Controls
             bool mediaDatesMatch = true;
             bool mediaContigious = true;
 
-            // Check survey code
-            string surveyCode = SurveyCode.Text;
-            if (!IsFileNameValid(surveyCode))
-            {
-                SetValidationText(false/*invalid*/, null, SurveyCodeValidationGlyph, SurveyCodeValidationText, @"The survey code can't contain < > : \ / | ? *", "");
-                infoValid = false;
+            // Get the status of the Survey Info User Control information
+            bool? surveyInfoStatus = SurveyInfoUserControl.GetValidationStatus();
 
-                if (reportIssues)
-                    report?.Warning("", $"The survey code:{surveyCode} contains invalid characters");
-            }
+            // Return Invalid if any invalid data
+            if (surveyInfoStatus is null)
+                ret = EntryFieldsValidReturn.Warning;
+            else if ((bool)surveyInfoStatus == false)
+                ret = EntryFieldsValidReturn.Invalid;
             else
-                SetValidationText(null/*nothing*/, null, SurveyCodeValidationGlyph, SurveyCodeValidationText, "", "");
+                ret = EntryFieldsValidReturn.Valid;
 
-
-            // Check survey depth
-            string? surveyDepth;
-
-            if (SurveyDepth.SelectedItem is ComboBoxItem selectedItem && selectedItem.Content != null)
-            {
-                surveyDepth = selectedItem.Content.ToString();
-            }
-            else
-            {
-                // For custom user input
-                surveyDepth = SurveyDepth.Text;
-            }
-                
-            if (string.IsNullOrWhiteSpace(surveyDepth))
-            {
-                SetValidationText(false/*invalid*/, null, SurveyDepthValidationGlyph, SurveyDepthValidationText, "Survey depth must have a value", "");
-                infoValid = false;
-
-                if (reportIssues)
-                    report?.Warning("", $"The survey depth for survey {surveyCode} is missing");
-            }
-            else
-                SetValidationText(null/*nothing*/, null, SurveyDepthValidationGlyph, SurveyDepthValidationText, "", "");
-
-
-            // Check Analyst name
-            string analystName = SurveyAnalystName.Text;
-            if (string.IsNullOrWhiteSpace(analystName))
-            {
-                SetValidationText(false/*invalid*/, null, SurveyAnalystNameValidationGlyph, SurveyAnalystNameValidationText, "Analyst name must have a value", "");
-                infoValid = false;
-
-                if (reportIssues)
-                    report?.Warning("", $"The analyst name for survey {surveyCode} is missing");
-            }
-            else
-                SetValidationText(null/*nothing*/, null, SurveyAnalystNameValidationGlyph, SurveyAnalystNameValidationText, "", "");
+            // Get survey code - used for reporting
+            string surveyCode = SurveyInfoUserControl.GetSurveyCode();
 
 
             // Check all media from the same path
@@ -816,7 +758,7 @@ namespace Surveyor.User_Controls
                 mediaValid = false;
 
                 if (reportIssues)
-                    report?.Warning("", $"The media files for survey {surveyCode} are not all from the same directory and need to be");
+                    _report?.Warning("", $"The media files for survey {surveyCode} are not all from the same directory and need to be");
             }
             else
             {
@@ -837,7 +779,7 @@ namespace Surveyor.User_Controls
                     mediaDatesMatch = false;
 
                     if (reportIssues)
-                        report?.Warning("", $"The media files for survey {surveyCode} have different dates on the left side vs. the right side");
+                        _report?.Warning("", $"The media files for survey {surveyCode} have different dates on the left side vs. the right side");
                 }
                 else
                 {
@@ -849,21 +791,21 @@ namespace Surveyor.User_Controls
                 SetValidationText(false/*invalid*/, SurveyMediaDatePanel, SurveyMediaDateGlyph, SurveyMediaDateValidationText, "Not all the media on the left side has the same date", "You would expect all the dates on the media to be the same.");
 
                 if (reportIssues)
-                    report?.Warning("Left", $"The media files for survey {surveyCode} on the left side don't have the same date");
+                    _report?.Warning("Left", $"The media files for survey {surveyCode} on the left side don't have the same date");
             }
             else if (sameDateLeftMedia is not null && (sameDateRightMedia is null && RightMediaFileItemList.Count > 0))
             {
                 SetValidationText(false/*invalid*/, SurveyMediaDatePanel, SurveyMediaDateGlyph, SurveyMediaDateValidationText, "Not all the media on the right side has the same date", "You would expect all the dates on the media to be the same.");
 
                 if (reportIssues)
-                    report?.Warning("Right", $"The media files for survey {surveyCode} on the right side don't have the same date");
+                    _report?.Warning("Right", $"The media files for survey {surveyCode} on the right side don't have the same date");
             }
             else if ((sameDateLeftMedia is null && LeftMediaFileItemList.Count > 0) && (sameDateRightMedia is null && RightMediaFileItemList.Count > 0))
             {
                 SetValidationText(false/*invalid*/, SurveyMediaDatePanel, SurveyMediaDateGlyph, SurveyMediaDateValidationText, "Not all the media on the left side and on the right side has the same date", "You would expect all the dates on the media to be the same.");
 
                 if (reportIssues)
-                    report?.Warning("", $"The media files for survey {surveyCode} on the left side and the right side don't have the same date");
+                    _report?.Warning("", $"The media files for survey {surveyCode} on the left side and the right side don't have the same date");
             }
             else
             {
@@ -887,7 +829,7 @@ namespace Surveyor.User_Controls
                 mediaGoProSNMatch = false;
 
                 if (reportIssues)
-                    report?.Warning("Right", $"The right side media files for survey {surveyCode} are not all from the same GoPro");
+                    _report?.Warning("Right", $"The right side media files for survey {surveyCode} are not all from the same GoPro");
             }
             else if ((sameGoProLeftMedia is not null && !(bool)sameGoProLeftMedia) && (sameGoProRightMedia is null/*No S/N*/ || (sameGoProRightMedia is not null && (bool)sameGoProRightMedia)))
             {
@@ -896,7 +838,7 @@ namespace Surveyor.User_Controls
                 mediaGoProSNMatch = false;
 
                 if (reportIssues)
-                    report?.Warning("Left", $"The left side media files for survey {surveyCode} are not all from the same GoPro");
+                    _report?.Warning("Left", $"The left side media files for survey {surveyCode} are not all from the same GoPro");
             }
             else if ((sameGoProLeftMedia is not null && !(bool)sameGoProLeftMedia) && (sameGoProRightMedia is not null && !(bool)sameGoProRightMedia))
             {
@@ -905,7 +847,7 @@ namespace Surveyor.User_Controls
                 mediaGoProSNMatch = false;
 
                 if (reportIssues)
-                    report?.Warning("", $"The media files for survey {surveyCode} are not all from the same GoPro, different on both the left and the right side");
+                    _report?.Warning("", $"The media files for survey {surveyCode} are not all from the same GoPro, different on both the left and the right side");
             }
             else if (differentGoProLefAndRight is not null && !(bool)differentGoProLefAndRight)
             {
@@ -914,7 +856,7 @@ namespace Surveyor.User_Controls
                 mediaGoProSNMatch = false;
 
                 if (reportIssues)
-                    report?.Warning("", $"The media files for survey {surveyCode} the left side media and the right side media are from the same GoPro, this is not possible.");
+                    _report?.Warning("", $"The media files for survey {surveyCode} the left side media and the right side media are from the same GoPro, this is not possible.");
             }
 
 
@@ -952,7 +894,7 @@ namespace Surveyor.User_Controls
                 mediaContigious = false;
 
                 if (reportIssues)
-                    report?.Warning("", $"The media files for survey {surveyCode} are not contiguous on either the left or right side");
+                    _report?.Warning("", $"The media files for survey {surveyCode} are not contiguous on either the left or right side");
             }
             else if (!leftMediaContiguous)
             {
@@ -960,7 +902,7 @@ namespace Surveyor.User_Controls
                 mediaContigious = false;
 
                 if (reportIssues)
-                    report?.Warning("Left", $"The media files for survey {surveyCode} are not contiguous on the left side");
+                    _report?.Warning("Left", $"The media files for survey {surveyCode} are not contiguous on the left side");
             }
             else if (!rightMediaContiguous)
             {
@@ -968,7 +910,7 @@ namespace Surveyor.User_Controls
                 mediaContigious = false;
 
                 if (reportIssues)
-                    report?.Warning("Right", $"The media files for survey {surveyCode} are not contiguous on the right side");
+                    _report?.Warning("Right", $"The media files for survey {surveyCode} are not contiguous on the right side");
             }
             else
             {
@@ -992,7 +934,7 @@ namespace Surveyor.User_Controls
                 SetValidationText(false/*invalid*/, SurveyResolutionMatchPanel, SurveyResolutionMatchGlyph, SurveyResolutionMatchValidationText, "All media files need have the same frame resolution", "");
 
                 if (reportIssues)
-                    report?.Warning("", $"The media files for survey {surveyCode} are not all of the same resolution");
+                    _report?.Warning("", $"The media files for survey {surveyCode} are not all of the same resolution");
             }
             else
             {
@@ -1007,7 +949,7 @@ namespace Surveyor.User_Controls
                 SetValidationText(false/*invalid*/, SurveyFrameRateMatchPanel, SurveyFrameRateMatchGlyph, SurveyFrameRateMatchValidationText, "All media files need have the same frame rate", "");
 
                 if (reportIssues)
-                    report?.Warning("", $"The media files for survey {surveyCode} are not all of the same frame rate");
+                    _report?.Warning("", $"The media files for survey {surveyCode} are not all of the same frame rate");
             }
             else
             {
@@ -1015,14 +957,13 @@ namespace Surveyor.User_Controls
             }
 
 
-            // Check for warning
-            if (!mediaDatesMatch || !mediaContigious)
+            // Check for warning (taking care not to downgrade the status)
+            if (ret != EntryFieldsValidReturn.Invalid && (!mediaDatesMatch || !mediaContigious))
                 ret = EntryFieldsValidReturn.Warning;
 
             // Return Invalid if any invalid data
             if (!infoValid || !mediaValid || !mediaGoProSNMatch || !mediaSameResolution || !mediaSameFrameRate)
                 ret = EntryFieldsValidReturn.Invalid;
-
 
 
             // Should we enable to OK button if we are inside a ContentDialog
@@ -1447,7 +1388,7 @@ namespace Surveyor.User_Controls
         /// <param name="file"></param>
         /// <param name="thumbnailDefault"></param>
         /// <returns></returns>
-        private static async Task<StereoMediaFileItem> GetMediaFileInfo(StorageFile file, BitmapImage thumbnailDefault)
+        private static async Task<StereoMediaFileItem> GetMediaFileInfoAsync(StorageFile file, BitmapImage thumbnailDefault)
         {
             StereoMediaFileItem item = new() { MediaFilePath = file.Path, MediaFileThumbnail = thumbnailDefault };
 
@@ -1476,7 +1417,7 @@ namespace Surveyor.User_Controls
 
                 // Get the frame size and frame rate
                 Dictionary<string, string> fileProperties = await GetMP4FileProperities.ExtractProperties(file);
-                if (fileProperties.TryGetValue("Video.Width", out string? width) && 
+                if (fileProperties.TryGetValue("Video.Width", out string? width) &&
                     fileProperties.TryGetValue("Video.Height", out string? height) &&
                     fileProperties.TryGetValue("Video.FrameRate", out string? frameRate))
                 {
@@ -1487,20 +1428,20 @@ namespace Surveyor.User_Controls
                     }
                     catch (FormatException)
                     {
-                        item.MediaFrameWidth = 0;
-                        item.MediaFrameHeight = 0;
+                        item.MediaFrameWidth = 3840;
+                        item.MediaFrameHeight = 1920;
                     }
                     try
                     {
                         item.MediaFrameRate = Double.Parse(frameRate);
                     }
-                    catch (FormatException) 
+                    catch (FormatException)
                     {
                         item.MediaFrameRate = 0.0;
                     }
                 }
 
-               
+
                 // Get the duration
                 if (fileProperties.TryGetValue("Video.Duration", out string? value))
                 {
@@ -1536,11 +1477,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         private void ResetDialogFields()
         {
-            SurveyCode.Text = "";
-            SurveyDepth.Text = string.Empty;
-            SurveyDepth.SelectedItem = null;  // Clear the selected item
-            SurveyDepth.SelectedIndex = -1;  // Clear the selected index
-            SurveyAnalystName.Text = "";
+            SurveyInfoUserControl.ResetDialogFields();
 
             LeftMediaFileItemList.Clear();
             RightMediaFileItemList.Clear();

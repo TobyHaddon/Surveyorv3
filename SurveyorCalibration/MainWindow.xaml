@@ -88,12 +88,14 @@
             <MenuBar x:Name="AppMenuBar" Grid.Row="0" Grid.Column="2" VerticalAlignment="Top">
                 <!-- FILE MENU-->
                 <MenuBarItem x:Name="MenuFile" Title="File">
+                    <!-- New Project -->
                     <MenuFlyoutItem x:Name="MenuProjectNew" Text="New Project" Click="FileProjectNew_Click"
                         ToolTipService.ToolTip="Create a new calibration project. Used to calibration either stereo or mono camera systems.">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8A5;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
+                    <!-- Open Project -->
                     <MenuFlyoutItem x:Name="MenuProjectOpen" Text="Open Project..." Click="FileProjectOpen_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8E5;" />
@@ -102,6 +104,7 @@
                             <KeyboardAccelerator Modifiers="Control" Key="O"/>
                         </MenuFlyoutItem.KeyboardAccelerators>
                     </MenuFlyoutItem>
+                    <!-- Save Project -->
                     <MenuFlyoutItem x:Name="MenuProjectSave" Text="Save Project" IsEnabled="False" Click="FileProjectSave_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74E;" />
@@ -110,45 +113,53 @@
                             <KeyboardAccelerator Modifiers="Control" Key="S"/>
                         </MenuFlyoutItem.KeyboardAccelerators>
                     </MenuFlyoutItem>
+                    <!-- Save As Project -->
                     <MenuFlyoutItem x:Name="MenuProjectSaveAs" Text="Save As Project..." IsEnabled="False" Click="FileProjectSaveAs_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE792;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
                     <MenuFlyoutItem x:Name="MenuProjectClose" Text="Close Project" IsEnabled="False" Click="FileProjectClose_Click"/>
+                    <!-- Recently Opened Projects -->
                     <MenuFlyoutSubItem x:Name="MenuRecentProjects" Text="Recent Projects">
                         <MenuFlyoutSubItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE823;" />
                         </MenuFlyoutSubItem.Icon>
                     </MenuFlyoutSubItem>
                     <MenuFlyoutSeparator/>
+                    <!-- Lock/Unlock Media -->
                     <MenuFlyoutItem Name="MenuLockUnlockMediaPlayers" Text="Lock Media Players" IsEnabled="False" Click="FileLockUnlockMediaPlayers_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon x:Name="MenuLockUnlockMediaPlayersIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE1F6;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
+                    <!-- Run Calibration -->
                     <MenuFlyoutItem x:Name="MenuRunCalibration" Text="Run Calibration..." IsEnabled="True" Click="FileRunCalibration_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEB3C;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
+                    <!-- Export -->
                     <MenuFlyoutItem x:Name="MenuExport" Text="Export Results..." IsEnabled="True" Click="FileExport_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEDE1;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
+                    <!-- Compare Calibration Results -->
                     <MenuFlyoutItem x:Name="MenuCompare" Text="Compare Results..." IsEnabled="True" Click="FileCompare_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xF1CB;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
                     <MenuFlyoutSeparator/>
+                    <!-- Settings -->
                     <MenuFlyoutItem x:Name="MenuSettings" Text="Settings..." IsEnabled="True" Click="FileSettings_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE713;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
                     <MenuFlyoutSeparator/>
+                    <!-- Exit -->
                     <MenuFlyoutItem Text="Exit" Click="FileExit_Click">
                         <MenuFlyoutItem.KeyboardAccelerators>
                             <KeyboardAccelerator Modifiers="Control" Key="E"/>

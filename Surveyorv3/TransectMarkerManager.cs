@@ -158,7 +158,7 @@ namespace Surveyor
                 }
 
                 inputTextBox.TextChanged += TextChangedHandler;
-                TextChangedHandler(inputTextBox, null);
+                TextChangedHandler(inputTextBox, null!);
 
                 ContentDialogResult result = await contentDialog.ShowAsync();
 

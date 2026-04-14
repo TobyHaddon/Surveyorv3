@@ -38,7 +38,7 @@ namespace Surveyor.User_Controls
         private readonly ObservableCollection<SurveyReplicateCardItem> _surveyReplicateCards = [];
 
         private Point _lastMapPointerPointInMap;
-        private bool _hasLastMapPointerPoint;
+        //???private bool _hasLastMapPointerPoint;
 
         private readonly TextBlock _mapIconPopupText = new()
         {
@@ -78,13 +78,12 @@ namespace Surveyor.User_Controls
             };
 
             // Make key
-            FieldTripMapControl.MapServiceToken = string.Join(", ",
+            FieldTripMapControl.MapServiceToken = string.Join("",
                             cacheFileList.Select(Path.GetFileNameWithoutExtension));
 
 
             // Ensure XamlRoot is available once control is loaded
             FieldTripMapControl.SizeChanged += FieldTripMapControl_SizeChanged;
-            FieldTripMapControl.PointerPressed += FieldTripMapControl_PointerPressed;
         }
 
         /// <summary>
@@ -232,12 +231,13 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void FieldTripMapControl_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
-        {
-            _lastMapPointerPointInMap = e.GetCurrentPoint(FieldTripMapControl).Position;
-            _hasLastMapPointerPoint = true;
-            _mapIconPopup.IsOpen = false;
-        }
+        //??? to be deleted - MapControl actually never fires PointerPressed
+        //private void FieldTripMapControl_PointerPressed(object sender, Microsoft.UI.Xaml.Input.PointerRoutedEventArgs e)
+        //{
+        //    _lastMapPointerPointInMap = e.GetCurrentPoint(FieldTripMapControl).Position;
+        //    //???_hasLastMapPointerPoint = true;
+        //    _mapIconPopup.IsOpen = false;
+        //}
 
 
         /// <summary>

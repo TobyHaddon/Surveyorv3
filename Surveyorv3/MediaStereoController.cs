@@ -175,7 +175,7 @@ namespace Surveyor
             OpenSpeciesListIfNecessary(SettingsManagerLocal.ActiveSpeciesList);
             
             // Initialize the species image cache
-            speciesImageCache = new(speciesSelector.SpeciesCodeList, mainWindow.internetQueue, report);
+            speciesImageCache = new(speciesSelector.SpeciesCodeList, mainWindow._internetQueue, report);
             _ = speciesImageCache.LoadAsync(SettingsManagerLocal.UseInternetEnabled && SettingsManagerLocal.SpeciesImageCacheEnabled); // Fire and forget / Load persistent SpeciesState from disk
 
             // Setup the Handler for the MainWindow
@@ -2668,7 +2668,7 @@ namespace Surveyor
                             // Dynamically display measurement/rms/range info as defined by what points
                             // have been selected. Display in the MainWindow to help the user create
                             // actuate measurements
-                            mediaStereoController.DisplayDynamicMeasurementAsync(false/*trueShowAverageRMSOnly*/);
+                            _ = mediaStereoController.DisplayDynamicMeasurementAsync(trueShowRMSCombinedOnly: false);
 
                             if ((bool)data.TruePointAFalsePointB)
                             {

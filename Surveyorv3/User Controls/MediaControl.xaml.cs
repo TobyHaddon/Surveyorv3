@@ -1,12 +1,3 @@
-// SurveyorMediaControl  Media Control User Control
-// This is a user control that is used to control the playing of the media files 
-// 
-// Version 1.1
-//
-// Version 1.2  10 Mar 2025
-// Limit speed to x4 for unsync (MediaPlayer) and x2 sync (MediaTimelineController
-
-
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -22,6 +13,15 @@ using static Surveyor.MediaStereoControllerEventData;
 using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
 using static Surveyor.User_Controls.MediaControlEventData;
 using static Surveyor.User_Controls.SurveyorMediaPlayer;
+
+
+// SurveyorMediaControl  Media Control User Control
+// This is a user control that is used to control the playing of the media files 
+// 
+// Version 1.1
+//
+// Version 1.2  10 Mar 2025
+// Limit speed to x4 for unsync (MediaPlayer) and x2 sync (MediaTimelineController
 
 
 namespace Surveyor.User_Controls

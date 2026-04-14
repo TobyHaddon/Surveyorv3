@@ -1,13 +1,15 @@
-﻿// NetworkManager  Manages intermittent internet connections and executes registered actions when the connection is available.
-//
-// Version 1.0 10 Apr 2025
-
-using CommunityToolkit.WinUI.Helpers;
+﻿using CommunityToolkit.WinUI.Helpers;
 using Surveyor.User_Controls;
 using System;
 using System.Collections.Concurrent;
 using System.Net.Http;
 using System.Threading.Tasks;
+
+
+// NetworkManager  Manages intermittent internet connections and executes registered actions when the connection is available.
+//
+// Version 1.0  10 Apr 2025
+
 
 namespace Surveyor
 {

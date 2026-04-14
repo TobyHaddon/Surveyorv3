@@ -1,3 +1,39 @@
+using CommunityToolkit.WinUI;
+using Microsoft.Graphics.Canvas;
+using Microsoft.Graphics.Canvas.Effects;
+using Microsoft.Graphics.Canvas.Text;
+using Microsoft.Graphics.Canvas.UI.Xaml;
+using Microsoft.UI;
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Surveyor.Events;
+using Surveyor.Helper;
+using System;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net.Http;
+using System.Numerics;
+using System.Runtime.InteropServices;
+using System.Threading;
+using System.Threading.Tasks;
+using Windows.Foundation;
+using Windows.Graphics.Imaging;
+using Windows.Media;
+using Windows.Media.Casting;
+using Windows.Media.Core;
+using Windows.Media.MediaProperties;
+using Windows.Media.Playback;
+using Windows.Storage.Streams;
+using Windows.System.Display;
+using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
+using static Surveyor.User_Controls.SettingsWindowEventData;
+
+
 // SurveyorMediaPlayer  Media Player User Control
 // SurveyorMediaPlayer  Media Player User Control
 // This is a user control that is used to play media files and view frame by frame
@@ -11,59 +47,29 @@
 //
 // Version 1.1
 // Needs the Microsoft.Grpahics.Win2D NuGet package
-// Version 1.2 25 Feb 2025
+//
+// Version 1.2  25 Feb 2025
 // Moved to using the inbuilt SaveAsync in CanvasBitmap to save the frame to a file
 // Moved all the control of the frame buffer into the VideoFrameManager class (i.e. no direct access to the frame buffer)
+//
 // Version 1.3  09 Mar 2025
 // Refactored based on ExampleMediaTimelineController
 // Moved the setting of 'mode' out of PlaybackSession_PlaybackStateChanged and into where the 
 // Play/Pause is requested
-// Version 1.4 13 Mar 2025
+//
+// Version 1.4  13 Mar 2025
 // Changed approach to:
 // On pause request, pause timeline controller, wait for pause, grab frame directly from media player
 // On frame forward/backward request, because the is no pause state change to wait on we use the VideoFrameAvailable event
 // approach to grab the frame
+//
 // Version 1.5 20 May 2025
 // Move the MagnifyAndMarkerDisplay to be a child of the MediaPlayer control
-// Version 1.6 12 Jun 2025
+//
+// Version 1.6  12 Jun 2025
 // Added depth color correction (experimental on feature set A)
 
 
-using CommunityToolkit.WinUI;
-using Microsoft.Graphics.Canvas;
-using Microsoft.Graphics.Canvas.Text;
-using Microsoft.Graphics.Canvas.UI.Xaml;
-using Microsoft.UI;
-using Microsoft.UI.Dispatching;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Surveyor.Events;
-using Surveyor.Helper;
-using System;
-using System.Collections.ObjectModel;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Net.Http;
-using System.Numerics;
-using System.Runtime.InteropServices;
-using System.Threading;
-using System.Threading.Tasks;
-using Windows.Graphics.Imaging;
-using Windows.Media;
-using Windows.Media.Casting;
-using Windows.Media.Core;
-using Windows.Media.MediaProperties;
-using Windows.Media.Playback;
-using Windows.Storage.Streams;
-using Windows.System.Display;
-using Windows.Foundation;
-using static Surveyor.User_Controls.MagnifyAndMarkerDisplay;
-using Microsoft.UI.Xaml.Input;
-using System.ComponentModel;
-using Microsoft.Graphics.Canvas.Effects;
-using static Surveyor.User_Controls.SettingsWindowEventData;
-using Emgu.CV.Cuda;
 
 namespace Surveyor.User_Controls
 {

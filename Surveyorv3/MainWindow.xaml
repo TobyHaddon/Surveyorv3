@@ -79,6 +79,7 @@
             <MenuBar x:Name="AppMenuBar" Grid.Row="0" Grid.Column="2" VerticalAlignment="Top">
                 <!-- FILE MENU-->
                 <MenuBarItem Title="File">
+                    <!-- New Survey -->
                     <MenuFlyoutSubItem Name="MenuSurveyNew" Text="New Survey">
                         <MenuFlyoutItem Name="MenuSurveyNewStereo" Text="New Stereo Fish Survey" Click="FileSurveyNewStereo_Click"
                             ToolTipService.ToolTip="Create a new stereo (SVS) fish survey project. Uses video from a stereo camera system. Allows fish measurements to made and species to be assigned.">
@@ -101,7 +102,7 @@
                             </MenuFlyoutItem.Icon>
                         </MenuFlyoutItem>
                     </MenuFlyoutSubItem>
-                    
+                    <!-- Open Survey -->
                     <MenuFlyoutItem Name="MenuSurveyOpen" Text="Open Survey..." Click="FileSurveyOpen_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8E5;" />
@@ -110,6 +111,7 @@
                             <KeyboardAccelerator Modifiers="Control" Key="O"/>
                         </MenuFlyoutItem.KeyboardAccelerators>
                     </MenuFlyoutItem>
+                    <!-- Save Survey -->
                     <MenuFlyoutItem Name="MenuSurveySave" Text="Save Survey" IsEnabled="False" Click="FileSurveySave_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE74E;" />
@@ -118,19 +120,29 @@
                             <KeyboardAccelerator Modifiers="Control" Key="S"/>
                         </MenuFlyoutItem.KeyboardAccelerators>
                     </MenuFlyoutItem>
+                    <!-- Save As Survey -->
                     <MenuFlyoutItem Name="MenuSurveySaveAs" Text="Save As Survey..." IsEnabled="False" Click="FileSurveySaveAs_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE792;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
+                    <!-- Close Survey -->
                     <MenuFlyoutItem Name="MenuSurveyClose" Text="Close Survey" IsEnabled="False" Click="FileSurveyClose_Click"/>
+                    <!-- Recently Opened Surveys -->
                     <MenuFlyoutSubItem Name="MenuRecentSurveys" Text="Recent Surveys">
                         <MenuFlyoutSubItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE823;" />
                         </MenuFlyoutSubItem.Icon>
                     </MenuFlyoutSubItem>
                     <MenuFlyoutSeparator/>
-                    <!-- Import Sub-Menu -->
+                    <!-- Attach/Detach Field Trip Template -->
+                    <MenuFlyoutItem Name="MenuFieldTripOpenClose" Text="Attach Field Trip Template..." Click="FileFieldTripOpenClose_Click">
+                        <MenuFlyoutItem.Icon>
+                            <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE621;" />
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
+                    <MenuFlyoutSeparator/>
+                    <!-- Import -->
                     <MenuFlyoutSubItem Name="MenuImport" Text="Import...">
                         <MenuFlyoutSubItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8B5;" />
@@ -140,13 +152,8 @@
                                 <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEB3C;" />
                             </MenuFlyoutItem.Icon>
                         </MenuFlyoutItem>
-                        <MenuFlyoutItem Name="MenuImportFieldTrip" Text="Field Trip Template..." Click="FileImportFieldTrip_Click">
-                            <MenuFlyoutItem.Icon>
-                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE621;" />
-                            </MenuFlyoutItem.Icon>
-                        </MenuFlyoutItem>
                     </MenuFlyoutSubItem>
-                    <!-- Export Sub-Menu -->
+                    <!-- Export -->
                     <MenuFlyoutSubItem Name="MenuExport" Text="Export..." IsEnabled="True"
                                         ToolTipService.ToolTip="Export data from one or many existing surveys. This option is only available when there is no survey open.">
                         <MenuFlyoutSubItem.Icon>
@@ -164,12 +171,14 @@
                         </MenuFlyoutItem>
                     </MenuFlyoutSubItem>
                     <MenuFlyoutSeparator/>
+                    <!-- Settings -->
                     <MenuFlyoutItem Name="MenuSettings" Text="Settings..." IsEnabled="True" Click="FileSettings_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE713;" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
                     <MenuFlyoutSeparator/>
+                    <!-- Exit -->
                     <MenuFlyoutItem Text="Exit" Click="FileExit_Click">
                         <MenuFlyoutItem.KeyboardAccelerators>
                             <KeyboardAccelerator Modifiers="Control" Key="E"/>
@@ -178,6 +187,7 @@
                 </MenuBarItem>
                 <!-- INSERT MENU -->
                 <MenuBarItem Title="Insert">
+                    <!-- Lock/Unlock Media -->
                     <MenuFlyoutItem Name="MenuLockUnlockMediaPlayers" Text="Lock Media Players" IsEnabled="False" Click="InsertLockUnlockMediaPlayers_Click">
                         <MenuFlyoutItem.Icon>
                             <FontIcon x:Name="MenuLockUnlockMediaPlayersIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE1F6;" />
@@ -232,7 +242,7 @@
                    Text="Surveyor" 
                    Style="{StaticResource CaptionTextBlockStyle}"
                    VerticalAlignment="Center"
-                   HorizontalAlignment="Center"/>
+                   HorizontalAlignment="Center" Margin="0,1,0,2"/>
             </Border>
             
             

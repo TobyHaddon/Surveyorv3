@@ -1,15 +1,4 @@
-﻿// SettingsWindow
-// This is a user control is used to adjust general, survey and (later) Field Trip settings
-// 
-// Version 1.0
-// 
-// Version 1.1
-// 2025-01-17 Integrated with new SurveyInfoAndMedia user control
-// Version 1.2
-// 2025-01-25 Stop the flashing on load between themes
-
-
-using CommunityToolkit.WinUI;
+﻿using CommunityToolkit.WinUI;
 using CommunityToolkit.WinUI.Controls;
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.UI;
@@ -33,38 +22,53 @@ using Windows.Storage;
 using WinUIEx;
 using static Surveyor.User_Controls.SettingsWindowEventData;
 
+// SettingsWindow
+// This is a user control is used to adjust general, survey and Field Trip settings
+// 
+// Version 1.0
+// 
+// Version 1.1  2025-01-17 
+// Integrated with new SurveyInfoAndMedia user control
+//
+// Version 1.2  2025-01-25 
+// Stop the flashing on load between themes
+//
+// Version 1.3 14 Apr 2026
+// Integrated the field trip support into the settings window
+
 
 namespace Surveyor.User_Controls
 {
-
-
     /// <summary>
     /// A page that displays the app's settings.
     /// </summary>
     public sealed partial class SettingsWindow : WindowEx
     {
         // Copy of MainWindow
-        private readonly MainWindow? mainWindow = null;
+        private readonly MainWindow? _mainWindow = null;
 
         // Reporter
-        private Reporter? report = null;
+        private Reporter? _report = null;
 
         // Optional section to open
         private string sectionToScrollTo = string.Empty;
 
         // Copy of the mediator 
-        private SurveyorMediator? mediator;
+        private SurveyorMediator? _mediator;
 
         // Declare the mediator handler for MediaPlayer
-        private readonly SettingsWindowHandler? settingsWindowHandler;
+        private readonly SettingsWindowHandler? _settingsWindowHandler;
 
-        private readonly ElementTheme? rootThemeOriginal = null;
+        private readonly ElementTheme? _rootThemeOriginal = null;
+
         // To detect system-wide theme changes (like Light ↔ Dark), use this API:
-        private readonly Windows.UI.ViewManagement.UISettings uiSettings = new();
+        private readonly Windows.UI.ViewManagement.UISettings _uiSettings = new();
 
-        public string WinAppSdkRuntimeDetails => App.WinAppSdkRuntimeDetails;
+        public string WinAppSdkRuntimeDetails => App.WinAppSdkRuntimeDetails;  // Can be static because of the .XAML binding
 
-        private readonly Survey? survey = null;
+        private readonly Survey? _survey = null;
+
+        private readonly FieldTrip? _fieldTrip = null;
 
         private bool _isInitializing = false;
 
@@ -77,25 +81,28 @@ namespace Surveyor.User_Controls
 
         // Remember the hash for the SurveyRules so we can detect changes 
         // and update any Survey Rules embedded in measurements or 3D points
-        private readonly int surveyRulesHash = -1;
+        private readonly int _surveyRulesHash = -1;
 
         // Remember the hash for the SurveyRules so we can detect changes 
         // and update any Survey Rules embedded in measurements or 3D points
-        private int calibrationDataHash = -1;
+        private readonly int _calibrationDataHash = -1;
 
         // Signal to the caller that a recalculation is required
-        private bool recalcRequired = false;
+        private bool _recalcRequired = false;
 
-        public SettingsWindow(SurveyorMediator _mediator, MainWindow _mainWindow, Survey? surveyClass, Reporter? _report, string section = "")
+        public SettingsWindow(SurveyorMediator mediator, MainWindow mainWindow, FieldTrip? fieldTrip, Survey? survey, Reporter? report, string section = "")
         {
             // Remember main window (needed for this method)
-            mainWindow = _mainWindow;
+            _mainWindow = mainWindow;
 
             // Remember the survey
-            survey = surveyClass;
+            _survey = survey;
+
+            // Remember the field trip
+            _fieldTrip = fieldTrip;
 
             // Remember the reporter
-            report = _report;
+            _report = report;
 
             sectionToScrollTo = section;
 
@@ -107,29 +114,29 @@ namespace Surveyor.User_Controls
             
 
             // React to theme changes
-            uiSettings.ColorValuesChanged += UiSettings_ColorValuesChanged;
+            _uiSettings.ColorValuesChanged += UiSettings_ColorValuesChanged;
 
             // Initialize mediator handler for SurveyorMediaControl
-            mediator = _mediator;
-            settingsWindowHandler = new SettingsWindowHandler(mediator, this, mainWindow);
+            _mediator = mediator;
+            _settingsWindowHandler = new SettingsWindowHandler(mediator, this, _mainWindow);
 
 
             // Set the current saved theme
             SetSettingsTheme(SettingsManagerLocal.ApplicationTheme);
 
             // Inform the SurveyInfoAndMedia user control that is is being used in the SettingsWindow
-            if (survey is not null && survey.Data.Info is not null)
+            if (_survey is not null && _survey.Data.Info is not null)
             {
-                switch (survey.Data.Info.SurveyType)
+                switch (_survey.Data.Info.SurveyType)
                 {
                     case Survey.SurveyType.StereoFish:
-                        SurveyStereoInfoAndMedia.SetupForSettingWindowAsync(SettingsCardSurveyStereoInfoAndMedia, survey);
+                        _ = SurveyStereoInfoAndMedia.SetupForSettingWindowAsync(SettingsCardSurveyStereoInfoAndMedia, fieldTrip, _survey);
                         SettingsCardSurveyStereoInfoAndMedia.Visibility = Visibility.Visible;
                         SettingsCardSurveyMonoInfoAndMedia.Visibility = Visibility.Collapsed;
                         break;
                     case Survey.SurveyType.MonoFish:
                     case Survey.SurveyType.MonoBenthic:
-                        SurveyMonoInfoAndMedia.SetupForSettingWindowAsync(SettingsCardSurveyMonoInfoAndMedia, survey);
+                        _ = SurveyMonoInfoAndMedia.SetupForSettingWindowAsync(SettingsCardSurveyMonoInfoAndMedia, fieldTrip, _survey);
                         SettingsCardSurveyStereoInfoAndMedia.Visibility = Visibility.Collapsed;
                         SettingsCardSurveyMonoInfoAndMedia.Visibility = Visibility.Visible;
                         break;
@@ -139,21 +146,21 @@ namespace Surveyor.User_Controls
             // Only use Survey Rules for Stereo fish (SVS) surveys
             // Inform the SettingsSurveyRules user control that it is being used in the SettingsWindow for a survey
             // (as opposed to a Field Trip)
-            if (survey is not null && survey.Data.Info is not null && 
-                survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
+            if (_survey is not null && _survey.Data.Info is not null && 
+                _survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
             {
-                surveyRulesHash = survey.Data.SurveyRules.GetHashCode();
-                SettingsSurveyRules.SetupForSurveySettingWindow(survey);
+                _surveyRulesHash = _survey.Data.SurveyRules.GetHashCode();
+                SettingsSurveyRules.SetupForSurveySettingWindow(_survey);
             }
             
 
             // Inform the SettingsCalibration user control that it is being used in the SettingsWindow for a survey
             // (as opposed to a Field Trip)
-            if (survey is not null && survey.Data.Info is not null &&
-                survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
+            if (_survey is not null && _survey.Data.Info is not null &&
+                _survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
             {
-                calibrationDataHash = survey.Data.Calibration.GetHashCode();
-                SettingsCalibration.SetupForSurveySettingWindow(survey);
+                _calibrationDataHash = _survey.Data.Calibration.GetHashCode();
+                SettingsCalibration.SetupForSurveySettingWindow(_survey);
             }
 
             // Remove the separate title bar from the window
@@ -163,13 +170,13 @@ namespace Surveyor.User_Controls
             _ = SetQRCodeSelectionAsync(null);  // null selects the first item in the list
 
             // Inform the Calibration Test user control of the reporter so it can log messages
-            SettingsCalibrationTest.SetReporter(report!);
+            SettingsCalibrationTest.SetReporter(_report!);
 
             // Inform the Calibration Test user control of the hosting Window (used by File Picker)
             SettingsCalibrationTest.SetHostingWindow(this);
 
             // Hide the Survey Settings if the Survey is null
-            if (survey is null)
+            if (_survey is null)
             {
                 // Hide the survey settings section
                 SurveySettingsTitle.Visibility = Visibility.Collapsed;
@@ -182,8 +189,8 @@ namespace Surveyor.User_Controls
                 // Show the survey settings section
                 SurveySettingsTitle.Visibility = Visibility.Visible;
                 SurveyInfoAndMediaExpander.Visibility = Visibility.Visible;
-                if (survey.Data.Info is not null &&
-                    survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
+                if (_survey.Data.Info is not null &&
+                    _survey.Data.Info.SurveyType == Survey.SurveyType.StereoFish)
                 {
                     SettingsCalibration.Visibility = Visibility.Visible;
                     SettingsSurveyRules.Visibility = Visibility.Visible;
@@ -194,6 +201,22 @@ namespace Surveyor.User_Controls
                     SettingsCalibration.Visibility = Visibility.Collapsed;
                     SettingsSurveyRules.Visibility = Visibility.Collapsed;
                 }
+            }
+
+            // Hide the Field Trip if not setup
+            if (fieldTrip is null)
+            {
+                // Hide the field trip settings section
+                FieldTripSettingsTitle.Visibility = Visibility.Collapsed;
+                FieldTripInfoExpander.Visibility = Visibility.Collapsed;
+            }
+            else
+            {
+                FieldTripInfo.SetFieldTrip(fieldTrip);
+
+                // Show the field trip settings section
+                FieldTripSettingsTitle.Visibility = Visibility.Visible;
+                FieldTripInfoExpander.Visibility = Visibility.Visible;
             }
 
             // Remember the experimental status so we can broadcast any changed
@@ -279,7 +302,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         public bool RecalculationRequired()
         {
-            return recalcRequired;
+            return _recalcRequired;
         }
 
 
@@ -315,9 +338,9 @@ namespace Surveyor.User_Controls
         private void ReCalculate_Click(object sender, RoutedEventArgs e) => _ = ReCalculateClickAsync();
         private async Task ReCalculateClickAsync()
         {
-            if (mainWindow is not null)
+            if (_mainWindow is not null)
             {
-                await mainWindow.CheckIfEventMeasurementsAreUpToDateAsync(true/*forceReCalc*/);
+                await _mainWindow.CheckIfEventMeasurementsAreUpToDateAsync(true/*forceReCalc*/);
             }
         }
 
@@ -332,7 +355,7 @@ namespace Surveyor.User_Controls
 
             try
             {
-                if (mainWindow is not null)
+                if (_mainWindow is not null)
                 {
                     // Auto Save
                     AutoSave.IsOn = SettingsManagerLocal.AutoSaveEnabled;
@@ -410,7 +433,7 @@ namespace Surveyor.User_Controls
                     ToolTip tooltipSpeciesCodeListFileSpec = new();
                     try
                     {
-                        tooltipSpeciesCodeListFileSpec.Content = $"Species file location: {mainWindow?.mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesCodeListFileSpec}";
+                        tooltipSpeciesCodeListFileSpec.Content = $"Species file location: {_mainWindow?._mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesCodeListFileSpec}";
                         ToolTipService.SetToolTip(SpeciesCodeListFileSpec, tooltipSpeciesCodeListFileSpec);
                     }
                     catch { }
@@ -443,10 +466,10 @@ namespace Surveyor.User_Controls
 
 
                     // Refresh the Species State list
-                    mainWindow?.mediaStereoController.speciesImageCache.RefreshView();
+                    _mainWindow?._mediaStereoController.speciesImageCache.RefreshView();
 
                     // Refresh the internet queue
-                    mainWindow?.internetQueue.RefreshView();
+                    _mainWindow?._internetQueue.RefreshView();
 
                     // Load the Telemetry setting
                     Telemetry.IsOn = SettingsManagerLocal.TelemetryEnabled;
@@ -504,14 +527,14 @@ namespace Surveyor.User_Controls
             SurveyStereoInfoAndMedia.Shutdown();
             SurveyMonoInfoAndMedia.Shutdown();
             SettingsSurveyRules.Shutdown();
-            mainWindow?.mediaStereoController.speciesImageCache.RefreshView(true/*reset*/);
-            mainWindow?.internetQueue.RefreshView(true/*reset*/);
+            _mainWindow?._mediaStereoController.speciesImageCache.RefreshView(true/*reset*/);
+            _mainWindow?._internetQueue.RefreshView(true/*reset*/);
 
             // Optionally clear controls if they’re bound to static objects
             SettingsCardSurveyStereoInfoAndMedia.Content = null;
             SettingsCardSurveyMonoInfoAndMedia.Content = null;
 
-            uiSettings.ColorValuesChanged -= UiSettings_ColorValuesChanged;
+            _uiSettings.ColorValuesChanged -= UiSettings_ColorValuesChanged;
         }
 
         /// <summary>
@@ -521,17 +544,17 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void SettingsWindow_Closed(object sender, WindowEventArgs e)
         {            
-            if (survey is not null)
+            if (_survey is not null)
             {
                 // Check if survey rules changed
-                if (surveyRulesHash != survey.Data.SurveyRules.GetHashCode())
+                if (_surveyRulesHash != _survey.Data.SurveyRules.GetHashCode())
                 {
-                    recalcRequired = true;
+                    _recalcRequired = true;
                 }
                 // Check if calibration data changed
-                if (calibrationDataHash != survey.Data.Calibration.GetHashCode())
+                if (_calibrationDataHash != _survey.Data.Calibration.GetHashCode())
                 { 
-                    recalcRequired = true; 
+                    _recalcRequired = true; 
                 }
             }
 
@@ -540,23 +563,23 @@ namespace Surveyor.User_Controls
 
             // Check if the theme has changed
             var rootElement = (FrameworkElement)(this.Content);
-            if (rootThemeOriginal != rootElement.RequestedTheme && mainWindow is not null)
-                mainWindow.SetTheme(rootElement.RequestedTheme);
+            if (_rootThemeOriginal != rootElement.RequestedTheme && _mainWindow is not null)
+                _mainWindow.SetTheme(rootElement.RequestedTheme);
 
             // Set the save theme
             SettingsManagerLocal.ApplicationTheme = rootElement.RequestedTheme;
           
             // De-register the mediator handler
-            if (mediator is not null && settingsWindowHandler is not null)
+            if (_mediator is not null && _settingsWindowHandler is not null)
             {
-                mediator.Unregister(settingsWindowHandler);
-                mediator = null;
+                _mediator.Unregister(_settingsWindowHandler);
+                _mediator = null;
             }
 
-            report = null;
+            _report = null;
 
             // Pass focus to the main window
-            mainWindow?.Activate();
+            _mainWindow?.Activate();
         }
 
 
@@ -576,14 +599,14 @@ namespace Surveyor.User_Controls
                 // Enable auto save
                 settingValue = true;
 
-                report?.Info("", $"Auto save threaded enabled");
+                _report?.Info("", $"Auto save threaded enabled");
             }
             else
             {
                 // Disable auto save
                 settingValue = false;
 
-                report?.Info("", $"Auto save threaded disabled");
+                _report?.Info("", $"Auto save threaded disabled");
             }
 
             // Remember the new state
@@ -814,7 +837,7 @@ namespace Surveyor.User_Controls
             }
 
             // Inform everyone of the state change
-            settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.DiagnosticInformation)
+            _settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.DiagnosticInformation)
             {
                 diagnosticInformation = SettingsManagerLocal.DiagnosticInformation
             });
@@ -853,7 +876,7 @@ namespace Surveyor.User_Controls
             List<IStorageItem> storageItems = [];
 
             // Save Reporter
-            report?.Save();
+            _report?.Save();
 
             // Get the list of reporter?.txt files to copy
             for (int i = 0; i < 10; i++)
@@ -931,7 +954,7 @@ namespace Surveyor.User_Controls
             ExperimentalFeatureSetC.IsEnabled = Experimental.IsOn;
 
             // Inform everyone of the state change
-            settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.Experimental)
+            _settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.Experimental)
             {
                 experimentalEnabled = SettingsManagerLocal.ExperimentalEnabled
             });
@@ -998,7 +1021,7 @@ namespace Surveyor.User_Controls
         private void DownloadNow_Click(object sender, RoutedEventArgs e)
         {
             // Trigger the next image cache timer now
-            mainWindow?.mediaStereoController.speciesImageCache.TriggerNextTimer();
+            _mainWindow?._mediaStereoController.speciesImageCache.TriggerNextTimer();
         }
 
 
@@ -1009,18 +1032,18 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void RefreshSpeciesStateView_Click(object sender, RoutedEventArgs e)
         {
-            if (mainWindow is not null)
+            if (_mainWindow is not null)
             {
                 // Save the selected species name
                 string? selectedSpeciesName = (SpeciesImageCacheListView.SelectedItem as SpeciesCacheViewItem)?.SpeciesItem.Species;
 
                 // Refresh the cache view                
-                mainWindow.mediaStereoController.speciesImageCache.RefreshView();
+                _mainWindow._mediaStereoController.speciesImageCache.RefreshView();
 
                 // Try to find the matching item based on Species name
                 if (!string.IsNullOrEmpty(selectedSpeciesName))
                 {
-                    var newSelectedItem = mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView
+                    var newSelectedItem = _mainWindow._mediaStereoController.speciesImageCache.SpeciesStateView
                         .FirstOrDefault(item => string.Equals(item.SpeciesItem.Species, selectedSpeciesName, StringComparison.OrdinalIgnoreCase));
 
                     if (newSelectedItem is not null)
@@ -1030,7 +1053,7 @@ namespace Surveyor.User_Controls
                     }
                 }
 
-                SpeciesImageCacheItemImageCount.Text = $"{mainWindow.mediaStereoController.speciesImageCache.TotalImagesAvailable()} images of {mainWindow.mediaStereoController.speciesImageCache.TotalImagesRequired()} available";
+                SpeciesImageCacheItemImageCount.Text = $"{_mainWindow._mediaStereoController.speciesImageCache.TotalImagesAvailable()} images of {_mainWindow._mediaStereoController.speciesImageCache.TotalImagesRequired()} available";
             }
             else
                 SpeciesImageCacheItemImageCount.Text = string.Empty;
@@ -1044,18 +1067,18 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void RefreshInternetQueueView_Click(object sender, RoutedEventArgs e)
         {
-            if (mainWindow is not null)
+            if (_mainWindow is not null)
             {
                 // Save the selected url
                 string? selectedURL = (InternetQueueListView.SelectedItem as InternetQueueViewItem)?.URL;
 
                 // Refresh the internet queue view
-                mainWindow?.internetQueue?.RefreshView();
+                _mainWindow?._internetQueue?.RefreshView();
 
                 // Restore selection (if the item still exists in the refreshed collection)
                 if (!string.IsNullOrEmpty(selectedURL))
                 {
-                    var newSelectedItem = mainWindow?.internetQueue.InternetQueueView
+                    var newSelectedItem = _mainWindow?._internetQueue.InternetQueueView
                         .FirstOrDefault(item => string.Equals(item.URL, selectedURL, StringComparison.OrdinalIgnoreCase));
 
                     if (newSelectedItem is not null)
@@ -1078,8 +1101,8 @@ namespace Surveyor.User_Controls
         private async Task RemoveInternetQueueClickAsync()
         {
             bool somethingToDo = false;
-            int downloadedCount = mainWindow?.internetQueue.InternetQueueView.Count(item => item.Status == Status.Downloaded) ?? 0;
-            int uploadedCount = mainWindow?.internetQueue.InternetQueueView.Count(item => item.Status == Status.Uploaded) ?? 0;
+            int downloadedCount = _mainWindow?._internetQueue.InternetQueueView.Count(item => item.Status == Status.Downloaded) ?? 0;
+            int uploadedCount = _mainWindow?._internetQueue.InternetQueueView.Count(item => item.Status == Status.Uploaded) ?? 0;
 
             string puralDownloaded = downloadedCount == 1 ? "" : "s";
             string puralUploaded = uploadedCount == 1 ? "" : "s";
@@ -1123,10 +1146,10 @@ namespace Surveyor.User_Controls
 
                 if (result == ContentDialogResult.Primary)
                 {
-                    if (mainWindow is not null && mainWindow.internetQueue is not null)
+                    if (_mainWindow is not null && _mainWindow._internetQueue is not null)
                     {
-                        await mainWindow.internetQueue.RemoveAllAsync(Status.Downloaded);
-                        await mainWindow.internetQueue.RemoveAllAsync(Status.Uploaded);
+                        await _mainWindow._internetQueue.RemoveAllAsync(Status.Downloaded);
+                        await _mainWindow._internetQueue.RemoveAllAsync(Status.Uploaded);
                     }
                 }
             }
@@ -1141,7 +1164,7 @@ namespace Surveyor.User_Controls
         private void RemoveAllInternetQueue_Click(object sender, RoutedEventArgs e) => _ = RemoveAllInternetQueueClickAsync();
         private async Task RemoveAllInternetQueueClickAsync()
         {
-            int count = mainWindow?.internetQueue?.InternetQueueView.Count ?? 0;
+            int count = _mainWindow?._internetQueue?.InternetQueueView.Count ?? 0;
             string pural = count == 1 ? "" : "s";
 
             var dialog = new ContentDialog
@@ -1158,10 +1181,10 @@ namespace Surveyor.User_Controls
 
             if (result == ContentDialogResult.Primary)
             {
-                if (mainWindow is not null && mainWindow.internetQueue is not null)
-                    await mainWindow.internetQueue.RemoveAllAsync();
+                if (_mainWindow is not null && _mainWindow._internetQueue is not null)
+                    await _mainWindow._internetQueue.RemoveAllAsync();
 
-                mainWindow?.internetQueue?.RefreshView();
+                _mainWindow?._internetQueue?.RefreshView();
             }
         }
 
@@ -1180,12 +1203,12 @@ namespace Surveyor.User_Controls
             {
                 if (!string.IsNullOrEmpty(selectedItem.URL))
                 {
-                    InternetQueueItem? item = mainWindow?.internetQueue?.Find(selectedItem.URL);
+                    InternetQueueItem? item = _mainWindow?._internetQueue?.Find(selectedItem.URL);
 
-                    if (item is not null && mainWindow is not null && mainWindow.internetQueue is not null)
+                    if (item is not null && _mainWindow is not null && _mainWindow._internetQueue is not null)
                     {
-                        await mainWindow.internetQueue.RemoveAsync(item);
-                        mainWindow.internetQueue.RefreshView();
+                        await _mainWindow._internetQueue.RemoveAsync(item);
+                        _mainWindow._internetQueue.RefreshView();
                     }
                 }
             }
@@ -1233,10 +1256,10 @@ namespace Surveyor.User_Controls
 
             if (result == ContentDialogResult.Primary)
             {
-                if (mainWindow is not null)
+                if (_mainWindow is not null)
                 {                    
-                    await mainWindow.mediaStereoController.speciesImageCache.RemoveErrorAsync();
-                    mainWindow.mediaStereoController.speciesImageCache.RefreshView();
+                    await _mainWindow._mediaStereoController.speciesImageCache.RemoveErrorAsync();
+                    _mainWindow._mediaStereoController.speciesImageCache.RefreshView();
                 }
             }
         }
@@ -1250,7 +1273,7 @@ namespace Surveyor.User_Controls
         private void RemoveAllSpeciesCache_Click(object sender, RoutedEventArgs e) => _ = RemoveAllSpeciesCacheClickAsync();
         private async Task RemoveAllSpeciesCacheClickAsync()
         {
-            int count = mainWindow?.mediaStereoController.speciesImageCache?.SpeciesStateView.Count ?? 0;
+            int count = _mainWindow?._mediaStereoController.speciesImageCache?.SpeciesStateView.Count ?? 0;
             string pural = count == 1 ? "" : "s";
 
             var dialog = new ContentDialog
@@ -1267,10 +1290,10 @@ namespace Surveyor.User_Controls
 
             if (result == ContentDialogResult.Primary)
             {
-                if (mainWindow is not null)
+                if (_mainWindow is not null)
                 {
-                    await mainWindow.mediaStereoController.speciesImageCache.RemoveAllAsync();
-                    mainWindow.mediaStereoController.speciesImageCache.RefreshView();
+                    await _mainWindow._mediaStereoController.speciesImageCache.RemoveAllAsync();
+                    _mainWindow._mediaStereoController.speciesImageCache.RefreshView();
                 }
             }
         }
@@ -1290,11 +1313,11 @@ namespace Surveyor.User_Controls
             {
                 try
                 {
-                    var item = mainWindow?.mediaStereoController.speciesImageCache?.SpeciesStateView[index];
-                    if (item is not null && mainWindow is not null)
+                    var item = _mainWindow?._mediaStereoController.speciesImageCache?.SpeciesStateView[index];
+                    if (item is not null && _mainWindow is not null)
                     {
-                        await mainWindow.mediaStereoController.speciesImageCache.RemoveAsync(item.Code);
-                        mainWindow.mediaStereoController.speciesImageCache.RefreshView();
+                        await _mainWindow._mediaStereoController.speciesImageCache.RemoveAsync(item.Code);
+                        _mainWindow._mediaStereoController.speciesImageCache.RefreshView();
                     }
                 }
                 catch { }
@@ -1326,7 +1349,7 @@ namespace Surveyor.User_Controls
 
             // Remember the new state
             SettingsManagerLocal.SpeciesImageCacheEnabled = settingValue;
-            mainWindow?.mediaStereoController.speciesImageCache.Enable(settingValue);
+            _mainWindow?._mediaStereoController.speciesImageCache.Enable(settingValue);
         }
 
 
@@ -1376,7 +1399,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void SpeciesCodeListFileSpec_Click(object sender, RoutedEventArgs e)
         {
-            string filePath = mainWindow?.mediaStereoController?.speciesSelector?.SpeciesCodeList?.SpeciesCodeListFileSpec ?? "";
+            string filePath = _mainWindow?._mediaStereoController?.speciesSelector?.SpeciesCodeList?.SpeciesCodeListFileSpec ?? "";
 
             if (!string.IsNullOrEmpty(filePath))
             {
@@ -1399,9 +1422,9 @@ namespace Surveyor.User_Controls
         {
             if (sender is MenuFlyoutItem item && item.Tag is string newSpeciesListName)
             {
-                if (mainWindow is not null)
+                if (_mainWindow is not null)
                 {
-                    if (mainWindow.mediaStereoController.OpenSpeciesListIfNecessary(newSpeciesListName))
+                    if (_mainWindow._mediaStereoController.OpenSpeciesListIfNecessary(newSpeciesListName))
                     {
                         SpeciesActiveListDropDown.Content = newSpeciesListName;
                     }
@@ -1420,16 +1443,16 @@ namespace Surveyor.User_Controls
         {
             SpeciesItem speciesItemNew = new();
 
-            if (mainWindow is not null)
+            if (_mainWindow is not null)
             {
-                SpeciesRecordEditDialog dialog = new(report);
+                SpeciesRecordEditDialog dialog = new(_report);
 
-                SpeciesCodeList speciesCodeList = mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList;
+                SpeciesCodeList speciesCodeList = _mainWindow._mediaStereoController.speciesSelector.SpeciesCodeList;
 
                 if (await dialog.SpeciesRecordNewAsync(this, speciesItemNew, speciesCodeList) == true)
                 {
                     // Add the new species code to the list
-                    bool ret = mainWindow?.mediaStereoController.speciesSelector.SpeciesCodeList.AddItem(speciesItemNew, SettingsManagerLocal.ScientificNameOrderEnabled) ?? false;
+                    bool ret = _mainWindow?._mediaStereoController.speciesSelector.SpeciesCodeList.AddItem(speciesItemNew, SettingsManagerLocal.ScientificNameOrderEnabled) ?? false;
 
                     if (!ret)
                     {
@@ -1491,7 +1514,7 @@ namespace Surveyor.User_Controls
                 var result = await dialog.ShowAsync();
                 if (result == ContentDialogResult.Primary)
                 {
-                    mainWindow?.mediaStereoController.speciesSelector.SpeciesCodeList.DeleteItem(speciesItem);
+                    _mainWindow?._mediaStereoController.speciesSelector.SpeciesCodeList.DeleteItem(speciesItem);
                 }
             }                
         }
@@ -1554,10 +1577,10 @@ namespace Surveyor.User_Controls
             SettingsManagerLocal.ScientificNameOrderEnabled = settingValue;
 
             // Re-sort
-            if (mainWindow is not null)
+            if (_mainWindow is not null)
             {
-                if (mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList.Sort(settingValue))
-                    mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList.Save();
+                if (_mainWindow._mediaStereoController.speciesSelector.SpeciesCodeList.Sort(settingValue))
+                    _mainWindow._mediaStereoController.speciesSelector.SpeciesCodeList.Save();
             }
         }
 
@@ -1697,38 +1720,29 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Get the AppWindow associated with the current window
-        /// </summary>
-        /// <returns></returns>
-        //???private AppWindow GetAppWindowForCurrentWindow()
-        //{
-        //    var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(this);
-        //    var windowId = Win32Interop.GetWindowIdFromWindow(hwnd);
-        //    return AppWindow.GetFromWindowId(windowId);
-        //}
-
-
-        /// <summary>
-        /// String that appears in the Settings Expander Info Text
+        /// Accessed by XAML to display the survey code and depth in the Settings Expander Info Text
         /// </summary>        
-        private string SettingsExpanderInfoText
+        public string SettingsExpanderInfoText
         {
             get
             {
                 StringBuilder sb = new();
 
-                if (survey is not null)
+                if (_survey is not null)
                 {
-                    if (survey.Data.Info.SurveyCode is not null)
-                    {
-                        sb.Append(survey.Data.Info.SurveyCode);
+                    sb.Append($"{_survey.Data.Info.SurveyType}");
 
-                        if (!string.IsNullOrEmpty(survey.Data.Info.SurveyDepth))
+                    if (_survey.Data.Info.SurveyCode is not null)
+                    {
+                        sb.Append("  ");
+                        sb.Append(_survey.Data.Info.SurveyCode);
+
+                        if (!string.IsNullOrEmpty(_survey.Data.Info.SurveyDepth))
                         {
-                            if (int.TryParse(survey.Data.Info.SurveyDepth, out int depthNumber))
-                                sb.Append($"/{survey.Data.Info.SurveyDepth}m");
+                            if (int.TryParse(_survey.Data.Info.SurveyDepth, out int depthNumber))
+                                sb.Append($"/{_survey.Data.Info.SurveyDepth}m");
                             else
-                                sb.Append($"/{survey.Data.Info.SurveyDepth}");
+                                sb.Append($"/{_survey.Data.Info.SurveyDepth}");
                         }
                     }
                 }
@@ -1736,6 +1750,27 @@ namespace Surveyor.User_Controls
                 return sb.ToString();
             }
         }
+
+
+        /// <summary>
+        /// Accessed by XAML to display the field trip name in the Settings Expander Info Text
+        /// </summary>
+        public string SettingsExpanderFieldTripInfoText
+        {
+            get
+            {
+                StringBuilder sb = new();
+
+                if (_fieldTrip is not null)
+                {
+                    if (_fieldTrip.Data.Info.FieldTripFileName is not null)
+                        sb.Append($"Field Trip: {Path.GetFileNameWithoutExtension(_fieldTrip.Data.Info.FieldTripFileName)}");
+                }
+
+                return sb.ToString();
+            }
+        }
+
 
 
 
@@ -1807,16 +1842,16 @@ namespace Surveyor.User_Controls
         /// <returns></returns>
         private async Task SpeciesCodeListEditAsync(SpeciesItem speciesItem)
         {
-            if (speciesItem is not null && mainWindow is not null )
+            if (speciesItem is not null && _mainWindow is not null )
             {
-                SpeciesRecordEditDialog dialog = new(report);
+                SpeciesRecordEditDialog dialog = new(_report);
 
-                SpeciesCodeList speciesCodeList = mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList;
+                SpeciesCodeList speciesCodeList = _mainWindow._mediaStereoController.speciesSelector.SpeciesCodeList;
 
                 if (await dialog.SpeciesRecordEditAsync(this, speciesItem, speciesCodeList) == true)
                 {
                     // Update the species code to the list
-                    mainWindow?.mediaStereoController.speciesSelector.SpeciesCodeList.UpdateItem(speciesItem, SettingsManagerLocal.ScientificNameOrderEnabled);
+                    _mainWindow?._mediaStereoController.speciesSelector.SpeciesCodeList.UpdateItem(speciesItem, SettingsManagerLocal.ScientificNameOrderEnabled);
 
                     // Because it is an existing item that has been edited we need to force an update
                     // Note This is because INotifyPropertyChanged/OnPropertyChanged() isn't implemented
@@ -1834,7 +1869,7 @@ namespace Surveyor.User_Controls
         /// <param name="searchText"></param>
         private void FilterSpeciesList(string searchText)
         {
-            if (mainWindow is not null)
+            if (_mainWindow is not null)
             {
 
                 FilteredSpeciesItems.Clear();
@@ -1843,7 +1878,7 @@ namespace Surveyor.User_Controls
                 {
                     var lower = searchText?.ToLowerInvariant() ?? "";
 
-                    foreach (var item in mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesItems)
+                    foreach (var item in _mainWindow._mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesItems)
                     {
                         if (string.IsNullOrWhiteSpace(searchText) ||
                             item.Genus?.ToLowerInvariant().Contains(lower, StringComparison.InvariantCultureIgnoreCase) == true ||
@@ -1862,8 +1897,8 @@ namespace Surveyor.User_Controls
                 else
                 {
                     // No search text, show all items. Bind back to the full list if necessary
-                    if (SpeciesCodeListDataGrid.ItemsSource != mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesItems)
-                        SpeciesCodeListDataGrid.ItemsSource = mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesItems;
+                    if (SpeciesCodeListDataGrid.ItemsSource != _mainWindow._mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesItems)
+                        SpeciesCodeListDataGrid.ItemsSource = _mainWindow._mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesItems;
 
                 }
             }        
@@ -1897,7 +1932,7 @@ namespace Surveyor.User_Controls
                 onEntryExperimentalFeatureSetCEnabled != SettingsManagerLocal.ExperimentalFeatureSetCEnabled)
             {
                 // Inform everyone of the state change
-                settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.Experimental)
+                _settingsWindowHandler?.Send(new SettingsWindowEventData(eSettingsWindowEvent.Experimental)
                 {
                     experimentalEnabled = SettingsManagerLocal.ExperimentalEnabled,
                     experimentalFeatureSetAEnabled = SettingsManagerLocal.ExperimentalFeatureSetAEnabled,

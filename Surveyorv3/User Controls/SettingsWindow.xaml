@@ -67,7 +67,7 @@
                             <TextBlock
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                 IsTextSelectionEnabled="True"
-                                Text="{x:Bind SettingsExpanderInfoText}" 
+                                Text="{x:Bind SettingsExpanderInfoText, Mode=OneWay}" 
                                 VerticalAlignment="Center"/>
                         </StackPanel>
 
@@ -89,6 +89,33 @@
 
                     <!--SURVEY RULES-->
                     <surveyorControls:SettingsSurveyRules x:Name="SettingsSurveyRules"/>
+
+                    
+                    <!--FIELD TRIP SETTINGS-->
+                    <TextBlock x:Name="FieldTripSettingsTitle" Style="{StaticResource SettingsSectionHeaderTextBlockStyle}" Text="Field Trip Settings"  MaxWidth="1200"/>
+
+                    <!--FIELD TRIP SETTINGS > FIELD TRIP INFO A-->
+                    <toolkit:SettingsExpander x:Name="FieldTripInfoExpander" Header="Field Trip Info">
+                        <toolkit:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xE621;" ToolTipService.ToolTip="Field trip setup and control information"/>
+                        </toolkit:SettingsExpander.HeaderIcon>
+
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                            <TextBlock
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                IsTextSelectionEnabled="True"
+                                Text="{x:Bind SettingsExpanderFieldTripInfoText, Mode=OneWay}" 
+                                VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <toolkit:SettingsExpander.Items>
+                            <!-- Field Trip User Control -->
+                            <Grid HorizontalAlignment="Stretch">
+                                <surveyorControls:FieldTripInfoUserControl x:Name="FieldTripInfo"
+                                            HorizontalAlignment="Stretch" />
+                            </Grid>
+                        </toolkit:SettingsExpander.Items>
+                    </toolkit:SettingsExpander>
 
 
                     <!--SYSTEM SETTINGS-->
@@ -224,7 +251,7 @@
                             </DropDownButton>
                             
                             <!-- SpeciesCodeList Item Count-->
-                            <TextBlock x:Name="SpeciesCodeListItemCount" Text="{x:Bind mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesItems.Count, Mode=OneWay}" Margin="20,0,3,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="SpeciesCodeListItemCount" Text="{x:Bind _mainWindow._mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesItems.Count, Mode=OneWay}" Margin="20,0,3,0" VerticalAlignment="Center"/>
                             <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
                         </StackPanel>
 
@@ -285,7 +312,7 @@
                                         <dg:DataGrid x:Name="SpeciesCodeListDataGrid" 
                                                                 DoubleTapped="SpeciesCodeListDataGrid_DoubleTapped"
                                                                 SelectionChanged="SpeciesCodeListDataGrid_SelectionChanged"
-                                                                ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesItems, Mode=OneWay}"
+                                                                ItemsSource="{x:Bind _mainWindow._mediaStereoController.speciesSelector.SpeciesCodeList.SpeciesItems, Mode=OneWay}"
                                                                 AutoGenerateColumns="False"
                                                                 HeadersVisibility="Column"
                                                                 CanUserSortColumns="False"                                               
@@ -480,7 +507,7 @@
                             </Button>
 
                             <!--Item Count-->
-                            <TextBlock x:Name="InternetQueueItemCount" Text="{x:Bind mainWindow.internetQueue.InternetQueueView.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="InternetQueueItemCount" Text="{x:Bind _mainWindow._internetQueue.InternetQueueView.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
                             <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
 
                             <!-- Internet Queue view Refresh Button -->
@@ -526,7 +553,7 @@
 
                                     <!-- Scroll-able + Selectable ListView -->
                                     <ListView x:Name="InternetQueueListView"
-                                                ItemsSource="{x:Bind mainWindow.internetQueue.InternetQueueView, Mode=OneWay}"
+                                                ItemsSource="{x:Bind _mainWindow._internetQueue.InternetQueueView, Mode=OneWay}"
                                                 SelectionMode="Single"
                                                 HorizontalAlignment="Stretch"
                                                 MaxWidth="1200"                                              
@@ -615,7 +642,7 @@
                             </Button>
 
                             <!-- SpeciesImageCache Item Count-->
-                            <TextBlock x:Name="SpeciesImageCacheItemCount" Text="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
+                            <TextBlock x:Name="SpeciesImageCacheItemCount" Text="{x:Bind _mainWindow._mediaStereoController.speciesImageCache.SpeciesStateView.Count, Mode=OneWay}" Margin="0,0,3,0" VerticalAlignment="Center"/>
                             <TextBlock Text="items" Margin="0,0,10,0" VerticalAlignment="Center"/>
 
                             <!-- Download Button -->
@@ -645,7 +672,7 @@
 
                                     <!-- Scroll-able + Selectable ListView -->
                                     <ListView x:Name="SpeciesImageCacheListView"
-                                                ItemsSource="{x:Bind mainWindow.mediaStereoController.speciesImageCache.SpeciesStateView, Mode=OneWay}"
+                                                ItemsSource="{x:Bind _mainWindow._mediaStereoController.speciesImageCache.SpeciesStateView, Mode=OneWay}"
                                                 SelectionMode="Single"
                                                 HorizontalAlignment="Stretch"
                                                 MaxWidth="1200"                                              

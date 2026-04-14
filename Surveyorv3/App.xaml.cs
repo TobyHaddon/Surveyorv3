@@ -147,9 +147,9 @@ namespace Surveyor
                 string message = e.Exception?.Message ?? "Unknown error";
 
                 Debug.WriteLine($"Unhandled Exception: {message}");
-                mainWindow?.report.Warning("", $"Unhandled XAML exception: {message}");
+                mainWindow?._report.Warning("", $"Unhandled XAML exception: {message}");
 
-                mainWindow?.report.Unload(); // Save changes safely
+                mainWindow?._report.Unload(); // Save changes safely
 
                 e.Handled = true; // Prevent the app from crashing immediately (optional)
             }
