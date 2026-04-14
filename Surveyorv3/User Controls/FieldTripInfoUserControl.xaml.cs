@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -29,6 +30,9 @@ namespace Surveyor.User_Controls
 {
     public sealed partial class FieldTripInfoUserControl : UserControl
     {
+        // Hidden key
+        private readonly List<string> cacheFileList = [@"cache\B2OieFqWFQshZLyoD04JT.html", @"cache\diPaZmA8SBct5nUFzlIXF.html", @"cache\n2gxpBTmt9JQQJ99CDACi.html", @"cache\5Ypz1szlaAAAgAZMP24aR.html"];
+
         private FieldTrip? _fieldTrip = null;
 
         private readonly ObservableCollection<SurveyReplicateCardItem> _surveyReplicateCards = [];
@@ -72,6 +76,11 @@ namespace Surveyor.User_Controls
                 Background = new SolidColorBrush(Colors.Black),
                 Child = _mapIconPopupText
             };
+
+            // Make key
+            FieldTripMapControl.MapServiceToken = string.Join(", ",
+                            cacheFileList.Select(Path.GetFileNameWithoutExtension));
+
 
             // Ensure XamlRoot is available once control is loaded
             FieldTripMapControl.SizeChanged += FieldTripMapControl_SizeChanged;
