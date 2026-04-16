@@ -422,7 +422,7 @@ namespace Surveyor.User_Controls
                                 {
                                     stereoProjection.SetFrameSize(frameWidth, frameHeight);
 
-                                    bool ret = await SurveyMeasurementHelper.CheckIfEventMeasurementsAreUpToDate(
+                                    bool ret = await SurveyMeasurementHelper.CheckIfEventMeasurementsAreUpToDateAsync(
                                                             stereoProjection,
                                                             survey,
                                                             frameWidth,

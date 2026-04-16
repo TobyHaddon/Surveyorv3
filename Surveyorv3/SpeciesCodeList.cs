@@ -1,4 +1,19 @@
-﻿// Surveyor SpeciesCodeList
+﻿using Emgu.CV;
+using Surveyor.User_Controls;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
+using static Surveyor.SpeciesItem;
+using static System.Environment;
+
+
+// Surveyor SpeciesCodeList
 // Manages the loaded and the selected species code list
 // 
 // Version 1.0
@@ -11,22 +26,24 @@
 // The Load() function will copy the file from the executable directory to the local folder if
 // it doesn't exist
 // Added a GetHash() function 
+//
+// Version 1.3 16 Apr 2026
+// Added the InstallSpeciesListFiles() function to copy species list files from the executable directory to the local folder at application start time. 
+// Added the GetAvailableSpeciesLists() function to return the list of available species code list files in the local folder.
+// Added method to create blank fish species file
+// Added the SpeciesListType enum to support multiple types of species lists (e.g. Fish, Benthic) and the GetSpeciesTypeFolder() function to return the folder name for each type of species list.
+// this is laying the ground work for supporting benthic species lists in the future.
 
-
-using Surveyor.User_Controls;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.ComponentModel;
-using System.Diagnostics;
-using System.IO;
-using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
-using static Surveyor.SpeciesItem;
 
 namespace Surveyor
 {
+    public enum SpeciesListType
+    {
+        None,
+        Fish,
+        Benthic
+    }
+
     public partial class SpeciesItem : INotifyPropertyChanged
     {
         // The family of the species format: ScientificName/CommonName
@@ -249,9 +266,8 @@ namespace Surveyor
 
     public class SpeciesCodeList
     {
-
         // Report 
-        private Reporter? report = null;
+        private Reporter? _report = null;
 
         // Species code list file name
         private string _speciesCodeListFileSpec = "";
@@ -290,14 +306,50 @@ namespace Surveyor
 
 
         /// <summary>
+        /// This method is called at application start time to copy species list from the application package 
+        /// readonly environment to the local folder where it can be updated and saved back to disk. 
+        /// This is because the application package environment is readonly and can't be written to.
+        /// </summary>
+        public static void InstallSpeciesListFiles(Reporter? report)
+        {
+            // loop through the SpeciesListType enum ignore the None value
+            foreach(SpeciesListType speciesListType in Enum.GetValues(typeof(SpeciesListType)).Cast<SpeciesListType>().Where(slt => slt != SpeciesListType.None))
+            {
+                string speciesFolder = GetSpeciesTypeFolder(speciesListType);
+                string speciesListsFolder = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, speciesFolder);
+                if (Directory.Exists(speciesListsFolder))
+                {
+                    var files = Directory.GetFiles(speciesListsFolder, "*.txt");
+                    foreach (var file in files)
+                    {
+                        string fileName = Path.GetFileName(file);
+                        string localFolderFileSpec = Path.Combine(Windows.Storage.ApplicationData.Current.LocalFolder.Path, speciesFolder, fileName);
+
+                        // Create all missing folders in the path (safe if folder already exists
+                        Directory.CreateDirectory(Path.GetDirectoryName(localFolderFileSpec)!);
+
+                        // Don't overwrite if the file already exists in the local folder as it may have been
+                        // updated by the user, but if it doesn't exist then copy from the executable directory
+                        if (!File.Exists(localFolderFileSpec))
+                        {
+                            File.Copy(file, localFolderFileSpec);
+                            report?.Info("", $"Installed species list file: '{fileName}' to local folder.");
+                        }
+                    }
+                }
+            }
+        }
+
+
+        /// <summary>
         /// Scan the 'Species Lists' folder and return the list of available species code list files
         /// </summary>
         /// <returns></returns>
-        public static List<string> GetAvailableSpeciesLists()
+        public static List<string> GetAvailableSpeciesLists(SpeciesListType speciesListType)
         {
             List<string> ret = [];
-
-            string speciesListsFolder = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, "Fish Species Lists");
+            string speciesFolder = GetSpeciesTypeFolder(speciesListType);
+            string speciesListsFolder = Path.Combine(Windows.Storage.ApplicationData.Current.LocalFolder.Path, speciesFolder);
 
             if (Directory.Exists(speciesListsFolder))
             {
@@ -315,10 +367,11 @@ namespace Surveyor
         /// </summary>
         /// <param name="surveySpeciesListName"></param>
         /// <returns></returns>
-        public static bool IsSpeciesListPresent(string surveySpeciesListName)
+        public static bool IsSpeciesListPresent(SpeciesListType speciesListType, string surveySpeciesListName)
         {
+            string speciesFolder = GetSpeciesTypeFolder(speciesListType);
             string surveySpeciesListFileName = $"{surveySpeciesListName}.txt";
-            string speciesListsFolder = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, "Fish Species Lists");
+            string speciesListsFolder = Path.Combine(Windows.Storage.ApplicationData.Current.LocalFolder.Path, speciesFolder);
             string surveySpeciesListFileSpec = Path.Combine(speciesListsFolder, surveySpeciesListFileName);
             return File.Exists(surveySpeciesListFileSpec);
         }
@@ -339,11 +392,11 @@ namespace Surveyor
         /// a copy is made from the executable directory. 
         /// </summary>
         /// <param name="fileName"></param>
-        public bool Load(string fileName, Reporter? _report, bool trueScientificFalseCommonName)
+        public bool Load(SpeciesListType speciesListType, string fileName, Reporter? report, bool trueScientificFalseCommonName)
         {
             bool ret = false;
 
-            report = _report;
+            _report = report;
 
             lock (_fileLock)
             {
@@ -353,15 +406,13 @@ namespace Surveyor
 
                 // Make and remember the species code list file spec for saving
                 string folderPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
-                _speciesCodeListFileSpec = Path.Combine(folderPath, fileName);
+                string speciesFolder = GetSpeciesTypeFolder(speciesListType);
+                _speciesCodeListFileSpec = Path.Combine(folderPath, speciesFolder, fileName);
 
                 // Check the species code list file exists
                 if (!File.Exists(_speciesCodeListFileSpec))
                 {
-                    // Copy the file from the executable directory
-                    string speciesCodeListExecutablePathFileSpec = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, "Fish Species Lists", fileName);
-                    File.Copy(speciesCodeListExecutablePathFileSpec, _speciesCodeListFileSpec, true);
-                    Debug.WriteLine($"SpeciesCodeList.Load: Species file not found in the local folder. The default version was copied from the executable path.");
+                    _report?.Warning("", $"Species code list ({Path.GetFileNameWithoutExtension(fileName)}): Species file not found in the local folder.");
                 }
                            
                 // Try to load all the species code list records
@@ -407,13 +458,13 @@ namespace Surveyor
                     var duplicates = GetDuplicateSpeciesCodes();
                     if (duplicates.Count > 0)
                     {
-                        string reportText2 = $"SpeciesCodeList.Load: WARNING - Found {duplicates.Count} species items with duplicate codes:";
-                        report?.Warning("", reportText2);
+                        string reportText2 = $"Species code list ({Path.GetFileNameWithoutExtension(fileName)}): WARNING - Found {duplicates.Count} species items with duplicate codes:";
+                        _report?.Warning("", reportText2);
                         Debug.WriteLine(reportText2);
                         foreach (var dup in duplicates)
                         {
                             reportText2 = $"Duplicate Code: {dup.Code} | Family: {dup.Family} | Genus: {dup.Genus} | Species: {dup.Species}";
-                            report?.Warning("", reportText2);
+                            _report?.Warning("", reportText2);
                             Debug.WriteLine(reportText2);
                         }
                     }
@@ -422,15 +473,13 @@ namespace Surveyor
                     ReportMissingCodesIfOverThreshold(5.0/*5%*/);
 
                     // Report number of species item loaded
-                    string reportText = $"SpeciesCodeList.Load: Loaded {sortedAndSaved}{SpeciesItems.Count} species items";
-                    report?.Info("", reportText);
-                    Debug.WriteLine(reportText);
+                    string reportText = $"Species code list ({Path.GetFileNameWithoutExtension(fileName)}): Loaded {sortedAndSaved}{SpeciesItems.Count} species items";
+                    _report?.Info("", reportText);
                 }
                 catch (Exception ex)
                 {
-                    string reportText = $"SpeciesCodeList.Load: Error loading species code list: {ex.Message}";
-                    Debug.WriteLine(reportText);
-                    report?.Error("", reportText);
+                    string reportText = $"Species code list ({Path.GetFileNameWithoutExtension(fileName)}): Error loading species code list: {ex.Message}";
+                    _report?.Error("", reportText);
                     ret = false;
                 }
             }
@@ -805,39 +854,20 @@ namespace Surveyor
             // Create a new sorted list based on the flag
             List<SpeciesItem> sorted;
 
-            //??? Debug.WriteLine the current list fo species name
-            //???int i = 0;
-            //Debug.WriteLine($"BEFORE SORT");
-            //foreach (var item in SpeciesItems)
-            //{
-            //    Debug.WriteLine($"{i}: {item.Species}");
-            //    i++;
-            //}
-
             if (trueScientificFalseCommonName)
             {
-                sorted = SpeciesItems
+                sorted = [.. SpeciesItems
                     .OrderBy(item => item.FamilyScientific)
                     .ThenBy(item => item.Genus)
-                    .ThenBy(item => item.SpeciesScientific)
-                    .ToList();
+                    .ThenBy(item => item.SpeciesScientific)];
             }
             else
             {
-                sorted = SpeciesItems
+                sorted = [.. SpeciesItems
                     .OrderBy(item => item.FamilyCommon)
                     .ThenBy(item => item.Genus)
-                    .ThenBy(item => item.SpeciesCommon)
-                    .ToList();
+                    .ThenBy(item => item.SpeciesCommon)];
             }
-
-            //???i = 0;
-            //Debug.WriteLine($"AFTER SORT");
-            //foreach (var item in sorted)
-            //{
-            //    Debug.WriteLine($"{i}: {item.Species}");
-            //    i++;
-            //}
 
             // Check if the order has changed
             if (!SpeciesItems.SequenceEqual(sorted))
@@ -863,7 +893,6 @@ namespace Surveyor
             {
                 // Save the species code list to a file
                 // Assuming file is located in the output directory next to the executable
-                string? appDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
                 string filePath = _speciesCodeListFileSpec;
                 if (string.IsNullOrWhiteSpace(filePath))
                 {
@@ -891,11 +920,11 @@ namespace Surveyor
 
                         writer.WriteLine($"{cleanFamily}\t{cleanGenus}\t{cleanSpecies}\t{cleanCode}");
                     }
-                    Debug.WriteLine($"SpeciesCodeList.Save: Saved {SpeciesItems.Count} species items");
+                    _report?.Info("", $"SpeciesCodeList.Save: Saved {SpeciesItems.Count} species items");
                 }
                 catch (Exception ex)
                 {
-                    Debug.WriteLine($"SpeciesCodeList.Save: Error saving species code list: {ex.Message}");
+                    _report?.Warning("", $"SpeciesCodeList.Save: Error saving species code list: {ex.Message}");
                     return false;
                 }
             }
@@ -929,6 +958,55 @@ namespace Surveyor
             // Convert to hex string
             return Convert.ToHexString(hashBytes); // or BitConverter.ToString(hashBytes).Replace("-", "").ToLowerInvariant();
         }
+
+
+        /// <summary>
+        /// Create a blank a fish or benthic (to be implemented) species list file
+        /// </summary>
+        /// <param name=""></param>
+        /// <param name=""></param>
+        /// <returns></returns>
+        public static int CreateBlankSpeciesFile(SpeciesListType speciesListType, string newSpeciesListName)
+        {
+            try 
+            { 
+                string speciesSubFolder = GetSpeciesTypeFolder(speciesListType);
+                string speciesListFolder = Path.Combine(Windows.Storage.ApplicationData.Current.LocalFolder.Path, speciesSubFolder);
+              
+                if (Directory.Exists(speciesListFolder))
+                {
+                    string speciesListFileSpec = Path.ChangeExtension(Path.Combine(speciesListFolder, newSpeciesListName),
+                                                                                   ".txt");
+
+                    string titleLine = "family\tgenus\tspecies\tID\n";
+                    // Check for overwrite
+                    if (File.Exists(speciesListFileSpec))
+                        return 1; // already exists, not overwritten
+
+                    File.WriteAllText(speciesListFileSpec, titleLine + Environment.NewLine, Encoding.UTF8);
+                    return 0; // created
+                }
+            }
+            catch
+            {
+                return -1; // error
+            }
+
+            return 0;
+        }
+
+
+        /// <summary>
+        /// Returns species list type sub-folder
+        /// </summary>
+        /// <param name="speciesListType"></param>
+        /// <exception cref="ArgumentException"></exception>
+        public static string GetSpeciesTypeFolder(SpeciesListType speciesListType) => speciesListType switch
+                                    {
+                                        SpeciesListType.Fish => "Fish Species Lists",
+                                        SpeciesListType.Benthic => "Benthic Species Lists",
+                                        _ => throw new ArgumentException($"Unsupported species list type: {speciesListType}")
+                                    };
 
 
         ///
@@ -996,14 +1074,14 @@ namespace Surveyor
             if (missingCount > 0)
             {
                 string reportText = $"WARNING: {missingCount} of {total} species items ({missingPercentage:F2}%) have missing codes";
-                report?.Warning("", reportText);
+                _report?.Warning("", reportText);
                 Debug.WriteLine(reportText);
                 if (missingPercentage < percentThreshold)
                 {
                     foreach (var item in missingCodes)
                     {
                         reportText = $"Missing Code -> Family: {item.Family}, Genus: {item.Genus}, Species: {item.Species}, Code: \"{item.Code}\"";
-                        report?.Warning("", reportText);
+                        _report?.Warning("", reportText);
                         Debug.WriteLine(reportText);
                     }
                 }

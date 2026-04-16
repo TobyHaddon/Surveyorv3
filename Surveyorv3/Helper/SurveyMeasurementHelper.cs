@@ -1,4 +1,13 @@
-﻿// SurveyMeasurementHelper
+﻿using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Surveyor.Events;
+using SurveyorCalibrationData;
+using System;
+using System.Threading.Tasks;
+using Windows.Foundation;
+
+
+// SurveyMeasurementHelper
 // 
 // Version 1.0  26 Feb 2025
 // Version 1.1  19 Aug 2025
@@ -8,25 +17,17 @@
 
 namespace Surveyor.Helper
 {
-    using Microsoft.UI.Xaml;
-    using Microsoft.UI.Xaml.Controls;
-    using Surveyor.Events;
-    using SurveyorCalibrationData;
-    using System;
-    using System.Threading.Tasks;
-    using Windows.Foundation;
 
     public static class SurveyMeasurementHelper
     {
-
         /// <summary>
         /// Get the Calibration ID from the preferred calibration data and check if was used for
         /// all the event EventMeasurements.  If not then ask the user if they want to update the
         /// calculation.
-        /// The Mediaplayer must be open so the frame width and height is known
+        /// The media player must be open so the frame width and height is known
         /// </summary>
         /// <returns>true if anything changed</returns>
-        public static async Task<bool> CheckIfEventMeasurementsAreUpToDate(StereoProjection stereoProjection, Survey survey, int frameWidth, int frameHeight, XamlRoot? xamlRoot, bool forceReCalc)
+        public static async Task<bool> CheckIfEventMeasurementsAreUpToDateAsync(StereoProjection stereoProjection, Survey survey, int frameWidth, int frameHeight, XamlRoot? xamlRoot, bool forceReCalc)
         {
             bool ret = false;
             
@@ -131,7 +132,7 @@ namespace Surveyor.Helper
                                         SurveyStereoPoint surveyStereoPoint = (SurveyStereoPoint)evt.EventData;
                                         if (surveyStereoPoint.CalibrationID != calibrationID || forceReCalc)
                                         {
-                                            // Recalculate for a stero point
+                                            // Recalculate for a stereo point
                                             if (DoRulesCalculations(stereoProjection, 
                                                                     survey, 
                                                                     surveyStereoPoint))
@@ -187,7 +188,7 @@ namespace Surveyor.Helper
                 else
                 {
                     // No rules applied
-                    newRules.ClearRules();  // This clears the rules and but the calcs
+                    newRules.ClearRules();  // This clears the rules and but the calculations
                 }
 
                 if (!newRules.Equals(surveyMeasurement.SurveyRulesCalc))
@@ -196,8 +197,8 @@ namespace Surveyor.Helper
                     updated = true;
                 }
 
-                // Record the calidation data Guid used to calculate the measurement
-                // This is used to enable recalulation of the measurement if the calibration data is changed
+                // Record the calibration data Guid used to calculate the measurement
+                // This is used to enable recalculation of the measurement if the calibration data is changed
                 Guid? newCalibrationID = stereoProjection.GetCalibrationID();
                 Guid? currentCalibrationID = surveyMeasurement.CalibrationID;
                 if (!Nullable.Equals(currentCalibrationID, newCalibrationID))
@@ -239,7 +240,7 @@ namespace Surveyor.Helper
                 else
                 {
                     // No rules to apply
-                    newRules.ClearRules();  // This clears the rules and but the calcs
+                    newRules.ClearRules();  // This clears the rules and but the calculations
                 }
 
                 if (!newRules.Equals(surveyStereoPoint.SurveyRulesCalc))
@@ -248,8 +249,8 @@ namespace Surveyor.Helper
                     updated = true;
                 }
 
-                // Record the calidation data Guid used to calculate the measurement
-                // This is used to enable recalulation of the measurement if the calibration data is changed
+                // Record the calibration data Guid used to calculate the measurement
+                // This is used to enable recalculation of the measurement if the calibration data is changed
                 Guid? newCalibrationID = stereoProjection.GetCalibrationID();
                 Guid? currentCalibrationID = surveyStereoPoint.CalibrationID;
                 if (!Nullable.Equals(currentCalibrationID, newCalibrationID))

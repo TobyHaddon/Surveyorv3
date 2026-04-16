@@ -129,7 +129,7 @@ namespace Surveyor
             {
                 foreach (var registeredAction in _registeredActions[priority])
                 {                 
-                    _ = ExecuteActionIfIdle(registeredAction, isOnline, isMetered, bars);
+                    _ = ExecuteActionIfIdleAsync(registeredAction, isOnline, isMetered, bars);
                 }
             }
         }
@@ -140,7 +140,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="action"></param>
         /// <returns></returns>
-        private async Task ExecuteActionIfIdle(RegisteredAction action, bool isOnline, bool isMetered, int bars)
+        private async Task ExecuteActionIfIdleAsync(RegisteredAction action, bool isOnline, bool isMetered, int bars)
         {
             if (action.IsRunning) return;
 

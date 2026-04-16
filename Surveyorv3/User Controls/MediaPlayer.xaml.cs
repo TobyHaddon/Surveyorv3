@@ -76,13 +76,13 @@ namespace Surveyor.User_Controls
     public sealed partial class SurveyorMediaPlayer : UserControl, INotifyPropertyChanged
     {
         // Reporter
-        private Reporter? report = null;
+        private Reporter? _report = null;
 
         // Copy of MainWindow
-        private MainWindow? mainWindow;
+        private MainWindow? _mainWindow;
 
         // Copy of the mediator 
-        private SurveyorMediator? mediator;
+        private SurveyorMediator? _mediator;
 
         // Declare the mediator handler for MediaPlayer
         private MediaPlayerHandler? mediaPlayerHandler;
@@ -173,8 +173,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         public void DumpAllProperties()
         {
-            DumpClassPropertiesHelper.DumpAllProperties(this, report, /*ignore*/"report,mainWindow,mediator,mediaPlayerHandler,<CameraSide>k__BackingField,appDisplayRequest,vidFrameMgr,_contentLoaded");
-            DumpClassPropertiesHelper.DumpAllProperties(vidFrameMgr, report, /*ignore*/"<cameraSide>k__BackingField,frameServerDest,canvasImageSource,inputBitmap,taskOneMoreFrameCompletion,_frameLock,<IsSetup>k__BackingField");
+            DumpClassPropertiesHelper.DumpAllProperties(this, _report, /*ignore*/"report,_mainWindow,_mediator,_mediaPlayerHandler,<CameraSide>k__BackingField,appDisplayRequest,vidFrameMgr,_contentLoaded");
+            DumpClassPropertiesHelper.DumpAllProperties(vidFrameMgr, _report, /*ignore*/"<cameraSide>k__BackingField,frameServerDest,canvasImageSource,inputBitmap,taskOneMoreFrameCompletion,_frameLock,<IsSetup>k__BackingField");
         }
 
 
@@ -183,9 +183,9 @@ namespace Surveyor.User_Controls
         /// Call as early as possible after creating the class instance.
         /// </summary>
         /// <param name="_report"></param>
-        public void SetReporter(Reporter _report)
+        public void SetReporter(Reporter report)
         {
-            report = _report;
+            _report = report;
         }
 
 
@@ -194,15 +194,15 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="mediator"></param>
         /// <returns></returns>
-        public TListener InitializeMediator(SurveyorMediator _mediator, MainWindow _mainWindow)
+        public TListener InitializeMediator(SurveyorMediator mediator, MainWindow mainWindow)
         {
-            mediator = _mediator;
-            mainWindow = _mainWindow;
+            _mediator = mediator;
+            _mainWindow = mainWindow;
 
-            mediaPlayerHandler = new MediaPlayerHandler(mediator, this, mainWindow);
+            mediaPlayerHandler = new MediaPlayerHandler(_mediator, this, _mainWindow);
 
             // And initialize the mediator in the child control
-            MagnifyAndMarkerDisplay.InitializeMediator(mediator, mainWindow);
+            MagnifyAndMarkerDisplay.InitializeMediator(_mediator, _mainWindow);
 
             return mediaPlayerHandler;
         }
@@ -212,7 +212,7 @@ namespace Surveyor.User_Controls
         /// Opens the indicated media file in the Media Player
         /// </summary>
         /// <param name="mediaFileSpec"></param>
-        internal async Task OpenAsync(Survey.SurveyType _surveyType, string mediaFileSpec, uint _depthUnderwater)
+        internal async Task OpenAsync(Survey.SurveyType _surveyTypexx, string mediaFileSpec, uint _depthUnderwaterxx)
         {
             WinUIGuards.CheckIsUIThread();
 
@@ -224,10 +224,10 @@ namespace Surveyor.User_Controls
             if (!IsOpen() && mediaFileSpec is not null)
             {
                 // Remember the survey type
-                surveyType = _surveyType;
+                surveyType = _surveyTypexx;
 
                 // Remember the depth the video was shot at (for color correction)
-                depthUnderwater = _depthUnderwater;
+                depthUnderwater = _depthUnderwaterxx;
 
                 try
                 {
@@ -254,7 +254,7 @@ namespace Surveyor.User_Controls
                         MediaPlayerElement.SetMediaPlayer(new MediaPlayer());
 
                         // Setup the Magnifier and Marker Display instance
-                        MagnifyAndMarkerDisplay.Setup(report!, surveyType, ImageFrame, CameraSide);
+                        MagnifyAndMarkerDisplay.Setup(_report!, surveyType, ImageFrame, CameraSide);
 
                         // Event subscriptions MediaPlayer 
                         MediaPlayer mp = MediaPlayerElement.MediaPlayer;
@@ -900,7 +900,7 @@ namespace Surveyor.User_Controls
             // Unmute this media player
             MediaPlayerElement.MediaPlayer.IsMuted = false;
 
-            // Signal the Unmuted was successful
+            // Signal the sound on was successful
             mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.Unmuted, CameraSide, mode));
             Debug.WriteLine($"{CameraSide}: Info SureyorMediaPlayer.Unmuted");
         }
@@ -978,7 +978,20 @@ namespace Surveyor.User_Controls
             castingPicker.Filter.SupportsVideo = true; // Assuming you're casting video
 
             // Handle the DeviceSelected event to cast to the selected device
-            castingPicker.CastingDeviceSelected += async (sender, args) =>
+            castingPicker.CastingDeviceSelected += CastingDeviceSelected;
+
+            // Show the casting picker to the user
+            // You need to provide a Rect that represents the area on the screen from which the picker will be shown
+            // For simplicity, you might want to use the bounding rectangle of a button that initiates casting
+            castingPicker.Show(new Windows.Foundation.Rect(0, 0, 100, 100), Windows.UI.Popups.Placement.Default); // Adjust the Rect as needed
+
+
+            void CastingDeviceSelected(object sender, CastingDeviceSelectedEventArgs args)
+            {
+                _ = CastingDeviceSelectedAsync(args);
+            }
+
+            async Task CastingDeviceSelectedAsync(CastingDeviceSelectedEventArgs args)
             {
                 CastingConnection connection = args.SelectedCastingDevice.CreateCastingConnection();
 
@@ -1001,12 +1014,7 @@ namespace Surveyor.User_Controls
                 {
                     // Handle casting failure
                 }
-            };
-
-            // Show the casting picker to the user
-            // You need to provide a Rect that represents the area on the screen from which the picker will be shown
-            // For simplicity, you might want to use the bounding rectangle of a button that initiates casting
-            castingPicker.Show(new Windows.Foundation.Rect(0, 0, 100, 100), Windows.UI.Popups.Placement.Default); // Adjust the Rect as needed
+            }           
         }
 
 
@@ -1036,16 +1044,16 @@ namespace Surveyor.User_Controls
                 // Save the frame to .png:
                 if (await vidFrameMgr.SaveFrameAsync(fileSpec, CanvasBitmapFileFormat.Png))
                 {
-                    report?.Info(CameraSide.ToString(), $"Frame saved to: {fileSpec}");                        
+                    _report?.Info(CameraSide.ToString(), $"Frame saved to: {fileSpec}");                        
                 }
                 else
                 {
-                    report?.Error(CameraSide.ToString(), $"SurveyorMediaPlayer.SaveCurrentFrame  Failed to saved to: {fileSpec}");
+                    _report?.Error(CameraSide.ToString(), $"SurveyorMediaPlayer.SaveCurrentFrame  Failed to saved to: {fileSpec}");
                 }
             }
             else
             {
-                report?.Error(CameraSide.ToString(), "SurveyorMediaPlayer.SaveCurrentFrame  Media not open or not in frame mode");
+                _report?.Error(CameraSide.ToString(), "SurveyorMediaPlayer.SaveCurrentFrame  Media not open or not in frame mode");
             }
         }
 
@@ -1111,7 +1119,7 @@ namespace Surveyor.User_Controls
 
 
                     // Get the image frame in memory for the Magnify Window
-                    var (_frameStream, _imageSourceWidth, _imageSourceHeight) = vidFrameMgr.CopyFrameToMemoryStreamAsync();
+                    var (_frameStream, _imageSourceWidth, _imageSourceHeight) = vidFrameMgr.CopyFrameToMemoryStream();
 
                     if (_frameStream is not null)
                     {
@@ -1221,6 +1229,7 @@ namespace Surveyor.User_Controls
             MagnifyAndMarkerDisplay.RenderedPixelScreenSizeChanged(newWidth, newHeight);
         }
 
+
         /// <summary>
         /// Called from the MouseWheel event normally in the main window
         /// </summary>
@@ -1234,6 +1243,7 @@ namespace Surveyor.User_Controls
         }
 
 
+
         ///
         /// EVENTS
         /// 
@@ -1244,10 +1254,9 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
-        private async void PlaybackSession_PlaybackStateChanged(MediaPlaybackSession playbackSession, object args)
+        private void PlaybackSession_PlaybackStateChanged(MediaPlaybackSession playbackSession, object args) => _ = AsyncPlaybackSessionPlaybackStateChangedAsync(playbackSession);
+        private async Task AsyncPlaybackSessionPlaybackStateChangedAsync(MediaPlaybackSession playbackSession)
         {
-            //???Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: PlaybackSession_PlaybackStateChanged: Enter PlaybackState={playbackSession.PlaybackState}, NaturalDuration:{playbackSession.NaturalDuration:hh\\:mm\\:ss\\.ff}");
-
             try
             {
                 if (playbackSession != null && playbackSession.NaturalVideoHeight != 0)
@@ -1317,7 +1326,7 @@ namespace Surveyor.User_Controls
         {
             WinUIGuards.CheckIsUIThread();
 
-            mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, /*async*/ () =>
+            _mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, /*async*/ () =>
                 {
                     isBusy = true;
                     //ProgressRing_Buffering.IsActive = true;
@@ -1337,7 +1346,7 @@ namespace Surveyor.User_Controls
             WinUIGuards.CheckIsUIThread();
 
             // Hide the progress ring
-            mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, /*async*/ () =>
+            _mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, /*async*/ () =>
                 {
                     isBusy = false;
                     //ProgressRing_Buffering.IsActive = false;
@@ -1433,13 +1442,13 @@ namespace Surveyor.User_Controls
                 }
             });
 
-            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info PlaybackSession_PositionChanged:{TimePositionHelper.Format(sender.Position, displayToDecimalPlaces)}, mode {mode}");
+            //???Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info PlaybackSession_PositionChanged:{TimePositionHelper.Format(sender.Position, displayToDecimalPlaces)}, mode {mode}");
         }
 
         private void PlaybackSession_SeekableRangesChanged(MediaPlaybackSession sender, object args)
         {
             MediaPlaybackSession playbackSession = sender as MediaPlaybackSession;
-            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info PlaybackSession_SeekableRangesChanged");
+            //???Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Info PlaybackSession_SeekableRangesChanged");
         }
 
         private void PlaybackSession_SeekCompleted(MediaPlaybackSession sender, object args)
@@ -1467,104 +1476,101 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// MediaPlayerElement.MediaPlayer.MediaOpened 
-        /// New media has been opened, get and source the media Uri
+        /// New media has been opened, get and source the media URI
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
         private void MediaPlayer_MediaOpened(MediaPlayer sender, object args)
         {
-            //???Debug.WriteLine($"{CameraSide}: MediaPlayer_MediaOpened: Enter  (UIThread={DispatcherQueue.HasThreadAccess})");
+            _mainWindow!.DispatcherQueue.TryEnqueue(() => _ = MediaPlayerMediaOpenedAsync(sender));
+        }
+        private async Task MediaPlayerMediaOpenedAsync(MediaPlayer mediaPlayer)
+        {
+            try
+            { 
+                // Set the ImageFrame in the video frame manager
+                vidFrameMgr.SetImage(CameraSide, ImageFrame);
 
-            mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, async () =>
-            {
-                try
+                // Set the resource to be used by the VideoFrameAvailable event
+                bool setupOk = await vidFrameMgr.SetupIfNecessaryAsync(MediaPlayerElement.MediaPlayer);
+                if (!setupOk)
                 {
-                    // Set the ImageFrame in the video frame manager
-                    vidFrameMgr.SetImage(CameraSide, ImageFrame);
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MediaPlayer_MediaOpened vidFrameMgr.SetupIfNecessary failed to setup resources");
+                    return;
+                }
 
-                    // Set the resource to be used by the VideoFrameAvailable event
-                    bool setupOk = await vidFrameMgr.SetupIfNecessaryAsync(MediaPlayerElement.MediaPlayer);
-                    if (!setupOk)
-                    { 
-                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MediaPlayer_MediaOpened vidFrameMgr.SetupIfNecessary failed to setup resources");
-                        return;
-                    }
+                // Capture the frame dimensions
+                frameWidth = MediaPlayerElement.MediaPlayer.PlaybackSession.NaturalVideoWidth;
+                frameHeight = MediaPlayerElement.MediaPlayer.PlaybackSession.NaturalVideoHeight;
 
-                    // Capture the frame dimensions
-                    frameWidth = MediaPlayerElement.MediaPlayer.PlaybackSession.NaturalVideoWidth;
-                    frameHeight = MediaPlayerElement.MediaPlayer.PlaybackSession.NaturalVideoHeight;
+                // Signal the frame size
+                mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.FrameSize, CameraSide, mode)
+                {
+                    frameWidth = (int?)frameWidth,
+                    frameHeight = (int?)frameHeight
+                });
 
-                    // Signal the frame size
-                    mediaPlayerHandler?.Send(new MediaPlayerEventData(MediaPlayerEventData.eMediaPlayerEvent.FrameSize, CameraSide, mode)
+                // Size the overlay root grid to the media size. This ensure the canvas frame
+                // gets the correct size. Note Canvas frame itself is set inside
+                // MagnifyAndWindowMarkerDisplay class each time a frame is drawn but
+                // for the ViewPort to be correct we need to set the OverlayRoot size here
+                OverlayRoot.Width = frameWidth;
+                OverlayRoot.Height = frameHeight;
+
+                // Get the natural duration of the media
+                naturalDuration = mediaPlayer.PlaybackSession.NaturalDuration - mediaPlayer.TimelineControllerPositionOffset;
+
+                if (!IsRemoteFile(mediaUri))
+                {
+                    // If the media is local then we can move one frame forward and back to
+                    // get a frame to display                            
+                    MediaPlayerElement.MediaPlayer.StepForwardOneFrame();
+                    await Task.Delay(150);
+                    MediaPlayerElement.MediaPlayer.StepBackwardOneFrame();
+                }
+
+
+                // Set mute because normally we don't want the sound
+                Mute();
+
+                // Show the media player (the frame image user control to shown when the media is paused)
+                MediaPlayerElement.Visibility = Visibility.Visible;
+
+                // Remove the buffering progress ring
+                isBusy = false;
+                //ProgressRing_Buffering.IsActive = false;
+                //ProgressRing_Buffering.Visibility = Visibility.Collapsed;
+
+                // This flag is used to indicate to the class that the media is open
+                mediaOpen = true;
+                mode = Mode.modeFrame;
+
+                // Signal the media open event via mediator
+                MediaPlayerEventData data = new(MediaPlayerEventData.eMediaPlayerEvent.Opened, CameraSide, mode)
+                {
+                    mediaFileSpec = this.mediaUri
+                };
+                mediaPlayerHandler?.Send(data);
+
+                // Signal the media duration and frame rate via mediator if known (used by the MediaStereoController and MediaControl)
+                if (naturalDuration != TimeSpan.Zero)
+                {
+                    // Get the frame rate if not already known
+                    if (frameRate == 0.0)
+                        frameRate = GetCurrentFrameRate(MediaPlayerElement.MediaPlayer);
+
+                    data = new(MediaPlayerEventData.eMediaPlayerEvent.DurationAndFrameRate, CameraSide, mode)
                     {
-                        frameWidth = (int?)frameWidth,
-                        frameHeight = (int?)frameHeight
-                    });
-
-                    // Size the overlay root grid to the media size. This ensure the canvas frame
-                    // gets the correct size. Note Canvas frame itself is set inside
-                    // MagnifyAndWindowMarkerDisplay class each time a frame is drawn but
-                    // for the ViewPort to be correct we need to set the OverlayRoot size here
-                    OverlayRoot.Width = frameWidth;
-                    OverlayRoot.Height = frameHeight;
-
-                    // Get the natural duration of the media
-                    naturalDuration = sender.PlaybackSession.NaturalDuration - sender.TimelineControllerPositionOffset;
-
-                    if (!IsRemoteFile(mediaUri))
-                    {
-                        // If the media is local then we can move one frame forward and back to
-                        // get a frame to display                            
-                        MediaPlayerElement.MediaPlayer.StepForwardOneFrame();
-                        await Task.Delay(150);
-                        MediaPlayerElement.MediaPlayer.StepBackwardOneFrame();
-                    }
-
-
-                    // Set mute because normally we don't want the sound
-                    Mute();
-
-                    // Show the media player (the frame image user control to shown when the media is paused)
-                    MediaPlayerElement.Visibility = Visibility.Visible;
-
-                    // Remove the buffering progress ring
-                    isBusy = false;
-                    //ProgressRing_Buffering.IsActive = false;
-                    //ProgressRing_Buffering.Visibility = Visibility.Collapsed;
-
-                    // This flag is used to indicate to the class that the media is open
-                    mediaOpen = true;
-                    mode = Mode.modeFrame;
-
-                    // Signal the media open event via mediator
-                    MediaPlayerEventData data = new(MediaPlayerEventData.eMediaPlayerEvent.Opened, CameraSide, mode)
-                    {
-                        mediaFileSpec = this.mediaUri
+                        duration = naturalDuration,
+                        frameRate = frameRate
                     };
                     mediaPlayerHandler?.Send(data);
-
-                    // Signal the media duration and frame rate via mediator if known (used by the MediaStereoController and MediaControl)
-                    if (naturalDuration != TimeSpan.Zero)
-                    {
-                        // Get the frame rate if not already known
-                        if (frameRate == 0.0)
-                            frameRate = GetCurrentFrameRate(MediaPlayerElement.MediaPlayer);
-
-                        data = new(MediaPlayerEventData.eMediaPlayerEvent.DurationAndFrameRate, CameraSide, mode)
-                        {
-                            duration = naturalDuration,
-                            frameRate = frameRate
-                        };
-                        mediaPlayerHandler?.Send(data);
-                    }
                 }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error MediaPlayer_MediaOpened: Exception: {ex.Message}");
-                }
-            });
-
-            //???Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MediaPlayer_MediaOpened: Exit");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error MediaPlayer_MediaOpened: Exception: {ex.Message}");
+            }
         }
 
 
@@ -2107,7 +2113,7 @@ namespace Surveyor.User_Controls
             /// </summary>
             /// <returns></returns>
             /// <exception cref="InvalidOperationException"></exception>
-            public (IRandomAccessStream? stream, uint imageSourceWidth, uint imageSourceHeight) CopyFrameToMemoryStreamAsync()
+            public (IRandomAccessStream? stream, uint imageSourceWidth, uint imageSourceHeight) CopyFrameToMemoryStream()
             {
                 WinUIGuards.CheckIsUIThread();
 
@@ -2140,7 +2146,7 @@ namespace Surveyor.User_Controls
                     }
                     else
                     {
-                        //??? This fire and forget is a PROBLEM - See if we could ber MagnifyAndMarkerDisplay to use a CanvasRenderTarget and make a copy of it here?
+                        //??? This fire and forget is a PROBLEM - See if we could change MagnifyAndMarkerDisplay to use a CanvasRenderTarget and make a copy of it here?
                         _ = correctedTarget.SaveAsync(streamSource, CanvasBitmapFileFormat.Bmp);
                     }
                     return (streamSource, imageSourceWidth, imageSourceHeight); // Return the stream with the image data
@@ -2251,7 +2257,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="args"></param>
-        private async void MediaPlayer_VideoFrameAvailable(MediaPlayer mp, object args)
+        private void MediaPlayer_VideoFrameAvailable(MediaPlayer mp, object args) => _ = MediaPlayerVideoFrameAvailableAsync(mp);
+        private async Task MediaPlayerVideoFrameAvailableAsync(MediaPlayer mp)
         {
             // *****************************
             // **Not called from UI Thread**
@@ -2268,9 +2275,6 @@ namespace Surveyor.User_Controls
                 Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Skipping MediaPlayer_VideoFrameAvailable - Player is closing.");
                 return;
             }
-
-
-            //???Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MediaPlayer_VideoFrameAvailable Enter");
 
             // Reentry counter
             vidFrameMgr.VideoFrameAvailableEnter();
@@ -2346,7 +2350,7 @@ namespace Surveyor.User_Controls
                                     }
 
                                     // Get the image frame in memory for the Magnify Window
-                                    var (_frameStream, _imageSourceWidth, _imageSourceHeight) = vidFrameMgr.CopyFrameToMemoryStreamAsync();
+                                    var (_frameStream, _imageSourceWidth, _imageSourceHeight) = vidFrameMgr.CopyFrameToMemoryStream();
 
                                     if (_frameStream is not null)
                                     {
@@ -2537,7 +2541,7 @@ namespace Surveyor.User_Controls
         {
             await Task.Run(() =>
             {
-                mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+                _mainWindow!.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
                 {
                     if (enable)
                     {

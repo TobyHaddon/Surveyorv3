@@ -196,7 +196,7 @@ namespace Surveyor.User_Controls
 
                 // Capture the first frame to ensure everything is working and we have a
                 // valid current frame.
-                (bool retb, TimeSpan actual) = await TryCaptureFrameAtPosition(TimeSpan.Zero);
+                (bool retb, TimeSpan actual) = await TryCaptureFrameAtPositionAsync(TimeSpan.Zero);
                 if (!retb)
                 {
                     CloseInternalNoLock();
@@ -312,7 +312,7 @@ namespace Surveyor.User_Controls
             {
                 TimeSpan clamped = ClampToMediaRange(target);
 
-                (bool retb, TimeSpan actualPosition) = await TryCaptureFrameAtPosition(clamped);
+                (bool retb, TimeSpan actualPosition) = await TryCaptureFrameAtPositionAsync(clamped);
                 if (!retb)
                     return null;
 
@@ -556,7 +556,7 @@ namespace Surveyor.User_Controls
 
         // Replace TryCaptureFrameAtPosition with this version
 
-        private async Task<(bool ret, TimeSpan actualPosition)> TryCaptureFrameAtPosition(TimeSpan requestedPosition)
+        private async Task<(bool ret, TimeSpan actualPosition)> TryCaptureFrameAtPositionAsync(TimeSpan requestedPosition)
         {
             TimeSpan actualPosition = requestedPosition;
 

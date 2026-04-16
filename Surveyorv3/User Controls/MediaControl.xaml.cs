@@ -21,7 +21,7 @@ using static Surveyor.User_Controls.SurveyorMediaPlayer;
 // Version 1.1
 //
 // Version 1.2  10 Mar 2025
-// Limit speed to x4 for unsync (MediaPlayer) and x2 sync (MediaTimelineController
+// Limit speed to x4 for unsynchronized (MediaPlayer) and x2 sync (MediaTimelineController
 
 
 namespace Surveyor.User_Controls
@@ -29,13 +29,13 @@ namespace Surveyor.User_Controls
     public sealed partial class SurveyorMediaControl : UserControl
     {
         // Reporter
-        private Reporter? report = null;
+        private Reporter? _report = null;
 
         // Copy of the mediator 
-        private SurveyorMediator? mediator;
+        private SurveyorMediator? _mediator;
 
         // Declare the mediator handler for MediaControl
-        private MediaControlHandler? mediaControlHandler;
+        private MediaControlHandler? _mediaControlHandler;
 
         // Primary or Secondary Control 
         public enum eControlType { None, Primary, Secondary, Both };
@@ -65,32 +65,32 @@ namespace Surveyor.User_Controls
 
         // Duration and frame rate of the media (last received from the MediaPlayer)
         private TimeSpan _duration = TimeSpan.Zero;
-        private bool durationSetFromStereoController = false;  // If true can't be overridden by receiving duration 
+        private bool _durationSetFromStereoController = false;  // If true can't be overridden by receiving duration 
                                                                // via mediator from the Media Players
 
         private double _frameRate = 0;
-        private int displayToDecimalPlaces = 2;     // If we start using frame rate of 120fps then we will need to increase this to 3dp
+        private readonly int _displayToDecimalPlaces = 2;     // If we start using frame rate of 120fps then we will need to increase this to 3dp
 
         // Used to detect if the user is dragging the media position slider
         private bool _userIsInteractingWithSlider = false;
 
         // Used to remember the previous focus control when the ControlFrameEdit is in use
-        private object? controlFrameTextPreviousFocus = null;
+        private object? _controlFrameTextPreviousFocus = null;
 
-        // Mousewheel calibration and debounce/accumulation 
+        // Mouse wheel calibration and debounce/accumulation 
         private int _lowestMouseWheelDeltaSeen = Int32.MaxValue;
-        private DispatcherTimer _wheelEventTimer;
+        private readonly DispatcherTimer _wheelEventTimer;
         private int _wheelAccumulatedDelta = 0;
         private const int _wheelDebounceIntervalMs = 50; // Debounce interval in milliseconds
 
         // Used to indicate if the media is synchronized
         // This is signaled through mediator from the MediaStereoController
         // Is is only updated on the primary media control
-        private bool mediaSynchronized = false;
+        private bool _mediaSynchronized = false;
 
         // Used to always hide the full screen and full screen alternative buttons
         // Mono or benthic survey are always full screen so no need to show these buttons
-        private bool trueVisibleIfNeededFalseAlwaysHidden = true;
+        private bool _trueVisibleIfNeededFalseAlwaysHidden = true;
 
         public SurveyorMediaControl()
         {
@@ -113,11 +113,11 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Diags dump of class information
+        /// Diagnostics dump of class information
         /// </summary>
         public void DumpAllProperties()
         {
-            DumpClassPropertiesHelper.DumpAllProperties(this, report);
+            DumpClassPropertiesHelper.DumpAllProperties(this, _report);
         }
 
 
@@ -125,10 +125,10 @@ namespace Surveyor.User_Controls
         /// Set the Reporter, used to output messages.
         /// Call as early as possible after creating the class instance.
         /// </summary>
-        /// <param name="_report"></param>
-        public void SetReporter(Reporter _report)
+        /// <param name="report"></param>
+        public void SetReporter(Reporter report)
         {
-            report = _report;
+            _report = report;
         }
 
 
@@ -136,14 +136,15 @@ namespace Surveyor.User_Controls
         /// Initialize mediator handler for SurveyorMediaControl
         /// </summary>
         /// <param name="mediator"></param>
+        /// <param name="mainWindow"></param>
         /// <returns></returns>
-        public TListener InitializeMediator(SurveyorMediator _mediator, MainWindow _mainWindow)
+        public TListener InitializeMediator(SurveyorMediator mediator, MainWindow mainWindow)
         {
-            mediator = _mediator;
+            _mediator = mediator;
 
-            mediaControlHandler = new MediaControlHandler(mediator, _mainWindow, this);
+            _mediaControlHandler = new MediaControlHandler(_mediator, mainWindow, this);
 
-            return mediaControlHandler;
+            return _mediaControlHandler;
         }
 
         /// <summary>
@@ -158,14 +159,14 @@ namespace Surveyor.User_Controls
             ControlSpeedText.Text = string.Empty;
             ControlSpeedText.Text = string.Empty;
             _duration = TimeSpan.Zero;
-            durationSetFromStereoController = false;
+            _durationSetFromStereoController = false;
             _userIsInteractingWithSlider = false;
 
             // Turn off and on the event handler to prevent the slider from sending a message to
             // the MediaSteroController as though the user has moved the slider
             ControlPosition.ValueChanged -= ControlSlider_ValueChanged;
             ControlPosition.Value = 0;
-            ControlPosition.Maximum = 100;      // placeholder value, will be replaced by ther duration in seconds
+            ControlPosition.Maximum = 100;      // placeholder value, will be replaced by the duration in seconds
             ControlPosition.ValueChanged += ControlSlider_ValueChanged;
         }
 
@@ -249,7 +250,7 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// Toggle the mute/unmute button icon
-        /// Note no tooltip is needs because the because the mute/unmute has a label in the overflow menu
+        /// Note no tool tip is needs because the because the mute/unmute has a label in the overflow menu
         /// </summary>
         internal void MuteUmmuteSetIcon()
         {
@@ -314,18 +315,18 @@ namespace Surveyor.User_Controls
         {
             if (message is not null)
             {
-                if (!durationSetFromStereoController)
+                if (!_durationSetFromStereoController)
                 {
                     if (message.duration is not null)
                     {
                         _duration = (TimeSpan)message.duration;
-                        string durationText = TimePositionHelper.Format(_duration, displayToDecimalPlaces);
+                        string durationText = TimePositionHelper.Format(_duration, _displayToDecimalPlaces);
 
                         ControlDurationText.Text = durationText;
 
                         // Set the slider maximum to the duration in seconds
                         // Note the video position is zero based so technically the maximum should be duration - 1 frame. However this looks odd so we will leave it as the duration
-                        ControlPosition.Maximum = TimePositionHelper.ToSeconds(_duration, displayToDecimalPlaces);
+                        ControlPosition.Maximum = TimePositionHelper.ToSeconds(_duration, _displayToDecimalPlaces);
                     }
                 }
 
@@ -348,13 +349,13 @@ namespace Surveyor.User_Controls
                 if (message.duration is not null)
                 {
                     _duration = (TimeSpan)message.duration;
-                    string durationText = TimePositionHelper.Format(_duration, displayToDecimalPlaces);
+                    string durationText = TimePositionHelper.Format(_duration, _displayToDecimalPlaces);
 
                     ControlDurationText.Text = durationText;
 
                     // Set the slider maximum to the duration in seconds
                     // Note the video position is zero based so technically the maximum should be duration - 1 frame. However this looks odd so we will leave it as the duration
-                    ControlPosition.Maximum = TimePositionHelper.ToSeconds(_duration, displayToDecimalPlaces);
+                    ControlPosition.Maximum = TimePositionHelper.ToSeconds(_duration, _displayToDecimalPlaces);
                 }
 
             }
@@ -371,7 +372,7 @@ namespace Surveyor.User_Controls
                 // Update the position text time
                 string positionText;
                 string frameText = "";
-                positionText = TimePositionHelper.Format((TimeSpan)message.position, displayToDecimalPlaces);
+                positionText = TimePositionHelper.Format((TimeSpan)message.position, _displayToDecimalPlaces);
 
                 // Update the frame index
                 if (_frameRate > 0.0)
@@ -420,13 +421,13 @@ namespace Surveyor.User_Controls
         /// is always on and the buttons are hidden
         /// </summary>
         /// <param name="_trueVisibleIfNeededFalseAlwaysHidden"></param>
-        public void FullScreenButtonVisability(bool _trueVisibleIfNeededFalseAlwaysHidden)
+        public void FullScreenButtonVisibility(bool _trueVisibleIfNeededFalseAlwaysHidden)
         {
-            trueVisibleIfNeededFalseAlwaysHidden = _trueVisibleIfNeededFalseAlwaysHidden;
+            this._trueVisibleIfNeededFalseAlwaysHidden = _trueVisibleIfNeededFalseAlwaysHidden;
         }
 
         /// <summary>
-        /// Called to inform the MediaControl User Control that the MediaSteroController has responsed to our
+        /// Called to inform the MediaControl User Control that the MediaSteroController has responded to our
         /// request to display full screen and this media player has the whole grid if True or it has been
         /// restored to its original size if False
         /// </summary>
@@ -434,7 +435,7 @@ namespace Surveyor.User_Controls
         /// <param name="cameraSide">Only used if TrueYouAreFullFalseYouAreRestored = true</param>
         public void MediaFullScreen(bool TrueYouAreFullFalseYouAreRestored, eCameraSide? cameraSide)
         {
-            // Remember if this MediaControl has the ful screen or not
+            // Remember if this MediaControl has the full screen or not
             _TrueYouAreFullFalseYouAreRestored = TrueYouAreFullFalseYouAreRestored;
 
             // Remember which camera side is full screen if TrueYouAreFullFalseYouAreRestored = true (null otherwise)
@@ -447,7 +448,7 @@ namespace Surveyor.User_Controls
 
         /// <summary>
         /// Toggle the play/pause.  This is called from ControlPlayPause_Click and from
-        /// the MainWindow keydown handler
+        /// the MainWindow key down handler
         /// </summary>
         public void TogglePlayPause()
         {
@@ -455,7 +456,7 @@ namespace Surveyor.User_Controls
             string playOrPauseText = !PlayOrPause == true ? "play" : "pause";
 
             // Signal eMediaControlEvent.UserReqPlayOrPause with !PlayOrPause
-            mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqPlayOrPause, ControlType) { playOrPause = !PlayOrPause });
+            _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqPlayOrPause, ControlType) { playOrPause = !PlayOrPause });
 
             string controls = ControlType.ToString();
             Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {controls}: User requested to {playOrPauseText}");
@@ -486,21 +487,20 @@ namespace Surveyor.User_Controls
         private void ControlSlider_ValueChanged(object sender, RangeBaseValueChangedEventArgs e)
         {            
             double newValue = e.NewValue;
-            //???TimeSpan position = TimeSpan.FromSeconds(newValue / 100 * _duration.TotalSeconds);
             TimeSpan position = TimeSpan.FromSeconds(newValue);
 
             // Signal eMediaControlEvent.UserReqFrameJump with position
-            mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameJump, ControlType) { positionJump = position });
+            _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameJump, ControlType) { positionJump = position });
 
             string controls = ControlType.ToString();
-            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {controls}: User requested to jump to position {TimePositionHelper.Format(position, displayToDecimalPlaces)}");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {controls}: User requested to jump to position {TimePositionHelper.Format(position, _displayToDecimalPlaces)}");
         }
 
 
 
         /// <summary>
         /// *** PointerPressed/PointerRelease events never get called in WinUI3 ***
-        /// The intetion is to allow the user to freely move the slider without the media player
+        /// The intention is to allow the user to freely move the slider without the media player
         /// updating it behind the scenes. 
         /// *** The four function below could be deleted. However maybe future WinUI3 will support them ***
         /// </summary>
@@ -518,7 +518,7 @@ namespace Surveyor.User_Controls
                 _wasPlayerBeforeUserInteractingWithSlider = true;
 
                 // Pause - Signal eMediaControlEvent.UserReqPlayOrPause 
-                mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqPlayOrPause, ControlType) { playOrPause = false });
+                _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqPlayOrPause, ControlType) { playOrPause = false });
             }
             else
                 _wasPlayerBeforeUserInteractingWithSlider = false;
@@ -538,7 +538,7 @@ namespace Surveyor.User_Controls
             if (_wasPlayerBeforeUserInteractingWithSlider)
             {
                 // Resume Play - Signal eMediaControlEvent.UserReqPlayOrPause
-                mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqPlayOrPause, ControlType) { playOrPause = true });
+                _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqPlayOrPause, ControlType) { playOrPause = true });
 
                 _wasPlayerBeforeUserInteractingWithSlider = false;
             }
@@ -552,7 +552,7 @@ namespace Surveyor.User_Controls
         private void ControlBack10Frames_Click(object sender, RoutedEventArgs e)
         {
             // Signal eMediaControlEvent.UserReqMoveStepBack 
-            mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqMoveStepBack, ControlType));
+            _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqMoveStepBack, ControlType));
         }
 
 
@@ -564,7 +564,7 @@ namespace Surveyor.User_Controls
         private void ControlSpeedDecrease_Click(object sender, RoutedEventArgs e)
         {
             // Calculate the new increased speed
-            if (mediaSynchronized)
+            if (_mediaSynchronized)
                 // MediaTimelineController has a max of x2
                 _speed = CalcSpeedMediaPlayer(_speed, false/*TrueIncreaseFalseDecrease*/);
             else
@@ -574,7 +574,7 @@ namespace Surveyor.User_Controls
             ControlSpeedText.Text = $"x{Math.Round(_speed, 2)}";
 
             // Signal eMediaControlEvent.UserReqSpeedSelect with _speed
-            mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqSpeedSelect, ControlType) { speed = _speed });
+            _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqSpeedSelect, ControlType) { speed = _speed });
         }
 
 
@@ -586,7 +586,7 @@ namespace Surveyor.User_Controls
         private void ControlFrameBack_Click(object sender, RoutedEventArgs e)
         {
             // Signal eMediaControlEvent.UserReqFrameBackward
-            mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameBackward, ControlType));
+            _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameBackward, ControlType));
         }
 
 
@@ -598,7 +598,7 @@ namespace Surveyor.User_Controls
         private void ControlFrameForward_Click(object sender, RoutedEventArgs e)
         {
             // Signal eMediaControlEvent.UserReqFrameForward
-            mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameForward, ControlType));
+            _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameForward, ControlType));
         }
 
 
@@ -610,7 +610,7 @@ namespace Surveyor.User_Controls
         private void ControlSpeedIncrease_Click(object sender, RoutedEventArgs e)
         {
             // Calculate the new increased speed
-            if (mediaSynchronized)
+            if (_mediaSynchronized)
                 // MediaTimelineController
                 _speed = CalcSpeedMediaTimelineController(_speed, true/*TrueIncreaseFalseDecrease*/);
             else
@@ -620,7 +620,7 @@ namespace Surveyor.User_Controls
             ControlSpeedText.Text = $"x{Math.Round(_speed, 2)}";
 
             // Signal eMediaControlEvent.UserReqSpeedSelect with _speed
-            mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqSpeedSelect, ControlType) { speed = _speed });
+            _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqSpeedSelect, ControlType) { speed = _speed });
         }
 
 
@@ -632,7 +632,7 @@ namespace Surveyor.User_Controls
         private void ControlForward30Frames_Click(object sender, RoutedEventArgs e)
         {
             // Signal eMediaControlEvent.UserReqMoveStepForward
-            mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqMoveStepForward, ControlType));
+            _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqMoveStepForward, ControlType));
         }
 
 
@@ -647,7 +647,7 @@ namespace Surveyor.User_Controls
             MenuFlyout? parentFlyout = sender as MenuFlyout;
 
             // Remove the x4 option if media is sync (MediaTimelineController restriction
-            if (mediaSynchronized)
+            if (_mediaSynchronized)
                 ControlSpeed4_00.Visibility = Visibility.Collapsed;
             else
                 ControlSpeed4_00.Visibility = Visibility.Visible;
@@ -708,7 +708,7 @@ namespace Surveyor.User_Controls
                     ControlSpeedText.Text = $"x{Math.Round(_speed, 2)}";
 
                     // Send the new speed to the MediaSteroController
-                    mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqSpeedSelect, ControlType) { speed = _speed });
+                    _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqSpeedSelect, ControlType) { speed = _speed });
                 }
             }
         }
@@ -728,14 +728,14 @@ namespace Surveyor.User_Controls
                 {
                     // Note if media is synchronized the this button still means full screen left camera size
                     // (so no need to check if media is synchronized)
-                    mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFullScreen, ControlType)
+                    _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFullScreen, ControlType)
                     {
                         cameraSide = eCameraSide.Left
                     });
                 }
                 else
                 {
-                    mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFullScreen, ControlType)
+                    _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFullScreen, ControlType)
                     {
                         cameraSide = eCameraSide.Right
                     });
@@ -746,7 +746,7 @@ namespace Surveyor.User_Controls
                 if (_fullScreenCameraSide == eCameraSide.Right)
                 {
                     // We are in full screen mode and we want to switch media player while staying in full screen mode                    
-                    mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFullScreen, ControlType)
+                    _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFullScreen, ControlType)
                     {
                         cameraSide = eCameraSide.Left
                     });
@@ -754,7 +754,7 @@ namespace Surveyor.User_Controls
                 else
                 {
                     // We are in the full screen mode on one of the media players and we want to go back to regular stereo player mode
-                    mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqBackToWindow, ControlType));
+                    _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqBackToWindow, ControlType));
                 }
             }
         }
@@ -771,7 +771,7 @@ namespace Surveyor.User_Controls
             if (_TrueYouAreFullFalseYouAreRestored == false)
             {
                 // We are in the regular stereo player mode and we want to go full screen on one of the media players
-                mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFullScreen, ControlType)
+                _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFullScreen, ControlType)
                 {
                     cameraSide = eCameraSide.Right
                 });
@@ -781,7 +781,7 @@ namespace Surveyor.User_Controls
                 if (_fullScreenCameraSide == eCameraSide.Left)
                 {
                     // We are in full screen mode and we want to switch media player while staying in full screen mode                    
-                    mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFullScreen, ControlType)
+                    _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFullScreen, ControlType)
                     {
                         cameraSide = eCameraSide.Right
                     });
@@ -789,7 +789,7 @@ namespace Surveyor.User_Controls
                 else
                 {
                     // We are in the full screen mode on one of the media players and we want to go back to regular stereo player mode
-                    mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqBackToWindow, ControlType));
+                    _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqBackToWindow, ControlType));
                 }
             }
         }
@@ -815,10 +815,10 @@ namespace Surveyor.User_Controls
             // Check if media is paused
             if (PlayOrPause == true)
                 // Pause the media if necessary
-                mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqPlayOrPause, ControlType) { playOrPause = false });
+                _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqPlayOrPause, ControlType) { playOrPause = false });
 
             // Signal the MediaSteroController to save the frame
-            mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqSaveFrame, ControlType));
+            _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqSaveFrame, ControlType));
         }
 
 
@@ -829,7 +829,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void ControlMuteUnmute_Click(object sender, RoutedEventArgs e)
         {
-            mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqMutedOrUmuted, ControlType) { mute = !this.Mute});
+            _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqMutedOrUmuted, ControlType) { mute = !this.Mute});
         }
 
 
@@ -840,7 +840,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void ControlCast_Click(object sender, RoutedEventArgs e)
         {
-            mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqCasting, ControlType));
+            _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqCasting, ControlType));
         }
 
 
@@ -855,16 +855,16 @@ namespace Surveyor.User_Controls
         //    // Initial entry
         //    if (appButtonAutoMagnifyOn == null && isAutoMagnify == true/*this should always be the case initially*/)
         //    {
-        //        // Remember the original button color so a) we can restore it, b) we can make a greyer version
+        //        // Remember the original button color so a) we can restore it, b) we can make a grayer version
         //        appButtonAutoMagnifyOn = ControlAutoMagIcon.Foreground as Microsoft.UI.Xaml.Media.SolidColorBrush;
 
         //        // Remember the original tool tip. 
         //        appButtonAutoMagnifyTooltip = ToolTipService.GetToolTip(ControlAutoMag) as string;
 
-        //        // Make a greyer version of the original button color
+        //        // Make a grayer version of the original button color
         //        Windows.UI.Color originalColor = appButtonAutoMagnifyOn!.Color;
         //        byte gray = (byte)((originalColor.R + originalColor.G + originalColor.B) / 3);
-        //        Windows.UI.Color greyColor = Windows.UI.Color.FromArgb(originalColor.A, grey, grey, grey);
+        //        Windows.UI.Color greyColor = Windows.UI.Color.FromArgb(originalColor.A, gray, gray, gray);
         //        appButtonAutoMagnifyOff = new Microsoft.UI.Xaml.Media.SolidColorBrush(greyColor);
         //    }
 
@@ -955,7 +955,7 @@ namespace Surveyor.User_Controls
                     canvasZoomFactor =  _canvasZoomFactor;
 
                     // Send the new speed to the MediaSteroController                    
-                    mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqMagZoomSelect, ControlType)
+                    _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqMagZoomSelect, ControlType)
                     { 
                         canvasZoomFactor = this.canvasZoomFactor
                     });
@@ -1045,7 +1045,7 @@ namespace Surveyor.User_Controls
                     layerTypesDisplayed = layerTypeNew;
 
                     // Send the new speed to the MediaSteroController                    
-                    mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqLayersDisplayed, ControlType)
+                    _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqLayersDisplayed, ControlType)
                     {
                         layerTypesDisplayed = this.layerTypesDisplayed
                     });
@@ -1117,7 +1117,7 @@ namespace Surveyor.User_Controls
                     this.magWindowSize = magWindowSize;
 
                     // Send the new speed to the MediaSteroController
-                    mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqMagWindowSizeSelect, ControlType) 
+                    _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqMagWindowSizeSelect, ControlType) 
                     { 
                         magWindowSize = this.magWindowSize 
                     });
@@ -1136,7 +1136,7 @@ namespace Surveyor.User_Controls
         private void ControlFrameText_Tapped(object sender, TappedRoutedEventArgs e)
         {
             // Get and remember where the current focus is
-            controlFrameTextPreviousFocus = FocusManager.GetFocusedElement(this.Content.XamlRoot);
+            _controlFrameTextPreviousFocus = FocusManager.GetFocusedElement(this.Content.XamlRoot);
 
             // Make the frame edit box visible and the frame text box invisible
             ControlFrameText.Visibility = Visibility.Collapsed;
@@ -1158,7 +1158,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>        
-        private async void ControlFrameEdit_KeyDown(object sender, KeyRoutedEventArgs e)
+        private void ControlFrameEdit_KeyDown(object sender, KeyRoutedEventArgs e) => _ = ControlFrameEditKeyDownAsync(e);
+        private async Task ControlFrameEditKeyDownAsync(KeyRoutedEventArgs e)
         {
             if (e.Key == Windows.System.VirtualKey.Escape)
             {
@@ -1166,7 +1167,7 @@ namespace Surveyor.User_Controls
                 ControlFrameEdit.Visibility = Visibility.Collapsed;
                 e.Handled = true;
 
-                await ControlFrameEditCollapsedAndReturnFocus();
+                await ControlFrameEditCollapsedAndReturnFocusAsync();
             }
             else if (e.Key == Windows.System.VirtualKey.Enter)
             {
@@ -1177,9 +1178,10 @@ namespace Surveyor.User_Controls
                 ProcessControlFrameEdit();
 
                 // Hide the ControlFrameEdit control and restore the original focus
-                await ControlFrameEditCollapsedAndReturnFocus();
+                await ControlFrameEditCollapsedAndReturnFocusAsync();
             }
         }
+
 
         /// <summary>
         /// This used to allow the user to manual go to a frame
@@ -1188,7 +1190,8 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private async void ControlFrameEdit_LostFocus(object sender, RoutedEventArgs e)
+        private void ControlFrameEdit_LostFocus(object sender, RoutedEventArgs e) => _ = ControlFrameEditLostFocusAsync();
+        private async Task ControlFrameEditLostFocusAsync()
         {
             // Check if the focus was lost programmatically or by the user clicking away
             if (ControlFrameText.Visibility == Visibility.Collapsed)
@@ -1197,7 +1200,7 @@ namespace Surveyor.User_Controls
                 ProcessControlFrameEdit();
 
                 // Hide the ControlFrameEdit control and restore the original focus
-                await ControlFrameEditCollapsedAndReturnFocus();
+                await ControlFrameEditCollapsedAndReturnFocusAsync();
             }
         }
 
@@ -1269,7 +1272,7 @@ namespace Surveyor.User_Controls
 
 
         /// <summary>
-        /// Mouse wheel deboune timer event
+        /// Mouse wheel debounce timer event
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
@@ -1303,7 +1306,7 @@ namespace Surveyor.User_Controls
 
                 // If the mouse wheel delta is positive then move forward else move back
                 // Signal eMediaControlEvent.UserReqFrameBackward
-                mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameMove, ControlType) 
+                _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameMove, ControlType) 
                 { 
                     framesDelta = frames 
                 });
@@ -1395,7 +1398,7 @@ namespace Surveyor.User_Controls
         /// <param name="mediaSynchronized"></param>
         internal void SetMediaSynchronized(bool _mediaSynchronized)
         {
-            mediaSynchronized = _mediaSynchronized;
+            this._mediaSynchronized = _mediaSynchronized;
 
             SetMediaControlsFullScreenButtons();
         }
@@ -1410,7 +1413,7 @@ namespace Surveyor.User_Controls
                 if (_TrueYouAreFullFalseYouAreRestored)
                 {
                     // Proceed only if buttons are allowed to be visible
-                    if (trueVisibleIfNeededFalseAlwaysHidden)
+                    if (_trueVisibleIfNeededFalseAlwaysHidden)
                     {
                         // One media player is enlarged so we need both FullScreen/BackToWindow buttons to be
                         // visible. One button will show the BackToWindow glyph and the other will show the
@@ -1453,10 +1456,10 @@ namespace Surveyor.User_Controls
                 }
                 else
                 {
-                    if (mediaSynchronized)
+                    if (_mediaSynchronized)
                     {
                         // Proceed only if buttons are allowed to be visible
-                        if (trueVisibleIfNeededFalseAlwaysHidden)
+                        if (_trueVisibleIfNeededFalseAlwaysHidden)
                         {
                             // We are in regular stereo view and the media is synchronized so we need both
                             // FullScreen/BackToWindow buttons to be visible. Both buttons will show the
@@ -1482,7 +1485,7 @@ namespace Surveyor.User_Controls
                     else
                     {
                         // Proceed only if buttons are allowed to be visible
-                        if (trueVisibleIfNeededFalseAlwaysHidden)
+                        if (_trueVisibleIfNeededFalseAlwaysHidden)
                         {
 
                             // We are in regular stereo view and the media is not synchronized so we only
@@ -1571,9 +1574,9 @@ namespace Surveyor.User_Controls
             if (TimePositionHelper.Parse(ControlFrameEdit.Text, out TimeSpan? position) == true)
             {
                 // Signal eMediaControlEvent.UserReqFrameJump with position
-                mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameJump, ControlType) { positionJump = position });
+                _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameJump, ControlType) { positionJump = position });
                 string controls = ControlType.ToString();
-                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {controls}: User requested to jump to position {TimePositionHelper.Format((TimeSpan)position!, displayToDecimalPlaces)}");
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {controls}: User requested to jump to position {TimePositionHelper.Format((TimeSpan)position!, _displayToDecimalPlaces)}");
             }
             else if (long.TryParse(ControlFrameEdit.Text, out long frameIndex) == true)
             {
@@ -1582,10 +1585,10 @@ namespace Surveyor.User_Controls
                 TimeSpan position2 = TimeSpan.FromTicks((long)Math.Round(ticksPerFrameDouble * frameIndex, MidpointRounding.AwayFromZero));
 
                 // Signal eMediaControlEvent.UserReqFrameJump with position
-                mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameJump, ControlType) { positionJump = position2 });
+                _mediaControlHandler?.Send(new MediaControlEventData(eMediaControlEvent.UserReqFrameJump, ControlType) { positionJump = position2 });
 
                 string controls = ControlType.ToString();
-                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {controls}: User requested to frame jump to position {TimePositionHelper.Format(position2, displayToDecimalPlaces)}");
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {controls}: User requested to frame jump to position {TimePositionHelper.Format(position2, _displayToDecimalPlaces)}");
 
             }
         }
@@ -1595,15 +1598,15 @@ namespace Surveyor.User_Controls
         /// Called to collapsed the ControlFrameEdit TextBox and return the focus to
         /// wherever it was before
         /// </summary>
-        private async Task ControlFrameEditCollapsedAndReturnFocus()
+        private async Task ControlFrameEditCollapsedAndReturnFocusAsync()
         {
             ControlFrameText.Visibility = Visibility.Visible;
             ControlFrameEdit.Visibility = Visibility.Collapsed;
             ControlSpeedText.Visibility = Visibility.Visible;
 
-            if (controlFrameTextPreviousFocus is not null)
+            if (_controlFrameTextPreviousFocus is not null)
             {
-                await FocusManager.TryFocusAsync((DependencyObject)controlFrameTextPreviousFocus, FocusState.Programmatic);
+                await FocusManager.TryFocusAsync((DependencyObject)_controlFrameTextPreviousFocus, FocusState.Programmatic);
             }
         }
 

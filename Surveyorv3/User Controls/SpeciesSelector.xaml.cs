@@ -38,13 +38,15 @@ namespace Surveyor.User_Controls
 
     public sealed partial class SpeciesSelector : UserControl
     {
-        private string? fileSpecSpecies;
-        private Reporter? report;
-        private SpeciesImageAndInfoCache? speciesImageCache = null;
+        private Reporter? _report;
+
+        private string? _fileSpecSpecies;
+        
+        private SpeciesImageAndInfoCache? _speciesImageCache = null;
         internal SpeciesCodeList SpeciesCodeList { get; } = new();
 
-        private bool userSelectedGenus = false; // Set to true if the user selected a genus from the AutoSuggestBox or typed in a name as opposed to it being calculated from the species
-        private bool userSelectedFamily = false; // Set to true if the user selected a family from the AutoSuggestBox or typed in a name as opposed to it being calculated from the species or genus
+        private bool _userSelectedGenus = false; // Set to true if the user selected a genus from the AutoSuggestBox or typed in a name as opposed to it being calculated from the species
+        private bool _userSelectedFamily = false; // Set to true if the user selected a family from the AutoSuggestBox or typed in a name as opposed to it being calculated from the species or genus
 
         // Context used to show RMS InfoBar based on rules
         private IPointData? _pointContext;
@@ -66,7 +68,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         public void DumpAllProperties()
         {
-            DumpClassPropertiesHelper.DumpAllProperties(this, report);
+            DumpClassPropertiesHelper.DumpAllProperties(this, _report);
         }
 
         /// <summary>
@@ -74,9 +76,9 @@ namespace Surveyor.User_Controls
         /// Call as early as possible after creating the class instance.
         /// </summary>
         /// <param name="_report"></param>
-        public void SetReporter(Reporter _report)
+        public void SetReporter(Reporter report)
         {
-            report = _report;
+            _report = report;
         }
 
 
@@ -86,9 +88,9 @@ namespace Surveyor.User_Controls
         /// <param name="fileSpec"></param>
         public bool Load(string fileSpec, bool trueScientificFalseCommonName)
         {
-            fileSpecSpecies = fileSpec;
+            _fileSpecSpecies = fileSpec;
 
-            return SpeciesCodeList.Load(fileSpec, report, trueScientificFalseCommonName);
+            return SpeciesCodeList.Load(SpeciesListType.Fish, fileSpec, _report, trueScientificFalseCommonName);
         }
 
 
@@ -98,7 +100,7 @@ namespace Surveyor.User_Controls
         public void Unload()
         {
             SpeciesCodeList.Unload();
-            fileSpecSpecies = null;
+            _fileSpecSpecies = null;
         }
 
 
@@ -119,18 +121,18 @@ namespace Surveyor.User_Controls
             _pointContext = pointContext;
             _rulesContext = rulesContext;
             
-            return await SpeciesEditorNew(mainWindow, speciesInfo, false/*removeButton*/, speciesImageCache);
+            return await SpeciesEditorNewAsync(mainWindow, speciesInfo, false/*removeButton*/, speciesImageCache);
         }
 
 
         /// <summary>
         /// Edit an existing species info record
         /// </summary>
-        internal async Task<bool> SpeciesEdit(MainWindow mainWindow, SpeciesInfo speciesInfo, SpeciesImageAndInfoCache speciesImageCache, IPointData? pointContext = null, Surveyor.Survey.DataClass.SurveyRulesClass? rulesContext = null)
+        internal async Task<bool> SpeciesEditAsync(MainWindow mainWindow, SpeciesInfo speciesInfo, SpeciesImageAndInfoCache speciesImageCache, IPointData? pointContext = null, Surveyor.Survey.DataClass.SurveyRulesClass? rulesContext = null)
         {
             _pointContext = pointContext;
             _rulesContext = rulesContext;
-            return await SpeciesEditorNew(mainWindow, speciesInfo, true/*removeButton*/, speciesImageCache);
+            return await SpeciesEditorNewAsync(mainWindow, speciesInfo, true/*removeButton*/, speciesImageCache);
         }
 
 
@@ -180,16 +182,16 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Handle the edit or new (create) species info dialog
         /// </summary>
-        private async Task<bool> SpeciesEditorNew(MainWindow mainWindow, SpeciesInfo speciesInfo, bool editExisting, SpeciesImageAndInfoCache _speciesImageCache)
+        private async Task<bool> SpeciesEditorNewAsync(MainWindow mainWindow, SpeciesInfo speciesInfo, bool editExisting, SpeciesImageAndInfoCache _speciesImageCache)
         {
             bool ret = false;
 
-            speciesImageCache = _speciesImageCache;
+            this._speciesImageCache = _speciesImageCache;
 
             ClearControls();
 
-            userSelectedGenus = false;
-            userSelectedFamily = false;
+            _userSelectedGenus = false;
+            _userSelectedFamily = false;
 
 
             // Create the dialog
@@ -244,7 +246,7 @@ namespace Surveyor.User_Controls
                         if (SpeciesCodeList.SpeciesComboItems.Count == 1)
                         {
                             SpeciesItem speciesItem = SpeciesCodeList.SpeciesComboItems[0];
-                            await SpeciesSelected(speciesItem, true/*setAutoSuggest*/);
+                            await SpeciesSelectedAsync(speciesItem, true/*setAutoSuggest*/);
                         }
                     }
                 }
@@ -275,13 +277,15 @@ namespace Surveyor.User_Controls
                         if (SpeciesCodeList.SpeciesComboItems.Count == 1)
                         {
                             SpeciesItem speciesItem = SpeciesCodeList.SpeciesComboItems[0];
-                            await SpeciesSelected(speciesItem, true/*setAutoSuggest*/);
+                            await SpeciesSelectedAsync(speciesItem, true/*setAutoSuggest*/);
                         }
                     }
                 }
 
                 NumberBoxNumberOfFish.Text = "1";
             }
+
+            ImageCacheStatusSection.Visibility = Visibility.Collapsed;
 
             // Show the dialog and handle the response
             var result = await dialog.ShowAsync();
@@ -533,7 +537,7 @@ namespace Surveyor.User_Controls
             }
             catch (Exception ex)
             {
-                report?.Warning("SpeciesSelector", $"Failed to evaluate RMS rule: {ex.Message}");
+                _report?.Warning("SpeciesSelector", $"Failed to evaluate RMS rule: {ex.Message}");
             }
         }
 
@@ -566,8 +570,8 @@ namespace Surveyor.User_Controls
                 string genus = AutoSuggestGenus.Text;
                 string family = AutoSuggestFamily.Text;
 
-                userSelectedGenus = false;
-                userSelectedFamily = false;
+                _userSelectedGenus = false;
+                _userSelectedFamily = false;
 
                 // Search on the genus
                 if (SpeciesCodeList.SearchSpecies(sender.Text, genus, family) == true)
@@ -597,8 +601,8 @@ namespace Surveyor.User_Controls
                 // If the actually selected or typed genus or family values then use
                 // those in the search as well (that is as opposed to the values being
                 // calculated from the species)
-                string genusSearch  = userSelectedGenus == true ? genus : string.Empty;
-                string familySearch = userSelectedFamily == true ? family : string.Empty;
+                string genusSearch  = _userSelectedGenus == true ? genus : string.Empty;
+                string familySearch = _userSelectedFamily == true ? family : string.Empty;
 
                 if (SpeciesCodeList.SearchSpecies(args.QueryText, genusSearch, familySearch) == true)
                 {
@@ -608,17 +612,19 @@ namespace Surveyor.User_Controls
                     if (SpeciesCodeList.SpeciesComboItems.Count == 1)
                     {
                         SpeciesItem speciesItem = SpeciesCodeList.SpeciesComboItems[0];
-                        await SpeciesSelected(speciesItem, true/*setAutoSuggest*/);
+                        await SpeciesSelectedAsync(speciesItem, true/*setAutoSuggest*/);
                     }
                 }
             }
         }
 
-        private async void AutoSuggestBoxSpecies_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args)
+
+        private void AutoSuggestBoxSpecies_SuggestionChosen(AutoSuggestBox sender, AutoSuggestBoxSuggestionChosenEventArgs args) => _ = AutoSuggestBoxSpeciesSuggestionChosenAsync(args);
+        private async Task AutoSuggestBoxSpeciesSuggestionChosenAsync(AutoSuggestBoxSuggestionChosenEventArgs args)
         {
             SpeciesItem speciesItem = (SpeciesItem)args.SelectedItem;
 
-            await SpeciesSelected(speciesItem, true/*setAutoSuggesat*/);
+            await SpeciesSelectedAsync(speciesItem, true/*setAutoSuggesat*/);
         }
 
 
@@ -626,7 +632,7 @@ namespace Surveyor.User_Controls
         /// Set the selected species item, displaying it's genus and family and fish images from the cache
         /// </summary>
         /// <param name="speciesItem"></param>
-        private async Task SpeciesSelected(SpeciesItem speciesItem, bool setAutoSuggestText = false)
+        private async Task SpeciesSelectedAsync(SpeciesItem speciesItem, bool setAutoSuggestText = false)
         {
             WinUIGuards.CheckIsUIThread();
 
@@ -638,7 +644,7 @@ namespace Surveyor.User_Controls
             }
 
             // Display images of fish for this species to help fish ID
-            await DisplayCachedFishImagesAndDetails(speciesItem);
+            await DisplayCachedFishImagesAndDetailsAsync(speciesItem);
         }
 
 
@@ -655,7 +661,7 @@ namespace Surveyor.User_Controls
             {
                 string family = AutoSuggestFamily.Text;
 
-                userSelectedGenus = true;
+                _userSelectedGenus = true;
 
                 // Search on the genus
                 if (SpeciesCodeList.SearchGenus(sender.Text, family) == true)
@@ -682,7 +688,7 @@ namespace Surveyor.User_Controls
                 // User typed text and pressed Enter without selecting a suggestion
                 string family = AutoSuggestFamily.Text;
 
-                userSelectedGenus = true;
+                _userSelectedGenus = true;
 
                 // Do a fuzzy search based on the text
                 if (SpeciesCodeList.SearchGenus(sender.Text, family) == true)
@@ -697,7 +703,7 @@ namespace Surveyor.User_Controls
             // Set the family
             AutoSuggestFamily.Text = item.Family;
 
-            userSelectedGenus = true;
+            _userSelectedGenus = true;
         }
 
 
@@ -712,7 +718,7 @@ namespace Surveyor.User_Controls
             // only listen to changes caused by user entering text.
             if (args.Reason == AutoSuggestionBoxTextChangeReason.UserInput)
             {
-                userSelectedFamily = true;
+                _userSelectedFamily = true;
 
                 // Search on the family
                 if (SpeciesCodeList.SearchFamily(sender.Text) == true)
@@ -736,7 +742,7 @@ namespace Surveyor.User_Controls
             }
             else if (!string.IsNullOrEmpty(args.QueryText) || sender.Text == "")
             {
-                userSelectedFamily = true;
+                _userSelectedFamily = true;
 
                 // Do a fuzzy search based on the text
                 if (SpeciesCodeList.SearchFamily(sender.Text) == true)
@@ -804,6 +810,17 @@ namespace Surveyor.User_Controls
             }
         }
 
+        /// <summary>
+        /// Clear the values in the three search boxes
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ButtonClear_Click(object sender, RoutedEventArgs e)
+        {
+            AutoSuggestSpecies.Text = string.Empty;
+            AutoSuggestGenus.Text = string.Empty;
+            AutoSuggestFamily.Text = string.Empty;
+        }
 
 
         ///
@@ -865,11 +882,11 @@ namespace Surveyor.User_Controls
         /// details about the species if available
         /// </summary>
         /// <param name="speciesItem"></param>
-        private async Task DisplayCachedFishImagesAndDetails(SpeciesItem speciesItem)
+        private async Task DisplayCachedFishImagesAndDetailsAsync(SpeciesItem speciesItem)
         {
             WinUIGuards.CheckIsUIThread();
 
-            if (speciesImageCache is not null)
+            if (_speciesImageCache is not null)
             {
                 // Ensure the max length info bar is hidden
                 MaxLengthInfoBar.IsOpen = false;
@@ -880,7 +897,7 @@ namespace Surveyor.User_Controls
                     string source = "";
                     string genusSpecies = "";
 
-                    List<SpeciesImageItem>? SpeciesImageItemList = speciesImageCache.GetImagesForSpecies(speciesItem.Code);
+                    List<SpeciesImageItem>? SpeciesImageItemList = _speciesImageCache.GetImagesForSpecies(speciesItem.Code);
 
                     if (!string.IsNullOrEmpty(speciesItem.Code) && SpeciesImageItemList is not null && SpeciesImageItemList.Count > 0)
                     {
@@ -939,7 +956,7 @@ namespace Surveyor.User_Controls
                         }
 
                         // Get the species environment, distribution and species size information from the cache
-                        (string environment, string distribution, string speciesSize, double? maxLength, string lengthType) = speciesImageCache.GetInfo(speciesItem!.Code);
+                        (string environment, string distribution, string speciesSize, double? maxLength, string lengthType) = _speciesImageCache.GetInfo(speciesItem!.Code);
                         Environment.Text = environment;
                         Distribution.Text = distribution;
                         SpeciesSize.Text = speciesSize;
@@ -1005,7 +1022,7 @@ namespace Surveyor.User_Controls
                         if (!string.IsNullOrEmpty(speciesItem.Code))
                         {
                             bool isOnline = CommunityToolkitNetworkHelper.Instance.ConnectionInformation.IsInternetAvailable;
-                            bool? status = speciesImageCache.GetImageCacheStatusForSpecies(speciesItem.Code);
+                            bool? status = _speciesImageCache.GetImageCacheStatusForSpecies(speciesItem.Code);
                             if (status is not null)
                             {
                                 if ((bool)status)
@@ -1030,7 +1047,9 @@ namespace Surveyor.User_Controls
                 }
                 catch (Exception ex)
                 {
-                    report?.Error("SpeciesSelector", $"DisplayCachedFishImages: {ex.Message}");
+                    _report?.Error("SpeciesSelector", $"DisplayCachedFishImages: Code:{speciesItem.Code} Species:{speciesItem.Species} {ex.Message}");
+                    ImageCacheStatusText.Text = string.Empty;
+                    ImageCacheStatusSection.Visibility = Visibility.Collapsed;
                 }
             }
         }
@@ -1058,6 +1077,7 @@ namespace Surveyor.User_Controls
         }
 
 
+
         // *** End of SpeciesSelector ***
 
     }
@@ -1065,7 +1085,7 @@ namespace Surveyor.User_Controls
     /// <summary>
     /// Used to convert the image URI
     /// </summary>
-    public sealed partial class UriToImageSourceConverter : IValueConverter
+    public sealed partial class URIToImageSourceConverter : IValueConverter
     {
         public object Convert(object value, Type targetType, object parameter, string language)
         {

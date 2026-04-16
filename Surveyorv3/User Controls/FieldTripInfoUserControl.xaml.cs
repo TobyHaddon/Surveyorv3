@@ -37,7 +37,7 @@ namespace Surveyor.User_Controls
 
         private readonly ObservableCollection<SurveyReplicateCardItem> _surveyReplicateCards = [];
 
-        private Point _lastMapPointerPointInMap;
+        //???private Point _lastMapPointerPointInMap;
         //???private bool _hasLastMapPointerPoint;
 
         private readonly TextBlock _mapIconPopupText = new()

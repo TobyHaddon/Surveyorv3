@@ -140,13 +140,13 @@
             <!-- Board Physical Size -->
             <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Margin="5">
                 <TextBox x:Name="BoardSizeXNumeric" Width="60" 
-                            Tag="{x:Bind BoardSizeXMin, Mode=OneWay}"
+                            Tag="{x:Bind BoardSizeXMin, Mode=OneTime}"
                             Text="{x:Bind BoardSizeX, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource MetersToMillimetersConverter0DP}}" 
                             TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
                             TextChanged="GenerationTextBox_TextChanged"/>
                 <TextBlock Text=" mm  x " VerticalAlignment="Center" Margin="0,0,5,0"/>
                 <TextBox x:Name="BoardSizeYNumeric" Width="60" 
-                            Tag="{x:Bind BoardSizeYMin, Mode=OneWay}"
+                            Tag="{x:Bind BoardSizeYMin, Mode=OneTime}"
                             Text="{x:Bind BoardSizeY, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, Converter={StaticResource MetersToMillimetersConverter0DP}}" 
                             TextChanging="NumberTextBoxPositiveDecimal2DP_TextChanging"
                             TextChanged="GenerationTextBox_TextChanged"/>
@@ -180,7 +180,7 @@
             </StackPanel>
 
             <!-- Guidance Text -->
-            <TextBlock x:Name="BoardSizeGuidanceTextBlock" Text="{x:Bind BoardSizeGuidanceText, Mode=OneWay}" 
+            <TextBlock x:Name="BoardSizeGuidanceTextBlock" Text="{x:Bind BoardSizeGuidanceText, Mode=OneTime}" 
                        Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="3" 
                        FontSize="10" Foreground="Gray" VerticalAlignment="Center" TextWrapping="Wrap" Margin="5,0,15,0"/>
         </Grid>

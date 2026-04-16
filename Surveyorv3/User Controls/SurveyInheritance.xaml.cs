@@ -82,7 +82,7 @@ namespace Surveyor.User_Controls
                     if (!string.IsNullOrEmpty(surveyInheritanceSource.Data.Info.SurveySpeciesListName))
                     {
                         doesInheritanceSourceHaveSpeciesList = true;
-                        inheritanceSourceSpeciesListFound = !SpeciesCodeList.IsSpeciesListPresent(surveyInheritanceSource.Data.Info.SurveySpeciesListName);
+                        inheritanceSourceSpeciesListFound = !SpeciesCodeList.IsSpeciesListPresent(SpeciesListType.Fish, surveyInheritanceSource.Data.Info.SurveySpeciesListName);
                     }
                 }
 

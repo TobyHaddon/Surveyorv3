@@ -41,23 +41,23 @@
 
                 <!-- Reef Count -->
                 <TextBlock Grid.Row="1" Grid.Column="0" Text="Number of sites:" Margin="0,0,0,8"/>
-                <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind NumberOfSites, Mode=OneWay}" Margin="8,0,0,8"/>
+                <TextBlock Grid.Row="1" Grid.Column="1" Text="{x:Bind NumberOfSites, Mode=OneTime}" Margin="8,0,0,8"/>
 
                 <!-- Total Surveys -->
                 <TextBlock Grid.Row="2" Grid.Column="0" Text="Total surveys:" Margin="0,0,0,8"/>
-                <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind TotalSurveys, Mode=OneWay}" Margin="8,0,0,8"/>
+                <TextBlock Grid.Row="2" Grid.Column="1" Text="{x:Bind TotalSurveys, Mode=OneTime}" Margin="8,0,0,8"/>
 
                 <!-- Transect Length -->
                 <TextBlock Grid.Row="3" Grid.Column="0" Text="Transect Length:" Margin="0,0,0,8"/>
-                <TextBlock Grid.Row="3" Grid.Column="1" Text="{x:Bind TransectLength, Mode=OneWay}" Margin="8,0,0,8"/>
+                <TextBlock Grid.Row="3" Grid.Column="1" Text="{x:Bind TransectLength, Mode=OneTime}" Margin="8,0,0,8"/>
 
                 <!-- Species List Name-->
                 <TextBlock Grid.Row="4" Grid.Column="0" Text="Species List:" Margin="0,0,0,8"/>
-                <TextBlock Grid.Row="4" Grid.Column="1" Text="{x:Bind SpeciesListName, Mode=OneWay}" Margin="8,0,0,8"/>
+                <TextBlock Grid.Row="4" Grid.Column="1" Text="{x:Bind SpeciesListName, Mode=OneTime}" Margin="8,0,0,8"/>
 
                 <!-- Field Trip Template Name-->
                 <TextBlock Grid.Row="5" Grid.Column="0" Text="Field Trip Loaded:" Margin="0,0,0,8"/>
-                <TextBlock Grid.Row="5" Grid.Column="1" Text="{x:Bind FieldTripTemplateName, Mode=OneWay}" Margin="8,0,0,8"/>
+                <TextBlock Grid.Row="5" Grid.Column="1" Text="{x:Bind FieldTripTemplateName, Mode=OneTime}" Margin="8,0,0,8"/>
 
 
             </Grid>

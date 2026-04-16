@@ -35,8 +35,6 @@ namespace Surveyor.User_Controls
         // Reporter
         private Reporter? report = null;
 
-        private bool _isReady;
-
         // Projects
         private readonly CalibProject?[] calibProjects = [null, null, null];
 
@@ -57,8 +55,6 @@ namespace Surveyor.User_Controls
             safeUICall = new(dispatcherQueue);
 
             InitializeComponent();
-
-            Loaded += CompareUserControl_Loaded;
         }
 
 
@@ -92,12 +88,6 @@ namespace Surveyor.User_Controls
         }
 
 
-        private void CompareUserControl_Loaded(object sender, RoutedEventArgs e)
-        {
-            _isReady = true;
-
-
-        }
 
         ///
         /// Events
@@ -741,6 +731,7 @@ namespace Surveyor.User_Controls
         /// Mono compare result class. The result of calling 
         /// DoCompareMonoCalibration is stored here
         /// </summary>
+        #pragma warning disable VSSpell001 // Spell Check
         public sealed class CompareMonoCalibrationResult
         {
             public bool IsComparable { get; set; }
@@ -761,6 +752,7 @@ namespace Surveyor.User_Controls
             public double MaxErrorB { get; set; }
 
             // Intrinsic parameter deltas
+
             public double FxA { get; set; }
             public double FxB { get; set; }
             public double FyA { get; set; }
@@ -771,6 +763,7 @@ namespace Surveyor.User_Controls
             public double CyB { get; set; }
 
             public double FxRelativeDelta { get; set; }   // |fxB - fxA| / fxA
+
             public double FyRelativeDelta { get; set; }
             public double PrincipalPointShiftPx { get; set; }
 
@@ -779,7 +772,7 @@ namespace Surveyor.User_Controls
             public double DistortionDeltaP95Px { get; set; }
             public double DistortionDeltaMaxPx { get; set; }
         }
-
+#pragma warning restore VSSpell001 // Spell Check
 
         /// <summary>
         /// Stereo compare result class. The result of calling 

@@ -692,7 +692,7 @@ namespace Surveyor.Controls
                             }
                             else
                             {
-                                report?.Debug(ChannelConvert((HeadType)headType), $"FindBestMonoFramesSafeUIAsync: Too many best frames found, {foundIndexes.Count} max frames is {maxFramesAllowedForMonoCalibration}");
+                                report?.Debug(ChannelConvert((HeadType)headType), $"FindBestMonoFramesSafeUIAsync: Too many best frames found, {bestFramesList.Count} max frames is {maxFramesAllowedForMonoCalibration}");
                                 ret = -1;
                             }
                         }

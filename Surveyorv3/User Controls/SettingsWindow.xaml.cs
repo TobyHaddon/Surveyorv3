@@ -35,6 +35,9 @@ using static Surveyor.User_Controls.SettingsWindowEventData;
 //
 // Version 1.3 14 Apr 2026
 // Integrated the field trip support into the settings window
+//
+// Version 1.4 15 Apr 2026
+// Add support to allow the creation of a new blank species list
 
 
 namespace Surveyor.User_Controls
@@ -89,6 +92,9 @@ namespace Surveyor.User_Controls
 
         // Signal to the caller that a recalculation is required
         private bool _recalcRequired = false;
+
+        // Species List Fly - <Create New List> text
+        private string _menuItemTextSpeciesListCreateNewList = "<Create New List>";
 
         public SettingsWindow(SurveyorMediator mediator, MainWindow mainWindow, FieldTrip? fieldTrip, Survey? survey, Reporter? report, string section = "")
         {
@@ -440,7 +446,7 @@ namespace Surveyor.User_Controls
 
                     // Load the Species List Selector code list
                     string activeSpeciesList = SettingsManagerLocal.ActiveSpeciesList;
-                    List<string> items = SpeciesCodeList.GetAvailableSpeciesLists();
+                    List<string> items = SpeciesCodeList.GetAvailableSpeciesLists(SpeciesListType.Fish);
                     SpeciesActiveListMenuFlyout.Items.Clear();
                     
                     foreach (string text in items)
@@ -454,6 +460,17 @@ namespace Surveyor.User_Controls
                         item.Click += SpeciesListSelectorItem_Click;
                         SpeciesActiveListMenuFlyout.Items.Add(item);
                     }
+
+                    // Add a bottom item <Create New List>
+                    MenuFlyoutItem itemNew = new()
+                    {
+                        Text = _menuItemTextSpeciesListCreateNewList,
+                        Tag = _menuItemTextSpeciesListCreateNewList
+                    };
+                    itemNew.Click += SpeciesListSelectorItem_Click;
+                    SpeciesActiveListMenuFlyout.Items.Add(itemNew);
+
+
                     // Set the text tot he active Species List
                     if (!string.IsNullOrEmpty(activeSpeciesList))
                     {
@@ -1418,19 +1435,197 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void SpeciesListSelectorItem_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is MenuFlyoutItem item && item.Tag is string newSpeciesListName)
+        private void SpeciesListSelectorItem_Click(object sender, RoutedEventArgs e) => _ = SpeciesListSelectorItemClickAsync(sender);
+
+        private async Task SpeciesListSelectorItemClickAsync(object sender)
+        { 
+            if (sender is MenuFlyoutItem item && item.Tag is string selectedSpeciesListName)
             {
                 if (_mainWindow is not null)
                 {
-                    if (_mainWindow._mediaStereoController.OpenSpeciesListIfNecessary(newSpeciesListName))
+                    // Check if <Create New List> was selected
+                    if (selectedSpeciesListName == _menuItemTextSpeciesListCreateNewList)
                     {
-                        SpeciesActiveListDropDown.Content = newSpeciesListName;
+                        // Get the name of the next new species list
+                        (SpeciesListType speciesListType, string newSpeciesListName) = await GetNewSpeciesListNameAsync();
+
+                        if (speciesListType != SpeciesListType.None)
+                        {
+                            if (SpeciesCodeList.CreateBlankSpeciesFile(speciesListType, newSpeciesListName) == 0)
+                            {
+                                // Load the new blank species file
+                                if (_mainWindow._mediaStereoController.OpenSpeciesListIfNecessary(newSpeciesListName))
+                                {
+                                    SpeciesActiveListDropDown.Content = newSpeciesListName;
+                                }
+                            }
+                            else
+                            {
+                                // Are you sure?
+                                var dialog = new ContentDialog
+                                {
+                                    Title = "Create New Species List",
+                                    Content = $"Species list named '{newSpeciesListName}' already exists!",
+                                    CloseButtonText = "OK",
+                                    DefaultButton = ContentDialogButton.Close,
+                                    XamlRoot = this.Content.XamlRoot
+                                };
+                                await dialog.ShowAsync();
+                            }
+                        }
+                        else
+                        {
+                            // Assume the user canceled the dialog and do nothing
+                        }
+                    }
+                    else
+                    {
+                        // Load species file
+                        if (_mainWindow._mediaStereoController.OpenSpeciesListIfNecessary(selectedSpeciesListName))
+                        {
+                            SpeciesActiveListDropDown.Content = selectedSpeciesListName;
+                        }
                     }
                 }                
             }
         }
+
+
+        /// <summary>
+        /// Dialog box to get the name of a new species list.
+        /// </summary>
+        /// <returns></returns>
+        private async Task<(SpeciesListType speciesListType, string newSpeciesListName)> GetNewSpeciesListNameAsync()
+        {
+            CreateSpeciesListDialog.XamlRoot = this.Content.XamlRoot;
+            SpeciesListNamePortion.Text = string.Empty;
+            SpeciesListTypeFishRadio.IsChecked = true;
+
+            ContentDialogResult result = await CreateSpeciesListDialog.ShowAsync();
+            if (result != ContentDialogResult.Primary)
+                return (SpeciesListType.None, string.Empty);
+
+            string portion = SpeciesListNamePortion.Text.Trim();
+            if (string.IsNullOrWhiteSpace(portion))
+                return (SpeciesListType.None, string.Empty);
+
+            SpeciesListType speciesListType = SpeciesListTypeFishRadio.IsChecked == true
+                ? SpeciesListType.Fish
+                : SpeciesListType.Benthic;
+
+            return (speciesListType, $"Species - {portion}");
+        }
+
+        //???private async Task<(SpeciesListType speciesListType, string newSpeciesListName)> GetNewSpeciesListNameAsyncXX()
+        //{
+        //    RadioButton speciesListTypeFishRadio = new()
+        //    {
+        //        Name = "SpeciesListTypeFishRadio",
+        //        Content = "Fish",
+        //        GroupName = "SpeciesListTypeGroup",
+        //        IsChecked = true
+        //    };
+
+        //    RadioButton speciesListTypeBenthicRadio = new()
+        //    {
+        //        Name = "SpeciesListTypeBenthicRadio",
+        //        Content = "Benthic",
+        //        GroupName = "SpeciesListTypeGroup",
+        //        IsEnabled = false
+        //    };
+
+        //    TextBox speciesListPrefix = new()
+        //    {
+        //        Text = "Species - ",
+        //        IsReadOnly = true,
+        //        Width = 90
+        //    };
+
+        //    TextBox speciesListNamePortion = new()
+        //    {
+        //        Name = "SpeciesListNamePortion",
+        //        PlaceholderText = "bio-geographic area",
+        //        MinWidth = 240
+        //    };
+
+        //    StackPanel radioPanel = new()
+        //    {
+        //        Orientation = Orientation.Horizontal,
+        //        Spacing = 16,
+        //        Children =
+        //        {
+        //            speciesListTypeFishRadio,
+        //            speciesListTypeBenthicRadio
+        //        }
+        //    };
+
+        //    StackPanel namePanel = new()
+        //    {
+        //        Orientation = Orientation.Horizontal,
+        //        Spacing = 8,
+        //        Children =
+        //        {
+        //            speciesListPrefix,
+        //            speciesListNamePortion
+        //        }
+        //    };
+
+        //    StackPanel infoPanel = new()
+        //    {
+        //        Orientation = Orientation.Horizontal,
+        //        Spacing = 8,
+        //        Children =
+        //        {
+        //            new FontIcon { Glyph = "\uE946", VerticalAlignment = VerticalAlignment.Center }, // Info icon
+        //            new TextBlock
+        //            {
+        //                Text = "Name should represent a bio-geographic e.g. 'Central Pacific' or 'Red Sea'",
+        //                TextWrapping = TextWrapping.WrapWholeWords,
+        //                MaxWidth = 360,
+        //                VerticalAlignment = VerticalAlignment.Center
+        //            }
+        //        }
+        //    };
+
+        //    StackPanel contentPanel = new()
+        //    {
+        //        Spacing = 10,
+        //        Children =
+        //        {
+        //            radioPanel,
+        //            new TextBlock { Text = "New Species List Name:" },
+        //            namePanel,
+        //            infoPanel
+        //        }
+        //    };
+
+        //    ContentDialog dialog = new()
+        //    {
+        //        Title = "Create New Species List",
+        //        Content = contentPanel,
+        //        PrimaryButtonText = "OK",
+        //        CloseButtonText = "Cancel",
+        //        DefaultButton = ContentDialogButton.Primary,
+        //        XamlRoot = this.Content.XamlRoot
+        //    };
+
+        //    ContentDialogResult result = await dialog.ShowAsync();
+
+        //    if (result != ContentDialogResult.Primary)
+        //        return (SpeciesListType.None, string.Empty);
+
+        //    string portion = speciesListNamePortion.Text.Trim();
+        //    if (string.IsNullOrWhiteSpace(portion))
+        //        return (SpeciesListType.None, string.Empty);
+
+        //    SpeciesListType speciesListType = speciesListTypeFishRadio.IsChecked == true
+        //        ? SpeciesListType.Fish
+        //        : SpeciesListType.Benthic;
+
+        //    string newSpeciesListName = $"{speciesListPrefix.Text}{portion}";
+
+        //    return (speciesListType, newSpeciesListName);
+        //}
 
 
         /// <summary>
@@ -1823,7 +2018,7 @@ namespace Surveyor.User_Controls
                     GoProQRSetDateTime.IsChecked = _containsOT;
 
                     // Update the QR Code and script
-                    GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(script);
+                    GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCodeAsync(script);
                     GoProQRScript.Text = $"{script}";
                 }
             }
@@ -1991,12 +2186,12 @@ namespace Surveyor.User_Controls
             {
                 string timestamp = DateTime.Now.ToString("yyMMddHHmmss.fff");
                 string updated = script.Replace("oT", $"oT{timestamp}");
-                GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(updated);
+                GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCodeAsync(updated);
             }
             else
             {
                 string updated = script.Replace("oT", "");
-                GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCode(updated);
+                GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCodeAsync(updated);
             }
         }
 

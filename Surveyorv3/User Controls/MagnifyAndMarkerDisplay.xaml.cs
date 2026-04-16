@@ -1,3 +1,30 @@
+using Microsoft.UI;
+using Microsoft.UI.Input;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Imaging;
+using Microsoft.UI.Xaml.Shapes;
+using Surveyor.DesktopWap.Helper;
+using Surveyor.Events;
+using Surveyor.Helper;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.Diagnostics;
+using System.Linq;
+using System.Runtime.InteropServices.WindowsRuntime;
+using System.Threading;
+using System.Threading.Tasks;
+using Windows.Foundation;               // Point class
+using Windows.Graphics.Imaging;         // BitmapTransform
+using Windows.Storage.Streams;
+using static Surveyor.User_Controls.MediaPlayerEventData;
+using static Surveyor.User_Controls.SettingsWindowEventData;
+
 // Surveyor MagnifyAndMarkerDisplay
 // Used to overlay an existing Image control with a Magnify Window and allow the user to
 // set target markers. The Magnify Window is used to display a magnified view of
@@ -45,58 +72,30 @@
 // Move the MagnifyAndMarkerDisplay to be a child of the MediaPlayer control
 
 
-using Microsoft.UI;
-using Microsoft.UI.Input;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Media.Imaging;
-using Microsoft.UI.Xaml.Shapes;
-using Surveyor.DesktopWap.Helper;
-using Surveyor.Events;
-using Surveyor.Helper;
-using System;
-using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.Collections.Specialized;
-using System.Diagnostics;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using System.Threading;
-using System.Threading.Tasks;
-using Windows.Foundation;               // Point class
-using Windows.Graphics.Imaging;         // BitmapTransform
-using Windows.Storage.Streams;
-using static Surveyor.User_Controls.MediaPlayerEventData;
-using static Surveyor.User_Controls.SettingsWindowEventData;
-
-
 namespace Surveyor.User_Controls
 {
     public sealed partial class MagnifyAndMarkerDisplay : UserControl, IAsyncDisposable
     {
         private bool _disposed = false;
 
+        // Reporter
+        private Reporter? _report = null;
+
         // Copy of MainWindow
         private MainWindow? _mainWindow = null;
-        private bool mainWindowActivated = false;
+        private bool _mainWindowActivated = false;
 
         // Copy of the mediator 
         private SurveyorMediator? _mediator;
 
         // Declare the mediator handler
-        private MagnifyAndMarkerControlHandler? magnifyAndMarkerControlHandler;
-
-        // Reporter
-        private Reporter? report = null;
+        private MagnifyAndMarkerControlHandler? _magnifyAndMarkerControlHandler;
 
         // Survey type Stereo, Mono or Benthic
-        Survey.SurveyType surveyType = Survey.SurveyType.Unknown;
+        Survey.SurveyType _surveyType = Survey.SurveyType.Unknown;
 
         // Which camera side 
-        private SurveyorMediaPlayer.eCameraSide CameraSide = SurveyorMediaPlayer.eCameraSide.None;
+        private SurveyorMediaPlayer.eCameraSide _cameraSide = SurveyorMediaPlayer.eCameraSide.None;
 
         // The Image UIElement control we are serving
         private Image? imageUIElement = null;   // This is a reference to the Image control we are pig-backing on
@@ -247,7 +246,7 @@ namespace Surveyor.User_Controls
 
         // Pointer tracking in the Mag Window (time last seen)
         private DateTime lastTimePointerSeenInMagWindow = DateTime.Now;
-        private double inactivityMagWindowClose = 2000; // 2 seconds
+        private readonly double inactivityMagWindowClose = 2000; // 2 seconds
 
         // Cached diagnostic information flag
         private bool diagnosticInformation = false;
@@ -340,8 +339,8 @@ namespace Surveyor.User_Controls
             }
 
             // Clean up mediator handler
-            (magnifyAndMarkerControlHandler as IAsyncDisposable)?.DisposeAsync();
-            magnifyAndMarkerControlHandler = null;
+            (_magnifyAndMarkerControlHandler as IAsyncDisposable)?.DisposeAsync();
+            _magnifyAndMarkerControlHandler = null;
 
             _disposed = true;
         }
@@ -353,7 +352,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         public void DumpAllProperties()
         {
-            DumpClassPropertiesHelper.DumpAllProperties(this, report);
+            DumpClassPropertiesHelper.DumpAllProperties(this, _report);
         }
 
 
@@ -362,14 +361,14 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="mediator"></param>
         /// <returns></returns>
-        public TListener InitializeMediator(SurveyorMediator __mediator, MainWindow __mainWindow)
+        public TListener InitializeMediator(SurveyorMediator mediator, MainWindow mainWindow)
         {
-            _mediator = __mediator;
-            _mainWindow = __mainWindow;
+            _mediator = mediator;
+            _mainWindow = mainWindow;
 
-            magnifyAndMarkerControlHandler = new MagnifyAndMarkerControlHandler(_mediator, this, _mainWindow);
+            _magnifyAndMarkerControlHandler = new MagnifyAndMarkerControlHandler(_mediator, this, _mainWindow);
 
-            return magnifyAndMarkerControlHandler;
+            return _magnifyAndMarkerControlHandler;
         }
 
 
@@ -380,18 +379,18 @@ namespace Surveyor.User_Controls
         /// source of the magnified image comes from the NewImageFrame() function
         /// </summary>
         /// <param name="imageFrame"></param>
-        /// <param name="cameraside"></param>
-        public void Setup(Reporter _report, Survey.SurveyType _surveyType, Image imageFrame, SurveyorMediaPlayer.eCameraSide cameraside)
+        /// <param name="cameraSide"></param>
+        public void Setup(Reporter report, Survey.SurveyType surveyType, Image imageFrame, SurveyorMediaPlayer.eCameraSide cameraSide)
         {
             // Remember the Report
-            report = _report;
+            _report = report;
 
             // Remember the Survey Type
-            surveyType = _surveyType;
+            _surveyType = surveyType;
 
             // Remember the Image control we are serving
             imageUIElement = imageFrame;
-            CameraSide = cameraside;
+            _cameraSide = cameraSide;
 
 
             // Add handler against the Main Window for Activated and Deactivated events
@@ -401,10 +400,10 @@ namespace Surveyor.User_Controls
             _mainWindow.Activated += MainWindow_Activated;
 
             // Get the current MainWindow activation status
-            mainWindowActivated = WindowHelper.IsMainWindowActive(_mainWindow);
+            _mainWindowActivated = WindowHelper.IsMainWindowActive(_mainWindow);
 
             // Taylor the CanvasContextMenu for the survey type
-            switch (surveyType)
+            switch (this._surveyType)
             {
                 case Survey.SurveyType.StereoFish:
                     CanvasFrameMenuAddMeasurement.Visibility = Visibility.Visible;
@@ -416,7 +415,7 @@ namespace Surveyor.User_Controls
                     break;
                 case Survey.SurveyType.MonoFish:
                     CanvasFrameMenuAddMeasurement.Visibility = Visibility.Collapsed;
-                    CanvasFrameMenuAdd3DPoint.Visibility = Visibility.Collapsed;                    
+                    CanvasFrameMenuAdd3DPoint.Visibility = Visibility.Collapsed;
                     CanvasFrameMenuDeleteAllTargets.Visibility = Visibility.Collapsed;
                     CanvasFrameMenuDeleteMeasurement.Visibility = Visibility.Collapsed;
                     CanvasFrameMenuDelete3DPoint.Visibility = Visibility.Collapsed;
@@ -449,7 +448,7 @@ namespace Surveyor.User_Controls
             ClearEventsAndEpipolar();
 
             // Reset survey type
-            surveyType = Survey.SurveyType.Unknown;
+            _surveyType = Survey.SurveyType.Unknown;
 
             // Assume the image in the ImageFrame is no longer loaded
             imageLoaded = false;
@@ -679,16 +678,16 @@ namespace Surveyor.User_Controls
             {
                 if (!double.IsNaN(CanvasFrame.ActualWidth))
                 {
-                    report?.Info(CameraSide.ToString(), $"RenderedPixelScreenSizeChanged: canvasScaleFactor={canvasScaleFactor}, CanvasFrame.ActualWidth={CanvasFrame.ActualWidth}, newWidth={newWidth}");
+                    _report?.Info(_cameraSide.ToString(), $"RenderedPixelScreenSizeChanged: canvasScaleFactor={canvasScaleFactor}, CanvasFrame.ActualWidth={CanvasFrame.ActualWidth}, newWidth={newWidth}");
                 }
                 else
                 {
-                    report?.Error(CameraSide.ToString(), $"RenderedPixelScreenSizeChanged: canvasScaleFactor={canvasScaleFactor}, CanvasFrame.ActualWidth=NaN, newWidth={newWidth}");
+                    _report?.Error(_cameraSide.ToString(), $"RenderedPixelScreenSizeChanged: canvasScaleFactor={canvasScaleFactor}, CanvasFrame.ActualWidth=NaN, newWidth={newWidth}");
                 }
 
                 if (newWidth == 0)
                 {
-                    report?.Error(CameraSide.ToString(), $"RenderedPixelScreenSizeChanged: canvasScaleFactor={canvasScaleFactor}, CanvasFrame.ActualWidth={CanvasFrame.ActualWidth}, newWidth={newWidth}");
+                    _report?.Error(_cameraSide.ToString(), $"RenderedPixelScreenSizeChanged: canvasScaleFactor={canvasScaleFactor}, CanvasFrame.ActualWidth={CanvasFrame.ActualWidth}, newWidth={newWidth}");
                 }
             }
 
@@ -719,7 +718,7 @@ namespace Surveyor.User_Controls
                 {
                     _lowestMouseWheelDeltaSeen = Math.Abs(delta);
 
-                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide} MouseWheel notch calculated at a delta of: {_lowestMouseWheelDeltaSeen}");
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide} MouseWheel notch calculated at a delta of: {_lowestMouseWheelDeltaSeen}");
                 }
   
                 // Act immediately on the first event to feel responsive
@@ -779,7 +778,7 @@ namespace Surveyor.User_Controls
                             newCanvasZoomFactor = canvasZoomFactor - 2.0; // Decrease zoom factor
                             changeMagnification = true;
 
-                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode Min Mag Window, Zoom Out, Zoom factor: {canvasZoomFactor} > {newCanvasZoomFactor}");
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: CombinedZoomMode Min Mag Window, Zoom Out, Zoom factor: {canvasZoomFactor} > {newCanvasZoomFactor}");
                         }
                         // Adjust the size of the Mag Window bigger
                         else if ((magWindowSize == "Large" || magWindowSize == "Medium" || magWindowSize == "Small") && canvasZoomFactor == zoomFactorStandard)
@@ -788,20 +787,20 @@ namespace Surveyor.User_Controls
 
                             changeMagWindowSize = true;
 
-                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode Zoom factor:{canvasZoomFactor}, Zoom Out, Size: ({magWindowSize}) > ({newMagWindowSize})");
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: CombinedZoomMode Zoom factor:{canvasZoomFactor}, Zoom Out, Size: ({magWindowSize}) > ({newMagWindowSize})");
                         }
                         else if (canvasZoomFactor > zoomFactorMin)
                         {
                             newCanvasZoomFactor = canvasZoomFactor - 2.0; // Decrease zoom factor
                             changeMagnification = true;
 
-                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode Max Mag Window?, Zoom Out, Zoom factor: {canvasZoomFactor} > {newCanvasZoomFactor}");
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: CombinedZoomMode Max Mag Window?, Zoom Out, Zoom factor: {canvasZoomFactor} > {newCanvasZoomFactor}");
                         }
                         else
                         {
                             if (!(magWindowSize == "Full" && canvasZoomFactor <= zoomFactorMin))
                             {
-                                Debug.WriteLine($"**{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode, (Shouldn't get here!) Zoom Out, Size: {magWindowSize}, Zoom factor: {canvasZoomFactor}");
+                                Debug.WriteLine($"**{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: CombinedZoomMode, (Shouldn't get here!) Zoom Out, Size: {magWindowSize}, Zoom factor: {canvasZoomFactor}");
                                 // Consider adding a reset to 'Large'/Zoom=5
                             }
                         }
@@ -815,7 +814,7 @@ namespace Surveyor.User_Controls
                             newCanvasZoomFactor = canvasZoomFactor + 2.0; // Increase zoom factor
                             changeMagnification = true;
 
-                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode Max Mag Window, Zoom In, Zoom factor: {canvasZoomFactor} > {newCanvasZoomFactor}");
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: CombinedZoomMode Max Mag Window, Zoom In, Zoom factor: {canvasZoomFactor} > {newCanvasZoomFactor}");
                         }
                         // Adjust the size of the Mag Window smaller
                         else if ((magWindowSize == "Full" || magWindowSize == "Large" || magWindowSize == "Medium") && canvasZoomFactor == zoomFactorStandard)
@@ -824,7 +823,7 @@ namespace Surveyor.User_Controls
 
                             changeMagWindowSize = true;
 
-                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode Zoom factor:{canvasZoomFactor}, Zoom In, Size: ({magWindowSize}) > ({newMagWindowSize})");
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: CombinedZoomMode Zoom factor:{canvasZoomFactor}, Zoom In, Size: ({magWindowSize}) > ({newMagWindowSize})");
                         }
                         // Mag Window normal small so zoom in
                         else if (canvasZoomFactor < zoomFactorMax)
@@ -832,13 +831,13 @@ namespace Surveyor.User_Controls
                             newCanvasZoomFactor = canvasZoomFactor + 2.0; // Increase zoom factor
                             changeMagnification = true;
 
-                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode Min Mag Window?, Zoom In, Zoom factor: {canvasZoomFactor} > {newCanvasZoomFactor}");
+                            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: CombinedZoomMode Min Mag Window?, Zoom In, Zoom factor: {canvasZoomFactor} > {newCanvasZoomFactor}");
                         }
                         else
                         {
                             if (!(magWindowSize == "Small" && canvasZoomFactor >= zoomFactorMax))
                             {
-                                Debug.WriteLine($"**{DateTime.Now:HH:mm:ss.ff} {CameraSide}: CombinedZoomMode, (Shouldn't get here!) Zoom In, Size: {magWindowSize}, Zoom factor: {canvasZoomFactor}");
+                                Debug.WriteLine($"**{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: CombinedZoomMode, (Shouldn't get here!) Zoom In, Size: {magWindowSize}, Zoom factor: {canvasZoomFactor}");
                                 // Consider adding a reset to 'Large'/Zoom=5
                             }
                         }
@@ -898,7 +897,7 @@ namespace Surveyor.User_Controls
         /// <param name="e"></param>
         private void CanvasFrame_PointerMoved(object sender, PointerRoutedEventArgs e)
         {
-            if (mainWindowActivated && imageLoaded)
+            if (_mainWindowActivated && imageLoaded)
             {
                 // Remove any existing Event line highlights
                 RemoveAnyLineHightLights();
@@ -925,7 +924,7 @@ namespace Surveyor.User_Controls
         private void CanvasFrame_PointerPressed(object sender, PointerRoutedEventArgs e) => _ = CanvasFramePointerPressedAsync(sender, e);
         private async Task CanvasFramePointerPressedAsync(object sender, PointerRoutedEventArgs e)
         {
-            if (mainWindowActivated && imageLoaded)
+            if (_mainWindowActivated && imageLoaded)
             {
 
                 // Get the pointer point relative to the sender (Image control)
@@ -933,7 +932,7 @@ namespace Surveyor.User_Controls
 
                 if (diagnosticInformation)
                 {
-                    report?.Info(CameraSide.ToString(), $"CanvasFrame_PointerPressed: Pointer pressed at ({pointerPoint.Position.X:F1}, {pointerPoint.Position.Y:F1}) " +
+                    _report?.Info(_cameraSide.ToString(), $"CanvasFrame_PointerPressed: Pointer pressed at ({pointerPoint.Position.X:F1}, {pointerPoint.Position.Y:F1}) " +
                         $"PointerDeviceType={pointerPoint.PointerDeviceType}, " +
                         $"Properties.PointerUpdateKind={pointerPoint.Properties.PointerUpdateKind}, " +
                         $"Properties.IsLeftButtonPressed={pointerPoint.Properties.IsLeftButtonPressed}, "+
@@ -963,7 +962,7 @@ namespace Surveyor.User_Controls
                 }
             }
             else
-                Debug.Write($"CanvasFrame_PointerPressed: mainWindowActivated={mainWindowActivated}, imageLoaded={imageLoaded}");
+                Debug.Write($"CanvasFrame_PointerPressed: mainWindowActivated={_mainWindowActivated}, imageLoaded={imageLoaded}");
         }
 
 
@@ -975,7 +974,7 @@ namespace Surveyor.User_Controls
         private void CanvasMag_PointerMoved(object sender, PointerRoutedEventArgs e) => _ = CanvasMagPointerMovedAsync(e);
         private async Task CanvasMagPointerMovedAsync(PointerRoutedEventArgs e)
         {
-            if (mainWindowActivated)
+            if (_mainWindowActivated)
             {
                 // Update the last seen time
                 lastTimePointerSeenInMagWindow = DateTime.Now;
@@ -1059,7 +1058,7 @@ namespace Surveyor.User_Controls
             // Temp
             Debug.WriteLine($"CanvasMag_PointerPressed button click press detected");
 
-            if (mainWindowActivated)
+            if (_mainWindowActivated)
             {
                 draggingInitialPressTime = DateTime.MinValue;
 
@@ -1120,7 +1119,7 @@ namespace Surveyor.User_Controls
             // Temp
             Debug.WriteLine($"CanvasMag_PointerReleased button click release detected");
 
-            if (mainWindowActivated)
+            if (_mainWindowActivated)
             {
 
                 // Get the pointer point relative to the ImageMag control
@@ -1179,9 +1178,9 @@ namespace Surveyor.User_Controls
                             {
                                 // StereoFish: Set the measurement markers if none or only one target already selected
                                 // Mono Fish: Set the measurement markers, reusing only argetA
-                                if ((surveyType == Survey.SurveyType.StereoFish && 
+                                if ((_surveyType == Survey.SurveyType.StereoFish && 
                                     TargetAMag.Visibility == Visibility.Collapsed) ||
-                                    surveyType == Survey.SurveyType.MonoFish)
+                                    _surveyType == Survey.SurveyType.MonoFish)
                                 {
                                     // Set Target A
                                     SetTargetOnCanvasMag(TargetAMag, pointerRelativeToImageMag.Position.X, pointerRelativeToImageMag.Position.Y, TargetIconType.Locked);
@@ -1189,7 +1188,7 @@ namespace Surveyor.User_Controls
                                     SetSelectedTarget(null);
                                 }
                                 // Only set Target B if survey type is StereoFish
-                                else if (surveyType == Survey.SurveyType.StereoFish && 
+                                else if (_surveyType == Survey.SurveyType.StereoFish && 
                                          TargetBMag.Visibility == Visibility.Collapsed)
                                 {
                                     SetTargetOnCanvasMag(TargetBMag, pointerRelativeToImageMag.Position.X, pointerRelativeToImageMag.Position.Y, TargetIconType.Locked);
@@ -1283,8 +1282,8 @@ namespace Surveyor.User_Controls
             // still working on it) then send a mediator message request to add the measurement
             if (pointTargetA is not null && pointTargetB is not null && targetSelected is null)
             {
-                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.AddMeasurementRequest, CameraSide);
-                magnifyAndMarkerControlHandler?.Send(data);
+                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.AddMeasurementRequest, _cameraSide);
+                _magnifyAndMarkerControlHandler?.Send(data);
             }
 
             MagHide();
@@ -1369,12 +1368,12 @@ namespace Surveyor.User_Controls
             await CombinedZoomModeAsync(-1/*zoom out: enlarge size & reduce magnification*/);
 
             // Message MediaStereoController so the other instance can update the size of the mag window
-            magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
+            _magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, _cameraSide)
             {
                 magWindowSize = MagWindowGetSizeName()
             });
             // Message MediaStereoController so the other instance can update the zoom factor
-            magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, CameraSide)
+            _magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, _cameraSide)
             {
                 canvasZoomFactor = canvasZoomFactor
             });
@@ -1392,12 +1391,12 @@ namespace Surveyor.User_Controls
             await CombinedZoomModeAsync(1/*zoom in: reduce size & magnify*/);
 
             // Message MediaStereoController so the other instance can update the size of the mag window
-            magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, CameraSide)
+            _magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagWindowSizeSelect, _cameraSide)
             {
                 magWindowSize = MagWindowGetSizeName()
             });
             // Message MediaStereoController so the other instance can update the zoom factor
-            magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, CameraSide)
+            _magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, _cameraSide)
             {
                 canvasZoomFactor = canvasZoomFactor
             });
@@ -1415,11 +1414,11 @@ namespace Surveyor.User_Controls
             await MagWindowZoomFactorEnlargeOrReduceAsync(true/*TrueZoomInFalseZoomOut*/);
 
             // Message MediaStereoController so the other instance can update the zoom factor
-            MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, CameraSide)
+            MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, _cameraSide)
             {
                 canvasZoomFactor = canvasZoomFactor
             };
-            magnifyAndMarkerControlHandler?.Send(data);
+            _magnifyAndMarkerControlHandler?.Send(data);
         }
 
 
@@ -1434,11 +1433,11 @@ namespace Surveyor.User_Controls
             await MagWindowZoomFactorEnlargeOrReduceAsync(false/*TrueZoomInFalseZoomOut*/);
 
             // Message MediaStereoController so the other instance can update the zoom factor
-            MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, CameraSide)
+            MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.UserReqMagZoomSelect, _cameraSide)
             {
                 canvasZoomFactor = canvasZoomFactor
             };
-            magnifyAndMarkerControlHandler?.Send(data);
+            _magnifyAndMarkerControlHandler?.Send(data);
         }
 
 
@@ -1500,7 +1499,7 @@ namespace Surveyor.User_Controls
                     if (position is not null && hoveringOverTargetPoint is Point pt)
                     {
                         // Set bookmark at current frame and pointer position on the CanvasFrame
-                        bookmark.SetBookmark(CameraSide, (TimeSpan)position, pt);
+                        bookmark.SetBookmark(_cameraSide, (TimeSpan)position, pt);
                         // Draw bookmark immediately
                         CanvasDrawingHelper.RemoveCanvasShapesByTag(CanvasFrame, "Bookmark");
                         bookmark.DrawBookmark(CanvasFrame, CanvasFrame_PointerMoved, CanvasFrame_PointerPressed);
@@ -1558,7 +1557,7 @@ namespace Surveyor.User_Controls
                     ResetAllTargets();
 
                     // Signal to the other instance to delete all their targets
-                    magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.TargetDeleteAll, CameraSide));
+                    _magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.TargetDeleteAll, _cameraSide));
                 }
 
                 // Delete Measurement
@@ -1569,7 +1568,7 @@ namespace Surveyor.User_Controls
                     if (hoveringOverGuid is not null)
                     {
                         // Signal delete Measurement, 3D point or Single Point
-                        magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.DeleteMeasure3DPointOrSinglePoint, CameraSide)
+                        _magnifyAndMarkerControlHandler?.Send(new MagnifyAndMarkerControlEventData(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.DeleteMeasure3DPointOrSinglePoint, _cameraSide)
                         {
                             eventGuid = hoveringOverGuid
                         });
@@ -1606,7 +1605,7 @@ namespace Surveyor.User_Controls
                             if (evt.EventData is SurveyMeasurement surveyMeasurement)
                             {
                                 trueMeasurementFalse3DPoint = true;
-                                if (CameraSide == SurveyorMediaPlayer.eCameraSide.Left)
+                                if (_cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
                                 {
                                     // We are the left camera so thisCamera is Left and otherCamera is Right
                                     thisCameraA = new(surveyMeasurement.LeftXA, surveyMeasurement.LeftYA);
@@ -1627,7 +1626,7 @@ namespace Surveyor.User_Controls
                             else if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
                             {
                                 trueMeasurementFalse3DPoint = false;
-                                if (CameraSide == SurveyorMediaPlayer.eCameraSide.Left)
+                                if (_cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
                                 {
                                     // We are the left camera so thisCamera is Left and otherCamera is Right
                                     thisCameraA = new(surveyStereoPoint.LeftX, surveyStereoPoint.LeftY);
@@ -1664,22 +1663,22 @@ namespace Surveyor.User_Controls
                             //    SetTargetOnCanvasMag(TargetBMag, thisCameraB.Value.X, thisCameraB.Value.Y, TargetIconType.Locked);
 
                             // Set Target A on the other instance                        
-                            MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.SelectTargetPoint, CameraSide)
+                            MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.SelectTargetPoint, _cameraSide)
                             {
                                 TruePointAFalsePointB = true,
                                 pointA = otherCameraA
                             };
-                            magnifyAndMarkerControlHandler?.Send(data);
+                            _magnifyAndMarkerControlHandler?.Send(data);
 
                             // Set Target B on the other instance if measurement and not 3D point
                             if (trueMeasurementFalse3DPoint == true)
                             {
-                                data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.SelectTargetPoint, CameraSide)
+                                data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.SelectTargetPoint, _cameraSide)
                                 {
                                     TruePointAFalsePointB = false,
                                     pointB = otherCameraB
                                 };
-                                magnifyAndMarkerControlHandler?.Send(data);
+                                _magnifyAndMarkerControlHandler?.Send(data);
                             }
                         }
                     }
@@ -1706,11 +1705,11 @@ namespace Surveyor.User_Controls
                     }
 
                     // Signal to the sibling control to do the same
-                    MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.SetMeasurementsAndPointsVisibility, CameraSide)
+                    MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.SetMeasurementsAndPointsVisibility, _cameraSide)
                     {
                         hideMeasurementsAndPoints = statusToSet
                     };
-                    magnifyAndMarkerControlHandler?.Send(data);
+                    _magnifyAndMarkerControlHandler?.Send(data);
                 }
 
                 // Edit Species Info
@@ -1719,11 +1718,11 @@ namespace Surveyor.User_Controls
                     if (hoveringOverGuid is not null)
                     {
                         // Edit species info
-                        MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.EditSpeciesInfoRequest, CameraSide)
+                        MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.EditSpeciesInfoRequest, _cameraSide)
                         {
                             eventGuid = hoveringOverGuid
                         };
-                        magnifyAndMarkerControlHandler?.Send(data);
+                        _magnifyAndMarkerControlHandler?.Send(data);
                     }
                 }
             }
@@ -1739,11 +1738,11 @@ namespace Surveyor.User_Controls
                 otherInstanceTargetASet && otherInstanceTargetBSet)
             {
                 // Request a measurement to be added
-                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.AddMeasurementRequest, CameraSide)
+                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.AddMeasurementRequest, _cameraSide)
                 {
                     species = _species,
                 };
-                magnifyAndMarkerControlHandler?.Send(data);
+                _magnifyAndMarkerControlHandler?.Send(data);
             }
         }
 
@@ -1784,12 +1783,12 @@ namespace Surveyor.User_Controls
             if (TruePointAFalsePointB is not null)
             {
                 // Request a 3D Point to be added
-                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.Add3DPointRequest, CameraSide)
+                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.Add3DPointRequest, _cameraSide)
                 {
                     species = _species,
                     TruePointAFalsePointB = (bool)TruePointAFalsePointB
                 };
-                magnifyAndMarkerControlHandler?.Send(data);
+                _magnifyAndMarkerControlHandler?.Send(data);
             }
 
         }
@@ -1831,12 +1830,12 @@ namespace Surveyor.User_Controls
             if (TruePointAFalsePointB is not null)
             {
                 // Request a Single Point to be added
-                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.AddSinglePointRequest, CameraSide)
+                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.AddSinglePointRequest, _cameraSide)
                 {
                     species = _species,
                     TruePointAFalsePointB = (bool)TruePointAFalsePointB
                 };
-                magnifyAndMarkerControlHandler?.Send(data);
+                _magnifyAndMarkerControlHandler?.Send(data);
             }
 
         }
@@ -1908,11 +1907,11 @@ namespace Surveyor.User_Controls
         {
             if (e.WindowActivationState == Microsoft.UI.Xaml.WindowActivationState.Deactivated)
             {
-                mainWindowActivated = false;
+                _mainWindowActivated = false;
             }
             else
             {
-                mainWindowActivated = true;
+                _mainWindowActivated = true;
             }
         }
 
@@ -1926,7 +1925,7 @@ namespace Surveyor.User_Controls
         {
             // This method is called when the app window loses focus
             //???Debug.WriteLine("App is inactive");
-            mainWindowActivated = false;
+            _mainWindowActivated = false;
         }
 
 
@@ -2039,8 +2038,8 @@ namespace Surveyor.User_Controls
         {
             CheckIsUIThread();
             // Check the ImageFrame is setup 
-            Debug.Assert(imageUIElement is not null, $"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
-            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: _SelectTargetPoint: TruePointAFalsePointB:{truePointAFalsePointB}, PointA({pointA.X:F1},{pointA.Y:F1}), PointB({pointB.X:F1},{pointB.Y:F1})");
+            Debug.Assert(imageUIElement is not null, $"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: _SelectTargetPoint: TruePointAFalsePointB:{truePointAFalsePointB}, PointA({pointA.X:F1},{pointA.Y:F1}), PointB({pointB.X:F1},{pointB.Y:F1})");
             if (truePointAFalsePointB)
             {
                 // Set Target A
@@ -2093,9 +2092,9 @@ namespace Surveyor.User_Controls
             CheckIsUIThread();
 
             // Check the ImageFrame is setup 
-            Debug.Assert(imageUIElement is not null, $"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
+            Debug.Assert(imageUIElement is not null, $"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
 
-            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: _NewImageFrame: Position:{TimePositionHelper.Format(_position, 3)}, Width:{_imageSourceWidth}, Height:{_imageSourceHeight}");
+            //???Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: _NewImageFrame: Position:{TimePositionHelper.Format(_position, 3)}, Width:{_imageSourceWidth}, Height:{_imageSourceHeight}");
 
 
             // Hide the mag window if it is locked
@@ -2138,9 +2137,9 @@ namespace Surveyor.User_Controls
         /// <returns></returns>
         internal bool _ProcessIfForMe(SurveyorMediaPlayer.eCameraSide _cameraSide)
         {
-            if (CameraSide == SurveyorMediaPlayer.eCameraSide.Left && _cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
+            if (this._cameraSide == SurveyorMediaPlayer.eCameraSide.Left && _cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
                 return true;
-            else if (CameraSide == SurveyorMediaPlayer.eCameraSide.Right && _cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
+            else if (this._cameraSide == SurveyorMediaPlayer.eCameraSide.Right && _cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
                 return true;
             else
                 return false;
@@ -2154,9 +2153,9 @@ namespace Surveyor.User_Controls
         /// <returns></returns>
         internal bool _FromSiblingControlForMe(SurveyorMediaPlayer.eCameraSide _cameraSide)
         {
-            if (CameraSide == SurveyorMediaPlayer.eCameraSide.Left && _cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
+            if (this._cameraSide == SurveyorMediaPlayer.eCameraSide.Left && _cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
                 return true;
-            else if (CameraSide == SurveyorMediaPlayer.eCameraSide.Right && _cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
+            else if (this._cameraSide == SurveyorMediaPlayer.eCameraSide.Right && _cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
                 return true;
             else
                 return false;
@@ -2170,9 +2169,9 @@ namespace Surveyor.User_Controls
         /// <returns></returns>
         internal bool _ProcessIfForMe(SurveyorMediaControl.eControlType ControlType)
         {
-            if (CameraSide == SurveyorMediaPlayer.eCameraSide.Left && ControlType == SurveyorMediaControl.eControlType.Primary)
+            if (_cameraSide == SurveyorMediaPlayer.eCameraSide.Left && ControlType == SurveyorMediaControl.eControlType.Primary)
                 return true;
-            else if (CameraSide == SurveyorMediaPlayer.eCameraSide.Right && ControlType == SurveyorMediaControl.eControlType.Secondary)
+            else if (_cameraSide == SurveyorMediaPlayer.eCameraSide.Right && ControlType == SurveyorMediaControl.eControlType.Secondary)
                 return true;
             else if (ControlType == SurveyorMediaControl.eControlType.Both)
                 return true;
@@ -2233,22 +2232,22 @@ namespace Surveyor.User_Controls
                 string testPointTargetB = "(null,null)";
                 if (pointTargetA is not null) testPointTargetA = $"({pointTargetA.Value.X:F1},{pointTargetA.Value.Y:F1})";
                 if (pointTargetB is not null) testPointTargetB = $"({pointTargetB.Value.X:F1},{pointTargetB.Value.Y:F1})";
-                report?.Info(CameraSide.ToString(), $"DisplayCanvasContextMenu: PointA:{testPointTargetA}, PointB:{testPointTargetB}");
+                _report?.Info(_cameraSide.ToString(), $"DisplayCanvasContextMenu: PointA:{testPointTargetA}, PointB:{testPointTargetB}");
                 // Hovering info
                 string texthoveringOverTargetTrueAFalseB = hoveringOverTargetTrueAFalseB?.ToString() ?? "null";
                 string textMeasurementEnd = hoveringOverMeasurementEnd?.ToString() ?? "null";                
                 string textMeasurementLine = hoveringOverMeasurementLine?.ToString() ?? "null";
                 string textDetails = hoveringOverDetails?.ToString() ?? "null";
                 string textPoint = hoveringOverPoint?.ToString() ?? "null";
-                report?.Info(CameraSide.ToString(), $"DisplayCanvasContextMenu: HoveringOver:  TargetTrueAFalseB={texthoveringOverTargetTrueAFalseB},  MeasurementEnd={textMeasurementEnd}, MeasurementLine={textMeasurementLine}, Details={textDetails}, Point={textPoint}");
+                _report?.Info(_cameraSide.ToString(), $"DisplayCanvasContextMenu: HoveringOver:  TargetTrueAFalseB={texthoveringOverTargetTrueAFalseB},  MeasurementEnd={textMeasurementEnd}, MeasurementLine={textMeasurementLine}, Details={textDetails}, Point={textPoint}");
                 // Other instance info
-                report?.Info(CameraSide.ToString(), $"DisplayCanvasContextMenu: OtherInstance: TargetASet={otherInstanceTargetASet},  TargetBSet={otherInstanceTargetBSet}");
+                _report?.Info(_cameraSide.ToString(), $"DisplayCanvasContextMenu: OtherInstance: TargetASet={otherInstanceTargetASet},  TargetBSet={otherInstanceTargetBSet}");
                 // Events info
-                report?.Info(CameraSide.ToString(), $"DisplayCanvasContextMenu: Count event for this frame={eventsForThisFrame.Count}");
+                _report?.Info(_cameraSide.ToString(), $"DisplayCanvasContextMenu: Count event for this frame={eventsForThisFrame.Count}");
                 int countMeasurements = eventsForThisFrame.Count(e => e.EventDataType == SurveyDataType.SurveyMeasurementPoints);
                 int count3DPoints = eventsForThisFrame.Count(e => e.EventDataType == SurveyDataType.SurveyStereoPoint);
                 int countSinglePoints = eventsForThisFrame.Count(e => e.EventDataType == SurveyDataType.SurveyPoint);
-                report?.Info(CameraSide.ToString(), $"DisplayCanvasContextMenu: Counts: Measurements={countMeasurements}, 3DPoints={count3DPoints}, SinglePoints={countSinglePoints}");
+                _report?.Info(_cameraSide.ToString(), $"DisplayCanvasContextMenu: Counts: Measurements={countMeasurements}, 3DPoints={count3DPoints}, SinglePoints={countSinglePoints}");
             }
 
             // Find the context menu in the resources
@@ -2323,7 +2322,7 @@ namespace Surveyor.User_Controls
 
                 // Remove bookmark
                 if (position is not null && 
-                    bookmark.IsBookmarkSet(CameraSide, (TimeSpan)position))
+                    bookmark.IsBookmarkSet(_cameraSide, (TimeSpan)position))
                 {
                     CanvasFrameMenuRemoveBookmark.IsEnabled = true;
                 }
@@ -2626,7 +2625,7 @@ namespace Surveyor.User_Controls
 
             // Bookmark
             if (position is not null && 
-                bookmark.IsBookmarkSet(CameraSide, (TimeSpan)position))
+                bookmark.IsBookmarkSet(_cameraSide, (TimeSpan)position))
             {
                 bookmark.DrawBookmark(CanvasFrame, CanvasFrame_PointerMoved, CanvasFrame_PointerPressed);
             }
@@ -2758,7 +2757,7 @@ namespace Surveyor.User_Controls
                         }
                     }
                 }
-                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: AdjustCanvasSizeAndScaling: Skipped body. imageUIElement Not Null is {imageUIElementNotNull}, imageUIElementParent is Grid {imageUIElementParentIsGrid}, AcutalWidth = {imageUIElementActualWidth}");
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: AdjustCanvasSizeAndScaling: Skipped body. imageUIElement Not Null is {imageUIElementNotNull}, imageUIElementParent is Grid {imageUIElementParentIsGrid}, AcutalWidth = {imageUIElementActualWidth}");
             }
 
         }
@@ -2805,7 +2804,7 @@ namespace Surveyor.User_Controls
         {
             if (diagnosticInformation)
             {
-                report?.Info(CameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagLockInCurrentPoisition: PointerPosition: ({pointerPosition.X:F1},{pointerPosition.Y:F1}), PointerDeviceType: {pointerDeviceType}");
+                _report?.Info(_cameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagLockInCurrentPoisition: PointerPosition: ({pointerPosition.X:F1},{pointerPosition.Y:F1}), PointerDeviceType: {pointerDeviceType}");
             }
 
             // Check if the event was not a touch screen event
@@ -2857,7 +2856,7 @@ namespace Surveyor.User_Controls
                 // Otherwise the Mag Window needs to be automatically canceled
                 // (this will set IsMagLocked = false)
                 MagHide();
-                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Unlock Magnify Window and hide");
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: Unlock Magnify Window and hide");
             }
 
             return ret;
@@ -2874,7 +2873,7 @@ namespace Surveyor.User_Controls
         private async Task MagWindowAsync(Point pointerPosition)
         {
             // Check the ImageFrame is setup 
-            Debug.Assert(imageUIElement is not null, $"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
+            Debug.Assert(imageUIElement is not null, $"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: Error MagnifyAndMarkerControl.Setup(...) must be called before calling the methods");
 
 
             // Atomic entry counter
@@ -2887,7 +2886,7 @@ namespace Surveyor.User_Controls
                     if (diagnosticInformation)
                     {
                         string streamSourceStatus = streamSource is not null ? "streamSource is not null" : "streamSource is null";
-                        report?.Info(CameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: PointerPosition: ({pointerPosition.X:F1},{pointerPosition.Y:F1}), {streamSourceStatus}, {imageUIElement.Parent?.GetType().FullName}");
+                        _report?.Info(_cameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: PointerPosition: ({pointerPosition.X:F1},{pointerPosition.Y:F1}), {streamSourceStatus}, {imageUIElement.Parent?.GetType().FullName}");
                     }
 
                     // Reset rectMagPointerBounds for safety, not strictly necessary
@@ -2905,8 +2904,8 @@ namespace Surveyor.User_Controls
 
                             if (diagnosticInformation)
                             {
-                                report?.Info(CameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: BitmapDecoder created, PixelWidth={decoder.PixelWidth}, PixelHeight={decoder.PixelHeight}");
-                                report?.Info(CameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: Canvas Size ({CanvasFrame.ActualWidth}x{CanvasFrame.ActualHeight})");
+                                _report?.Info(_cameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: BitmapDecoder created, PixelWidth={decoder.PixelWidth}, PixelHeight={decoder.PixelHeight}");
+                                _report?.Info(_cameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: Canvas Size ({CanvasFrame.ActualWidth}x{CanvasFrame.ActualHeight})");
                             }
 
 
@@ -2920,7 +2919,7 @@ namespace Surveyor.User_Controls
 
                                 if (diagnosticInformation)
                                 {
-                                    report?.Info(CameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: magWidthScaled={magWidthScaled}, magHeightScaled={magHeightScaled}");
+                                    _report?.Info(_cameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: magWidthScaled={magWidthScaled}, magHeightScaled={magHeightScaled}");
                                 }
 
 
@@ -2929,7 +2928,7 @@ namespace Surveyor.User_Controls
                                     Debug.WriteLine($"MagnifyAndMarkerDisplay.MagWindow: CanvasFrame Size ({CanvasFrame.ActualWidth:F1}x{CanvasFrame.ActualHeight:F1}), ImageFrame Size:({imageUIElement.ActualWidth}x{imageUIElement.ActualHeight})");
                                     if (imageUIElement.ActualWidth < magWidthScaled || imageUIElement.ActualHeight < magHeightScaled)
                                     {
-                                        report?.Info(CameraSide.ToString(), $"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, ImageFrame ({imageUIElement.ActualWidth:F1} x {imageUIElement.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), first attempt to reduce window size automatically.");
+                                        _report?.Info(_cameraSide.ToString(), $"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, ImageFrame ({imageUIElement.ActualWidth:F1} x {imageUIElement.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), first attempt to reduce window size automatically.");
 
                                         await MagWindowSizeEnlargeOrReduceAsync(false/*TrueEnargeFalseReduce*/, false/*trueHideIfLocked*/);
                                         magWidthScaled = magWidthUnscaled * canvasScaleFactor;
@@ -2938,7 +2937,7 @@ namespace Surveyor.User_Controls
 
                                         if (imageUIElement.ActualWidth < magWidthScaled || imageUIElement.ActualHeight < magHeightScaled)
                                         {
-                                            report?.Info(CameraSide.ToString(), $"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1} x {CanvasFrame.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), second attempt to reduce window size automatically.");
+                                            _report?.Info(_cameraSide.ToString(), $"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1} x {CanvasFrame.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), second attempt to reduce window size automatically.");
 
                                             await MagWindowSizeEnlargeOrReduceAsync(false/*TrueEnargeFalseReduce*/, false/*trueHideIfLocked*/);
                                             magWidthScaled = magWidthUnscaled * canvasScaleFactor;
@@ -2946,7 +2945,7 @@ namespace Surveyor.User_Controls
 
                                             if (imageUIElement.ActualWidth < magWidthScaled || imageUIElement.ActualHeight < magHeightScaled)
                                             {
-                                                report?.Info(CameraSide.ToString(), $"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1} x {CanvasFrame.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), can't display MagWindow, try maximizing the main window.");
+                                                _report?.Info(_cameraSide.ToString(), $"MagnifyAndMarkerDisplay.MagWindow: MagWindow too large, CanvasFrame ({CanvasFrame.ActualWidth:F1} x {CanvasFrame.ActualHeight:F1}), MagWindow ({magWidthScaled:F1}x{magHeightScaled:F1}), can't display MagWindow, try maximizing the main window.");
                                             }
                                         }
                                     }
@@ -3008,8 +3007,6 @@ namespace Surveyor.User_Controls
 
 
                                 // Debug reporting
-                                //???Debug.WriteLine($"Pointer ({pointerPosition.X:F1},{pointerPosition.Y:F1}) ImageFrame cx={imageUIElement.ActualWidth:F1}, cy={imageUIElement.ActualHeight:F1}, Source Image cx,cy {imageSourceWidth},{imageSourceHeight}, Mag Zoom:{canvasZoomFactor:F1}");
-                                
                                 Debug.WriteLine($"Mag Window Source Coordinates left,top=({rectMagWindowSource.X:F1},{rectMagWindowSource.Y:F1}), cx,cy {rectMagWindowSource.Width:F1},{rectMagWindowSource.Height:F1}, Zoom={canvasZoomFactor:F2}");
 
 
@@ -3128,7 +3125,7 @@ namespace Surveyor.User_Controls
                         catch (Exception ex)
                         {
                             // Seen BitmapDecoder.CreateAsync(streamSource) cause a COM exception
-                            report?.Info(CameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error MagWindow display: {ex.Message}");
+                            _report?.Info(_cameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: Error MagWindow display: {ex.Message}");
                         }
                     }
                 }
@@ -3136,7 +3133,7 @@ namespace Surveyor.User_Controls
                 {
                     if (diagnosticInformation)
                     {
-                        report?.Info(CameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: EntryCounter != 1 (EntryCounter={entryCounter})");
+                        _report?.Info(_cameraSide.ToString(), $"{DateTime.Now:HH:mm:ss.ff} MagWindow: EntryCounter != 1 (EntryCounter={entryCounter})");
                     }
                 }
             }
@@ -3196,7 +3193,7 @@ namespace Surveyor.User_Controls
             else
             {
                 // Handle case where the image source is not a BitmapImage, is not set, or XamlRoot is null
-                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error CheckImageResolution: Image source is not a BitmapImage, is not set, or XamlRoot is null.");
+                Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: Error CheckImageResolution: Image source is not a BitmapImage, is not set, or XamlRoot is null.");
             }
 
             return isDisplayedAtFullResolution;
@@ -3223,12 +3220,12 @@ namespace Surveyor.User_Controls
                 if (targetSelected == TargetAMag)
                 {
                     targetSelectedTrueAFalseB = true;
-                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: SetSelectedTarget Selected Target A");
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: SetSelectedTarget Selected Target A");
                 }
                 else if (targetSelected == TargetBMag)
                 {
                     targetSelectedTrueAFalseB = false;
-                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: SetSelectedTarget Selected Target B");
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: SetSelectedTarget Selected Target B");
                 }
                 else
                     targetSelectedTrueAFalseB = null;
@@ -3383,7 +3380,7 @@ namespace Surveyor.User_Controls
                         Point pointB;
 
                         // Points definition
-                        if (CameraSide == SurveyorMediaPlayer.eCameraSide.Left)
+                        if (_cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
                         {
                             pointA = new(surveyMeasurement.LeftXA, surveyMeasurement.LeftYA);
                             pointB = new(surveyMeasurement.LeftXB, surveyMeasurement.LeftYB);
@@ -3404,7 +3401,7 @@ namespace Surveyor.User_Controls
                         Point point;
 
                         // Point definition
-                        if (CameraSide == SurveyorMediaPlayer.eCameraSide.Left)
+                        if (_cameraSide == SurveyorMediaPlayer.eCameraSide.Left)
                             point = new(surveyStereoPoint.LeftX, surveyStereoPoint.LeftY);
                         else
                             point = new(surveyStereoPoint.RightX, surveyStereoPoint.RightY);
@@ -3417,8 +3414,8 @@ namespace Surveyor.User_Controls
                     else if (evt.EventData is SurveyPoint surveyPoint)
                     {
                         // Point definition are camera side specific                        
-                        if ((CameraSide == SurveyorMediaPlayer.eCameraSide.Left && surveyPoint.TrueLeftFalseRight) ||
-                            (CameraSide == SurveyorMediaPlayer.eCameraSide.Right && !surveyPoint.TrueLeftFalseRight))
+                        if ((_cameraSide == SurveyorMediaPlayer.eCameraSide.Left && surveyPoint.TrueLeftFalseRight) ||
+                            (_cameraSide == SurveyorMediaPlayer.eCameraSide.Right && !surveyPoint.TrueLeftFalseRight))
                         {
                             Point point = new(surveyPoint.X, surveyPoint.Y);
                             DrawEventPoint(evt.Guid, point, surveyPoint.SpeciesInfo);
@@ -3442,8 +3439,8 @@ namespace Surveyor.User_Controls
                 foreach (Event evt in events)
                 {
                     // Is the event for this frame?
-                    if ((CameraSide == SurveyorMediaPlayer.eCameraSide.Left && evt.FrameIndexLeft == frameIndex) ||
-                        (CameraSide == SurveyorMediaPlayer.eCameraSide.Right && evt.FrameIndexRight == frameIndex))
+                    if ((_cameraSide == SurveyorMediaPlayer.eCameraSide.Left && evt.FrameIndexLeft == frameIndex) ||
+                        (_cameraSide == SurveyorMediaPlayer.eCameraSide.Right && evt.FrameIndexRight == frameIndex))
                     {
                         eventsForThisFrame.Add(evt);
                     }
@@ -3499,7 +3496,7 @@ namespace Surveyor.User_Controls
             else if (rectangle == TargetBMag)
                 TrueAOnlyFalseBOnly = false;
             else
-                Debug.Assert(false, $"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error SetTargetOnCanvasMag: Rectangle is not a CanvasMag target icon, programming error!");
+                Debug.Assert(false, $"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: Error SetTargetOnCanvasMag: Rectangle is not a CanvasMag target icon, programming error!");
 
             if (TrueAOnlyFalseBOnly is not null)
             {
@@ -3512,7 +3509,7 @@ namespace Surveyor.User_Controls
 
                 // Send a mediator message to inform that a target has been set
                 // Signal to the MagnifyAndMarkerControl to display the epipolar line
-                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.TargetPointSelected, CameraSide)
+                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.TargetPointSelected, _cameraSide)
                 {
                     TruePointAFalsePointB = TrueAOnlyFalseBOnly,
                 };
@@ -3520,7 +3517,7 @@ namespace Surveyor.User_Controls
                     data.pointA = pointTargetA;
                 else
                     data.pointB = pointTargetB;
-                magnifyAndMarkerControlHandler?.Send(data);
+                _magnifyAndMarkerControlHandler?.Send(data);
 
                 
             }
@@ -3585,7 +3582,7 @@ namespace Surveyor.User_Controls
             else if (rectangle == TargetB)
                 TrueAOnlyFalseBOnly = false;
             else
-                Debug.Assert(false, $"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error ResetTargetOnCanvasFrame: Rectangle is not a CanvasFrame target icon, programming error!");
+                Debug.Assert(false, $"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: Error ResetTargetOnCanvasFrame: Rectangle is not a CanvasFrame target icon, programming error!");
 
             if (TrueAOnlyFalseBOnly is not null)
             {
@@ -3614,7 +3611,7 @@ namespace Surveyor.User_Controls
             else if (rectangle == TargetBMag)
                 TrueAOnlyFalseBOnly = false;
             else
-                Debug.Assert(false, $"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Error ResetTargetOnCanvasMag: Rectangle is not a CanvasMag target icon, programming error!");
+                Debug.Assert(false, $"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: Error ResetTargetOnCanvasMag: Rectangle is not a CanvasMag target icon, programming error!");
 
             if (TrueAOnlyFalseBOnly is not null)
             {
@@ -3626,13 +3623,13 @@ namespace Surveyor.User_Controls
                 TransferTargetsBetweenVariableAndCanvasFrame((bool)TrueAOnlyFalseBOnly, true /*TrueToCanvasFalseFromCanvas*/);
 
                 // Send a mediator message to inform that a target has been reset (use TargetPointSelected but with PointA & B set to null)
-                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.TargetPointSelected, CameraSide)
+                MagnifyAndMarkerControlEventData data = new(MagnifyAndMarkerControlEventData.MagnifyAndMarkerControlEvent.TargetPointSelected, _cameraSide)
                 {
                     TruePointAFalsePointB = TrueAOnlyFalseBOnly,
                     pointA = null,
                     pointB = null
                 };
-                magnifyAndMarkerControlHandler?.Send(data);
+                _magnifyAndMarkerControlHandler?.Send(data);
             }
         }
 
@@ -3643,7 +3640,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         internal void ResetAllTargets()
         {
-            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: ResetAllTargets");
+            Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: ResetAllTargets");
 
             ResetTargetOnCanvasFrame(TargetA);
             ResetTargetOnCanvasMag(TargetAMag);
@@ -3817,11 +3814,11 @@ namespace Surveyor.User_Controls
 
                 if (isMagLocked && elapsed.TotalMilliseconds >= inactivityMagWindowClose) 
                 {
-                    if (!inZoomModeProcessing && (!isPointerOnUs && !canvasMagContextMenuOpen) || !mainWindowActivated)
+                    if (!inZoomModeProcessing && (!isPointerOnUs && !canvasMagContextMenuOpen) || !_mainWindowActivated)
                     {
                         // Unlock/Hide the Mag Window
                         MagHide();  // This function will unlock and/or hide the Mag Window
-                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {CameraSide}: Timer_Tick: Mag Window hidden due to inactivity, isPointerOnUs={isPointerOnUs}, mainWindowActivated={mainWindowActivated}, canvasMagContextMenuOpen={canvasMagContextMenuOpen}, inZoomModeProcessing={inZoomModeProcessing}, elapsed={elapsed.TotalMilliseconds}ms");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} {_cameraSide}: Timer_Tick: Mag Window hidden due to inactivity, isPointerOnUs={isPointerOnUs}, mainWindowActivated={_mainWindowActivated}, canvasMagContextMenuOpen={canvasMagContextMenuOpen}, inZoomModeProcessing={inZoomModeProcessing}, elapsed={elapsed.TotalMilliseconds}ms");
                     }
                 }
             }

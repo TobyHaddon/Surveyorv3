@@ -163,6 +163,9 @@ namespace Surveyor
             MinHeight = 600;
             MinWidth = 800;
 
+            // Copy the species files to the local folder (necessary once after application installation)
+            SpeciesCodeList.InstallSpeciesListFiles(_report);
+
             // Setup the Handler for the MainWindow
             _mainWindowHandler = new MainWindowHandler(_mediator, this);
 
@@ -1052,7 +1055,11 @@ namespace Surveyor
 
             ret = await FileSurveySaveOrSaveAsAsync();
 
-            if (ret != 0)
+            if (ret == -9)
+            {
+                _report.Warning("", $"User cancelled the SaveAs");
+            }
+            else if (ret != 0)
             {
                 _report.Warning("", $"FileSurveySave_Click: FileSurveySaveOrSaveAs() failed, return = {ret}");
             }
@@ -1982,6 +1989,137 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Export a species list
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ExportSpeciesList_Click(object sender, RoutedEventArgs e) => _ = ExportSpeciesListClickAsync();
+
+        private async Task ExportSpeciesListClickAsync()
+        {
+            try
+            {
+                ExportSpeciesListDialog.XamlRoot = this.Content.XamlRoot;
+
+                // Default to Fish every time dialog opens
+                SpeciesListTypeFishRadio.IsChecked = true;
+                PopulateExportSpeciesListMenuFlyout();
+
+                ContentDialogResult result = await ExportSpeciesListDialog.ShowAsync();
+                if (result != ContentDialogResult.Primary)
+                    return;
+
+                if (ExportSpeciesListDropDown.Tag is not string selectedSpeciesListName || string.IsNullOrWhiteSpace(selectedSpeciesListName))
+                    return;
+
+                SpeciesListType speciesListType = SpeciesListTypeFishRadio.IsChecked == true
+                    ? SpeciesListType.Fish
+                    : SpeciesListType.Benthic;
+                
+                string speciesFolder = SpeciesCodeList.GetSpeciesTypeFolder(speciesListType);
+                string sourceFileSpec = Path.Combine(
+                    Windows.Storage.ApplicationData.Current.LocalFolder.Path,
+                    speciesFolder,
+                    $"{selectedSpeciesListName}.txt");
+
+                // Warning user if export file not found (shouldn't happen)
+                if (!File.Exists(sourceFileSpec))
+                {
+                    await new ContentDialog
+                    {
+                        Title = "Export Species List",
+                        Content = $"Source file not found:\n{sourceFileSpec}",
+                        CloseButtonText = "OK",
+                        XamlRoot = this.Content.XamlRoot
+                    }.ShowAsync();
+                    return;
+                }
+
+                // Pick the file to export to
+                FileSavePicker savePicker = new();
+                IntPtr hwnd = WindowNative.GetWindowHandle(this);
+                InitializeWithWindow.Initialize(savePicker, hwnd);
+
+                savePicker.SuggestedStartLocation = PickerLocationId.DocumentsLibrary;
+                savePicker.FileTypeChoices.Add("Text Files", [".txt"]);
+                savePicker.SuggestedFileName = $"{selectedSpeciesListName}.txt";
+
+                StorageFile file = await savePicker.PickSaveFileAsync();
+                if (file is null)
+                    return;
+
+                CachedFileManager.DeferUpdates(file);
+                File.Copy(sourceFileSpec, file.Path, true);
+                _ = await CachedFileManager.CompleteUpdatesAsync(file);
+
+                // User feedback
+                await new ContentDialog
+                {
+                    Title = "Export Species List",
+                    Content = $"Export complete!",
+                    CloseButtonText = "OK",
+                    XamlRoot = this.Content.XamlRoot
+                }.ShowAsync();
+
+                _report?.Info("", $"Species list exported: {file.Path}");
+            }
+            catch (Exception ex)
+            {
+                _report?.Error("", $"Export species list failed: {ex.Message}");
+            }
+        }
+
+        private void ExportSpeciesListTypeRadio_Checked(object sender, RoutedEventArgs e)
+        {
+            PopulateExportSpeciesListMenuFlyout();
+        }
+
+        private void PopulateExportSpeciesListMenuFlyout()
+        {
+            SpeciesListType speciesListType = SpeciesListTypeFishRadio.IsChecked == true
+                ? SpeciesListType.Fish
+                : SpeciesListType.Benthic;
+
+            List<string> listNames = SpeciesCodeList.GetAvailableSpeciesLists(speciesListType);
+
+            ExportSpeciesListMenuFlyout.Items.Clear();
+
+            foreach (string listName in listNames)
+            {
+                MenuFlyoutItem item = new()
+                {
+                    Text = listName,
+                    Tag = listName
+                };
+                item.Click += ExportSpeciesListMenuFlyoutItem_Click;
+                ExportSpeciesListMenuFlyout.Items.Add(item);
+            }
+
+            if (listNames.Count > 0)
+            {
+                ExportSpeciesListDropDown.Content = listNames[0];
+                ExportSpeciesListDropDown.Tag = listNames[0];
+                ExportSpeciesListDialog.IsPrimaryButtonEnabled = true;
+            }
+            else
+            {
+                ExportSpeciesListDropDown.Content = "No species lists found";
+                ExportSpeciesListDropDown.Tag = null;
+                ExportSpeciesListDialog.IsPrimaryButtonEnabled = false;
+            }
+        }
+
+        private void ExportSpeciesListMenuFlyoutItem_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is MenuFlyoutItem item && item.Tag is string selectedName)
+            {
+                ExportSpeciesListDropDown.Content = selectedName;
+                ExportSpeciesListDropDown.Tag = selectedName;
+            }
+        }
+
+
+        /// <summary>
         /// This method is called to check that suitable calibration data is available for the current frame size and that 
         /// it is set as the preferred calibration data.  If that isn't the case the method to see if there is any calibration data
         /// the support the current frame size but is not set to be preferred.  If that is the case the user is asked if they want to
@@ -2483,28 +2621,43 @@ namespace Surveyor
                         // Survey needs to be saved before a frame can be saved
                         var warningIcon = new SymbolIcon(Symbol.Important); // Symbol.Important represents an exclamation
 
+                        // Differatiate between failure to save and user cancel
+                        string titleText;
+                        string messageText;
+
+                        if (ret2 == -9/*User cancel*/)
+                        {
+                            titleText = "Save Survey Canceled";
+                            messageText = "The survey must be saved before the application can continue. Survey will be closed.";
+                        }
+                        else
+                        {
+                            titleText = "Failed to save Survey file";
+                            messageText = "Please check the Output tab for more information on the failure. Survey will be closed.";
+                        }
+
                         // Add a content dialog to report the survey save error
                         // and display the user to look at the Output tab for more information
                         var dialog = new ContentDialog
                         {
-                            Title = $"Failed to save Survey file",
+                            Title = titleText,
                             Content = new StackPanel
                             {
                                 Orientation = Orientation.Horizontal,
                                 Spacing = 10,
                                 Children =
+                                    {
+                                        warningIcon, // Add the exclamation icon to the dialog content
+                                        new TextBlock
                                         {
-                                            warningIcon, // Add the exclamation icon to the dialog content
-                                            new TextBlock
-                                            {
-                                                Text = $"Please check the Output tab for more information on the failure",
-                                                TextWrapping = TextWrapping.Wrap,
-                                                MaxWidth = 400 // Adjust based on your app's layout
-                                            }
+                                            Text = messageText,
+                                            TextWrapping = TextWrapping.Wrap,
+                                            MaxWidth = 400 // Adjust based on your app's layout
                                         }
+                                    }
                             },
 
-                            CloseButtonText = "Cancel",
+                            CloseButtonText = "OK",
                             DefaultButton = ContentDialogButton.Close, // Set "Cancel" as the default button
 
                             // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
@@ -2513,7 +2666,13 @@ namespace Surveyor
 
                         // Show the dialog and await the result
                         await dialog.ShowAsync();
+
+                        // Close down 
+                        await CheckForOpenSurveyAndCloseAsync(forceClose: true); 
+                        _survey?.Clear();
                     }
+
+
                 }
             }
 
@@ -2605,11 +2764,11 @@ namespace Surveyor
                     ContentDialogResult result = await SurveyStereoInfoAndMediaContentDialog.ShowAsync();
                     if (result == ContentDialogResult.Primary)
                     {
-                        // Copy the survey info and media info setup in the dialog into the survey class (can't be a field trip template)
-                        bool inheritanceRequested = _fieldTrip is null && SurveyStereoInfoAndMediaUserControl.SaveForContentDialog(_survey);
+                        // Copy the survey info and media info setup in the dialog into the survey class
+                        bool inheritanceRequested = SurveyStereoInfoAndMediaUserControl.SaveForContentDialog(_survey);
 
-                        // Inherit information from recent survey if user requested                        
-                        if (inheritanceRequested == true && !string.IsNullOrEmpty(potentialSurveyToInheritFrom))
+                        // Inherit information from recent survey if user requested (can't be a field trip template)
+                        if (_fieldTrip is null && inheritanceRequested == true && !string.IsNullOrEmpty(potentialSurveyToInheritFrom))
                         {
                             // Copies select information (calibration and/or rules)
                             SurveyInheritance surveyInheritance = new();
@@ -2873,7 +3032,7 @@ namespace Surveyor
         /// <summary>
         /// Save the current survey to a new file
         /// </summary>
-        /// <returns></returns>
+        /// <returns>0 is ok, -1 problem saving, -9 user cancelled the save</returns>
         private async Task<int> SaveAsSurveyAsync()
         {
             int ret = 0;
@@ -2891,7 +3050,7 @@ namespace Surveyor
         
 
                 StorageFile file = await savePicker.PickSaveFileAsync();
-                if (file != null)
+                if (file is not null)
                 {
                     SetTitle(file.Name);
                     SetTitleSaveStatus("Saving...");
@@ -2923,6 +3082,12 @@ namespace Surveyor
                         Debug.WriteLine($"Failed to save file {file.Path}.");
                     }
                 }
+                else
+                {
+                    ret = -9;
+                    Debug.WriteLine($"User canceled the File Save dialog.");
+                }
+
             }
 
             return ret;
@@ -2966,83 +3131,85 @@ namespace Surveyor
         /// USES 'Internal' to allow Unit Testing
         /// </summary>
         /// <returns>true is OK to proceed (i.e. no survey now open)</returns>
-        internal async Task<bool> CheckForOpenSurveyAndCloseAsync()
+        internal async Task<bool> CheckForOpenSurveyAndCloseAsync(bool forceClose = false)
         {
             bool ret = false;
+            bool closeSurvey = false;
 
             if (this._survey is not null)
             {
-                bool closeSurvey = false;
-
-                if (this._survey.IsDirty == true)
-                {
-                    Debug.WriteLine("CheckForOpenSurveyAndClose Dirty Path");//???
-                    try
+                if (!forceClose)
+                {                    
+                    if (this._survey.IsDirty == true)
                     {
-                        // Create a FontIcon using the Segoe Fluent Icons font
-                        var warningIcon = new FontIcon
+                        Debug.WriteLine("CheckForOpenSurveyAndClose Dirty Path");//???
+                        try
                         {
-                            Glyph = "\uE814", // Unicode character for a warning icon in Segoe Fluent Icons
-                            FontFamily = new FontFamily("Segoe Fluent Icons"),
-                            Width = 24,
-                            Height = 24
-                        };
+                            // Create a FontIcon using the Segoe Fluent Icons font
+                            var warningIcon = new FontIcon
+                            {
+                                Glyph = "\uE814", // Unicode character for a warning icon in Segoe Fluent Icons
+                                FontFamily = new FontFamily("Segoe Fluent Icons"),
+                                Width = 24,
+                                Height = 24
+                            };
 
-                        ContentDialog confirmationDialog = new()
-                        {
-                            Title = "Close Survey",
-                            Content = new StackPanel
+                            ContentDialog confirmationDialog = new()
                             {
-                                Orientation = Orientation.Horizontal,
-                                Spacing = 10,
-                                Children =
-                            {
-                                warningIcon, // Add the warning icon to the dialog content
-                                new TextBlock
+                                Title = "Close Survey",
+                                Content = new StackPanel
                                 {
-                                    Text = "Before you close this survey, do you want to save your changes?\n\nPress 'Yes' to save the existing survey, 'No' to close without saving",
-                                    TextWrapping = TextWrapping.Wrap, // Enables text wrapping
-                                    MaxWidth = 300 // Prevents text from stretching too wide
+                                    Orientation = Orientation.Horizontal,
+                                    Spacing = 10,
+                                    Children =
+                                {
+                                    warningIcon, // Add the warning icon to the dialog content
+                                    new TextBlock
+                                    {
+                                        Text = "Before you close this survey, do you want to save your changes?\n\nPress 'Yes' to save the existing survey, 'No' to close without saving",
+                                        TextWrapping = TextWrapping.Wrap, // Enables text wrapping
+                                        MaxWidth = 300 // Prevents text from stretching too wide
+                                    }
                                 }
+                                },
+                                CloseButtonText = "Cancel",
+                                PrimaryButtonText = "Yes",
+                                SecondaryButtonText = "No",
+                                DefaultButton = ContentDialogButton.Primary, // Set the default focused button to "Yes"
+
+                                // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
+                                XamlRoot = this.Content.XamlRoot
+                            };
+
+                            // Display the dialog
+                            var result = await confirmationDialog.ShowAsync();
+
+                            // Handle the dialog result
+                            if (result == ContentDialogResult.Primary)
+                            {
+                                // "Yes" button clicked
+                                await FileSurveySaveOrSaveAsAsync();
+                                closeSurvey = true;
+
                             }
-                            },
-                            CloseButtonText = "Cancel",
-                            PrimaryButtonText = "Yes",
-                            SecondaryButtonText = "No",
-                            DefaultButton = ContentDialogButton.Primary, // Set the default focused button to "Yes"
-
-                            // XamlRoot must be set in the case of a ContentDialog running in a Desktop app
-                            XamlRoot = this.Content.XamlRoot
-                        };
-
-                        // Display the dialog
-                        var result = await confirmationDialog.ShowAsync();
-
-                        // Handle the dialog result
-                        if (result == ContentDialogResult.Primary)
-                        {
-                            // "Yes" button clicked
-                            await FileSurveySaveOrSaveAsAsync();
-                            closeSurvey = true;
-
+                            else if (result == ContentDialogResult.Secondary)
+                            {
+                                // "No" button clicked
+                                closeSurvey = true;
+                            }
+                            // If the select Cancel the Close Survey request is canceled
                         }
-                        else if (result == ContentDialogResult.Secondary)
+                        catch (Exception ex)
                         {
-                            // "No" button clicked
-                            closeSurvey = true;
+                            _report.Error("", $"CheckForOpenSurveyAndClose (confirm phase): {ex.Message}");
                         }
-                        // If the select Cancel the Close Survey request is canceled
                     }
-                    catch (Exception ex)
-                    {
-                        _report.Error("", $"CheckForOpenSurveyAndClose (confirm phase): {ex.Message}");
-                    }
+                    else
+                        closeSurvey = true;
                 }
-                else
-                    closeSurvey = true;
+                
 
-
-                if (closeSurvey == true)
+                if (closeSurvey || forceClose)
                 {
                     Debug.WriteLine("CheckForOpenSurveyAndClose Close Survey Path");//???
                     try
@@ -3589,20 +3756,20 @@ namespace Surveyor
         /// The MediaPlayer must be open so the frame width and height is known
         /// </summary>
         /// <returns>true if anything changed</returns>
-        public async Task<bool> CheckIfEventMeasurementsAreUpToDateAsync(bool forceReCalc)
+        public async Task<bool> CheckIfEventMeasurementsAreUpToDateAsync(bool forceReCalculation)
         {
             bool ret = false;
 
             // Get the Calibration ID from the preferred calibration data
             if (_survey is not null && MediaPlayerLeft.IsOpen())
             {
-                ret = await SurveyMeasurementHelper.CheckIfEventMeasurementsAreUpToDate(
+                ret = await SurveyMeasurementHelper.CheckIfEventMeasurementsAreUpToDateAsync(
                                                             _stereoProjection,
                                                             _survey,
                                                             MediaPlayerLeft.FrameWidth,
                                                             MediaPlayerLeft.FrameHeight,
                                                             this.Content.XamlRoot, 
-                                                            forceReCalc);
+                                                            forceReCalculation);
                             
                 if (ret == true && _survey is not null)
                 {

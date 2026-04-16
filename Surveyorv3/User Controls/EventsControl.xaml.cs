@@ -74,35 +74,35 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Add an event to the list
         /// </summary>
-        /// <param name="evt"></param>
-        public async Task AddEventAsync(Event evt)
+        /// <param name="eventAdd"></param>
+        public async Task AddEventAsync(Event eventAdd)
         {
 #pragma warning disable CA1868
-            if (events.Contains(evt))
+            if (events.Contains(eventAdd))
 #pragma warning restore CA1868
             {
-                events.Remove(evt);
+                events.Remove(eventAdd);
                 await Task.Delay(100);
             }
-            events.Add(evt);
+            events.Add(eventAdd);
             
             // Set the SelectedItem property to the newly added event
-            ListViewEvent.SelectedItem = evt;
-            ListViewEvent.ScrollIntoView(evt);
+            ListViewEvent.SelectedItem = eventAdd;
+            ListViewEvent.ScrollIntoView(eventAdd);
 
             // If the event type could contain SpeciesInfo then check for the info bar
             // to show missing species info if necessary
-            if (evt.EventData is SurveyMeasurement ||
-                evt.EventData is SurveyStereoPoint ||
-                evt.EventData is SurveyPoint )
+            if (eventAdd.EventData is SurveyMeasurement ||
+                eventAdd.EventData is SurveyStereoPoint ||
+                eventAdd.EventData is SurveyPoint )
             {
                 mainWindow?.SetInfoBarSpeciesInfoMissing();
             }
 
             // If the event type could contain RMS Calculate then check for the info bar
             // to show any RMS rule violations if necessary
-            if (evt.EventData is SurveyMeasurement ||
-                evt.EventData is SurveyStereoPoint)
+            if (eventAdd.EventData is SurveyMeasurement ||
+                eventAdd.EventData is SurveyStereoPoint)
             {
                 mainWindow?.SetInfoBarRMSRuleViolation();
             }
@@ -112,24 +112,24 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Delete an event from the list
         /// </summary>
-        /// <param name="evt"></param>
-        public void DeleteEvent(Event evt)
+        /// <param name="eventDelete"></param>
+        public void DeleteEvent(Event eventDelete)
         {
-            events.Remove(evt);
+            events.Remove(eventDelete);
 
             // If the event type could contain SpeciesInfo then set the info bar
             // to show missing species info if necessary
-            if (evt.EventData is SurveyMeasurement ||
-                evt.EventData is SurveyStereoPoint ||
-                evt.EventData is SurveyPoint)
+            if (eventDelete.EventData is SurveyMeasurement ||
+                eventDelete.EventData is SurveyStereoPoint ||
+                eventDelete.EventData is SurveyPoint)
             {
                 mainWindow?.SetInfoBarSpeciesInfoMissing();
             }
 
             // If the event type could contain RMS Calculate then check for the info bar
             // to show any RMS rule violations if necessary
-            if (evt.EventData is SurveyMeasurement ||
-                evt.EventData is SurveyStereoPoint)
+            if (eventDelete.EventData is SurveyMeasurement ||
+                eventDelete.EventData is SurveyStereoPoint)
             {
                 mainWindow?.SetInfoBarRMSRuleViolation();
             }
@@ -225,16 +225,16 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Go to the event in the media player and scroll to it in the Events List
         /// </summary>
-        /// <param name="evt"></param>
+        /// <param name="eventGoTo"></param>
         /// <returns></returns>
-        public bool GoToEvent(Event evt)
+        public bool GoToEvent(Event eventGoTo)
         {
             // Jump to frame of this event
-            mediaStereoController?.UserReqFrameJump(SurveyorMediaControl.eControlType.Primary, evt.TimeSpanTimelineController);
+            mediaStereoController?.UserReqFrameJump(SurveyorMediaControl.eControlType.Primary, eventGoTo.TimeSpanTimelineController);
 
             // Set the SelectedItem property to the newly added event
-            ListViewEvent.SelectedItem = evt;
-            ListViewEvent.ScrollIntoView(evt);
+            ListViewEvent.SelectedItem = eventGoTo;
+            ListViewEvent.ScrollIntoView(eventGoTo);
 
             return false;
         }
@@ -242,8 +242,8 @@ namespace Surveyor.User_Controls
         /// <summary>
         /// Display Event in a ContentDialog
         /// </summary>
-        /// <param name="evt"></param>
-        public async Task DisplayAsync(Event evt)
+        /// <param name="eventDisplay"></param>
+        public async Task DisplayAsync(Event eventDisplay)
         {
             // Set the content dialog title
             EventDialog.Title = "Event Properties";
@@ -255,7 +255,7 @@ namespace Surveyor.User_Controls
             EventDialog.CloseButtonText = "Close";
 
             // Set the content dialog title
-            switch (evt.EventDataType)
+            switch (eventDisplay.EventDataType)
             {
                 case SurveyDataType.SurveyPoint:
                     EventDialog.Title = $"Survey Point";
@@ -279,7 +279,7 @@ namespace Surveyor.User_Controls
                     EventDialog.Title = $"Survey End";
                     break;
                 default:
-                    EventDialog.Title = $"{evt.EventDataType}";
+                    EventDialog.Title = $"{eventDisplay.EventDataType}";
                     break;
             }
             
@@ -287,18 +287,18 @@ namespace Surveyor.User_Controls
             // Create a string to display the event data
             StringBuilder sb = new();
 
-            if (evt.EventData is not null)
+            if (eventDisplay.EventData is not null)
             {
                 // Get the survey transect marker name for this event (if any)
-                string? surveyTransectName = GetTransectMarkerNameForEvent(events, evt);
+                string? surveyTransectName = GetTransectMarkerNameForEvent(events, eventDisplay);
 
-                switch (evt.EventDataType)
+                switch (eventDisplay.EventDataType)
                 {
                     case SurveyDataType.StereoSyncPoint:  // No EventData for this type 
 
-                        sb.AppendLine($"Sync media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}");
-                        sb.AppendLine($"Left media position: {TimePositionHelper.Format(evt.TimeSpanLeftFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexLeft}");
-                        sb.AppendLine($"Right media position: {TimePositionHelper.Format(evt.TimeSpanRightFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexRight}");
+                        sb.AppendLine($"Sync media position: {TimePositionHelper.Format(eventDisplay.TimeSpanTimelineController, displayToDecimalPlaces)}");
+                        sb.AppendLine($"Left media position: {TimePositionHelper.Format(eventDisplay.TimeSpanLeftFrame, displayToDecimalPlaces)} Frame:{eventDisplay.FrameIndexLeft}");
+                        sb.AppendLine($"Right media position: {TimePositionHelper.Format(eventDisplay.TimeSpanRightFrame, displayToDecimalPlaces)} Frame:{eventDisplay.FrameIndexRight}");
                         break;
 
                     case SurveyDataType.SurveyMeasurementPoints:
@@ -307,17 +307,17 @@ namespace Surveyor.User_Controls
 
                         // Media Position
                         if (surveyTransectName is not null)
-                            sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Transect #{surveyTransectName}");
+                            sb.AppendLine($"Media position: {TimePositionHelper.Format(eventDisplay.TimeSpanTimelineController, displayToDecimalPlaces)}  Transect #{surveyTransectName}");
                         else
-                            sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}");
+                            sb.AppendLine($"Media position: {TimePositionHelper.Format(eventDisplay.TimeSpanTimelineController, displayToDecimalPlaces)}");
 
                         if (SettingsManagerLocal.DiagnosticInformation)
                         {
-                            sb.AppendLine($"Left media position: {TimePositionHelper.Format(evt.TimeSpanLeftFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexLeft}");
-                            sb.AppendLine($"Right media position: {TimePositionHelper.Format(evt.TimeSpanRightFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexRight}");
+                            sb.AppendLine($"Left media position: {TimePositionHelper.Format(eventDisplay.TimeSpanLeftFrame, displayToDecimalPlaces)} Frame:{eventDisplay.FrameIndexLeft}");
+                            sb.AppendLine($"Right media position: {TimePositionHelper.Format(eventDisplay.TimeSpanRightFrame, displayToDecimalPlaces)} Frame:{eventDisplay.FrameIndexRight}");
                         }
 
-                        if (evt.EventData is SurveyMeasurement surveyMeasurement)
+                        if (eventDisplay.EventData is SurveyMeasurement surveyMeasurement)
                         {
                             // Measurement
                             sb.AppendLine("");
@@ -342,7 +342,7 @@ namespace Surveyor.User_Controls
                             sb.AppendLine($"");
                             surveyRulesCalc = surveyMeasurement.SurveyRulesCalc;
                         }
-                        else if (evt.EventData is SurveyStereoPoint surveyStereoPoint)
+                        else if (eventDisplay.EventData is SurveyStereoPoint surveyStereoPoint)
                         {
                             sb.AppendLine("");
                             sb.AppendLine($"Species: {surveyStereoPoint.SpeciesInfo.Species}\r\n");
@@ -371,7 +371,7 @@ namespace Surveyor.User_Controls
                             if (surveyRulesCalc.Range is not null)
                             {
                                 sb.AppendLine($"Range: {Math.Round((double)surveyRulesCalc.Range, 2)}m");
-                                if (evt.EventData is SurveyMeasurement)
+                                if (eventDisplay.EventData is SurveyMeasurement)
                                     sb.AppendLine($"This is the calculated distance from center of the camera system to the center of the measurement points.");
                                 else
                                     sb.AppendLine($"This is the calculated distance from center of the camera system to the 3D point.");
@@ -401,19 +401,19 @@ namespace Surveyor.User_Controls
                         break;
                     
                     case SurveyDataType.SurveyPoint:
-                        if (evt.EventData is SurveyPoint surveyPoint)
+                        if (eventDisplay.EventData is SurveyPoint surveyPoint)
                         {
                             if (surveyTransectName is not null)
-                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Transect #{surveyTransectName}\r\n");
+                                sb.AppendLine($"Media position: {TimePositionHelper.Format(eventDisplay.TimeSpanTimelineController, displayToDecimalPlaces)}  Transect #{surveyTransectName}\r\n");
                             else
-                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
+                                sb.AppendLine($"Media position: {TimePositionHelper.Format(eventDisplay.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
 
                             if (SettingsManagerLocal.DiagnosticInformation)
                             {
                                 if (surveyPoint.TrueLeftFalseRight)
-                                    sb.AppendLine($"Left media position: {TimePositionHelper.Format(evt.TimeSpanLeftFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexLeft}");
+                                    sb.AppendLine($"Left media position: {TimePositionHelper.Format(eventDisplay.TimeSpanLeftFrame, displayToDecimalPlaces)} Frame:{eventDisplay.FrameIndexLeft}");
                                 else
-                                    sb.AppendLine($"Right media position: {TimePositionHelper.Format(evt.TimeSpanRightFrame, displayToDecimalPlaces)} Frame:{evt.FrameIndexRight}");
+                                    sb.AppendLine($"Right media position: {TimePositionHelper.Format(eventDisplay.TimeSpanRightFrame, displayToDecimalPlaces)} Frame:{eventDisplay.FrameIndexRight}");
                             }
 
                             sb.Append($"");
@@ -428,17 +428,17 @@ namespace Surveyor.User_Controls
 
                     case SurveyDataType.SurveyStart:
                     case SurveyDataType.SurveyEnd:
-                        if (evt.EventData is TransectMarker transectMarker)
+                        if (eventDisplay.EventData is TransectMarker transectMarker)
                         {
                             if (transectMarker.MarkerName is not null)
-                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}  Transect #{transectMarker.MarkerName}\r\n");
+                                sb.AppendLine($"Media position: {TimePositionHelper.Format(eventDisplay.TimeSpanTimelineController, displayToDecimalPlaces)}  Transect #{transectMarker.MarkerName}\r\n");
                             else
-                                sb.AppendLine($"Media position: {TimePositionHelper.Format(evt.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
+                                sb.AppendLine($"Media position: {TimePositionHelper.Format(eventDisplay.TimeSpanTimelineController, displayToDecimalPlaces)}\r\n");
                         }
                         break;
                 }
 
-                sb.Append($"\r\nEvent Created: {evt.DateTimeCreate:dd MMM yyyy HH:mm:ss}");
+                sb.Append($"\r\nEvent Created: {eventDisplay.DateTimeCreate:dd MMM yyyy HH:mm:ss}");
             }
 
             // Set the content of the TextBlock inside the dialog

@@ -22,6 +22,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Media;
@@ -37,24 +38,24 @@ namespace Surveyor
 
     internal class MediaStereoController
     {
-        // Copy of the Mediator
-        private readonly SurveyorMediator? mediator;
-
         // Copy of the reporter
-        private readonly Reporter? report;
+        private readonly Reporter? _report;
+
+        // Copy of the Mediator
+        private readonly SurveyorMediator? _mediator;
 
         // Declare the mediator handler for MediaStereoController
-        private readonly MediaControllerHandler? mediaControllerHandler;
+        private readonly MediaControllerHandler? _mediaControllerHandler;
 
         // Copy of the main window
-        private readonly MainWindow mainWindow;
+        private readonly MainWindow _mainWindow;
         // Copy of the left and right MediaPlayer controls
-        private readonly SurveyorMediaPlayer mediaPlayerLeft;
-        private readonly SurveyorMediaPlayer mediaPlayerRight;
+        private readonly SurveyorMediaPlayer _mediaPlayerLeft;
+        private readonly SurveyorMediaPlayer _mediaPlayerRight;
 
         // Copy of the primary and secondary MediaControls
-        private readonly SurveyorMediaControl mediaControlPrimary;
-        private readonly SurveyorMediaControl mediaControlSecondary;
+        private readonly SurveyorMediaControl _mediaControlPrimary;
+        private readonly SurveyorMediaControl _mediaControlSecondary;
 
 
         // Copy of the left and right MediaInfo controls
@@ -62,19 +63,19 @@ namespace Surveyor
         //???private readonly MediaInfo _mediaInfoRight;
 
         // Indicates if the two MediaPlayers are operating locked together or independently 
-        private bool mediaSynchronized = false;                                // Set if the Left and Right players are now controlled via the MediaTimelineControler
-        private TimeSpan mediaSynchronizedFrameOffset = TimeSpan.Zero;         // Position: Left is started before Right. Negative Left is started after Right
-        private MediaTimelineController? mediaTimelineController = null;       // The MediaTimelineController that is controlling the Left and Right MediaPlayers
-        private TimeSpan maxNaturalDurationForController = TimeSpan.Zero;
-        private bool durationSetByThisClass = false;  // If true can't be overridden by receiving duration 
+        private bool _mediaSynchronized = false;                                // Set if the Left and Right players are now controlled via the MediaTimelineControler
+        private TimeSpan _mediaSynchronizedFrameOffset = TimeSpan.Zero;         // Position: Left is started before Right. Negative Left is started after Right
+        private MediaTimelineController? _mediaTimelineController = null;       // The MediaTimelineController that is controlling the Left and Right MediaPlayers
+        private TimeSpan _maxNaturalDurationForController = TimeSpan.Zero;
+        private bool _durationSetByThisClass = false;  // If true can't be overridden by receiving duration 
                                                       // via mediator from the Media Players
         private double _frameRate = 0.0;
 
         // Position of the MediaTimelineController whilst paused and moving frame by frame
-        TimeSpan mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
+        TimeSpan _mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
 
         // EventControl (existing measurements etc)
-        private readonly EventsControl? eventsControl = null;
+        private readonly EventsControl? _eventsControl = null;
 
         // Species Image Cache (stock photos of fish species to help fish ID)
         internal SpeciesImageAndInfoCache speciesImageCache;  // Accessed by SettingsWindow
@@ -83,60 +84,59 @@ namespace Surveyor
         internal SpeciesSelector speciesSelector;  // Accessed by SettingsWindow
 
         // StereoProjection class        
-        public StereoProjection stereoProjection;
+        private readonly StereoProjection _stereoProjection;
 
         // Type of survey that is open
-        Survey.SurveyType surveyType = Survey.SurveyType.Unknown;
+        private Survey.SurveyType _surveyType = Survey.SurveyType.Unknown;
 
         // Used to allow the user not to see the dialog that appears if the user adds a
         // Measurement Point, 3D Point or a Single Point and doesn't setup the species info
-        private bool justSaveEventDoAsk = false;
+        private bool _justSaveEventDoAsk = false;
 
         // Cached diagnostic information flag
-        private bool diagnosticInformation = false;
+        private bool _diagnosticInformation = false;
 
         // Only used for settingsWindowEvent.Experimental
-        public bool? experimentalEnabled;
-        public bool? experimentalFeatureSetAEnabled;
-        public bool? experimentalFeatureSetBEnabled;
-        public bool? experimentalFeatureSetCEnabled;
+        private bool? _experimentalEnabled;
+        private bool? _experimentalFeatureSetAEnabled;
+        private bool? _experimentalFeatureSetBEnabled;
+        private bool? _experimentalFeatureSetCEnabled;
 
-
-        public MediaStereoController(MainWindow _mainWindow, Reporter _report, 
-                                     SurveyorMediator _mediator, 
-                                     SurveyorMediaPlayer _mediaPlayerLeft, SurveyorMediaPlayer _mediaPlayerRight, 
-                                     SurveyorMediaControl _mediaControlPrimary, SurveyorMediaControl _mediaControlSecondary,
-                                     EventsControl? _eventsControl,
-                                     StereoProjection _stereoProjection/*,
+        public MediaStereoController(MainWindow mainWindow, Reporter report, 
+                                     SurveyorMediator mediator, 
+                                     SurveyorMediaPlayer mediaPlayerLeft, SurveyorMediaPlayer mediaPlayerRight, 
+                                     SurveyorMediaControl mediaControlPrimary, SurveyorMediaControl mediaControlSecondary,
+                                     EventsControl? eventsControl,
+                                     StereoProjection stereoProjection/*,
                                      SurveyorMediaInfo mediaInfoLeft, SurveyorMediaInfo mediaInfoRight*/)
         {
             // Remember the main window
-            mainWindow = _mainWindow;
+            _mainWindow = mainWindow;
 
             // Remember the reporter
-            report = _report;
+            _report = report;
 
             // Remember Mediator
-            mediator = _mediator;
+            _mediator = mediator;
 
             // Remember media player controls and set the reporter
-            mediaPlayerLeft = _mediaPlayerLeft;
-            mediaPlayerLeft.CameraSide = SurveyorMediaPlayer.eCameraSide.Left;
-            mediaPlayerLeft.SetReporter(report);
-            mediaPlayerRight = _mediaPlayerRight;
-            mediaPlayerRight.CameraSide = SurveyorMediaPlayer.eCameraSide.Right;
-            mediaPlayerRight.SetReporter(report);
+            _mediaPlayerLeft = mediaPlayerLeft;
+            _mediaPlayerLeft.CameraSide = SurveyorMediaPlayer.eCameraSide.Left;
+            _mediaPlayerLeft.SetReporter(_report);
+            _mediaPlayerRight = mediaPlayerRight;
+            _mediaPlayerRight.CameraSide = SurveyorMediaPlayer.eCameraSide.Right;
+            _mediaPlayerRight.SetReporter(_report);
 
             // Remember media controls and set the reporter
-            mediaControlPrimary = _mediaControlPrimary;
-            mediaControlPrimary.ControlType = SurveyorMediaControl.eControlType.Primary;
-            mediaControlPrimary.SetReporter(report);
-            mediaControlSecondary = _mediaControlSecondary;
-            mediaControlSecondary.ControlType = SurveyorMediaControl.eControlType.Secondary;
-            mediaControlSecondary.SetReporter(report);
+            _mediaControlPrimary = mediaControlPrimary;
+            _mediaControlPrimary.ControlType = SurveyorMediaControl.eControlType.Primary;
+            _mediaControlPrimary.SetReporter(_report);
+            _mediaControlSecondary = mediaControlSecondary;
+            _mediaControlSecondary.ControlType = SurveyorMediaControl.eControlType.Secondary;
+            _mediaControlSecondary.SetReporter(_report);
 
             // Remember the EventControl
-            eventsControl = _eventsControl;
+            _eventsControl = eventsControl;
 
             // Remember media info controls
             //???_mediaInfoLeft = mediaInfoLeft;
@@ -146,12 +146,12 @@ namespace Surveyor
 
 
             // Initialize mediator for both media player controls
-            mediaPlayerLeft.InitializeMediator(mediator, mainWindow);
-            mediaPlayerRight.InitializeMediator(mediator, mainWindow);
+            _mediaPlayerLeft.InitializeMediator(_mediator, _mainWindow);
+            _mediaPlayerRight.InitializeMediator(_mediator, _mainWindow);
 
             // Initialize mediator for both media controls
-            mediaControlPrimary.InitializeMediator(mediator, mainWindow);
-            mediaControlSecondary.InitializeMediator(mediator, mainWindow);
+            _mediaControlPrimary.InitializeMediator(_mediator, _mainWindow);
+            _mediaControlSecondary.InitializeMediator(_mediator, _mainWindow);
 
 
             // Initialize mediator for both media info controls
@@ -166,23 +166,31 @@ namespace Surveyor
                 SettingsManagerLocal.ExperimentalFeatureSetAEnabled, SettingsManagerLocal.ExperimentalFeatureSetBEnabled, SettingsManagerLocal.ExperimentalFeatureSetCEnabled);
 
             // Remember the StereoProjection class
-            stereoProjection = _stereoProjection;
-            stereoProjection.SetReporter(report);
+            _stereoProjection = stereoProjection;
+            _stereoProjection.SetReporter(_report);
 
             // SpeciesSelector dialog class which contains the Species code list
             speciesSelector = new();
-            speciesSelector.SetReporter(report);
+            speciesSelector.SetReporter(_report);
             OpenSpeciesListIfNecessary(SettingsManagerLocal.ActiveSpeciesList);
             
             // Initialize the species image cache
-            speciesImageCache = new(speciesSelector.SpeciesCodeList, mainWindow._internetQueue, report);
-            _ = speciesImageCache.LoadAsync(SettingsManagerLocal.UseInternetEnabled && SettingsManagerLocal.SpeciesImageCacheEnabled); // Fire and forget / Load persistent SpeciesState from disk
+            speciesImageCache = new(speciesSelector.SpeciesCodeList, _mainWindow._internetQueue, _report);
+
 
             // Setup the Handler for the MainWindow
-            mediaControllerHandler = new MediaControllerHandler(mediator, mainWindow, this);
+            _mediaControllerHandler = new MediaControllerHandler(_mediator, _mainWindow, this);
 
+            _ = MediaStereoControllerAsync(); // Fire and forget
         }
+        private async Task MediaStereoControllerAsync()
+        {
+            // Load the Image and Info cache
+            await speciesImageCache.LoadAsync(SettingsManagerLocal.UseInternetEnabled && SettingsManagerLocal.SpeciesImageCacheEnabled); // Fire and forget / Load persistent SpeciesState from disk
 
+            // Audit the cache
+            speciesImageCache.AuditImageAndInfoCache(trueViaSpeciesListFalseDirectly: true, onlyShowProblems: true);
+        }
 
 
         ///
@@ -195,8 +203,8 @@ namespace Surveyor
         /// </summary>
         public async Task UnloadAsync()
         {
-            await mediaPlayerLeft.UnloadAsync();
-            await mediaPlayerRight.UnloadAsync();
+            await _mediaPlayerLeft.UnloadAsync();
+            await _mediaPlayerRight.UnloadAsync();
             await speciesImageCache.UnloadAsync();
             speciesSelector.Unload();
         }
@@ -206,8 +214,8 @@ namespace Surveyor
         /// </summary>
         public void DumpAllProperties()
         {
-            DumpClassPropertiesHelper.DumpAllProperties(this, report, /*ignore*/"mediator,report,mediaControllerHandler,mainWindow,mediaPlayerLeft,mediaPlayerRight,mediaControlPrimary,mediaControlSecondary,magnifyAndMarkerDisplayLeft,magnifyAndMarkerDisplayRight,mediaTimelineController,eventsControl,speciesSelector,stereoProjection");
-            DumpClassPropertiesHelper.DumpAllProperties(speciesSelector, report, /*ignore*/"_contentLoaded,<speciesCodeList>k__BackingField,<ImageList>k__BackingField,Bindings");
+            DumpClassPropertiesHelper.DumpAllProperties(this, _report, /*ignore*/"_mediator,_report,_mediaControllerHandler,_mainWindow,_mediaPlayerLeft,_mediaPlayerRight,_mediaControlPrimary,_mediaControlSecondary,_magnifyAndMarkerDisplayLeft,_magnifyAndMarkerDisplayRight,_mediaTimelineController,_eventsControl,_speciesSelector,_stereoProjection");
+            DumpClassPropertiesHelper.DumpAllProperties(speciesSelector, _report, /*ignore*/"_contentLoaded,<speciesCodeList>k__BackingField,<ImageList>k__BackingField,Bindings");
         }
 
 
@@ -255,48 +263,48 @@ namespace Surveyor
             int ret = 0;
 
             // Reset
-            mediaSynchronized = false;
-            mediaSynchronizedFrameOffset = TimeSpan.Zero;
-            mediaTimelineController = null;
-            maxNaturalDurationForController = TimeSpan.Zero;
-            durationSetByThisClass = false;
+            _mediaSynchronized = false;
+            _mediaSynchronizedFrameOffset = TimeSpan.Zero;
+            _mediaTimelineController = null;
+            _maxNaturalDurationForController = TimeSpan.Zero;
+            _durationSetByThisClass = false;
             _frameRate = 0.0;
-            mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
+            _mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
 
             // Remember the survey type
-            surveyType = _surveyType;
+            this._surveyType = _surveyType;
 
             // This is an 'are you sure' dialog if the user has not set the species info
-            justSaveEventDoAsk = false;
+            _justSaveEventDoAsk = false;
 
 
             // Set the depth the video were filmed at for color correction (Feature Set A)
             uint depthUnderwaterPassed = 0;
-            if (experimentalEnabled == true && experimentalFeatureSetAEnabled == true)
+            if (_experimentalEnabled == true && _experimentalFeatureSetAEnabled == true)
             {
                 depthUnderwaterPassed = depthUnderwater;
             }
 
 
             // Open both files        
-            if (surveyType == Survey.SurveyType.StereoFish)
+            if (this._surveyType == Survey.SurveyType.StereoFish)
             {
                 // Open both media files in parallel
                 var openLeftTask = string.IsNullOrEmpty(mediaFileSpecLeft)
                     ? Task.CompletedTask
-                    : mediaPlayerLeft.OpenAsync(surveyType, mediaFileSpecLeft, depthUnderwaterPassed);
+                    : _mediaPlayerLeft.OpenAsync(this._surveyType, mediaFileSpecLeft, depthUnderwaterPassed);
 
                 var openRightTask = string.IsNullOrEmpty(mediaFileSpecRight)
                     ? Task.CompletedTask
-                    : mediaPlayerRight.OpenAsync(surveyType, mediaFileSpecRight, 0 /*depthUnderwaterPassed*/);
+                    : _mediaPlayerRight.OpenAsync(this._surveyType, mediaFileSpecRight, 0 /*depthUnderwaterPassed*/);
 
                 // Run both opens concurrently
                 await Task.WhenAll(openLeftTask, openRightTask);
 
                 // Wait for media to open
                 int tries = 0;
-                while (((!string.IsNullOrEmpty(mediaFileSpecLeft) && !mediaPlayerLeft.IsOpen()) ||
-                        (!string.IsNullOrEmpty(mediaFileSpecRight) && !mediaPlayerRight.IsOpen())) &&
+                while (((!string.IsNullOrEmpty(mediaFileSpecLeft) && !_mediaPlayerLeft.IsOpen()) ||
+                        (!string.IsNullOrEmpty(mediaFileSpecRight) && !_mediaPlayerRight.IsOpen())) &&
                        tries < 20)
                 {
                     await Task.Delay(100);
@@ -330,24 +338,24 @@ namespace Surveyor
                 }
 
                 // Make sure the media players and controls are not in full screen mode
-                mainWindow.MediaBackToWindow();
-                mediaControlPrimary.FullScreenButtonVisability(true/*trueVisibleIfNeededFalseAlwaysHidden*/);
-                mediaControlPrimary.MediaFullScreen(false/*TrueYouAreFullFalseYouAreRestored*/, null);
-                mediaControlSecondary.MediaFullScreen(false/*TrueYouAreFullFalseYouAreRestored*/, null);
+                _mainWindow.MediaBackToWindow();
+                _mediaControlPrimary.FullScreenButtonVisibility(true/*trueVisibleIfNeededFalseAlwaysHidden*/);
+                _mediaControlPrimary.MediaFullScreen(false/*TrueYouAreFullFalseYouAreRestored*/, null);
+                _mediaControlSecondary.MediaFullScreen(false/*TrueYouAreFullFalseYouAreRestored*/, null);
 
                 // Enable media controls
-                mediaControlPrimary.IsEnabled = true;
-                mediaControlSecondary.IsEnabled = true;
+                _mediaControlPrimary.IsEnabled = true;
+                _mediaControlSecondary.IsEnabled = true;
             }
             else
             {
                 // Mono/Benthic survey - open only the left media file
                 if (!string.IsNullOrEmpty(mediaFileSpecLeft))
                 {
-                    await mediaPlayerLeft.OpenAsync(surveyType, mediaFileSpecLeft, depthUnderwaterPassed);
+                    await _mediaPlayerLeft.OpenAsync(this._surveyType, mediaFileSpecLeft, depthUnderwaterPassed);
                     // Wait for media to open
                     int tries = 0;
-                    while (!mediaPlayerLeft.IsOpen() && tries < 20)
+                    while (!_mediaPlayerLeft.IsOpen() && tries < 20)
                     {
                         await Task.Delay(100);
                         tries++;
@@ -358,7 +366,7 @@ namespace Surveyor
                     CalcFrameIndexesForAllEvents(existingEvents);
 
                     // Set the events if the players are locked
-                    mediaPlayerLeft.SetEvents(existingEvents);
+                    _mediaPlayerLeft.SetEvents(existingEvents);
 
                     // Move in one frame to engage frame server (i.e. display the pause frame in the ImageFrame
                     // instead of the MediaPlayer). This ensure all the code around the canvas and displaying
@@ -367,13 +375,13 @@ namespace Surveyor
                     await FrameMoveAsync(eCameraSide.Left, 1);
                 }
 
-                mainWindow.MediaFullScreen(true/*TrueLeftFalseRight*/);
-                mainWindow.SetTitleCameraSide("");
-                mediaControlPrimary.FullScreenButtonVisability(false/*trueVisibleIfNeededFalseAlwaysHidden*/);
-                mediaControlPrimary.MediaFullScreen(true/*TrueYouAreFullFalseYouAreRestored*/, eCameraSide.Left);
+                _mainWindow.MediaFullScreen(true/*TrueLeftFalseRight*/);
+                _mainWindow.SetTitleCameraSide("");
+                _mediaControlPrimary.FullScreenButtonVisibility(false/*trueVisibleIfNeededFalseAlwaysHidden*/);
+                _mediaControlPrimary.MediaFullScreen(true/*TrueYouAreFullFalseYouAreRestored*/, eCameraSide.Left);
                 // Disable the other media control we keystroke aren't directed there
-                mediaControlPrimary.IsEnabled = true;
-                mediaControlSecondary.IsEnabled = false;
+                _mediaControlPrimary.IsEnabled = true;
+                _mediaControlSecondary.IsEnabled = false;
             }
 
             return ret;
@@ -390,16 +398,16 @@ namespace Surveyor
             try
             {
                 // This is Pause the media if it is synchronized and playing
-                if (mediaSynchronized)
+                if (_mediaSynchronized)
                 {
-                    if (mediaPlayerLeft.IsOpen() && mediaPlayerRight.IsOpen())
+                    if (_mediaPlayerLeft.IsOpen() && _mediaPlayerRight.IsOpen())
                         await PauseAsync(eCameraSide.None);
                 }
                 else
                 {
-                    if (mediaPlayerLeft.IsOpen())
+                    if (_mediaPlayerLeft.IsOpen())
                         await PauseAsync(eCameraSide.Left);
-                    if (mediaPlayerRight.IsOpen())
+                    if (_mediaPlayerRight.IsOpen())
                         await PauseAsync(eCameraSide.Right);
                 }
 
@@ -407,27 +415,27 @@ namespace Surveyor
                 await Task.Delay(500);
 
 
-                if (mediaPlayerLeft.IsOpen())
+                if (_mediaPlayerLeft.IsOpen())
                 {
-                    await mediaPlayerLeft.CloseAsync();
-                    mediaControlPrimary.Clear();
+                    await _mediaPlayerLeft.CloseAsync();
+                    _mediaControlPrimary.Clear();
                 }
-                if (mediaPlayerRight.IsOpen())
+                if (_mediaPlayerRight.IsOpen())
                 {
-                    await mediaPlayerRight.CloseAsync();
-                    mediaControlSecondary.Clear();
+                    await _mediaPlayerRight.CloseAsync();
+                    _mediaControlSecondary.Clear();
                 }
 
                 // Reset
-                mediaSynchronized = false;
-                mediaSynchronizedFrameOffset = TimeSpan.Zero;
-                mediaTimelineController = null;
-                maxNaturalDurationForController = TimeSpan.Zero;
-                durationSetByThisClass = false;
+                _mediaSynchronized = false;
+                _mediaSynchronizedFrameOffset = TimeSpan.Zero;
+                _mediaTimelineController = null;
+                _maxNaturalDurationForController = TimeSpan.Zero;
+                _durationSetByThisClass = false;
                 _frameRate = 0.0;
-                mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
+                _mediaTimelineControllerPositionPausedMode = TimeSpan.Zero;
 
-                surveyType = Survey.SurveyType.Unknown;
+                _surveyType = Survey.SurveyType.Unknown;
             }
             catch (Exception ex)
             {
@@ -444,7 +452,7 @@ namespace Surveyor
         {
             CheckIsUIThread();
 
-            return (mediaPlayerLeft.IsOpen() || mediaPlayerRight.IsOpen());
+            return (_mediaPlayerLeft.IsOpen() || _mediaPlayerRight.IsOpen());
         }
 
 
@@ -459,27 +467,27 @@ namespace Surveyor
 
             bool ret = false;
 
-            if (!mediaSynchronized)
+            if (!_mediaSynchronized)
             {
                 // Create the MediaTimelineController
-                mediaTimelineController = new MediaTimelineController();
-                mediaTimelineController.StateChanged += MediaTimelineController_StateChanged;
-                mediaTimelineController.PositionChanged += MediaTimelineController_PositionChanged;
+                _mediaTimelineController = new MediaTimelineController();
+                _mediaTimelineController.StateChanged += MediaTimelineController_StateChanged;
+                _mediaTimelineController.PositionChanged += MediaTimelineController_PositionChanged;
                 //_mediaTimelineController.Ended += MediaTimelineController_Ended;    // In case we need later
                 //_mediaTimelineController.Failed += MediaTimelineController_Failed;  // In case we need later
 
                 // Wait the media players to be ready
-                await WaitForPlayersToHaveValidPositionAsync(mediaPlayerLeft, mediaPlayerRight);
+                await WaitForPlayersToHaveValidPositionAsync(_mediaPlayerLeft, _mediaPlayerRight);
 
                 // Remember the current Media Player Position. This is so we can check that the players
                 // did actually move to the correct position later in this method
-                TimeSpan leftPositionActual = (TimeSpan)mediaPlayerLeft.Position!;
-                TimeSpan rightPositionActual = (TimeSpan)mediaPlayerRight.Position!;
+                TimeSpan leftPositionActual = (TimeSpan)_mediaPlayerLeft.Position!;
+                TimeSpan rightPositionActual = (TimeSpan)_mediaPlayerRight.Position!;
 
                 if (_lockedMediaPlayersFrameOffset is null)
                 {
                     // Lock in the current player play position.  The user is manually syncing the media players
-                    if (mediaPlayerLeft.Position is not null && mediaPlayerRight.Position is not null)
+                    if (_mediaPlayerLeft.Position is not null && _mediaPlayerRight.Position is not null)
                     {
 
                         // Correct on frame boundaries (rounding down is OK)
@@ -487,13 +495,13 @@ namespace Surveyor
                         long rightFrame = (long)(rightPositionActual.TotalMilliseconds * _frameRate / 1000.0);
                         TimeSpan leftPositionRounded = TimeSpan.FromMilliseconds(leftFrame * 1000 / _frameRate);
                         TimeSpan rightPositionRounded = TimeSpan.FromMilliseconds(rightFrame * 1000 / _frameRate);
-                        mediaSynchronizedFrameOffset = (TimeSpan)rightPositionRounded - (TimeSpan)leftPositionRounded;
+                        _mediaSynchronizedFrameOffset = (TimeSpan)rightPositionRounded - (TimeSpan)leftPositionRounded;
 
                         // Lock in the current player play position delta
-                        TimeSpan leftOffset = mediaSynchronizedFrameOffset > TimeSpan.Zero ? TimeSpan.Zero : (TimeSpan)(-mediaSynchronizedFrameOffset);
-                        TimeSpan rightOffset = mediaSynchronizedFrameOffset > TimeSpan.Zero ? (TimeSpan)(mediaSynchronizedFrameOffset) : TimeSpan.Zero;
-                        mediaPlayerLeft.SetTimelineController(mediaTimelineController, leftOffset);
-                        mediaPlayerRight.SetTimelineController(mediaTimelineController, rightOffset);
+                        TimeSpan leftOffset = _mediaSynchronizedFrameOffset > TimeSpan.Zero ? TimeSpan.Zero : (TimeSpan)(-_mediaSynchronizedFrameOffset);
+                        TimeSpan rightOffset = _mediaSynchronizedFrameOffset > TimeSpan.Zero ? (TimeSpan)(_mediaSynchronizedFrameOffset) : TimeSpan.Zero;
+                        _mediaPlayerLeft.SetTimelineController(_mediaTimelineController, leftOffset);
+                        _mediaPlayerRight.SetTimelineController(_mediaTimelineController, rightOffset);
                         Debug.WriteLine($"MediaLockMediaPlayers: Lock PositionOffset: (Left:{leftPositionRounded.TotalMilliseconds / 1000.0:F3}, Right:{rightPositionRounded.TotalMilliseconds / 1000.0:F3})");
 
                         // Let players settle
@@ -503,16 +511,16 @@ namespace Surveyor
                         // of the MediaTimelineController. We want to lock the players but stay at the original point
                         // However once the MediaTimelineController is engaged, the Position can only be move using 
                         // MediaPlayer.TimelineController.Position. 
-                        if (mediaSynchronizedFrameOffset >= TimeSpan.Zero)
-                            mediaTimelineController.Position = leftPositionRounded;
+                        if (_mediaSynchronizedFrameOffset >= TimeSpan.Zero)
+                            _mediaTimelineController.Position = leftPositionRounded;
                         else
-                            mediaTimelineController.Position = rightPositionRounded;
+                            _mediaTimelineController.Position = rightPositionRounded;
 
                         // Save the sync point as an event so the user can return to this point
-                        if (mediaSynchronizedFrameOffset >= TimeSpan.Zero)
-                            SurveyStereoSyncPointSelected(leftPositionRounded/*MediaTimelineController*/, leftPositionRounded, rightPositionRounded);
+                        if (_mediaSynchronizedFrameOffset >= TimeSpan.Zero)
+                            await SurveyStereoSyncPointSelectedAsync(leftPositionRounded/*MediaTimelineController*/, leftPositionRounded, rightPositionRounded);
                         else
-                            SurveyStereoSyncPointSelected(rightPositionRounded/*MediaTimelineController*/, leftPositionRounded, rightPositionRounded);
+                            await SurveyStereoSyncPointSelectedAsync(rightPositionRounded/*MediaTimelineController*/, leftPositionRounded, rightPositionRounded);
                     }
                 }
                 else
@@ -524,17 +532,17 @@ namespace Surveyor
                     TimeSpan rightOffset = _lockedMediaPlayersFrameOffset > TimeSpan.Zero ? (TimeSpan)(_lockedMediaPlayersFrameOffset) : TimeSpan.Zero;
 
                     // Remember the offset between the two media players
-                    mediaSynchronizedFrameOffset = (TimeSpan)_lockedMediaPlayersFrameOffset;
+                    _mediaSynchronizedFrameOffset = (TimeSpan)_lockedMediaPlayersFrameOffset;
 
-                    mediaPlayerLeft.SetTimelineController(mediaTimelineController, leftOffset);
-                    mediaPlayerRight.SetTimelineController(mediaTimelineController, rightOffset);
+                    _mediaPlayerLeft.SetTimelineController(_mediaTimelineController, leftOffset);
+                    _mediaPlayerRight.SetTimelineController(_mediaTimelineController, rightOffset);
                     Debug.WriteLine($"MediaLockMediaPlayers: PositionOffset: (Left:{(leftOffset.TotalMilliseconds / 1000.0):F3}, Right:{(rightOffset.TotalMilliseconds / 1000.0):F3})");
 
 
                     // Check the media players moved
                     int tries = 0;
 
-                    while ((leftPositionActual == (TimeSpan)mediaPlayerLeft.Position && rightPositionActual == (TimeSpan)mediaPlayerRight.Position) &&
+                    while ((leftPositionActual == (TimeSpan)_mediaPlayerLeft.Position && rightPositionActual == (TimeSpan)_mediaPlayerRight.Position) &&
                            tries < 20)
                     {
                         // Sleep 100ms
@@ -544,11 +552,11 @@ namespace Surveyor
                 }
 
                 // Limit the duration so one media player doesn't play longer than the other
-                if (mediaPlayerLeft.NaturalDuration is TimeSpan leftDuration &&
-                    mediaPlayerRight.NaturalDuration is TimeSpan rightDuration)
+                if (_mediaPlayerLeft.NaturalDuration is TimeSpan leftDuration &&
+                    _mediaPlayerRight.NaturalDuration is TimeSpan rightDuration)
                 {
-                    TimeSpan leftOffset = mediaSynchronizedFrameOffset > TimeSpan.Zero ? TimeSpan.Zero : -mediaSynchronizedFrameOffset;
-                    TimeSpan rightOffset = mediaSynchronizedFrameOffset > TimeSpan.Zero ? mediaSynchronizedFrameOffset : TimeSpan.Zero;
+                    TimeSpan leftOffset = _mediaSynchronizedFrameOffset > TimeSpan.Zero ? TimeSpan.Zero : -_mediaSynchronizedFrameOffset;
+                    TimeSpan rightOffset = _mediaSynchronizedFrameOffset > TimeSpan.Zero ? _mediaSynchronizedFrameOffset : TimeSpan.Zero;
 
                     var leftRemaining = leftDuration - leftOffset;
                     var rightRemaining = rightDuration - rightOffset;
@@ -557,16 +565,16 @@ namespace Surveyor
                         Debug.WriteLine($"MediaLockMediaPlayers: Offsets cannot exceed video durations, left remaining:{leftRemaining:hh\\:mm\\:ss\\.ff}, right remaining:{rightRemaining:hh\\:mm\\:ss\\.ff}.");
 
                     TimeSpan newDuration = TimeSpan.FromTicks(Math.Min(leftRemaining.Ticks, rightRemaining.Ticks));
-                    mediaTimelineController!.Duration = newDuration;
-                    durationSetByThisClass = true;  // Can't be overridden
-                    maxNaturalDurationForController = newDuration;
+                    _mediaTimelineController!.Duration = newDuration;
+                    _durationSetByThisClass = true;  // Can't be overridden
+                    _maxNaturalDurationForController = newDuration;
             
                     // Signal the adjusted media duration via mediator (used by the MediaStereoController and MediaControl)
                     MediaStereoControllerEventData data = new(MediaStereoControllerEventData.eMediaStereoControllerEvent.Duration)
                     {
                         duration = newDuration,
                     };
-                    mediaControllerHandler?.Send(data);                    
+                    _mediaControllerHandler?.Send(data);                    
 
                     Debug.WriteLine($"MediaLockMediaPlayers: MediaTimelineController.Duration set to {newDuration.TotalSeconds:F2}s");
                 }
@@ -577,30 +585,30 @@ namespace Surveyor
 
                 // Check the actual media offset is what we need
                 // I have seen it not use the provided offset (can be -2 to 2 frames out)
-                leftPositionActual = (TimeSpan)mediaPlayerLeft.Position!;
-                rightPositionActual = (TimeSpan)mediaPlayerRight.Position!;
+                leftPositionActual = (TimeSpan)_mediaPlayerLeft.Position!;
+                rightPositionActual = (TimeSpan)_mediaPlayerRight.Position!;
                 TimeSpan mediaSynchronizedFrameOffsetTest = (TimeSpan)rightPositionActual - (TimeSpan)leftPositionActual;
 
-                if (mediaSynchronizedFrameOffsetTest != mediaSynchronizedFrameOffset)
-                    Debug.WriteLine($"MediaLockMediaPlayers: Warning Synchronization Offset: Required:{mediaSynchronizedFrameOffset.TotalMilliseconds / 1000.0:F3}, Actual:{mediaSynchronizedFrameOffsetTest.TotalMilliseconds / 1000.0:F3})");
+                if (mediaSynchronizedFrameOffsetTest != _mediaSynchronizedFrameOffset)
+                    Debug.WriteLine($"MediaLockMediaPlayers: Warning Synchronization Offset: Required:{_mediaSynchronizedFrameOffset.TotalMilliseconds / 1000.0:F3}, Actual:{mediaSynchronizedFrameOffsetTest.TotalMilliseconds / 1000.0:F3})");
 
 
                 // Calculate the frame index for each event from the position time span
                 CalcFrameIndexesForAllEvents(existingEvents);
 
                 // Set the events if the players are locked
-                mediaPlayerLeft.SetEvents(existingEvents);
-                mediaPlayerRight.SetEvents(existingEvents);
+                _mediaPlayerLeft.SetEvents(existingEvents);
+                _mediaPlayerRight.SetEvents(existingEvents);
 
 
                 // Indicate we have locked the media players
-                mediaSynchronized = true;  
+                _mediaSynchronized = true;  
 
 
                 // Signal the media is synchronized (This is used by the MainWindow and the primary MediaControls)
-                mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.MediaSynchronized)
+                _mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.MediaSynchronized)
                 {
-                    positionOffset = mediaSynchronizedFrameOffset
+                    positionOffset = _mediaSynchronizedFrameOffset
                 });
 
                 ret = true;
@@ -620,8 +628,8 @@ namespace Surveyor
             {
                 foreach (Event evt in existingEvents)
                 {
-                    evt.FrameIndexLeft = mediaPlayerLeft.GetFrameIndexFromPosition(evt.TimeSpanLeftFrame);
-                    evt.FrameIndexRight = mediaPlayerRight.GetFrameIndexFromPosition(evt.TimeSpanRightFrame);
+                    evt.FrameIndexLeft = _mediaPlayerLeft.GetFrameIndexFromPosition(evt.TimeSpanLeftFrame);
+                    evt.FrameIndexRight = _mediaPlayerRight.GetFrameIndexFromPosition(evt.TimeSpanRightFrame);
                 }
             }
         }
@@ -674,22 +682,22 @@ namespace Surveyor
         {
             // UI Thread - This itself doesn't need to be on the UI thread, but the function it calls do
 
-            if (mediaSynchronized)
+            if (_mediaSynchronized)
             {
                 // Release the media players to be independent
-                mediaPlayerLeft.SetTimelineController(null, TimeSpan.Zero);
-                mediaPlayerRight.SetTimelineController(null, TimeSpan.Zero);
+                _mediaPlayerLeft.SetTimelineController(null, TimeSpan.Zero);
+                _mediaPlayerRight.SetTimelineController(null, TimeSpan.Zero);
 
                 // Reference the MediaTimelineController
-                mediaTimelineController = null;
+                _mediaTimelineController = null;
 
                 // Indicate we have unlocked the media players
-                mediaSynchronized = false;
+                _mediaSynchronized = false;
             }
 
             // Signal the media is not synchronized
             // Signal this even if the media was not synchronized
-            mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.MediaUnsynchronized));
+            _mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.MediaUnsynchronized));
 
         }
 
@@ -700,10 +708,10 @@ namespace Surveyor
         /// <returns></returns>
         public bool IsPlaying()
         {
-            if (mediaSynchronized)
-                return mediaTimelineController!.State == MediaTimelineControllerState.Running;
+            if (_mediaSynchronized)
+                return _mediaTimelineController!.State == MediaTimelineControllerState.Running;
             else
-                return mediaPlayerLeft.IsPlaying() || mediaPlayerRight.IsPlaying();
+                return _mediaPlayerLeft.IsPlaying() || _mediaPlayerRight.IsPlaying();
         }
 
 
@@ -717,24 +725,24 @@ namespace Surveyor
         {
             CheckIsUIThread();
 
-            if (mediaSynchronized)
+            if (_mediaSynchronized)
             {
                 // Play is called on both media players JUST to set the mode to Play. The MediaTimelineController
                 // will control the play
-                mediaPlayerLeft.SetPlayMode();     
-                mediaPlayerRight.SetPlayMode();
+                _mediaPlayerLeft.SetPlayMode();     
+                _mediaPlayerRight.SetPlayMode();
 
                 // MediaPlayers are locked together so control via the MediaTimelineController
                 Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MediaTimelineController Resume requested");
-                mediaTimelineController!.Resume();
+                _mediaTimelineController!.Resume();
                 Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MediaTimelineController Resume returned");
             }
             else
             {
                 if (cameraSide == eCameraSide.Left)
-                    mediaPlayerLeft.Play();
+                    _mediaPlayerLeft.Play();
                 else
-                    mediaPlayerRight.Play();
+                    _mediaPlayerRight.Play();
             }
         }
 
@@ -750,7 +758,7 @@ namespace Surveyor
             
             // If the players are locked that pass a space bar keystroke directly to the
             // primary media controller
-            if (mediaSynchronized)
+            if (_mediaSynchronized)
             {
                 if (MediaIsOpen())
                 {
@@ -777,13 +785,13 @@ namespace Surveyor
         {
             CheckIsUIThread();
 
-            if (mediaSynchronized)
+            if (_mediaSynchronized)
             {
                 // We Pause the players using the MediaTimelineController
                 // We wait for the players to be paused 
                 // Once paused to confirm the sync offset is correct and if not we move a frame forward
                 // We then grab the frame and display it
-                mediaTimelineController!.Pause();
+                _mediaTimelineController!.Pause();
 
 
                 // Wait for Pause state to be reached
@@ -794,15 +802,15 @@ namespace Surveyor
                     bool forwardFrame = false;
 
                     // Check media player Positions and MediaTimeLineController position and offset are correct
-                    TimeSpan currentMediaOffset = (TimeSpan)mediaPlayerRight.Position! - (TimeSpan)mediaPlayerLeft.Position!;
+                    TimeSpan currentMediaOffset = (TimeSpan)_mediaPlayerRight.Position! - (TimeSpan)_mediaPlayerLeft.Position!;
 
-                    if (currentMediaOffset != mediaSynchronizedFrameOffset)
+                    if (currentMediaOffset != _mediaSynchronizedFrameOffset)
                     {
-                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} Both Warning MediaStereoController.Pause: The MediaPlayers position offsets are not correct, open offset:{((TimeSpan)mediaSynchronizedFrameOffset!).TotalSeconds:F3}s, current offset:{currentMediaOffset.TotalSeconds:F3}");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} Both Warning MediaStereoController.Pause: The MediaPlayers position offsets are not correct, open offset:{((TimeSpan)_mediaSynchronizedFrameOffset!).TotalSeconds:F3}s, current offset:{currentMediaOffset.TotalSeconds:F3}");
                     }
                     else
                     {
-                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} Both Info MediaStereoController.Pause: The MediaPlayers position offsets are correct, open offset:{((TimeSpan)mediaSynchronizedFrameOffset!).TotalSeconds:F3}s, current offset:{currentMediaOffset.TotalSeconds:F3}, MediaController Position:{mediaTimelineController.Position.TotalSeconds:F3}, Left Position:{((TimeSpan)mediaPlayerLeft.Position).TotalSeconds:F3}, Right Position:{((TimeSpan)mediaPlayerRight.Position).TotalSeconds:F3}");
+                        Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} Both Info MediaStereoController.Pause: The MediaPlayers position offsets are correct, open offset:{((TimeSpan)_mediaSynchronizedFrameOffset!).TotalSeconds:F3}s, current offset:{currentMediaOffset.TotalSeconds:F3}, MediaController Position:{_mediaTimelineController.Position.TotalSeconds:F3}, Left Position:{((TimeSpan)_mediaPlayerLeft.Position).TotalSeconds:F3}, Right Position:{((TimeSpan)_mediaPlayerRight.Position).TotalSeconds:F3}");
                     }
 
                     // Force a forward frame regardless
@@ -823,8 +831,8 @@ namespace Surveyor
                     if (paused)
                     {
                         // Read the frame from MediaPlayers and copy to the ImageFrames
-                        mediaPlayerLeft.GrabAndDisplayFrame();
-                        mediaPlayerRight.GrabAndDisplayFrame();
+                        _mediaPlayerLeft.GrabAndDisplayFrame();
+                        _mediaPlayerRight.GrabAndDisplayFrame();
                     }
                 }
                 else
@@ -835,9 +843,9 @@ namespace Surveyor
             else
             {
                 if (cameraSide == eCameraSide.Left)
-                    mediaPlayerLeft.Pause();
+                    _mediaPlayerLeft.Pause();
                 else
-                    mediaPlayerRight.Pause();
+                    _mediaPlayerRight.Pause();
             }
         }
 
@@ -850,7 +858,7 @@ namespace Surveyor
         /// <returns></returns>
         private async Task<bool> WaitForMediaTimelinePausedAsync(TimeSpan timeout)
         {
-            if (mediaTimelineController!.State != MediaTimelineControllerState.Paused)
+            if (_mediaTimelineController!.State != MediaTimelineControllerState.Paused)
             {
                 var tcs = new TaskCompletionSource<bool>();
                 void Handler(MediaTimelineController sender, object args)
@@ -862,7 +870,7 @@ namespace Surveyor
                     }
                 }
 
-                mediaTimelineController!.StateChanged += Handler;
+                _mediaTimelineController!.StateChanged += Handler;
 
                 // Wait for either the event OR timeout
                 if (await Task.WhenAny(tcs.Task, Task.Delay(timeout)) == tcs.Task)
@@ -871,8 +879,8 @@ namespace Surveyor
                 }
                 else
                 {
-                    mediaTimelineController.StateChanged -= Handler; //  Ensure cleanup on timeout
-                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MediaTimelineController.WaitForMediaTimelinePaused: Warning Timeout waiting for to reach Paused state, current state is {mediaTimelineController!.State}!");
+                    _mediaTimelineController.StateChanged -= Handler; //  Ensure cleanup on timeout
+                    Debug.WriteLine($"{DateTime.Now:HH:mm:ss.ff} MediaTimelineController.WaitForMediaTimelinePaused: Warning Timeout waiting for to reach Paused state, current state is {_mediaTimelineController!.State}!");
                     return false; //  Timed out
                 }
             }
@@ -899,41 +907,41 @@ namespace Surveyor
             if (IsPlaying())
                 await PauseAsync(cameraSide);
 
-            if (mediaSynchronized)
+            if (_mediaSynchronized)
             {
-                if (mediaTimelineController!.State == MediaTimelineControllerState.Paused)
+                if (_mediaTimelineController!.State == MediaTimelineControllerState.Paused)
                 {
                     // Enable Frame Server
-                    mediaPlayerLeft.FrameServerEnable(true);
-                    mediaPlayerRight.FrameServerEnable(true);
+                    _mediaPlayerLeft.FrameServerEnable(true);
+                    _mediaPlayerRight.FrameServerEnable(true);
 
                     // Calculate the new position
-                    TimeSpan position = mediaTimelineControllerPositionPausedMode + deltaPosition;
+                    TimeSpan position = _mediaTimelineControllerPositionPausedMode + deltaPosition;
 
                     // Check move is in bounds
                     if (position < TimeSpan.Zero)
                         position = TimeSpan.Zero;
-                    else if (position > maxNaturalDurationForController)
-                        position = maxNaturalDurationForController;
+                    else if (position > _maxNaturalDurationForController)
+                        position = _maxNaturalDurationForController;
 
                     try
                     {
                         // Move to the relative position
-                        mediaTimelineControllerPositionPausedMode = position;
-                        mediaTimelineController.Position = mediaTimelineControllerPositionPausedMode;
+                        _mediaTimelineControllerPositionPausedMode = position;
+                        _mediaTimelineController.Position = _mediaTimelineControllerPositionPausedMode;
                     }
                     catch (Exception ex)
                     {
-                        report?.Error(cameraSide.ToString(), $"MediaStereoController.FrameJump: Frame failed to jump to PositionOffset: {mediaTimelineControllerPositionPausedMode:hh\\:mm\\:ss\\.ff}, {ex.Message}");
+                        _report?.Error(cameraSide.ToString(), $"MediaStereoController.FrameJump: Frame failed to jump to PositionOffset: {_mediaTimelineControllerPositionPausedMode:hh\\:mm\\:ss\\.ff}, {ex.Message}");
                     }
                 }
             }
             else
             {
                 if (cameraSide == eCameraSide.Left)
-                    mediaPlayerLeft.FrameMove(deltaPosition);
+                    _mediaPlayerLeft.FrameMove(deltaPosition);
                 else
-                    mediaPlayerRight.FrameMove(deltaPosition);
+                    _mediaPlayerRight.FrameMove(deltaPosition);
             }
         }
 
@@ -950,11 +958,11 @@ namespace Surveyor
         {
             CheckIsUIThread();
 
-            if (mediaSynchronized)
+            if (_mediaSynchronized)
             {
                 // Use the left media player to calculate the timeSpan for MediaTimelineController
                 // This replies on the media in both players having the same frame rate!
-                TimeSpan leftTimePerFrame = (TimeSpan)mediaPlayerLeft.TimePerFrame;
+                TimeSpan leftTimePerFrame = (TimeSpan)_mediaPlayerLeft.TimePerFrame;
                 TimeSpan timeSpan = leftTimePerFrame * frames;
 
                 await FrameMoveAsync(cameraSide, timeSpan);
@@ -963,15 +971,15 @@ namespace Surveyor
             {
                 if (cameraSide == eCameraSide.Left)
                 {
-                    TimeSpan timePerFrame = (TimeSpan)mediaPlayerLeft.TimePerFrame;
+                    TimeSpan timePerFrame = (TimeSpan)_mediaPlayerLeft.TimePerFrame;
                     TimeSpan timeSpan = timePerFrame * frames;
-                    mediaPlayerLeft.FrameMove(timeSpan);
+                    _mediaPlayerLeft.FrameMove(timeSpan);
                 }
                 else
                 {
-                    TimeSpan timePerFrame = (TimeSpan)mediaPlayerRight.TimePerFrame;
+                    TimeSpan timePerFrame = (TimeSpan)_mediaPlayerRight.TimePerFrame;
                     TimeSpan timeSpan = timePerFrame * frames;
-                    mediaPlayerRight.FrameMove(timeSpan);
+                    _mediaPlayerRight.FrameMove(timeSpan);
                 }
             }
         }
@@ -985,38 +993,38 @@ namespace Surveyor
         /// <param name="timeSpan"></param>
         internal void FrameJump(eCameraSide cameraSide, TimeSpan position)
         {
-            if (mediaSynchronized)
+            if (_mediaSynchronized)
             {
                 // Check move is in bounds
                 if (position < TimeSpan.Zero)
                     position = TimeSpan.Zero;
-                else if (position > maxNaturalDurationForController)
-                    position = maxNaturalDurationForController;
+                else if (position > _maxNaturalDurationForController)
+                    position = _maxNaturalDurationForController;
 
-                if (mediaTimelineController!.State == MediaTimelineControllerState.Paused)
+                if (_mediaTimelineController!.State == MediaTimelineControllerState.Paused)
                 {
                     // Enable Frame Server
-                    mediaPlayerLeft.FrameServerEnable(true);
-                    mediaPlayerRight.FrameServerEnable(true);
+                    _mediaPlayerLeft.FrameServerEnable(true);
+                    _mediaPlayerRight.FrameServerEnable(true);
                 }
 
                 try
                 {
                     // Move to the absolute position
-                    mediaTimelineControllerPositionPausedMode = position;
-                    mediaTimelineController.Position = mediaTimelineControllerPositionPausedMode;
+                    _mediaTimelineControllerPositionPausedMode = position;
+                    _mediaTimelineController.Position = _mediaTimelineControllerPositionPausedMode;
                 }
                 catch (Exception ex)
                 {
-                    report?.Error(cameraSide.ToString(), $"MediaStereoController.FrameJump: Frame failed to jump to PositionOffset: {mediaTimelineControllerPositionPausedMode:hh\\:mm\\:ss\\.ff}, {ex.Message}");
+                    _report?.Error(cameraSide.ToString(), $"MediaStereoController.FrameJump: Frame failed to jump to PositionOffset: {_mediaTimelineControllerPositionPausedMode:hh\\:mm\\:ss\\.ff}, {ex.Message}");
                 }
             }
             else
             {
                 if (cameraSide == eCameraSide.Left)
-                    mediaPlayerLeft.FrameJump(position);
+                    _mediaPlayerLeft.FrameJump(position);
                 else
-                    mediaPlayerRight.FrameJump(position);
+                    _mediaPlayerRight.FrameJump(position);
             }
         }
 
@@ -1037,23 +1045,23 @@ namespace Surveyor
             leftPosition = TimeSpan.Zero;
             rightPosition = TimeSpan.Zero;
 
-            if (mediaSynchronized)
+            if (_mediaSynchronized)
             {
-                if (mediaTimelineController is not null && mediaPlayerLeft.Position is not null && mediaPlayerRight.Position is not null)
+                if (_mediaTimelineController is not null && _mediaPlayerLeft.Position is not null && _mediaPlayerRight.Position is not null)
                 {
-                    positionTimelineController = mediaTimelineController.Position;
-                    leftPosition = (TimeSpan)mediaPlayerLeft.Position;
-                    rightPosition = (TimeSpan)mediaPlayerRight.Position;
+                    positionTimelineController = _mediaTimelineController.Position;
+                    leftPosition = (TimeSpan)_mediaPlayerLeft.Position;
+                    rightPosition = (TimeSpan)_mediaPlayerRight.Position;
                     ret = true;
                 }
             }
             else
             {
-                if (mediaPlayerLeft.Position is not null && mediaPlayerRight.Position is not null)
+                if (_mediaPlayerLeft.Position is not null && _mediaPlayerRight.Position is not null)
                 {
                     positionTimelineController = TimeSpan.Zero;
-                    leftPosition = (TimeSpan)mediaPlayerLeft.Position;
-                    rightPosition = (TimeSpan)mediaPlayerRight.Position;
+                    leftPosition = (TimeSpan)_mediaPlayerLeft.Position;
+                    rightPosition = (TimeSpan)_mediaPlayerRight.Position;
                 }
             }
 
@@ -1079,7 +1087,7 @@ namespace Surveyor
                     break;
 
                 case MediaTimelineControllerState.Paused:
-                    mediaTimelineControllerPositionPausedMode = sender.Position;
+                    _mediaTimelineControllerPositionPausedMode = sender.Position;
                     //???Debug.WriteLine($"MediaTimelineController_StateChanged: PositionOffset: {(mediaTimelineControllerPositionPausedMode.TotalMilliseconds / 1000.0):F3}");
                     break;
 
@@ -1100,19 +1108,19 @@ namespace Surveyor
         private void MediaTimelineController_PositionChanged(MediaTimelineController sender, object args)
         {
             // Pause when playback reaches the maximum duration.
-            if (maxNaturalDurationForController != TimeSpan.Zero && sender.Position > maxNaturalDurationForController)
+            if (_maxNaturalDurationForController != TimeSpan.Zero && sender.Position > _maxNaturalDurationForController)
             {
                 sender.Pause();
             }
 
             // Signal to the primary MediaControls the current position          
-            mainWindow.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
+            _mainWindow.DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Normal, () =>
             {
                 MediaPlayerEventData data = new(MediaPlayerEventData.eMediaPlayerEvent.Position, eCameraSide.Left, Mode.modeNone)
                 {
                     position = sender.Position                    
                 };
-                mediaControllerHandler?.Send(data);
+                _mediaControllerHandler?.Send(data);
             });
 
 
@@ -1143,12 +1151,12 @@ namespace Surveyor
         /// <param name="naturalDuration">TimeSpan indicating the length of the media</param>
         internal void _UpdateDurationAndFrameRateFromMediaPlayer(eCameraSide cameraSide, TimeSpan naturalDuration, double frameRate)
         {
-            if (!durationSetByThisClass)
+            if (!_durationSetByThisClass)
             {
                 // Maintain _maxNaturalDurationForController so it is as long as the longest media source.
                 // ??? Is this correct, surely we want the shortest of the two durations
-                if (naturalDuration > maxNaturalDurationForController)
-                    maxNaturalDurationForController = naturalDuration;
+                if (naturalDuration > _maxNaturalDurationForController)
+                    _maxNaturalDurationForController = naturalDuration;
             }
 
             if (cameraSide == eCameraSide.Left)
@@ -1174,9 +1182,9 @@ namespace Surveyor
         /// <returns></returns>
         internal async Task _EditSpeciesInfoAsync(Guid eventGuid)
         {
-            if (eventsControl is not null)
+            if (_eventsControl is not null)
             {
-                Event? evt = eventsControl.FindEvent(eventGuid);
+                Event? evt = _eventsControl.FindEvent(eventGuid);
 
                 if (evt is not null)
                 {
@@ -1194,10 +1202,10 @@ namespace Surveyor
                     if (speciesInfo is not null)
                     {
                         // Assigned the species info via a user dialog box
-                        if (await speciesSelector.SpeciesEdit(mainWindow, speciesInfo, speciesImageCache, pointData, mainWindow.GetSurveyRulesClass()) == true)
+                        if (await speciesSelector.SpeciesEditAsync(_mainWindow, speciesInfo, speciesImageCache, pointData, _mainWindow.GetSurveyRulesClass()) == true)
                         {
-                            if (eventsControl is not null)
-                                await eventsControl.AddEventAsync(evt);
+                            if (_eventsControl is not null)
+                                await _eventsControl.AddEventAsync(evt);
                         }
                     }
                 }
@@ -1212,12 +1220,12 @@ namespace Surveyor
         internal void _DeleteMeasure3DPointOrSinglePoint(Guid eventGuid)
 
         {
-            if (eventsControl is not null)
+            if (_eventsControl is not null)
             {
-                Event? evt = eventsControl.FindEvent(eventGuid);
+                Event? evt = _eventsControl.FindEvent(eventGuid);
 
                 if (evt is not null)
-                    eventsControl.DeleteEvent(evt);          
+                    _eventsControl.DeleteEvent(evt);          
             }
         }
 
@@ -1228,7 +1236,7 @@ namespace Surveyor
         /// <param name="diagnosticInformation"></param>
         internal void _SetDiagnosticInformation(bool _diagnosticInformation)
         {
-            diagnosticInformation = _diagnosticInformation;
+            this._diagnosticInformation = _diagnosticInformation;
         }
 
 
@@ -1236,15 +1244,15 @@ namespace Surveyor
         /// Experimental setting has changed (or is being initially set)
         /// </summary>
         /// <param name="_experimentalEnabled"></param>
-        internal void _SetExperimental(bool _experimentalEnabled,
-                                       bool _experimentalFeatureSetAEnabled,
-                                       bool _experimentalFeatureSetBEnabled,
-                                       bool _experimentalFeatureSetCEnabled)
+        internal void _SetExperimental(bool experimentalEnabled,
+                                       bool experimentalFeatureSetAEnabled,
+                                       bool experimentalFeatureSetBEnabled,
+                                       bool experimentalFeatureSetCEnabled)
         {
-            experimentalEnabled = _experimentalEnabled;
-            experimentalFeatureSetAEnabled = _experimentalFeatureSetAEnabled;
-            experimentalFeatureSetBEnabled = _experimentalFeatureSetBEnabled;
-            experimentalFeatureSetCEnabled = _experimentalFeatureSetCEnabled;
+            _experimentalEnabled = experimentalEnabled;
+            _experimentalFeatureSetAEnabled = experimentalFeatureSetAEnabled;
+            _experimentalFeatureSetBEnabled = experimentalFeatureSetBEnabled;
+            _experimentalFeatureSetCEnabled = experimentalFeatureSetCEnabled;
         }
 
 
@@ -1265,8 +1273,8 @@ namespace Surveyor
             // We are going to assume the left and right media are the same size and only use info from the left camera
             if (cameraSide == eCameraSide.Left)
             {
-                stereoProjection.SetFrameSize(frameWidth, frameHeight);
-                mainWindow.SetCalibratedIndicator(frameWidth, frameHeight);
+                _stereoProjection.SetFrameSize(frameWidth, frameHeight);
+                _mainWindow.SetCalibratedIndicator(frameWidth, frameHeight);
             }
         }
 
@@ -1277,35 +1285,36 @@ namespace Surveyor
         /// <param name="controlType"></param>
         /// <param name="mute"></param>
         internal void UserReqPlayOrPause(SurveyorMediaControl.eControlType controlType, bool playOrPause)
-        {
-            
-            DispatcherQueue.GetForCurrentThread()?.TryEnqueue(async () =>
-            {
-                try
-                {
-                    CheckIsUIThread();
-
-                    if (playOrPause)
-                    {
-                        if (controlType == SurveyorMediaControl.eControlType.Primary)
-                            Play(eCameraSide.Left);
-                        else
-                            Play(eCameraSide.Right);
-                    }
-                    else
-                    {
-                        if (controlType == SurveyorMediaControl.eControlType.Primary)
-                            PauseAsync(eCameraSide.Left);
-                        else
-                            PauseAsync(eCameraSide.Right);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"MediaStereoController.UserReqPlayOrPause: {ex.Message}");
-                }
-            });
+        {            
+            DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() => _ = UserReqPlayOrPauseAsync(controlType, playOrPause));
         }
+        private async Task UserReqPlayOrPauseAsync(SurveyorMediaControl.eControlType controlType, bool playOrPause)
+        {
+            try
+            {
+                CheckIsUIThread();
+
+                if (playOrPause)
+                {
+                    if (controlType == SurveyorMediaControl.eControlType.Primary)
+                        Play(eCameraSide.Left);
+                    else
+                        Play(eCameraSide.Right);
+                }
+                else
+                {
+                    if (controlType == SurveyorMediaControl.eControlType.Primary)
+                        await PauseAsync(eCameraSide.Left);
+                    else
+                        await PauseAsync(eCameraSide.Right);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"MediaStereoController.UserReqPlayOrPause: {ex.Message}");
+            }
+        }
+
 
         /// <summary>
         /// Used by the TListener to call the MediaPlayers to jump to a specific position in the media
@@ -1316,7 +1325,7 @@ namespace Surveyor
         {
             CheckIsUIThread();
 
-            if (mediaSynchronized)
+            if (_mediaSynchronized)
             {
                 FrameJump(eCameraSide.None, positionJump);
             }
@@ -1337,29 +1346,30 @@ namespace Surveyor
         /// <param name="framesDelta"></param>
         internal void UserReqFrameMove(SurveyorMediaControl.eControlType controlType, int framesDelta)
         {
-            DispatcherQueue.GetForCurrentThread()?.TryEnqueue(async () =>
+            DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() => _ = UserReqFrameMoveAsync(controlType, framesDelta));
+        }
+        private async Task UserReqFrameMoveAsync(SurveyorMediaControl.eControlType controlType, int framesDelta)
+        {
+            try
             {
-                try
-                {
-                    CheckIsUIThread();
+                CheckIsUIThread();
 
-                    if (mediaSynchronized)
-                    {
-                        await FrameMoveAsync(eCameraSide.None, framesDelta);
-                    }
-                    else
-                    {
-                        if (controlType == SurveyorMediaControl.eControlType.Primary)
-                            await FrameMoveAsync(eCameraSide.Left, framesDelta);
-                        else
-                            await FrameMoveAsync(eCameraSide.Right, framesDelta);
-                    }
-                }
-                catch (Exception ex)
+                if (_mediaSynchronized)
                 {
-                    Debug.WriteLine($"MediaStereoController.UserReqFrameMove: {ex.Message}");
+                    await FrameMoveAsync(eCameraSide.None, framesDelta);
                 }
-            });
+                else
+                {
+                    if (controlType == SurveyorMediaControl.eControlType.Primary)
+                        await FrameMoveAsync(eCameraSide.Left, framesDelta);
+                    else
+                        await FrameMoveAsync(eCameraSide.Right, framesDelta);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"MediaStereoController.UserReqFrameMove: {ex.Message}");
+            }
         }
 
 
@@ -1370,27 +1380,28 @@ namespace Surveyor
         /// <param name="controlType"></param>
         internal void UserReqMoveStep(SurveyorMediaControl.eControlType controlType, int frames)
         {
-            DispatcherQueue.GetForCurrentThread()?.TryEnqueue(async () =>
+            DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() => _ = UserReqMoveStepCoreAsync(controlType, frames));
+        }
+        private async Task UserReqMoveStepCoreAsync(SurveyorMediaControl.eControlType controlType, int frames)
+        {
+            try
             {
-                try
+                if (_mediaSynchronized)
                 {
-                    if (mediaSynchronized)
-                    {
-                        await FrameMoveAsync(eCameraSide.None, frames);
-                    }
+                    await FrameMoveAsync(eCameraSide.None, frames);
+                }
+                else
+                {
+                    if (controlType == SurveyorMediaControl.eControlType.Primary)
+                        await FrameMoveAsync(eCameraSide.Left, frames);
                     else
-                    {
-                        if (controlType == SurveyorMediaControl.eControlType.Primary)
-                            await FrameMoveAsync(eCameraSide.Left, frames);
-                        else
-                            await FrameMoveAsync(eCameraSide.Right, frames);
-                    }
+                        await FrameMoveAsync(eCameraSide.Right, frames);
                 }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"MediaStereoController.UserReqMoveStep: {ex.Message}");
-                }
-            });
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"MediaStereoController.UserReqMoveStepCoreASync: {ex.Message}");
+            }
         }
 
 
@@ -1398,7 +1409,7 @@ namespace Surveyor
         /// Used by the TListener to call back the MediaPlayers to mute/unmute
         /// If the players are locked together, Mute/Unmute the left media player
         /// If the players are not locked together, Mute/Unmute the player that requested the mute/unmute
-        /// Ensure only one player is unmuted 
+        /// Ensure only one player had is's sound on
         /// </summary>
         /// <param name="controlType"></param>
         /// <param name="mute"></param>
@@ -1409,24 +1420,24 @@ namespace Surveyor
             {
                 try
                 {
-                    if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Primary)
+                    if (_mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Primary)
                     {
                         if (mute)
-                            mediaPlayerLeft.Mute();
+                            _mediaPlayerLeft.Mute();
                         else
                         {
-                            mediaPlayerLeft.Unmute();
-                            mediaPlayerRight.Mute();
+                            _mediaPlayerLeft.Unmute();
+                            _mediaPlayerRight.Mute();
                         }
                     }
                     else
                     {
                         if (mute)
-                            mediaPlayerRight.Mute();
+                            _mediaPlayerRight.Mute();
                         else
                         {
-                            mediaPlayerRight.Unmute();
-                            mediaPlayerLeft.Mute();
+                            _mediaPlayerRight.Unmute();
+                            _mediaPlayerLeft.Mute();
                         }
                     }
                 }
@@ -1451,17 +1462,17 @@ namespace Surveyor
             {
                 try
                 {
-                    if (mediaSynchronized)
+                    if (_mediaSynchronized)
                     {
                         // Set the ClockRate on the MediaTimelineController
-                        mediaTimelineController!.ClockRate = speed;
+                        _mediaTimelineController!.ClockRate = speed;
                     }
                     else
                     {
                         if (controlType == SurveyorMediaControl.eControlType.Primary)
-                            mediaPlayerLeft.SetSpeed(speed);
+                            _mediaPlayerLeft.SetSpeed(speed);
                         else
-                            mediaPlayerRight.SetSpeed(speed);
+                            _mediaPlayerRight.SetSpeed(speed);
                     }
                 }
                 catch (Exception ex)
@@ -1477,23 +1488,23 @@ namespace Surveyor
         /// <param name="controlType"></param>
         internal void UserReqFullScreen(SurveyorMediaControl.eControlType controlType, eCameraSide cameraSide)
         {
-            if (mediaSynchronized)
+            if (_mediaSynchronized)
             {
                 // In synchronized mode, when the in full screen mode, the primary (left) media control
                 if (controlType == SurveyorMediaControl.eControlType.Primary)
                 {
                     if (cameraSide == eCameraSide.Left)
                     {
-                        mainWindow.MediaFullScreen(true/*TrueLeftFalseRight*/);
-                        mainWindow.SetTitleCameraSide("Left Camera View");                        
+                        _mainWindow.MediaFullScreen(true/*TrueLeftFalseRight*/);
+                        _mainWindow.SetTitleCameraSide("Left Camera View");                        
                     }
                     else
                     {
-                        mainWindow.MediaFullScreen(false/*TrueLeftFalseRight*/);
-                        mainWindow.SetTitleCameraSide("Right Camera View");
+                        _mainWindow.MediaFullScreen(false/*TrueLeftFalseRight*/);
+                        _mainWindow.SetTitleCameraSide("Right Camera View");
                     }
 
-                    mediaControlPrimary.MediaFullScreen(true/*TrueYouAreFullFalseYouAreRestored*/, cameraSide);
+                    _mediaControlPrimary.MediaFullScreen(true/*TrueYouAreFullFalseYouAreRestored*/, cameraSide);
                 }
             }
             else 
@@ -1502,21 +1513,21 @@ namespace Surveyor
                 // controls the left player and the secondary (right) media control controls the right player
                 if (cameraSide == eCameraSide.Left)
                 {
-                    mainWindow.MediaFullScreen(true/*TrueLeftFalseRight*/);
-                    mainWindow.SetTitleCameraSide("Left Camera View");
-                    mediaControlPrimary.MediaFullScreen(true/*TrueYouAreFullFalseYouAreRestored*/, eCameraSide.Left);
+                    _mainWindow.MediaFullScreen(true/*TrueLeftFalseRight*/);
+                    _mainWindow.SetTitleCameraSide("Left Camera View");
+                    _mediaControlPrimary.MediaFullScreen(true/*TrueYouAreFullFalseYouAreRestored*/, eCameraSide.Left);
                     // Disable the other media control we keystroke aren't directed there
-                    mediaControlPrimary.IsEnabled = true;
-                    mediaControlSecondary.IsEnabled = false;
+                    _mediaControlPrimary.IsEnabled = true;
+                    _mediaControlSecondary.IsEnabled = false;
                 }
                 else
                 {
-                    mainWindow.MediaFullScreen(false/*TrueLeftFalseRight*/);
-                    mainWindow.SetTitleCameraSide("Right Camera View");
-                    mediaControlSecondary.MediaFullScreen(true/*TrueYouAreFullFalseYouAreRestored*/, eCameraSide.Right);
+                    _mainWindow.MediaFullScreen(false/*TrueLeftFalseRight*/);
+                    _mainWindow.SetTitleCameraSide("Right Camera View");
+                    _mediaControlSecondary.MediaFullScreen(true/*TrueYouAreFullFalseYouAreRestored*/, eCameraSide.Right);
                     // Disable the other media control we keystroke aren't directed there
-                    mediaControlPrimary.IsEnabled = false;
-                    mediaControlSecondary.IsEnabled = true;
+                    _mediaControlPrimary.IsEnabled = false;
+                    _mediaControlSecondary.IsEnabled = true;
                 }
             }
         }
@@ -1528,16 +1539,16 @@ namespace Surveyor
         /// <param name="controlType"></param>
         internal void UserReqBackToWindow()
         {
-            mainWindow.MediaBackToWindow();
-            mediaControlPrimary.MediaFullScreen(false/*TrueYouAreFullFalseYouAreRestored*/, null);
-            mediaControlSecondary.MediaFullScreen(false/*TrueYouAreFullFalseYouAreRestored*/, null);
-            mainWindow.SetTitleCameraSide("");
+            _mainWindow.MediaBackToWindow();
+            _mediaControlPrimary.MediaFullScreen(false/*TrueYouAreFullFalseYouAreRestored*/, null);
+            _mediaControlSecondary.MediaFullScreen(false/*TrueYouAreFullFalseYouAreRestored*/, null);
+            _mainWindow.SetTitleCameraSide("");
 
-            if (!mediaSynchronized)
+            if (!_mediaSynchronized)
             {
                 // Enable both media controls
-                mediaControlPrimary.IsEnabled = true;
-                mediaControlSecondary.IsEnabled = true;
+                _mediaControlPrimary.IsEnabled = true;
+                _mediaControlSecondary.IsEnabled = true;
             }
         }
 
@@ -1548,9 +1559,9 @@ namespace Surveyor
         internal void UserReqCasting(SurveyorMediaControl.eControlType controlType)
         {
             if (controlType == SurveyorMediaControl.eControlType.Primary)
-                mediaPlayerLeft.StartCasting();
+                _mediaPlayerLeft.StartCasting();
             else
-                mediaPlayerRight.StartCasting();
+                _mediaPlayerRight.StartCasting();
         }
 
 
@@ -1562,54 +1573,53 @@ namespace Surveyor
         /// <param name="controlType"></param>
         internal void UserReqSaveFrame(SurveyorMediaControl.eControlType controlType)
         {
-            DispatcherQueue.GetForCurrentThread()?.TryEnqueue(async () =>
+            DispatcherQueue.GetForCurrentThread()?.TryEnqueue(() => _ = UserReqSaveFrameCoreAsync(controlType));
+        }
+        private async Task UserReqSaveFrameCoreAsync(SurveyorMediaControl.eControlType controlType)
+        {
+            try
             {
-                CheckIsUIThread();
-
-                try
+                // Call to the MainWindow so a) we have access to the Project class and b) we
+                // can do some UI work if necessary (no UI world in this class)
+                if (_mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Both)
                 {
-                    // Call to the MainWindow so a) we have access to the Projectclass and b) we
-                    // can do some UI work if necessary (no UI world in this class)
-                    if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Both)
+                    // Sync check //???--> I think this needs to go into the MediaStereoController.Pause
+                    if (_mediaPlayerLeft.Position is not null && _mediaPlayerRight.Position is not null)
                     {
-                        // Sync check //???--> I think this needs to go into the MediaStereoController.Pause
-                        if (mediaPlayerLeft.Position is not null && mediaPlayerRight.Position is not null)
+                        TimeSpan leftPositionActual = (TimeSpan)_mediaPlayerLeft.Position;
+                        TimeSpan rightPositionActual = (TimeSpan)_mediaPlayerRight.Position;
+
+                        // Correct on frame boundaries (rounding down is OK)
+                        long leftFrame = (long)(leftPositionActual.TotalMilliseconds * _frameRate / 1000.0);
+                        long rightFrame = (long)(rightPositionActual.TotalMilliseconds * _frameRate / 1000.0);
+                        TimeSpan leftPositionRounded = TimeSpan.FromMilliseconds(leftFrame * 1000 / _frameRate);
+                        TimeSpan rightPositionRounded = TimeSpan.FromMilliseconds(rightFrame * 1000 / _frameRate);
+                        TimeSpan mediaSynchronizedFrameOffsetCheck = (TimeSpan)rightPositionRounded - (TimeSpan)leftPositionRounded;
+
+                        // Calculate 1/10 of a frame duration
+                        TimeSpan frameTolerance = TimeSpan.FromSeconds(1.0 / (_frameRate * 10));
+
+                        // Calculate absolute difference between the TimeSpans
+                        TimeSpan timeDiff = mediaSynchronizedFrameOffsetCheck - _mediaSynchronizedFrameOffset;
+
+                        if (timeDiff.Duration() > frameTolerance)
                         {
-                            TimeSpan leftPositionActual = (TimeSpan)mediaPlayerLeft.Position;
-                            TimeSpan rightPositionActual = (TimeSpan)mediaPlayerRight.Position;
+                            Debug.WriteLine($"MediaStereoController.UserReqSaveFrame: Warning Synchronization Offset: Required:{_mediaSynchronizedFrameOffset.TotalMilliseconds / 1000.0:F3}s, Actual:{mediaSynchronizedFrameOffsetCheck.TotalMilliseconds / 1000.0:F3})");
 
-                            // Correct on frame boundaries (rounding down is OK)
-                            long leftFrame = (long)(leftPositionActual.TotalMilliseconds * _frameRate / 1000.0);
-                            long rightFrame = (long)(rightPositionActual.TotalMilliseconds * _frameRate / 1000.0);
-                            TimeSpan leftPositionRounded = TimeSpan.FromMilliseconds(leftFrame * 1000 / _frameRate);
-                            TimeSpan rightPositionRounded = TimeSpan.FromMilliseconds(rightFrame * 1000 / _frameRate);
-                            TimeSpan mediaSynchronizedFrameOffsetCheck = (TimeSpan)rightPositionRounded - (TimeSpan)leftPositionRounded;
-
-                            // Calculate 1/10 of a frame duration
-                            TimeSpan frameTolerance = TimeSpan.FromSeconds(1.0 / (_frameRate * 10));
-
-                            // Calculate absolute difference between the TimeSpans
-                            TimeSpan timeDiff = mediaSynchronizedFrameOffsetCheck - mediaSynchronizedFrameOffset;
-
-                            if (timeDiff.Duration() > frameTolerance)
-                            {
-                                Debug.WriteLine($"MediaStereoController.UserReqSaveFrame: Warning Synchronization Offset: Required:{mediaSynchronizedFrameOffset.TotalMilliseconds / 1000.0:F3}s, Actual:{mediaSynchronizedFrameOffsetCheck.TotalMilliseconds / 1000.0:F3})");
-
-                                //??? TO DO Maybe try to resynchronize the two players with a frame back/forward?
-                            }
+                            //??? TO DO Maybe try to resynchronize the two players with a frame back/forward?
                         }
-
-                        // Save the current frame
-                        await mainWindow.SaveCurrentFrameAsync(SurveyorMediaControl.eControlType.Both);                                    
                     }
-                    else if (controlType != SurveyorMediaControl.eControlType.None)
-                        await mainWindow.SaveCurrentFrameAsync(controlType);
+
+                    // Save the current frame
+                    await _mainWindow.SaveCurrentFrameAsync(SurveyorMediaControl.eControlType.Both);
                 }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"MediaStereoController.UserReqSaveFrame: {ex.Message}");
-                }
-            });
+                else if (controlType != SurveyorMediaControl.eControlType.None)
+                    await _mainWindow.SaveCurrentFrameAsync(controlType);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"MediaStereoController.UserReqSaveFrame: {ex.Message}");
+            }
         }
 
 
@@ -1622,11 +1632,11 @@ namespace Surveyor
         {
             // MagWindowSizeSelect is thread Safe/UI Check not required
 
-            if (mediaSynchronized || trueLeftfalseRight == true)
-                mediaPlayerLeft.MagWindowSizeSelect(magWindowSize);            
+            if (_mediaSynchronized || trueLeftfalseRight == true)
+                _mediaPlayerLeft.MagWindowSizeSelect(magWindowSize);            
 
-            if (mediaSynchronized || trueLeftfalseRight == false)
-                mediaPlayerRight.MagWindowSizeSelect(magWindowSize);
+            if (_mediaSynchronized || trueLeftfalseRight == false)
+                _mediaPlayerRight.MagWindowSizeSelect(magWindowSize);
         }
 
 
@@ -1639,11 +1649,11 @@ namespace Surveyor
         {
             // MagWindowZoomFactor is thread Safe/UI Check not required
 
-            if (mediaSynchronized || trueLeftfalseRight == true)
-                mediaPlayerLeft.MagWindowZoomFactor(canvasZoomFactor);
+            if (_mediaSynchronized || trueLeftfalseRight == true)
+                _mediaPlayerLeft.MagWindowZoomFactor(canvasZoomFactor);
 
-            if (mediaSynchronized || trueLeftfalseRight == false)
-                mediaPlayerRight.MagWindowZoomFactor(canvasZoomFactor);
+            if (_mediaSynchronized || trueLeftfalseRight == false)
+                _mediaPlayerRight.MagWindowZoomFactor(canvasZoomFactor);
         }
 
 
@@ -1654,11 +1664,11 @@ namespace Surveyor
         /// <param name="layertype"></param>
         internal void UserReqLayersDisplayed(SurveyorMediaControl.eControlType controlType, LayerType layertype)
         {
-            if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Primary)
-                mediaPlayerLeft.SetLayerType(layertype);
+            if (_mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Primary)
+                _mediaPlayerLeft.SetLayerType(layertype);
 
-            if (mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Secondary)
-                mediaPlayerRight.SetLayerType(layertype);
+            if (_mediaSynchronized || controlType == SurveyorMediaControl.eControlType.Secondary)
+                _mediaPlayerRight.SetLayerType(layertype);
         }
 
 
@@ -1683,16 +1693,16 @@ namespace Surveyor
                 if (TruePointAFalsePointB)
                 {
                     if (pointA is not null)
-                        mediaPlayerRight.OtherInstanceTargetSet(true, null);
+                        _mediaPlayerRight.OtherInstanceTargetSet(true, null);
                     else
-                        mediaPlayerRight.OtherInstanceTargetSet(false, null);
+                        _mediaPlayerRight.OtherInstanceTargetSet(false, null);
                 }
                 else
                 {
                     if (pointB is not null)
-                        mediaPlayerRight.OtherInstanceTargetSet(null, true);
+                        _mediaPlayerRight.OtherInstanceTargetSet(null, true);
                     else
-                        mediaPlayerRight.OtherInstanceTargetSet(null, false);
+                        _mediaPlayerRight.OtherInstanceTargetSet(null, false);
                 }
             }
             else if (cameraSide == SurveyorMediaPlayer.eCameraSide.Right)
@@ -1700,16 +1710,16 @@ namespace Surveyor
                 if (TruePointAFalsePointB)
                 {
                     if (pointA is not null)
-                        mediaPlayerLeft.OtherInstanceTargetSet(true, null);
+                        _mediaPlayerLeft.OtherInstanceTargetSet(true, null);
                     else
-                        mediaPlayerLeft.OtherInstanceTargetSet(false, null);
+                        _mediaPlayerLeft.OtherInstanceTargetSet(false, null);
                 }
                 else
                 {
                     if (pointB is not null)
-                        mediaPlayerLeft.OtherInstanceTargetSet(null, true);
+                        _mediaPlayerLeft.OtherInstanceTargetSet(null, true);
                     else
-                        mediaPlayerLeft.OtherInstanceTargetSet(null, false);
+                        _mediaPlayerLeft.OtherInstanceTargetSet(null, false);
                 }
             }
 
@@ -1788,7 +1798,7 @@ namespace Surveyor
                 if (point is not null && needEpipolarLine)
                 {
                     // *** Epipolar Line Calculation ***
-                    if (stereoProjection.CalculateEpipolarLine((bool)TrueLeftFalseRight, (Point)point,
+                    if (_stereoProjection.CalculateEpipolarLine((bool)TrueLeftFalseRight, (Point)point,
                                 out double epiLine_a, out double epiLine_b, out double epiLine_c))
                     {
                         Debug.WriteLine($"{cameraSideAlt} Epipolar for Point({point.Value.X:F2}, {point.Value.Y:F2})  ax+by+c=0: {epiLine_a:F5}x + {epiLine_b:F5}y + {epiLine_c:F5} = 0");
@@ -1796,7 +1806,7 @@ namespace Surveyor
 
 
                         // Calculate the points for an epipolar curve
-                        if (stereoProjection.CalculateEpipolarCurveDistortedPoints(
+                        if (_stereoProjection.CalculateEpipolarCurveDistortedPoints(
                                     (bool)TrueLeftFalseRight,
                                     (double)epiLine_a, (double)epiLine_b, (double)epiLine_c,
                                     out List<Point>? epipolarCurvePoints))
@@ -1810,7 +1820,7 @@ namespace Surveyor
                                 epipolarCurvePoints = epipolarCurvePoints,
                                 channelWidth = 0
                             };
-                            mediaControllerHandler?.Send(data);
+                            _mediaControllerHandler?.Send(data);
                         }
                     }
                 }
@@ -1830,7 +1840,7 @@ namespace Surveyor
                         TrueEpipolarLinePointAFalseEpipolarLinePointB = (bool)TruePointAFalsePointB,
                         channelWidth = -1 /* Clear the epipolar line */
                     };
-                    mediaControllerHandler?.Send(data);
+                    _mediaControllerHandler?.Send(data);
 
                 }
             }
@@ -1870,16 +1880,16 @@ namespace Surveyor
                 //???SurveyMeasurementHelper.EnsureCorrectCorrespondence(surveyMeasurement);
 
                 // Check if suitable calibration data is available for this frame size
-                bool isReady = await mainWindow.CheckIfMeasurementSetupIsReadyAsync();
+                bool isReady = await _mainWindow.CheckIfMeasurementSetupIsReadyAsync();
                 if (isReady)
                 {
                     // This call calculates the distance, range, X & Y offset between the camera system mid-point and the measurement point mid-point
-                    if (mainWindow.DoMeasurementAndRulesCalculations(surveyMeasurement))
+                    if (_mainWindow.DoMeasurementAndRulesCalculations(surveyMeasurement))
                     {
                         stopwatch.Stop();
                         Debug.WriteLine($"DisplayDynamicMeasurment: Measurement={surveyMeasurement.Measurement * 1000:F0}mm Range={surveyMeasurement.SurveyRulesCalc.Range:F2}m RMS={surveyMeasurement.SurveyRulesCalc.RMSWorst * 1000:F0}mm, elapsed {stopwatch.ElapsedMilliseconds}ms");
 
-                        mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.DisplayDynamicMeasurement)
+                        _mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.DisplayDynamicMeasurement)
                         {
                             showRMSCombinedOnly = trueShowRMSCombinedOnly,
                             measurement = surveyMeasurement.Measurement,
@@ -1901,7 +1911,7 @@ namespace Surveyor
             {
                 // Enough points for a 3D point
                 // Check if suitable calibration data is available for this frame size
-                bool isReady = await mainWindow.CheckIfMeasurementSetupIsReadyAsync();
+                bool isReady = await _mainWindow.CheckIfMeasurementSetupIsReadyAsync();
                 if (isReady)
                 {
                     SurveyStereoPoint surveyStereoPoint = new();
@@ -1923,12 +1933,12 @@ namespace Surveyor
                     // This call calculates the distance, range, X & Y offset between
                     // the camera system mid-point and the measurement point mid-point
                     // Note false is returned if there is an error (i.e. it's not that a rules was broken)
-                    if (mainWindow.DoRulesCalculations(surveyStereoPoint))
+                    if (_mainWindow.DoRulesCalculations(surveyStereoPoint))
                     {
                         stopwatch.Stop();
                         Debug.WriteLine($"DisplayDynamicMeasurment: 3D Point Range={surveyStereoPoint.SurveyRulesCalc.Range:F2}m RMS={surveyStereoPoint.SurveyRulesCalc.RMSWorst*1000:F0}mm, elapsed {stopwatch.ElapsedMilliseconds}ms");
 
-                        mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.DisplayDynamicMeasurement)
+                        _mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.DisplayDynamicMeasurement)
                         {
                             showRMSCombinedOnly = trueShowRMSCombinedOnly,
                             rmsCombined = surveyStereoPoint.SurveyRulesCalc?.RMSWorst,
@@ -1947,7 +1957,7 @@ namespace Surveyor
             else 
             {
                 // Clear dynamic measurements
-                mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.DisplayDynamicMeasurement));
+                _mediaControllerHandler?.Send(new MediaStereoControllerEventData(eMediaStereoControllerEvent.DisplayDynamicMeasurement));
             }
         }
 
@@ -2093,7 +2103,7 @@ namespace Surveyor
         {
             // Check if the Events is setup and the stereo projection is not null (normally
             // stereoProject is not null if we have calibration data)
-            if (eventsControl is not null && stereoProjection is not null)
+            if (_eventsControl is not null && _stereoProjection is not null)
             {
                 // What type is this
                 SurveyDataType surveyDataType;
@@ -2124,13 +2134,13 @@ namespace Surveyor
                 if (isMeasurement || is3DPoint)
                 {
                     // Check if suitable calibration data is available for this frame size
-                    bool isReady = await mainWindow.CheckIfMeasurementSetupIsReadyAsync();
+                    bool isReady = await _mainWindow.CheckIfMeasurementSetupIsReadyAsync();
                     if (isReady)
                     {
                         if (pointData is SurveyMeasurement surveyMeasurement2)
                         {
                             // This call calculates the distance, range, X & Y offset between the camera system mid-point and the measurement point mid-point
-                            mainWindow.DoMeasurementAndRulesCalculations(surveyMeasurement2);
+                            _mainWindow.DoMeasurementAndRulesCalculations(surveyMeasurement2);
                             // No need to check if IsDirty needs to be set as this is a event item and
                             // as such adding to the event list will set the IsDirty flag
                         }
@@ -2140,7 +2150,7 @@ namespace Surveyor
                             // This call calculates the distance, range, X & Y offset between
                             // the camera system mid-point and the measurement point mid-point
                             // Note false is returned if there is an error (i.e. it's not that a rules was broken)
-                            mainWindow.DoRulesCalculations(surveyStereoPoint2);
+                            _mainWindow.DoRulesCalculations(surveyStereoPoint2);
                             // No need to check if IsDirty needs to be set as this is a event item and
                             // as such adding to the event list will set the IsDirty flag
                         }
@@ -2156,12 +2166,12 @@ namespace Surveyor
 
                 SpeciesInfo specifiesInfo = new(); 
                 
-                if (await speciesSelector.SpeciesNewAsync(mainWindow, 
+                if (await speciesSelector.SpeciesNewAsync(_mainWindow, 
                                                     specifiesInfo, 
                                                     preSelectedSpecies, 
                                                     speciesImageCache, 
                                                     pointData,
-                                                    mainWindow.GetSurveyRulesClass()) == false)
+                                                    _mainWindow.GetSurveyRulesClass()) == false)
                 {
                     // Species info canceled, check the user still want to add the measurement
                     // (but only if the Survey Rules all passed, this is some we don't encourage bad RMS
@@ -2215,10 +2225,10 @@ namespace Surveyor
                     await SetMediaPositionAddEventClearTargetsAsync(evt);
 
                     // Clear stereo projection calculation class
-                    stereoProjection.PointsClear();
+                    _stereoProjection.PointsClear();
 
                     // Display the missing calibration warning InfoBar if necessary
-                    mainWindow.SetInfoBarCalibrationMissing();
+                    _mainWindow.SetInfoBarCalibrationMissing();
                 }
             }
         }
@@ -2235,11 +2245,11 @@ namespace Surveyor
         private async Task SetMediaPositionAddEventClearTargetsAsync(Event evt)
         {
             // Log the event (even if no measurement done)
-            if (surveyType == Survey.SurveyType.StereoFish && mediaTimelineController is not null)
+            if (_surveyType == Survey.SurveyType.StereoFish && _mediaTimelineController is not null)
             {
-                TimeSpan? timelineConntrollerPoistion = mediaTimelineController.Position;
-                TimeSpan? leftPosition = mediaPlayerLeft.Position;
-                TimeSpan? rightPosition = mediaPlayerRight.Position;
+                TimeSpan? timelineConntrollerPoistion = _mediaTimelineController.Position;
+                TimeSpan? leftPosition = _mediaPlayerLeft.Position;
+                TimeSpan? rightPosition = _mediaPlayerRight.Position;
 
                 if (leftPosition is not null && rightPosition is not null)
                 {
@@ -2249,23 +2259,23 @@ namespace Surveyor
                     evt.TimeSpanRightFrame = (TimeSpan)rightPosition;
 
                     // Add frame indexes (not saved, values always calculated)
-                    evt.FrameIndexLeft = mediaPlayerLeft.GetFrameIndexFromPosition((TimeSpan)leftPosition);
-                    evt.FrameIndexRight = mediaPlayerRight.GetFrameIndexFromPosition((TimeSpan)rightPosition);
+                    evt.FrameIndexLeft = _mediaPlayerLeft.GetFrameIndexFromPosition((TimeSpan)leftPosition);
+                    evt.FrameIndexRight = _mediaPlayerRight.GetFrameIndexFromPosition((TimeSpan)rightPosition);
 
                     // Add the species info to the Events list
-                    eventsControl?.AddEventAsync(evt);
+                    _eventsControl?.AddEventAsync(evt);
 
                     // Remove targets from memory
                     ClearCachedTargets();
 
                     // Remove targets from the canvas
-                    mediaPlayerLeft.SetTargets(null, null);
-                    mediaPlayerRight.SetTargets(null, null);
+                    _mediaPlayerLeft.SetTargets(null, null);
+                    _mediaPlayerRight.SetTargets(null, null);
                 }
             }
-            else if (surveyType == Survey.SurveyType.MonoFish)
+            else if (_surveyType == Survey.SurveyType.MonoFish)
             {
-                TimeSpan? leftPosition = mediaPlayerLeft.Position;
+                TimeSpan? leftPosition = _mediaPlayerLeft.Position;
 
                 if (leftPosition is not null)
                 {
@@ -2274,21 +2284,21 @@ namespace Surveyor
                     evt.TimeSpanLeftFrame = (TimeSpan)leftPosition;
 
                     // Add frame indexes (not saved, values always calculated)
-                    evt.FrameIndexLeft = mediaPlayerLeft.GetFrameIndexFromPosition((TimeSpan)leftPosition);
+                    evt.FrameIndexLeft = _mediaPlayerLeft.GetFrameIndexFromPosition((TimeSpan)leftPosition);
                     evt.FrameIndexRight = -1;
 
                     // Add the species info to the Events list
-                    if (eventsControl is not null)
-                        await eventsControl.AddEventAsync(evt);
+                    if (_eventsControl is not null)
+                        await _eventsControl.AddEventAsync(evt);
 
                     // Remove targets from memory
                     ClearCachedTargets();
 
                     // Remove target from the canvas
-                    mediaPlayerLeft.SetTargets(null, null);
+                    _mediaPlayerLeft.SetTargets(null, null);
                 }
             }
-            else if (surveyType == Survey.SurveyType.MonoBenthic)
+            else if (_surveyType == Survey.SurveyType.MonoBenthic)
             {
                 // To do
             }
@@ -2309,7 +2319,7 @@ namespace Surveyor
         {
             bool ret = false;
 
-            if (!justSaveEventDoAsk)
+            if (!_justSaveEventDoAsk)
             {
                 // Prepare the contents text
                 string bodyText;
@@ -2341,7 +2351,7 @@ namespace Surveyor
                     PrimaryButtonText = "Yes",
                     CloseButtonText = "No",
                     DefaultButton = ContentDialogButton.Primary,
-                    XamlRoot = mainWindow.Content.XamlRoot // Ensure dialog attaches to correct visual tree
+                    XamlRoot = _mainWindow.Content.XamlRoot // Ensure dialog attaches to correct visual tree
                 };
 
                 var contentText = new TextBlock
@@ -2379,7 +2389,7 @@ namespace Surveyor
                 if (suppressCheckbox.IsChecked == true)
                 {
                     // User has selected to not be asked again
-                    justSaveEventDoAsk = true;
+                    _justSaveEventDoAsk = true;
                 }
             }
             else
@@ -2395,33 +2405,27 @@ namespace Surveyor
         /// <summary>
         /// Create a Event record for a StereoSyncPoint at the current locked media position
         /// </summary>
-        private void SurveyStereoSyncPointSelected(TimeSpan timelineConntrollerPoistion, TimeSpan leftPosition, TimeSpan rightPosition)
+        private async Task SurveyStereoSyncPointSelectedAsync(TimeSpan timelineConntrollerPoistion, TimeSpan leftPosition, TimeSpan rightPosition)
         {
             // Check if the Events list is not null 
-            if (eventsControl is not null)
+            if (_eventsControl is not null && _mediaTimelineController is not null)
             {
-                if (mediaTimelineController is not null)
+                // Remove any existing StereoSyncPoint events
+                _eventsControl.DeleteEventOfType(SurveyDataType.StereoSyncPoint);
+
+                // Create the StereoSyncPoint event
+                Event evt = new(SurveyDataType.StereoSyncPoint)
                 {
-                    // Remove any existing StereoSyncPoint events
-                    eventsControl?.DeleteEventOfType(SurveyDataType.StereoSyncPoint);
+                    EventData = null,
+                    TimeSpanTimelineController = timelineConntrollerPoistion,
+                    TimeSpanLeftFrame = leftPosition,
+                    TimeSpanRightFrame = rightPosition
+                };
 
-                    // Create the StereoSyncPoint event
-                    Event evt = new(SurveyDataType.StereoSyncPoint)
-                    {
-                        EventData = null,
-                        TimeSpanTimelineController = timelineConntrollerPoistion,
-                        TimeSpanLeftFrame = leftPosition,
-                        TimeSpanRightFrame = rightPosition
-                    };
-
-                    // Add the species info to the Events list
-                    eventsControl?.AddEventAsync(evt);
-                }
+                // Add the species info to the Events list
+                await _eventsControl.AddEventAsync(evt);
             }
         }
-
-
-
 
 
         /// <summary>
@@ -2442,7 +2446,7 @@ namespace Surveyor
         /// <exception cref="InvalidOperationException"></exception>
         private void CheckIsUIThread()
         {
-            if (!mainWindow.DispatcherQueue.HasThreadAccess)
+            if (!_mainWindow.DispatcherQueue.HasThreadAccess)
                 throw new InvalidOperationException("This function must be called from the UI thread");
         }
 
@@ -2474,7 +2478,7 @@ namespace Surveyor
             MediaUnsynchronized,
             Poistion,
             Duration,
-            DisplayDynamicMeasurement   // Used to signal dynamic measurement/rms/range calcs as
+            DisplayDynamicMeasurement   // Used to signal dynamic measurement/rms/range calculations as
                                         // target points are setup and moved
         }
 
@@ -2688,27 +2692,31 @@ namespace Surveyor
                         break;
 
                     case MagnifyAndMarkerControlEvent.AddMeasurementRequest:
-                        SafeUICall(async () => await mediaStereoController.AddMeasurementRequestAsync(data.species));
+                        //???SafeUICall(async () => await mediaStereoController.AddMeasurementRequestAsync(data.species));
+                        _ = SafeUICallAsync(() => mediaStereoController.AddMeasurementRequestAsync(data.species));
                         break;
 
                     case MagnifyAndMarkerControlEvent.Add3DPointRequest:
                         if (data.TruePointAFalsePointB is not null)
                         {
-                            SafeUICall(async () => await mediaStereoController.Add3DPointRequestAsync((bool)data.TruePointAFalsePointB, data.species));
+                            //???SafeUICall(async () => await mediaStereoController.Add3DPointRequestAsync((bool)data.TruePointAFalsePointB, data.species));
+                            _ = SafeUICallAsync(() => mediaStereoController.Add3DPointRequestAsync((bool)data.TruePointAFalsePointB, data.species));
                         }
                         break;
 
                     case MagnifyAndMarkerControlEvent.AddSinglePointRequest:
                         if (data.TruePointAFalsePointB is not null)
                         {
-                            SafeUICall(async () => await mediaStereoController.AddSinglePointRequestAsync(data.cameraSide, (bool)data.TruePointAFalsePointB, data.species));
+                            //???SafeUICall(async () => await mediaStereoController.AddSinglePointRequestAsync(data.cameraSide, (bool)data.TruePointAFalsePointB, data.species));
+                            _ = SafeUICallAsync(() => mediaStereoController.AddSinglePointRequestAsync(data.cameraSide, (bool)data.TruePointAFalsePointB, data.species));
                         }
                         break;
 
                     case MagnifyAndMarkerControlEvent.EditSpeciesInfoRequest:
                         if (data.eventGuid is not null)
                         {
-                            SafeUICall(async () => await mediaStereoController._EditSpeciesInfoAsync((Guid)data.eventGuid));
+                            //???SafeUICall(async () => await mediaStereoController._EditSpeciesInfoAsync((Guid)data.eventGuid));
+                            _ = SafeUICallAsync(() => mediaStereoController._EditSpeciesInfoAsync((Guid)data.eventGuid));
                             Debug.WriteLine($"***EditSpeciesInfo");
                         }
                         break;

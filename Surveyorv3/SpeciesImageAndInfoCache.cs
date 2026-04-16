@@ -24,6 +24,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Windows.Storage;
 using Windows.Storage.Streams;
+using WinRT.Surveyorv3VtableClasses;
+using static Surveyor.SpeciesImageAndInfoCache;
 using static Surveyor.SpeciesItem;
 
 namespace Surveyor
@@ -507,6 +509,97 @@ namespace Surveyor
         }
 
 
+        /// <summary>
+        /// trueViaSpeciesListFalseDirectly = true
+        ///     For each item in the species list that has a SpeciesCode check that
+        ///     there is an entry in the ImageAndInfoCache and the status of the cache
+        ///     items aligns with the image files that are on disk
+        /// 
+        /// trueViaSpeciesListFalseDirectly = false
+        ///     For each item in the ImageAndInfoCache check the status of the cache
+        ///     items aligns with the image files that are on disk
+        /// </summary>
+        /// <param name="trueViaSpeciesListfalseDirectly"></param>
+        /// <returns></returns>
+        public bool AuditImageAndInfoCache(bool trueViaSpeciesListFalseDirectly, bool onlyShowProblems)
+        {
+            bool ret = false;
+
+            if (isReady)
+            {
+                Debug.WriteLine($"Species List Count:{speciesCodeList.SpeciesItems.Count}");
+                Debug.WriteLine($"Image and Info Cache Count:{speciesStates.Count}");
+
+                if (trueViaSpeciesListFalseDirectly)
+                {
+                    foreach (SpeciesItem speciesItem in speciesCodeList.SpeciesItems)
+                    {
+                        if (speciesStates.TryGetValue(speciesItem.Code, out SpeciesCacheState? speciesCacheState))
+                        {
+                            if (speciesCacheState is not null)
+                            {
+                                AuditSpeciesCacheState(speciesCacheState, onlyShowProblems);
+                            }
+                            else
+                            {
+                                Debug.WriteLine($"   {speciesItem.Code}/{speciesItem.SpeciesScientific} is missing from the Image and Info Cache");
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    Debug.WriteLine($"Image and Info Cache Count:{speciesStates.Count}");
+
+                    foreach (SpeciesCacheState speciesCacheState in speciesStates.Values)
+                    {
+                        AuditSpeciesCacheState(speciesCacheState, onlyShowProblems);
+                    }
+                }                   
+            }
+
+            return ret;
+
+            static void AuditSpeciesCacheState(SpeciesCacheState speciesCacheState, bool onlyShowProblems)
+            {
+                if (speciesCacheState.Status == State.Error)
+                {
+                    Debug.WriteLine($"   {speciesCacheState.SpeciesItem.Code}/{speciesCacheState.SpeciesItem.SpeciesScientific} Has a cache status of {speciesCacheState.Status}");
+                }
+                else if (speciesCacheState.Status == State.Done)
+                {
+                    // Check the image files
+                    StringBuilder sb = new();
+                    int imageCount = 0;
+                    string localPath = Windows.Storage.ApplicationData.Current.LocalFolder.Path;
+                    foreach (SpeciesImageItem speciesImageItem in speciesCacheState.SpeciesImageItemList)
+                    {
+                        string imageSpecSpec = Path.Combine(localPath, speciesImageItem.ImageFile);
+
+                        if (File.Exists(imageSpecSpec))
+                            imageCount++;
+                        else
+                        {
+                            if (imageCount > 0)
+                                sb.Append(',');
+                            sb.Append(Path.GetFileName(speciesImageItem.ImageFile));
+                        }
+                    }
+
+                    string action = "";
+
+                    if (imageCount == 0 && speciesCacheState.SpeciesImageItemList.Count > 0)
+                    {
+                        action = " > Set to download";
+                        speciesCacheState.Status = State.None;
+                    }
+
+                    if (!onlyShowProblems || imageCount != speciesCacheState.SpeciesImageItemList.Count)
+                        Debug.WriteLine($"   {speciesCacheState.SpeciesItem.Code}/{speciesCacheState.SpeciesItem.SpeciesScientific} Missing {imageCount}/{speciesCacheState.SpeciesImageItemList.Count} image files:{sb} {action}");
+                }
+            }
+        }
+
 
         ///
         /// PRIVATE
@@ -701,7 +794,7 @@ namespace Surveyor
 
             foreach (var item in speciesCodeList.SpeciesItems)
             {
-                // If we have a code and it is a fishbase code that add to the speciesstates list
+                // If we have a code and it is a fishbase code that add to the species states list
                 (CodeType codeType, string SpeciesID) = item.ExtractCodeTypeAndID();
                 // Only supporting Fishbase.org ID currently
                 if (codeType == CodeType.FishBase && !string.IsNullOrEmpty(SpeciesID))

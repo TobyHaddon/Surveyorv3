@@ -67,7 +67,7 @@
                             <TextBlock
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                 IsTextSelectionEnabled="True"
-                                Text="{x:Bind SettingsExpanderInfoText, Mode=OneWay}" 
+                                Text="{x:Bind SettingsExpanderInfoText, Mode=OneTime}" 
                                 VerticalAlignment="Center"/>
                         </StackPanel>
 
@@ -104,7 +104,7 @@
                             <TextBlock
                                 Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                 IsTextSelectionEnabled="True"
-                                Text="{x:Bind SettingsExpanderFieldTripInfoText, Mode=OneWay}" 
+                                Text="{x:Bind SettingsExpanderFieldTripInfoText, Mode=OneTime}" 
                                 VerticalAlignment="Center"/>
                         </StackPanel>
 
@@ -703,12 +703,12 @@
                                                              HorizontalAlignment="Center"
                                                              Fill="{ThemeResource SystemControlBackgroundBaseMediumBrush}"/>
 
-                                                    <TextBlock Grid.Row="0" Grid.Column="1">
+                                                    <TextBlock Grid.Row="0" Grid.Column="1" Style="{ThemeResource CaptionTextBlockStyle}">
                                                         <TextBlock.Inlines>
                                                             <Run Text="{x:Bind Family}"/>
-                                                            <Run Text=" > "/>
+                                                            <Run Text=">"/>
                                                             <Run Text="{x:Bind Genus}"/>
-                                                            <Run Text=" "/>
+                                                            <Run Text=">"/>
                                                             <Run Text="{x:Bind Species}"/>
                                                         </TextBlock.Inlines>
                                                     </TextBlock>
@@ -820,5 +820,47 @@
                 </StackPanel>
             </Grid>
         </ScrollViewer>
+
+        
+        <!-- Create New Blank Species List Dialog -->
+        <ContentDialog x:Name="CreateSpeciesListDialog"
+               Title="Create New Species List"
+               PrimaryButtonText="OK"
+               CloseButtonText="Cancel"
+               DefaultButton="Primary">
+            <StackPanel Spacing="10">
+                <StackPanel Orientation="Horizontal" Spacing="16">
+                    <RadioButton x:Name="SpeciesListTypeFishRadio"
+                         GroupName="SpeciesListTypeGroup"
+                         Content="Fish"
+                         IsChecked="True"/>
+                    <RadioButton x:Name="SpeciesListTypeBenthicRadio"
+                         GroupName="SpeciesListTypeGroup"
+                         Content="Benthic"
+                         IsEnabled="False"/>
+                </StackPanel>
+
+                <TextBlock Text="New Species List Name:"/>
+
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <TextBox Text="Species - " IsReadOnly="True" Width="90"/>
+                    <TextBox x:Name="SpeciesListNamePortion"
+                                 PlaceholderText="bio-geographic area"                                 
+                                 MinWidth="240"/>
+                </StackPanel>
+
+                <Grid ColumnSpacing="8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <FontIcon Grid.Column="0" Glyph="&#xE946;" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1"
+                       Text="Name should represent a bio-geographic e.g. 'Central Pacific' or 'Red Sea'"
+                       TextWrapping="WrapWholeWords"/>
+                </Grid>
+            </StackPanel>
+        </ContentDialog>
     </Grid>
 </ex:WindowEx>

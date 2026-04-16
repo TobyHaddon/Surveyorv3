@@ -115,7 +115,7 @@ namespace Surveyor
         /// </summary>
         /// <param name="surveyFileSpec"></param>
         /// <returns></returns>
-        public async Task<(int result, string errorMessage)> SurveyLoadEMObsAsync(string surveyFileSpec)
+        public (int result, string errorMessage) SurveyLoadEMObs(string surveyFileSpec)
         {
             int ret = 0;
 

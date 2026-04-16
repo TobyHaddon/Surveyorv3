@@ -185,6 +185,12 @@
     <None Update="appSettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="CreateSpeciesTxtFromURL.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="CreateSpeciesTxtFromURL.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="Help Documents\Species List.pdf">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -234,6 +240,7 @@
   <ItemGroup>
     <Folder Include="Help Documents\" />
     <Folder Include="Fish Species Lists\" />
+    <Folder Include="Benthic Species Lists\" />
   </ItemGroup>
 
 	<ItemGroup>

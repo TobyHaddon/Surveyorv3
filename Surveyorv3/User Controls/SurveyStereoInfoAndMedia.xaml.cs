@@ -142,7 +142,7 @@ namespace Surveyor.User_Controls
                 SurveyInfoUserControl.SelectionChanged += SurveyInfoUserControl_SelectionChanged;
 
                 // Load the available species list (must be before the SetFieldTrip)
-                List<string> availableSpeciesLists = SpeciesCodeList.GetAvailableSpeciesLists();
+                List<string> availableSpeciesLists = SpeciesCodeList.GetAvailableSpeciesLists(SpeciesListType.Fish);
                 SurveyInfoUserControl.LoadSpeciesList(availableSpeciesLists);
 
                 // Set the field trip if available
@@ -218,7 +218,7 @@ namespace Surveyor.User_Controls
             SurveyInfoUserControl.SelectionChanged += SurveyInfoUserControl_SelectionChanged;
 
             // Load the available species list (must be before the SetFieldTrip)
-            List<string> availableSpeciesLists = SpeciesCodeList.GetAvailableSpeciesLists();
+            List<string> availableSpeciesLists = SpeciesCodeList.GetAvailableSpeciesLists(SpeciesListType.Fish);
             SurveyInfoUserControl.LoadSpeciesList(availableSpeciesLists);
 
             // Set the field trip if available

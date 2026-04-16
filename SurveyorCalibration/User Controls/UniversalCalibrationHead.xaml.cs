@@ -1983,7 +1983,7 @@ namespace Surveyor.Controls
                                             .Select((bf, i) => (bf, i))
                                             .FirstOrDefault(x =>
                                                 calibrationStereoFrameSet.Data.Frames.TryGetValue(x.bf.FrameIndex, out var tuple) &&
-                                                tuple.frameCalibrationTargetRight.FrameIndex == frameIndex).i;
+                                                tuple.frameCalibrationTargetRight!.FrameIndex == frameIndex).i;
 
                     }
                     if (bestFrameIndex != -1)

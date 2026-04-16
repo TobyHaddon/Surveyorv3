@@ -638,7 +638,7 @@ namespace Surveyor.User_Controls
                                     {
                                         eventGuid = targetGuid
                                     };
-                                    magnifyAndMarkerControlHandler?.Send(data);
+                                    _magnifyAndMarkerControlHandler?.Send(data);
                                 }
                             }
 

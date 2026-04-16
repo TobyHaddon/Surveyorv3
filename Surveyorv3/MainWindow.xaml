@@ -159,14 +159,19 @@
                         <MenuFlyoutSubItem.Icon>
                             <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEDE1;" />
                         </MenuFlyoutSubItem.Icon>
-                        <MenuFlyoutItem Name="MenuExportExcel" Text="Excel" Click="ExportExcel_Click">
+                        <MenuFlyoutItem Name="MenuExportExcel" Text="Excel..." Click="ExportExcel_Click">
                             <MenuFlyoutItem.Icon>
                                 <ImageIcon Source="ms-appx:///Assets/excel-16.png" />
                             </MenuFlyoutItem.Icon>
                         </MenuFlyoutItem>
-                        <MenuFlyoutItem Name="MenuExportCOCO" Text="COCO Json" Click="ExportCOCO_Click">
+                        <MenuFlyoutItem Name="MenuExportCOCO" Text="COCO Json..." Click="ExportCOCO_Click">
                             <MenuFlyoutItem.Icon>
                                 <ImageIcon Source="ms-appx:///Assets/COCO.png"  />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Name="MenuExportSpeciesList" Text="Species List..." Click="ExportSpeciesList_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE8A5;" />
                             </MenuFlyoutItem.Icon>
                         </MenuFlyoutItem>
                     </MenuFlyoutSubItem>
@@ -479,8 +484,9 @@
             <Frame x:Name="ContentFrame" HorizontalAlignment="Stretch" VerticalAlignment="Stretch"/>
         </NavigationView>
         
-        <!--New Survey Dialog-->
+        <!--New Survey & Export Dialog-->
         <Grid x:Name="SurveyInfoAndMediaContentDialogGrid" Grid.Row="3">
+            <!-- New Survey Stereo -->
             <ContentDialog x:Name="SurveyStereoInfoAndMediaContentDialog"
                             Title="New Stereo Fish Survey Setup"
                             PrimaryButtonText="OK"
@@ -494,6 +500,8 @@
                             RequestedTheme="Default">
                 <surveyorControls:SurveyStereoInfoAndMedia x:Name="SurveyStereoInfoAndMediaUserControl" />
             </ContentDialog>
+            
+            <!-- New Survey Mono -->
             <ContentDialog x:Name="SurveyMonoInfoAndMediaContentDialog"
                             Title="New Mono Survey Setup"
                             PrimaryButtonText="OK"
@@ -506,6 +514,34 @@
                             IsPrimaryButtonEnabled="True"
                             RequestedTheme="Default">
                 <surveyorControls:SurveyMonoInfoAndMedia x:Name="SurveyMonoInfoAndMediaUserControl" />
+            </ContentDialog>
+            
+            <!-- Export Species List Sector -->
+            <ContentDialog x:Name="ExportSpeciesListDialog"
+               Title="Export Species List"
+               PrimaryButtonText="OK"
+               CloseButtonText="Cancel"
+               DefaultButton="Primary"
+               IsPrimaryButtonEnabled="True"
+               RequestedTheme="Default">
+                <StackPanel Spacing="10" MinWidth="360">
+                    <StackPanel Orientation="Horizontal" Spacing="16">
+                        <RadioButton x:Name="SpeciesListTypeFishRadio"
+                         Content="Fish"
+                         GroupName="ExportSpeciesListTypeGroup"
+                         Checked="ExportSpeciesListTypeRadio_Checked"/>
+                        <RadioButton x:Name="SpeciesListTypeBenthicRadio"
+                         Content="Benthic"
+                         GroupName="ExportSpeciesListTypeGroup"
+                         Checked="ExportSpeciesListTypeRadio_Checked"/>
+                    </StackPanel>
+
+                    <DropDownButton x:Name="ExportSpeciesListDropDown" Content="Select species list">
+                        <DropDownButton.Flyout>
+                            <MenuFlyout x:Name="ExportSpeciesListMenuFlyout"/>
+                        </DropDownButton.Flyout>
+                    </DropDownButton>
+                </StackPanel>
             </ContentDialog>
         </Grid>
     </Grid>
