@@ -389,7 +389,10 @@ namespace Surveyor
                 var bitmapImage = new BitmapImage(new Uri($"ms-appx:///Assets/Surveyor-Dark.png"));
                 TitleBarIcon.Source = bitmapImage;
 
-                TitleBarHelper.SetCaptionButtonColors(this, Colors.White);                
+                TitleBarHelper.SetCaptionButtonColors(this, Colors.White);
+
+                // Update menu fish species list icon
+                MenuImportFishSpeciesListIcon.Source = new BitmapImage(new Uri($"ms-appx:///Assets/fish-dark.png"));
             }
             else if (theme == ElementTheme.Light)
             {
@@ -401,7 +404,10 @@ namespace Surveyor
                 var bitmapImage = new BitmapImage(new Uri($"ms-appx:///Assets/Surveyor-Light.png"));
                 TitleBarIcon.Source = bitmapImage;
 
-                TitleBarHelper.SetCaptionButtonColors(this, Colors.Black);                
+                TitleBarHelper.SetCaptionButtonColors(this, Colors.Black);
+
+                // Update menu fish species list icon
+                MenuImportFishSpeciesListIcon.Source = new BitmapImage(new Uri($"ms-appx:///Assets/fish-light.png"));
             }
             else
             {
@@ -413,9 +419,15 @@ namespace Surveyor
 
                 // Based on the background color, select a suitable application icon
                 if (color == "Dark")
+                {
                     TitleBarIcon.Source = new BitmapImage(new Uri($"ms-appx:///Assets/Surveyor-Dark.png"));
+                    MenuImportFishSpeciesListIcon.Source = new BitmapImage(new Uri($"ms-appx:///Assets/fish-dark.png"));
+                }
                 else
+                {
                     TitleBarIcon.Source = new BitmapImage(new Uri($"ms-appx:///Assets/Surveyor-Light.png"));
+                    MenuImportFishSpeciesListIcon.Source = new BitmapImage(new Uri($"ms-appx:///Assets/fish-light.png"));
+                }
             }
 
             // If the theme has changed, announce the change to the user
@@ -1614,6 +1626,143 @@ namespace Surveyor
 
 
         /// <summary>
+        /// Import Fish Species List menu item click handler
+        /// </summary>
+        private void FileImportFishSpeciesList_Click(object sender, RoutedEventArgs e) => _ = FileImportSpeciesListClickAsync(SpeciesListType.Fish);
+
+
+        /// <summary>
+        /// Import Benthic Species List menu item click handler
+        /// </summary>
+        private void FileImportBenthicSpeciesList_Click(object sender, RoutedEventArgs e) => _ = FileImportSpeciesListClickAsync(SpeciesListType.Benthic);
+
+
+        /// <summary>
+        /// Import a species list file using a file picker dialog.
+        /// Validates the file, handles renaming if needed, and copies to the appropriate folder.
+        /// </summary>
+        /// <param name="speciesListType">The type of species list (Fish or Benthic)</param>
+        private async Task FileImportSpeciesListClickAsync(SpeciesListType speciesListType)
+        {
+            // Create the file picker object
+            FileOpenPicker openPicker = new()
+            {
+                ViewMode = PickerViewMode.List,
+                SuggestedStartLocation = PickerLocationId.DocumentsLibrary
+            };
+
+            // Add file type filter
+            openPicker.FileTypeFilter.Add(".txt");
+
+            // Associate the file picker with the current window
+            IntPtr hWnd = WindowNative.GetWindowHandle(this);
+            InitializeWithWindow.Initialize(openPicker, hWnd);
+
+            // Show the picker
+            StorageFile? file = await openPicker.PickSingleFileAsync();
+            if (file is null)
+                return;
+
+            // Validate the selected file is a species list file
+            if (!SpeciesCodeList.ValidateSpeciesListFile(speciesListType, file.Path))
+            {
+                var errorDialog = new ContentDialog
+                {
+                    Title = "Invalid Species List File",
+                    Content = "The selected file is not a valid species list file. The file must contain tab-separated columns: family, genus, species, and optionally ID.",
+                    CloseButtonText = "OK",
+                    DefaultButton = ContentDialogButton.Close,
+                    XamlRoot = this.Content.XamlRoot
+                };
+                await errorDialog.ShowAsync();
+                return;
+            }
+
+            // Check if the filename matches the "Species - *.txt" format
+            string fileName = Path.GetFileNameWithoutExtension(file.Name);
+            string finalFileName = fileName;
+
+            // Regex to match "Species - " followed by one or more words
+            var regex = new System.Text.RegularExpressions.Regex(@"^Species\s*-\s*.+$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            if (!regex.IsMatch(fileName))
+            {
+                // File name doesn't match expected format, show dialog to create a new name
+                ImportSpeciesListRenameDialog.XamlRoot = this.Content.XamlRoot;
+                ImportSpeciesListNamePortion.Text = string.Empty;
+
+                ContentDialogResult dialogResult = await ImportSpeciesListRenameDialog.ShowAsync();
+
+                if (dialogResult != ContentDialogResult.Primary)
+                    return;
+
+                string namePortion = ImportSpeciesListNamePortion.Text.Trim();
+                if (string.IsNullOrWhiteSpace(namePortion))
+                    return;
+
+                finalFileName = $"Species - {namePortion}";
+            }
+
+            // Get the destination folder path
+            string speciesFolder = SpeciesCodeList.GetSpeciesTypeFolder(speciesListType);
+            string destinationFolder = Path.Combine(ApplicationData.Current.LocalFolder.Path, speciesFolder);
+
+            // Create the folder if it doesn't exist
+            Directory.CreateDirectory(destinationFolder);
+
+            // Build destination file path
+            string destinationFileSpec = Path.Combine(destinationFolder, $"{finalFileName}.txt");
+
+            // Check if file already exists
+            if (File.Exists(destinationFileSpec))
+            {
+                var overwriteDialog = new ContentDialog
+                {
+                    Title = "File Already Exists",
+                    Content = $"A species list named '{finalFileName}' already exists. Do you want to overwrite it?",
+                    PrimaryButtonText = "Overwrite",
+                    CloseButtonText = "Cancel",
+                    DefaultButton = ContentDialogButton.Close,
+                    XamlRoot = this.Content.XamlRoot
+                };
+
+                var result = await overwriteDialog.ShowAsync();
+                if (result != ContentDialogResult.Primary)
+                    return;
+            }
+
+            // Copy the file
+            try
+            {
+                File.Copy(file.Path, destinationFileSpec, overwrite: true);
+
+                // User feedback
+                await new ContentDialog
+                {
+                    Title = "Export Species List",
+                    Content = $"Import complete!",
+                    CloseButtonText = "OK",
+                    XamlRoot = this.Content.XamlRoot
+                }.ShowAsync();
+
+                _report.Info("", $"Imported species list: '{finalFileName}'");
+            }
+            catch (Exception ex)
+            {
+                var errorDialog = new ContentDialog
+                {
+                    Title = "Import Failed",
+                    Content = $"Failed to import species list: {ex.Message}",
+                    CloseButtonText = "OK",
+                    DefaultButton = ContentDialogButton.Close,
+                    XamlRoot = this.Content.XamlRoot
+                };
+                await errorDialog.ShowAsync();
+            }
+        }
+
+
+        /// <summary>
         /// Display the settings windows
         /// </summary>
         /// <param name="sender"></param>
@@ -2475,6 +2624,8 @@ namespace Surveyor
             // Passed Space bar to MediaStereoController
             await _mediaStereoController.SpaceKeyPressedAsync();
         }
+
+
 
 
         ///

@@ -138,11 +138,15 @@
   <ItemGroup>
     <ClInclude Include="FileFind.h" />
     <ClInclude Include="FileMapping.h" />
+    <ClInclude Include="resource.h" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\EMObsReaderCore\EMObsReaderCore.vcxproj">
       <Project>{5fd53109-d655-4d68-8435-07a172f5ecae}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+      <ResourceCompile Include="EMObsReader.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

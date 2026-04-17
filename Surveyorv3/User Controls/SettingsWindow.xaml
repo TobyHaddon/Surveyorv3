@@ -792,27 +792,81 @@
                                 </StackPanel>
                             </toolkit:SettingsCard>
 
+                            <!-- Application Folders -->
                             <toolkit:SettingsCard
                                 HorizontalContentAlignment="Left"
                                 ContentAlignment="Vertical"                             
-                                Header="Command Line Utilities">
-                                <Grid Margin="-12,0,0,0" >
+                                Header="Application Folders">
+                                <Grid Margin="0,0,0,0" >
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="450"/>
+                                        <ColumnDefinition Width="182"/>
+                                        <ColumnDefinition Width="30"/>
+                                        <ColumnDefinition Width="800"/>
                                         <ColumnDefinition Width="*"/>
                                     </Grid.ColumnDefinitions>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="auto"/>
                                         <RowDefinition Height="auto"/>
                                     </Grid.RowDefinitions>
+                                    <!-- Application Program Path -->
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Program Folder:" VerticalAlignment="Center"  Margin="0,6,0,12"/>
+                                    <Button Click="ApplicationProgramPathButton_Click"
+                                            Grid.Row="0" Grid.Column="1"
+                                            ToolTipService.ToolTip="Copy program folder path to clipboard"
+                                            Background="Transparent"
+                                            BorderBrush="{x:Null}"
+                                            Padding="3"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center" Margin="0,0,0,0">
+                                        <FontIcon Glyph="&#xE8C8;" />
+                                    </Button>
+                                    <TextBlock x:Name="ApplicationProgramPathTextBlock" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Margin="0,6,0,12"/>
+                                    <!-- Application Data Path -->
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Data Folder:" VerticalAlignment="Center"  Margin="0,0,0,8"/>
+                                    <Button Click="ApplicationDataPathButton_Click"
+                                            Grid.Row="1" Grid.Column="1"
+                                            ToolTipService.ToolTip="Copy data folder path to clipboard"
+                                            Background="Transparent"
+                                            BorderBrush="{x:Null}"
+                                            Padding="3"
+                                            HorizontalAlignment="Center"
+                                            VerticalAlignment="Center" Margin="0,0,0,0">
+                                        <FontIcon Glyph="&#xE8C8;" />
+                                    </Button>
+                                    <TextBlock x:Name="ApplicationDataPathTextBlock" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center" Margin="0,0,0,8"/>
+                                </Grid>
+                            </toolkit:SettingsCard>
+
+                            <!-- Command Line Utilities -->
+                            <toolkit:SettingsCard
+                                HorizontalContentAlignment="Left"
+                                ContentAlignment="Vertical"                             
+                                Header="Command Line Utilities">
+                                <Grid Margin="-12,0,0,0" >
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="200"/>
+                                        <ColumnDefinition Width="30"/>
+                                        <ColumnDefinition Width="220"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="auto"/>
+                                        <RowDefinition Height="auto"/>
+                                    </Grid.RowDefinitions>
+                                    <!-- Utility:CreateSpeciesTxtFromURL.exe Paste Path/Version -->
                                     <HyperlinkButton Grid.Row="0" Grid.Column="0" Content="CreateSpeciesTxtFromURL" 
                                                      ToolTipService.ToolTip="Click to copy the full location of this utility"
                                                      Click="UtilityCreateSpeciesTxtFromURL_Click"/>
-                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="Creates a species pick list from a genus/species list" VerticalAlignment="Center"/>
+                                    <FontIcon x:Name="UtilityCreateSpeciesTxtFromURLIcon" Grid.Row="0" Grid.Column="1" Glyph="&#xE946;" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="UtilityCreateSpeciesTxtFromURLTextBlock" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center"/> 
+                                    <TextBlock Grid.Row="0" Grid.Column="3" Text="Creates a species pick list from a genus/species list" VerticalAlignment="Center"/>
+                                    <!-- Utility:EMObsReader.exe Paste Path/Version -->
                                     <HyperlinkButton Grid.Row="1" Grid.Column="0" Content="EMObsReader" 
                                                      ToolTipService.ToolTip="Click to copy the full location of this utility"
                                                      Click="UtilityEMObsReader_Click" />
-                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="Extracts and outputs the contents of EventManager .EMObs files" VerticalAlignment="Center"/>
+                                    <FontIcon x:Name="UtilityEMObsReaderIcon" Grid.Row="1" Grid.Column="1" Glyph="&#xE946;" HorizontalAlignment="Left" VerticalAlignment="Center"/>
+                                    <TextBlock x:Name="UtilityEMObsReaderTextBlock" Grid.Row="1" Grid.Column="2" VerticalAlignment="Center"/> 
+                                    <TextBlock Grid.Row="1" Grid.Column="3" Text="Extracts and outputs the contents of EventManager .EMObs files" VerticalAlignment="Center"/>
                                 </Grid>
                             </toolkit:SettingsCard>
                         </toolkit:SettingsExpander.Items>

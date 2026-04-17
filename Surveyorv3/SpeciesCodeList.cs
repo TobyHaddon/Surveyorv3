@@ -1009,6 +1009,51 @@ namespace Surveyor
                                     };
 
 
+        /// <summary>
+        /// Validates that the specified file is a valid species list file.
+        /// </summary>
+        /// <param name="speciesListType">The type of species list</param>
+        /// <param name="filePath">Path to the file to validate</param>
+        /// <returns>True if the file is valid, false otherwise</returns>
+        public static bool ValidateSpeciesListFile(SpeciesListType speciesListType, string filePath)
+        {
+            // Stub method for validation - to be implemented
+            // For now, perform basic validation
+            try
+            {
+                if (!File.Exists(filePath))
+                    return false;
+
+                // Read first few lines to validate structure
+                using var reader = new StreamReader(filePath);
+                int lineCount = 0;
+                int validLineCount = 0;
+
+                while (!reader.EndOfStream && lineCount < 10)
+                {
+                    var line = reader.ReadLine();
+                    lineCount++;
+
+                    if (string.IsNullOrWhiteSpace(line))
+                        continue;
+
+                    // Check if line has at least 3 tab-separated columns (family, genus, species)
+                    var parts = line.Split('\t');
+                    if (parts.Length >= 3)
+                        validLineCount++;
+                }
+
+                // Consider valid if we have at least one valid line (could be header + data)
+                return validLineCount > 1;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+
+
         ///
         /// PRIVATE
         /// 

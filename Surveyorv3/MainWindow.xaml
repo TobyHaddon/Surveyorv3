@@ -152,6 +152,16 @@
                                 <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xEB3C;" />
                             </MenuFlyoutItem.Icon>
                         </MenuFlyoutItem>
+                        <MenuFlyoutItem Name="MenuImportFishSpeciesList" Text="Import Fish Species List..." Click="FileImportFishSpeciesList_Click">
+                            <MenuFlyoutItem.Icon>
+                                <ImageIcon x:Name="MenuImportFishSpeciesListIcon" Source="ms-appx:///Assets/fish-dark.png" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
+                        <MenuFlyoutItem Name="MenuImportBenthicSpeciesList" Text="Import Benthic Species List..." IsEnabled="False" Click="FileImportBenthicSpeciesList_Click">
+                            <MenuFlyoutItem.Icon>
+                                <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE809;" />
+                            </MenuFlyoutItem.Icon>
+                        </MenuFlyoutItem>
                     </MenuFlyoutSubItem>
                     <!-- Export -->
                     <MenuFlyoutSubItem Name="MenuExport" Text="Export..." IsEnabled="True"
@@ -541,6 +551,37 @@
                             <MenuFlyout x:Name="ExportSpeciesListMenuFlyout"/>
                         </DropDownButton.Flyout>
                     </DropDownButton>
+                </StackPanel>
+            </ContentDialog>
+
+            <!-- Import Species List Rename Dialog -->
+            <ContentDialog x:Name="ImportSpeciesListRenameDialog"
+               Title="Name Species List"
+               PrimaryButtonText="OK"
+               CloseButtonText="Cancel"
+               DefaultButton="Primary">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="The file name doesn't match the expected format 'Species - [region].txt'."/>
+                    <TextBlock Text="Please enter a name for this species list:"/>
+
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBox Text="Species - " IsReadOnly="True" Width="90"/>
+                        <TextBox x:Name="ImportSpeciesListNamePortion"
+                             PlaceholderText="bio-geographic area"
+                             MinWidth="240"/>
+                    </StackPanel>
+
+                    <Grid ColumnSpacing="8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <FontIcon Grid.Column="0" Glyph="&#xE946;" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1"
+                       Text="Name should represent a bio-geographic area e.g. 'Central Pacific' or 'Red Sea'"
+                       TextWrapping="WrapWholeWords"/>
+                    </Grid>
                 </StackPanel>
             </ContentDialog>
         </Grid>

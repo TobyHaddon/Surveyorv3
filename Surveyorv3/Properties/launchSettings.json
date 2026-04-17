@@ -3,9 +3,6 @@
     "Surveyorv3 (Package)": {
       "commandName": "MsixPackage",
       "nativeDebugging": true
-    },
-    "Surveyorv3 (Unpackaged)": {
-      "commandName": "Project"
     }
   }
 }

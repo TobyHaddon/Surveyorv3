@@ -1,5 +1,6 @@
 ﻿using CommunityToolkit.WinUI;
 using CommunityToolkit.WinUI.Controls;
+using Emgu.CV;
 using Microsoft.ApplicationInsights.Extensibility;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
@@ -21,6 +22,7 @@ using Windows.Foundation;
 using Windows.Storage;
 using WinUIEx;
 using static Surveyor.User_Controls.SettingsWindowEventData;
+using static System.Environment;
 
 // SettingsWindow
 // This is a user control is used to adjust general, survey and Field Trip settings
@@ -38,6 +40,7 @@ using static Surveyor.User_Controls.SettingsWindowEventData;
 //
 // Version 1.4 15 Apr 2026
 // Add support to allow the creation of a new blank species list
+// Display utility version number
 
 
 namespace Surveyor.User_Controls
@@ -426,7 +429,7 @@ namespace Surveyor.User_Controls
                         tooltipReporterFolder.Content = $"Reporter folder: {localFolderPath}. Click the button to copy the folder path to the clipboard.";
                         ToolTipService.SetToolTip(ReporterFolder, tooltipReporterFolder);
                     }
-                    catch { }                
+                    catch { }
 
                     // Hide the Edit/Delete buttons until an SpeciesCodeList item is selected
                     SpeciesCodeListEditButton.IsEnabled = false;
@@ -448,7 +451,7 @@ namespace Surveyor.User_Controls
                     string activeSpeciesList = SettingsManagerLocal.ActiveSpeciesList;
                     List<string> items = SpeciesCodeList.GetAvailableSpeciesLists(SpeciesListType.Fish);
                     SpeciesActiveListMenuFlyout.Items.Clear();
-                    
+
                     foreach (string text in items)
                     {
                         MenuFlyoutItem item = new()
@@ -499,29 +502,39 @@ namespace Surveyor.User_Controls
                     ExperimentalFeatureSetA.IsEnabled = Experimental.IsOn;
                     ExperimentalFeatureSetB.IsEnabled = Experimental.IsOn;
                     ExperimentalFeatureSetC.IsEnabled = Experimental.IsOn;
-                }
+
+                    // Populate the program and data folder display
+                    string programFolder = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) ?? "Not found";
+                    string dataFolder = ApplicationData.Current.LocalFolder.Path;
+                    ApplicationProgramPathTextBlock.Text = programFolder;
+                    ApplicationDataPathTextBlock.Text = dataFolder;
+
+                    // Check the utility version number
+                    GetAndDisplayUtilityVerion("CreateSpeciesTxtFromURL.exe", UtilityCreateSpeciesTxtFromURLIcon, UtilityCreateSpeciesTxtFromURLTextBlock);
+                    GetAndDisplayUtilityVerion("EMObsReader.exe", UtilityEMObsReaderIcon, UtilityEMObsReaderTextBlock);
 
 
-                // Open section if requested
-                if (sectionToScrollTo.Equals("General Settings", StringComparison.OrdinalIgnoreCase))
-                {
-                    // Open the 'General Settings' section and bring into view
-                    ExpandAndSectionIntoView(GeneralSettingsExpander);
-                }
-                else if (sectionToScrollTo.Equals("Species List", StringComparison.OrdinalIgnoreCase))
-                {
-                    // Open the 'General Settings' section and bring into view
-                    ExpandAndSectionIntoView(SpeciesCodeListExpander);
-                }
-                else if (sectionToScrollTo.Equals("Camera", StringComparison.OrdinalIgnoreCase))
-                {
-                    // Open the 'General Settings' section and bring into view
-                    ExpandAndSectionIntoView(CameraExpander);
-                }
-                else if (sectionToScrollTo.Equals("About", StringComparison.OrdinalIgnoreCase))
-                {
-                    // Open the 'About' section and bring into view
-                    ExpandAndSectionIntoView(SettingsExpanderAbout);
+                    // Open section if requested
+                    if (sectionToScrollTo.Equals("General Settings", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Open the 'General Settings' section and bring into view
+                        ExpandAndSectionIntoView(GeneralSettingsExpander);
+                    }
+                    else if (sectionToScrollTo.Equals("Species List", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Open the 'General Settings' section and bring into view
+                        ExpandAndSectionIntoView(SpeciesCodeListExpander);
+                    }
+                    else if (sectionToScrollTo.Equals("Camera", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Open the 'General Settings' section and bring into view
+                        ExpandAndSectionIntoView(CameraExpander);
+                    }
+                    else if (sectionToScrollTo.Equals("About", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // Open the 'About' section and bring into view
+                        ExpandAndSectionIntoView(SettingsExpanderAbout);
+                    }
                 }
 
             }
@@ -1516,117 +1529,6 @@ namespace Surveyor.User_Controls
             return (speciesListType, $"Species - {portion}");
         }
 
-        //???private async Task<(SpeciesListType speciesListType, string newSpeciesListName)> GetNewSpeciesListNameAsyncXX()
-        //{
-        //    RadioButton speciesListTypeFishRadio = new()
-        //    {
-        //        Name = "SpeciesListTypeFishRadio",
-        //        Content = "Fish",
-        //        GroupName = "SpeciesListTypeGroup",
-        //        IsChecked = true
-        //    };
-
-        //    RadioButton speciesListTypeBenthicRadio = new()
-        //    {
-        //        Name = "SpeciesListTypeBenthicRadio",
-        //        Content = "Benthic",
-        //        GroupName = "SpeciesListTypeGroup",
-        //        IsEnabled = false
-        //    };
-
-        //    TextBox speciesListPrefix = new()
-        //    {
-        //        Text = "Species - ",
-        //        IsReadOnly = true,
-        //        Width = 90
-        //    };
-
-        //    TextBox speciesListNamePortion = new()
-        //    {
-        //        Name = "SpeciesListNamePortion",
-        //        PlaceholderText = "bio-geographic area",
-        //        MinWidth = 240
-        //    };
-
-        //    StackPanel radioPanel = new()
-        //    {
-        //        Orientation = Orientation.Horizontal,
-        //        Spacing = 16,
-        //        Children =
-        //        {
-        //            speciesListTypeFishRadio,
-        //            speciesListTypeBenthicRadio
-        //        }
-        //    };
-
-        //    StackPanel namePanel = new()
-        //    {
-        //        Orientation = Orientation.Horizontal,
-        //        Spacing = 8,
-        //        Children =
-        //        {
-        //            speciesListPrefix,
-        //            speciesListNamePortion
-        //        }
-        //    };
-
-        //    StackPanel infoPanel = new()
-        //    {
-        //        Orientation = Orientation.Horizontal,
-        //        Spacing = 8,
-        //        Children =
-        //        {
-        //            new FontIcon { Glyph = "\uE946", VerticalAlignment = VerticalAlignment.Center }, // Info icon
-        //            new TextBlock
-        //            {
-        //                Text = "Name should represent a bio-geographic e.g. 'Central Pacific' or 'Red Sea'",
-        //                TextWrapping = TextWrapping.WrapWholeWords,
-        //                MaxWidth = 360,
-        //                VerticalAlignment = VerticalAlignment.Center
-        //            }
-        //        }
-        //    };
-
-        //    StackPanel contentPanel = new()
-        //    {
-        //        Spacing = 10,
-        //        Children =
-        //        {
-        //            radioPanel,
-        //            new TextBlock { Text = "New Species List Name:" },
-        //            namePanel,
-        //            infoPanel
-        //        }
-        //    };
-
-        //    ContentDialog dialog = new()
-        //    {
-        //        Title = "Create New Species List",
-        //        Content = contentPanel,
-        //        PrimaryButtonText = "OK",
-        //        CloseButtonText = "Cancel",
-        //        DefaultButton = ContentDialogButton.Primary,
-        //        XamlRoot = this.Content.XamlRoot
-        //    };
-
-        //    ContentDialogResult result = await dialog.ShowAsync();
-
-        //    if (result != ContentDialogResult.Primary)
-        //        return (SpeciesListType.None, string.Empty);
-
-        //    string portion = speciesListNamePortion.Text.Trim();
-        //    if (string.IsNullOrWhiteSpace(portion))
-        //        return (SpeciesListType.None, string.Empty);
-
-        //    SpeciesListType speciesListType = speciesListTypeFishRadio.IsChecked == true
-        //        ? SpeciesListType.Fish
-        //        : SpeciesListType.Benthic;
-
-        //    string newSpeciesListName = $"{speciesListPrefix.Text}{portion}";
-
-        //    return (speciesListType, newSpeciesListName);
-        //}
-
 
         /// <summary>
         /// Add a new species code to the list
@@ -1866,6 +1768,71 @@ namespace Surveyor.User_Controls
             }
         }
 
+
+        /// <summary>
+        /// Copy the application program path into the clipboard
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ApplicationProgramPathButton_Click(object sender, RoutedEventArgs e)
+        {
+            string folder = ApplicationProgramPathTextBlock.Text;
+            if (!string.IsNullOrEmpty(folder))
+            {
+                var dataPackage = new DataPackage();
+                dataPackage.SetText(folder);
+                Clipboard.SetContent(dataPackage);
+            }
+        }
+
+
+        /// <summary>
+        /// Copy the application data path into the clipboard
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void ApplicationDataPathButton_Click(object sender, RoutedEventArgs e)
+        {
+            string folder = ApplicationDataPathTextBlock.Text;
+            if (!string.IsNullOrEmpty(folder))
+            {
+                var dataPackage = new DataPackage();
+                dataPackage.SetText(folder);
+                Clipboard.SetContent(dataPackage);
+            }
+        }
+
+
+
+        /// <summary>
+        /// Check if the passed utility program file exists, get the version and display it in the settings, or show missing if it doesn't exist
+        /// </summary>
+        /// <param name="utilityFileName"></param>
+        /// <param name="fontIcon"></param>
+        /// <param name="textBlock"></param>
+        private static void GetAndDisplayUtilityVerion(string utilityFileName, FontIcon fontIcon, TextBlock textBlock)
+        {
+            string fileSpec = Path.Combine(Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location)!, utilityFileName);
+            if (File.Exists(fileSpec))
+            {
+                try
+                {
+                    FileVersionInfo versionInfo = FileVersionInfo.GetVersionInfo(fileSpec);
+                    fontIcon.Glyph = "\uE946"; // Information icon
+                    textBlock.Text = $"Version: {versionInfo.FileVersion}";
+                }
+                catch
+                {
+                    fontIcon.Glyph = "\uE946"; // Information icon
+                    textBlock.Text = "Version: Unknown";
+                }
+            }
+            else
+            {
+                fontIcon.Glyph = "\uE7BA"; // Information icon
+                textBlock.Text = "Missing";
+            }
+        }
 
         /// <summary>
         /// Copy the file spec of the CreateSpeciesTxtFromURL.exe utility
@@ -2194,6 +2161,7 @@ namespace Surveyor.User_Controls
                 GoProQRCode.Source = await QRCodeGeneratorHelper.GenerateQRCodeAsync(updated);
             }
         }
+
 
 
         // ***END OF SettingsWindow***

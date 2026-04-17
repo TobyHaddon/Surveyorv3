@@ -183,6 +183,18 @@
                     </ToolTipService.ToolTip>
                 </CheckBox>
 
+                <CheckBox x:Name="UseFishBaseID" Content="Use FishBase ID as Key" IsChecked="True" Margin="0,0,0,0">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="Use the FishBase ID instead of auto generating the category_id (i.e. category_id could be different every export), if the item doesn't have a FishBase ID setup the item isn't exported."/>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
+
+                <CheckBox x:Name="UseMeasurementsOnly" Content="Use Measurements Only" IsChecked="True" Margin="0,0,0,0">
+                    <ToolTipService.ToolTip>
+                        <ToolTip Content="Export fish that have the head and tail marks (instead of 2D or 3D point), these measurements type items generate a tighter box around the fish."/>
+                    </ToolTipService.ToolTip>
+                </CheckBox>
+
                 <CheckBox x:Name="ExtractRawFrame" Content="Extract Raw Frames" IsChecked="True" Margin="0,0,0,0">
                     <ToolTipService.ToolTip>
                         <ToolTip Content="Extract the whole frame and save."/>
@@ -244,6 +256,7 @@
                 <dg:DataGridTextColumn Header="Rules Failed" Binding="{Binding RulesCalcFailed}" Width="110"/>
                 <dg:DataGridTextColumn Header="Ttl RMS" Binding="{Binding TotalRMS}" Width="110"/>
                 <dg:DataGridTextColumn Header="Species" Binding="{Binding Species}" Width="110"/>
+                <dg:DataGridTextColumn Header="Keyed" Binding="{Binding SpeciesKeyed}" Width="110"/>
                 <dg:DataGridTextColumn Header="Calibration" Binding="{Binding Calibration}" Width="110"/>
                 <dg:DataGridTextColumn Header="Calibration Hash" Binding="{Binding CalibrationHash}" Width="120"/>
                 <dg:DataGridTextColumn Header="Sync'd" Binding="{Binding SyncPoint}" Width="100"/>

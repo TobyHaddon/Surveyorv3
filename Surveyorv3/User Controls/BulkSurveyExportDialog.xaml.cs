@@ -1,14 +1,5 @@
-﻿// Version 1.1
-// Added support for COCO JSON
-
-
-using ActionCameraMP4MetadataExtraction;
-using CommunityToolkit.WinUI.Animations;
-using CommunityToolkit.WinUI.UI.Controls;
-using MathNet.Numerics.LinearAlgebra.Factorization;
+﻿using CommunityToolkit.WinUI.UI.Controls;
 using Microsoft.Graphics.Canvas;
-using Microsoft.Graphics.Canvas.Brushes;
-using Microsoft.Graphics.DirectX;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -25,29 +16,26 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Diagnostics.Metrics;
-using System.Drawing.Imaging;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Linq.Expressions;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Windows.Foundation;
-using Windows.Media.Core;
 using Windows.Storage;
 using Windows.Storage.Pickers;
 using Windows.Storage.Provider;
 using WinRT.Interop;
 using WinUIEx;
-using static Microsoft.IO.RecyclableMemoryStreamManager;
 using static Surveyor.Survey.DataClass;
-using static Surveyor.User_Controls.BulkSurveyExportDialog;
-using static System.Net.WebRequestMethods;
 
-
+// Version 1.1
+// Added support for COCO JSON
+// 
+// Version 1.2  17 Apr 2025
+// Allow FishBase ID to be used in COCO export as the species identifier. 
 
 namespace Surveyor.User_Controls
 {
@@ -176,6 +164,7 @@ namespace Surveyor.User_Controls
                     IncludePartialIdentification.Visibility = Visibility.Visible;
                     DeriveMissingSpecies.Visibility = Visibility.Visible;
                     ApplyAverageLengths.Visibility = Visibility.Visible;
+                    UseFishBaseID.Visibility = Visibility.Collapsed;
                     ExtractRawFrame.Visibility = Visibility.Collapsed;
                     ExtractCroppedImage.Visibility = Visibility.Collapsed;
                     BoxRawFrame.Visibility = Visibility.Collapsed;
@@ -190,6 +179,7 @@ namespace Surveyor.User_Controls
                     IncludePartialIdentification.Visibility = Visibility.Collapsed;
                     DeriveMissingSpecies.Visibility = Visibility.Collapsed;
                     ApplyAverageLengths.Visibility = Visibility.Collapsed;
+                    UseFishBaseID.Visibility = Visibility.Visible;
                     ExtractRawFrame.Visibility = Visibility.Visible;
                     ExtractCroppedImage.Visibility = Visibility.Visible;
                     BoxRawFrame.Visibility = Visibility.Visible;
@@ -544,6 +534,7 @@ namespace Surveyor.User_Controls
                             // Total SurveyMeasurementPoints and SurveyStereoPoint with failed rules calculations
                             int totalCountWithFailedRules = countSurveyMeasurementPointsWithFailedRules + countSurveyStereoPointsWithFailedRules;
 
+                            // Total the number of SurveyMeasurement, SurveyStereoPoint and SurveyPoint where the species is not set 
                             int countSpeciesNull = survey.Data.Events.EventList.Count(e =>
                                 (e.EventDataType == SurveyDataType.SurveyMeasurementPoints &&
                                 string.IsNullOrEmpty((e.EventData as SurveyMeasurement)?.SpeciesInfo?.Species)) ||
@@ -555,7 +546,21 @@ namespace Surveyor.User_Controls
                                 string.IsNullOrEmpty((e.EventData as SurveyPoint)?.SpeciesInfo?.Species))
                             );
 
+                            // Total the number of SurveyMeasurement, SurveyStereoPoint and SurveyPoint where the species is set but the Code is not set (not keyed)
+                            // We will be turning the species Code into a number for COCO, we are going to assume if the Code string is empty then it was something
+                            // we can turn into a number (e.g. FishBase:21343 => 21343)
+                            int countSpeciesNotKeyed = survey.Data.Events.EventList.Count(e =>
+                                (e.EventDataType == SurveyDataType.SurveyMeasurementPoints &&
+                                !string.IsNullOrEmpty((e.EventData as SurveyMeasurement)?.SpeciesInfo?.Species) &&
+                                string.IsNullOrEmpty((e.EventData as SurveyMeasurement)?.SpeciesInfo?.Code)) ||
 
+                                (e.EventDataType == SurveyDataType.SurveyStereoPoint &&
+                                !string.IsNullOrEmpty((e.EventData as SurveyStereoPoint)?.SpeciesInfo?.Species) &&
+                                string.IsNullOrEmpty((e.EventData as SurveyStereoPoint)?.SpeciesInfo?.Code)) ||     
+                                (e.EventDataType == SurveyDataType.SurveyPoint &&
+                                !string.IsNullOrEmpty((e.EventData as SurveyPoint)?.SpeciesInfo?.Species) &&
+                                string.IsNullOrEmpty((e.EventData as SurveyPoint)?.SpeciesInfo?.Code))
+                            );
 
                             // Create a List<string> of all the different transect used in the survey
                             List<string> transectMarkerList = [.. survey.Data.Events.EventList
@@ -648,6 +653,17 @@ namespace Surveyor.User_Controls
                             else
                             {
                                 species = "Ok";
+                            }
+
+                            // Check the number of measurement, 3D points and single points that have species the Code has not been set
+                            string speciesKeyed = string.Empty;
+                            if (countSpeciesNotKeyed > 0)
+                            {
+                                speciesKeyed = $"{countSpeciesNotKeyed} not keyed";
+                            }
+                            else
+                            {
+                                speciesKeyed = "All keyed";
                             }
 
                             // Check for the horizontal range rule
@@ -763,6 +779,7 @@ namespace Surveyor.User_Controls
                                 RulesCalcFailed = rulesCalcFailed,      // Count of where the rules have failed
                                 TotalRMS = totalRMS,
                                 Species = species,
+                                SpeciesKeyed = speciesKeyed,
                                 Calibration = calibration,
                                 CalibrationHash = calibrationHash,
                                 SyncPoint = syncPoint,
@@ -1114,6 +1131,7 @@ namespace Surveyor.User_Controls
                 RulesCalcFailed = data.Sum(d => ParseLeadingInt(d.RulesCalcFailed)).ToString(),
                 TotalRMS = data.Sum(d => d.TotalRMS),
                 Species = $"{data.Sum(d => ParseLeadingInt(d.Species))} missing", // d.Species like "3 missing" or "Ok"
+                SpeciesKeyed = $"{data.Sum(d => ParseLeadingInt(d.SpeciesKeyed))} missing", // d.SpeciesKeyed like "3 missing" or "Ok"
                 Calibration = $"{data.Count(d=> string.Equals(d.Calibration,"None",StringComparison.OrdinalIgnoreCase))} not set",
                 CalibrationHash = $"{data.Select(d=>d.CalibrationHash).Where(h=>!string.IsNullOrWhiteSpace(h)).Distinct().Count()} set(s)",
                 SyncPoint = $"{data.Count(d=> !string.Equals(d.SyncPoint,"Set",StringComparison.OrdinalIgnoreCase))} not set",
@@ -1338,7 +1356,7 @@ namespace Surveyor.User_Controls
                     {
                         // Write the fish by fish data
                         var worksheetData = package.Workbook.Worksheets.Add("Data");
-                        await ExportExcelDatatSheetAsync(package, worksheetData, file.Path);
+                        await ExportExcelDataSheetAsync(package, worksheetData, file.Path);
                     }
 
                     // Write the survey by survey metadata
@@ -1376,7 +1394,7 @@ namespace Surveyor.User_Controls
         /// <param name="package"></param>
         /// <param name="worksheet"></param>
         /// <returns></returns>
-        private async Task ExportExcelDatatSheetAsync(ExcelPackage package, ExcelWorksheet worksheet, string exportFile)
+        private async Task ExportExcelDataSheetAsync(ExcelPackage package, ExcelWorksheet worksheet, string exportFile)
         {
             int rowIndex = 1;
             bool failed = false;
@@ -2146,7 +2164,7 @@ namespace Surveyor.User_Controls
                     stream.SetLength(0);
 
                     // Write the fish by fish data
-                    await ExportCOCODatatSheetAsync(stream, file.Path);
+                    await ExportCOCOAsync(stream, file.Path);
 
                     // write to the file
                     await stream.FlushAsync();
@@ -2177,7 +2195,7 @@ namespace Surveyor.User_Controls
         /// https://roboflow.com/formats/coco-json#format-description
         /// </summary>
         /// <returns></returns>
-        private async Task ExportCOCODatatSheetAsync(Stream stream, string exportFile)
+        private async Task ExportCOCOAsync(Stream stream, string exportFile)
         {
             int ret = -1;
 
@@ -2189,6 +2207,8 @@ namespace Surveyor.User_Controls
             bool includePartialIdentification = false;  // IncludePartialIdentification.IsChecked == true;
 
             // Image extract
+            bool useFishBaseID = UseFishBaseID.IsChecked == true;
+            bool useMeasurementsOnly = UseMeasurementsOnly.IsChecked == true;
             bool extractRawFrame = ExtractRawFrame.IsChecked == true;
             bool extractCroppedImage = ExtractCroppedImage.IsChecked == true;
             bool markBoxOnFrame = BoxRawFrame.IsChecked == true;
@@ -2214,7 +2234,7 @@ namespace Surveyor.User_Controls
             // Build the EventsByMediaFileByFrame list
             if (ret == 0)
             {
-                ret = await BuildEventsByMediaFileByFrameListAsync(includeFailedRMS, includeOtherFailedRules, includePartialIdentification,
+                ret = await BuildEventsByMediaFileByFrameListAsync(includeFailedRMS, includeOtherFailedRules, includePartialIdentification, useMeasurementsOnly,
                                         surveyFileEntries, eventsByMediaFileByFrame);
             }
 
@@ -2239,11 +2259,11 @@ namespace Surveyor.User_Controls
             // Build the COCO export file
             if (ret == 0)
             {
-                ret = await BuildCOCOExportFileAsync(eventsByMediaFileByFrame, includePartialIdentification, extractCroppedImage,
+                ret = await BuildCOCOExportFileAsync(eventsByMediaFileByFrame, includePartialIdentification, useFishBaseID, extractCroppedImage,
                                                      exportBasePath, stream);
             }
 
-            // Remove '\Row' sub-folder if only used for temporary stuff
+            // Remove '\Raw' sub-folder if only used for temporary stuff
             if (!extractRawFrame)
             {
                 try
@@ -2259,6 +2279,12 @@ namespace Surveyor.User_Controls
 
             // Show DataGrid and hide the GridView
             SetDisplayMode(trueDataFalseImages: true);
+
+            // Report Export
+            if (ret == 0)
+                report?.Info("", $"COCO Export to '{exportFile}', Images to '{exportBasePath}' ");
+            else
+                report?.Warning("", $"COCO Export to '{exportFile}', failed return = {ret}");
 
         }
 
@@ -2312,7 +2338,7 @@ namespace Surveyor.User_Controls
         /// <param name="surveyFileEntries"></param>
         /// <param name="eventsByMediaFileByFrame"></param>
         /// <returns></returns>
-        private async Task<int> BuildEventsByMediaFileByFrameListAsync(bool includeFailedRMS, bool includeOtherFailedRules, bool includePartialIdentification, 
+        private async Task<int> BuildEventsByMediaFileByFrameListAsync(bool includeFailedRMS, bool includeOtherFailedRules, bool includePartialIdentification, bool useMeasurementsOnly,
                                             List<SurveyFileEntry> surveyFileEntries, 
                                             EventsByMediaFileByFrame eventsByMediaFileByFrame)
         {
@@ -2352,9 +2378,12 @@ namespace Surveyor.User_Controls
                     // Loop through the events for this survey
                     foreach (var evt in survey.Data.Events.EventList)
                     {
-                        if (evt.EventDataType == Events.SurveyDataType.SurveyMeasurementPoints ||
-                            evt.EventDataType == Events.SurveyDataType.SurveyStereoPoint ||
-                            evt.EventDataType == Events.SurveyDataType.SurveyPoint)
+                        if ((!useMeasurementsOnly &&
+                             (evt.EventDataType == Events.SurveyDataType.SurveyMeasurementPoints ||
+                              evt.EventDataType == Events.SurveyDataType.SurveyStereoPoint ||
+                              evt.EventDataType == Events.SurveyDataType.SurveyPoint)) ||
+                            (useMeasurementsOnly &&
+                             (evt.EventDataType == Events.SurveyDataType.SurveyMeasurementPoints)))
                         {
                             // Get the Rules and SpeciesInfo if possible
                             (SurveyRulesCalc? surveyRulesCalc, SpeciesInfo? speciesInfo) = GetRulesAndSpeciesInfo(evt);
@@ -3261,7 +3290,7 @@ namespace Surveyor.User_Controls
         /// <param name="eventsByMediaFileByFrame"></param>
         /// <param name="stream"></param>
         /// <returns></returns>
-        private async Task<int> BuildCOCOExportFileAsync(EventsByMediaFileByFrame eventsByMediaFileByFrame, bool includePartialIdentification, bool extractCroppedImage, string exportBasePath, Stream stream)
+        private async Task<int> BuildCOCOExportFileAsync(EventsByMediaFileByFrame eventsByMediaFileByFrame, bool includePartialIdentification, bool useFishBaseID, bool extractCroppedImage, string exportBasePath, Stream stream)
         {
             int ret = -1;
 
@@ -3441,7 +3470,24 @@ namespace Surveyor.User_Controls
 
                                     // Get category id from the species
                                     int category_id;
-                                    category_id = cocoCategory.GetSpeciesID(ExtractScientificName(speciesInfo.Species));
+                                    if (useFishBaseID && speciesInfo.Code is not null)
+                                    {
+                                        // The orginal SpeciesItem class had a method to extract an ID from the code field which was used to store the FishBase ID
+                                        // Create a dummy SpeciesItem to reuse that method
+                                        SpeciesItem speciesItem = new()
+                                        {
+                                            Code = speciesInfo.Code,
+                                        };
+                                        // However the extractID is still a string, so we need to convert to int and handle any errors
+                                        string codeString = speciesItem.ExtractID();
+                                        if (!int.TryParse(codeString, out category_id))
+                                        {
+                                            // Dump this line due to bad speciesInfo.Code can't be turned into an int category_id
+                                            continue;
+                                        }
+                                    }
+                                    else
+                                        category_id = cocoCategory.GetSpeciesID(ExtractScientificName(speciesInfo.Species));
 
                                     if (currentImageId < 0)
                                         continue; // defensive: no image id available
@@ -3508,7 +3554,7 @@ namespace Surveyor.User_Controls
                         info = new
                         {
                             year = yearText,
-                            version = "1.2",
+                            version = "1.3",
                             description = "Underwater Surveyor COCO export",
                             /*contributor = contributorText,*/
                             date_created = DateTime.UtcNow.ToString("o")
@@ -4043,6 +4089,7 @@ namespace Surveyor.User_Controls
         public int  RulesHash { get; set; } = -1;           // Not displayed
         public double TotalRMS { get; set; }
         public string Species { get; set; } = string.Empty;
+        public string SpeciesKeyed { get; set; } = string.Empty;
         public string RulesHorizontal { get; set; } = string.Empty;
         public string RulesVertical { get; set; } = string.Empty;
         public string Calibration { get; set; } = string.Empty;
