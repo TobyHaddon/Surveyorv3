@@ -103,6 +103,7 @@ namespace Surveyor
 
         // InfoBar Dismissed Status
         private bool _infoBarCalibrationMissingDismissed = false;
+        private bool _infoBarTransectSetupMissingDismissed = false;
         private bool _infoBarSpeciesInfoMissingDismissed = false;
         private bool _infoBarRMSRuleViolationDismissed = false;
 
@@ -593,6 +594,37 @@ namespace Surveyor
                 // Hide the info bar
                 InfoBarCalibrationMissing.IsOpen = false;
                 InfoBarCalibrationMissing.Visibility = Visibility.Collapsed;
+            }
+        }
+
+
+        /// <summary>
+        /// The method is called to display the 'Transect setup missing' info bar if necessary
+        /// i.e. survey does have corresponding SurveyStart/SurveyEnd pairs
+        /// </summary>
+        /// 
+        public void SetInfoBarTransectSetupMissing(SurveyDataType? surveyDataTypeJustAdded = null)
+        {
+            bool showTransectSetupMissingInfoBar = !TransectMarkerManager.CheckIfTransectMarkerSetupIsValid(_eventsControl, out _);
+
+            
+            // Only show if surveyDataTypeJustAdded is null or SurveyEnd otherwise the InfoBar
+            // could be quite annoying if the user is adding SurveyStart events at the beginning
+            // of the survey and hasn't yet added a SurveyEnd event at the end of the survey.
+            // However we can clear an existing InfoBar if for example the adding of a SurveyStart
+            // fixed the transect setup
+            if (!_infoBarTransectSetupMissingDismissed/*User Dismissed Already*/ && showTransectSetupMissingInfoBar && 
+                (surveyDataTypeJustAdded is null || (surveyDataTypeJustAdded is not null && surveyDataTypeJustAdded == SurveyDataType.SurveyEnd)))
+            {
+                // Show the info bar
+                InfoBarTransectSetupMissing.IsOpen = true;
+                InfoBarTransectSetupMissing.Visibility = Visibility.Visible;
+            }
+            else
+            {
+                // Hide the info bar
+                InfoBarTransectSetupMissing.IsOpen = false;
+                InfoBarTransectSetupMissing.Visibility = Visibility.Collapsed;
             }
         }
 
@@ -1980,13 +2012,91 @@ namespace Surveyor
         private void InsertSurveyStartStopMarker_Click(object sender, RoutedEventArgs e) => _ = InsertSurveyStartStopMarkerClickAsync();
         private async Task InsertSurveyStartStopMarkerClickAsync()
         {
+            // Guard
+            if (_survey is null || _mediaStereoController is null)
+                return;
+
             try
             {
+                // Get the current media position
                 _mediaStereoController.GetFullMediaPosition(out TimeSpan positionTimelineController, out TimeSpan leftPosition, out TimeSpan rightPosition);
 
-                await _transectMarkerManager.AddMarkerAsync(_eventsControl,
-                                                           positionTimelineController,
-                                                           leftPosition, rightPosition);
+                // Get SurveyStart/SurveyEnd events before and after the current position
+                SurveyDataType? surveyDataTypeBefore;
+                SurveyDataType? surveyDataTypeAfter;
+                string beforeMarker = string.Empty;
+                string afterMarker = string.Empty;
+
+                // Write Linq to find the closest SurveyStart or SurveyEnd event before the current position
+                Event? eventBefore = _survey.Data.Events.EventList
+                                .Cast<Event>() // or .AsEnumerable()/.ToList() depending on your context
+                                .Where(e => (e.EventDataType == SurveyDataType.SurveyStart || e.EventDataType == SurveyDataType.SurveyEnd) && e.TimeSpanTimelineController <= positionTimelineController)
+                                .OrderByDescending(e => e.TimeSpanTimelineController)
+                                .FirstOrDefault();
+                Event? eventAfter = _survey.Data.Events.EventList
+                                .Cast<Event>()
+                                .Where(e => (e.EventDataType == SurveyDataType.SurveyStart || e.EventDataType == SurveyDataType.SurveyEnd) && e.TimeSpanTimelineController > positionTimelineController)
+                                .OrderBy(e => e.TimeSpanTimelineController)
+                                .FirstOrDefault();
+                if (eventBefore is not null)
+                {
+                    surveyDataTypeBefore = eventBefore.EventDataType;
+                    beforeMarker = ((TransectMarker)eventBefore.EventData!).MarkerName; 
+                }
+                else
+                    surveyDataTypeBefore = null;    
+                if (eventAfter is not null)
+                {
+                    surveyDataTypeAfter = eventAfter.EventDataType;
+                    afterMarker = ((TransectMarker)eventAfter.EventData!).MarkerName;
+                }
+                else
+                    surveyDataTypeAfter = null;
+
+
+                // If we are under control of a field trip and have a survey code then we can use the
+                // hint splitter to get a site and display the ReplicatesUserCodeControl to select the transect marker type and name.
+                // Otherwise, we'll just display a simple dialog to select the transect marker type and name.
+                bool valid = false;
+                string SiteNameOrCode = string.Empty;
+                if (_survey.Data.Info.SurveyCode is not null)
+                    (valid, SiteNameOrCode, _, _, _, _) = SurveyCodeUserControl.HintSplitter(_fieldTrip, _survey.Data.Info.SurveyCode);
+
+                SurveyDataType? surveyDataType;
+                string? markerName;
+
+                if (_survey.Data.Info.SurveyCode is not null && valid)
+                {                  
+                    // Get the transect marker type and marker name (Structurd)
+                    (surveyDataType, markerName) = await TransectMarkerManager.SelectTransectNameAsync(
+                                                    _eventsControl, _fieldTrip,
+                                                    _survey.Data.Info.SurveyCode,
+                                                    [.. _survey.Data.Info.SurveyAllowedReplicates],
+                                                    surveyDataTypeBefore, surveyDataTypeAfter, beforeMarker, afterMarker);
+                }
+                else
+                {
+                    // Get the transect marker type and marker name  (Untructurd)
+                    (surveyDataType, markerName) = await TransectMarkerManager.SelectTransectNameAsync(
+                                                    _eventsControl, fieldTrip: null,
+                                                    string.Empty,
+                                                    [.. _survey.Data.Info.SurveyAllowedReplicates]/*will be empty*/,
+                                                    surveyDataTypeBefore, surveyDataTypeAfter, beforeMarker, afterMarker);
+
+                }
+
+                // Add either the SurveyStart or SurveyEnd event to the survey events
+                if (surveyDataType is not null && markerName is not null)
+                {
+                    await _transectMarkerManager.AddMarkerAsync(_eventsControl,
+                                                               positionTimelineController,
+                                                               leftPosition, rightPosition,
+                                                               (SurveyDataType)surveyDataType.Value, markerName);
+                }
+
+
+                // Display the missing transect setup warning InfoBar if necessary
+                SetInfoBarTransectSetupMissing(surveyDataType);
             }
             catch(Exception ex)
             {
@@ -2011,6 +2121,27 @@ namespace Surveyor
         private void ImportCalibrationButton_Click(object sender, RoutedEventArgs e)
         {
             FileImportCalibration_Click(null!, null!);
+        }
+
+
+        /// <summary>
+        /// InfoBar go to the first event with a transect setup problem button click event
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void GoToFirstTransectSetupProblemEvent_Click(object sender, RoutedEventArgs e)
+        {
+            if (_survey is not null)
+            {
+                if (!TransectMarkerManager.CheckIfTransectMarkerSetupIsValid(_eventsControl, out Event? eventFirstProblem))
+                {
+                    if (eventFirstProblem is not null)
+                    {
+                        // Go to the frame in the media player and scroll to the event in the events list
+                        _eventsControl?.GoToEvent(eventFirstProblem);
+                    }
+                }
+            }
         }
 
 
@@ -2535,6 +2666,22 @@ namespace Surveyor
             if (args.Reason == InfoBarCloseReason.CloseButton)
             {
                 _infoBarCalibrationMissingDismissed = true;
+            }
+        }
+
+
+        /// <summary>
+        /// User dismissed the InfoBar warning about the transect setup being incomplete
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="args"></param>
+
+        private void InfoBarTransectSetupMissing_Closed(InfoBar sender, InfoBarClosedEventArgs args)
+        {
+            // Remember the user dismissed the warning
+            if (args.Reason == InfoBarCloseReason.CloseButton)
+            {
+                _infoBarTransectSetupMissingDismissed = true;
             }
         }
 
@@ -3167,6 +3314,9 @@ namespace Surveyor
             // Display the missing calibration warning InfoBar if necessary
             _infoBarCalibrationMissingDismissed = false;
             SetInfoBarCalibrationMissing();
+
+            // Display the transect setup missing InfoBar if necessary
+            SetInfoBarTransectSetupMissing();
 
             // Display the missing species warning InfoBar if necessary
             _infoBarSpeciesInfoMissingDismissed = false;
@@ -4955,6 +5105,7 @@ namespace Surveyor
         internal void DisplayDynamicMeasurementPlaceholder(bool showRMSCombinedOnly, double? measurement, double? range, double? rmsCombined, double? rmsTargetA, double? rmsTargetB) { }
         internal void _SetDiagnosticInformationPlaceholder(bool diag) { }
         internal void _SetExperimentalPlaceholder(bool a, bool b, bool c, bool d) { }
+
     }
 
 

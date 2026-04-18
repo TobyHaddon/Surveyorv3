@@ -2229,6 +2229,9 @@ namespace Surveyor
 
                     // Display the missing calibration warning InfoBar if necessary
                     _mainWindow.SetInfoBarCalibrationMissing();
+
+                    // Display the missing transect setup warning InfoBar if necessary
+                    _mainWindow.SetInfoBarTransectSetupMissing();
                 }
             }
         }

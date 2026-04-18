@@ -1,27 +1,15 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
 using Surveyor.Helper;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
-using System.Diagnostics;
-using System.Diagnostics.Metrics;
 using System.IO;
 using System.Linq;
-using System.Reflection.Metadata.Ecma335;
-using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Text.RegularExpressions;
-using Windows.Devices.Enumeration;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
-using static Surveyor.User_Controls.SurveyInfoUserControl;
 
 namespace Surveyor.User_Controls
 {
@@ -394,7 +382,7 @@ namespace Surveyor.User_Controls
         {
             if (Structure == SurveyCodeStructure.Structured && _fieldTrip is not null)
             {
-                (bool valid, string SiteNameOrCode, string depth, ObservableCollection<string> replicates, DateTime? surveyDate, string rawCleanedHint) = HintSplitter(mediaFileNameOrSurveyCode);
+                (bool valid, string SiteNameOrCode, string depth, ObservableCollection<string> replicates, DateTime? surveyDate, string rawCleanedHint) = HintSplitter(_fieldTrip, mediaFileNameOrSurveyCode);
 
                 if (valid)
                 {
@@ -428,7 +416,7 @@ namespace Surveyor.User_Controls
             else
             {
                 // Cleanup only
-                (_, _, string depth, _, _, string rawCleanedHint) = HintSplitter(mediaFileNameOrSurveyCode);
+                (_, _, string depth, _, _, string rawCleanedHint) = HintSplitter(_fieldTrip, mediaFileNameOrSurveyCode);
 
                 SurveyCode.Text = rawCleanedHint;
 
@@ -456,7 +444,7 @@ namespace Surveyor.User_Controls
         /// </summary>
         /// <param name="mediaFileNameOrSurveyCode"></param>
         /// <returns></returns>
-        public (bool valid, string SiteNameOrCode, string depth, ObservableCollection<string> replicates, DateTime? surveyDate, string rawCleanedHint) HintSplitter(string mediaFileNameOrSurveyCode)
+        public static (bool valid, string SiteNameOrCode, string depth, ObservableCollection<string> replicates, DateTime? surveyDate, string rawCleanedHint) HintSplitter(FieldTrip? fieldTrip, string mediaFileNameOrSurveyCode)
         {
             bool valid = true;
             string SiteNameOrCode = string.Empty;
@@ -491,13 +479,6 @@ namespace Surveyor.User_Controls
             rawHintText = Regex.Replace(rawHintText, @"^(BENTHIC[_-])|^(SVS[_-])|([_-](FILE1|FILE2|FILE3|FILE4|PART1|PART2|PART3|PART4| PART1| PART2| PART3| PART4))$", "", RegexOptions.IgnoreCase);
             rawHintText = Regex.Replace(rawHintText, @"([_-](LEFT|RIGHT|L|R))$", "", RegexOptions.IgnoreCase);
             rawCleanedHint = rawHintText;
-
-            // In unstructured mode, just seed the survey code text.
-            //???to be deleted
-            //if (Mode != SurveyCodeMode.Structured || _fieldTrip is null)
-            //{
-            //    return (true, string.Empty, string.Empty, [], null, rawHintText);
-            //}
 
             // Extract date from the raw hint first (supports yyyy-mm-dd or yyyy_mm_dd),
             // and return raw hint text with the matched date removed.
@@ -556,14 +537,14 @@ namespace Surveyor.User_Controls
 
             bool validSite = false;
             string? siteCode = null;
-            if (_fieldTrip is not null)
+            if (fieldTrip is not null)
             {
                 // Site should be the site code but could be the site name.  Look both up, one needs 
                 // to work or we don't have a site. This method also check that the site is valid.
                 // We use the site Name to load int he drop down content field
                 SiteNameOrCode = hintSiteCodeOrName;
-                string? siteName = _fieldTrip.GetSiteNameFromCode(hintSiteCodeOrName);
-                siteCode = _fieldTrip.GetSiteCodeFromName(hintSiteCodeOrName);
+                string? siteName = fieldTrip.GetSiteNameFromCode(hintSiteCodeOrName);
+                siteCode = fieldTrip.GetSiteCodeFromName(hintSiteCodeOrName);
 
                 if (!string.IsNullOrEmpty(siteName))
                 {
@@ -573,7 +554,7 @@ namespace Surveyor.User_Controls
                 }
                 else if (!string.IsNullOrEmpty(siteCode))
                 {
-                    SiteNameOrCode = _fieldTrip.GetSiteNameFromCode(siteCode) ?? hintSiteCodeOrName;
+                    SiteNameOrCode = fieldTrip.GetSiteNameFromCode(siteCode) ?? hintSiteCodeOrName;
                     validSite = true;
                 }
 
@@ -589,7 +570,7 @@ namespace Surveyor.User_Controls
                         // user can select a different depth that is valid. If it is valid we set it in the UI.
                         if (siteCode is not null)
                         {
-                            List<string> validDepthsForSite = _fieldTrip.GetDepthList(siteCode);
+                            List<string> validDepthsForSite = fieldTrip.GetDepthList(siteCode);
                             if (validDepthsForSite.Contains(hintDepth))
                             {
                                 depth = hintDepth;
@@ -635,9 +616,9 @@ namespace Surveyor.User_Controls
             // Replicates is independent of the site and depth validity because maybe the replicate names can be extracted and the user can then select the correct site and depth that matches those replicates. So we try to extract any replicate names from the hint as long as there are some defined in the field trip template, even if the site and depth from the hint are not valid.
             if (!string.IsNullOrWhiteSpace(hintReplicates))
             {
-                if (!string.IsNullOrEmpty(siteCode) && _fieldTrip is not null)
+                if (!string.IsNullOrEmpty(siteCode) && fieldTrip is not null)
                 {
-                    FieldTrip.DataClass.ReplicatesLayoutClass? layout = _fieldTrip.GetReplicateLayout(siteCode);
+                    FieldTrip.DataClass.ReplicatesLayoutClass? layout = fieldTrip.GetReplicateLayout(siteCode);
                     if (layout is not null)
                     {
                         List<string> availableReplicateNames = [.. layout.Layout

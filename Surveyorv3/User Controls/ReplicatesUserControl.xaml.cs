@@ -137,11 +137,12 @@ namespace Surveyor.User_Controls
         }
 
 
-
-
         /// <summary>
         /// Sets the selected replicates in the control based on a provided list of 
         /// replicate names.
+        /// In ReplicatesMode.Select this is the replicates that have already been used e.g.
+        /// If the survey was setup to allow replciates 1,2,3 and transect 1 and 2 have already
+        /// be marked then this method is called with 1,2 and only transect 3 is editable
         /// </summary>
         /// <param name="selected"></param>
         public void SetSelected(ObservableCollection<string> selected)
@@ -165,6 +166,33 @@ namespace Surveyor.User_Controls
                         // Indicate transect number is already used and can't be changed
                         checkBox.IsChecked = null;
                         checkBox.IsEnabled = false;
+                    }
+                }
+            }
+        }
+
+
+        /// <summary>
+        /// Used to offer the user the recommended choice
+        /// Only used in ReplicatesMode.Select
+        /// </summary>
+        /// <param name="transectName"></param>
+        public void SetDefaultSelection(string transectName)
+        {
+            // Guard (only used by ReplicatesMode.Select)
+            if (Mode != ReplicatesMode.Select)
+                return;
+
+            if (_fieldTrip is not null)
+            {
+                // Set the check boxes for the selected replicates
+                foreach ((CheckBox checkBox, string replicateName) in _replicateCheckBoxes)
+                {
+                    if (transectName.Contains(replicateName))
+                    {
+                        // Indicate transect number is already used and can't be changed
+                        checkBox.IsChecked = true;
+                        checkBox.IsEnabled = true;
                     }
                 }
             }
@@ -405,7 +433,7 @@ namespace Surveyor.User_Controls
             // Add an FontIcon "\uE783"; icon in a new column in row 3 with a tool tip to explain that
             // if the transect you require if grayed out then go to File>Settings then expand 'Survey Info & Media'
             // and tick the missing transect.
-            if (Mode == ReplicatesMode.Select)
+            if (Mode == ReplicatesMode.Select && IsEnabled)
             {
                 int infoColumn = replicatesLayout.Layout.Count;
                 gridRoot.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
@@ -471,7 +499,7 @@ namespace Surveyor.User_Controls
                 checkBox.Visibility = showCheckBoxes ? Visibility.Visible : Visibility.Collapsed;
 
                 if (Mode == ReplicatesMode.Select)
-                    // In Mode="Select" the status is Checked if the user wants this transact name as the selected
+                    // In Mode="Select" the status is Checked if the user wants this transect name as the selected
                     // replicate. If the checkbox is set to indeterminate it means this replicate name has already
                     // been used in this survey
                     checkBox.IsThreeState = true;

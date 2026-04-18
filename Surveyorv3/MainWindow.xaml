@@ -349,6 +349,16 @@
                     <Button Content="Import Calibration" Click="ImportCalibrationButton_Click" />
                 </InfoBar.ActionButton>
             </InfoBar>
+            <!--TRANSECT SETUP WARNING-->
+            <InfoBar x:Name="InfoBarTransectSetupMissing" IsOpen="False"
+                        Severity="Warning" HorizontalAlignment="Stretch"
+                        Title="Transect Setup Incomplete"
+                        Message="" 
+                        Closed="InfoBarTransectSetupMissing_Closed">
+                <InfoBar.ActionButton>
+                    <Button Content="Go to" Click="GoToFirstTransectSetupProblemEvent_Click" />
+                </InfoBar.ActionButton>
+            </InfoBar>
             <!--SPECIES INFO MISSING WARNING-->
             <InfoBar x:Name="InfoBarSpeciesInfoMissing" IsOpen="False"
                         Severity="Warning" HorizontalAlignment="Stretch"

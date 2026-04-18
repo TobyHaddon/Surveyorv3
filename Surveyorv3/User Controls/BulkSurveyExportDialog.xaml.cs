@@ -2197,7 +2197,7 @@ namespace Surveyor.User_Controls
         /// <returns></returns>
         private async Task ExportCOCOAsync(Stream stream, string exportFile)
         {
-            int ret = -1;
+            int ret = 0;
 
             bool includeFailedRMS = IncludeFailedRMS.IsChecked == true;
             bool includeOtherFailedRules = IncludeOtherFailedRules.IsChecked == true;
@@ -2264,7 +2264,10 @@ namespace Surveyor.User_Controls
             }
 
             // Remove '\Raw' sub-folder if only used for temporary stuff
-            if (!extractRawFrame)
+            // \Raw is used for processing extractCroppedImage, markBoxOnFrame or markHeadTailOnFrame
+            // So we will have a \Raw directory even if we haven't request extract raw frames. So
+            // remove that it necessary
+            if ((extractCroppedImage || markBoxOnFrame || markHeadTailOnFrame) && !extractRawFrame)
             {
                 try
                 {
@@ -3324,7 +3327,7 @@ namespace Surveyor.User_Controls
             }
 
             // Build the categories for the COCO JSON file according to the specification at https://roboflow.com/formats/coco-json#format-description
-            COCOCategory cocoCategory = new(includePartialIdentification);
+            COCOCategory cocoCategory = new(includePartialIdentification, useFishBaseID);
             // Media file level loop
             foreach (var pair in eventsByMediaFileByFrame.mediaFilesList)
             {
@@ -3350,9 +3353,10 @@ namespace Surveyor.User_Controls
                             string genus = speciesInfo?.Genus?.Trim() ?? string.Empty;
                             string speciesScientificName = ExtractScientificName(speciesInfo?.Species);
                             string familyScientificName = ExtractScientificName(speciesInfo?.Family);
+                            string code = speciesInfo?.Code?.Trim() ?? string.Empty;
 
                             // Add Species/Genus/Family to the category_id code list
-                            cocoCategory.Add(familyScientificName, genus, speciesScientificName);
+                            cocoCategory.Add(familyScientificName, genus, speciesScientificName, code);
                         }
                     }
                 }
@@ -3468,26 +3472,7 @@ namespace Surveyor.User_Controls
                                         });
                                     }
 
-                                    // Get category id from the species
-                                    int category_id;
-                                    if (useFishBaseID && speciesInfo.Code is not null)
-                                    {
-                                        // The orginal SpeciesItem class had a method to extract an ID from the code field which was used to store the FishBase ID
-                                        // Create a dummy SpeciesItem to reuse that method
-                                        SpeciesItem speciesItem = new()
-                                        {
-                                            Code = speciesInfo.Code,
-                                        };
-                                        // However the extractID is still a string, so we need to convert to int and handle any errors
-                                        string codeString = speciesItem.ExtractID();
-                                        if (!int.TryParse(codeString, out category_id))
-                                        {
-                                            // Dump this line due to bad speciesInfo.Code can't be turned into an int category_id
-                                            continue;
-                                        }
-                                    }
-                                    else
-                                        category_id = cocoCategory.GetSpeciesID(ExtractScientificName(speciesInfo.Species));
+                                    int category_id = cocoCategory.GetSpeciesID(ExtractScientificName(speciesInfo.Species));
 
                                     if (currentImageId < 0)
                                         continue; // defensive: no image id available
@@ -3926,21 +3911,24 @@ namespace Surveyor.User_Controls
     /// </summary>
     public class COCOCategory
     {
-        private bool includePartialIdentification;
-        private readonly Dictionary<string, COCOCategoryItem> familyDict = [];
-        private readonly Dictionary<string, COCOCategoryItem> genusDict = [];
-        private readonly Dictionary<string, COCOCategoryItem> speciesDict = [];
-        private int categoryIdNext = 1;
+        private bool _includePartialIdentification;
+        private bool _useFishBaseID;
+        private readonly Dictionary<string, COCOCategoryItem> _familyDict = [];
+        private readonly Dictionary<string, COCOCategoryItem> _genusDict = [];
+        private readonly Dictionary<string, COCOCategoryItem> _speciesDict = [];
+        private int _categoryIdNext = 1;
 
 
         /// <summary>
         /// If includePartialIdentification is set to true then
         /// include Genus and Family in the COCOCategory list
         /// </summary>
-        /// <param name="_includePartialIdentification"></param>
-        public COCOCategory(bool _includePartialIdentification)
+        /// <param name="includePartialIdentification"></param>
+        /// <param name="useFishBaseID"></param>
+        public COCOCategory(bool includePartialIdentification, bool useFishBaseID)
         {
-            includePartialIdentification = _includePartialIdentification;
+            _includePartialIdentification = includePartialIdentification;
+            _useFishBaseID = useFishBaseID;
         }
 
         /// <summary>
@@ -3949,53 +3937,74 @@ namespace Surveyor.User_Controls
         /// <param name="family"></param>
         /// <param name="genus"></param>
         /// <param name="species"></param>
-        public void Add(string family, string genus, string species)
+        public void Add(string family, string genus, string species, string code)
         {
             if (!string.IsNullOrWhiteSpace(species))
             {
-                if (!speciesDict.ContainsKey(species))
+                if (!_speciesDict.ContainsKey(species))
                 {
-                    // Key not found. Add the next species 
-                    speciesDict.TryAdd(species, new COCOCategoryItem(categoryIdNext++, genus));
+                    // Check if used the FishBase ID as the species category_id or using the auto generated category_id
+                    if (_useFishBaseID)
+                    {
+                        // We are going to use the FishBase ID as the category_id for the species
+                        // The orginal SpeciesItem class had a method to extract an ID from the code field which was used to store the FishBase ID
+                        // Create a dummy SpeciesItem to reuse that method
+                        SpeciesItem speciesItem = new()
+                        {
+                            Code = code,
+                        };
+                        // However the extractID is still a string, so we need to convert to int and handle any errors
+                        string codeString = speciesItem.ExtractID();
+                        if (int.TryParse(codeString, out int category_id))
+                        {
+                            // Auto key not found. Add the next species 
+                            _speciesDict.TryAdd(species, new COCOCategoryItem(category_id, genus));
+                        }
+                    }
+                    else
+                    {
+                        // Auto key not found. Add the next species 
+                        _speciesDict.TryAdd(species, new COCOCategoryItem(_categoryIdNext++, genus));
+                    }
                 }
             }
 
             if (!string.IsNullOrWhiteSpace(genus))
             {
-                if (!genusDict.ContainsKey(genus))
+                if (!_genusDict.ContainsKey(genus))
                 {
                     // Key not found. Add the next genus 
-                    genusDict.TryAdd(genus, new COCOCategoryItem(categoryIdNext++, family));
+                    _genusDict.TryAdd(genus, new COCOCategoryItem(_categoryIdNext++, family));
                 }
             }
 
             if (!string.IsNullOrWhiteSpace(family))
             {
-                if (!familyDict.ContainsKey(family))
+                if (!_familyDict.ContainsKey(family))
                 {
                     // Key not found. Add the next family 
-                    familyDict.TryAdd(family, new COCOCategoryItem(categoryIdNext++, "none"));
+                    _familyDict.TryAdd(family, new COCOCategoryItem(_categoryIdNext++, "none"));
                 }
             }
         }
 
         public int GetFamilyID(string family)
         {
-            if (familyDict.TryGetValue(family, out var item))
+            if (_familyDict.TryGetValue(family, out var item))
                 return item.Id;
             return -1;
         }
 
         public int GetGenusID(string genus)
         {
-            if (genusDict.TryGetValue(genus, out var item))
+            if (_genusDict.TryGetValue(genus, out var item))
                 return item.Id;
             return -1;
         }
 
         public int GetSpeciesID(string species)
         {
-            if (speciesDict.TryGetValue(species, out var item))
+            if (_speciesDict.TryGetValue(species, out var item))
                 return item.Id;
             return -1;
         }
@@ -4009,11 +4018,11 @@ namespace Surveyor.User_Controls
         {
             var categories = new List<object>();
 
-            if (includePartialIdentification)
+            if (_includePartialIdentification)
             {
                 // Make the categories
                 // Category Family
-                foreach (var kvpFamily in familyDict)
+                foreach (var kvpFamily in _familyDict)
                 {
                     categories.Add(new
                     {
@@ -4023,7 +4032,7 @@ namespace Surveyor.User_Controls
                     });
                 }
                 // Category Genus
-                foreach (var kvpGenus in genusDict)
+                foreach (var kvpGenus in _genusDict)
                 {
                     categories.Add(new
                     {
@@ -4034,13 +4043,19 @@ namespace Surveyor.User_Controls
                 }
             }
 
-            // Category Species
-            foreach (var kvpSpecies in speciesDict)
+            // Category Species (try to use "Genus Species" as the category name if possible)
+            foreach (var kvpSpecies in _speciesDict)
             {
+                string catName;
+                if (!string.IsNullOrEmpty(((COCOCategoryItem)kvpSpecies).Parent))
+                    catName = $"{((COCOCategoryItem)kvpSpecies).Parent/*genus*/} {kvpSpecies.Key/*species*/}";
+                else
+                    catName = kvpSpecies.Key;
+
                 categories.Add(new
                 {
                     id = ((COCOCategoryItem)kvpSpecies).Id,
-                    name = kvpSpecies.Key,
+                    name = catName,
                     supercategory = "animal",
                 });
             }
